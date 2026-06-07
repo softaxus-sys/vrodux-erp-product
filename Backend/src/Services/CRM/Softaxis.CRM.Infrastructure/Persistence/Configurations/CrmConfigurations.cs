@@ -1,0 +1,142 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Softaxis.CRM.Domain.Entities;
+
+namespace Softaxis.CRM.Infrastructure.Persistence.Configurations;
+
+internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
+{
+    public void Configure(EntityTypeBuilder<Lead> builder)
+    {
+        builder.ToTable("leads");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
+        builder.Property(x => x.LastName).IsRequired().HasMaxLength(100);
+        builder.Property(x => x.Title).HasMaxLength(100);
+        builder.Property(x => x.Company).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Industry).HasMaxLength(100);
+        builder.Property(x => x.Email).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Phone).HasMaxLength(50);
+        builder.Property(x => x.Country).HasMaxLength(100);
+        builder.Property(x => x.City).HasMaxLength(100);
+        builder.Property(x => x.Source).HasMaxLength(50);
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("new");
+        builder.Property(x => x.Priority).HasMaxLength(20).HasDefaultValue("medium");
+        builder.Property(x => x.EstimatedValue).HasPrecision(18, 2);
+        builder.Property(x => x.Currency).HasMaxLength(10);
+        builder.Property(x => x.AssignedTo).HasMaxLength(200);
+        builder.Property(x => x.CreatedDate).HasMaxLength(20);
+        builder.Property(x => x.LastContactDate).HasMaxLength(20);
+        builder.Property(x => x.NextFollowUp).HasMaxLength(20);
+        builder.Property(x => x.Notes).HasMaxLength(2000);
+        builder.Property(x => x.ConvertedDealId).HasMaxLength(50);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Property(x => x.Tags).HasConversion(
+            v => string.Join(',', v),
+            v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+        builder.Ignore(x => x.FullName);
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
+
+internal sealed class CrmCustomerConfiguration : IEntityTypeConfiguration<CrmCustomer>
+{
+    public void Configure(EntityTypeBuilder<CrmCustomer> builder)
+    {
+        builder.ToTable("customers");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.TradeName).HasMaxLength(200);
+        builder.Property(x => x.Industry).HasMaxLength(100);
+        builder.Property(x => x.Website).HasMaxLength(200);
+        builder.Property(x => x.Country).HasMaxLength(100);
+        builder.Property(x => x.City).HasMaxLength(100);
+        builder.Property(x => x.Address).HasMaxLength(500);
+        builder.Property(x => x.Phone).HasMaxLength(50);
+        builder.Property(x => x.Email).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("active");
+        builder.Property(x => x.Tier).HasMaxLength(20).HasDefaultValue("standard");
+        builder.Property(x => x.AccountManager).HasMaxLength(200);
+        builder.Property(x => x.Since).HasMaxLength(20);
+        builder.Property(x => x.LastActivity).HasMaxLength(20);
+        builder.Property(x => x.TotalRevenue).HasPrecision(18, 2);
+        builder.Property(x => x.Currency).HasMaxLength(10);
+        builder.Property(x => x.Employees).HasMaxLength(20);
+        builder.Property(x => x.Description).HasMaxLength(2000);
+        builder.Property(x => x.ContractRenewal).HasMaxLength(20);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Property(x => x.Tags).HasConversion(
+            v => string.Join(',', v),
+            v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
+
+internal sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
+{
+    public void Configure(EntityTypeBuilder<Contact> builder)
+    {
+        builder.ToTable("contacts");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.FirstName).IsRequired().HasMaxLength(100);
+        builder.Property(x => x.LastName).HasMaxLength(100);
+        builder.Property(x => x.Title).HasMaxLength(120);
+        builder.Property(x => x.Email).HasMaxLength(200);
+        builder.Property(x => x.Phone).HasMaxLength(50);
+        builder.Property(x => x.Department).HasMaxLength(120);
+        builder.Property(x => x.Notes).HasMaxLength(1000);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Ignore(x => x.FullName);
+        builder.HasIndex(x => x.CustomerId);
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
+
+internal sealed class ActivityConfiguration : IEntityTypeConfiguration<Activity>
+{
+    public void Configure(EntityTypeBuilder<Activity> builder)
+    {
+        builder.ToTable("activities");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Type).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.Subject).IsRequired().HasMaxLength(300);
+        builder.Property(x => x.Description).HasMaxLength(2000);
+        builder.Property(x => x.RelatedToType).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.RelatedToName).HasMaxLength(200);
+        builder.Property(x => x.DueDate).HasMaxLength(20);
+        builder.Property(x => x.AssignedTo).HasMaxLength(200);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.HasIndex(x => new { x.RelatedToType, x.RelatedToId });
+        builder.HasIndex(x => new { x.Completed, x.DueDate });
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
+
+internal sealed class DealConfiguration : IEntityTypeConfiguration<Deal>
+{
+    public void Configure(EntityTypeBuilder<Deal> builder)
+    {
+        builder.ToTable("deals");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
+        builder.Property(x => x.Company).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.Value).HasPrecision(18, 2);
+        builder.Property(x => x.Currency).HasMaxLength(10);
+        builder.Property(x => x.Stage).IsRequired().HasMaxLength(20).HasDefaultValue("lead");
+        builder.Property(x => x.Priority).HasMaxLength(20).HasDefaultValue("medium");
+        builder.Property(x => x.ExpectedCloseDate).HasMaxLength(20);
+        builder.Property(x => x.CreatedDate).HasMaxLength(20);
+        builder.Property(x => x.AssignedTo).HasMaxLength(200);
+        builder.Property(x => x.Source).HasMaxLength(50);
+        builder.Property(x => x.Industry).HasMaxLength(100);
+        builder.Property(x => x.Description).HasMaxLength(2000);
+        builder.Property(x => x.NextAction).HasMaxLength(500);
+        builder.Property(x => x.NextActionDate).HasMaxLength(20);
+        builder.Property(x => x.ContactJson).HasMaxLength(1000);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.Property(x => x.Tags).HasConversion(
+            v => string.Join(',', v),
+            v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}

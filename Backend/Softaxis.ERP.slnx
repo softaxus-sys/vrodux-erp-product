@@ -1,0 +1,84 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/ApiGateway/">
+    <Project Path="src/ApiGateway/Softaxis.ApiGateway/Softaxis.ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Softaxis.BuildingBlocks.Application/Softaxis.BuildingBlocks.Application.csproj" />
+    <Project Path="src/BuildingBlocks/Softaxis.BuildingBlocks.Domain/Softaxis.BuildingBlocks.Domain.csproj" />
+    <Project Path="src/BuildingBlocks/Softaxis.BuildingBlocks.Infrastructure/Softaxis.BuildingBlocks.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Identity/">
+    <Project Path="src/Services/Identity/Softaxis.Identity.API/Softaxis.Identity.API.csproj" />
+    <Project Path="src/Services/Identity/Softaxis.Identity.Application/Softaxis.Identity.Application.csproj" />
+    <Project Path="src/Services/Identity/Softaxis.Identity.Domain/Softaxis.Identity.Domain.csproj" />
+    <Project Path="src/Services/Identity/Softaxis.Identity.Infrastructure/Softaxis.Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/POS/">
+    <Project Path="src/Services/POS/Softaxis.POS.API/Softaxis.POS.API.csproj" />
+    <Project Path="src/Services/POS/Softaxis.POS.Application/Softaxis.POS.Application.csproj" />
+    <Project Path="src/Services/POS/Softaxis.POS.Domain/Softaxis.POS.Domain.csproj" />
+    <Project Path="src/Services/POS/Softaxis.POS.Infrastructure/Softaxis.POS.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Inventory/">
+    <Project Path="src/Services/Inventory/Softaxis.Inventory.API/Softaxis.Inventory.API.csproj" />
+    <Project Path="src/Services/Inventory/Softaxis.Inventory.Application/Softaxis.Inventory.Application.csproj" />
+    <Project Path="src/Services/Inventory/Softaxis.Inventory.Domain/Softaxis.Inventory.Domain.csproj" />
+    <Project Path="src/Services/Inventory/Softaxis.Inventory.Infrastructure/Softaxis.Inventory.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Sales/">
+    <Project Path="src/Services/Sales/Softaxis.Sales.API/Softaxis.Sales.API.csproj" />
+    <Project Path="src/Services/Sales/Softaxis.Sales.Application/Softaxis.Sales.Application.csproj" />
+    <Project Path="src/Services/Sales/Softaxis.Sales.Domain/Softaxis.Sales.Domain.csproj" />
+    <Project Path="src/Services/Sales/Softaxis.Sales.Infrastructure/Softaxis.Sales.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Purchase/">
+    <Project Path="src/Services/Purchase/Softaxis.Purchase.API/Softaxis.Purchase.API.csproj" />
+    <Project Path="src/Services/Purchase/Softaxis.Purchase.Application/Softaxis.Purchase.Application.csproj" />
+    <Project Path="src/Services/Purchase/Softaxis.Purchase.Domain/Softaxis.Purchase.Domain.csproj" />
+    <Project Path="src/Services/Purchase/Softaxis.Purchase.Infrastructure/Softaxis.Purchase.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/HR/">
+    <Project Path="src/Services/HR/Softaxis.HR.API/Softaxis.HR.API.csproj" />
+    <Project Path="src/Services/HR/Softaxis.HR.Application/Softaxis.HR.Application.csproj" />
+    <Project Path="src/Services/HR/Softaxis.HR.Domain/Softaxis.HR.Domain.csproj" />
+    <Project Path="src/Services/HR/Softaxis.HR.Infrastructure/Softaxis.HR.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Finance/">
+    <Project Path="src/Services/Finance/Softaxis.Finance.API/Softaxis.Finance.API.csproj" />
+    <Project Path="src/Services/Finance/Softaxis.Finance.Application/Softaxis.Finance.Application.csproj" />
+    <Project Path="src/Services/Finance/Softaxis.Finance.Domain/Softaxis.Finance.Domain.csproj" />
+    <Project Path="src/Services/Finance/Softaxis.Finance.Infrastructure/Softaxis.Finance.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/CRM/">
+    <Project Path="src/Services/CRM/Softaxis.CRM.API/Softaxis.CRM.API.csproj" />
+    <Project Path="src/Services/CRM/Softaxis.CRM.Domain/Softaxis.CRM.Domain.csproj" />
+    <Project Path="src/Services/CRM/Softaxis.CRM.Infrastructure/Softaxis.CRM.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Construction/">
+    <Project Path="src/Services/Construction/Softaxis.Construction.API/Softaxis.Construction.API.csproj" />
+    <Project Path="src/Services/Construction/Softaxis.Construction.Domain/Softaxis.Construction.Domain.csproj" />
+    <Project Path="src/Services/Construction/Softaxis.Construction.Infrastructure/Softaxis.Construction.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/RealEstate/">
+    <Project Path="src/Services/RealEstate/Softaxis.RealEstate.API/Softaxis.RealEstate.API.csproj" />
+    <Project Path="src/Services/RealEstate/Softaxis.RealEstate.Domain/Softaxis.RealEstate.Domain.csproj" />
+    <Project Path="src/Services/RealEstate/Softaxis.RealEstate.Infrastructure/Softaxis.RealEstate.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Hospitality/">
+    <Project Path="src/Services/Hospitality/Softaxis.Hospitality.API/Softaxis.Hospitality.API.csproj" />
+    <Project Path="src/Services/Hospitality/Softaxis.Hospitality.Domain/Softaxis.Hospitality.Domain.csproj" />
+    <Project Path="src/Services/Hospitality/Softaxis.Hospitality.Infrastructure/Softaxis.Hospitality.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Restaurant/">
+    <Project Path="src/Services/Restaurant/Softaxis.Restaurant.API/Softaxis.Restaurant.API.csproj" />
+    <Project Path="src/Services/Restaurant/Softaxis.Restaurant.Domain/Softaxis.Restaurant.Domain.csproj" />
+    <Project Path="src/Services/Restaurant/Softaxis.Restaurant.Infrastructure/Softaxis.Restaurant.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Recipe/">
+    <Project Path="src/Services/Recipe/Softaxis.Recipe.API/Softaxis.Recipe.API.csproj" />
+    <Project Path="src/Services/Recipe/Softaxis.Recipe.Domain/Softaxis.Recipe.Domain.csproj" />
+    <Project Path="src/Services/Recipe/Softaxis.Recipe.Infrastructure/Softaxis.Recipe.Infrastructure.csproj" />
+  </Folder>
+</Solution>

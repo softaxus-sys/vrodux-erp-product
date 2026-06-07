@@ -1,0 +1,6 @@
+@Softaxis.Identity.API_HostAddress = http://localhost:5038
+
+GET {{Softaxis.Identity.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

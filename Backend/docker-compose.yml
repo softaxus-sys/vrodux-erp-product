@@ -1,0 +1,92 @@
+version: '3.9'
+
+services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: softaxis-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: softaxis_identity
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Seq (structured logging) ───────────────────────────────────────────────
+  seq:
+    image: datalust/seq:latest
+    container_name: softaxis-seq
+    environment:
+      ACCEPT_EULA: Y
+    ports:
+      - "5341:80"
+    volumes:
+      - seq_data:/data
+
+  # ── Identity API ───────────────────────────────────────────────────────────
+  identity.api:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/Softaxis.Identity.API/Dockerfile
+    container_name: softaxis-identity-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__IdentityDb: "Host=postgres;Port=5432;Database=softaxis_identity;Username=postgres;Password=postgres"
+      Jwt__Secret: "CHANGE_ME_USE_A_LONG_RANDOM_SECRET_KEY_MIN_32_CHARS"
+      Jwt__Issuer: "softaxis.identity"
+      Jwt__Audience: "softaxis.erp"
+      Seq__Url: "http://seq"
+    ports:
+      - "5001:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── POS API ────────────────────────────────────────────────────────────────
+  pos.api:
+    build:
+      context: .
+      dockerfile: src/Services/POS/Softaxis.POS.API/Dockerfile
+    container_name: softaxis-pos-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__POSDb: "Host=postgres;Port=5432;Database=softaxis_erp;Username=postgres;Password=postgres;Search Path=pos"
+      Jwt__Secret: "CHANGE_ME_USE_A_LONG_RANDOM_SECRET_KEY_MIN_32_CHARS"
+      Jwt__Issuer: "Softaxis.Identity.API"
+      Jwt__Audience: "Softaxis.ERP.Clients"
+      Seq__Url: "http://seq"
+    ports:
+      - "5002:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── API Gateway ────────────────────────────────────────────────────────────
+  apigateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/Softaxis.ApiGateway/Dockerfile
+    container_name: softaxis-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Docker
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5000:8080"
+    depends_on:
+      - identity.api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  seq_data:

@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
+    <PackageReference Include="Serilog" Version="4.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\Softaxis.BuildingBlocks.Application\Softaxis.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\Softaxis.Identity.API\Softaxis.Identity.API.csproj" />
+    <ProjectReference Include="..\..\Services\Identity\Softaxis.Identity.Infrastructure\Softaxis.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Inventory\Softaxis.Inventory.API\Softaxis.Inventory.API.csproj" />
+    <ProjectReference Include="..\..\Services\Inventory\Softaxis.Inventory.Infrastructure\Softaxis.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\POS\Softaxis.POS.API\Softaxis.POS.API.csproj" />
+    <ProjectReference Include="..\..\Services\POS\Softaxis.POS.Infrastructure\Softaxis.POS.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Purchase\Softaxis.Purchase.API\Softaxis.Purchase.API.csproj" />
+    <ProjectReference Include="..\..\Services\Purchase\Softaxis.Purchase.Infrastructure\Softaxis.Purchase.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Sales\Softaxis.Sales.API\Softaxis.Sales.API.csproj" />
+    <ProjectReference Include="..\..\Services\Sales\Softaxis.Sales.Infrastructure\Softaxis.Sales.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\HR\Softaxis.HR.API\Softaxis.HR.API.csproj" />
+    <ProjectReference Include="..\..\Services\HR\Softaxis.HR.Infrastructure\Softaxis.HR.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Finance\Softaxis.Finance.API\Softaxis.Finance.API.csproj" />
+    <ProjectReference Include="..\..\Services\Finance\Softaxis.Finance.Infrastructure\Softaxis.Finance.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\CRM\Softaxis.CRM.API\Softaxis.CRM.API.csproj" />
+    <ProjectReference Include="..\..\Services\CRM\Softaxis.CRM.Infrastructure\Softaxis.CRM.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Construction\Softaxis.Construction.API\Softaxis.Construction.API.csproj" />
+    <ProjectReference Include="..\..\Services\Construction\Softaxis.Construction.Infrastructure\Softaxis.Construction.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\RealEstate\Softaxis.RealEstate.API\Softaxis.RealEstate.API.csproj" />
+    <ProjectReference Include="..\..\Services\RealEstate\Softaxis.RealEstate.Infrastructure\Softaxis.RealEstate.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Hospitality\Softaxis.Hospitality.API\Softaxis.Hospitality.API.csproj" />
+    <ProjectReference Include="..\..\Services\Hospitality\Softaxis.Hospitality.Infrastructure\Softaxis.Hospitality.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Restaurant\Softaxis.Restaurant.API\Softaxis.Restaurant.API.csproj" />
+    <ProjectReference Include="..\..\Services\Restaurant\Softaxis.Restaurant.Infrastructure\Softaxis.Restaurant.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Recipe\Softaxis.Recipe.API\Softaxis.Recipe.API.csproj" />
+    <ProjectReference Include="..\..\Services\Recipe\Softaxis.Recipe.Infrastructure\Softaxis.Recipe.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

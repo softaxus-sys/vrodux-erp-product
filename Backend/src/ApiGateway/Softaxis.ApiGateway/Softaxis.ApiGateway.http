@@ -1,0 +1,6 @@
+@Softaxis.ApiGateway_HostAddress = http://localhost:5234
+
+GET {{Softaxis.ApiGateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

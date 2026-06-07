@@ -1,0 +1,32 @@
+# ── .NET ──────────────────────────────────────────────
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+.vs/
+artifacts/
+project.lock.json
+
+# ── Node / Vite (FrontendVite) ────────────────────────
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# ── Env / secrets ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+# Local dev overrides hold real credentials — never commit
+appsettings.Development.json
+appsettings.*.Local.json
+secrets.json
+
+# ── Logs / OS ─────────────────────────────────────────
+*.log
+npm-debug.log*
+Thumbs.db
+.DS_Store

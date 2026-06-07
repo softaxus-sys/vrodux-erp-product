@@ -1,0 +1,192 @@
+"use client";
+
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X, CheckCircle2, Ban, Clock, AlertTriangle,
+  User, Calendar, Building2, FileText,
+  ShoppingBag, Zap,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import type { ApprovalDto, ApprovalStatus } from "@/lib/purchase/approvals.api";
+import { useApproveRequest, useRejectRequest } from "@/hooks/purchase/use-approvals";
+
+const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
+  pending:   { label: "Pending",   color: "text-warning",          bg: "bg-warning/10",     icon: Clock },
+  approved:  { label: "Approved",  color: "text-success",          bg: "bg-success/10",     icon: CheckCircle2 },
+  rejected:  { label: "Rejected",  color: "text-destructive",      bg: "bg-destructive/10", icon: Ban },
+  cancelled: { label: "Cancelled", color: "text-muted-foreground", bg: "bg-muted",          icon: Ban },
+};
+
+type Urgency = "low" | "medium" | "high" | "critical";
+const URGENCY_CONFIG: Record<Urgency, { label: string; color: string; bg: string }> = {
+  low:      { label: "Low",      color: "text-muted-foreground", bg: "bg-muted" },
+  medium:   { label: "Medium",   color: "text-blue-600",         bg: "bg-blue-50 dark:bg-blue-900/20" },
+  high:     { label: "High",     color: "text-warning",          bg: "bg-warning/10" },
+  critical: { label: "Critical", color: "text-destructive",      bg: "bg-destructive/10" },
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  purchase_order:        "Purchase Order",
+  purchase_requisition:  "Purchase Requisition",
+  vendor_quote:          "Vendor Quote",
+};
+
+interface Props { approval: ApprovalDto | null; open: boolean; onClose: () => void; }
+
+export function ApprovalDrawer({ approval, open, onClose }: Props) {
+  const approveRequest = useApproveRequest();
+  const rejectRequest  = useRejectRequest();
+
+  if (!approval) return null;
+
+  const sc = STATUS_CONFIG[approval.status];
+  const uc = URGENCY_CONFIG[approval.urgency as Urgency] ?? URGENCY_CONFIG.medium;
+  const StatusIcon = sc.icon;
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed top-0 right-0 h-full w-full max-w-[580px] bg-background border-l border-border shadow-2xl z-50 flex flex-col">
+
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 py-5 border-b border-border">
+              <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
+                <div className={cn("h-11 w-11 rounded-xl flex items-center justify-center shrink-0", sc.bg)}>
+                  <StatusIcon className={cn("h-5 w-5", sc.color)} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-base leading-tight">{approval.referenceNumber}</p>
+                  <p className="text-sm text-muted-foreground truncate">{approval.description}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
+                      <StatusIcon className="h-3 w-3" />{sc.label}
+                    </span>
+                    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", uc.color, uc.bg)}>
+                      {approval.urgency === "critical" && <Zap className="h-3 w-3" />}
+                      {uc.label} Priority
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}><X className="h-4 w-4" /></Button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Total */}
+              <div className={cn("border rounded-xl p-5",
+                approval.status === "approved" ? "bg-success/5 border-success/20" :
+                approval.status === "rejected" ? "bg-destructive/5 border-destructive/20" :
+                "bg-muted/30 border-border")}>
+                <p className="text-xs text-muted-foreground mb-1">Requested Budget</p>
+                <p className={cn("text-3xl font-bold",
+                  approval.status === "approved" ? "text-success" :
+                  approval.status === "rejected" ? "text-destructive" : "text-foreground")}>
+                  {formatCurrency(approval.totalAmount, approval.currency)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {approval.currency} · {TYPE_LABELS[approval.type] ?? approval.type}
+                </p>
+              </div>
+
+              {/* Notes */}
+              {approval.notes && (
+                <div>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Notes</h4>
+                  <p className="text-sm text-muted-foreground bg-muted/30 rounded-xl p-4 leading-relaxed">{approval.notes}</p>
+                </div>
+              )}
+
+              {/* Details */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Request Details</h4>
+                <div className="bg-muted/30 rounded-xl p-4 space-y-0">
+                  {[
+                    { icon: User,      label: "Requested By",  value: approval.requestedBy },
+                    { icon: Calendar,  label: "Request Date",  value: formatDate(approval.requestDate, "medium") },
+                    { icon: Building2, label: "Type",          value: TYPE_LABELS[approval.type] ?? approval.type },
+                    ...(approval.vendorName ? [{ icon: Building2, label: "Preferred Vendor", value: approval.vendorName }] : []),
+                    ...(approval.approvedBy ? [{ icon: User, label: "Reviewed By", value: approval.approvedBy }] : []),
+                    ...(approval.approvedDate ? [{ icon: Calendar, label: "Reviewed On", value: formatDate(approval.approvedDate, "medium") }] : []),
+                  ].map(row => (
+                    <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+                      <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="flex-1 flex justify-between gap-4 min-w-0">
+                        <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
+                        <span className="text-sm font-medium text-right truncate">{row.value}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Items */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  Requested Items ({approval.items.length})
+                </h4>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/40 text-xs text-muted-foreground">
+                        <th className="text-left px-4 py-3 font-semibold">Description</th>
+                        <th className="text-right px-4 py-3 font-semibold">Qty</th>
+                        <th className="text-right px-4 py-3 font-semibold">Unit Price</th>
+                        <th className="text-right px-4 py-3 font-semibold">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approval.items.map((item, i) => (
+                        <motion.tr key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="border-t border-border/40 hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-3 text-sm font-medium">{item.description}</td>
+                          <td className="px-4 py-3 text-right text-sm text-muted-foreground">{item.quantity}</td>
+                          <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.unitPrice, approval.currency)}</td>
+                          <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.total, approval.currency)}</td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex justify-between items-center px-1">
+                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span className="font-bold text-base">{formatCurrency(approval.totalAmount, approval.currency)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-border px-6 py-4 flex items-center gap-2">
+              {approval.status === "pending" && (
+                <>
+                  <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90"
+                    disabled={approveRequest.isPending}
+                    onClick={() => approveRequest.mutate({ id: approval.id })}>
+                    <CheckCircle2 className="h-3.5 w-3.5" />Approve
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={rejectRequest.isPending}
+                    onClick={() => rejectRequest.mutate({ id: approval.id, reason: "Rejected by reviewer" })}>
+                    <Ban className="h-3.5 w-3.5" />Reject
+                  </Button>
+                </>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5 h-9 ml-auto">
+                <FileText className="h-3.5 w-3.5" />Export
+              </Button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

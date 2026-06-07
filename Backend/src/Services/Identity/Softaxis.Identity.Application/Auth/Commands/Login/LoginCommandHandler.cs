@@ -1,0 +1,91 @@
+using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.DTOs;
+using Softaxis.Identity.Domain.Entities;
+using Softaxis.Identity.Domain.Repositories;
+using RefreshTokenEntity = Softaxis.Identity.Domain.Entities.RefreshToken;
+
+namespace Softaxis.Identity.Application.Auth.Commands.Login;
+
+public sealed class LoginCommandHandler(
+    IUserRepository         userRepo,
+    IRefreshTokenRepository refreshRepo,
+    IPermissionRepository   permissionRepo,
+    ITenantRepository       tenantRepo,
+    IPasswordHasher         passwordHasher,
+    IJwtTokenService        jwtService,
+    IAuditLogRepository     auditRepo,
+    IUnitOfWork             uow)
+    : ICommandHandler<LoginCommand, AuthTokenDto>
+{
+    public async Task<Result<AuthTokenDto>> Handle(LoginCommand cmd, CancellationToken ct)
+    {
+        var user = await userRepo.GetByEmailAsync(cmd.Email, ct);
+        if (user is null)
+            return Fail(null, cmd, false, "Invalid email or password.");
+
+        if (user.IsLocked)
+            return Fail(user.Id, cmd, false, "Account is locked. Try again later.");
+
+        if (!passwordHasher.Verify(cmd.Password, user.PasswordHash))
+        {
+            user.RecordLoginFailure();
+            userRepo.Update(user);
+            await uow.SaveChangesAsync(ct);
+            return Fail(user.Id, cmd, false, "Invalid email or password.");
+        }
+
+        // Successful login
+        user.RecordLoginSuccess();
+
+        // Load tenant (null for super-admin users)
+        var tenant = user.TenantId.HasValue
+            ? await tenantRepo.GetByIdAsync(user.TenantId.Value, ct)
+            : null;
+
+        // Issue tokens
+        var permKeys = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
+        var rawRefresh = jwtService.GenerateRefreshTokenRaw();
+        var refreshHash = jwtService.HashToken(rawRefresh);
+
+        var refreshToken = new RefreshTokenEntity(user.Id, refreshHash, jwtService.RefreshTokenExpiry, cmd.IpAddress);
+        refreshRepo.Add(refreshToken);
+        userRepo.Update(user);
+
+        // Audit
+        auditRepo.Add(new AuditLog(user.Id, "LOGIN", "User", user.Id.ToString(), null, null, cmd.IpAddress, null, true));
+
+        await uow.SaveChangesAsync(ct);
+
+        var accessToken = jwtService.GenerateAccessToken(user, permKeys, tenant);
+        var dto         = MapToDto(user, accessToken, rawRefresh);
+
+        return Result.Success(dto);
+    }
+
+    private static Result<AuthTokenDto> Fail(Guid? userId, LoginCommand cmd, bool succeeded, string msg)
+        => Result.Failure<AuthTokenDto>(Error.Custom("Auth.Login.Failed", msg));
+
+    private AuthTokenDto MapToDto(Domain.Entities.User user, string accessToken, string rawRefresh) =>
+        new(
+            accessToken,
+            rawRefresh,
+            jwtService.AccessTokenExpiry,
+            new UserDto(
+                user.Id, user.Email.Value, user.Username,
+                user.FirstName, user.LastName, user.FullName,
+                user.Status.ToString(), user.EmailVerified,
+                user.AvatarUrl, user.PhoneNumber, user.LastLoginAt,
+                user.CreatedAt,
+                user.UserRoles.Select(ur => new RoleDto(
+                    ur.Role.Id, ur.Role.Name, ur.Role.Description,
+                    ur.Role.IsSystem, ur.Role.UserRoles.Count,
+                    ur.Role.RolePermissions.Select(rp => new PermissionDto(
+                        rp.Permission.Id, rp.Permission.ModuleId,
+                        rp.Permission.Action, rp.Permission.Description,
+                        rp.Permission.Key)).ToList()
+                )).ToList()
+            )
+        );
+}

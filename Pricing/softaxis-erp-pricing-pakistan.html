@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Softaxis ERP — Pricing Guide | Pakistan</title>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    color: #1e293b;
+    background: #f8fafc;
+    line-height: 1.5;
+  }
+
+  /* ── Page wrapper ── */
+  .page { max-width: 960px; margin: 0 auto; background: white; }
+
+  /* ── Cover header ── */
+  .cover {
+    background: linear-gradient(135deg, #1e40af 0%, #2563eb 55%, #3b82f6 100%);
+    padding: 48px 56px 40px;
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .cover::before {
+    content: "";
+    position: absolute;
+    right: 80px; bottom: -80px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+  }
+  .cover-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .logo-block { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 48px; height: 48px;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16pt; font-weight: 900; letter-spacing: -1px;
+  }
+  .logo-text { font-size: 18pt; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-sub  { font-size: 8.5pt; opacity: 0.75; margin-top: 2px; }
+  .country-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 24px;
+    padding: 6px 16px;
+    font-size: 9.5pt; font-weight: 600;
+  }
+  .cover-title { font-size: 28pt; font-weight: 800; letter-spacing: -1px; line-height: 1.1; }
+  .cover-sub   { font-size: 11pt; opacity: 0.85; margin-top: 6px; }
+  .cover-meta  {
+    margin-top: 24px;
+    display: flex; gap: 24px; flex-wrap: wrap;
+  }
+  .cover-meta-item {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 8.5pt;
+  }
+  .cover-meta-item strong { display: block; font-size: 10pt; font-weight: 700; }
+
+  /* ── Section wrapper ── */
+  .section { padding: 40px 56px; }
+  .section + .section { border-top: 1px solid #f1f5f9; }
+
+  /* ── Section heading ── */
+  .section-title {
+    font-size: 14pt; font-weight: 800; color: #0f172a;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .accent {
+    width: 4px; height: 22px;
+    background: #2563eb; border-radius: 2px; flex-shrink: 0;
+  }
+  .section-sub {
+    font-size: 9.5pt; color: #64748b; margin-bottom: 24px;
+    padding-left: 14px;
+  }
+
+  /* ── Value props row ── */
+  .props { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 0; }
+  .prop {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .prop-icon { font-size: 20pt; margin-bottom: 8px; }
+  .prop-title { font-size: 10pt; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .prop-desc  { font-size: 8.5pt; color: #64748b; line-height: 1.5; }
+
+  /* ── Pricing cards ── */
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+
+  .plan {
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+    position: relative;
+  }
+  .plan.popular {
+    border-color: #2563eb;
+    box-shadow: 0 8px 32px rgba(37,99,235,0.15);
+    transform: translateY(-4px);
+  }
+  .popular-badge {
+    background: #2563eb;
+    color: white;
+    font-size: 7.5pt;
+    font-weight: 800;
+    text-align: center;
+    padding: 5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .plan-head { padding: 24px 22px 20px; }
+  .plan.starter .plan-head { background: #f8fafc; }
+  .plan.popular .plan-head { background: #eff6ff; }
+  .plan.enterprise .plan-head { background: #0f172a; color: white; }
+
+  .plan-tier  { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
+  .plan.enterprise .plan-tier { color: #94a3b8; }
+  .plan.popular .plan-tier  { color: #2563eb; }
+  .plan-name  { font-size: 15pt; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+  .plan.enterprise .plan-name { color: white; }
+  .plan-tagline { font-size: 8.5pt; color: #64748b; margin-bottom: 16px; }
+  .plan.enterprise .plan-tagline { color: #94a3b8; }
+
+  /* Pricing table in each card */
+  .price-table { border-top: 1px solid #e2e8f0; padding-top: 16px; }
+  .plan.enterprise .price-table { border-top-color: rgba(255,255,255,0.1); }
+
+  .price-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .price-label {
+    font-size: 8pt; color: #94a3b8; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    background: #f1f5f9;
+    padding: 2px 7px; border-radius: 5px;
+  }
+  .plan.enterprise .price-label { background: rgba(255,255,255,0.1); color: #94a3b8; }
+
+  .price-val { font-size: 11pt; font-weight: 800; color: #0f172a; }
+  .plan.enterprise .price-val { color: white; }
+  .price-val span { font-size: 8pt; font-weight: 500; color: #64748b; margin-left: 2px; }
+  .plan.enterprise .price-val span { color: #94a3b8; }
+
+  .price-save {
+    font-size: 7.5pt; font-weight: 700; color: #059669;
+    background: #d1fae5; border-radius: 4px;
+    padding: 1px 5px; margin-left: 4px;
+  }
+
+  .price-onetime {
+    border-top: 1px dashed #e2e8f0;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  .plan.enterprise .price-onetime { border-top-color: rgba(255,255,255,0.1); }
+  .price-onetime-label {
+    font-size: 7.5pt; color: #94a3b8; margin-bottom: 4px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .price-onetime-val { font-size: 10.5pt; font-weight: 800; color: #7c3aed; }
+  .plan.enterprise .price-onetime-val { color: #a78bfa; }
+  .price-onetime-amc { font-size: 8pt; color: #64748b; margin-top: 2px; }
+  .plan.enterprise .price-onetime-amc { color: #94a3b8; }
+
+  /* Feature list */
+  .plan-body { padding: 20px 22px; }
+  .plan-features { list-style: none; }
+  .plan-features li {
+    font-size: 8.5pt;
+    color: #334155;
+    padding: 4px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    border-bottom: 1px solid #f8fafc;
+  }
+  .plan.enterprise .plan-features li { color: #e2e8f0; border-bottom-color: rgba(255,255,255,0.05); }
+  .plan-features li:last-child { border-bottom: none; }
+
+  .check  { color: #059669; font-size: 9pt; flex-shrink: 0; margin-top: 1px; }
+  .cross  { color: #cbd5e1; font-size: 9pt; flex-shrink: 0; margin-top: 1px; }
+  .plus   { color: #2563eb; font-size: 9pt; flex-shrink: 0; margin-top: 1px; }
+
+  .plan-users {
+    margin-top: 14px;
+    padding: 9px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 8.5pt;
+    color: #334155;
+    display: flex;
+    justify-content: space-between;
+  }
+  .plan.enterprise .plan-users { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #e2e8f0; }
+  .plan-users strong { color: #0f172a; }
+  .plan.enterprise .plan-users strong { color: white; }
+
+  /* ── Compliance highlight ── */
+  .compliance-box {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #86efac;
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex; gap: 16px;
+  }
+  .compliance-icon { font-size: 22pt; flex-shrink: 0; }
+  .compliance-title { font-size: 11pt; font-weight: 700; color: #166534; margin-bottom: 4px; }
+  .compliance-items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .comp-badge {
+    font-size: 8pt; font-weight: 700;
+    background: white; color: #166534;
+    border: 1px solid #86efac;
+    border-radius: 20px; padding: 3px 10px;
+  }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .comp-table thead tr { background: #0f172a; color: white; }
+  .comp-table thead th {
+    padding: 10px 12px; text-align: left; font-weight: 600; font-size: 8.5pt;
+  }
+  .comp-table thead th:first-child { border-radius: 8px 0 0 0; }
+  .comp-table thead th:last-child  { border-radius: 0 8px 0 0; }
+  .comp-table thead th:not(:first-child) { text-align: center; }
+  .comp-table tbody tr:nth-child(even) { background: #f8fafc; }
+  .comp-table tbody td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+  .comp-table tbody td:not(:first-child) { text-align: center; }
+  .comp-table tbody tr:hover { background: #eff6ff; }
+  .comp-table .section-row td {
+    background: #e2e8f0; font-weight: 700; font-size: 8pt;
+    color: #475569; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 6px 12px;
+  }
+  .tick  { color: #059669; font-weight: 700; font-size: 11pt; }
+  .dash  { color: #cbd5e1; }
+  .num   { font-weight: 700; color: #2563eb; }
+
+  /* ── Addons ── */
+  .addons-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .addon {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .addon-name  { font-size: 9.5pt; font-weight: 600; color: #0f172a; margin-bottom: 3px; }
+  .addon-desc  { font-size: 8pt; color: #64748b; }
+  .addon-price { font-size: 10pt; font-weight: 800; color: #2563eb; white-space: nowrap; margin-left: 12px; text-align: right; }
+  .addon-price span { display: block; font-size: 7.5pt; font-weight: 500; color: #94a3b8; }
+
+  /* ── Implementation ── */
+  .impl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .impl {
+    border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;
+    text-align: center;
+  }
+  .impl-icon  { font-size: 20pt; margin-bottom: 8px; }
+  .impl-name  { font-size: 10pt; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .impl-price { font-size: 14pt; font-weight: 800; color: #2563eb; margin-bottom: 6px; }
+  .impl-items { font-size: 8pt; color: #64748b; line-height: 1.7; }
+
+  /* ── Support tiers ── */
+  .support-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .support {
+    border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;
+  }
+  .support-name  { font-size: 9.5pt; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+  .support-items { list-style: none; }
+  .support-items li {
+    font-size: 8.5pt; color: #475569;
+    padding: 3px 0; display: flex; align-items: flex-start; gap: 6px;
+  }
+
+  /* ── Notes ── */
+  .notes { background: #fefce8; border: 1px solid #fde68a; border-radius: 10px; padding: 18px 22px; }
+  .notes-title { font-size: 10pt; font-weight: 700; color: #92400e; margin-bottom: 8px; }
+  .notes ol { padding-left: 18px; }
+  .notes ol li { font-size: 8.5pt; color: #78350f; margin-bottom: 4px; line-height: 1.5; }
+
+  /* ── CTA footer ── */
+  .cta {
+    background: linear-gradient(135deg, #1e40af, #2563eb);
+    padding: 36px 56px;
+    color: white;
+    text-align: center;
+  }
+  .cta-title  { font-size: 16pt; font-weight: 800; margin-bottom: 6px; }
+  .cta-sub    { font-size: 10pt; opacity: 0.85; margin-bottom: 24px; }
+  .cta-contact {
+    display: inline-flex; flex-wrap: wrap; gap: 24px;
+    justify-content: center;
+  }
+  .cta-item { font-size: 9pt; }
+  .cta-item strong { display: block; font-size: 8pt; opacity: 0.7; font-weight: 500; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* ── Footer strip ── */
+  .doc-footer {
+    background: #0f172a; color: #94a3b8;
+    padding: 14px 56px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 8pt;
+  }
+  .doc-footer strong { color: white; }
+
+  /* ── Print ── */
+  @media print {
+    body { background: white; font-size: 9pt; }
+    .page { max-width: 100%; }
+    .plans { grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .plan.popular { transform: none; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cta   { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .doc-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .comp-table thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .plan-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .plan.popular .plan-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .plan.enterprise .plan-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .compliance-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .popular-badge  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page { margin: 10mm; size: A4; }
+    h2 { page-break-before: auto; }
+    .plans { page-break-inside: avoid; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ════════════════════════════════════════════════════════════════
+     COVER HEADER
+════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="logo-block">
+      <div class="logo-mark">SE</div>
+      <div>
+        <div class="logo-text">Softaxis ERP</div>
+        <div class="logo-sub">Smarter Business, Simpler Operations</div>
+      </div>
+    </div>
+    <div class="country-badge">🇵🇰 &nbsp;Pakistan Edition</div>
+  </div>
+
+  <div class="cover-title">Pricing &amp; Licensing Guide</div>
+  <div class="cover-sub">Transparent pricing for every stage of your business growth</div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <strong>Currency</strong>Pakistani Rupee (PKR)
+    </div>
+    <div class="cover-meta-item">
+      <strong>Compliance</strong>FBR · SRB · SECP
+    </div>
+    <div class="cover-meta-item">
+      <strong>Effective</strong>FY 2025–26
+    </div>
+    <div class="cover-meta-item">
+      <strong>Deployment</strong>Cloud SaaS &amp; On-Premise
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     COMPLIANCE HIGHLIGHT
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="compliance-box">
+    <div class="compliance-icon">🏛️</div>
+    <div>
+      <div class="compliance-title">Built for Pakistan Regulatory Compliance — Included in Every Plan</div>
+      <div style="font-size:8.5pt;color:#166534;line-height:1.6">
+        Softaxis ERP is engineered to meet Pakistan's tax and regulatory framework out of the box.
+        No costly add-ons. No separate compliance modules.
+      </div>
+      <div class="compliance-items">
+        <span class="comp-badge">FBR Sales Tax 17% (GST)</span>
+        <span class="comp-badge">SRB Services Tax 13% (SST)</span>
+        <span class="comp-badge">FBR POS Integration</span>
+        <span class="comp-badge">WHT Section 153</span>
+        <span class="comp-badge">STRN on Invoices</span>
+        <span class="comp-badge">Cash Memo Register</span>
+        <span class="comp-badge">Annual Stock Return</span>
+        <span class="comp-badge">Provincial Movement Reports</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     VALUE PROPOSITIONS
+════════════════════════════════════════════════════════════════ -->
+<div class="section" style="padding-top:0">
+  <div class="props">
+    <div class="prop">
+      <div class="prop-icon">⚡</div>
+      <div class="prop-title">Ready in 48 Hours</div>
+      <div class="prop-desc">Cloud deployment with pre-configured Pakistan tax rates, chart of accounts, and FBR-compatible invoice templates.</div>
+    </div>
+    <div class="prop">
+      <div class="prop-icon">🔒</div>
+      <div class="prop-title">Data Stays in Pakistan</div>
+      <div class="prop-desc">Cloud servers hosted in Pakistan. On-premise option available for Business and Enterprise plans.</div>
+    </div>
+    <div class="prop">
+      <div class="prop-icon">📞</div>
+      <div class="prop-title">Urdu &amp; English Support</div>
+      <div class="prop-desc">Dedicated Urdu-speaking support team available Monday–Saturday, 9 AM–7 PM PKT.</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     PRICING PLANS
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title"><div class="accent"></div>Subscription Plans</div>
+  <div class="section-sub">Choose monthly, annual (save up to 17%), or a one-time perpetual license. All prices exclusive of applicable taxes.</div>
+
+  <div class="plans">
+
+    <!-- Starter -->
+    <div class="plan starter">
+      <div class="plan-head">
+        <div class="plan-tier">Tier 1</div>
+        <div class="plan-name">Starter</div>
+        <div class="plan-tagline">Small retailers, sole traders &amp; startups</div>
+        <div class="price-table">
+          <div class="price-row">
+            <span class="price-label">Monthly</span>
+            <span class="price-val">PKR 9,500 <span>/mo</span></span>
+          </div>
+          <div class="price-row">
+            <span class="price-label">Annual</span>
+            <span class="price-val">PKR 95,000 <span>/yr</span> <span class="price-save">Save 17%</span></span>
+          </div>
+          <div class="price-onetime">
+            <div class="price-onetime-label">One-Time License</div>
+            <div class="price-onetime-val">PKR 195,000</div>
+            <div class="price-onetime-amc">+ PKR 35,000 / year AMC</div>
+          </div>
+        </div>
+      </div>
+      <div class="plan-body">
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Dashboard &amp; Analytics</li>
+          <li><span class="check">✓</span> Point of Sale (POS)</li>
+          <li><span class="check">✓</span> Inventory — Single Warehouse</li>
+          <li><span class="check">✓</span> Product &amp; Category Management</li>
+          <li><span class="check">✓</span> FBR GST 17% Sales Reports</li>
+          <li><span class="check">✓</span> Cash Memo Register</li>
+          <li><span class="check">✓</span> Basic Reports (10 standard)</li>
+          <li><span class="check">✓</span> Notifications &amp; Alerts</li>
+          <li><span class="cross">✗</span> Finance &amp; Accounting</li>
+          <li><span class="cross">✗</span> HR &amp; Payroll</li>
+          <li><span class="cross">✗</span> CRM Module</li>
+          <li><span class="cross">✗</span> Sales &amp; Quotations</li>
+          <li><span class="cross">✗</span> Multi-Warehouse</li>
+        </ul>
+        <div class="plan-users">
+          <span>Included Users</span>
+          <strong>3 Users</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Business (Popular) -->
+    <div class="plan popular">
+      <div class="popular-badge">⭐ Most Popular</div>
+      <div class="plan-head">
+        <div class="plan-tier">Tier 2</div>
+        <div class="plan-name">Business</div>
+        <div class="plan-tagline">Growing businesses &amp; multi-department operations</div>
+        <div class="price-table">
+          <div class="price-row">
+            <span class="price-label">Monthly</span>
+            <span class="price-val">PKR 24,000 <span>/mo</span></span>
+          </div>
+          <div class="price-row">
+            <span class="price-label">Annual</span>
+            <span class="price-val">PKR 240,000 <span>/yr</span> <span class="price-save">Save 17%</span></span>
+          </div>
+          <div class="price-onetime">
+            <div class="price-onetime-label">One-Time License</div>
+            <div class="price-onetime-val">PKR 480,000</div>
+            <div class="price-onetime-amc">+ PKR 80,000 / year AMC</div>
+          </div>
+        </div>
+      </div>
+      <div class="plan-body">
+        <ul class="plan-features">
+          <li><span class="plus">+</span> Everything in Starter</li>
+          <li><span class="check">✓</span> Finance &amp; Accounting</li>
+          <li><span class="check">✓</span> HR &amp; Payroll (up to 50 employees)</li>
+          <li><span class="check">✓</span> CRM — Contacts &amp; Pipeline</li>
+          <li><span class="check">✓</span> Sales &amp; Quotation Management</li>
+          <li><span class="check">✓</span> Purchase &amp; Vendor Management</li>
+          <li><span class="check">✓</span> Multi-Warehouse (up to 3)</li>
+          <li><span class="check">✓</span> Full Reports (36 reports)</li>
+          <li><span class="check">✓</span> SRB SST 13% &amp; WHT Reports</li>
+          <li><span class="check">✓</span> FBR POS Integration Ready</li>
+          <li><span class="check">✓</span> File Manager</li>
+          <li><span class="cross">✗</span> Multi-Branch</li>
+          <li><span class="cross">✗</span> API Access</li>
+        </ul>
+        <div class="plan-users">
+          <span>Included Users</span>
+          <strong>15 Users</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="plan enterprise" style="background:#0f172a">
+      <div class="plan-head">
+        <div class="plan-tier">Tier 3</div>
+        <div class="plan-name">Enterprise</div>
+        <div class="plan-tagline" style="color:#94a3b8">Large corporations, chains &amp; multi-city operations</div>
+        <div class="price-table" style="border-top-color:rgba(255,255,255,0.1)">
+          <div class="price-row">
+            <span class="price-label" style="background:rgba(255,255,255,0.1);color:#94a3b8">Monthly</span>
+            <span class="price-val" style="color:white">PKR 58,000 <span style="color:#94a3b8">/mo</span></span>
+          </div>
+          <div class="price-row">
+            <span class="price-label" style="background:rgba(255,255,255,0.1);color:#94a3b8">Annual</span>
+            <span class="price-val" style="color:white">PKR 580,000 <span style="color:#94a3b8">/yr</span> <span class="price-save">Save 17%</span></span>
+          </div>
+          <div class="price-onetime" style="border-top-color:rgba(255,255,255,0.1)">
+            <div class="price-onetime-label" style="color:#94a3b8">One-Time License</div>
+            <div class="price-onetime-val" style="color:#a78bfa">PKR 1,250,000</div>
+            <div class="price-onetime-amc" style="color:#94a3b8">+ PKR 190,000 / year AMC</div>
+          </div>
+        </div>
+      </div>
+      <div class="plan-body">
+        <ul class="plan-features">
+          <li style="color:#e2e8f0"><span class="plus">+</span> Everything in Business</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Multi-Branch / Multi-City</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Unlimited Warehouses</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Unlimited Users</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> API Access &amp; Integrations</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Custom Report Builder</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> HR — Unlimited Employees</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Advanced CRM &amp; Lead Scoring</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Priority Support + SLA</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Dedicated Account Manager</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> On-Premise Deployment Option</li>
+          <li style="color:#e2e8f0"><span class="check">✓</span> Annual Compliance Audit</li>
+        </ul>
+        <div class="plan-users" style="background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);color:#e2e8f0">
+          <span>Included Users</span>
+          <strong style="color:white">Unlimited</strong>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /plans -->
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     FEATURE COMPARISON TABLE
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title"><div class="accent"></div>Full Feature Comparison</div>
+  <div class="section-sub">Detailed module availability across all plans</div>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th style="width:44%">Feature / Module</th>
+        <th style="width:18.6%">Starter</th>
+        <th style="width:18.6%">Business</th>
+        <th style="width:18.6%">Enterprise</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="section-row"><td colspan="4">Core Platform</td></tr>
+      <tr><td>Dashboard &amp; KPI Analytics</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>User Management &amp; Roles</td><td><span class="num">3 users</span></td><td><span class="num">15 users</span></td><td><span class="num">Unlimited</span></td></tr>
+      <tr><td>File Manager &amp; Document Storage</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Notifications &amp; Alerts</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Multi-Branch / Location</td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>API Access &amp; Webhooks</td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">Point of Sale (POS)</td></tr>
+      <tr><td>POS Terminal &amp; Cash Register</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Barcode / QR Code Scanning</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Discount &amp; Promotion Management</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Void &amp; Refund Processing</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Multiple Payment Methods</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Shift Management</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">Inventory Management</td></tr>
+      <tr><td>Product &amp; Category Catalogue</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Stock Movement &amp; Adjustments</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Warehouse Management</td><td><span class="num">1 warehouse</span></td><td><span class="num">3 warehouses</span></td><td><span class="num">Unlimited</span></td></tr>
+      <tr><td>Reorder Alerts &amp; ABC Analysis</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>FIFO / WAC Valuation</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">Finance &amp; Accounting</td></tr>
+      <tr><td>Chart of Accounts</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Journal Entries &amp; Ledger</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Profit &amp; Loss, Balance Sheet</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Accounts Payable &amp; Receivable</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">HR &amp; Payroll</td></tr>
+      <tr><td>Employee Profiles &amp; Contracts</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Attendance &amp; Leave Management</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Payroll Processing</td><td><span class="dash">—</span></td><td><span class="num">50 employees</span></td><td><span class="num">Unlimited</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">Sales, Purchase &amp; CRM</td></tr>
+      <tr><td>Quotations &amp; Sales Orders</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Purchase Orders &amp; Vendor Management</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>CRM — Contacts &amp; Deal Pipeline</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Advanced CRM &amp; Lead Scoring</td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">Pakistan Tax &amp; Compliance Reports</td></tr>
+      <tr><td>FBR GST Sales Report (17%)</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>SRB Services Tax Report (13%)</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Cash Memo Register &amp; Daily Sales</td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>WHT Section 153 Report</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Annual Stock Return (FBR)</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>Provincial Movement Report</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>FIFO Valuation Report</td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td><td><span class="tick">✓</span></td></tr>
+
+      <tr class="section-row"><td colspan="4">Support &amp; SLA</td></tr>
+      <tr><td>Support Channel</td><td>Email only</td><td>Email + Phone</td><td>Email + Phone + WhatsApp</td></tr>
+      <tr><td>Response Time</td><td>48 hours</td><td>8 business hours</td><td>2 hours (SLA guaranteed)</td></tr>
+      <tr><td>Dedicated Account Manager</td><td><span class="dash">—</span></td><td><span class="dash">—</span></td><td><span class="tick">✓</span></td></tr>
+      <tr><td>On-site Training Sessions</td><td>1 session</td><td>3 sessions</td><td>Unlimited</td></tr>
+    </tbody>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     ADDITIONAL USERS & ADD-ONS
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title"><div class="accent"></div>Add-Ons &amp; Extras</div>
+  <div class="section-sub">Flexible additions to any plan — billed monthly or annually</div>
+
+  <div class="addons-grid">
+    <div class="addon">
+      <div>
+        <div class="addon-name">Additional User Seat</div>
+        <div class="addon-desc">Per extra user beyond plan limit</div>
+      </div>
+      <div class="addon-price">PKR 2,500<span>/user/mo</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">Additional Warehouse</div>
+        <div class="addon-desc">Beyond plan warehouse limit</div>
+      </div>
+      <div class="addon-price">PKR 4,500<span>/warehouse/mo</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">Additional Branch / Location</div>
+        <div class="addon-desc">Enterprise multi-city expansion</div>
+      </div>
+      <div class="addon-price">PKR 8,000<span>/branch/mo</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">FBR POS Integration</div>
+        <div class="addon-desc">Direct FBR real-time sales reporting</div>
+      </div>
+      <div class="addon-price">PKR 5,000<span>/mo</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">Custom Report Development</div>
+        <div class="addon-desc">Bespoke reports per business requirement</div>
+      </div>
+      <div class="addon-price">PKR 5,000<span>/hour</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">Data Migration Service</div>
+        <div class="addon-desc">Migration from existing ERP / Excel</div>
+      </div>
+      <div class="addon-price">PKR 25,000 – 80,000<span>one-time</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">Extra On-site Training Session</div>
+        <div class="addon-desc">Half-day training at client premises</div>
+      </div>
+      <div class="addon-price">PKR 6,000<span>/session</span></div>
+    </div>
+    <div class="addon">
+      <div>
+        <div class="addon-name">Third-Party API Integration</div>
+        <div class="addon-desc">Payment gateways, e-commerce, banks</div>
+      </div>
+      <div class="addon-price">PKR 15,000 – 50,000<span>one-time</span></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     IMPLEMENTATION PACKAGES
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title"><div class="accent"></div>Implementation &amp; Setup Packages</div>
+  <div class="section-sub">One-time fees for onboarding, configuration, and go-live support</div>
+
+  <div class="impl-grid">
+    <div class="impl">
+      <div class="impl-icon">🚀</div>
+      <div class="impl-name">Quick Start</div>
+      <div class="impl-price">PKR 25,000</div>
+      <div class="impl-items">
+        System setup &amp; configuration<br>
+        Chart of accounts import<br>
+        Product catalogue import<br>
+        1 training session (remote)<br>
+        Go-live within 48 hours
+      </div>
+    </div>
+    <div class="impl">
+      <div class="impl-icon">⚙️</div>
+      <div class="impl-name">Standard Implementation</div>
+      <div class="impl-price">PKR 75,000</div>
+      <div class="impl-items">
+        Everything in Quick Start<br>
+        Data migration (up to 5,000 records)<br>
+        Workflow customisation<br>
+        3 on-site training sessions<br>
+        30-day post-go-live support
+      </div>
+    </div>
+    <div class="impl">
+      <div class="impl-icon">🏢</div>
+      <div class="impl-name">Enterprise Rollout</div>
+      <div class="impl-price">PKR 150,000+</div>
+      <div class="impl-items">
+        Full data migration<br>
+        Multi-branch configuration<br>
+        Custom integrations &amp; workflows<br>
+        Unlimited training sessions<br>
+        Dedicated project manager<br>
+        90-day hypercare support
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     TERMS & NOTES
+════════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="notes">
+    <div class="notes-title">📋 Important Terms &amp; Conditions</div>
+    <ol>
+      <li>All prices are in Pakistani Rupees (PKR) and <strong>exclusive of applicable taxes</strong> (GST/SST). Federal or provincial tax will be charged separately as per prevailing rates.</li>
+      <li><strong>Annual plans</strong> are billed in full upfront at the annual rate. Monthly plans are billed on the 1st of each month.</li>
+      <li><strong>One-Time License</strong> grants perpetual use of the version purchased. The Annual Maintenance Contract (AMC) covers software updates, bug fixes, and support. AMC renewal is optional but recommended.</li>
+      <li>Annual subscriptions include a <strong>17% discount</strong> versus equivalent monthly billing over 12 months.</li>
+      <li>Pricing is subject to annual revision. Existing clients will receive 60 days' notice before any price change.</li>
+      <li>Free trial available for 14 days — no credit card required. Trial includes Business plan features.</li>
+      <li><strong>Refund policy:</strong> Monthly subscriptions — cancel anytime, no refund for current period. Annual — pro-rata refund within first 30 days of billing.</li>
+      <li>On-premise deployment is available for Business and Enterprise plans at an additional server licensing fee (starting PKR 30,000 one-time).</li>
+    </ol>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     CTA FOOTER
+════════════════════════════════════════════════════════════════ -->
+<div class="cta">
+  <div class="cta-title">Ready to Streamline Your Business?</div>
+  <div class="cta-sub">Start your 14-day free trial today or speak with our sales team for a custom quote.</div>
+  <div class="cta-contact">
+    <div class="cta-item"><strong>Sales &amp; Enquiries</strong>sales@softaxis.com</div>
+    <div class="cta-item"><strong>Phone / WhatsApp (UAE)</strong>+971 56 938 3079</div>
+    <div class="cta-item"><strong>Phone / WhatsApp (PK)</strong>+92 314 951 1674</div>
+    <div class="cta-item"><strong>Landline (PK)</strong>+92 51 889 5611</div>
+    <div class="cta-item"><strong>Website</strong>www.softaxis.com</div>
+    <div class="cta-item"><strong>Office</strong>Office No 2, 5th Floor, Gulber Nova,<br>Gulberg Greens, Islamabad</div>
+  </div>
+</div>
+
+<div class="doc-footer">
+  <span><strong>Softaxis ERP</strong> — Pakistan Pricing Guide &nbsp;·&nbsp; FY 2025–26</span>
+  <span>Confidential &nbsp;·&nbsp; For client use only &nbsp;·&nbsp; © 2025 Softaxis Technologies</span>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

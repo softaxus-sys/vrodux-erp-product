@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR"                                         Version="12.*" />
+    <PackageReference Include="FluentValidation"                                Version="11.*" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions"  Version="11.*" />
+    <PackageReference Include="Microsoft.Extensions.Options"                    Version="9.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions"       Version="9.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Softaxis.POS.Domain\Softaxis.POS.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Application\Softaxis.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+</Project>

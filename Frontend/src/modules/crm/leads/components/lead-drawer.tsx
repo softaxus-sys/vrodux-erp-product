@@ -1,0 +1,254 @@
+"use client";
+
+import * as React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  X, Mail, Phone, Globe, MapPin, Building2, User,
+  Calendar, DollarSign, Tag, PhoneCall, Users,
+  FileText, MessageSquare, Edit, ArrowRight,
+  CheckCircle2, TrendingUp, Star
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import {
+  type LeadDto, type LeadStatus, type LeadSource,
+  SOURCE_LABELS,
+} from "@/lib/crm/leads.api";
+
+type Tab = "overview" | "activity";
+
+const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string }> = {
+  new:          { label: "New",         color: "text-slate-600",     bg: "bg-slate-100 dark:bg-slate-800/50" },
+  contacted:    { label: "Contacted",   color: "text-blue-600",      bg: "bg-blue-50 dark:bg-blue-900/20" },
+  qualified:    { label: "Qualified",   color: "text-success",       bg: "bg-success/10" },
+  unqualified:  { label: "Unqualified", color: "text-muted-foreground", bg: "bg-muted" },
+  converted:    { label: "Converted",   color: "text-primary",       bg: "bg-primary/10" },
+  lost:         { label: "Lost",        color: "text-destructive",   bg: "bg-destructive/10" },
+};
+
+const PRIORITY_CONFIG = {
+  high:   { label: "High",   color: "text-destructive", bg: "bg-destructive/10" },
+  medium: { label: "Medium", color: "text-warning",     bg: "bg-warning/10" },
+  low:    { label: "Low",    color: "text-muted-foreground", bg: "bg-muted" },
+};
+
+const ACTIVITY_ICON = {
+  call: PhoneCall, email: Mail, meeting: Users, note: FileText, task: CheckCircle2,
+};
+const ACTIVITY_COLOR = {
+  call: "bg-blue-100 text-blue-600 dark:bg-blue-900/30",
+  email: "bg-violet-100 text-violet-600 dark:bg-violet-900/30",
+  meeting: "bg-green-100 text-green-600 dark:bg-green-900/30",
+  note: "bg-amber-100 text-amber-600 dark:bg-amber-900/30",
+  task: "bg-pink-100 text-pink-600 dark:bg-pink-900/30",
+};
+
+function ScoreBar({ score }: { score: number }) {
+  const color = score >= 70 ? "bg-success" : score >= 40 ? "bg-warning" : "bg-destructive";
+  const label = score >= 70 ? "Hot" : score >= 40 ? "Warm" : "Cold";
+  const textColor = score >= 70 ? "text-success" : score >= 40 ? "text-warning" : "text-destructive";
+  return (
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground">Lead Score</span>
+        <span className={cn("font-bold", textColor)}>{score}/100 · {label}</span>
+      </div>
+      <div className="h-2 bg-muted rounded-full overflow-hidden">
+        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${score}%` }} />
+      </div>
+    </div>
+  );
+}
+
+interface Props { lead: LeadDto | null; open: boolean; onClose: () => void; }
+
+export function LeadDrawer({ lead, open, onClose }: Props) {
+  const [tab, setTab] = React.useState<Tab>("overview");
+  React.useEffect(() => { if (open) setTab("overview"); }, [open]);
+
+  if (!lead) return null;
+  const sc = STATUS_CONFIG[lead.status];
+  const pc = PRIORITY_CONFIG[lead.priority];
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed top-0 right-0 h-full w-full max-w-[560px] bg-background border-l border-border shadow-2xl z-50 flex flex-col">
+
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 py-5 border-b border-border">
+              <div className="flex items-center gap-4 flex-1 min-w-0 pr-4">
+                <Avatar className="h-12 w-12 shrink-0">
+                  <AvatarFallback className="text-base font-bold bg-primary/10 text-primary">{getInitials(lead.fullName)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="font-bold text-base leading-tight">{lead.fullName}</p>
+                  <p className="text-sm text-muted-foreground">{lead.title} · {lead.company}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+                    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold", pc.color, pc.bg)}>{pc.label} Priority</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Edit className="h-3.5 w-3.5" />Edit</Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-border px-6">
+              {(["overview","activity"] as Tab[]).map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                  className={cn("px-4 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
+                    tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {tab === "overview" && (
+                <>
+                  {/* Score */}
+                  <div className="bg-muted/30 rounded-xl p-4">
+                    <ScoreBar score={lead.score} />
+                  </div>
+
+                  {/* Key metrics */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/30 rounded-xl p-3 text-center">
+                      <DollarSign className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                      <p className="text-[10px] text-muted-foreground">Est. Value</p>
+                      <p className="font-bold text-sm">{formatCurrency(lead.estimatedValue, lead.currency)}</p>
+                    </div>
+                    <div className="bg-muted/30 rounded-xl p-3 text-center">
+                      <Globe className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                      <p className="text-[10px] text-muted-foreground">Source</p>
+                      <p className="font-bold text-sm">{SOURCE_LABELS[lead.source]}</p>
+                    </div>
+                  </div>
+
+                  {/* Contact details */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Contact Information</h4>
+                    <div className="space-y-0 bg-muted/30 rounded-xl p-4">
+                      {[
+                        { icon: Mail,      label: "Email",         value: <a href={`mailto:${lead.email}`} className="text-primary hover:underline">{lead.email}</a> },
+                        { icon: Phone,     label: "Phone",         value: lead.phone },
+                        { icon: Building2, label: "Company",       value: lead.company },
+                        { icon: User,      label: "Industry",      value: lead.industry },
+                        { icon: MapPin,    label: "Location",      value: `${lead.city}, ${lead.country}` },
+                        { icon: User,      label: "Assigned To",   value: lead.assignedTo },
+                        { icon: Calendar,  label: "Created",       value: formatDate(lead.createdDate, "medium") },
+                        { icon: Calendar,  label: "Last Contact",  value: lead.lastContactDate ? formatDate(lead.lastContactDate, "medium") : "—" },
+                        { icon: Calendar,  label: "Next Follow-up", value: lead.nextFollowUp ? formatDate(lead.nextFollowUp, "medium") : "—" },
+                      ].map(row => (
+                        <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+                          <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                          <div className="flex-1 flex justify-between gap-4 min-w-0">
+                            <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
+                            <span className="text-sm font-medium text-right truncate">{row.value}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {lead.notes && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Notes</h4>
+                      <p className="text-sm text-muted-foreground bg-muted/30 rounded-xl p-3 leading-relaxed">{lead.notes}</p>
+                    </div>
+                  )}
+
+                  {/* Tags */}
+                  {lead.tags.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tags</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {lead.tags.map(tag => (
+                          <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary text-xs rounded-full font-medium">
+                            <Tag className="h-2.5 w-2.5" />{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Converted badge */}
+                  {lead.status === "converted" && (
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold text-primary">Converted to Deal</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">This lead has been successfully converted to an active deal in the pipeline.</p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {tab === "activity" && (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold">Activity History ({lead.activities.length})</h4>
+                    <Button size="sm" className="h-8 text-xs gap-1.5"><MessageSquare className="h-3.5 w-3.5" />Log</Button>
+                  </div>
+                  {lead.activities.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">No activities yet.</p>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute left-5 top-0 bottom-0 w-px bg-border" />
+                      <div className="space-y-4">
+                        {[...lead.activities].reverse().map((act, i) => {
+                          const Icon = ACTIVITY_ICON[act.type];
+                          return (
+                            <motion.div key={act.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.05 }} className="flex gap-4 relative">
+                              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0 z-10", ACTIVITY_COLOR[act.type])}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1 bg-muted/30 rounded-xl p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-sm font-semibold leading-tight">{act.title}</p>
+                                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{formatDate(act.date, "medium")}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{act.description}</p>
+                                <p className="text-[10px] text-muted-foreground/60 mt-1.5">by {act.by}</p>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-border px-6 py-4 flex items-center gap-2">
+              {lead.status !== "converted" && lead.status !== "lost" && lead.status !== "unqualified" && (
+                <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90">
+                  <ArrowRight className="h-3.5 w-3.5" />Convert to Deal
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5 h-9"><PhoneCall className="h-3.5 w-3.5" />Log Call</Button>
+              <Button variant="outline" size="sm" className="gap-1.5 h-9"><Mail className="h-3.5 w-3.5" />Send Email</Button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

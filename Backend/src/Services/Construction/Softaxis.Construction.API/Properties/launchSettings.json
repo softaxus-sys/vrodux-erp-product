@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Softaxis.Construction.API": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:54044;http://localhost:54046"
+    }
+  }
+}
