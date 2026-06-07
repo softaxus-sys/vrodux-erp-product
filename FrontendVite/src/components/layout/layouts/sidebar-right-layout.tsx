@@ -25,7 +25,7 @@ export function SidebarRightLayout({ children }: { children: React.ReactNode }) 
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border h-16 shrink-0">
-          {sidebarCollapsed ? <BrandMark /> : <BrandLogo height={30} plate />}
+          {sidebarCollapsed ? <BrandMark /> : <BrandLogo height={32} />}
         </div>
 
         <SidebarNav collapsed={sidebarCollapsed} />
