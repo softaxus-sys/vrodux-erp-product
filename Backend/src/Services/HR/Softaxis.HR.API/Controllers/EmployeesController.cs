@@ -103,12 +103,20 @@ public sealed class EmployeesController(HrDbContext db) : ControllerBase
 
         return Ok(new
         {
+            // Legacy keys
             Total             = total,
             Active            = active,
             Inactive          = inactive,
             Terminated        = terminated,
             NewHiresThisMonth = newHiresThisMonth,
-            ByDepartment      = byDepartment
+            ByDepartment      = byDepartment,
+            // Dashboard keys
+            TotalEmployees    = total,
+            ActiveEmployees   = active,
+            Departments       = byDepartment.Count,
+            NewThisMonth      = newHiresThisMonth,
+            OnLeave           = 0,
+            Probation         = 0,
         });
     }
 

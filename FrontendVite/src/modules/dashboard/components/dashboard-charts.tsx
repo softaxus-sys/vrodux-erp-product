@@ -353,9 +353,12 @@ function FinanceCharts() {
               <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
               <Tooltip content={<ChartTooltip currency />} />
               <Bar dataKey="profit" name="Net Profit" radius={[4, 4, 0, 0]}>
-                {FINANCE_MONTHLY.map((d, i) => (
-                  <Cell key={i} fill={d.profit >= 0 ? P.green : P.red} />
-                ))}
+                {FINANCE_MONTHLY.map((d, i) => {
+                  const palette = [P.blue, P.green, P.violet, P.amber, P.teal];
+                  return (
+                    <Cell key={i} fill={d.profit >= 0 ? palette[i % palette.length] : P.red} />
+                  );
+                })}
               </Bar>
             </BarChart>
           </ResponsiveContainer>

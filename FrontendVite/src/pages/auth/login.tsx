@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import {
   Loader2, Eye, EyeOff, ArrowRight,
   DollarSign, Users, Package, BarChart3,
-  Mail, Lock, ShieldCheck, Globe, Clock,
+  Mail, Lock, ShieldCheck, Globe, Clock, Sun, Moon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth.store";
@@ -16,9 +16,15 @@ import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand/brand-logo";
 
-// ─── Fixed dark palette (never inherits theme) ────────────────────────────────
+// ─── Palettes (dark + light) ──────────────────────────────────────────────────
 
-const D = {
+type Palette = {
+  bg: string; panel: string; card: string; border: string; accent: string;
+  accentGlow: string; accentDim: string; white: string; muted: string;
+  faint: string; inputBg: string; inputBorder: string;
+};
+
+const DARK: Palette = {
   bg:          "#07090f",
   panel:       "#0b0e17",
   card:        "#10141f",
@@ -26,12 +32,36 @@ const D = {
   accent:      "#4f7df3",          // brand blue
   accentGlow:  "rgba(79,125,243,0.22)",
   accentDim:   "rgba(79,125,243,0.12)",
-  white:       "#f0f4ff",
+  white:       "#f0f4ff",          // primary text
   muted:       "#64748b",
   faint:       "#1e293b",
   inputBg:     "#0d1121",
   inputBorder: "#1e2d45",
 };
+
+const LIGHT: Palette = {
+  bg:          "#f4f6fb",
+  panel:       "#ffffff",
+  card:        "#ffffff",
+  border:      "#e2e8f0",
+  accent:      "#2563eb",
+  accentGlow:  "rgba(37,99,235,0.12)",
+  accentDim:   "rgba(37,99,235,0.06)",
+  white:       "#0f172a",          // primary text (dark on light)
+  muted:       "#64748b",
+  faint:       "#f1f5f9",
+  inputBg:     "#ffffff",
+  inputBorder: "#cbd5e1",
+};
+
+const THEME_KEY = "softaxis-theme-mode";
+
+function getInitialMode(): "light" | "dark" {
+  if (typeof window === "undefined") return "dark";
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === "light" || saved === "dark") return saved;
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -49,7 +79,7 @@ const MODULES_STATUS = [
   "CRM", "POS", "Real Estate", "Construction", "Hospitality",
 ];
 
-function TopBar() {
+function TopBar({ D, mode, onToggle }: { D: Palette; mode: "light" | "dark"; onToggle: () => void }) {
   return (
     <div
       className="h-10 flex items-center justify-between px-8 shrink-0 border-b"
@@ -73,17 +103,33 @@ function TopBar() {
         </div>
       </div>
 
-      {/* System status */}
-      <div
-        className="flex items-center gap-1.5 text-[11px] font-semibold shrink-0 ml-4 px-3 py-1 rounded-full border"
-        style={{ color: "#22c55e", borderColor: "#22c55e30", background: "#22c55e10" }}
-      >
-        <motion.span
-          className="h-1.5 w-1.5 rounded-full bg-green-500"
-          animate={{ opacity: [1, 0.3, 1] }}
-          transition={{ duration: 1.8, repeat: Infinity }}
-        />
-        All systems operational
+      <div className="flex items-center gap-3 shrink-0 ml-4">
+        {/* Theme toggle (persisted) */}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label="Toggle theme"
+          title={mode === "dark" ? "Switch to light" : "Switch to dark"}
+          className="flex items-center justify-center h-7 w-7 rounded-full border transition-colors"
+          style={{ color: D.muted, borderColor: D.border, background: D.faint }}
+        >
+          {mode === "dark"
+            ? <Sun  className="h-3.5 w-3.5" />
+            : <Moon className="h-3.5 w-3.5" />}
+        </button>
+
+        {/* System status */}
+        <div
+          className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full border"
+          style={{ color: "#22c55e", borderColor: "#22c55e30", background: "#22c55e10" }}
+        >
+          <motion.span
+            className="h-1.5 w-1.5 rounded-full bg-green-500"
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity }}
+          />
+          All systems operational
+        </div>
       </div>
     </div>
   );
@@ -140,6 +186,15 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = React.useState(false);
   const [focus,   setFocus]   = React.useState<string | null>(null);
 
+  // Theme: persisted per-browser so a returning user lands on their last choice.
+  const [mode, setMode] = React.useState<"light" | "dark">(getInitialMode);
+  const D = mode === "dark" ? DARK : LIGHT;
+  const toggleTheme = () => setMode(prev => {
+    const next = prev === "dark" ? "light" : "dark";
+    try { localStorage.setItem(THEME_KEY, next); } catch { /* ignore */ }
+    return next;
+  });
+
   const {
     register, handleSubmit, setValue, watch,
     formState: { errors, isSubmitting },
@@ -174,7 +229,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col" style={{ background: D.bg }}>
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
-      <TopBar />
+      <TopBar D={D} mode={mode} onToggle={toggleTheme} />
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
@@ -228,19 +283,38 @@ export default function LoginPage() {
                 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-4"
                 style={{ color: D.accent }}
               >
-                Unified Business Management
+                Enterprise Resource Planning
               </p>
               <h1
-                className="text-[2.6rem] font-extrabold leading-[1.07] tracking-tight"
+                className="text-[2.5rem] font-extrabold leading-[1.08] tracking-tight"
                 style={{ color: D.white }}
               >
-                The Digital Axis of<br />
-                <span style={{ color: D.accent }}>Your Enterprise.</span>
+                The Central <span style={{ color: D.accent }}>Axis</span> of<br />
+                Your Business Operations.
               </h1>
-              <p className="mt-4 text-[14px] leading-relaxed max-w-[420px]" style={{ color: D.muted }}>
-                Finance, HR, procurement, inventory, sales, and 8+ industry
-                verticals — managed from a single, permission-controlled workspace.
+              <p className="mt-4 text-[14px] leading-relaxed max-w-[440px]" style={{ color: D.muted }}>
+                Finance, HR &amp; payroll, inventory, sales, purchasing, CRM, POS and
+                industry packs — unified in a secure, multi-tenant workspace with
+                role-based access and a full audit trail.
               </p>
+
+              {/* Enterprise metrics band — reads like an ERP system overview */}
+              <div
+                className="grid grid-cols-4 gap-px mt-8 rounded-xl overflow-hidden border"
+                style={{ borderColor: D.border, background: D.border }}
+              >
+                {[
+                  { value: "13", label: "Modules" },
+                  { value: "6",  label: "Industries" },
+                  { value: "Multi", label: "Tenant" },
+                  { value: "99.9%", label: "Uptime" },
+                ].map(s => (
+                  <div key={s.label} className="px-3 py-3 text-center" style={{ background: D.card }}>
+                    <p className="text-[20px] font-extrabold leading-none" style={{ color: D.white }}>{s.value}</p>
+                    <p className="text-[10px] font-medium uppercase tracking-wider mt-1.5" style={{ color: D.muted }}>{s.label}</p>
+                  </div>
+                ))}
+              </div>
             </motion.div>
 
             {/* Feature cards 2 × 2 */}
@@ -301,7 +375,7 @@ export default function LoginPage() {
               style={{ borderColor: D.border }}
             >
               <p className="text-[11px]" style={{ color: D.muted + "60" }}>
-                © 2026 Vrodux Technologies LLC · All rights reserved
+                © 2026 Softaxis Technologies LLC · All rights reserved
               </p>
               <div className="flex items-center gap-4">
                 {[
@@ -323,28 +397,40 @@ export default function LoginPage() {
             RIGHT — login form
         ════════════════════════════════════════════════════════ */}
         <div
-          className="flex items-center justify-center p-8 shrink-0 w-full lg:w-[400px] xl:w-[420px]"
-          style={{ background: D.panel, borderLeft: `1px solid ${D.border}` }}
+          className="flex items-center justify-center p-6 sm:p-10 w-full lg:flex-1"
+          style={{ background: D.bg }}
         >
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, delay: 0.12 }}
-            className="w-full max-w-[340px]"
+            className="relative w-full max-w-[460px] rounded-2xl border p-8 sm:p-10 overflow-hidden"
+            style={{
+              background:  D.card,
+              borderColor: D.border,
+              boxShadow:   "0 30px 70px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.02)",
+            }}
           >
+            {/* Top accent glow */}
+            <div
+              className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-[85%] rounded-full"
+              style={{ background: `radial-gradient(ellipse at top, ${D.accentGlow} 0%, transparent 70%)`, filter: "blur(8px)" }}
+            />
 
-            {/* Mobile logo */}
-            <div className="lg:hidden mb-8">
-              <BrandLogo height={36} subtitle="Enterprise Platform" plate />
+            <div className="relative">
+
+            {/* Logo inside card */}
+            <div className="mb-6">
+              <BrandLogo height={34} subtitle="Enterprise Platform" plate />
             </div>
 
             {/* Heading */}
-            <div className="mb-8">
+            <div className="mb-7">
               <h2 className="text-[1.6rem] font-bold tracking-tight" style={{ color: D.white }}>
-                Welcome back
+                Sign in to your workspace
               </h2>
               <p className="text-[13px] mt-1" style={{ color: D.muted }}>
-                {greeting()} — sign in to continue
+                {greeting()} — access your organization's ERP
               </p>
             </div>
 
@@ -526,6 +612,7 @@ export default function LoginPage() {
               >
                 Fill ↗
               </motion.button>
+            </div>
             </div>
           </motion.div>
         </div>

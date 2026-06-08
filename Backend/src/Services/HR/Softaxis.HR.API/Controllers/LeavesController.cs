@@ -80,7 +80,10 @@ public sealed class LeavesController(HrDbContext db) : ControllerBase
             PendingApprovals = pending,
             Approved         = approved,
             Rejected         = rejected,
-            ThisMonthByType  = thisMonthByType
+            ThisMonthByType  = thisMonthByType,
+            // Dashboard keys
+            Pending      = pending,
+            OnLeaveToday = approved,
         });
     }
 

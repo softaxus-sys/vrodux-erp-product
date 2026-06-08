@@ -440,6 +440,22 @@ export function DashboardView() {
       {/* ── KPI Cards ───────────────────────────────────────────────────────── */}
       {isLoading ? <KpiSkeleton /> : <KpiGrid cards={kpiCards} />}
 
+      {/* ── Module Charts ────────────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.25 }}
+      >
+        <div className="flex items-center gap-2 mb-5">
+          <div className="h-px flex-1 bg-border/50" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2 select-none">
+            Module Analytics
+          </span>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+        <DashboardCharts />
+      </motion.div>
+
       {/* ── HR-specific panels (hr_manager + admins) ────────────────────────── */}
       {isHR && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -478,22 +494,6 @@ export function DashboardView() {
             : <RoleInfoCard role={user?.role} permissions={user?.permissions?.length ?? 0} />}
         </div>
       </div>
-
-      {/* ── Module Charts ────────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.25 }}
-      >
-        <div className="flex items-center gap-2 mb-5">
-          <div className="h-px flex-1 bg-border/50" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2 select-none">
-            Module Analytics
-          </span>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-        <DashboardCharts />
-      </motion.div>
 
     </div>
   );

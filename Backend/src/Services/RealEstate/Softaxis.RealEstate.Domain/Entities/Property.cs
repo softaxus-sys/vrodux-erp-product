@@ -30,6 +30,15 @@ public sealed class Property
         Developer = developer; Description = description;
     }
 
+    public void Update(string name, string propertyType, string address, string city, string emirate,
+        decimal totalArea, int totalUnits, decimal marketValue, string? developer, string? description)
+    {
+        Name = name; PropertyType = propertyType; Address = address; City = city; Emirate = emirate;
+        TotalArea = totalArea; TotalUnits = totalUnits; MarketValue = marketValue;
+        Developer = developer; Description = description;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void UpdateOccupancy(int occupied)
     {
         OccupiedUnits = occupied;
