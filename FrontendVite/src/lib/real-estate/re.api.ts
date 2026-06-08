@@ -164,15 +164,32 @@ export interface ReContractSummaryDto {
 
 // ── API client ────────────────────────────────────────────────────────────────
 
+export interface UpsertPropertyInput {
+  name: string;
+  propertyType: string;
+  address?: string;
+  city?: string;
+  emirate: string;
+  totalArea: number;
+  totalUnits: number;
+  marketValue: number;
+  developer?: string | null;
+  description?: string | null;
+}
+
 export const reApi = {
-  getProperties:       (): Promise<PropertyDto[]>          => rawApiClient(`${BASE}/properties`),
-  getPropertySummary:  (): Promise<RePropertySummaryDto>   => rawApiClient(`${BASE}/properties/summary`),
-  getUnits:            (): Promise<UnitDto[]>              => rawApiClient(`${BASE}/units`),
-  getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient(`${BASE}/units/summary`),
-  getTenants:          (): Promise<TenantDto[]>            => rawApiClient(`${BASE}/tenants`),
-  getTenantSummary:    (): Promise<ReTenantSummaryDto>     => rawApiClient(`${BASE}/tenants/summary`),
-  getBrokers:          (): Promise<BrokerDto[]>            => rawApiClient(`${BASE}/brokers`),
-  getBrokerSummary:    (): Promise<ReBrokerSummaryDto>     => rawApiClient(`${BASE}/brokers/summary`),
-  getContracts:        (): Promise<ContractDto[]>          => rawApiClient(`${BASE}/contracts`),
-  getContractSummary:  (): Promise<ReContractSummaryDto>   => rawApiClient(`${BASE}/contracts/summary`),
+  getProperties:       (): Promise<PropertyDto[]>          => rawApiClient.get(`${BASE}/properties`),
+  getPropertySummary:  (): Promise<RePropertySummaryDto>   => rawApiClient.get(`${BASE}/properties/summary`),
+  createProperty:      (data: UpsertPropertyInput)         => rawApiClient.post(`${BASE}/properties`, data),
+  updateProperty:      (id: string, data: UpsertPropertyInput) => rawApiClient.put(`${BASE}/properties/${id}`, data),
+  deleteProperty:      (id: string)                        => rawApiClient.delete(`${BASE}/properties/${id}`),
+
+  getUnits:            (): Promise<UnitDto[]>              => rawApiClient.get(`${BASE}/units`),
+  getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient.get(`${BASE}/units/summary`),
+  getTenants:          (): Promise<TenantDto[]>            => rawApiClient.get(`${BASE}/tenants`),
+  getTenantSummary:    (): Promise<ReTenantSummaryDto>     => rawApiClient.get(`${BASE}/tenants/summary`),
+  getBrokers:          (): Promise<BrokerDto[]>            => rawApiClient.get(`${BASE}/brokers`),
+  getBrokerSummary:    (): Promise<ReBrokerSummaryDto>     => rawApiClient.get(`${BASE}/brokers/summary`),
+  getContracts:        (): Promise<ContractDto[]>          => rawApiClient.get(`${BASE}/contracts`),
+  getContractSummary:  (): Promise<ReContractSummaryDto>   => rawApiClient.get(`${BASE}/contracts/summary`),
 };

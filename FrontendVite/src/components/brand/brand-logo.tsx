@@ -2,6 +2,22 @@ import * as React from "react";
 import { Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/** Reactively tracks whether the app is in dark mode (`.dark` on <html>). */
+function useIsDark(): boolean {
+  const [dark, setDark] = React.useState(
+    () => typeof document !== "undefined" && document.documentElement.classList.contains("dark"),
+  );
+  React.useEffect(() => {
+    const el = document.documentElement;
+    const update = () => setDark(el.classList.contains("dark"));
+    update();
+    const obs = new MutationObserver(update);
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
+}
+
 /**
  * Vrodux brand. Renders the official logo image from /vrodux-logo.png.
  * If the asset is missing it gracefully falls back to the gradient mark + wordmark,
@@ -44,6 +60,7 @@ export function BrandLogo({
   plate?: boolean;
 }) {
   const [failed, setFailed] = React.useState(false);
+  const isDark = useIsDark();
 
   if (!failed) {
     const img = (
@@ -56,7 +73,8 @@ export function BrandLogo({
         draggable={false}
       />
     );
-    if (plate) {
+    // Explicit plate, or auto-plate in dark mode so a dark/coloured logo stays legible.
+    if (plate || isDark) {
       return (
         <div className="inline-flex items-center rounded-xl bg-white px-3 py-2 shadow-sm">
           {img}

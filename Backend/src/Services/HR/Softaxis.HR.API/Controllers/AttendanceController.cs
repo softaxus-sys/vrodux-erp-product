@@ -100,7 +100,12 @@ public sealed class AttendanceController(HrDbContext db) : ControllerBase
                 PresentCount    = monthPresent,
                 TotalRecords    = monthLogs.Count,
                 AvgWorkingHours = Math.Round(avgWorkingHours, 2)
-            }
+            },
+            // Flat keys consumed by the dashboard
+            PresentToday = todayPresent,
+            LateToday    = todayLate,
+            AbsentToday  = todayAbsent,
+            TotalEmployees = todayTotal,
         });
     }
 

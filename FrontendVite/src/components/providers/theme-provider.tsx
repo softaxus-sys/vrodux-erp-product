@@ -4,8 +4,19 @@ import { useAuthStore } from "@/store/auth.store";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
 import type { ThemePalette, LayoutVariant } from "@/config/themes";
 
+// In light mode, force a light sidebar surface (themes ship a dark sidebar even
+// in light mode). The theme's accent (sidebar-primary) is preserved.
+const LIGHT_SIDEBAR: Record<string, string> = {
+  "sidebar-background":         "0 0% 100%",
+  "sidebar-foreground":         "222.2 47.4% 11.2%",
+  "sidebar-accent":             "210 40% 96.1%",
+  "sidebar-accent-foreground":  "222.2 47.4% 11.2%",
+  "sidebar-border":             "214.3 31.8% 91.4%",
+};
+
 function buildCssText(palette: ThemePalette, dark: boolean, radius: number): string {
-  const vars = dark ? palette.dark : palette.light;
+  const vars = { ...(dark ? palette.dark : palette.light) };
+  if (!dark) Object.assign(vars, LIGHT_SIDEBAR); // light theme → light sidebar
   const lines: string[] = [`:root {`, `  --radius: ${radius}rem;`];
   for (const [key, value] of Object.entries(vars)) {
     lines.push(`  --${key}: ${value};`);

@@ -1,19 +1,30 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateProperty, useUpdateProperty } from "@/hooks/real-estate/use-re";
+import type { PropertyDto } from "@/lib/real-estate/re.api";
 
 const PROPERTY_TYPES = ["Residential Tower", "Commercial Building", "Mixed-Use", "Villa Complex", "Retail Mall", "Warehouse", "Land / Plot", "Hotel Apartment"];
 const EMIRATES       = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah"];
 const AREAS          = ["Downtown Dubai", "Dubai Marina", "JLT", "Business Bay", "DIFC", "Jumeirah", "Al Barsha", "Deira", "Al Nahda", "Al Reem Island", "Saadiyat Island", "Other"];
 
+// Map the friendly type list to the backend category code used by summaries.
+function typeToCode(t: string): string {
+  if (t === "Mixed-Use") return "mixed";
+  if (/Commercial|Retail|Warehouse|Mall|Hotel|Office/i.test(t)) return "commercial";
+  return "residential";
+}
+
 interface AddPropertyFormProps {
   open: boolean;
   onClose: () => void;
+  editing?: PropertyDto | null;
 }
 
-export function AddPropertyForm({ open, onClose }: AddPropertyFormProps) {
+export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps) {
   const [name, setName]               = React.useState("");
   const [propertyType, setPropertyType] = React.useState("Residential Tower");
   const [emirate, setEmirate]         = React.useState("Dubai");
@@ -29,6 +40,9 @@ export function AddPropertyForm({ open, onClose }: AddPropertyFormProps) {
   const [propertyManager, setPropertyManager] = React.useState("");
   const [notes, setNotes]             = React.useState("");
 
+  const createMut = useCreateProperty();
+  const updateMut = useUpdateProperty();
+  const saving = createMut.isPending || updateMut.isPending;
   const isValid = name.trim() && propertyType && emirate;
 
   const reset = () => {
@@ -37,7 +51,44 @@ export function AddPropertyForm({ open, onClose }: AddPropertyFormProps) {
     setBuiltYear(""); setPurchasePrice(""); setCurrentValue(""); setPropertyManager(""); setNotes("");
   };
 
-  React.useEffect(() => { if (!open) reset(); }, [open]);
+  // Prefill on edit / clear on close
+  React.useEffect(() => {
+    if (!open) { reset(); return; }
+    if (editing) {
+      setName(editing.name ?? "");
+      setEmirate(editing.location?.emirate || "Dubai");
+      setArea(editing.location?.city ?? "");
+      setAddress(editing.location?.address ?? "");
+      setTotalUnits(String(editing.totalUnits ?? ""));
+      setPropertyManager(editing.developer ?? "");
+    }
+  }, [open, editing]);
+
+  const handleSave = async () => {
+    if (!isValid) return;
+    const payload = {
+      name: name.trim(),
+      propertyType: typeToCode(propertyType),
+      address, city: area, emirate,
+      totalArea: Number(totalArea) || 0,
+      totalUnits: Number(totalUnits) || 0,
+      marketValue: Number(currentValue || purchasePrice) || 0,
+      developer: propertyManager || null,
+      description: notes || null,
+    };
+    try {
+      if (editing) {
+        await updateMut.mutateAsync({ id: editing.id, data: payload });
+        toast.success("Property updated");
+      } else {
+        await createMut.mutateAsync(payload);
+        toast.success("Property created");
+      }
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed to save property");
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -55,8 +106,8 @@ export function AddPropertyForm({ open, onClose }: AddPropertyFormProps) {
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Property</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Register a new property asset</p>
+                <h2 className="text-base font-bold text-foreground">{editing ? "Edit Property" : "New Property"}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{editing ? "Update property details" : "Register a new property asset"}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
@@ -145,8 +196,11 @@ export function AddPropertyForm({ open, onClose }: AddPropertyFormProps) {
             </div>
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Property</Button>
+              <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!isValid || saving}>
+                {saving && <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />}
+                {editing ? "Save Changes" : "Save Property"}
+              </Button>
             </div>
           </motion.div>
         </>

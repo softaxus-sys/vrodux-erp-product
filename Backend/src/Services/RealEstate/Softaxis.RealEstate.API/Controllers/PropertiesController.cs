@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.API.Controllers;
@@ -59,4 +60,45 @@ public sealed class PropertiesController(RealEstateDbContext db) : ControllerBas
             }),
         });
     }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] UpsertPropertyRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest(new { message = "Property name is required." });
+
+        var p = new Property(req.Name.Trim(), req.PropertyType, req.Address ?? "", req.City ?? "",
+            req.Emirate ?? "", req.TotalArea, req.TotalUnits, req.MarketValue, req.Developer, req.Description);
+        db.Properties.Add(p);
+        await db.SaveChangesAsync(ct);
+        return StatusCode(201, new { p.Id, p.PropertyNumber });
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpsertPropertyRequest req, CancellationToken ct)
+    {
+        var p = await db.Properties.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+        if (p is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest(new { message = "Property name is required." });
+
+        p.Update(req.Name.Trim(), req.PropertyType, req.Address ?? "", req.City ?? "",
+            req.Emirate ?? "", req.TotalArea, req.TotalUnits, req.MarketValue, req.Developer, req.Description);
+        await db.SaveChangesAsync(ct);
+        return Ok(new { p.Id });
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        var p = await db.Properties.FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, ct);
+        if (p is null) return NotFound();
+        p.Delete();
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
 }
+
+public sealed record UpsertPropertyRequest(
+    string Name, string PropertyType, string? Address, string? City, string Emirate,
+    decimal TotalArea, int TotalUnits, decimal MarketValue, string? Developer, string? Description);

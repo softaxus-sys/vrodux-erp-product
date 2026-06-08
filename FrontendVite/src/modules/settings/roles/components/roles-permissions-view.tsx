@@ -267,12 +267,13 @@ export function RolesPermissionsView() {
 
   // A role is relevant to this tenant when:
   //  • super-admin (sees all), or
-  //  • it's a custom (non-system) role, or
   //  • it's the full-access Administrator, or
   //  • every *significant* module it grants (excluding ubiquitous ones) is enabled.
-  // This hides domain roles like "POS Admin" that merely carry a settings permission.
+  // Applies to BOTH system and custom roles — roles aren't tenant-scoped, so a
+  // global custom role like "RetailStoreManager" (Inventory/POS) must be hidden
+  // from tenants that don't have those modules.
   const roleIsRelevant = React.useCallback((r: RoleSummaryDto) => {
-    if (isSuperAdmin || !r.isSystem) return true;
+    if (isSuperAdmin) return true;
     if (r.name.trim().toLowerCase() === "administrator") return true;
     const significant = (r.modules ?? []).filter(m => !UBIQUITOUS_MODULES.has(m.toLowerCase()));
     if (significant.length === 0) return true; // only ubiquitous → generic role

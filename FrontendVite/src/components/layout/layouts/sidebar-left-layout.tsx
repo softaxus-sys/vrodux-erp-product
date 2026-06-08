@@ -36,7 +36,7 @@ export function SidebarLeftLayout({ children }: { children: React.ReactNode }) {
               transition={{ duration: 0.15, delay: 0.05 }}
               className="min-w-0"
             >
-              <BrandLogo height={30} plate />
+              <BrandLogo height={32} />
             </motion.div>
           )}
         </div>

@@ -21,8 +21,8 @@ const SETTINGS_KEY = "softaxis-app-settings";
 // ─── Default values (used as fallback when backend has no data yet) ───────────
 const DEFAULTS = {
   company: {
-    name: "Vrodux Technologies LLC",
-    legalName: "Vrodux Technologies LLC",
+    name: "Softaxis Technologies LLC",
+    legalName: "Softaxis Technologies LLC",
     industry: "IT Services / SaaS",
     website: "www.softaxis.io",
     companySize: "50-200",
