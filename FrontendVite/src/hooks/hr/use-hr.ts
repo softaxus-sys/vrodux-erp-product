@@ -8,6 +8,7 @@ import {
   type GeneratePayrollPayload,
   type MarkAttendancePayload,
   type UpdateAttendancePayload,
+  type CreateJobPostingPayload,
 } from "@/lib/hr/hr.api";
 import { toast } from "sonner";
 
@@ -379,5 +380,18 @@ export function useRecruitmentSummary() {
     queryKey: [QK, "recruitment-summary"],
     queryFn:  hrApi.getRecruitmentSummary,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateJobPosting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateJobPostingPayload) => hrApi.createJobPosting(payload),
+    onSuccess: (_, payload) => {
+      qc.invalidateQueries({ queryKey: [QK, "job-postings"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success(payload.status === "open" ? "Job posting published." : "Job saved as draft.");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

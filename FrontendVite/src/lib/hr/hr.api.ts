@@ -388,6 +388,24 @@ export interface UpdateAttendancePayload {
   notes?: string | null;
 }
 
+export interface CreateJobPostingPayload {
+  title: string;
+  department: string;
+  branch: string;
+  type: string;
+  experienceLevel: string;
+  headcount: number;
+  salaryMin: number;
+  salaryMax: number;
+  currency: string;
+  closingDate?: string;
+  hiringManager?: string;
+  description: string;
+  requirements: string[];
+  responsibilities: string[];
+  status: "draft" | "open";
+}
+
 // ─── Response mapper helpers ──────────────────────────────────────────────────
 
 /** Map raw backend employee to unified EmployeeDto */
@@ -570,8 +588,14 @@ export const hrApi = {
     rawApiClient.get(`${BASE}/recruitment/jobs?pageSize=500`).then((r: any) => r.items ?? r),
 
   getApplicants: (): Promise<ApplicantDto[]> =>
-    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => r.items ?? r),
+    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => r.items ?? r).catch(() => []),
 
   getRecruitmentSummary: (): Promise<RecruitmentSummaryDto> =>
     rawApiClient.get(`${BASE}/recruitment/summary`),
+
+  createJobPosting: (payload: CreateJobPostingPayload): Promise<JobPostingDto> =>
+    rawApiClient.post(`${BASE}/recruitment/jobs`, payload),
+
+  deleteJobPosting: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/recruitment/jobs/${id}`),
 };

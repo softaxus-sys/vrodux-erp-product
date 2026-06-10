@@ -13,6 +13,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options)
     public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
     public DbSet<PayrollRun>   PayrollRuns   => Set<PayrollRun>();
     public DbSet<PayrollSlip>  PayrollSlips  => Set<PayrollSlip>();
+    public DbSet<JobPosting>   JobPostings   => Set<JobPosting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
