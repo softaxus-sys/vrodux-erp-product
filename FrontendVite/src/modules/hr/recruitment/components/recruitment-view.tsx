@@ -3,19 +3,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Briefcase, Users, Clock,
   CheckCircle2, Star, MapPin, DollarSign, Calendar,
-  Mail, Phone, Globe, ChevronRight, Award
+  Mail, Phone, Globe, ChevronRight, Award, MoreVertical, UserPlus
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import type { JobPostingDto as JobPosting, ApplicantDto as Applicant, ApplicantStage, JobStatus } from "@/lib/hr/hr.api";
-import { useJobPostings, useApplicants, useRecruitmentSummary } from "@/hooks/hr/use-hr";
+import { useJobPostings, useApplicants, useRecruitmentSummary, useUpdateJobStatus, useUpdateApplicantStage } from "@/hooks/hr/use-hr";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddJobPostingForm } from "./add-job-posting-form";
+import { AddApplicantForm } from "./add-applicant-form";
 
 const JOB_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   open:     { label: "Open",     color: "text-success",          bg: "bg-success/10" },
@@ -49,8 +57,16 @@ function RatingStars({ rating }: { rating?: number }) {
 }
 
 function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | null; open: boolean; onClose: () => void }) {
+  const updateStage = useUpdateApplicantStage();
+
   if (!applicant) return null;
   const sc = STAGE_CONFIG[applicant.stage] ?? STAGE_FALLBACK;
+
+  const activeStages = STAGE_ORDER.filter(s => s !== "rejected");
+  const currentIdx = activeStages.indexOf(applicant.stage as typeof activeStages[number]);
+  const nextStage = currentIdx >= 0 && currentIdx < activeStages.length - 1 ? activeStages[currentIdx + 1] : null;
+  const isFinal = applicant.stage === "hired" || applicant.stage === "rejected";
+
   return (
     <AnimatePresence>
       {open && (
@@ -141,10 +157,27 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                 </div>
               </div>
             </div>
-            <div className="border-t border-border px-6 py-4 flex items-center gap-2">
-              <Button size="sm" className="flex-1 gap-1.5">Move to Next Stage</Button>
-              <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30">Reject</Button>
-            </div>
+            {!isFinal && (
+              <div className="border-t border-border px-6 py-4 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 gap-1.5"
+                  disabled={!nextStage || updateStage.isPending}
+                  onClick={() => nextStage && updateStage.mutate({ id: applicant.id, stage: nextStage })}
+                >
+                  Move to Next Stage
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-destructive border-destructive/30"
+                  disabled={updateStage.isPending}
+                  onClick={() => updateStage.mutate({ id: applicant.id, stage: "rejected" })}
+                >
+                  Reject
+                </Button>
+              </div>
+            )}
           </motion.div>
         </>
       )}
@@ -159,9 +192,13 @@ export function RecruitmentView() {
   const [selectedApplicant, setSelectedApplicant] = React.useState<Applicant | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [applicantFormJob, setApplicantFormJob] = React.useState<{ id: string; title: string } | null>(null);
 
   const { data: jobPostings = [] } = useJobPostings();
   const { data: applicants = [] } = useApplicants();
+  const updateJobStatus = useUpdateJobStatus();
+
+  const JOB_STATUSES: JobStatus[] = ["draft", "open", "on_hold", "closed"];
 
   const exportCsv = () => {
     const csv = toCsv(jobPostings.map(j => ({
@@ -286,7 +323,34 @@ export function RecruitmentView() {
                           <Briefcase className="h-3 w-3" />{job.department}
                         </div>
                       </div>
-                      <span className={cn("shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setApplicantFormJob({ id: job.id, title: job.title })}>
+                              <UserPlus className="h-3.5 w-3.5 mr-2" />Add Applicant
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {JOB_STATUSES.map(st => (
+                              <DropdownMenuItem
+                                key={st}
+                                disabled={job.status === st}
+                                onClick={() => updateJobStatus.mutate({ id: job.id, status: st })}
+                              >
+                                {(JOB_STATUS_CONFIG[st] ?? JOB_STATUS_FALLBACK).label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     <div className="space-y-1.5 text-xs text-muted-foreground mb-4 flex-1">
                       <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3" />{job.branch}</div>
@@ -374,6 +438,12 @@ export function RecruitmentView() {
 
       <ApplicantDrawer applicant={selectedApplicant} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AddJobPostingForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <AddApplicantForm
+        open={!!applicantFormJob}
+        jobId={applicantFormJob?.id ?? null}
+        jobTitle={applicantFormJob?.title}
+        onClose={() => setApplicantFormJob(null)}
+      />
     </div>
   );
 }

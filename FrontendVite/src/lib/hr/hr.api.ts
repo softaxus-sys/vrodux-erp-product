@@ -406,6 +406,19 @@ export interface CreateJobPostingPayload {
   status: "draft" | "open";
 }
 
+export interface CreateApplicantPayload {
+  jobId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  nationality?: string;
+  currentRole?: string;
+  currentCompany?: string;
+  experience: number;
+  source?: string;
+  notes?: string;
+}
+
 // ─── Response mapper helpers ──────────────────────────────────────────────────
 
 /** Map raw backend employee to unified EmployeeDto */
@@ -474,6 +487,27 @@ function mapLeave(raw: any): LeaveRequestDto {
     approvedOn:       raw.approvedOn  ?? raw.approvedAt,
     rejectionReason:  raw.rejectionReason ?? raw.approverNotes,
     coveringEmployee: raw.coveringEmployee,
+  };
+}
+
+/** Map raw backend applicant to unified ApplicantDto */
+function mapApplicant(raw: any): ApplicantDto {
+  return {
+    id:             raw.id,
+    jobId:          raw.jobId ?? raw.jobPostingId ?? "",
+    jobTitle:       raw.jobTitle ?? "",
+    name:           raw.name ?? "",
+    email:          raw.email ?? "",
+    phone:          raw.phone ?? "",
+    nationality:    raw.nationality ?? "",
+    currentRole:    raw.currentRole ?? "",
+    currentCompany: raw.currentCompany ?? "",
+    experience:     raw.experience ?? raw.experienceYears ?? 0,
+    stage:          (raw.stage as ApplicantStage) ?? "applied",
+    appliedDate:    raw.appliedDate ?? undefined,
+    rating:         raw.rating ?? undefined,
+    notes:          raw.notes ?? undefined,
+    source:         raw.source ?? "",
   };
 }
 
@@ -588,7 +622,7 @@ export const hrApi = {
     rawApiClient.get(`${BASE}/recruitment/jobs?pageSize=500`).then((r: any) => r.items ?? r),
 
   getApplicants: (): Promise<ApplicantDto[]> =>
-    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => r.items ?? r).catch(() => []),
+    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => (r.items ?? r).map(mapApplicant)),
 
   getRecruitmentSummary: (): Promise<RecruitmentSummaryDto> =>
     rawApiClient.get(`${BASE}/recruitment/summary`),
@@ -598,4 +632,16 @@ export const hrApi = {
 
   deleteJobPosting: (id: string): Promise<void> =>
     rawApiClient.delete(`${BASE}/recruitment/jobs/${id}`),
+
+  updateJobStatus: (id: string, status: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/recruitment/jobs/${id}/status`, { status }),
+
+  createApplicant: (payload: CreateApplicantPayload): Promise<ApplicantDto> =>
+    rawApiClient.post(`${BASE}/recruitment/applicants`, payload).then(mapApplicant),
+
+  updateApplicantStage: (id: string, stage: ApplicantStage): Promise<void> =>
+    rawApiClient.put(`${BASE}/recruitment/applicants/${id}/stage`, { stage }),
+
+  deleteApplicant: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/recruitment/applicants/${id}`),
 };

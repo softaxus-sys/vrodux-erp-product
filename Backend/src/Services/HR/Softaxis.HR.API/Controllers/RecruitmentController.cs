@@ -75,6 +75,39 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
         bool HasNext,
         bool HasPrev);
 
+    public record ApplicantDto(
+        Guid    Id,
+        Guid    JobId,
+        string  JobTitle,
+        string  Name,
+        string  Email,
+        string? Phone,
+        string? Nationality,
+        string? CurrentRole,
+        string? CurrentCompany,
+        int     Experience,
+        string  Stage,
+        string  AppliedDate,
+        int?    Rating,
+        string? Notes,
+        string? Source);
+
+    public record CreateApplicantRequest(
+        Guid    JobId,
+        string  Name,
+        string  Email,
+        string? Phone,
+        string? Nationality,
+        string? CurrentRole,
+        string? CurrentCompany,
+        int     Experience,
+        string? Source,
+        string? Notes);
+
+    public record UpdateApplicantStageRequest(string Stage);
+
+    public record UpdateJobStatusRequest(string Status);
+
     // ── GET /api/hr/recruitment/jobs ─────────────────────────────────────
     [HttpGet("jobs")]
     public async Task<IActionResult> GetJobs(
@@ -157,6 +190,21 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
         return NoContent();
     }
 
+    // ── POST /api/hr/recruitment/jobs/{id}/status ────────────────────────
+    [HttpPost("jobs/{id:guid}/status")]
+    public async Task<IActionResult> SetJobStatus(Guid id, [FromBody] UpdateJobStatusRequest req, CancellationToken ct)
+    {
+        if (req.Status is not ("draft" or "open" or "on_hold" or "closed"))
+            return BadRequest(new { error = "Status must be one of: draft, open, on_hold, closed." });
+
+        var job = await db.JobPostings.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (job is null) return NotFound();
+
+        job.SetStatus(req.Status);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     // ── DELETE /api/hr/recruitment/jobs/{id} ─────────────────────────────
     [HttpDelete("jobs/{id:guid}")]
     public async Task<IActionResult> DeleteJob(Guid id, CancellationToken ct)
@@ -171,27 +219,111 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
 
     // ── GET /api/hr/recruitment/applicants ───────────────────────────────
     [HttpGet("applicants")]
-    public IActionResult GetApplicants(
-        [FromQuery] int page     = 1,
-        [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetApplicants(
+        [FromQuery] int     page     = 1,
+        [FromQuery] int     pageSize = 20,
+        [FromQuery] Guid?   jobId    = null,
+        [FromQuery] string? stage    = null,
+        CancellationToken ct = default)
     {
-        // No applicant tracking system implemented yet — return an empty page.
-        return Ok(new PagedResult<object>(Array.Empty<object>(), page, pageSize, 0, 0, false, false));
+        IQueryable<Applicant> query = db.Applicants.AsNoTracking();
+
+        if (jobId is not null)
+            query = query.Where(x => x.JobPostingId == jobId);
+
+        if (!string.IsNullOrWhiteSpace(stage))
+            query = query.Where(x => x.Stage == stage);
+
+        var total      = await query.CountAsync(ct);
+        var totalPages = (int)Math.Ceiling((double)total / pageSize);
+
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return Ok(new PagedResult<ApplicantDto>(items.Select(ToDto).ToList(), page, pageSize, total, totalPages,
+            page < totalPages, page > 1));
+    }
+
+    // ── GET /api/hr/recruitment/applicants/{id} ──────────────────────────
+    [HttpGet("applicants/{id:guid}")]
+    public async Task<IActionResult> GetApplicantById(Guid id, CancellationToken ct)
+    {
+        var applicant = await db.Applicants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (applicant is null) return NotFound();
+        return Ok(ToDto(applicant));
+    }
+
+    // ── POST /api/hr/recruitment/applicants ──────────────────────────────
+    [HttpPost("applicants")]
+    public async Task<IActionResult> CreateApplicant([FromBody] CreateApplicantRequest req, CancellationToken ct)
+    {
+        var job = await db.JobPostings.FirstOrDefaultAsync(x => x.Id == req.JobId, ct);
+        if (job is null) return NotFound(new { error = "Job posting not found." });
+
+        var applicant = new Applicant(
+            req.JobId, job.Title, req.Name, req.Email, req.Phone, req.Nationality,
+            req.CurrentRole, req.CurrentCompany, req.Experience, req.Source, req.Notes);
+
+        job.IncrementApplicants();
+        db.Applicants.Add(applicant);
+        await db.SaveChangesAsync(ct);
+
+        return CreatedAtAction(nameof(GetApplicantById), new { id = applicant.Id }, ToDto(applicant));
+    }
+
+    // ── PUT /api/hr/recruitment/applicants/{id}/stage ────────────────────
+    [HttpPut("applicants/{id:guid}/stage")]
+    public async Task<IActionResult> UpdateApplicantStage(Guid id, [FromBody] UpdateApplicantStageRequest req, CancellationToken ct)
+    {
+        if (req.Stage is not ("applied" or "screening" or "interview" or "offer" or "hired" or "rejected"))
+            return BadRequest(new { error = "Invalid stage." });
+
+        var applicant = await db.Applicants.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (applicant is null) return NotFound();
+
+        applicant.SetStage(req.Stage);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    // ── DELETE /api/hr/recruitment/applicants/{id} ───────────────────────
+    [HttpDelete("applicants/{id:guid}")]
+    public async Task<IActionResult> DeleteApplicant(Guid id, CancellationToken ct)
+    {
+        var applicant = await db.Applicants.FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (applicant is null) return NotFound();
+
+        var job = await db.JobPostings.FirstOrDefaultAsync(x => x.Id == applicant.JobPostingId, ct);
+        job?.DecrementApplicants();
+
+        applicant.Delete();
+        await db.SaveChangesAsync(ct);
+        return NoContent();
     }
 
     // ── GET /api/hr/recruitment/summary ──────────────────────────────────
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
-        var openPositions = await db.JobPostings.AsNoTracking().CountAsync(x => x.Status == "open", ct);
+        var openPositions   = await db.JobPostings.AsNoTracking().CountAsync(x => x.Status == "open", ct);
+        var totalApplicants = await db.Applicants.AsNoTracking().CountAsync(ct);
+        var inInterview     = await db.Applicants.AsNoTracking().CountAsync(x => x.Stage == "interview", ct);
+        var offers          = await db.Applicants.AsNoTracking().CountAsync(x => x.Stage == "offer", ct);
+
+        var thisMonth = DateTime.UtcNow.ToString("yyyy-MM");
+        var hiredThisMonth = await db.Applicants.AsNoTracking()
+            .CountAsync(x => x.Stage == "hired" && x.AppliedDate.StartsWith(thisMonth), ct);
 
         return Ok(new
         {
             OpenPositions   = openPositions,
-            TotalApplicants = 0,
-            InInterview     = 0,
-            Offers          = 0,
-            HiredThisMonth  = 0,
+            TotalApplicants = totalApplicants,
+            InInterview     = inInterview,
+            Offers          = offers,
+            HiredThisMonth  = hiredThisMonth,
             AvgTimeToHire   = 0,
         });
     }
@@ -212,4 +344,9 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
         j.SalaryMin, j.SalaryMax, j.Currency, j.Status, j.PostedDate, j.ClosingDate,
         j.Applicants, j.Description, SplitLines(j.RequirementsText), SplitLines(j.ResponsibilitiesText),
         j.HiringManager);
+
+    private static ApplicantDto ToDto(Applicant a) => new(
+        a.Id, a.JobPostingId, a.JobTitle, a.Name, a.Email, a.Phone, a.Nationality,
+        a.CurrentRole, a.CurrentCompany, a.ExperienceYears, a.Stage, a.AppliedDate,
+        a.Rating, a.Notes, a.Source);
 }

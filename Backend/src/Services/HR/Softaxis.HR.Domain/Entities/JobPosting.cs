@@ -105,5 +105,17 @@ public sealed class JobPosting
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void IncrementApplicants()
+    {
+        Applicants++;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void DecrementApplicants()
+    {
+        if (Applicants > 0) Applicants--;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
