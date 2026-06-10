@@ -4,6 +4,48 @@
 
 ---
 
+## ⚠️ MANDATORY Backend Architecture — CQRS / MediatR (read before touching ANY controller)
+
+**Controllers must NEVER inject a `DbContext` or define DTOs/records inline.** This was violated by older
+controllers (Employees, Leaves, Payroll, Attendance, Recruitment, Departments, Performance, Careers, etc.) —
+those are TECH DEBT to be migrated, not a pattern to copy. The **reference implementation** is
+`Softaxis.Finance.*` → `Accounts` feature (`AccountsController` + `Accounts/Commands|Queries|Dtos` +
+`Handlers/Accounts/*Handler.cs`).
+
+**Required layout per feature** (e.g. `Recruitment`, `Careers`, `Employees`):
+
+```
+Softaxis.<Module>.Application/
+  <Feature>/
+    Commands/   <Verb><Feature>Command.cs   — sealed record : ICommand<TDto> (or ICommand for void),
+                                                + FluentValidation AbstractValidator in same file
+    Queries/    Get<Feature>Query.cs        — sealed record : IQuery<TDto> / IQuery<IReadOnlyList<TDto>>
+    Dtos/       <Feature>Dto.cs             — all response DTOs/records live here, NOT in the controller
+
+Softaxis.<Module>.Infrastructure/
+  Handlers/<Feature>/
+    <Verb><Feature>Handler.cs   — internal sealed class : ICommandHandler<TCmd,TDto> / IQueryHandler<...>
+                                    — only place that touches DbContext
+                                    — returns Result<T> / Result, uses Error.Custom("X.NotFound", "...") etc.
+
+Softaxis.<Module>.API/
+  Controllers/Common/<Module>ControllerBase.cs   — OkOrError / CreatedOrError / NoContentOrError
+                                                     (copy Finance's FinanceControllerBase if missing)
+  Controllers/<Feature>Controller.cs
+    - constructor takes ONLY `ISender sender`
+    - each action: `await sender.Send(new XCommand(...), ct)` → `OkOrError(...)` / `NoContentOrError(...)` / `CreatedOrError(...)`
+    - NO `db.Whatever`, NO inline `record FooDto(...)`, NO business logic
+```
+
+Error codes drive HTTP status in `ErrorResponse`: `*.NotFound` → 404, `*.Duplicate`/`*.HasTransactions` → 409,
+`Validation.Failed` → 422, else 500.
+
+**When asked to add/modify a backend endpoint in ANY service**, follow this structure even if the existing
+controller for that feature doesn't (flag the inconsistency, but don't compound it). When doing larger refactors,
+migrate one feature/controller at a time and confirm scope with the user first — these refactors touch many files.
+
+---
+
 ## Tech Stack
 
 - **Frontend:** React + Vite + TypeScript, Tailwind CSS, `framer-motion`, `react-hook-form` + `zod`, `@tanstack/react-query`, `sonner` (toast)
