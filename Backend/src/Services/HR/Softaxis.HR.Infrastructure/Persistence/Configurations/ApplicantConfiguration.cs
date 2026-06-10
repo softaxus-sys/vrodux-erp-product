@@ -24,6 +24,8 @@ internal sealed class ApplicantConfiguration : IEntityTypeConfiguration<Applican
         builder.Property(x => x.AppliedDate).IsRequired().HasMaxLength(10);
         builder.Property(x => x.Notes).HasMaxLength(2000);
         builder.Property(x => x.Source).HasMaxLength(100);
+        builder.Property(x => x.ResumeFileName).HasMaxLength(255);
+        builder.Property(x => x.ResumeStoragePath).HasMaxLength(500);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 

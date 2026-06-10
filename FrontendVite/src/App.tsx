@@ -112,6 +112,10 @@ const MasterDataPage       = React.lazy(() => import("@/pages/master-data"));
 // ── Onboarding / Trial ────────────────────────────────────────────────────────
 const OnboardingPage            = React.lazy(() => import("@/pages/trial/onboarding"));
 
+// ── Careers (public) ─────────────────────────────────────────────────────────
+const CareersJobsPage           = React.lazy(() => import("@/pages/careers/jobs"));
+const CareersJobDetailPage      = React.lazy(() => import("@/pages/careers/job-detail"));
+
 // ── Super Admin ───────────────────────────────────────────────────────────────
 const SuperAdminPage            = React.lazy(() => import("@/pages/super-admin/index"));
 const NewTenantPage             = React.lazy(() => import("@/pages/super-admin/new-tenant"));
@@ -185,6 +189,10 @@ export function App() {
 
         {/* Subscription expired — shown when enforcement middleware blocks requests */}
         <Route path="/subscription-expired" element={<SubscriptionExpiredPage />} />
+
+        {/* Careers portal — fully public, no auth */}
+        <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />
+        <Route path="/careers/:tenantSlug/jobs/:jobId" element={<CareersJobDetailPage />} />
 
         {/* ERP (authenticated) — layout wraps all children */}
         <Route

@@ -307,6 +307,7 @@ export interface ApplicantDto {
   rating?: number;
   notes?: string;
   source: string;
+  hasResume: boolean;
 }
 
 export interface RecruitmentSummaryDto {
@@ -537,6 +538,7 @@ function mapApplicant(raw: any): ApplicantDto {
     rating:         raw.rating ?? undefined,
     notes:          raw.notes ?? undefined,
     source:         raw.source ?? "",
+    hasResume:      raw.hasResume ?? false,
   };
 }
 
@@ -726,4 +728,7 @@ export const hrApi = {
 
   deleteApplicant: (id: string): Promise<void> =>
     rawApiClient.delete(`${BASE}/recruitment/applicants/${id}`),
+
+  getApplicantResumeUrl: (id: string): string =>
+    `${BASE}/recruitment/applicants/${id}/resume`,
 };

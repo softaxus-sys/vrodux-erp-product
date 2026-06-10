@@ -3,8 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Briefcase, Users, Clock,
   CheckCircle2, Star, MapPin, DollarSign, Calendar,
-  Mail, Phone, Globe, ChevronRight, Award, MoreVertical, UserPlus
+  Mail, Phone, Globe, ChevronRight, Award, MoreVertical, UserPlus,
+  ExternalLink, FileDown
 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuthStore } from "@/store/auth.store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +22,7 @@ import {
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import type { JobPostingDto as JobPosting, ApplicantDto as Applicant, ApplicantStage, JobStatus } from "@/lib/hr/hr.api";
 import { useJobPostings, useApplicants, useRecruitmentSummary, useUpdateJobStatus, useUpdateApplicantStage } from "@/hooks/hr/use-hr";
+import { hrApi } from "@/lib/hr/hr.api";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -54,6 +58,30 @@ function RatingStars({ rating }: { rating?: number }) {
       ))}
     </div>
   );
+}
+
+async function downloadApplicantResume(applicant: Applicant) {
+  const token = useAuthStore.getState().token;
+  try {
+    const res = await fetch(hrApi.getApplicantResumeUrl(applicant.id), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Failed to download resume.");
+
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    const filename = match?.[1] ?? `${applicant.name}-resume`;
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    toast.error("Failed to download resume.");
+  }
 }
 
 function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | null; open: boolean; onClose: () => void }) {
@@ -102,6 +130,18 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                 <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-1">Applied For</p>
                 <p className="text-sm font-medium">{applicant.jobTitle}</p>
               </div>
+
+              {applicant.hasResume && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5"
+                  onClick={() => downloadApplicantResume(applicant)}
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  Download Resume / CV
+                </Button>
+              )}
 
               {/* Details */}
               <div className="space-y-2.5">
@@ -197,6 +237,7 @@ export function RecruitmentView() {
   const { data: jobPostings = [] } = useJobPostings();
   const { data: applicants = [] } = useApplicants();
   const updateJobStatus = useUpdateJobStatus();
+  const tenantSlug = useAuthStore(s => s.tenant?.slug);
 
   const JOB_STATUSES: JobStatus[] = ["draft", "open", "on_hold", "closed"];
 
@@ -251,6 +292,16 @@ export function RecruitmentView() {
           <p className="text-sm text-muted-foreground mt-0.5">Manage job postings and applicant pipeline</p>
         </div>
         <div className="flex items-center gap-2">
+          {tenantSlug && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5 text-sm"
+              onClick={() => window.open(`/careers/${tenantSlug}`, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="h-4 w-4" />Careers Page
+            </Button>
+          )}
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Post Job</Button>
         </div>

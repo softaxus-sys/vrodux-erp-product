@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.HR.Domain.Entities;
 using Softaxis.HR.Infrastructure.Persistence;
@@ -9,7 +10,7 @@ namespace Softaxis.HR.API.Controllers;
 [ApiController]
 [Route("api/hr/recruitment")]
 [Authorize]
-public sealed class RecruitmentController(HrDbContext db) : ControllerBase
+public sealed class RecruitmentController(HrDbContext db, IWebHostEnvironment env) : ControllerBase
 {
     // ── DTOs ─────────────────────────────────────────────────────────────
     public record JobPostingDto(
@@ -90,7 +91,8 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
         string  AppliedDate,
         int?    Rating,
         string? Notes,
-        string? Source);
+        string? Source,
+        bool    HasResume);
 
     public record CreateApplicantRequest(
         Guid    JobId,
@@ -256,6 +258,25 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
         return Ok(ToDto(applicant));
     }
 
+    // ── GET /api/hr/recruitment/applicants/{id}/resume ───────────────────
+    [HttpGet("applicants/{id:guid}/resume")]
+    public async Task<IActionResult> GetApplicantResume(Guid id, CancellationToken ct)
+    {
+        var applicant = await db.Applicants.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (applicant is null || string.IsNullOrEmpty(applicant.ResumeStoragePath))
+            return NotFound();
+
+        var fullPath = Path.Combine(env.ContentRootPath, "App_Data", applicant.ResumeStoragePath);
+        if (!System.IO.File.Exists(fullPath)) return NotFound();
+
+        var provider = new FileExtensionContentTypeProvider();
+        if (!provider.TryGetContentType(fullPath, out var contentType))
+            contentType = "application/octet-stream";
+
+        var fileName = applicant.ResumeFileName ?? Path.GetFileName(fullPath);
+        return PhysicalFile(fullPath, contentType, fileName);
+    }
+
     // ── POST /api/hr/recruitment/applicants ──────────────────────────────
     [HttpPost("applicants")]
     public async Task<IActionResult> CreateApplicant([FromBody] CreateApplicantRequest req, CancellationToken ct)
@@ -348,5 +369,5 @@ public sealed class RecruitmentController(HrDbContext db) : ControllerBase
     private static ApplicantDto ToDto(Applicant a) => new(
         a.Id, a.JobPostingId, a.JobTitle, a.Name, a.Email, a.Phone, a.Nationality,
         a.CurrentRole, a.CurrentCompany, a.ExperienceYears, a.Stage, a.AppliedDate,
-        a.Rating, a.Notes, a.Source);
+        a.Rating, a.Notes, a.Source, !string.IsNullOrEmpty(a.ResumeStoragePath));
 }

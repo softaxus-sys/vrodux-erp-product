@@ -49,6 +49,8 @@ public sealed class Applicant
     public int?      Rating          { get; private set; }
     public string?   Notes           { get; private set; }
     public string?   Source          { get; private set; }
+    public string?   ResumeFileName    { get; private set; }
+    public string?   ResumeStoragePath { get; private set; }
     public DateTime  CreatedAt       { get; private set; }
     public DateTime? UpdatedAt       { get; private set; }
     public bool      IsDeleted       { get; private set; }
@@ -81,6 +83,13 @@ public sealed class Applicant
     {
         Notes     = notes?.Trim();
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void AttachResume(string fileName, string storagePath)
+    {
+        ResumeFileName    = fileName;
+        ResumeStoragePath = storagePath;
+        UpdatedAt         = DateTime.UtcNow;
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
