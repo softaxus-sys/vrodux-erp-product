@@ -419,6 +419,35 @@ export interface CreateApplicantPayload {
   notes?: string;
 }
 
+export interface CreateReviewPayload {
+  employeeId: string;
+  reviewPeriod: string;
+  reviewType: PerformanceReviewDto["reviewType"];
+  dueDate: string;
+  reviewedBy: string;
+}
+
+export interface CompleteReviewPayload {
+  overallRating?: Rating;
+  technicalRating?: Rating;
+  communicationRating?: Rating;
+  teamworkRating?: Rating;
+  leadershipRating?: Rating;
+  strengths?: string;
+  improvements?: string;
+}
+
+export interface CreateGoalPayload {
+  title: string;
+  target: string;
+  dueDate: string;
+}
+
+export interface UpdateGoalPayload {
+  progress: number;
+  status: PerformanceGoalDto["status"];
+}
+
 // ─── Response mapper helpers ──────────────────────────────────────────────────
 
 /** Map raw backend employee to unified EmployeeDto */
@@ -508,6 +537,38 @@ function mapApplicant(raw: any): ApplicantDto {
     rating:         raw.rating ?? undefined,
     notes:          raw.notes ?? undefined,
     source:         raw.source ?? "",
+  };
+}
+
+/** Map raw backend review to unified PerformanceReviewDto */
+function mapPerformanceReview(raw: any): PerformanceReviewDto {
+  return {
+    id:                  raw.id,
+    employeeId:          raw.employeeId ?? "",
+    employeeName:        raw.employeeName ?? "",
+    department:          raw.department ?? "",
+    designation:         raw.designation ?? "",
+    reviewPeriod:        raw.reviewPeriod ?? "",
+    reviewType:          (raw.reviewType as PerformanceReviewDto["reviewType"]) ?? "annual",
+    status:              (raw.status as ReviewStatus) ?? "pending",
+    overallRating:       raw.overallRating ?? undefined,
+    technicalRating:     raw.technicalRating ?? undefined,
+    communicationRating: raw.communicationRating ?? undefined,
+    teamworkRating:      raw.teamworkRating ?? undefined,
+    leadershipRating:    raw.leadershipRating ?? undefined,
+    reviewedBy:          raw.reviewedBy ?? "",
+    dueDate:             raw.dueDate ?? "",
+    completedDate:       raw.completedDate ?? undefined,
+    strengths:           raw.strengths ?? undefined,
+    improvements:        raw.improvements ?? undefined,
+    goals:               (raw.goals ?? []).map((g: any) => ({
+      id:       g.id,
+      title:    g.title ?? "",
+      target:   g.target ?? "",
+      progress: g.progress ?? 0,
+      status:   g.status ?? "on_track",
+      dueDate:  g.dueDate ?? "",
+    })),
   };
 }
 
@@ -612,10 +673,31 @@ export const hrApi = {
 
   // ── Performance ───────────────────────────────────────────────────────────
   getPerformanceReviews: (): Promise<PerformanceReviewDto[]> =>
-    rawApiClient.get(`${BASE}/performance?pageSize=500`).then((r: any) => r.items ?? r),
+    rawApiClient.get(`${BASE}/performance?pageSize=500`).then((r: any) => (r.items ?? r).map(mapPerformanceReview)),
 
   getPerformanceSummary: (): Promise<PerformanceSummaryDto> =>
     rawApiClient.get(`${BASE}/performance/summary`),
+
+  createPerformanceReview: (payload: CreateReviewPayload): Promise<PerformanceReviewDto> =>
+    rawApiClient.post(`${BASE}/performance`, payload).then(mapPerformanceReview),
+
+  startPerformanceReview: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/performance/${id}/start`, {}),
+
+  completePerformanceReview: (id: string, payload: CompleteReviewPayload): Promise<PerformanceReviewDto> =>
+    rawApiClient.post(`${BASE}/performance/${id}/complete`, payload).then(mapPerformanceReview),
+
+  deletePerformanceReview: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/performance/${id}`),
+
+  addPerformanceGoal: (id: string, payload: CreateGoalPayload): Promise<PerformanceReviewDto> =>
+    rawApiClient.post(`${BASE}/performance/${id}/goals`, payload).then(mapPerformanceReview),
+
+  updatePerformanceGoal: (id: string, goalId: string, payload: UpdateGoalPayload): Promise<void> =>
+    rawApiClient.put(`${BASE}/performance/${id}/goals/${goalId}`, payload),
+
+  deletePerformanceGoal: (id: string, goalId: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/performance/${id}/goals/${goalId}`),
 
   // ── Recruitment ───────────────────────────────────────────────────────────
   getJobPostings: (): Promise<JobPostingDto[]> =>

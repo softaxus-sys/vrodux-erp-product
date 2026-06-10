@@ -11,6 +11,10 @@ import {
   type CreateJobPostingPayload,
   type CreateApplicantPayload,
   type ApplicantStage,
+  type CreateReviewPayload,
+  type CompleteReviewPayload,
+  type CreateGoalPayload,
+  type UpdateGoalPayload,
 } from "@/lib/hr/hr.api";
 import { toast } from "sonner";
 
@@ -356,6 +360,94 @@ export function usePerformanceSummary() {
     queryKey: [QK, "performance-summary"],
     queryFn:  hrApi.getPerformanceSummary,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreatePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateReviewPayload) => hrApi.createPerformanceReview(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review created.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartPerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.startPerformanceReview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review started.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCompletePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CompleteReviewPayload }) => hrApi.completePerformanceReview(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review completed.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeletePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deletePerformanceReview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review deleted.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAddPerformanceGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CreateGoalPayload }) => hrApi.addPerformanceGoal(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      toast.success("Goal added.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdatePerformanceGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, goalId, payload }: { id: string; goalId: string; payload: UpdateGoalPayload }) => hrApi.updatePerformanceGoal(id, goalId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      toast.success("Goal updated.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeletePerformanceGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, goalId }: { id: string; goalId: string }) => hrApi.deletePerformanceGoal(id, goalId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      toast.success("Goal removed.");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }
 

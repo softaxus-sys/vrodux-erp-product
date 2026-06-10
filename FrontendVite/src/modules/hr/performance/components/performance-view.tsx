@@ -3,18 +3,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Star, TrendingUp,
   Clock, CheckCircle2, AlertTriangle, Target,
-  BarChart3, User, ChevronRight, Award
+  BarChart3, User, ChevronRight, Award, Trash2
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
-import type { PerformanceReviewDto as PerformanceReview, ReviewStatus, Rating } from "@/lib/hr/hr.api";
-import { usePerformanceReviews, usePerformanceSummary } from "@/hooks/hr/use-hr";
+import type { PerformanceReviewDto as PerformanceReview, ReviewStatus, Rating, PerformanceGoalDto } from "@/lib/hr/hr.api";
+import {
+  usePerformanceReviews, usePerformanceSummary,
+  useStartPerformanceReview, useCompletePerformanceReview,
+  useAddPerformanceGoal, useUpdatePerformanceGoal, useDeletePerformanceGoal,
+} from "@/hooks/hr/use-hr";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
+import { AddReviewForm } from "./add-review-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   pending:     { label: "Pending",     color: "text-muted-foreground", bg: "bg-muted",             icon: Clock },
@@ -48,6 +53,21 @@ function RatingStars({ rating, size = "sm" }: { rating?: Rating; size?: "sm" | "
   );
 }
 
+function RatingSelector({ label, value, onChange }: { label: string; value: Rating | undefined; onChange: (v: Rating) => void }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-0.5">
+        {([1,2,3,4,5] as Rating[]).map(i => (
+          <button key={i} type="button" onClick={() => onChange(i)} className="p-0.5">
+            <Star className={cn("h-4 w-4", value && i <= value ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30")} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RatingBar({ label, value }: { label: string; value?: Rating }) {
   if (!value) return null;
   const pct = (value / 5) * 100;
@@ -65,10 +85,155 @@ function RatingBar({ label, value }: { label: string; value?: Rating }) {
   );
 }
 
+const GOAL_STATUSES: PerformanceGoalDto["status"][] = ["on_track", "at_risk", "achieved", "missed"];
+
+function GoalCard({ reviewId, goal, index }: { reviewId: string; goal: PerformanceGoalDto; index: number }) {
+  const [editing, setEditing] = React.useState(false);
+  const [progress, setProgress] = React.useState(goal.progress);
+  const [status, setStatus] = React.useState<PerformanceGoalDto["status"]>(goal.status);
+
+  const updateGoal = useUpdatePerformanceGoal();
+  const deleteGoal = useDeletePerformanceGoal();
+
+  const gc = GOAL_STATUS_CONFIG[goal.status] ?? GOAL_FALLBACK;
+
+  const handleSave = async () => {
+    try {
+      await updateGoal.mutateAsync({ id: reviewId, goalId: goal.id, payload: { progress, status } });
+      setEditing(false);
+    } catch {
+      // onError in hook shows the toast
+    }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="bg-muted/30 rounded-xl p-4 space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold">{goal.title}</p>
+        <div className="flex items-center gap-2 shrink-0">
+          {!editing && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", gc.color, gc.bg)}>{gc.label}</span>}
+          <button onClick={() => deleteGoal.mutate({ id: reviewId, goalId: goal.id })} className="text-muted-foreground hover:text-destructive">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">Target: {goal.target}</p>
+
+      {editing ? (
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Input type="number" min={0} max={100} value={progress}
+              onChange={e => setProgress(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+              className="h-8 text-sm w-24" />
+            <span className="text-xs text-muted-foreground">%</span>
+            <select value={status} onChange={e => setStatus(e.target.value as PerformanceGoalDto["status"])}
+              className="flex-1 h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+              {GOAL_STATUSES.map(s => <option key={s} value={s}>{(GOAL_STATUS_CONFIG[s] ?? GOAL_FALLBACK).label}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 justify-end">
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button size="sm" className="h-7 text-xs" disabled={updateGoal.isPending} onClick={handleSave}>Save</Button>
+          </div>
+        </div>
+      ) : (
+        <div onClick={() => setEditing(true)} className="cursor-pointer">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+            <span>Progress</span><span className="font-medium">{goal.progress}%</span>
+          </div>
+          <div className="h-1.5 bg-border rounded-full overflow-hidden">
+            <div
+              className={cn("h-full rounded-full", goal.status === "achieved" ? "bg-primary" : goal.status === "on_track" ? "bg-success" : goal.status === "at_risk" ? "bg-warning" : "bg-destructive")}
+              style={{ width: `${goal.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Clock className="h-3 w-3" />Due {formatDate(goal.dueDate, "medium")}
+      </div>
+    </motion.div>
+  );
+}
+
+function AddGoalForm({ reviewId, onDone }: { reviewId: string; onDone: () => void }) {
+  const [title, setTitle] = React.useState("");
+  const [target, setTarget] = React.useState("");
+  const [dueDate, setDueDate] = React.useState("");
+
+  const addGoal = useAddPerformanceGoal();
+  const isValid = title.trim() && target.trim() && dueDate;
+
+  const handleAdd = async () => {
+    if (!isValid) return;
+    try {
+      await addGoal.mutateAsync({ id: reviewId, payload: { title: title.trim(), target: target.trim(), dueDate } });
+      onDone();
+    } catch {
+      // onError in hook shows the toast
+    }
+  };
+
+  return (
+    <div className="bg-muted/30 rounded-xl p-4 space-y-2.5">
+      <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Goal title" className="h-8 text-sm" />
+      <Input value={target} onChange={e => setTarget(e.target.value)} placeholder="Target (e.g. Close 10 deals)" className="h-8 text-sm" />
+      <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-sm" />
+      <div className="flex items-center gap-2 justify-end">
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onDone}>Cancel</Button>
+        <Button size="sm" className="h-7 text-xs" disabled={!isValid || addGoal.isPending} onClick={handleAdd}>Add Goal</Button>
+      </div>
+    </div>
+  );
+}
+
 function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | null; open: boolean; onClose: () => void }) {
   const [tab, setTab] = React.useState<"overview" | "goals">("overview");
+  const [completing, setCompleting] = React.useState(false);
+  const [overallRating, setOverallRating] = React.useState<Rating | undefined>();
+  const [technicalRating, setTechnicalRating] = React.useState<Rating | undefined>();
+  const [communicationRating, setCommunicationRating] = React.useState<Rating | undefined>();
+  const [teamworkRating, setTeamworkRating] = React.useState<Rating | undefined>();
+  const [leadershipRating, setLeadershipRating] = React.useState<Rating | undefined>();
+  const [strengths, setStrengths] = React.useState("");
+  const [improvements, setImprovements] = React.useState("");
+  const [addingGoal, setAddingGoal] = React.useState(false);
+
+  const startReview = useStartPerformanceReview();
+  const completeReview = useCompletePerformanceReview();
+
+  React.useEffect(() => {
+    if (!open) {
+      setCompleting(false);
+      setOverallRating(undefined); setTechnicalRating(undefined); setCommunicationRating(undefined);
+      setTeamworkRating(undefined); setLeadershipRating(undefined);
+      setStrengths(""); setImprovements("");
+      setAddingGoal(false);
+    }
+  }, [open]);
+
   if (!review) return null;
   const sc = STATUS_CONFIG[review.status] ?? STATUS_FALLBACK;
+
+  const handleComplete = async () => {
+    try {
+      await completeReview.mutateAsync({
+        id: review.id,
+        payload: {
+          overallRating, technicalRating, communicationRating, teamworkRating, leadershipRating,
+          strengths: strengths.trim() || undefined,
+          improvements: improvements.trim() || undefined,
+        },
+      });
+      setCompleting(false);
+    } catch {
+      // onError in hook shows the toast
+    }
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -81,7 +246,17 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <p className="font-bold text-base">Performance Review</p>
               <div className="flex items-center gap-2">
-                {review.status !== "completed" && <Button size="sm" className="h-8 text-xs">Start Review</Button>}
+                {review.status === "pending" && (
+                  <Button size="sm" className="h-8 text-xs" disabled={startReview.isPending}
+                    onClick={() => startReview.mutate(review.id)}>
+                    Start Review
+                  </Button>
+                )}
+                {review.status === "in_progress" && !completing && (
+                  <Button size="sm" className="h-8 text-xs" onClick={() => setCompleting(true)}>
+                    Complete Review
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -140,6 +315,38 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
                     </span>
                   </div>
 
+                  {/* Complete review form */}
+                  {completing && (
+                    <div className="space-y-4 bg-primary/5 border border-primary/20 rounded-xl p-4">
+                      <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">Complete Review</h4>
+                      <div className="space-y-2.5">
+                        <RatingSelector label="Overall Rating" value={overallRating} onChange={setOverallRating} />
+                        <RatingSelector label="Technical Skills" value={technicalRating} onChange={setTechnicalRating} />
+                        <RatingSelector label="Communication" value={communicationRating} onChange={setCommunicationRating} />
+                        <RatingSelector label="Teamwork" value={teamworkRating} onChange={setTeamworkRating} />
+                        <RatingSelector label="Leadership" value={leadershipRating} onChange={setLeadershipRating} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Strengths</label>
+                        <textarea value={strengths} onChange={e => setStrengths(e.target.value)} rows={2}
+                          placeholder="Key strengths observed…"
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Areas for Improvement</label>
+                        <textarea value={improvements} onChange={e => setImprovements(e.target.value)} rows={2}
+                          placeholder="Areas to improve…"
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                      </div>
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button variant="outline" size="sm" onClick={() => setCompleting(false)}>Cancel</Button>
+                        <Button size="sm" disabled={!overallRating || completeReview.isPending} onClick={handleComplete}>
+                          {completeReview.isPending ? "Submitting…" : "Submit Review"}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Overall rating */}
                   {review.overallRating && (
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
@@ -180,35 +387,18 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
 
               {tab === "goals" && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-semibold">Goals & Objectives ({(review.goals ?? []).length})</h4>
-                  {(review.goals ?? []).map((goal, i) => {
-                    const gc = GOAL_STATUS_CONFIG[goal.status] ?? GOAL_FALLBACK;
-                    return (
-                      <motion.div key={goal.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.05 }}
-                        className="bg-muted/30 rounded-xl p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold">{goal.title}</p>
-                          <span className={cn("shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold", gc.color, gc.bg)}>{gc.label}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">Target: {goal.target}</p>
-                        <div>
-                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                            <span>Progress</span><span className="font-medium">{goal.progress}%</span>
-                          </div>
-                          <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                            <div
-                              className={cn("h-full rounded-full", goal.status === "achieved" ? "bg-primary" : goal.status === "on_track" ? "bg-success" : goal.status === "at_risk" ? "bg-warning" : "bg-destructive")}
-                              style={{ width: `${goal.progress}%` }}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />Due {formatDate(goal.dueDate, "medium")}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold">Goals & Objectives ({(review.goals ?? []).length})</h4>
+                    {!addingGoal && (
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAddingGoal(true)}>
+                        <Plus className="h-3 w-3" />Add Goal
+                      </Button>
+                    )}
+                  </div>
+                  {addingGoal && <AddGoalForm reviewId={review.id} onDone={() => setAddingGoal(false)} />}
+                  {(review.goals ?? []).map((goal, i) => (
+                    <GoalCard key={goal.id} reviewId={review.id} goal={goal} index={i} />
+                  ))}
                 </div>
               )}
             </div>
@@ -222,11 +412,13 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
 export function PerformanceView() {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
-  const [selectedReview, setSelectedReview] = React.useState<PerformanceReview | null>(null);
+  const [selectedReviewId, setSelectedReviewId] = React.useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [showAddForm, setShowAddForm] = React.useState(false);
 
   const { data: performanceReviews = [] } = usePerformanceReviews();
   const { data: performanceSummary } = usePerformanceSummary();
+  const selectedReview = performanceReviews.find(r => r.id === selectedReviewId) ?? null;
 
   const exportCsv = () => {
     const csv = toCsv(performanceReviews.map(r => ({
@@ -271,7 +463,7 @@ export function PerformanceView() {
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" className="h-9 gap-1.5 text-sm"><Plus className="h-4 w-4" />New Review</Button>
+          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Review</Button>
         </div>
       </div>
 
@@ -335,7 +527,7 @@ export function PerformanceView() {
                   return (
                     <motion.tr key={rev.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }} className="erp-table-row cursor-pointer"
-                      onClick={() => { setSelectedReview(rev); setDrawerOpen(true); }}>
+                      onClick={() => { setSelectedReviewId(rev.id); setDrawerOpen(true); }}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 shrink-0">
@@ -376,6 +568,7 @@ export function PerformanceView() {
       </Card>
 
       <ReviewDrawer review={selectedReview} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <AddReviewForm open={showAddForm} onClose={() => setShowAddForm(false)} />
     </div>
   );
 }

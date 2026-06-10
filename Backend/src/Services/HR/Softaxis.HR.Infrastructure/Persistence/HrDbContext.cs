@@ -15,6 +15,8 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options)
     public DbSet<PayrollSlip>  PayrollSlips  => Set<PayrollSlip>();
     public DbSet<JobPosting>   JobPostings   => Set<JobPosting>();
     public DbSet<Applicant>    Applicants    => Set<Applicant>();
+    public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
+    public DbSet<PerformanceGoal>   PerformanceGoals   => Set<PerformanceGoal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
