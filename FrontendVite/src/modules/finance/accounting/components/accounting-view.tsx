@@ -1,7 +1,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, Download, Search, TrendingUp, TrendingDown, Scale, DollarSign, X, ChevronRight,
+  Plus, Search, TrendingUp, TrendingDown, Scale, DollarSign, X, ChevronRight,
   Pencil, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,9 @@ import {
   useAccounts, useAccountingSummary,
   useCreateAccount, useUpdateAccount, useDeleteAccount,
 } from "@/hooks/finance/use-finance";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 import type { CreateAccountRequest } from "@/lib/finance/finance.api";
 import { toast } from "sonner";
 
@@ -310,6 +313,25 @@ function AccountFormModal({
 
 export function AccountingView() {
   const { data: accounts = [] } = useAccounts();
+
+  const exportCsv = () => {
+    const csv = toCsv(accounts.map(a => ({
+      "Account #":  a.accountNumber,
+      "Name":       a.name,
+      "Type":       a.accountType,
+      "Balance":    a.balance,
+      "Active":     a.isActive ? "Yes" : "No",
+      "Description":a.description ?? "",
+    })), ["Account #","Name","Type","Balance","Active","Description"]);
+    downloadFile(`chart_of_accounts_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Chart of Accounts",
+    subtitle: `${accounts.length} accounts`,
+    columns: ["Account #","Name","Type","Balance (AED)","Active","Description"],
+    rows: accounts.map(a => [a.accountNumber, a.name, a.accountType, a.balance, a.isActive ? "Yes" : "No", a.description ?? ""]),
+  });
   const { data: accountingSummary } = useAccountingSummary();
   const deleteMutation = useDeleteAccount();
 
@@ -384,9 +406,7 @@ export function AccountingView() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" /> Export
-          </Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Button size="sm" className="gap-2"
             onClick={() => { setEditAccount(null); setShowForm(true); }}>
             <Plus className="h-4 w-4" /> New Account

@@ -4,14 +4,16 @@ public sealed class PayrollRun
 {
     private PayrollRun() { }
 
-    public PayrollRun(string period, string? notes)
+    public PayrollRun(string period, string? notes, string? createdByUserId = null, string? createdByName = null)
     {
-        Id        = Guid.NewGuid();
-        RunNumber = $"PR-{period.Replace("-", "")}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
-        Period    = period;  // "yyyy-MM" e.g. "2026-05"
-        Status    = "draft"; // draft | processing | processed | paid
-        Notes     = notes?.Trim();
-        CreatedAt = DateTime.UtcNow;
+        Id              = Guid.NewGuid();
+        RunNumber       = $"PR-{period.Replace("-", "")}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+        Period          = period;
+        Status          = "draft";
+        Notes           = notes?.Trim();
+        CreatedAt       = DateTime.UtcNow;
+        CreatedByUserId = createdByUserId;
+        CreatedByName   = createdByName?.Trim();
     }
 
     public Guid      Id                 { get; private set; }
@@ -23,8 +25,13 @@ public sealed class PayrollRun
     public decimal   TotalNetSalary     { get; private set; }
     public string    Status             { get; private set; } = "draft";
     public string?   Notes              { get; private set; }
+    public string?   CreatedByUserId    { get; private set; }
+    public string?   CreatedByName      { get; private set; }
     public DateTime? ProcessedAt        { get; private set; }
     public DateTime? PaidAt             { get; private set; }
+    public DateTime? RejectedAt         { get; private set; }
+    public string?   RejectionReason    { get; private set; }
+    public string?   RejectedByName     { get; private set; }
     public DateTime  CreatedAt          { get; private set; }
     public DateTime? UpdatedAt          { get; private set; }
     public bool      IsDeleted          { get; private set; }
@@ -52,6 +59,24 @@ public sealed class PayrollRun
         Status    = "paid";
         PaidAt    = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void MarkRejected(string? reason, string? rejectedByName)
+    {
+        Status           = "rejected";
+        RejectionReason  = reason?.Trim();
+        RejectedByName   = rejectedByName?.Trim();
+        RejectedAt       = DateTime.UtcNow;
+        UpdatedAt        = DateTime.UtcNow;
+    }
+
+    public void Reopen()
+    {
+        Status          = "draft";
+        RejectionReason = null;
+        RejectedByName  = null;
+        RejectedAt      = null;
+        UpdatedAt       = DateTime.UtcNow;
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
@@ -85,17 +110,33 @@ public sealed class PayrollSlip
         Notes          = notes?.Trim();
     }
 
-    public Guid     Id             { get; private set; }
-    public Guid     PayrollRunId   { get; private set; }
-    public Guid     EmployeeId     { get; private set; }
-    public string   EmployeeName   { get; private set; } = string.Empty;
-    public string?  JobTitle       { get; private set; }
-    public string?  DepartmentName { get; private set; }
-    public decimal  BasicSalary    { get; private set; }
-    public decimal  Allowances     { get; private set; }
-    public decimal  Deductions     { get; private set; }
-    public decimal  NetSalary      { get; private set; }
-    public string?  Notes          { get; private set; }
+    public Guid      Id             { get; private set; }
+    public Guid      PayrollRunId   { get; private set; }
+    public Guid      EmployeeId     { get; private set; }
+    public string    EmployeeName   { get; private set; } = string.Empty;
+    public string?   JobTitle       { get; private set; }
+    public string?   DepartmentName { get; private set; }
+    public decimal   BasicSalary    { get; private set; }
+    public decimal   Allowances     { get; private set; }
+    public decimal   Deductions     { get; private set; }
+    public decimal   NetSalary      { get; private set; }
+    public string?   Notes          { get; private set; }
+    public DateTime? EmailSentAt    { get; private set; }
+    public string?   EmailSentTo    { get; private set; }
 
     public PayrollRun? PayrollRun { get; private set; }
+
+    public void MarkEmailSent(string email)
+    {
+        EmailSentTo = email;
+        EmailSentAt = DateTime.UtcNow;
+    }
+
+    public void Update(decimal allowances, decimal deductions, string? notes)
+    {
+        Allowances = allowances;
+        Deductions = deductions;
+        NetSalary  = BasicSalary + allowances - deductions;
+        Notes      = notes?.Trim();
+    }
 }

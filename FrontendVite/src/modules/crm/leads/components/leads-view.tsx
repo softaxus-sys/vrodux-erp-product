@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  Search, Plus, Download, Users, TrendingUp,
+  Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
   Building2, Calendar, Globe, ArrowRight
 } from "lucide-react";
@@ -14,6 +14,9 @@ import { AddLeadForm } from "./add-lead-form";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary } from "@/hooks/crm/use-crm";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 
 type ViewMode = "list" | "kanban";
 
@@ -127,6 +130,32 @@ function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: L
 
 export function LeadsView() {
   const { data: leads = [], isLoading } = useLeads();
+
+  const exportCsv = () => {
+    const csv = toCsv(leads.map(l => ({
+      "Name":            l.fullName,
+      "Title":           l.title,
+      "Company":         l.company,
+      "Email":           l.email,
+      "Phone":           l.phone,
+      "Country":         l.country,
+      "Source":          l.source,
+      "Status":          l.status,
+      "Priority":        l.priority,
+      "Score":           l.score,
+      "Est. Value":      l.estimatedValue ?? "",
+      "Assigned To":     l.assignedTo ?? "",
+    })), ["Name","Title","Company","Email","Phone","Country","Source","Status","Priority","Score","Est. Value","Assigned To"]);
+    downloadFile(`leads_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Leads",
+    subtitle: `${leads.length} leads`,
+    columns: ["Name","Company","Email","Phone","Country","Source","Status","Priority","Score"],
+    rows: leads.map(l => [l.fullName, l.company, l.email, l.phone, l.country, l.source, l.status, l.priority, l.score]),
+    landscape: true,
+  });
   const { data: leadsSummary }          = useLeadsSummary();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -163,7 +192,7 @@ export function LeadsView() {
           <p className="text-sm text-muted-foreground mt-0.5">Capture, qualify, and convert inbound leads</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Download className="h-3.5 w-3.5" />Export</Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Lead</Button>
         </div>
       </div>

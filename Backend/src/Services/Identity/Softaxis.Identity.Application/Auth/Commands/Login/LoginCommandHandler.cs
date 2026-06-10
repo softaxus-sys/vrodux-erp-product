@@ -54,7 +54,7 @@ public sealed class LoginCommandHandler(
         userRepo.Update(user);
 
         // Audit
-        auditRepo.Add(new AuditLog(user.Id, "LOGIN", "User", user.Id.ToString(), null, null, cmd.IpAddress, null, true));
+        auditRepo.Add(new AuditLog(user.Id, "LOGIN", "User", user.Id.ToString(), null, null, cmd.IpAddress, null, true, user.TenantId));
 
         await uow.SaveChangesAsync(ct);
 

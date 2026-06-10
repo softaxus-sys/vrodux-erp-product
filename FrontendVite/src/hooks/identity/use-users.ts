@@ -115,3 +115,11 @@ export function useChangePassword(userId: string) {
     onError:   (err: Error) => toast.error(err.message),
   });
 }
+
+export function useAdminResetPassword(userId: string) {
+  return useMutation({
+    mutationFn: (newPassword: string) => usersApi.adminResetPassword(userId, newPassword),
+    onSuccess: () => toast.success("Password reset successfully."),
+    onError:   (err: Error) => toast.error(err.message),
+  });
+}

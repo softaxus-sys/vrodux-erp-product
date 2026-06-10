@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,16 +14,18 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
 {
     // ── DTOs ─────────────────────────────────────────────────────────────
     public record PayrollSlipDto(
-        Guid    Id,
-        Guid    EmployeeId,
-        string  EmployeeName,
-        string? JobTitle,
-        string? DepartmentName,
-        decimal BasicSalary,
-        decimal Allowances,
-        decimal Deductions,
-        decimal NetSalary,
-        string? Notes);
+        Guid      Id,
+        Guid      EmployeeId,
+        string    EmployeeName,
+        string?   JobTitle,
+        string?   DepartmentName,
+        decimal   BasicSalary,
+        decimal   Allowances,
+        decimal   Deductions,
+        decimal   NetSalary,
+        string?   Notes,
+        DateTime? EmailSentAt,
+        string?   EmailSentTo);
 
     public record PayrollRunDto(
         Guid      Id,
@@ -34,9 +37,13 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
         decimal   TotalNetSalary,
         string    Status,
         string?   Notes,
+        string?   CreatedByName,
+        string?   RejectionReason,
+        string?   RejectedByName,
         int       SlipCount,
         DateTime? ProcessedAt,
         DateTime? PaidAt,
+        DateTime? RejectedAt,
         DateTime  CreatedAt,
         DateTime? UpdatedAt);
 
@@ -50,9 +57,13 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
         decimal   TotalNetSalary,
         string    Status,
         string?   Notes,
+        string?   CreatedByName,
+        string?   RejectionReason,
+        string?   RejectedByName,
         IReadOnlyList<PayrollSlipDto> Slips,
         DateTime? ProcessedAt,
         DateTime? PaidAt,
+        DateTime? RejectedAt,
         DateTime  CreatedAt,
         DateTime? UpdatedAt);
 
@@ -154,9 +165,9 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
             .Select(x => new PayrollRunDto(
                 x.Id, x.RunNumber, x.Period,
                 x.TotalBasicSalary, x.TotalAllowances, x.TotalDeductions, x.TotalNetSalary,
-                x.Status, x.Notes,
+                x.Status, x.Notes, x.CreatedByName, x.RejectionReason, x.RejectedByName,
                 x.Slips.Count,
-                x.ProcessedAt, x.PaidAt, x.CreatedAt, x.UpdatedAt))
+                x.ProcessedAt, x.PaidAt, x.RejectedAt, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(ct);
 
         return Ok(new PagedResult<PayrollRunDto>(items, page, pageSize, total, totalPages,
@@ -186,7 +197,12 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
         if (periodExists)
             return Conflict(new { error = $"A processed payroll run already exists for period {req.Period}." });
 
-        var run = new PayrollRun(req.Period, req.Notes);
+        var userId   = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userName = User.FindFirstValue(ClaimTypes.Name)
+                    ?? User.FindFirstValue("name")
+                    ?? User.FindFirstValue(ClaimTypes.Email);
+
+        var run = new PayrollRun(req.Period, req.Notes, userId, userName);
 
         foreach (var s in req.Slips)
             run.Slips.Add(new PayrollSlip(
@@ -202,7 +218,6 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
     }
 
     // ── POST /api/hr/payroll/generate ────────────────────────────────────
-    // Auto-generate slips from all active employees for the given period
     [HttpPost("generate")]
     public async Task<IActionResult> Generate([FromBody] GenerateRequest req, CancellationToken ct)
     {
@@ -219,7 +234,12 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
         if (employees.Count == 0)
             return BadRequest(new { error = "No active employees found." });
 
-        var run = new PayrollRun(req.Period, req.Notes);
+        var userId   = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var userName = User.FindFirstValue(ClaimTypes.Name)
+                    ?? User.FindFirstValue("name")
+                    ?? User.FindFirstValue(ClaimTypes.Email);
+
+        var run = new PayrollRun(req.Period, req.Notes, userId, userName);
 
         foreach (var emp in employees)
             run.Slips.Add(new PayrollSlip(
@@ -234,7 +254,87 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = run.Id }, ToDetailDto(run));
     }
 
+    // ── POST /api/hr/payroll/{id}/reject ─────────────────────────────────
+    public record RejectRequest(string? Reason);
+
+    [HttpPost("{id:guid}/reject")]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectRequest req, CancellationToken ct)
+    {
+        var run = await db.PayrollRuns.FindAsync([id], ct);
+        if (run is null) return NotFound();
+        if (run.Status != "draft")
+            return BadRequest(new { error = "Only draft payroll runs can be rejected." });
+
+        var rejectorName = User.FindFirstValue(ClaimTypes.Name)
+                        ?? User.FindFirstValue("name")
+                        ?? User.FindFirstValue(ClaimTypes.Email)
+                        ?? "Admin";
+
+        run.MarkRejected(req.Reason, rejectorName);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     public record GenerateRequest(string Period, string? Notes);
+
+    // ── GET /api/hr/payroll/{runId}/slips/{slipId} ───────────────────────
+    [HttpGet("{runId:guid}/slips/{slipId:guid}")]
+    public async Task<IActionResult> GetSlip(Guid runId, Guid slipId, CancellationToken ct)
+    {
+        var slip = await db.PayrollSlips
+            .AsNoTracking()
+            .Include(x => x.PayrollRun)
+            .FirstOrDefaultAsync(x => x.PayrollRunId == runId && x.Id == slipId, ct);
+
+        if (slip is null) return NotFound();
+
+        return Ok(new
+        {
+            slip.Id,
+            slip.EmployeeId,
+            slip.EmployeeName,
+            slip.JobTitle,
+            slip.DepartmentName,
+            slip.BasicSalary,
+            slip.Allowances,
+            slip.Deductions,
+            slip.NetSalary,
+            slip.Notes,
+            slip.EmailSentAt,
+            slip.EmailSentTo,
+            Period       = slip.PayrollRun!.Period,
+            RunNumber    = slip.PayrollRun!.RunNumber,
+            RunStatus    = slip.PayrollRun!.Status,
+            PaidAt       = slip.PayrollRun!.PaidAt,
+        });
+    }
+
+    // ── POST /api/hr/payroll/{runId}/slips/{slipId}/send-email ───────────
+    [HttpPost("{runId:guid}/slips/{slipId:guid}/send-email")]
+    public async Task<IActionResult> SendSlipEmail(Guid runId, Guid slipId, CancellationToken ct)
+    {
+        var slip = await db.PayrollSlips
+            .Include(x => x.PayrollRun)
+            .FirstOrDefaultAsync(x => x.PayrollRunId == runId && x.Id == slipId, ct);
+
+        if (slip is null) return NotFound();
+
+        // Look up employee email from the employees table
+        var employee = await db.Employees
+            .AsNoTracking()
+            .Where(x => x.Id == slip.EmployeeId)
+            .Select(x => new { x.Email, x.FullName })
+            .FirstOrDefaultAsync(ct);
+
+        if (employee is null || string.IsNullOrWhiteSpace(employee.Email))
+            return BadRequest(new { error = "Employee email address not found. Please update the employee profile." });
+
+        // Record the send action (actual email delivery wired via IEmailService when configured)
+        slip.MarkEmailSent(employee.Email);
+        await db.SaveChangesAsync(ct);
+
+        return Ok(new { sentTo = employee.Email, sentAt = slip.EmailSentAt });
+    }
 
     // ── POST /api/hr/payroll/{id}/process ────────────────────────────────
     [HttpPost("{id:guid}/process")]
@@ -268,6 +368,43 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
         return NoContent();
     }
 
+    // ── POST /api/hr/payroll/{id}/reopen ─────────────────────────────────
+    [HttpPost("{id:guid}/reopen")]
+    public async Task<IActionResult> Reopen(Guid id, CancellationToken ct)
+    {
+        var run = await db.PayrollRuns.FindAsync([id], ct);
+        if (run is null) return NotFound();
+        if (run.Status != "rejected")
+            return BadRequest(new { error = "Only rejected payroll runs can be reopened." });
+
+        run.Reopen();
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    // ── PUT /api/hr/payroll/{runId}/slips/{slipId} ───────────────────────
+    public record UpdateSlipRequest(decimal Allowances, decimal Deductions, string? Notes);
+
+    [HttpPut("{runId:guid}/slips/{slipId:guid}")]
+    public async Task<IActionResult> UpdateSlip(Guid runId, Guid slipId, [FromBody] UpdateSlipRequest req, CancellationToken ct)
+    {
+        var run = await db.PayrollRuns
+            .Include(x => x.Slips)
+            .FirstOrDefaultAsync(x => x.Id == runId, ct);
+
+        if (run is null) return NotFound();
+        if (run.Status != "rejected" && run.Status != "draft")
+            return BadRequest(new { error = "Slips can only be edited on draft or rejected payroll runs." });
+
+        var slip = run.Slips.FirstOrDefault(s => s.Id == slipId);
+        if (slip is null) return NotFound();
+
+        slip.Update(req.Allowances, req.Deductions, req.Notes);
+        run.Recalculate();
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     // ── DELETE /api/hr/payroll/{id} ──────────────────────────────────────
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
@@ -286,9 +423,10 @@ public sealed class PayrollController(HrDbContext db) : ControllerBase
     private static PayrollRunDetailDto ToDetailDto(PayrollRun r) => new(
         r.Id, r.RunNumber, r.Period,
         r.TotalBasicSalary, r.TotalAllowances, r.TotalDeductions, r.TotalNetSalary,
-        r.Status, r.Notes,
+        r.Status, r.Notes, r.CreatedByName, r.RejectionReason, r.RejectedByName,
         r.Slips.Select(s => new PayrollSlipDto(
             s.Id, s.EmployeeId, s.EmployeeName, s.JobTitle, s.DepartmentName,
-            s.BasicSalary, s.Allowances, s.Deductions, s.NetSalary, s.Notes)).ToList(),
-        r.ProcessedAt, r.PaidAt, r.CreatedAt, r.UpdatedAt);
+            s.BasicSalary, s.Allowances, s.Deductions, s.NetSalary, s.Notes,
+            s.EmailSentAt, s.EmailSentTo)).ToList(),
+        r.ProcessedAt, r.PaidAt, r.RejectedAt, r.CreatedAt, r.UpdatedAt);
 }

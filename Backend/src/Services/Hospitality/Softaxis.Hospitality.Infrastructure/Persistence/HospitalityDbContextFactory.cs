@@ -10,9 +10,10 @@ public sealed class HospitalityDbContextFactory : IDesignTimeDbContextFactory<Ho
     {
         var options = new DbContextOptionsBuilder<HospitalityDbContext>()
             .UseSqlServer(
-                (System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-LTP\\SQLEXPRESS;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"),
+                (System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-QFINITY;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"),
                 sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo"))
             .Options;
         return new HospitalityDbContext(options);
     }
 }
+

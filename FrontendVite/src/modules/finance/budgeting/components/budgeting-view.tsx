@@ -2,12 +2,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Target, AlertTriangle, CheckCircle2, BarChart3,
-  X, Download, Plus,
+  X, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { BudgetDto as Budget, BudgetStatus } from "@/lib/finance/finance.api";
 import { useBudgets, useBudgetingSummary } from "@/hooks/finance/use-finance";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { AddBudgetForm } from "./add-budget-form";
 
 const STATUS_STYLES: Record<BudgetStatus, string> = {
@@ -118,6 +121,26 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
 
 export function BudgetingView() {
   const { data: budgets = [] } = useBudgets();
+
+  const exportCsv = () => {
+    const csv = toCsv(budgets.map(b => ({
+      "Name":        b.name,
+      "Period":      b.period,
+      "Status":      b.status,
+      "Budgeted":    b.totalBudgeted,
+      "Actual":      b.totalActual,
+      "Variance":    b.variance,
+      "Line Items":  b.lineCount,
+    })), ["Name","Period","Status","Budgeted","Actual","Variance","Line Items"]);
+    downloadFile(`budgets_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Budget Overview",
+    subtitle: `${budgets.length} budgets`,
+    columns: ["Name","Period","Status","Budgeted (AED)","Actual (AED)","Variance (AED)","Lines"],
+    rows: budgets.map(b => [b.name, b.period, b.status, b.totalBudgeted, b.totalActual, b.variance, b.lineCount]),
+  });
   const { data: budgetingSummary } = useBudgetingSummary();
 
   const [selectedBudget, setSelectedBudget] = React.useState<Budget | null>(null);
@@ -145,9 +168,7 @@ export function BudgetingView() {
           <p className="text-muted-foreground mt-0.5 text-sm">Track departmental budgets vs. actual spending for FY2026.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" /> Export
-          </Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
             <Plus className="h-4 w-4" /> New Budget
           </Button>

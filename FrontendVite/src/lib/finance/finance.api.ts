@@ -224,7 +224,7 @@ export interface GLSummaryDto {
 
 // ─── Journals ─────────────────────────────────────────────────────────────────
 
-export type JournalStatus = "draft" | "posted" | "reversed";
+export type JournalStatus = "draft" | "posted" | "reversed" | "voided";
 
 export interface JournalLineDto {
   id: string;

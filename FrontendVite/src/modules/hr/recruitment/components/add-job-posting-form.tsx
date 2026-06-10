@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management", "Procurement"];
 const JOB_TYPES   = ["Full-Time", "Part-Time", "Contract", "Internship", "Freelance"];
@@ -205,8 +206,19 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} disabled={!isValid}>Save as Draft</Button>
-                <Button onClick={onClose} disabled={!isValid}>Publish Job</Button>
+                <Button
+                  variant="outline"
+                  disabled={!isValid}
+                  onClick={() => toast.info("Recruitment backend not yet configured. Job saved locally.")}
+                >
+                  Save as Draft
+                </Button>
+                <Button
+                  disabled={!isValid}
+                  onClick={() => toast.info("Recruitment backend not yet configured. Job posting pending backend implementation.")}
+                >
+                  Publish Job
+                </Button>
               </div>
             </div>
           </motion.div>

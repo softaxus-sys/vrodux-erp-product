@@ -18,9 +18,11 @@ public sealed class AuditLog : Entity<Guid>
         string? newValues,
         string? ipAddress,
         string? userAgent,
-        bool    succeeded) : base(Guid.NewGuid())
+        bool    succeeded,
+        Guid?   tenantId = null) : base(Guid.NewGuid())
     {
         UserId     = userId;
+        TenantId   = tenantId;
         Action     = action;
         EntityType = entityType;
         EntityId   = entityId;
@@ -33,6 +35,7 @@ public sealed class AuditLog : Entity<Guid>
     }
 
     public Guid?   UserId     { get; private set; }
+    public Guid?   TenantId   { get; private set; }
     public string  Action     { get; private set; } = string.Empty; // LOGIN | LOGOUT | CREATE_USER | etc.
     public string  EntityType { get; private set; } = string.Empty;
     public string? EntityId   { get; private set; }

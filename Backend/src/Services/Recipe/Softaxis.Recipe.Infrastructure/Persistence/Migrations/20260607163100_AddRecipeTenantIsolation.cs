@@ -14,6 +14,9 @@ namespace Softaxis.Recipe.Infrastructure.Persistence.Migrations
             migrationBuilder.EnsureSchema(
                 name: "recipe");
 
+            migrationBuilder.DropTable(name: "RecipeIngredients", schema: "recipe");
+            migrationBuilder.DropTable(name: "Recipes", schema: "recipe");
+
             migrationBuilder.CreateTable(
                 name: "Recipes",
                 schema: "recipe",

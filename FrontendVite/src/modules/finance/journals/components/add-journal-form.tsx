@@ -181,7 +181,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                             <select
                               value={line.accountId}
                               onChange={e => selectAccount(line.id, e.target.value)}
-                              className="w-full h-8 px-2 rounded border border-transparent bg-transparent text-xs text-foreground focus:outline-none focus:border-primary/40 hover:border-border"
+                              className="w-full h-8 px-2 rounded border border-transparent bg-card text-xs text-foreground focus:outline-none focus:border-primary/40 hover:border-border"
                             >
                               <option value="">Select account…</option>
                               {accounts.map(a => (

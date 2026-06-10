@@ -84,7 +84,9 @@ export function useCreateAccount() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "accounts"] });
       qc.invalidateQueries({ queryKey: [QK, "accounting-summary"] });
+      toast.success("Account created.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -96,7 +98,9 @@ export function useUpdateAccount() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "accounts"] });
       qc.invalidateQueries({ queryKey: [QK, "accounting-summary"] });
+      toast.success("Account updated.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -107,7 +111,9 @@ export function useDeleteAccount() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "accounts"] });
       qc.invalidateQueries({ queryKey: [QK, "accounting-summary"] });
+      toast.success("Account deleted.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -268,7 +274,9 @@ export function useCreateInvoice() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      toast.success("Invoice created.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -281,7 +289,9 @@ export function useUpdateInvoice() {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoices", id] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      toast.success("Invoice updated.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -352,7 +362,9 @@ export function useCreateJournal() {
       qc.invalidateQueries({ queryKey: [QK, "journals-summary"] });
       qc.invalidateQueries({ queryKey: [QK, "gl-summary"] });
       qc.invalidateQueries({ queryKey: [QK, "trial-balance"] });
+      toast.success("Journal entry created.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -510,7 +522,9 @@ export function useCreateBudget() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "budgets"] });
       qc.invalidateQueries({ queryKey: [QK, "budgeting-summary"] });
+      toast.success("Budget created.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -522,6 +536,8 @@ export function useCreateBankTransaction() {
       qc.invalidateQueries({ queryKey: [QK, "bank-transactions"] });
       qc.invalidateQueries({ queryKey: [QK, "bank-accounts"] });
       qc.invalidateQueries({ queryKey: [QK, "banking-summary"] });
+      toast.success("Transaction recorded.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }

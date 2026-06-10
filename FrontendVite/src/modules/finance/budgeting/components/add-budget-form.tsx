@@ -179,7 +179,7 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
                         <tr key={line.id} className="hover:bg-muted/10">
                           <td className="px-2 py-1.5">
                             <select value={line.category} onChange={e => updateLine(line.id, "category", e.target.value)}
-                              className="w-full h-8 px-2 rounded border border-transparent bg-transparent text-xs text-foreground focus:outline-none focus:border-primary/40 hover:border-border">
+                              className="w-full h-8 px-2 rounded border border-transparent bg-card text-xs text-foreground focus:outline-none focus:border-primary/40 hover:border-border">
                               <option value="">Select category…</option>
                               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>

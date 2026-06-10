@@ -950,23 +950,15 @@ function NoCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function DashboardCharts() {
-  const { hasModuleAccess, isRole, user } = useAuthStore();
+  const { hasModuleAccess } = useAuthStore();
 
-  const isAdmin        = isRole(["super_admin", "tenant_admin"]);
-  const isManager      = isRole(["manager"]) || isAdmin;
-  const isHR           = isRole(["hr_manager"]) || isManager;
-  const isAccountant   = isRole(["accountant"]) || isManager;
-  const isSalesRep     = isRole(["sales_rep"]) || isManager;
-  const isPurchase     = isRole(["purchase_officer"]) || isManager;
-  const isWarehouse    = isRole(["warehouse_manager"]) || isManager;
-
-  const showFinance     = isAccountant  || hasModuleAccess("finance");
-  const showHR          = isHR          || hasModuleAccess("hr");
-  const showSales       = isSalesRep    || hasModuleAccess("sales");
-  const showCRM         = isSalesRep    || hasModuleAccess("crm");
-  const showInventory   = isWarehouse   || hasModuleAccess("inventory");
+  const showFinance     = hasModuleAccess("finance");
+  const showHR          = hasModuleAccess("hr");
+  const showSales       = hasModuleAccess("sales");
+  const showCRM         = hasModuleAccess("crm");
+  const showInventory   = hasModuleAccess("inventory");
   const showPOS         = hasModuleAccess("pos");
-  const showPurchase    = isPurchase    || hasModuleAccess("purchase");
+  const showPurchase    = hasModuleAccess("purchase");
   const showHospitality = hasModuleAccess("hospitality");
 
   const hasAnyChart = showFinance || showHR || showSales || showCRM ||

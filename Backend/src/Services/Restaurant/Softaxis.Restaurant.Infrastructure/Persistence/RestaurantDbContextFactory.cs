@@ -12,8 +12,9 @@ public sealed class RestaurantDbContextFactory : IDesignTimeDbContextFactory<Res
     public RestaurantDbContext CreateDbContext(string[] args)
     {
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
-            .UseSqlServer((System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-LTP\\SQLEXPRESS;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"))
+            .UseSqlServer((System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-QFINITY;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"))
             .Options;
         return new RestaurantDbContext(options);
     }
 }
+

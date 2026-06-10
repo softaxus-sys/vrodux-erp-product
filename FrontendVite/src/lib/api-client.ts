@@ -193,9 +193,10 @@ async function rawRequest<T>(
     // ExceptionHandlingMiddleware uses `detail`; FinanceControllerBase uses `description`; fallback `message`
     const b = body as Record<string, unknown> | null;
     const msg =
-      (b?.detail     as string | undefined) ??
+      (b?.detail      as string | undefined) ??
       (b?.description as string | undefined) ??
-      (b?.message    as string | undefined) ??
+      (b?.message     as string | undefined) ??
+      (b?.error       as string | undefined) ??
       `HTTP ${res.status}`;
     const code = (b?.code as string | undefined) ?? null;
     throw new ApiError(res.status, code, msg);

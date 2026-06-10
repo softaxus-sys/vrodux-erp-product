@@ -39,9 +39,11 @@ public static class InfrastructureExtensions
 
         // ── Services ──────────────────────────────────────────────────────────
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
-        services.AddSingleton<IJwtTokenService, JwtTokenService>();
-        services.AddSingleton<IPasswordHasher,  BcryptPasswordHasher>();
-        services.AddScoped<ILicenseService,     LicenseService>();
+        services.AddSingleton<IJwtTokenService,       JwtTokenService>();
+        services.AddSingleton<IPasswordHasher,         BcryptPasswordHasher>();
+        services.AddSingleton<ITrialChallengeService,  TrialChallengeService>();
+        services.AddScoped<ILicenseService,            LicenseService>();
+        services.AddScoped<IEmailService,              SmtpEmailService>();
 
         // ── Tenant context (scoped — reset per request) ───────────────────────
         services.AddScoped<TenantContextService>();
@@ -97,7 +99,7 @@ public static class InfrastructureExtensions
     /// </summary>
     private static async Task SeedSuperAdminAsync(IdentityDbContext db, IPasswordHasher hasher)
     {
-        const string email    = "superadmin@softaxis.io";
+        const string email    = "softaxus@gmail.com";
         const string username = "superadmin";
         const string password = "SuperAdmin@2025!";
 

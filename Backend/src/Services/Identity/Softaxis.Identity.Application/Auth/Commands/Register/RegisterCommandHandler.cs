@@ -30,7 +30,7 @@ public sealed class RegisterCommandHandler(
 
         var user = userResult.Value;
         userRepo.Add(user);
-        auditRepo.Add(new AuditLog(user.Id, "REGISTER", "User", user.Id.ToString(), null, null, null, null, true));
+        auditRepo.Add(new AuditLog(user.Id, "REGISTER", "User", user.Id.ToString(), null, null, null, null, true, user.TenantId));
 
         await uow.SaveChangesAsync(ct);
 

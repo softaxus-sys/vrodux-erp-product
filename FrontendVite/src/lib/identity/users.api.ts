@@ -65,4 +65,8 @@ export const usersApi = {
       currentPassword,
       newPassword,
     }),
+
+  /** Admin: forcibly reset a user's password without requiring their current password. */
+  adminResetPassword: (userId: string, newPassword: string): Promise<void> =>
+    apiClient.post<void>(`${BASE}/${userId}/reset-password`, { newPassword }),
 };

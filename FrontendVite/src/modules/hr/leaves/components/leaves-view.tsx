@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, Plus, Download, X, Check, XCircle, Plane,
+  Search, Plus, X, Check, XCircle, Plane,
   Calendar, User, Building2, Clock, FileText, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -10,7 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
 import type { LeaveRequestDto as LeaveRequest, LeaveStatus, LeaveType } from "@/lib/hr/hr.api";
-import { useLeaveRequests, useLeaveBalances, useLeaveSummary } from "@/hooks/hr/use-hr";
+import { useLeaveRequests, useLeaveBalances, useLeaveSummary, useApproveLeave, useRejectLeave } from "@/hooks/hr/use-hr";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { AddLeaveForm } from "./add-leave-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -47,7 +50,25 @@ function LeaveStatusBadge({ status }: { status: LeaveStatus }) {
 }
 
 function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null; open: boolean; onClose: () => void }) {
+  const [showReject, setShowReject] = React.useState(false);
+  const [rejectReason, setRejectReason] = React.useState("");
+  const approveLeave = useApproveLeave();
+  const rejectLeave = useRejectLeave();
+
+  React.useEffect(() => {
+    if (!open) { setShowReject(false); setRejectReason(""); }
+  }, [open]);
+
   if (!request) return null;
+
+  const handleApprove = async () => {
+    try { await approveLeave.mutateAsync(request.id); onClose(); } catch { /* hook toasts */ }
+  };
+
+  const handleReject = async () => {
+    try { await rejectLeave.mutateAsync({ id: request.id, reason: rejectReason.trim() || undefined }); onClose(); } catch { /* hook toasts */ }
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -128,15 +149,44 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
                   <p className="text-sm text-muted-foreground">{request.rejectionReason}</p>
                 </div>
               )}
+
+              {/* Inline reject reason input */}
+              <AnimatePresence>
+                {showReject && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
+                    className="overflow-hidden">
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 space-y-3">
+                      <p className="text-xs font-semibold text-destructive">Rejection Reason (optional)</p>
+                      <textarea
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        placeholder="Provide a reason for rejection..."
+                        rows={3}
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-destructive"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowReject(false)}>Cancel</Button>
+                        <Button size="sm" className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                          onClick={handleReject} disabled={rejectLeave.isPending}>
+                          {rejectLeave.isPending ? "Rejecting…" : "Confirm Reject"}
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             {/* Actions */}
-            {request.status === "pending" && (
+            {request.status === "pending" && !showReject && (
               <div className="border-t border-border px-6 py-4 flex items-center gap-3">
-                <Button className="flex-1 gap-1.5 bg-success hover:bg-success/90">
-                  <Check className="h-4 w-4" />Approve
+                <Button className="flex-1 gap-1.5 bg-success hover:bg-success/90 text-white"
+                  onClick={handleApprove} disabled={approveLeave.isPending}>
+                  <Check className="h-4 w-4" />{approveLeave.isPending ? "Approving…" : "Approve"}
                 </Button>
-                <Button variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10">
+                <Button variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => setShowReject(true)}>
                   <X className="h-4 w-4" />Reject
                 </Button>
               </div>
@@ -158,6 +208,31 @@ export function LeavesView() {
   const [showAddForm, setShowAddForm] = React.useState(false);
 
   const { data: leaveRequests = [] } = useLeaveRequests();
+  const approveLeave = useApproveLeave();
+  const rejectLeave = useRejectLeave();
+
+  const exportCsv = () => {
+    const csv = toCsv(leaveRequests.map(r => ({
+      "Employee":    r.employeeName,
+      "Department":  r.department,
+      "Type":        r.leaveType,
+      "From":        r.fromDate ?? "",
+      "To":          r.toDate ?? "",
+      "Days":        r.days,
+      "Status":      r.status,
+      "Reason":      r.reason,
+      "Applied On":  r.appliedOn ?? "",
+    })), ["Employee","Department","Type","From","To","Days","Status","Reason","Applied On"]);
+    downloadFile(`leaves_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Leave Requests",
+    subtitle: `${leaveRequests.length} requests`,
+    columns: ["Employee","Department","Type","From","To","Days","Status","Reason"],
+    rows: leaveRequests.map(r => [r.employeeName, r.department, r.leaveType, r.fromDate ?? "—", r.toDate ?? "—", r.days, r.status, r.reason]),
+    landscape: true,
+  });
   const { data: leaveBalances = [] } = useLeaveBalances();
   const { data: leaveSummary } = useLeaveSummary();
 
@@ -182,7 +257,7 @@ export function LeavesView() {
           <p className="text-sm text-muted-foreground mt-0.5">Manage leave requests and employee balances</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Download className="h-3.5 w-3.5" />Export</Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Apply Leave</Button>
         </div>
       </div>
@@ -290,10 +365,14 @@ export function LeavesView() {
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         {req.status === "pending" && (
                           <div className="flex items-center gap-1">
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-success hover:text-success hover:bg-success/10">
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-success hover:text-success hover:bg-success/10"
+                              disabled={approveLeave.isPending}
+                              onClick={() => approveLeave.mutate(req.id)}>
                               <Check className="h-3.5 w-3.5" />
                             </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10">
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={rejectLeave.isPending}
+                              onClick={() => { setSelectedRequest(req); setDrawerOpen(true); }}>
                               <X className="h-3.5 w-3.5" />
                             </Button>
                           </div>

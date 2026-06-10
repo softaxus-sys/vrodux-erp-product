@@ -36,9 +36,10 @@ export interface EmergencyContact {
   phone: string;
 }
 
+/** Unified DTO — populated from backend, rich fields optional for future extension */
 export interface EmployeeDto {
   id: string;
-  employeeId: string;
+  employeeId: string;        // maps from backend employeeNumber
   firstName: string;
   lastName: string;
   fullName: string;
@@ -48,14 +49,14 @@ export interface EmployeeDto {
   mobile: string;
   gender: Gender;
   nationality: string;
-  dateOfBirth: string;
-  department: string;
-  designation: string;
+  dateOfBirth?: string;
+  department: string;        // maps from backend departmentName
+  designation: string;       // maps from backend jobTitle
   reportingTo: string;
   branch: string;
-  contractType: ContractType;
+  contractType: ContractType; // maps from backend employmentType
   status: EmployeeStatus;
-  joinDate: string;
+  joinDate?: string;         // maps from backend joiningDate
   endDate?: string;
   basicSalary: number;
   currency: string;
@@ -85,7 +86,8 @@ export interface HrSummaryDto {
 
 // ─── Attendance ───────────────────────────────────────────────────────────────
 
-export type AttendanceStatus = "present" | "absent" | "late" | "half_day" | "half-day" | "on_leave" | "holiday" | "weekend" | "remote";
+/** NOTE: "half-day" removed — use "half_day" consistently */
+export type AttendanceStatus = "present" | "absent" | "late" | "half_day" | "on_leave" | "holiday" | "weekend" | "remote";
 
 export interface AttendanceRecordDto {
   id: string;
@@ -114,6 +116,7 @@ export interface AttendanceSummaryDto {
 export type LeaveType   = "annual" | "sick" | "unpaid" | "maternity" | "paternity" | "emergency" | "hajj";
 export type LeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
 
+/** Unified DTO — populated from backend, legacy field names normalised */
 export interface LeaveRequestDto {
   id: string;
   employeeId: string;
@@ -121,12 +124,12 @@ export interface LeaveRequestDto {
   department: string;
   designation: string;
   leaveType: LeaveType;
-  fromDate: string;
-  toDate: string;
-  days: number;
+  fromDate?: string;   // maps from backend startDate
+  toDate?: string;     // maps from backend endDate
+  days: number;        // maps from backend totalDays
   reason: string;
   status: LeaveStatus;
-  appliedOn: string;
+  appliedOn?: string;  // maps from backend createdAt
   approvedBy?: string;
   approvedOn?: string;
   rejectionReason?: string;
@@ -153,7 +156,7 @@ export interface LeaveSummaryDto {
 
 // ─── Payroll ──────────────────────────────────────────────────────────────────
 
-export type PayrollStatus  = "draft" | "processing" | "processed" | "approved" | "paid" | "failed";
+export type PayrollStatus  = "draft" | "processing" | "processed" | "approved" | "paid" | "failed" | "rejected";
 export type PayslipStatus  = "generated" | "sent" | "viewed";
 
 export interface PayrollDeductionDto { label: string; amount: number; }
@@ -184,31 +187,38 @@ export interface PayslipDto {
 export interface PayrollRunDto {
   id: string;
   runNumber: string;
-  period: string;           // e.g. "2026-05"
+  period: string;
   totalBasicSalary: number;
   totalAllowances: number;
   totalDeductions: number;
   totalNetSalary: number;
   status: PayrollStatus;
   notes?: string;
+  createdByName?: string;
+  rejectionReason?: string | null;
+  rejectedByName?: string | null;
   slipCount: number;
   processedAt?: string | null;
   paidAt?: string | null;
+  rejectedAt?: string | null;
   createdAt: string;
   updatedAt: string;
-  payslips?: PayslipDto[];  // only populated via detail endpoint, not list
+  payslips?: PayslipDto[];
 }
 
+/** Matches backend: { allTime: {...}, thisMonth: {...} | null } */
 export interface PayrollSummaryDto {
-  currentMonth: string;
-  totalEmployees: number;
-  totalNetPayroll: number;
-  totalGrossPayroll: number;
-  totalDeductions: number;
-  status: PayrollStatus;
-  paidRuns: number;
-  pendingRuns: number;
-  ytdTotal: number;
+  allTime: {
+    draft: number;
+    processed: number;
+    paid: number;
+    total: number;
+  };
+  thisMonth: {
+    status: PayrollStatus;
+    totalNetSalary: number;
+    employeeCount: number;
+  } | null;
 }
 
 // ─── Performance ──────────────────────────────────────────────────────────────
@@ -308,32 +318,260 @@ export interface RecruitmentSummaryDto {
   avgTimeToHire: number;
 }
 
+// ─── Mutation Payloads ────────────────────────────────────────────────────────
+
+export interface CreateEmployeePayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  jobTitle?: string;
+  departmentId?: string;
+  departmentName?: string;
+  employmentType: string;
+  basicSalary: number;
+  joiningDate: string;
+  managerId?: string;
+  notes?: string;
+}
+
+export interface UpdateEmployeePayload extends CreateEmployeePayload {
+  status: string;
+}
+
+export interface CreateLeavePayload {
+  employeeId: string;
+  employeeName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  reason?: string;
+}
+
+export interface CreatePayrollRunPayload {
+  period: string;
+  notes?: string;
+  slips: Array<{
+    employeeId: string;
+    employeeName: string;
+    jobTitle?: string;
+    departmentName?: string;
+    basicSalary: number;
+    allowances: number;
+    deductions: number;
+    notes?: string;
+  }>;
+}
+
+export interface GeneratePayrollPayload {
+  period: string;
+  notes?: string;
+}
+
+export interface MarkAttendancePayload {
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  checkIn?: string | null;
+  checkOut?: string | null;
+  workingHours?: number | null;
+  status: string;
+  notes?: string | null;
+}
+
+export interface UpdateAttendancePayload {
+  checkIn?: string | null;
+  checkOut?: string | null;
+  workingHours?: number | null;
+  status: string;
+  notes?: string | null;
+}
+
+// ─── Response mapper helpers ──────────────────────────────────────────────────
+
+/** Map raw backend employee to unified EmployeeDto */
+function mapEmployee(raw: any): EmployeeDto {
+  const employmentType: string = raw.employmentType ?? raw.contractType ?? "Full-Time";
+  const contractTypeMap: Record<string, ContractType> = {
+    "Full-Time": "full_time", "full_time": "full_time",
+    "Part-Time": "part_time", "part_time": "part_time",
+    "Contract":  "contract",  "contract":  "contract",
+    "Internship":"intern",    "intern":    "intern",
+  };
+  return {
+    id:                raw.id,
+    employeeId:        raw.employeeNumber ?? raw.employeeId ?? "",
+    firstName:         raw.firstName ?? "",
+    lastName:          raw.lastName  ?? "",
+    fullName:          raw.fullName  ?? `${raw.firstName ?? ""} ${raw.lastName ?? ""}`.trim(),
+    avatar:            raw.avatar,
+    email:             raw.email     ?? "",
+    phone:             raw.phone     ?? "",
+    mobile:            raw.mobile    ?? raw.phone ?? "",
+    gender:            raw.gender    ?? "male",
+    nationality:       raw.nationality ?? "",
+    dateOfBirth:       raw.dateOfBirth ?? undefined,
+    department:        raw.departmentName ?? raw.department ?? "",
+    designation:       raw.jobTitle  ?? raw.designation ?? "",
+    reportingTo:       raw.reportingTo ?? "",
+    branch:            raw.branch    ?? "",
+    contractType:      contractTypeMap[employmentType] ?? "full_time",
+    status:            (raw.status as EmployeeStatus) ?? "active",
+    joinDate:          raw.joiningDate ?? raw.joinDate ?? undefined,
+    endDate:           raw.terminationDate ?? raw.endDate,
+    basicSalary:       raw.basicSalary ?? 0,
+    currency:          raw.currency  ?? "AED",
+    bankAccount:       raw.bankAccount,
+    iban:              raw.iban,
+    emiratesId:        raw.emiratesId,
+    passportNumber:    raw.passportNumber ?? "",
+    visaExpiry:        raw.visaExpiry,
+    medicalInsurance:  raw.medicalInsurance,
+    annualLeaveBalance:raw.annualLeaveBalance ?? 0,
+    sickLeaveBalance:  raw.sickLeaveBalance  ?? 0,
+    skills:            raw.skills     ?? [],
+    address:           raw.address    ?? "",
+    emergencyContact:  raw.emergencyContact ?? { name: "", relation: "", phone: "" },
+    documents:         raw.documents  ?? [],
+  };
+}
+
+/** Map raw backend leave to unified LeaveRequestDto */
+function mapLeave(raw: any): LeaveRequestDto {
+  return {
+    id:               raw.id,
+    employeeId:       raw.employeeId  ?? "",
+    employeeName:     raw.employeeName ?? "",
+    department:       raw.department  ?? "",
+    designation:      raw.designation ?? "",
+    leaveType:        (raw.leaveType as LeaveType) ?? "annual",
+    fromDate:         raw.fromDate    ?? raw.startDate  ?? undefined,
+    toDate:           raw.toDate      ?? raw.endDate    ?? undefined,
+    days:             raw.days        ?? raw.totalDays  ?? 0,
+    reason:           raw.reason      ?? "",
+    status:           (raw.status as LeaveStatus) ?? "pending",
+    appliedOn:        raw.appliedOn   ?? raw.createdAt  ?? undefined,
+    approvedBy:       raw.approvedBy,
+    approvedOn:       raw.approvedOn  ?? raw.approvedAt,
+    rejectionReason:  raw.rejectionReason ?? raw.approverNotes,
+    coveringEmployee: raw.coveringEmployee,
+  };
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const hrApi = {
-  // Employees
-  getEmployees:    (): Promise<EmployeeDto[]>     => rawApiClient.get(`${BASE}/employees/all`),
-  getHrSummary:    (): Promise<HrSummaryDto>      => rawApiClient.get(`${BASE}/employees/summary`),
+  // ── Employees ─────────────────────────────────────────────────────────────
+  getEmployees: (): Promise<EmployeeDto[]> =>
+    rawApiClient.get(`${BASE}/employees/all`).then((r: any) =>
+      (Array.isArray(r) ? r : r.items ?? []).map(mapEmployee)),
 
-  // Attendance
-  getAttendance:        (): Promise<AttendanceRecordDto[]>   => rawApiClient.get(`${BASE}/attendance?pageSize=500`).then((r: any) => r.items ?? r),
-  getAttendanceSummary: (): Promise<AttendanceSummaryDto>    => rawApiClient.get(`${BASE}/attendance/summary`),
+  getHrSummary: (): Promise<HrSummaryDto> =>
+    rawApiClient.get(`${BASE}/employees/summary`),
 
-  // Leaves
-  getLeaveRequests: (): Promise<LeaveRequestDto[]>  => rawApiClient.get(`${BASE}/leaves?pageSize=500`).then((r: any) => r.items ?? r),
-  getLeaveBalances: (): Promise<LeaveBalanceDto[]>  => rawApiClient.get(`${BASE}/leaves/balances?pageSize=500`).then((r: any) => r.items ?? r),
-  getLeaveSummary:  (): Promise<LeaveSummaryDto>    => rawApiClient.get(`${BASE}/leaves/summary`),
+  createEmployee: (payload: CreateEmployeePayload): Promise<EmployeeDto> =>
+    rawApiClient.post(`${BASE}/employees`, payload).then(mapEmployee),
 
-  // Payroll
-  getPayrollRuns:    (): Promise<PayrollRunDto[]>    => rawApiClient.get(`${BASE}/payroll?pageSize=500`).then((r: any) => r.items ?? r),
-  getPayrollSummary: (): Promise<PayrollSummaryDto>  => rawApiClient.get(`${BASE}/payroll/summary`),
+  updateEmployee: (id: string, payload: UpdateEmployeePayload): Promise<void> =>
+    rawApiClient.put(`${BASE}/employees/${id}`, payload),
 
-  // Performance
-  getPerformanceReviews: (): Promise<PerformanceReviewDto[]>  => rawApiClient.get(`${BASE}/performance?pageSize=500`).then((r: any) => r.items ?? r),
-  getPerformanceSummary: (): Promise<PerformanceSummaryDto>   => rawApiClient.get(`${BASE}/performance/summary`),
+  deleteEmployee: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/employees/${id}`),
 
-  // Recruitment
-  getJobPostings:        (): Promise<JobPostingDto[]>         => rawApiClient.get(`${BASE}/recruitment/jobs?pageSize=500`).then((r: any) => r.items ?? r),
-  getApplicants:         (): Promise<ApplicantDto[]>          => rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => r.items ?? r),
-  getRecruitmentSummary: (): Promise<RecruitmentSummaryDto>   => rawApiClient.get(`${BASE}/recruitment/summary`),
+  // ── Attendance ────────────────────────────────────────────────────────────
+  getAttendance: (): Promise<AttendanceRecordDto[]> =>
+    rawApiClient.get(`${BASE}/attendance?pageSize=500`).then((r: any) => r.items ?? r),
+
+  getAttendanceSummary: (): Promise<AttendanceSummaryDto> =>
+    rawApiClient.get(`${BASE}/attendance/summary`),
+
+  markAttendance: (payload: MarkAttendancePayload): Promise<AttendanceRecordDto> =>
+    rawApiClient.post(`${BASE}/attendance`, payload),
+
+  updateAttendance: (id: string, payload: UpdateAttendancePayload): Promise<void> =>
+    rawApiClient.put(`${BASE}/attendance/${id}`, payload),
+
+  deleteAttendance: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/attendance/${id}`),
+
+  // ── Leaves ────────────────────────────────────────────────────────────────
+  getLeaveRequests: (): Promise<LeaveRequestDto[]> =>
+    rawApiClient.get(`${BASE}/leaves?pageSize=500`).then((r: any) =>
+      (r.items ?? r ?? []).map(mapLeave)),
+
+  /** NOTE: /leaves/balances endpoint not yet implemented in backend — returns [] */
+  getLeaveBalances: (): Promise<LeaveBalanceDto[]> =>
+    rawApiClient.get(`${BASE}/leaves/balances?pageSize=500`)
+      .then((r: any) => r.items ?? r ?? [])
+      .catch(() => []),
+
+  getLeaveSummary: (): Promise<LeaveSummaryDto> =>
+    rawApiClient.get(`${BASE}/leaves/summary`),
+
+  createLeave: (payload: CreateLeavePayload): Promise<LeaveRequestDto> =>
+    rawApiClient.post(`${BASE}/leaves`, payload).then(mapLeave),
+
+  deleteLeave: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/leaves/${id}`),
+
+  approveLeave: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/leaves/${id}/approve`, {}),
+
+  rejectLeave: (id: string, reason?: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/leaves/${id}/reject`, { reason: reason ?? null }),
+
+  // ── Payroll ───────────────────────────────────────────────────────────────
+  getPayrollRuns: (): Promise<PayrollRunDto[]> =>
+    rawApiClient.get(`${BASE}/payroll?pageSize=500`).then((r: any) => r.items ?? r),
+
+  getPayrollRunById: (id: string): Promise<PayrollRunDto> =>
+    rawApiClient.get(`${BASE}/payroll/${id}`),
+
+  getPayrollSummary: (): Promise<PayrollSummaryDto> =>
+    rawApiClient.get(`${BASE}/payroll/summary`),
+
+  createPayrollRun: (payload: CreatePayrollRunPayload): Promise<PayrollRunDto> =>
+    rawApiClient.post(`${BASE}/payroll`, payload),
+
+  generatePayrollRun: (payload: GeneratePayrollPayload): Promise<PayrollRunDto> =>
+    rawApiClient.post(`${BASE}/payroll/generate`, payload),
+
+  deletePayrollRun: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/payroll/${id}`),
+
+  rejectPayrollRun: (id: string, reason?: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/payroll/${id}/reject`, { reason: reason ?? null }),
+
+  reopenPayrollRun: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/payroll/${id}/reopen`, {}),
+
+  updatePayrollSlip: (runId: string, slipId: string, payload: { allowances: number; deductions: number; notes?: string }): Promise<void> =>
+    rawApiClient.put(`${BASE}/payroll/${runId}/slips/${slipId}`, payload),
+
+  processPayrollRun: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/payroll/${id}/process`, {}),
+
+  payPayrollRun: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/payroll/${id}/pay`, {}),
+
+  sendPayslipEmail: (runId: string, slipId: string): Promise<{ sentTo: string; sentAt: string }> =>
+    rawApiClient.post(`${BASE}/payroll/${runId}/slips/${slipId}/send-email`, {}),
+
+  // ── Performance ───────────────────────────────────────────────────────────
+  getPerformanceReviews: (): Promise<PerformanceReviewDto[]> =>
+    rawApiClient.get(`${BASE}/performance?pageSize=500`).then((r: any) => r.items ?? r),
+
+  getPerformanceSummary: (): Promise<PerformanceSummaryDto> =>
+    rawApiClient.get(`${BASE}/performance/summary`),
+
+  // ── Recruitment ───────────────────────────────────────────────────────────
+  getJobPostings: (): Promise<JobPostingDto[]> =>
+    rawApiClient.get(`${BASE}/recruitment/jobs?pageSize=500`).then((r: any) => r.items ?? r),
+
+  getApplicants: (): Promise<ApplicantDto[]> =>
+    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => r.items ?? r),
+
+  getRecruitmentSummary: (): Promise<RecruitmentSummaryDto> =>
+    rawApiClient.get(`${BASE}/recruitment/summary`),
 };

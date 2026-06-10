@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -485,13 +485,13 @@ export default function LoginPage() {
                   >
                     Password
                   </label>
-                  <button
-                    type="button"
+                  <Link
+                    to="/auth/forgot-password"
                     className="text-[11px] font-medium transition-colors hover:underline"
                     style={{ color: D.accent }}
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
                 <div className="relative">
                   <Lock
@@ -578,6 +578,18 @@ export default function LoginPage() {
               Access is restricted to authorised personnel only.
               <br />
               Unauthorised use is strictly prohibited.
+            </p>
+
+            {/* Trial CTA */}
+            <p className="text-center text-[12px] mt-3" style={{ color: D.muted }}>
+              Don't have an account?{" "}
+              <Link
+                to="/trial"
+                className="font-semibold hover:underline"
+                style={{ color: D.accent }}
+              >
+                Start free trial →
+              </Link>
             </p>
 
             {/* Demo credentials */}

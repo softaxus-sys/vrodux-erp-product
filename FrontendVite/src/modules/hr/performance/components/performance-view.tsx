@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, Plus, Download, X, Star, TrendingUp,
+  Search, Plus, X, Star, TrendingUp,
   Clock, CheckCircle2, AlertTriangle, Target,
   BarChart3, User, ChevronRight, Award
 } from "lucide-react";
@@ -12,6 +12,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
 import type { PerformanceReviewDto as PerformanceReview, ReviewStatus, Rating } from "@/lib/hr/hr.api";
 import { usePerformanceReviews, usePerformanceSummary } from "@/hooks/hr/use-hr";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   pending:     { label: "Pending",     color: "text-muted-foreground", bg: "bg-muted",             icon: Clock },
@@ -225,6 +228,30 @@ export function PerformanceView() {
   const { data: performanceReviews = [] } = usePerformanceReviews();
   const { data: performanceSummary } = usePerformanceSummary();
 
+  const exportCsv = () => {
+    const csv = toCsv(performanceReviews.map(r => ({
+      "Employee":      r.employeeName,
+      "Department":    r.department,
+      "Designation":   r.designation,
+      "Review Period": r.reviewPeriod,
+      "Review Type":   r.reviewType,
+      "Status":        r.status,
+      "Overall Rating":r.overallRating ?? "",
+      "Reviewed By":   r.reviewedBy,
+      "Due Date":      r.dueDate,
+      "Completed":     r.completedDate ?? "",
+    })), ["Employee","Department","Designation","Review Period","Review Type","Status","Overall Rating","Reviewed By","Due Date","Completed"]);
+    downloadFile(`performance_reviews_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Performance Reviews",
+    subtitle: `${performanceReviews.length} reviews`,
+    columns: ["Employee","Department","Review Period","Type","Status","Rating","Reviewed By","Due Date"],
+    rows: performanceReviews.map(r => [r.employeeName, r.department, r.reviewPeriod, r.reviewType, r.status, r.overallRating ?? "—", r.reviewedBy, r.dueDate]),
+    landscape: true,
+  });
+
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
     return performanceReviews.filter(r => {
@@ -243,7 +270,7 @@ export function PerformanceView() {
           <p className="text-sm text-muted-foreground mt-0.5">Track reviews, ratings, and employee goals</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Download className="h-3.5 w-3.5" />Export</Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm"><Plus className="h-4 w-4" />New Review</Button>
         </div>
       </div>

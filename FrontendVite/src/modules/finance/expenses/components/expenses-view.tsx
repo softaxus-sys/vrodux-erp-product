@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, Search, Download, X, CheckCircle2, XCircle, Receipt, Clock, Send, DollarSign,
+  Plus, Search, X, CheckCircle2, XCircle, Receipt, Clock, Send, DollarSign,
 } from "lucide-react";
 // Send used in stat card icon below
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import type { ExpenseDto as Expense, ExpenseStatus } from "@/lib/finance/finance.api";
 import { useExpenses, useExpensesSummary, useApproveExpense, useRejectExpense, usePayExpense } from "@/hooks/finance/use-finance";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { AddExpenseForm } from "./add-expense-form";
 
 const STATUS_STYLES_FALLBACK = "bg-muted text-muted-foreground";
@@ -181,6 +184,29 @@ function ExpenseDrawer({ expense, onClose }: { expense: Expense; onClose: () => 
 export function ExpensesView() {
   const { data: expenses = [] } = useExpenses();
   const { data: expensesSummary } = useExpensesSummary();
+
+  const exportCsv = () => {
+    const csv = toCsv(expenses.map(e => ({
+      "Expense #":  e.expenseNumber,
+      "Title":      e.title,
+      "Category":   e.category,
+      "Paid By":    e.paidBy,
+      "Date":       e.expenseDate,
+      "Amount":     e.amount,
+      "Currency":   e.currency ?? "AED",
+      "Status":     e.status,
+      "Approved By":e.approvedBy ?? "",
+    })), ["Expense #","Title","Category","Paid By","Date","Amount","Currency","Status","Approved By"]);
+    downloadFile(`expenses_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Expense Claims",
+    subtitle: `${expenses.length} expenses`,
+    columns: ["Expense #","Title","Category","Paid By","Date","Amount","Currency","Status"],
+    rows: expenses.map(e => [e.expenseNumber, e.title, e.category, e.paidBy, e.expenseDate, e.amount, e.currency ?? "AED", e.status]),
+    landscape: false,
+  });
   const approveRow = useApproveExpense();
   const rejectRow  = useRejectExpense();
 
@@ -220,9 +246,7 @@ export function ExpensesView() {
           <p className="text-muted-foreground mt-0.5 text-sm">Review, approve, and process employee expense claims.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" /> Export
-          </Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
             <Plus className="h-4 w-4" /> New Claim
           </Button>

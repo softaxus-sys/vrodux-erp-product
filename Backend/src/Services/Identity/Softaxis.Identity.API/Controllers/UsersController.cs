@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Identity.Application.Users.Commands.AdminResetPassword;
 using Softaxis.Identity.Application.Users.Commands.AssignRole;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
 using Softaxis.Identity.Application.Users.Commands.CreateUser;
@@ -61,13 +62,23 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
     public async Task<IActionResult> RemoveRole(Guid id, Guid roleId, CancellationToken ct)
         => HandleResult(await Sender.Send(new RemoveRoleCommand(id, roleId), ct));
 
-    /// <summary>Change the user's password.</summary>
+    /// <summary>
+    /// Change the user's password (requires the user's current password — for self-service).
+    /// </summary>
     [HttpPost("{id:guid}/change-password")]
     public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangePasswordRequest request, CancellationToken ct)
         => HandleResult(await Sender.Send(new ChangePasswordCommand(id, request.CurrentPassword, request.NewPassword), ct));
+
+    /// <summary>
+    /// Admin: forcibly reset a user's password without knowing their current password.
+    /// </summary>
+    [HttpPost("{id:guid}/reset-password")]
+    public async Task<IActionResult> AdminResetPassword(Guid id, [FromBody] AdminResetPasswordRequest request, CancellationToken ct)
+        => HandleResult(await Sender.Send(new AdminResetPasswordCommand(id, request.NewPassword), ct));
 }
 
 // ── Request models ────────────────────────────────────────────────────────────
 public sealed record UpdateUserRequest(string FirstName, string LastName, string? PhoneNumber, string? AvatarUrl);
 public sealed record RoleAssignRequest(Guid RoleId);
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+public sealed record AdminResetPasswordRequest(string NewPassword);

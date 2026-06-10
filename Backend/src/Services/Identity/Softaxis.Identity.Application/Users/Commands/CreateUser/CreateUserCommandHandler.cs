@@ -57,7 +57,7 @@ public sealed class CreateUserCommandHandler(
         }
 
         userRepo.Add(user);
-        auditRepo.Add(new AuditLog(currentUser.Id, "CREATE_USER", "User", user.Id.ToString(), null, null, null, null, true));
+        auditRepo.Add(new AuditLog(currentUser.Id, "CREATE_USER", "User", user.Id.ToString(), null, null, null, null, true, currentUser.TenantId));
         await uow.SaveChangesAsync(ct);
 
         return Result.Success(ToDto(user));

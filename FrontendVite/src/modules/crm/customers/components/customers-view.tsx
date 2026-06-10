@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  Search, Plus, Download, Building2, LayoutGrid,
+  Search, Plus, Building2, LayoutGrid,
   List, Filter, Star, TrendingUp, Users, DollarSign, Award
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,9 @@ import { AddCustomerForm } from "./add-customer-form";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { type CustomerDto as Customer, type CustomerStatus, type CustomerTier } from "@/lib/crm/crm.api";
 import { useCustomers, useCustomersSummary } from "@/hooks/crm/use-crm";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 
 type ViewMode = "list" | "grid";
 
@@ -109,6 +112,32 @@ function CustomerCard({ customer, index, onClick }: { customer: Customer; index:
 
 export function CustomersView() {
   const { data: customers = [], isLoading } = useCustomers();
+
+  const exportCsv = () => {
+    const csv = toCsv(customers.map(c => ({
+      "Name":           c.name,
+      "Industry":       c.industry,
+      "Email":          c.email,
+      "Phone":          c.phone,
+      "Country":        c.country,
+      "City":           c.city,
+      "Status":         c.status,
+      "Tier":           c.tier,
+      "Total Revenue":  c.totalRevenue,
+      "Open Deals":     c.openDeals,
+      "Account Manager":c.accountManager,
+      "Since":          c.since,
+    })), ["Name","Industry","Email","Phone","Country","City","Status","Tier","Total Revenue","Open Deals","Account Manager","Since"]);
+    downloadFile(`customers_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Customer Directory",
+    subtitle: `${customers.length} customers`,
+    columns: ["Name","Industry","Email","Phone","Country","Status","Tier","Revenue (AED)","Account Manager"],
+    rows: customers.map(c => [c.name, c.industry, c.email, c.phone, c.country, c.status, c.tier, c.totalRevenue, c.accountManager]),
+    landscape: true,
+  });
   const { data: customersSummary }          = useCustomersSummary();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -142,7 +171,7 @@ export function CustomersView() {
           <p className="text-sm text-muted-foreground mt-0.5">Manage accounts, contacts, and relationship history</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Download className="h-3.5 w-3.5" />Export</Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingCustomer(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Customer</Button>
         </div>
       </div>

@@ -10,6 +10,7 @@ public interface IAuditLogRepository
         Guid? userId = null,
         string? action = null,
         DateTime? from = null, DateTime? to = null,
+        Guid? tenantId = null,
         CancellationToken ct = default);
 
     void Add(AuditLog log);

@@ -14,6 +14,10 @@ namespace Softaxis.Hospitality.Infrastructure.Persistence.Migrations
             migrationBuilder.EnsureSchema(
                 name: "hospitality");
 
+            migrationBuilder.DropTable(name: "Bookings", schema: "hospitality");
+            migrationBuilder.DropTable(name: "HousekeepingTasks", schema: "hospitality");
+            migrationBuilder.DropTable(name: "Rooms", schema: "hospitality");
+
             migrationBuilder.CreateTable(
                 name: "Bookings",
                 schema: "hospitality",

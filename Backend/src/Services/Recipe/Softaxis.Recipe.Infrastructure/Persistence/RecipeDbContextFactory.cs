@@ -10,9 +10,10 @@ public sealed class RecipeDbContextFactory : IDesignTimeDbContextFactory<RecipeD
     {
         var options = new DbContextOptionsBuilder<RecipeDbContext>()
             .UseSqlServer(
-                (System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-LTP\\SQLEXPRESS;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"),
+                (System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-QFINITY;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"),
                 sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo"))
             .Options;
         return new RecipeDbContext(options);
     }
 }
+

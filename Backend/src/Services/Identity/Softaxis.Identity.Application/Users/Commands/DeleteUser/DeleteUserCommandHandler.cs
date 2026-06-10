@@ -28,7 +28,7 @@ public sealed class DeleteUserCommandHandler(
         await refreshRepo.RevokeAllForUserAsync(cmd.Id, ct);
 
         userRepo.Remove(user); // Soft delete via BaseDbContext
-        auditRepo.Add(new Domain.Entities.AuditLog(currentUser.Id, "DELETE_USER", "User", cmd.Id.ToString(), null, null, null, null, true));
+        auditRepo.Add(new Domain.Entities.AuditLog(currentUser.Id, "DELETE_USER", "User", cmd.Id.ToString(), null, null, null, null, true, currentUser.TenantId));
         await uow.SaveChangesAsync(ct);
 
         return Result.Success();

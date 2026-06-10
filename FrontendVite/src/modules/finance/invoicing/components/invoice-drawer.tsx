@@ -2,7 +2,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Printer, Send, Download, CheckCircle2,
-  Plus, Trash2, Pencil, ArrowLeft, XCircle,
+  Plus, Trash2, Pencil, ArrowLeft, XCircle, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -322,8 +322,12 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
     }
   };
 
-  const handleCancel = async () => {
-    if (!window.confirm("Cancel this invoice? This cannot be undone.")) return;
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
+
+  const handleCancel = () => setConfirmCancel(true);
+
+  const doCancel = async () => {
+    setConfirmCancel(false);
     try {
       await cancelInvoice.mutateAsync(invoice.id);
       toast.success("Invoice cancelled.");
@@ -426,6 +430,31 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
           </div>
         </div>
       </div>
+
+      {/* Cancel confirmation modal */}
+      {confirmCancel && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-none">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Cancel Invoice?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {invoice.invoiceNumber} — This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setConfirmCancel(false)}>Keep</Button>
+              <Button variant="destructive" size="sm" onClick={doCancel} disabled={cancelInvoice.isPending}>
+                {cancelInvoice.isPending ? "Cancelling…" : "Cancel Invoice"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

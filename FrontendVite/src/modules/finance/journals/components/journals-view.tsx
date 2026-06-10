@@ -15,6 +15,7 @@ const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; bg: s
   draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
   posted:   { label: "Posted",   color: "text-success",     bg: "bg-success/10",                    dot: "bg-success" },
   reversed: { label: "Reversed", color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
+  voided:   { label: "Voided",   color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
 };
 
 const FILTERS: { key: JournalStatus | "all"; label: string }[] = [
@@ -22,6 +23,7 @@ const FILTERS: { key: JournalStatus | "all"; label: string }[] = [
   { key: "draft", label: "Draft" },
   { key: "posted", label: "Posted" },
   { key: "reversed", label: "Reversed" },
+  { key: "voided", label: "Voided" },
 ];
 
 const PERIODS = ["All Periods", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"];

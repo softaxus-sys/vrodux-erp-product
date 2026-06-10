@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { Plus, Search, Pencil, Trash2, Ruler, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Ruler, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUoMs, useCreateUoM, useUpdateUoM, useDeleteUoM } from "@/hooks/inventory/use-uom";
@@ -45,12 +45,16 @@ function UoMDialog({ open, onClose, editing }: UoMDialogProps) {
       symbol:      symbol.trim(),
       description: description.trim() || null,
     };
-    if (editing) {
-      await update.mutateAsync({ id: editing.id, ...payload, isActive });
-    } else {
-      await create.mutateAsync(payload);
+    try {
+      if (editing) {
+        await update.mutateAsync({ id: editing.id, ...payload, isActive });
+      } else {
+        await create.mutateAsync(payload);
+      }
+      onClose();
+    } catch {
+      // Error is handled by the hook's onError toast — keep dialog open for retry
     }
-    onClose();
   };
 
   if (!open) return null;
@@ -100,6 +104,7 @@ export function UoMView() {
   const [search, setSearch]     = React.useState("");
   const [dialogOpen, setDialog] = React.useState(false);
   const [editing, setEditing]   = React.useState<UnitOfMeasureDto | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<UnitOfMeasureDto | null>(null);
 
   const { data: uoms = [], isLoading } = useUoMs({ search: search || undefined });
   const deleteUoM = useDeleteUoM();
@@ -112,8 +117,12 @@ export function UoMView() {
       toast.error("Cannot delete a unit assigned to products.");
       return;
     }
-    if (!confirm(`Delete "${u.name} (${u.symbol})"?`)) return;
-    deleteUoM.mutate(u.id);
+    setPendingDelete(u);
+  };
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteUoM.mutate(pendingDelete.id);
+    setPendingDelete(null);
   };
 
   return (
@@ -189,6 +198,29 @@ export function UoMView() {
       />
 
       <UoMDialog open={dialogOpen} onClose={() => { setDialog(false); setEditing(null); }} editing={editing} />
+
+      {/* Delete confirmation modal */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Delete Unit of Measure?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">"{pendingDelete.name} ({pendingDelete.symbol})" will be permanently removed.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setPendingDelete(null)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={deleteUoM.isPending}>
+                {deleteUoM.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

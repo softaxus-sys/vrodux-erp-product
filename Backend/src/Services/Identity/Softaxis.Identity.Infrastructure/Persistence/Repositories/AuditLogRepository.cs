@@ -11,9 +11,13 @@ public sealed class AuditLogRepository(IdentityDbContext db) : IAuditLogReposito
         int page, int pageSize,
         Guid? userId = null, string? action = null,
         DateTime? from = null, DateTime? to = null,
+        Guid? tenantId = null,
         CancellationToken ct = default)
     {
         var query = db.AuditLogs.Include(a => a.User).AsQueryable();
+
+        // Scope to tenant — super-admin (tenantId == null) sees all logs
+        if (tenantId.HasValue) query = query.Where(a => a.TenantId == tenantId);
 
         if (userId.HasValue) query = query.Where(a => a.UserId == userId);
         if (!string.IsNullOrWhiteSpace(action)) query = query.Where(a => a.Action == action.ToUpperInvariant());

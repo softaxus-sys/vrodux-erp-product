@@ -3,14 +3,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Download, FileText, CheckCircle2, Clock, DollarSign,
   TrendingUp, Users, X, ChevronRight, Send, Printer,
-  Building2, CreditCard, Calendar, Check, BarChart3
+  Building2, CreditCard, Calendar, BarChart3, AlertCircle,
+  ArrowLeft, Mail, MailCheck, Search, Trash2, Pencil, Save, RotateCcw
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
-import type { PayrollRunDto as PayrollRun, PayslipDto as Payslip, PayrollStatus } from "@/lib/hr/hr.api";
-import { usePayrollRuns, usePayrollSummary } from "@/hooks/hr/use-hr";
+import { hrApi } from "@/lib/hr/hr.api";
+import type { PayrollRunDto as PayrollRun } from "@/lib/hr/hr.api";
+import { usePayrollRuns, usePayrollSummary, usePayrollRunById, useProcessPayrollRun, usePayPayrollRun, useSendPayslipEmail, useDeletePayrollRun, useRejectPayrollRun, useReopenPayrollRun, useUpdatePayrollSlip } from "@/hooks/hr/use-hr";
+import { downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
 import { AddPayrollForm } from "./add-payroll-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
@@ -20,175 +24,346 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   approved:   { label: "Approved",   color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
   paid:       { label: "Paid",       color: "text-success",          bg: "bg-success/10",        icon: CheckCircle2 },
   failed:     { label: "Failed",     color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
+  rejected:   { label: "Rejected",   color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
 };
 const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", icon: FileText };
 
-function PayslipDrawer({ payslip, open, onClose }: { payslip: Payslip | null; open: boolean; onClose: () => void }) {
-  if (!payslip) return null;
+// Normalise raw backend slip to a consistent internal shape
+function normaliseSlip(s: any, run: { period: string; paidAt?: string | null; status: string }) {
+  return {
+    id:             s.id as string,
+    employeeId:     s.employeeId as string,
+    employeeName:   s.employeeName as string,
+    employeeNumber: (s.employeeNumber ?? s.employeeId ?? "—") as string,
+    department:     (s.departmentName ?? s.department ?? "—") as string,
+    designation:    (s.jobTitle ?? s.designation ?? "—") as string,
+    basicSalary:    (s.basicSalary ?? 0) as number,
+    allowances:     (typeof s.allowances === "number" ? s.allowances : 0) as number,
+    deductions:     (typeof s.deductions === "number" ? s.deductions : 0) as number,
+    grossSalary:    (s.grossSalary ?? (s.basicSalary ?? 0) + (typeof s.allowances === "number" ? s.allowances : 0)) as number,
+    netSalary:      (s.netSalary ?? 0) as number,
+    iban:           (s.iban ?? "") as string,
+    bank:           (s.bank ?? "") as string,
+    emailSentAt:    s.emailSentAt as string | null | undefined,
+    emailSentTo:    s.emailSentTo as string | null | undefined,
+    payPeriod:      run.period,
+    paidAt:         run.paidAt,
+    runStatus:      run.status,
+  };
+}
+type NormalisedSlip = ReturnType<typeof normaliseSlip>;
+
+// ── Payslip detail view (rendered inside the run drawer panel) ────────────────
+function PayslipDetailView({
+  slip, runId, onBack,
+}: { slip: NormalisedSlip; runId: string; onBack: () => void }) {
+  const sendEmail = useSendPayslipEmail();
+  const [sentTo,   setSentTo]   = React.useState<string | null>(slip.emailSentTo ?? null);
+  const [sentAt,   setSentAt]   = React.useState<string | null>(slip.emailSentAt ?? null);
+
+  const handleDownload = () => {
+    exportPdf({
+      title:    `Payslip — ${slip.employeeName}`,
+      subtitle: `Pay Period: ${slip.payPeriod}`,
+      columns:  ["Description", "Amount (AED)"],
+      rows: [
+        ["Basic Salary",     slip.basicSalary.toFixed(2)],
+        ["Allowances",       slip.allowances.toFixed(2)],
+        ["Gross Salary",     slip.grossSalary.toFixed(2)],
+        ["Deductions",       `- ${slip.deductions.toFixed(2)}`],
+        ["Net Salary",       slip.netSalary.toFixed(2)],
+      ],
+    });
+  };
+
+  const handleSendEmail = () => {
+    sendEmail.mutate({ runId, slipId: slip.id }, {
+      onSuccess: (data) => { setSentTo(data.sentTo); setSentAt(data.sentAt); },
+    });
+  };
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
-          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed top-0 right-0 h-full w-full max-w-md bg-background border-l border-border shadow-2xl z-50 flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div>
-                <p className="font-bold text-base">Payslip</p>
-                <p className="text-xs text-muted-foreground">{payslip.payPeriod}</p>
+    <motion.div
+      key="payslip-detail"
+      initial={{ x: "100%", opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: "100%", opacity: 0 }}
+      transition={{ type: "spring", damping: 28, stiffness: 300 }}
+      className="absolute inset-0 bg-background flex flex-col"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-sm truncate">{slip.employeeName}</p>
+          <p className="text-[11px] text-muted-foreground">{slip.payPeriod} · {slip.designation || slip.department}</p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownload}>
+            <Printer className="h-3.5 w-3.5" />Download PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {/* Employee card */}
+        <div className="flex items-center gap-4 p-4 bg-muted/40 rounded-2xl">
+          <Avatar className="h-14 w-14 shrink-0">
+            <AvatarFallback className="text-lg font-bold bg-primary/10 text-primary">
+              {getInitials(slip.employeeName)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-base">{slip.employeeName}</p>
+            <p className="text-sm text-muted-foreground">{slip.designation || "—"}</p>
+            <p className="text-xs text-muted-foreground">{slip.department}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Net Salary</p>
+            <p className="text-xl font-bold text-primary">{formatCurrency(slip.netSalary, "AED")}</p>
+          </div>
+        </div>
+
+        {/* Earnings */}
+        <div>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">Earnings</p>
+          <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
+            <div className="flex justify-between items-center px-4 py-3 text-sm">
+              <span className="text-muted-foreground">Basic Salary</span>
+              <span className="font-semibold">{formatCurrency(slip.basicSalary, "AED")}</span>
+            </div>
+            {slip.allowances > 0 && (
+              <div className="flex justify-between items-center px-4 py-3 text-sm">
+                <span className="text-muted-foreground">Allowances</span>
+                <span className="text-success">+ {formatCurrency(slip.allowances, "AED")}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5"><Printer className="h-3.5 w-3.5" />Print</Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
+            )}
+            <div className="flex justify-between items-center px-4 py-3 text-sm font-bold bg-muted/20 rounded-b-xl">
+              <span>Gross Salary</span>
+              <span className="text-primary">{formatCurrency(slip.grossSalary, "AED")}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Deductions */}
+        {slip.deductions > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">Deductions</p>
+            <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
+              <div className="flex justify-between items-center px-4 py-3 text-sm">
+                <span className="text-muted-foreground">Total Deductions</span>
+                <span className="text-destructive font-semibold">- {formatCurrency(slip.deductions, "AED")}</span>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {/* Employee */}
-              <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-xl">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="font-bold bg-primary/10 text-primary">{getInitials(payslip.employeeName)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-bold">{payslip.employeeName}</p>
-                  <p className="text-sm text-muted-foreground">{payslip.designation}</p>
-                  <p className="text-xs font-mono text-muted-foreground">{payslip.employeeNumber}</p>
-                </div>
-              </div>
+        {/* Net summary */}
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide">Net Salary</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Amount to be credited</p>
+          </div>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(slip.netSalary, "AED")}</p>
+        </div>
 
-              {/* Earnings */}
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Earnings</h4>
-                <div className="bg-muted/30 rounded-xl p-4 space-y-2.5">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Basic Salary</span>
-                    <span className="font-semibold">{formatCurrency(payslip.basicSalary, payslip.currency)}</span>
-                  </div>
-                  {(payslip.allowances ?? []).map(a => (
-                    <div key={a.label} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{a.label}</span>
-                      <span>{formatCurrency(a.amount, payslip.currency)}</span>
-                    </div>
-                  ))}
-                  <div className="border-t border-border pt-2 flex justify-between text-sm font-bold">
-                    <span>Gross Salary</span>
-                    <span className="text-primary">{formatCurrency(payslip.grossSalary, payslip.currency)}</span>
-                  </div>
-                </div>
+        {/* Payment info */}
+        <div>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">Payment Details</p>
+          <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
+            {[
+              { icon: Building2, label: "Bank",    value: slip.bank || "—" },
+              { icon: CreditCard,label: "IBAN",    value: slip.iban || "—" },
+              { icon: Calendar,  label: "Pay Period", value: slip.payPeriod },
+              { icon: Calendar,  label: "Paid On", value: slip.paidAt ? formatDate(slip.paidAt, "medium") : "Pending" },
+            ].map(row => (
+              <div key={row.label} className="flex items-center gap-3 px-4 py-3">
+                <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground flex-1">{row.label}</span>
+                <span className="text-xs font-mono text-foreground">{row.value}</span>
               </div>
+            ))}
+          </div>
+        </div>
 
-              {/* Deductions */}
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Deductions</h4>
-                <div className="bg-muted/30 rounded-xl p-4 space-y-2.5">
-                  {(payslip.deductions ?? []).map(d => (
-                    <div key={d.label} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{d.label}</span>
-                      <span className="text-destructive">- {formatCurrency(d.amount, payslip.currency)}</span>
-                    </div>
-                  ))}
-                  <div className="border-t border-border pt-2 flex justify-between text-sm font-bold">
-                    <span>Total Deductions</span>
-                    <span className="text-destructive">- {formatCurrency(payslip.totalDeductions, payslip.currency)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Net Salary */}
-              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-primary font-semibold uppercase tracking-wide">Net Salary</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Amount to be credited</p>
-                  </div>
-                  <p className="text-2xl font-bold text-primary">{formatCurrency(payslip.netSalary, payslip.currency)}</p>
-                </div>
-              </div>
-
-              {/* Bank details */}
-              <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Payment Details</h4>
-                <div className="space-y-2.5">
-                  {[
-                    { icon: Building2, label: "Bank",    value: payslip.bank },
-                    { icon: CreditCard,label: "IBAN",    value: payslip.iban },
-                    { icon: Calendar,  label: "Paid On", value: payslip.paidOn ? formatDate(payslip.paidOn, "medium") : "Pending" },
-                  ].map(row => (
-                    <div key={row.label} className="flex items-center gap-3 py-2 border-b border-border/40">
-                      <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="flex-1 flex justify-between">
-                        <span className="text-xs text-muted-foreground">{row.label}</span>
-                        <span className="text-sm font-medium font-mono text-right text-xs">{row.value}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {/* Email sent banner */}
+        {(sentTo || sentAt) && (
+          <div className="flex items-center gap-3 p-3 bg-success/10 border border-success/20 rounded-xl">
+            <MailCheck className="h-4 w-4 text-success shrink-0" />
+            <div className="text-xs text-success">
+              <span className="font-semibold">Payslip sent</span> to {sentTo}
+              {sentAt && <span className="text-success/70"> · {formatDate(sentAt, "medium")}</span>}
             </div>
+          </div>
+        )}
+      </div>
 
-            <div className="border-t border-border px-6 py-4 flex gap-2">
-              <Button size="sm" className="flex-1 gap-1.5"><Download className="h-3.5 w-3.5" />Download PDF</Button>
-              <Button variant="outline" size="sm" className="flex-1 gap-1.5"><Send className="h-3.5 w-3.5" />Email to Employee</Button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+      {/* Footer actions */}
+      <div className="border-t border-border px-5 py-4 flex gap-2 shrink-0">
+        <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5" onClick={handleDownload}>
+          <Download className="h-3.5 w-3.5" />Download PDF
+        </Button>
+        <Button
+          size="sm"
+          className={cn("flex-1 h-9 gap-1.5", sentTo ? "bg-success/10 text-success border border-success/30 hover:bg-success/20" : "")}
+          variant={sentTo ? "outline" : "default"}
+          disabled={sendEmail.isPending}
+          onClick={handleSendEmail}
+        >
+          {sendEmail.isPending ? (
+            <><Clock className="h-3.5 w-3.5 animate-spin" />Sending…</>
+          ) : sentTo ? (
+            <><MailCheck className="h-3.5 w-3.5" />Resend Email</>
+          ) : (
+            <><Mail className="h-3.5 w-3.5" />Send to Employee</>
+          )}
+        </Button>
+      </div>
+    </motion.div>
   );
 }
 
+// ── Payroll run drawer (single panel, push-navigation for payslip detail) ─────
 function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open: boolean; onClose: () => void }) {
-  const [selectedPayslip, setSelectedPayslip] = React.useState<Payslip | null>(null);
-  const [payslipOpen, setPayslipOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
+  const [selectedSlip,  setSelectedSlip]  = React.useState<NormalisedSlip | null>(null);
+  const [search,        setSearch]        = React.useState("");
+  const [showReject,    setShowReject]    = React.useState(false);
+  const [rejectReason,  setRejectReason]  = React.useState("");
+  const [editMode,      setEditMode]      = React.useState(false);
+  // localEdits: slipId → { allowances, deductions }
+  const [localEdits, setLocalEdits] = React.useState<Record<string, { allowances: number; deductions: number }>>({});
+
+  const processRun   = useProcessPayrollRun();
+  const payRun       = usePayPayrollRun();
+  const rejectRun    = useRejectPayrollRun();
+  const reopenRun    = useReopenPayrollRun();
+  const updateSlip   = useUpdatePayrollSlip();
+  const deleteRun    = useDeletePayrollRun();
+
+  const { data: runDetail, isLoading: detailLoading } = usePayrollRunById(open && run ? run.id : null);
+
+  React.useEffect(() => {
+    if (!open) {
+      setSelectedSlip(null); setSearch("");
+      setShowReject(false);  setRejectReason("");
+      setEditMode(false);    setLocalEdits({});
+    }
+  }, [open]);
 
   if (!run) return null;
-  const sc = STATUS_CONFIG[run.status] ?? STATUS_FALLBACK;
-  const payslips = run.payslips ?? [];
-  const grossTotal = run.totalBasicSalary + run.totalAllowances;
+
+  const activeRun  = runDetail ?? run;
+  const sc         = STATUS_CONFIG[activeRun.status] ?? STATUS_FALLBACK;
+  const rawSlips: any[] = (runDetail as any)?.slips ?? [];
+  const payslips   = rawSlips.map(s => normaliseSlip(s, activeRun));
+  const grossTotal = activeRun.totalBasicSalary + activeRun.totalAllowances;
 
   const filtered = payslips.filter(p =>
     !search || p.employeeName.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <>
-      <AnimatePresence>
-        {open && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
-            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 280 }}
-              className="fixed top-0 right-0 h-full w-full max-w-2xl bg-background border-l border-border shadow-2xl z-50 flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+    <AnimatePresence>
+      {open && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+            onClick={() => { if (!selectedSlip) onClose(); else setSelectedSlip(null); }}
+          />
+
+          {/* Panel */}
+          <motion.div
+            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed top-0 right-0 h-full w-full max-w-2xl bg-background border-l border-border shadow-2xl z-50 flex flex-col overflow-hidden"
+          >
+            {/* ── List view ── */}
+            <div className="absolute inset-0 flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
                 <div>
-                  <p className="font-bold text-lg">{run.period} Payroll</p>
+                  <p className="font-bold text-lg">{activeRun.period} Payroll</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
                       <sc.icon className="h-3 w-3" />{sc.label}
                     </span>
-                    <span className="text-xs text-muted-foreground">{run.slipCount} employees</span>
+                    <span className="text-xs text-muted-foreground">{activeRun.slipCount} employees</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {run.status === "approved" && (
-                    <Button size="sm" className="h-8 text-xs gap-1.5 bg-success hover:bg-success/90">
-                      <Check className="h-3.5 w-3.5" />Process Payment
+                  {/* Use runDetail?.status (freshly fetched) not the cached list status */}
+                  {detailLoading && (
+                    <Clock className="h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                  {!detailLoading && activeRun.status === "draft" && !showReject && (
+                    <>
+                      <Button size="sm" variant="outline"
+                        className="h-8 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"
+                        onClick={() => setShowReject(true)}>
+                        <Trash2 className="h-3.5 w-3.5" />Reject
+                      </Button>
+                      <Button size="sm" className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90"
+                        disabled={processRun.isPending}
+                        onClick={() => processRun.mutate(activeRun.id)}>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {processRun.isPending ? "Processing…" : "Accept & Process"}
+                      </Button>
+                    </>
+                  )}
+                  {!detailLoading && activeRun.status === "processed" && (
+                    <Button size="sm" className="h-8 text-xs gap-1.5 bg-success hover:bg-success/90"
+                      disabled={payRun.isPending}
+                      onClick={() => payRun.mutate(activeRun.id, { onSuccess: onClose })}>
+                      <DollarSign className="h-3.5 w-3.5" />
+                      {payRun.isPending ? "Marking Paid…" : "Mark as Paid"}
                     </Button>
+                  )}
+                  {!detailLoading && activeRun.status === "rejected" && !editMode && (
+                    <Button size="sm" className="h-8 text-xs gap-1.5"
+                      onClick={() => { setEditMode(true); setLocalEdits({}); }}>
+                      <Pencil className="h-3.5 w-3.5" />Edit & Resubmit
+                    </Button>
+                  )}
+                  {editMode && (
+                    <>
+                      <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
+                        onClick={() => { setEditMode(false); setLocalEdits({}); }}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90"
+                        disabled={reopenRun.isPending}
+                        onClick={async () => {
+                          // save each edited slip sequentially then reopen
+                          const entries = Object.entries(localEdits);
+                          try {
+                            await Promise.all(entries.map(([slipId, vals]) =>
+                              hrApi.updatePayrollSlip(activeRun.id, slipId, vals)
+                            ));
+                          } catch { /* individual errors toasted by hook */ }
+                          reopenRun.mutate(activeRun.id, {
+                            onSuccess: () => { setEditMode(false); setLocalEdits({}); }
+                          });
+                        }}>
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {reopenRun.isPending ? "Resubmitting…" : "Resubmit as Draft"}
+                      </Button>
+                    </>
                   )}
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
                 </div>
               </div>
 
               {/* Summary cards */}
-              <div className="grid grid-cols-3 gap-3 px-6 pt-4 pb-2">
+              <div className="grid grid-cols-3 gap-3 px-6 pt-4 pb-3 shrink-0">
                 {[
-                  { label: "Gross Payroll", value: formatCurrency(grossTotal, "AED"),               color: "text-foreground" },
-                  { label: "Deductions",    value: formatCurrency(run.totalDeductions, "AED"),      color: "text-destructive" },
-                  { label: "Net Payroll",   value: formatCurrency(run.totalNetSalary, "AED"),       color: "text-primary" },
+                  { label: "Gross Payroll", value: formatCurrency(grossTotal, "AED"),                    color: "text-foreground" },
+                  { label: "Deductions",    value: formatCurrency(activeRun.totalDeductions, "AED"),     color: "text-destructive" },
+                  { label: "Net Payroll",   value: formatCurrency(activeRun.totalNetSalary, "AED"),      color: "text-primary" },
                 ].map(s => (
                   <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -197,35 +372,165 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                 ))}
               </div>
 
+              {/* Reject reason panel — shown when admin clicks Reject */}
+              <AnimatePresence>
+                {showReject && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                    className="mx-6 mb-3 overflow-hidden shrink-0"
+                  >
+                    <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
+                      <p className="text-sm font-semibold text-destructive mb-0.5">Reject this payroll run?</p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        The run will be marked <span className="font-medium text-destructive">Rejected</span> and remain visible
+                        {activeRun.createdByName ? <> to <span className="font-medium text-foreground">{activeRun.createdByName}</span></> : ""} with your reason.
+                      </p>
+                      <textarea
+                        value={rejectReason}
+                        onChange={e => setRejectReason(e.target.value)}
+                        placeholder="Reason for rejection (e.g. incorrect allowances for Q2, missing deductions)…"
+                        rows={3}
+                        className="w-full rounded-lg border border-destructive/30 bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-destructive/50 mb-3"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-8 text-xs flex-1"
+                          onClick={() => { setShowReject(false); setRejectReason(""); }}>
+                          Cancel
+                        </Button>
+                        <Button size="sm"
+                          className="h-8 text-xs flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-1.5"
+                          disabled={rejectRun.isPending}
+                          onClick={() => rejectRun.mutate(
+                            { id: activeRun.id, reason: rejectReason.trim() || undefined },
+                            { onSuccess: () => { setShowReject(false); setRejectReason(""); onClose(); } }
+                          )}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {rejectRun.isPending ? "Rejecting…" : "Confirm Rejection"}
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Rejection info banner — shown when run is already rejected */}
+              {activeRun.status === "rejected" && (
+                <div className="mx-6 mb-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl shrink-0">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-destructive">
+                        Rejected{activeRun.rejectedByName ? ` by ${activeRun.rejectedByName}` : ""}
+                        {activeRun.rejectedAt ? <span className="font-normal text-muted-foreground text-xs ml-2">{formatDate(activeRun.rejectedAt, "medium")}</span> : ""}
+                      </p>
+                      {activeRun.rejectionReason && (
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">"{activeRun.rejectionReason}"</p>
+                      )}
+                      {activeRun.createdByName && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Originally created by <span className="font-medium text-foreground">{activeRun.createdByName}</span>.
+                          They should create a new corrected payroll run.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Approval trail */}
-              <div className="px-6 pb-3 flex items-center gap-6 text-xs text-muted-foreground">
-                {run.processedAt && <span>Processed on <span className="font-medium text-foreground">{formatDate(run.processedAt, "medium")}</span></span>}
-                {run.paidAt && <span>Paid on <span className="font-medium text-foreground">{formatDate(run.paidAt, "medium")}</span></span>}
-                {run.notes && <span className="truncate italic">{run.notes}</span>}
-              </div>
+              {(activeRun.processedAt || activeRun.paidAt || activeRun.notes) && (
+                <div className="px-6 pb-3 flex items-center gap-4 text-xs text-muted-foreground shrink-0">
+                  {activeRun.processedAt && <span>Processed <span className="font-medium text-foreground">{formatDate(activeRun.processedAt, "medium")}</span></span>}
+                  {activeRun.paidAt && <span>Paid <span className="font-medium text-foreground">{formatDate(activeRun.paidAt, "medium")}</span></span>}
+                  {activeRun.notes && <span className="truncate italic">{activeRun.notes}</span>}
+                </div>
+              )}
 
               {/* Search */}
-              <div className="px-6 pb-3">
-                <input
-                  type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search employees..."
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                />
+              <div className="px-6 pb-3 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text" value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search employees…"
+                    className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </div>
               </div>
 
-              {/* Payslips table */}
+              {/* Payslip list */}
               <div className="flex-1 overflow-y-auto">
-                {filtered.length === 0 ? (
+                {detailLoading ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
+                    <Clock className="h-6 w-6 opacity-40 animate-spin" />
+                    <p className="text-sm">Loading payslips…</p>
+                  </div>
+                ) : filtered.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
                     <FileText className="h-8 w-8 opacity-30" />
-                    <p className="text-sm">No individual payslips available in list view.</p>
-                    <p className="text-xs">Open a payroll run detail to view payslips.</p>
+                    <p className="text-sm">{search ? "No employees match your search." : "No payslips found for this run."}</p>
                   </div>
+                ) : editMode ? (
+                  // ── Edit mode: inline editable slips ──
+                  <table className="w-full text-sm">
+                    <thead className="border-y border-border bg-amber-500/10 sticky top-0">
+                      <tr>
+                        {["Employee","Basic","Allowances","Deductions","Net"].map(h => (
+                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((ps, i) => {
+                        const edit = localEdits[ps.id];
+                        const allowances = edit?.allowances ?? ps.allowances;
+                        const deductions = edit?.deductions ?? ps.deductions;
+                        const net = ps.basicSalary + allowances - deductions;
+                        const changed = edit !== undefined;
+                        return (
+                          <motion.tr key={ps.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                            transition={{ delay: i * 0.02 }}
+                            className={cn("border-b border-border/40 last:border-0", changed && "bg-amber-500/5")}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-7 w-7 shrink-0">
+                                  <AvatarFallback className="text-[10px] font-bold bg-primary/10 text-primary">{getInitials(ps.employeeName)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium text-sm">{ps.employeeName}</p>
+                                  <p className="text-[10px] text-muted-foreground">{ps.designation || ps.department}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{formatCurrency(ps.basicSalary, "AED")}</td>
+                            <td className="px-4 py-2">
+                              <input type="number" min={0} step={0.01}
+                                value={allowances}
+                                onChange={e => setLocalEdits(prev => ({ ...prev, [ps.id]: { allowances: +e.target.value, deductions: prev[ps.id]?.deductions ?? ps.deductions } }))}
+                                className="w-28 h-8 rounded-md border border-amber-400/50 bg-amber-500/5 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="number" min={0} step={0.01}
+                                value={deductions}
+                                onChange={e => setLocalEdits(prev => ({ ...prev, [ps.id]: { allowances: prev[ps.id]?.allowances ?? ps.allowances, deductions: +e.target.value } }))}
+                                className="w-28 h-8 rounded-md border border-destructive/30 bg-destructive/5 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-destructive/50"
+                              />
+                            </td>
+                            <td className={cn("px-4 py-3 text-sm font-bold", changed ? "text-amber-500" : "text-primary")}>
+                              {formatCurrency(net, "AED")}
+                            </td>
+                          </motion.tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 ) : (
+                  // ── Normal view: clickable slip rows ──
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-muted/30 sticky top-0">
                       <tr>
-                        {["Employee","Department","Basic","Gross","Net",""].map(h => (
+                        {["Employee","Department","Basic","Net","Email",""].map(h => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
@@ -233,36 +538,221 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                     <tbody>
                       {filtered.map((ps, i) => (
                         <motion.tr key={ps.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.02 }} className="erp-table-row cursor-pointer"
-                          onClick={() => { setSelectedPayslip(ps); setPayslipOpen(true); }}>
+                          transition={{ delay: i * 0.02 }}
+                          className="erp-table-row cursor-pointer group"
+                          onClick={() => setSelectedSlip(ps)}>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
-                              <Avatar className="h-7 w-7 shrink-0">
-                                <AvatarFallback className="text-[9px] font-bold bg-primary/10 text-primary">{getInitials(ps.employeeName)}</AvatarFallback>
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarFallback className="text-[10px] font-bold bg-primary/10 text-primary">{getInitials(ps.employeeName)}</AvatarFallback>
                               </Avatar>
                               <div>
                                 <p className="font-medium text-sm">{ps.employeeName}</p>
-                                <p className="text-[10px] text-muted-foreground font-mono">{ps.employeeNumber}</p>
+                                <p className="text-[10px] text-muted-foreground">{ps.designation || ps.department}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{ps.department}</td>
-                          <td className="px-4 py-3 text-sm">{formatCurrency(ps.basicSalary, ps.currency)}</td>
-                          <td className="px-4 py-3 text-sm">{formatCurrency(ps.grossSalary, ps.currency)}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary">{formatCurrency(ps.netSalary, ps.currency)}</td>
-                          <td className="px-4 py-3"><ChevronRight className="h-4 w-4 text-muted-foreground/40" /></td>
+                          <td className="px-4 py-3 text-sm">{formatCurrency(ps.basicSalary, "AED")}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-primary">{formatCurrency(ps.netSalary, "AED")}</td>
+                          <td className="px-4 py-3">
+                            {ps.emailSentAt ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full">
+                                <MailCheck className="h-3 w-3" />Sent
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3"><ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" /></td>
                         </motion.tr>
                       ))}
                     </tbody>
                   </table>
                 )}
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-      <PayslipDrawer payslip={selectedPayslip} open={payslipOpen} onClose={() => setPayslipOpen(false)} />
-    </>
+            </div>
+
+            {/* ── Payslip detail view — slides over the list ── */}
+            <AnimatePresence>
+              {selectedSlip && (
+                <PayslipDetailView
+                  key={selectedSlip.id}
+                  slip={selectedSlip}
+                  runId={activeRun.id}
+                  onBack={() => setSelectedSlip(null)}
+                />
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ── WPS SIF file generator ────────────────────────────────────────────────────
+// UAE Wage Protection System — Salary Information File (SIF) format
+function generateWpsSif(run: PayrollRun): string {
+  const payslips = run.payslips ?? [];
+  const [year, month] = run.period.split("-");
+  const period = `${year}${month}`;
+  const companyName = "COMPANY";
+  const totalCents = Math.round(run.totalNetSalary * 100);
+  const lines: string[] = [];
+
+  // EDR — Employer Detail Record
+  lines.push(`EDR|MOB|${companyName}|${period}|${payslips.length}|${totalCents}|AED`);
+
+  // SDR — Salary Detail Record per employee
+  const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+  const startDate = `${year}${month}01`;
+  const endDate   = `${year}${month}${String(daysInMonth).padStart(2, "0")}`;
+  for (const ps of payslips) {
+    const netCents   = Math.round(ps.netSalary * 100);
+    const basicCents = Math.round(ps.basicSalary * 100);
+    const varCents   = Math.round((ps.grossSalary - ps.basicSalary) * 100);
+    const iban = (ps.iban ?? "").replace(/\s/g, "");
+    lines.push(`SDR|${ps.employeeNumber}|MOB|${iban}|${netCents}|${startDate}|${endDate}|${daysInMonth}|${basicCents}|${varCents}|0`);
+  }
+
+  // EOS — End of Salary record
+  lines.push(`EOS|MOB|${companyName}|${period}|${payslips.length}|${totalCents}|AED`);
+
+  return lines.join("\r\n");
+}
+
+// ── WPS Submit Modal ──────────────────────────────────────────────────────────
+function WpsSubmitModal({ runId, period, open, onClose }: {
+  runId: string | null; period: string; open: boolean; onClose: () => void;
+}) {
+  const { data: run, isLoading } = usePayrollRunById(runId);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const payslips = run?.payslips ?? [];
+
+  const handleDownloadSif = () => {
+    if (!run) return;
+    const sif = generateWpsSif(run);
+    downloadFile(`WPS_SIF_${run.period}.txt`, sif, "text/plain");
+  };
+
+  const handleConfirmSubmit = () => {
+    if (!run) return;
+    const sif = generateWpsSif(run);
+    downloadFile(`WPS_SIF_${run.period}.txt`, sif, "text/plain");
+    setSubmitted(true);
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+          <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed top-0 right-0 h-full w-full max-w-xl bg-background border-l border-border shadow-2xl z-50 flex flex-col">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div>
+                <p className="font-bold text-base">WPS Submission</p>
+                <p className="text-xs text-muted-foreground">Wage Protection System — {period}</p>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Info banner */}
+              <div className="flex items-start gap-3 p-4 bg-info/10 border border-info/20 rounded-xl">
+                <AlertCircle className="h-4 w-4 text-info mt-0.5 shrink-0" />
+                <div className="text-xs text-info leading-relaxed">
+                  Download the SIF file below and upload it to your bank's WPS portal (e.g., ENBD, FAB, ADCB Business Banking) to process salaries under the UAE Wage Protection System.
+                </div>
+              </div>
+
+              {/* Summary */}
+              {run && (
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Pay Period",    value: run.period },
+                    { label: "Employees",     value: run.slipCount },
+                    { label: "Total Payroll", value: formatCurrency(run.totalNetSalary, "AED") },
+                  ].map(s => (
+                    <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
+                      <p className="font-bold text-sm mt-0.5">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* SIF preview */}
+              <div>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">SIF File Preview</h4>
+                {isLoading ? (
+                  <div className="bg-muted/30 rounded-xl p-4 text-xs text-muted-foreground text-center">Loading payslip data…</div>
+                ) : payslips.length === 0 ? (
+                  <div className="bg-muted/30 rounded-xl p-4 text-xs text-muted-foreground text-center">
+                    No payslips found for this run. Generate payslips first before submitting WPS.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/30 border-b border-border">
+                        <tr>
+                          {["Emp #","Name","IBAN","Net Salary","Status"].map(h => (
+                            <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payslips.map(ps => (
+                          <tr key={ps.id} className="border-b border-border/40 last:border-0">
+                            <td className="px-3 py-2 font-mono">{ps.employeeNumber}</td>
+                            <td className="px-3 py-2">{ps.employeeName}</td>
+                            <td className="px-3 py-2 font-mono text-[10px]">{ps.iban || "—"}</td>
+                            <td className="px-3 py-2 font-semibold text-primary">{formatCurrency(ps.netSalary, "AED")}</td>
+                            <td className="px-3 py-2">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                                ps.iban ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                              )}>
+                                {ps.iban ? "Ready" : "Missing IBAN"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Success confirmation */}
+              {submitted && (
+                <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/20 rounded-xl">
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                  <p className="text-xs text-success font-medium">SIF file downloaded. Upload it to your bank's WPS portal to complete submission.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-border px-6 py-4 flex gap-2">
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 flex-1" onClick={handleDownloadSif} disabled={isLoading || !run}>
+                <Download className="h-3.5 w-3.5" />Download SIF File
+              </Button>
+              <Button size="sm" className="h-9 gap-1.5 flex-1 bg-success hover:bg-success/90" onClick={handleConfirmSubmit} disabled={isLoading || !run || payslips.length === 0}>
+                <Send className="h-3.5 w-3.5" />{submitted ? "Re-download SIF" : "Submit WPS"}
+              </Button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -270,14 +760,21 @@ export function PayrollView() {
   const [selectedRun, setSelectedRun] = React.useState<PayrollRun | null>(null);
   const [runDrawerOpen, setRunDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [wpsRunId, setWpsRunId] = React.useState<string | null>(null);
+  const [wpsOpen, setWpsOpen] = React.useState(false);
 
   const { data: payrollRuns = [] } = usePayrollRuns();
   const { data: payrollSummary } = usePayrollSummary();
 
+  // Backend summary shape: { allTime: {...}, thisMonth: {...} | null }
+  // Derive helper values from nested summary
+  const thisMonth    = payrollSummary?.thisMonth;
+  const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2026-06"
   // Backend returns newest first; find current month run or fall back to first
-  const currentRun = payrollRuns.find(r => r.period === payrollSummary?.currentMonth) ?? payrollRuns[0];
+  const currentRun = payrollRuns.find(r => r.period === currentMonth) ?? payrollRuns[0];
 
   const openRun = (run: PayrollRun) => { setSelectedRun(run); setRunDrawerOpen(true); };
+  const openWps = (run: PayrollRun) => { setWpsRunId(run.id); setWpsOpen(true); };
 
   return (
     <div className="space-y-6">
@@ -288,7 +785,7 @@ export function PayrollView() {
           <p className="text-sm text-muted-foreground mt-0.5">Process salaries, payslips, and WPS submissions</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Download className="h-3.5 w-3.5" />WPS File</Button>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => currentRun && openWps(currentRun)} disabled={!currentRun}><Download className="h-3.5 w-3.5" />WPS File</Button>
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><CheckCircle2 className="h-4 w-4" />Run Payroll</Button>
         </div>
       </div>
@@ -296,10 +793,10 @@ export function PayrollView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Current Month Net",  value: formatCurrency(payrollSummary?.totalNetPayroll ?? currentRun?.totalNetSalary ?? 0, "AED"), sub: payrollSummary?.currentMonth ?? currentRun?.period ?? "—", icon: DollarSign, color: "text-primary bg-primary/10" },
-          { label: "YTD Total Paid",     value: formatCurrency(payrollSummary?.ytdTotal ?? 0, "AED"),                                      sub: "Jan–May 2026",                                            icon: TrendingUp, color: "text-success bg-success/10" },
-          { label: "Total Employees",    value: payrollSummary?.totalEmployees ?? currentRun?.slipCount ?? 0,                              sub: "On payroll",                                              icon: Users,      color: "text-info bg-info/10" },
-          { label: "Paid Runs",          value: payrollSummary?.paidRuns ?? payrollRuns.filter(r => r.status === "paid").length,           sub: "This year",                                               icon: BarChart3,  color: "text-muted-foreground bg-muted" },
+          { label: "Current Month Net",  value: formatCurrency(thisMonth?.totalNetSalary ?? currentRun?.totalNetSalary ?? 0, "AED"), sub: currentMonth ?? currentRun?.period ?? "—", icon: DollarSign, color: "text-primary bg-primary/10" },
+          { label: "All-Time Paid",      value: formatCurrency(0, "AED"),                                                                  sub: "YTD (not tracked)",                                       icon: TrendingUp, color: "text-success bg-success/10" },
+          { label: "Total Employees",    value: thisMonth?.employeeCount ?? currentRun?.slipCount ?? 0,                                    sub: "On payroll",                                              icon: Users,      color: "text-info bg-info/10" },
+          { label: "Paid Runs",          value: payrollSummary?.allTime?.paid ?? payrollRuns.filter(r => r.status === "paid").length,      sub: "All time",                                                icon: BarChart3,  color: "text-muted-foreground bg-muted" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -318,7 +815,7 @@ export function PayrollView() {
 
       {/* Current payroll highlight */}
       {currentRun && (() => {
-        const summaryStatus = payrollSummary?.status ?? currentRun.status;
+        const summaryStatus = thisMonth?.status ?? currentRun.status;
         const sc = STATUS_CONFIG[summaryStatus] ?? STATUS_FALLBACK;
         return (
           <Card className="border-primary/20 bg-primary/5">
@@ -331,16 +828,16 @@ export function PayrollView() {
                       {sc.label}
                     </span>
                   </div>
-                  <p className="font-bold text-xl">{payrollSummary?.currentMonth ?? currentRun.period}</p>
+                  <p className="font-bold text-xl">{currentMonth ?? currentRun.period}</p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {payrollSummary?.totalEmployees ?? currentRun.slipCount} employees · Net {formatCurrency(payrollSummary?.totalNetPayroll ?? currentRun.totalNetSalary, "AED")}
+                    {thisMonth?.employeeCount ?? currentRun.slipCount} employees · Net {formatCurrency(thisMonth?.totalNetSalary ?? currentRun.totalNetSalary, "AED")}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => openRun(currentRun)}>
                     <FileText className="h-3.5 w-3.5" />View Payslips
                   </Button>
-                  <Button size="sm" className="h-9 gap-1.5 bg-success hover:bg-success/90" onClick={() => openRun(currentRun)}>
+                  <Button size="sm" className="h-9 gap-1.5 bg-success hover:bg-success/90" onClick={() => openWps(currentRun)}>
                     <Send className="h-3.5 w-3.5" />Submit WPS
                   </Button>
                 </div>
@@ -397,6 +894,12 @@ export function PayrollView() {
 
       <PayrollRunDrawer run={selectedRun} open={runDrawerOpen} onClose={() => setRunDrawerOpen(false)} />
       <AddPayrollForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <WpsSubmitModal
+        runId={wpsRunId}
+        period={currentRun?.period ?? ""}
+        open={wpsOpen}
+        onClose={() => { setWpsOpen(false); setWpsRunId(null); }}
+      />
     </div>
   );
 }

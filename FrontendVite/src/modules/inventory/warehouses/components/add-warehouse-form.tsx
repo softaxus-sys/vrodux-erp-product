@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateWarehouse } from "@/hooks/inventory/use-warehouses";
 
 const WAREHOUSE_TYPES = ["General", "Cold Storage", "Hazardous", "Bonded", "Free Zone", "Distribution Center"];
 const EMIRATES        = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
@@ -26,6 +27,8 @@ export function AddWarehouseForm({ open, onClose }: AddWarehouseFormProps) {
   const [zones, setZones]             = React.useState("");
   const [notes, setNotes]             = React.useState("");
 
+  const createWarehouse = useCreateWarehouse();
+
   const isValid = name.trim() && code.trim();
 
   const reset = () => {
@@ -34,6 +37,22 @@ export function AddWarehouseForm({ open, onClose }: AddWarehouseFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = () => {
+    if (!isValid) return;
+    const fullAddress = [address.trim(), emirate].filter(Boolean).join(", ");
+    createWarehouse.mutate(
+      {
+        name:          name.trim(),
+        code:          code.trim() || null,
+        address:       fullAddress || null,
+        contactPerson: manager.trim() || null,
+        phone:         phone.trim() || null,
+        isActive:      true,
+      },
+      { onSuccess: () => { reset(); onClose(); } },
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -153,8 +172,10 @@ export function AddWarehouseForm({ open, onClose }: AddWarehouseFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Warehouse</Button>
+              <Button variant="outline" onClick={onClose} disabled={createWarehouse.isPending}>Cancel</Button>
+              <Button onClick={handleSave} disabled={!isValid || createWarehouse.isPending}>
+                {createWarehouse.isPending ? "Saving…" : "Save Warehouse"}
+              </Button>
             </div>
           </motion.div>
         </>

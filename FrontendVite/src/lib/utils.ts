@@ -34,10 +34,12 @@ export function formatPercentage(value: number, decimals = 1): string {
 }
 
 export function formatDate(
-  date: string | Date,
+  date: string | Date | null | undefined,
   format: "short" | "medium" | "long" | "relative" = "medium"
 ): string {
+  if (date === null || date === undefined || date === "") return "—";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
 
   if (format === "relative") {
     const now = new Date();

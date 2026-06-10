@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, Plus, Download, X, Briefcase, Users, Clock,
+  Search, Plus, X, Briefcase, Users, Clock,
   CheckCircle2, Star, MapPin, DollarSign, Calendar,
   Mail, Phone, Globe, ChevronRight, Award
 } from "lucide-react";
@@ -12,6 +12,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import type { JobPostingDto as JobPosting, ApplicantDto as Applicant, ApplicantStage, JobStatus } from "@/lib/hr/hr.api";
 import { useJobPostings, useApplicants, useRecruitmentSummary } from "@/hooks/hr/use-hr";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { AddJobPostingForm } from "./add-job-posting-form";
 
 const JOB_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -159,6 +162,32 @@ export function RecruitmentView() {
 
   const { data: jobPostings = [] } = useJobPostings();
   const { data: applicants = [] } = useApplicants();
+
+  const exportCsv = () => {
+    const csv = toCsv(jobPostings.map(j => ({
+      "Title":            j.title,
+      "Department":       j.department,
+      "Type":             j.type,
+      "Experience Level": j.experienceLevel,
+      "Status":           j.status,
+      "Salary Min":       j.salaryMin,
+      "Salary Max":       j.salaryMax,
+      "Currency":         j.currency,
+      "Applicants":       j.applicants,
+      "Posted":           j.postedDate,
+      "Closing":          j.closingDate,
+      "Hiring Manager":   j.hiringManager,
+    })), ["Title","Department","Type","Experience Level","Status","Salary Min","Salary Max","Currency","Applicants","Posted","Closing","Hiring Manager"]);
+    downloadFile(`job_postings_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Job Postings",
+    subtitle: `${jobPostings.length} postings · ${applicants.length} applicants`,
+    columns: ["Title","Department","Type","Level","Status","Salary Range","Applicants","Posted","Closing"],
+    rows: jobPostings.map(j => [j.title, j.department, j.type, j.experienceLevel, j.status, `${j.currency} ${j.salaryMin.toLocaleString()}–${j.salaryMax.toLocaleString()}`, j.applicants, j.postedDate, j.closingDate]),
+    landscape: true,
+  });
   const { data: recruitmentSummary } = useRecruitmentSummary();
 
   const filteredJobs = React.useMemo(() =>
@@ -185,7 +214,7 @@ export function RecruitmentView() {
           <p className="text-sm text-muted-foreground mt-0.5">Manage job postings and applicant pipeline</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm"><Download className="h-3.5 w-3.5" />Export</Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Post Job</Button>
         </div>
       </div>

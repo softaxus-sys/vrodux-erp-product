@@ -5,7 +5,9 @@ import type { ModuleKey } from "@/types";
 import { ErpLayout } from "@/components/layout/layouts/erp-layout";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-const LoginPage = React.lazy(() => import("@/pages/auth/login"));
+const LoginPage          = React.lazy(() => import("@/pages/auth/login"));
+const ForgotPasswordPage = React.lazy(() => import("@/pages/auth/forgot-password"));
+const ResetPasswordPage  = React.lazy(() => import("@/pages/auth/reset-password"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 const DashboardPage        = React.lazy(() => import("@/pages/dashboard"));
@@ -107,6 +109,9 @@ const VouchersPage          = React.lazy(() => import("@/pages/settings/vouchers
 // ── Master Data ───────────────────────────────────────────────────────────────
 const MasterDataPage       = React.lazy(() => import("@/pages/master-data"));
 
+// ── Onboarding / Trial ────────────────────────────────────────────────────────
+const OnboardingPage            = React.lazy(() => import("@/pages/trial/onboarding"));
+
 // ── Super Admin ───────────────────────────────────────────────────────────────
 const SuperAdminPage            = React.lazy(() => import("@/pages/super-admin/index"));
 const NewTenantPage             = React.lazy(() => import("@/pages/super-admin/new-tenant"));
@@ -174,6 +179,9 @@ export function App() {
             </GuestGuard>
           }
         />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password"  element={<ResetPasswordPage />} />
+        <Route path="/trial"                element={<OnboardingPage />} />
 
         {/* Subscription expired — shown when enforcement middleware blocks requests */}
         <Route path="/subscription-expired" element={<SubscriptionExpiredPage />} />

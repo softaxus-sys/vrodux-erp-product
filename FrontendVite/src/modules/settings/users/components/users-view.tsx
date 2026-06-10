@@ -1,23 +1,25 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, Users, UserCheck, UserX, Mail, Shield,
-  ChevronDown, X, Edit, Ban, Eye, Clock, Layers, Loader2, RefreshCw,
+  X, Edit, Trash2, Eye, Clock, Layers, Loader2, RefreshCw, AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
-import { useUsers, useUser, useDeleteUser } from "@/hooks/identity/use-users";
+import {
+  useUsers, useUser, useCreateUser, useUpdateUser, useDeleteUser,
+} from "@/hooks/identity/use-users";
 import { useRoles } from "@/hooks/identity/use-roles";
 import type { UserSummaryDto, UserDto } from "@/lib/identity/types";
 
 // ── Local role/status config ──────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  active:   { label: "Active",   color: "text-success",         bg: "bg-success/10",  dot: "bg-success" },
+  active:   { label: "Active",   color: "text-success",          bg: "bg-success/10", dot: "bg-success" },
   inactive: { label: "Inactive", color: "text-muted-foreground", bg: "bg-muted",      dot: "bg-muted-foreground" },
-  invited:  { label: "Invited",  color: "text-warning",         bg: "bg-warning/10",  dot: "bg-warning" },
+  invited:  { label: "Invited",  color: "text-warning",          bg: "bg-warning/10", dot: "bg-warning" },
 };
 
 const AVATAR_COLORS = [
@@ -67,19 +69,66 @@ function StatCard({ label, value, icon: Icon, color }: {
   );
 }
 
+// ── Confirm Delete Modal ──────────────────────────────────────────────────────
+
+function ConfirmDeleteModal({
+  userName, onConfirm, onCancel, loading,
+}: { userName: string; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
+  return (
+    <>
+      <motion.div className="fixed inset-0 bg-black/40 z-50" initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onCancel} />
+      <motion.div className="fixed inset-0 flex items-center justify-center z-[60] p-4"
+        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}>
+        <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground">Delete user?</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">This cannot be undone.</p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mb-5">
+            <span className="font-semibold text-foreground">"{userName}"</span> will be permanently
+            deleted and all their sessions revoked.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>Cancel</Button>
+            <Button variant="destructive" className="flex-1" onClick={onConfirm} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1.5" />Delete</>}
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 // ── User Drawer ───────────────────────────────────────────────────────────────
 
-function UserDrawer({ userId, onClose }: { userId: string; onClose: () => void }) {
+function UserDrawer({
+  userId, onClose, onEdit, onDelete,
+}: {
+  userId: string;
+  onClose: () => void;
+  onEdit: (user: UserDto) => void;
+  onDelete: (user: UserDto) => void;
+}) {
   const { data: user, isLoading } = useUser(userId);
-  const deleteUser = useDeleteUser();
 
   return (
-    <AnimatePresence>
+    <>
+      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/40 z-40"
         onClick={onClose}
       />
+      {/* Panel */}
       <motion.div
         initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
@@ -177,22 +226,26 @@ function UserDrawer({ userId, onClose }: { userId: string; onClose: () => void }
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border flex gap-2">
-          <Button className="flex-1" variant="outline">
+          <Button
+            className="flex-1"
+            variant="outline"
+            disabled={!user}
+            onClick={() => user && onEdit(user)}
+          >
             <Edit className="h-4 w-4 mr-1.5" />Edit User
           </Button>
-          {user && user.status.toLowerCase() === "active" && (
+          {user && (
             <Button
               variant="destructive"
               size="icon"
-              onClick={() => { deleteUser.mutate(user.id); onClose(); }}
-              disabled={deleteUser.isPending}
+              onClick={() => onDelete(user)}
             >
-              <Ban className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           )}
         </div>
       </motion.div>
-    </AnimatePresence>
+    </>
   );
 }
 
@@ -200,30 +253,25 @@ function UserDrawer({ userId, onClose }: { userId: string; onClose: () => void }
 
 function CreateUserModal({ onClose }: { onClose: () => void }) {
   const { data: rolesData } = useRoles({ pageSize: 100 });
+  const createUser = useCreateUser();
+
   const [form, setForm] = React.useState({
     firstName: "", lastName: "", email: "", username: "", password: "", roleId: "",
   });
-  const [loading, setLoading] = React.useState(false);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!form.firstName || !form.email || !form.password) return;
-    setLoading(true);
-    try {
-      const { usersApi } = await import("@/lib/identity/users.api");
-      await usersApi.create({
+    createUser.mutate(
+      {
         firstName: form.firstName,
         lastName:  form.lastName,
         email:     form.email,
         username:  form.username || form.email.split("@")[0],
         password:  form.password,
         roleIds:   form.roleId ? [form.roleId] : [],
-      });
-      onClose();
-    } catch (err: any) {
-      // errors handled by mutation toast in hook
-    } finally {
-      setLoading(false);
-    }
+      },
+      { onSuccess: () => onClose() },
+    );
   };
 
   return (
@@ -250,24 +298,52 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First Name *</label>
-                <Input value={form.firstName} onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))} placeholder="Ahmed" className="h-9 text-sm" />
+                <Input
+                  value={form.firstName}
+                  onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
+                  placeholder="Ahmed"
+                  className="h-9 text-sm"
+                  autoFocus
+                />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Name</label>
-                <Input value={form.lastName} onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))} placeholder="Khan" className="h-9 text-sm" />
+                <Input
+                  value={form.lastName}
+                  onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
+                  placeholder="Khan"
+                  className="h-9 text-sm"
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
-              <Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="ahmed@softaxis.io" type="email" className="h-9 text-sm" />
+              <Input
+                value={form.email}
+                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="ahmed@softaxis.io"
+                type="email"
+                className="h-9 text-sm"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Username</label>
-              <Input value={form.username} onChange={e => setForm(p => ({ ...p, username: e.target.value }))} placeholder="auto-generated from email" className="h-9 text-sm" />
+              <Input
+                value={form.username}
+                onChange={e => setForm(p => ({ ...p, username: e.target.value }))}
+                placeholder="auto-generated from email"
+                className="h-9 text-sm"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password *</label>
-              <Input value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} type="password" placeholder="Min 8 chars" className="h-9 text-sm" />
+              <Input
+                value={form.password}
+                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                type="password"
+                placeholder="Min 8 chars"
+                className="h-9 text-sm"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Role</label>
@@ -286,11 +362,111 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
               <Button
                 className="flex-1"
                 onClick={handleCreate}
-                disabled={loading || !form.firstName || !form.email || !form.password}
+                disabled={createUser.isPending || !form.firstName || !form.email || !form.password}
               >
-                {loading ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Creating…</> : "Create User"}
+                {createUser.isPending
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Creating…</>
+                  : "Create User"}
               </Button>
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={createUser.isPending}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+// ── Edit User Modal ───────────────────────────────────────────────────────────
+
+function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }) {
+  const updateUser = useUpdateUser(user.id);
+  const [form, setForm] = React.useState({
+    firstName:   user.firstName   ?? "",
+    lastName:    user.lastName    ?? "",
+    phoneNumber: user.phoneNumber ?? "",
+  });
+
+  const handleSave = () => {
+    updateUser.mutate(
+      {
+        firstName:   form.firstName,
+        lastName:    form.lastName,
+        phoneNumber: form.phoneNumber || null,
+        avatarUrl:   user.avatarUrl ?? null,
+      },
+      { onSuccess: () => onClose() },
+    );
+  };
+
+  return (
+    <>
+      <motion.div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="fixed inset-0 flex items-center justify-center z-50 p-4"
+        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      >
+        <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h2 className="font-semibold text-foreground">Edit User</h2>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-6 space-y-4">
+            {/* Email (read-only) */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
+              <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span className="text-sm text-muted-foreground">{user.email}</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First Name *</label>
+                <Input
+                  value={form.firstName}
+                  onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
+                  className="h-9 text-sm"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Name</label>
+                <Input
+                  value={form.lastName}
+                  onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+              <Input
+                value={form.phoneNumber}
+                onChange={e => setForm(p => ({ ...p, phoneNumber: e.target.value }))}
+                placeholder="+971 50 123 4567"
+                className="h-9 text-sm"
+              />
+            </div>
+
+            <div className="pt-2 flex gap-2">
+              <Button
+                className="flex-1"
+                onClick={handleSave}
+                disabled={updateUser.isPending || !form.firstName.trim()}
+              >
+                {updateUser.isPending
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</>
+                  : "Save Changes"}
+              </Button>
+              <Button variant="outline" onClick={onClose} disabled={updateUser.isPending}>Cancel</Button>
             </div>
           </div>
         </div>
@@ -302,11 +478,15 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export function UsersView() {
-  const [search, setSearch] = React.useState("");
+  const [search, setSearch]               = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
-  const [page, setPage] = React.useState(1);
+  const [page, setPage]                   = React.useState(1);
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null);
-  const [showCreate, setShowCreate] = React.useState(false);
+  const [editUser, setEditUser]           = React.useState<UserDto | null>(null);
+  const [deleteTarget, setDeleteTarget]   = React.useState<UserDto | null>(null);
+  const [showCreate, setShowCreate]       = React.useState(false);
+
+  const deleteUser = useDeleteUser();
 
   // Debounce search
   React.useEffect(() => {
@@ -322,16 +502,27 @@ export function UsersView() {
     search: debouncedSearch || undefined,
   });
 
-  const users = data?.items ?? [];
-  const totalCount = data?.totalCount ?? 0;
-  const totalPages = data?.totalPages ?? 1;
+  const users       = data?.items ?? [];
+  const totalCount  = data?.totalCount ?? 0;
+  const totalPages  = data?.totalPages ?? 1;
 
+  // Stats based on current page slice + total from API
   const stats = React.useMemo(() => ({
     total:    totalCount,
     active:   users.filter(u => u.status.toLowerCase() === "active").length,
     inactive: users.filter(u => u.status.toLowerCase() === "inactive").length,
-    admins:   users.filter(u => u.roleCount > 0).length,
+    withRoles: users.filter(u => u.roleCount > 0).length,
   }), [users, totalCount]);
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    deleteUser.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        setDeleteTarget(null);
+        setSelectedUserId(null);
+      },
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -352,10 +543,10 @@ export function UsersView() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total Users"  value={stats.total}    icon={Users}      color="bg-primary/10 text-primary" />
-        <StatCard label="Active"       value={stats.active}   icon={UserCheck}  color="bg-success/10 text-success" />
-        <StatCard label="Inactive"     value={stats.inactive} icon={UserX}      color="bg-muted text-muted-foreground" />
-        <StatCard label="With Roles"   value={stats.admins}   icon={Shield}     color="bg-destructive/10 text-destructive" />
+        <StatCard label="Total Users"  value={stats.total}     icon={Users}     color="bg-primary/10 text-primary" />
+        <StatCard label="Active"       value={stats.active}    icon={UserCheck} color="bg-success/10 text-success" />
+        <StatCard label="Inactive"     value={stats.inactive}  icon={UserX}     color="bg-muted text-muted-foreground" />
+        <StatCard label="With Roles"   value={stats.withRoles} icon={Shield}    color="bg-destructive/10 text-destructive" />
       </div>
 
       {/* Search */}
@@ -441,9 +632,6 @@ export function UsersView() {
                         >
                           <Eye className="h-3.5 w-3.5" />View
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs gap-1">
-                          <Edit className="h-3.5 w-3.5" />Edit
-                        </Button>
                       </div>
                     </td>
                   </motion.tr>
@@ -485,15 +673,37 @@ export function UsersView() {
         )}
       </div>
 
-      {/* Drawers / Modals */}
-      {selectedUserId && (
-        <UserDrawer userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
-      )}
+      {/* User Drawer — AnimatePresence lives in PARENT so exit animation plays */}
+      <AnimatePresence>
+        {selectedUserId && (
+          <UserDrawer
+            userId={selectedUserId}
+            onClose={() => setSelectedUserId(null)}
+            onEdit={(user) => { setEditUser(user); setSelectedUserId(null); }}
+            onDelete={(user) => { setDeleteTarget(user); setSelectedUserId(null); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Modals */}
       <AnimatePresence>
         {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {deleteTarget && (
+          <ConfirmDeleteModal
+            userName={deleteTarget.fullName}
+            loading={deleteUser.isPending}
+            onConfirm={handleDeleteConfirm}
+            onCancel={() => setDeleteTarget(null)}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
 }
-
-

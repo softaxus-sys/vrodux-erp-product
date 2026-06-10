@@ -43,6 +43,11 @@ const STATUS_CONFIG: Record<PropertyStatus, { label: string; className: string }
   under_development: { label: "In Development", className: "text-warning bg-warning/10" },
 };
 
+const STATUS_FALLBACK = { label: "Unknown", className: "text-muted-foreground bg-muted" };
+const getStatus = (s: string) => STATUS_CONFIG[s as PropertyStatus] ?? STATUS_FALLBACK;
+const getTypeBadge = (t: string) => TYPE_BADGE[t as PropertyType] ?? "bg-muted text-muted-foreground";
+const getTypeLabel = (t: string) => TYPE_LABELS[t as PropertyType] ?? t;
+
 export function PropertiesView() {
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState("all");
@@ -246,10 +251,10 @@ export function PropertiesView() {
                       <span
                         className={cn(
                           "px-2 py-0.5 rounded-full text-[11px] font-semibold",
-                          TYPE_BADGE[prop.type]
+                          getTypeBadge(prop.type)
                         )}
                       >
-                        {TYPE_LABELS[prop.type]}
+                        {getTypeLabel(prop.type)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{prop.location.city}</td>
@@ -295,10 +300,10 @@ export function PropertiesView() {
                       <span
                         className={cn(
                           "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-                          STATUS_CONFIG[prop.status].className
+                          getStatus(prop.status).className
                         )}
                       >
-                        {STATUS_CONFIG[prop.status].label}
+                        {getStatus(prop.status).label}
                       </span>
                     </td>
                   </motion.tr>

@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { Plus, Filter, Search, LayoutGrid, List, Download } from "lucide-react";
+import { Plus, Filter, Search, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PipelineStats } from "./pipeline-stats";
@@ -9,6 +9,9 @@ import { AddDealForm } from "./add-deal-form";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES, type DealDto as Deal } from "@/lib/crm/crm.api";
 import { useDeals, useCrmSummary } from "@/hooks/crm/use-crm";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 
 type ViewMode = "board" | "list";
 
@@ -39,6 +42,31 @@ export function PipelineView() {
     setDrawerOpen(true);
   };
 
+  const exportCsv = () => {
+    const csv = toCsv(deals.map(d => ({
+      "Title":        d.title,
+      "Company":      d.company,
+      "Stage":        d.stage,
+      "Value":        d.value,
+      "Currency":     d.currency,
+      "Probability":  d.probability,
+      "Priority":     d.priority,
+      "Assigned To":  d.assignedTo,
+      "Source":       d.source,
+      "Close Date":   d.expectedCloseDate,
+      "Created":      d.createdDate,
+    })), ["Title","Company","Stage","Value","Currency","Probability","Priority","Assigned To","Source","Close Date","Created"]);
+    downloadFile(`pipeline_deals_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => exportPdf({
+    title: "Sales Pipeline",
+    subtitle: `${deals.length} deals`,
+    columns: ["Title","Company","Stage","Value","Currency","Probability","Assigned To","Close Date"],
+    rows: deals.map(d => [d.title, d.company, d.stage, d.value, d.currency, `${d.probability}%`, d.assignedTo, d.expectedCloseDate]),
+    landscape: true,
+  });
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -48,9 +76,7 @@ export function PipelineView() {
           <p className="text-sm text-muted-foreground mt-0.5">Track and manage your deals across all stages</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm">
-            <Download className="h-3.5 w-3.5" />Export
-          </Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingDeal(null); setShowAddForm(true); }}>
             <Plus className="h-4 w-4" />Add Deal
           </Button>

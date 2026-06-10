@@ -87,7 +87,7 @@ public sealed class ExpensesController(FinanceDbContext db) : ControllerBase
         [FromQuery] string? dateTo    = null,
         CancellationToken ct = default)
     {
-        IQueryable<Expense> query = db.Expenses.AsNoTracking();
+        IQueryable<Expense> query = db.Expenses.AsNoTracking().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(x => x.Title.Contains(search) || x.ExpenseNumber.Contains(search));

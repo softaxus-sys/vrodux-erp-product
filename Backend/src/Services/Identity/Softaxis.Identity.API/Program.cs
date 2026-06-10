@@ -1,5 +1,7 @@
+using System.Threading.RateLimiting;
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.RateLimiting;
 using Scalar.AspNetCore;
 using Serilog;
 using Softaxis.BuildingBlocks.Application.Behaviors;
@@ -61,8 +63,53 @@ try
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
 
-    // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ───────
-    builder.Services.AddMemoryCache();
+    // ── In-memory cache (used by SubscriptionEnforcementMiddleware + TrialChallengeService) ──
+    builder.Services.AddMemoryCache(opts => opts.SizeLimit = 50_000);
+
+    // ── Rate limiting ─────────────────────────────────────────────────────
+    // trial_challenge:  5 req / IP / 60 s  — prevents bulk token harvesting
+    // trial_register:   3 req / IP / 300 s — stops automated sign-up abuse
+    // forgot_password:  5 req / IP / 300 s — prevents email spam / enumeration
+    builder.Services.AddRateLimiter(rl =>
+    {
+        rl.RejectionStatusCode = 429;
+
+        rl.AddPolicy("trial_challenge", ctx =>
+            RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit          = 5,
+                    Window               = TimeSpan.FromSeconds(60),
+                    SegmentsPerWindow    = 6,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = 0,
+                }));
+
+        rl.AddPolicy("trial_register", ctx =>
+            RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit          = 3,
+                    Window               = TimeSpan.FromSeconds(300),
+                    SegmentsPerWindow    = 5,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = 0,
+                }));
+
+        rl.AddPolicy("forgot_password", ctx =>
+            RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit          = 5,
+                    Window               = TimeSpan.FromSeconds(300),
+                    SegmentsPerWindow    = 5,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = 0,
+                }));
+    });
 
     // ── CORS ──────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>
@@ -84,6 +131,7 @@ try
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseCors();
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseMiddleware<TenantContextMiddleware>();           // resolve tenant claims → ITenantContext
     app.UseMiddleware<SubscriptionEnforcementMiddleware>(); // block expired subscriptions

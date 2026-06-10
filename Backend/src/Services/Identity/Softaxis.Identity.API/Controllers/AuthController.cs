@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.API.Models;
 using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.Auth.Commands.ForgotPassword;
 using Softaxis.Identity.Application.Auth.Commands.Login;
 using Softaxis.Identity.Application.Auth.Commands.RefreshToken;
 using Softaxis.Identity.Application.Auth.Commands.Register;
+using Softaxis.Identity.Application.Auth.Commands.ResetPassword;
 using Softaxis.Identity.Application.Auth.Commands.RevokeToken;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
@@ -62,6 +64,25 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
         return HandleResult(await Sender.Send(command, ct));
     }
 
+    /// <summary>Request a password-reset email (anonymous).</summary>
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("forgot_password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req, CancellationToken ct)
+    {
+        var result = await Sender.Send(new ForgotPasswordCommand(req.Email), ct);
+        return HandleResult(result);
+    }
+
+    /// <summary>Reset password using the token from the reset email.</summary>
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req, CancellationToken ct)
+    {
+        var result = await Sender.Send(new ResetPasswordCommand(req.Email, req.Token, req.NewPassword), ct);
+        return HandleResult(result);
+    }
+
     // ── /me ───────────────────────────────────────────────────────────────────
 
     /// <summary>Get the current authenticated user's profile.</summary>
@@ -116,4 +137,11 @@ public sealed record UpdateMeRequest(
 
 public sealed record ChangeMyPasswordRequest(
     string CurrentPassword,
+    string NewPassword);
+
+public sealed record ForgotPasswordRequest(string Email);
+
+public sealed record ResetPasswordRequest(
+    string Email,
+    string Token,
     string NewPassword);

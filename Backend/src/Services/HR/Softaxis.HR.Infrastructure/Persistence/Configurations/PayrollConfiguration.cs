@@ -21,6 +21,10 @@ internal sealed class PayrollRunConfiguration : IEntityTypeConfiguration<Payroll
         builder.Property(x => x.TotalNetSalary).HasPrecision(18, 2);
         builder.Property(x => x.Status).IsRequired().HasMaxLength(30).HasDefaultValue("draft");
         builder.Property(x => x.Notes).HasMaxLength(1000);
+        builder.Property(x => x.CreatedByUserId).HasMaxLength(100);
+        builder.Property(x => x.CreatedByName).HasMaxLength(200);
+        builder.Property(x => x.RejectionReason).HasMaxLength(1000);
+        builder.Property(x => x.RejectedByName).HasMaxLength(200);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 
@@ -54,6 +58,8 @@ internal sealed class PayrollSlipConfiguration : IEntityTypeConfiguration<Payrol
         builder.Property(x => x.Deductions).HasPrecision(18, 2);
         builder.Property(x => x.NetSalary).HasPrecision(18, 2);
         builder.Property(x => x.Notes).HasMaxLength(500);
+        builder.Property(x => x.EmailSentAt);
+        builder.Property(x => x.EmailSentTo).HasMaxLength(320);
 
         builder.HasIndex(x => x.PayrollRunId);
         builder.HasIndex(x => x.EmployeeId);

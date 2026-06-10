@@ -59,6 +59,9 @@ public sealed class User : AuditableEntity<Guid>
     /// </summary>
     public bool        IsSuperAdmin    { get; private set; }
 
+    public string?     PasswordResetTokenHash   { get; private set; }
+    public DateTime?   PasswordResetTokenExpiry { get; private set; }
+
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     // Navigation
@@ -159,6 +162,25 @@ public sealed class User : AuditableEntity<Guid>
         TenantId     = null;
         UpdatedAt    = DateTime.UtcNow;
     }
+
+    public void SetPasswordResetToken(string tokenHash, DateTime expiry)
+    {
+        PasswordResetTokenHash   = tokenHash;
+        PasswordResetTokenExpiry = expiry;
+        UpdatedAt                = DateTime.UtcNow;
+    }
+
+    public void ClearPasswordResetToken()
+    {
+        PasswordResetTokenHash   = null;
+        PasswordResetTokenExpiry = null;
+        UpdatedAt                = DateTime.UtcNow;
+    }
+
+    public bool IsPasswordResetTokenValid(string tokenHash) =>
+        PasswordResetTokenHash == tokenHash &&
+        PasswordResetTokenExpiry.HasValue &&
+        PasswordResetTokenExpiry > DateTime.UtcNow;
 
     public bool IsLocked =>
         Status == UserStatus.Locked || (LockedUntil.HasValue && LockedUntil > DateTime.UtcNow);

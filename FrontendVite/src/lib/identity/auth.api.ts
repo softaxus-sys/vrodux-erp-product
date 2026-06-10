@@ -73,4 +73,12 @@ export const authApi = {
   /** Change current user's own password (requires auth). */
   changePassword: (currentPassword: string, newPassword: string): Promise<void> =>
     apiClient.post(`${BASE}/me/change-password`, { currentPassword, newPassword }),
+
+  /** Request a password reset email (anonymous). Always resolves — never reveals if email exists. */
+  forgotPassword: (email: string): Promise<{ message: string }> =>
+    post("/forgot-password", { email }),
+
+  /** Complete password reset using the token from the email link. */
+  resetPassword: (email: string, token: string, newPassword: string): Promise<void> =>
+    post("/reset-password", { email, token, newPassword }),
 };

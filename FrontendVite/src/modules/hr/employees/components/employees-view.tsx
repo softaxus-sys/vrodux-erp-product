@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { UserPlus, Download, LayoutGrid, List } from "lucide-react";
+import { UserPlus, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmployeeStats } from "./employee-stats";
 import { EmployeeTable } from "./employee-table";
@@ -8,6 +8,9 @@ import { EmployeeDrawer } from "./employee-drawer";
 import type { EmployeeDto as Employee } from "@/lib/hr/hr.api";
 import { useEmployees, useHrSummary } from "@/hooks/hr/use-hr";
 import { cn } from "@/lib/utils";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { AddEmployeeForm } from "./add-employee-form";
 
 type ViewMode = "table" | "grid";
@@ -24,6 +27,35 @@ export function EmployeesView() {
   const handleView = (emp: Employee) => {
     setSelected(emp);
     setDrawerOpen(true);
+  };
+
+  const COLS = ["Employee ID","Full Name","Email","Phone","Department","Designation","Contract Type","Status","Join Date","Basic Salary","Currency"] as const;
+
+  const exportCsv = () => {
+    const csv = toCsv(employees.map(e => ({
+      "Employee ID":   e.employeeId,
+      "Full Name":     e.fullName,
+      "Email":         e.email,
+      "Phone":         e.phone,
+      "Department":    e.department,
+      "Designation":   e.designation,
+      "Contract Type": e.contractType,
+      "Status":        e.status,
+      "Join Date":     e.joinDate ?? "",
+      "Basic Salary":  e.basicSalary,
+      "Currency":      e.currency,
+    })), ["Employee ID","Full Name","Email","Phone","Department","Designation","Contract Type","Status","Join Date","Basic Salary","Currency"]);
+    downloadFile(`employees_${new Date().toISOString().split("T")[0]}.csv`, csv);
+  };
+
+  const exportPdfReport = () => {
+    exportPdf({
+      title: "Employee Directory",
+      subtitle: `${employees.length} employees · ${new Date().toLocaleDateString("en-AE", { month: "long", year: "numeric" })}`,
+      columns: [...COLS],
+      rows: employees.map(e => [e.employeeId, e.fullName, e.email, e.phone, e.department, e.designation, e.contractType, e.status, e.joinDate ?? "—", e.basicSalary, e.currency]),
+      landscape: true,
+    });
   };
 
   return (
@@ -58,9 +90,7 @@ export function EmployeesView() {
               <LayoutGrid className="h-4 w-4" />
             </button>
           </div>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" /> Export
-          </Button>
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
             <UserPlus className="h-4 w-4" /> Add Employee
           </Button>

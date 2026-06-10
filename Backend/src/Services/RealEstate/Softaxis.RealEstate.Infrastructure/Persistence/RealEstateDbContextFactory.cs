@@ -10,9 +10,10 @@ public sealed class RealEstateDbContextFactory : IDesignTimeDbContextFactory<Rea
     {
         var options = new DbContextOptionsBuilder<RealEstateDbContext>()
             .UseSqlServer(
-                (System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-LTP\\SQLEXPRESS;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"),
+                (System.Environment.GetEnvironmentVariable("SOFTAXIS_DB") ?? "Server=SHAHBAZ-QFINITY;Database=SoftaxisErpDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;"),
                 sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "dbo"))   // match runtime (shared dbo history)
             .Options;
         return new RealEstateDbContext(options);
     }
 }
+

@@ -1,8 +1,9 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Calendar, Info } from "lucide-react";
+import { X, Calendar, Info, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateLeave, useEmployees } from "@/hooks/hr/use-hr";
 
 const LEAVE_TYPES = [
   { value: "annual",    label: "🌴 Annual Leave" },
@@ -19,9 +20,14 @@ const LEAVE_TYPES = [
 interface AddLeaveFormProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export function AddLeaveForm({ open, onClose }: AddLeaveFormProps) {
+export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
+  const createLeave = useCreateLeave();
+  const { data: employees = [] } = useEmployees();
+
+  const [selectedEmployeeId, setSelectedEmployeeId] = React.useState("");
   const [leaveType, setLeaveType]     = React.useState("annual");
   const [startDate, setStartDate]     = React.useState("");
   const [endDate, setEndDate]         = React.useState("");
@@ -31,6 +37,7 @@ export function AddLeaveForm({ open, onClose }: AddLeaveFormProps) {
   const [contactDuringLeave, setContactDuringLeave] = React.useState("");
   const [handoverTo, setHandoverTo]   = React.useState("");
   const [notes, setNotes]             = React.useState("");
+  const [apiError, setApiError]       = React.useState<string | null>(null);
 
   const daysCount = React.useMemo(() => {
     if (!startDate || !endDate) return 0;
@@ -40,15 +47,43 @@ export function AddLeaveForm({ open, onClose }: AddLeaveFormProps) {
     return halfDay ? 0.5 : Math.max(0, diff);
   }, [startDate, endDate, halfDay]);
 
-  const isValid = leaveType && startDate && (halfDay || endDate) && reason.trim();
+  const isValid = selectedEmployeeId && leaveType && startDate && (halfDay || endDate) && reason.trim();
+
+  const selectedEmployee = React.useMemo(
+    () => employees.find(e => e.id === selectedEmployeeId),
+    [employees, selectedEmployeeId]
+  );
 
   const reset = () => {
-    setLeaveType("annual"); setStartDate(""); setEndDate("");
+    setSelectedEmployeeId(""); setLeaveType("annual"); setStartDate(""); setEndDate("");
     setHalfDay(false); setHalfDayPeriod("morning");
     setReason(""); setContactDuringLeave(""); setHandoverTo(""); setNotes("");
+    setApiError(null);
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSubmit = () => {
+    if (!isValid || !selectedEmployee) return;
+    setApiError(null);
+    const effectiveEndDate = halfDay ? startDate : endDate;
+    const totalDays = halfDay ? 0.5 : daysCount;
+    createLeave.mutate(
+      {
+        employeeId:   selectedEmployee.id,
+        employeeName: selectedEmployee.fullName,
+        leaveType,
+        startDate,
+        endDate:      effectiveEndDate,
+        totalDays,
+        reason:       reason.trim() || undefined,
+      },
+      {
+        onSuccess: () => { reset(); onSuccess?.(); onClose(); },
+        onError:   (err: Error) => setApiError(err.message),
+      }
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -77,6 +112,26 @@ export function AddLeaveForm({ open, onClose }: AddLeaveFormProps) {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* API Error */}
+              {apiError && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-xl text-xs text-destructive">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  {apiError}
+                </div>
+              )}
+
+              {/* Employee Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employee *</label>
+                <select value={selectedEmployeeId} onChange={e => setSelectedEmployeeId(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <option value="">Select employee…</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Leave Type */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Leave Type *</label>
@@ -182,8 +237,10 @@ export function AddLeaveForm({ open, onClose }: AddLeaveFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Submit Request</Button>
+              <Button variant="outline" onClick={onClose} disabled={createLeave.isPending}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={!isValid || createLeave.isPending}>
+                {createLeave.isPending ? "Submitting…" : "Submit Request"}
+              </Button>
             </div>
           </motion.div>
         </>

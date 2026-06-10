@@ -1,8 +1,9 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Upload, User } from "lucide-react";
+import { X, Upload, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateEmployee } from "@/hooks/hr/use-hr";
 
 const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management", "Procurement", "Legal"];
 const JOB_TITLES  = ["Software Engineer", "Senior Engineer", "Team Lead", "Manager", "Director", "VP", "Analyst", "Coordinator", "Specialist", "Executive", "Intern"];
@@ -12,9 +13,12 @@ const NATIONALITIES   = ["UAE", "Indian", "Pakistani", "Filipino", "Egyptian", "
 interface AddEmployeeFormProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export function AddEmployeeForm({ open, onClose }: AddEmployeeFormProps) {
+export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormProps) {
+  const createEmployee = useCreateEmployee();
+
   const [firstName, setFirstName]           = React.useState("");
   const [lastName, setLastName]             = React.useState("");
   const [email, setEmail]                   = React.useState("");
@@ -30,6 +34,7 @@ export function AddEmployeeForm({ open, onClose }: AddEmployeeFormProps) {
   const [visaExpiry, setVisaExpiry]         = React.useState("");
   const [reportingTo, setReportingTo]       = React.useState("");
   const [notes, setNotes]                   = React.useState("");
+  const [apiError, setApiError]             = React.useState<string | null>(null);
 
   const isValid = firstName.trim() && lastName.trim() && email.trim() && department && jobTitle && startDate;
 
@@ -38,9 +43,33 @@ export function AddEmployeeForm({ open, onClose }: AddEmployeeFormProps) {
     setDepartment(""); setJobTitle(""); setEmploymentType("Full-Time");
     setStartDate(""); setSalary(""); setNationality(""); setEmiratesId("");
     setPassportNo(""); setVisaExpiry(""); setReportingTo(""); setNotes("");
+    setApiError(null);
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSubmit = () => {
+    if (!isValid) return;
+    setApiError(null);
+    createEmployee.mutate(
+      {
+        firstName:      firstName.trim(),
+        lastName:       lastName.trim(),
+        email:          email.trim(),
+        phone:          phone.trim() || undefined,
+        jobTitle:       jobTitle || undefined,
+        departmentName: department || undefined,
+        employmentType,
+        basicSalary:    salary ? parseFloat(salary) : 0,
+        joiningDate:    startDate,
+        notes:          notes.trim() || undefined,
+      },
+      {
+        onSuccess: () => { reset(); onSuccess?.(); onClose(); },
+        onError:   (err: Error) => setApiError(err.message),
+      }
+    );
+  };
 
   return (
     <AnimatePresence>
@@ -69,6 +98,14 @@ export function AddEmployeeForm({ open, onClose }: AddEmployeeFormProps) {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* API Error */}
+              {apiError && (
+                <div className="flex items-start gap-2 px-3 py-2.5 bg-destructive/10 border border-destructive/30 rounded-xl text-xs text-destructive">
+                  <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  {apiError}
+                </div>
+              )}
+
               {/* Avatar upload */}
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-muted/40 border-2 border-dashed border-border flex items-center justify-center">
@@ -186,8 +223,10 @@ export function AddEmployeeForm({ open, onClose }: AddEmployeeFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Employee</Button>
+              <Button variant="outline" onClick={onClose} disabled={createEmployee.isPending}>Cancel</Button>
+              <Button onClick={handleSubmit} disabled={!isValid || createEmployee.isPending}>
+                {createEmployee.isPending ? "Saving…" : "Save Employee"}
+              </Button>
             </div>
           </motion.div>
         </>

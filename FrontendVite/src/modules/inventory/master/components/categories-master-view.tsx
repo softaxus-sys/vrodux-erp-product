@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { Plus, Search, Pencil, Trash2, FolderTree, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FolderTree, ChevronRight, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,12 +56,16 @@ function CategoryDialog({ open, onClose, categories, editing }: CategoryDialogPr
       parentId:    parentId || null,
     };
 
-    if (editing) {
-      await update.mutateAsync({ id: editing.id, ...payload, isActive });
-    } else {
-      await create.mutateAsync(payload);
+    try {
+      if (editing) {
+        await update.mutateAsync({ id: editing.id, ...payload, isActive });
+      } else {
+        await create.mutateAsync(payload);
+      }
+      onClose();
+    } catch {
+      // Error is handled by the hook's onError toast — keep dialog open for retry
     }
-    onClose();
   };
 
   if (!open) return null;
@@ -127,6 +131,7 @@ export function CategoriesMasterView() {
   const [search, setSearch]       = React.useState("");
   const [dialogOpen, setDialog]   = React.useState(false);
   const [editing, setEditing]     = React.useState<ProductCategoryDto | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<ProductCategoryDto | null>(null);
 
   const { data: categories = [], isLoading } = useInventoryCategories({ search: search || undefined });
   const deleteCategory = useDeleteInventoryCategory();
@@ -142,8 +147,12 @@ export function CategoriesMasterView() {
       toast.error("Cannot delete a category that has products.");
       return;
     }
-    if (!confirm(`Delete "${c.name}"?`)) return;
-    deleteCategory.mutate(c.id);
+    setPendingDelete(c);
+  };
+  const confirmDelete = () => {
+    if (!pendingDelete) return;
+    deleteCategory.mutate(pendingDelete.id);
+    setPendingDelete(null);
   };
 
   return (
@@ -232,6 +241,29 @@ export function CategoriesMasterView() {
         categories={categories}
         editing={editing}
       />
+
+      {/* Delete confirmation modal */}
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">Delete Category?</p>
+                <p className="text-xs text-muted-foreground mt-0.5">"{pendingDelete.name}" will be permanently removed.</p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setPendingDelete(null)}>Cancel</Button>
+              <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={deleteCategory.isPending}>
+                {deleteCategory.isPending ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

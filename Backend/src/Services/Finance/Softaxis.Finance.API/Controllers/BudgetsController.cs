@@ -98,7 +98,7 @@ public sealed class BudgetsController(FinanceDbContext db) : ControllerBase
         [FromQuery] string? status = null,
         CancellationToken ct = default)
     {
-        IQueryable<Budget> query = db.Budgets.AsNoTracking().Include(x => x.Lines);
+        IQueryable<Budget> query = db.Budgets.AsNoTracking().Where(x => !x.IsDeleted).Include(x => x.Lines);
 
         if (!string.IsNullOrWhiteSpace(period))
             query = query.Where(x => x.Period == period);
