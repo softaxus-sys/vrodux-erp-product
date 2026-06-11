@@ -1,0 +1,26 @@
+using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Finance.Application.JournalEntries.Commands;
+using Softaxis.Finance.Application.JournalEntries.Dtos;
+using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Persistence;
+
+namespace Softaxis.Finance.Infrastructure.Handlers.JournalEntries;
+
+internal sealed class CreateJournalEntryHandler(FinanceDbContext db) : ICommandHandler<CreateJournalEntryCommand, JournalEntryDto>
+{
+    public async Task<Result<JournalEntryDto>> Handle(CreateJournalEntryCommand cmd, CancellationToken ct)
+    {
+        var entry = new JournalEntry(cmd.Date, cmd.Description, cmd.Reference, cmd.Notes);
+
+        foreach (var l in cmd.Lines)
+            entry.Lines.Add(new JournalEntryLine(
+                entry.Id, l.AccountId, l.AccountName,
+                l.DebitAmount, l.CreditAmount, l.Description));
+
+        db.JournalEntries.Add(entry);
+        await db.SaveChangesAsync(ct);
+
+        return Result.Success(JournalEntryMappings.ToDto(entry));
+    }
+}
