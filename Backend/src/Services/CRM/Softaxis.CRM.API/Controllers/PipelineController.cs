@@ -1,92 +1,68 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Softaxis.CRM.Domain.Entities;
-using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.API.Controllers.Common;
+using Softaxis.CRM.Application.Deals.Commands;
+using Softaxis.CRM.Application.Deals.Queries;
 
 namespace Softaxis.CRM.API.Controllers;
 
 [ApiController][Route("api/crm/deals")][Authorize]
-public sealed class PipelineController(CrmDbContext db) : ControllerBase
+public sealed class PipelineController(ISender sender) : CrmControllerBase
 {
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
-        var all = await db.Deals.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Stage, x.Value }).ToListAsync(ct);
-        var won = all.Where(x => x.Stage == "won").ToList();
-        var total = all.Count;
-        return Ok(new {
-            totalDeals = total, totalValue = all.Sum(x => x.Value),
-            wonValue = won.Sum(x => x.Value), lostDeals = all.Count(x => x.Stage == "lost"),
-            avgDealSize = total > 0 ? all.Average(x => x.Value) : 0,
-            winRate = total > 0 ? Math.Round((double)won.Count / total * 100, 1) : 0,
-        });
+        var result = await sender.Send(new GetDealsSummaryQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var items = await db.Deals.AsNoTracking().Where(x => !x.IsDeleted)
-            .OrderByDescending(x => x.Value).ToListAsync(ct);
-        return Ok(items.Select(ToDto));
+        var result = await sender.Send(new GetDealsQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var d = await db.Deals.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-        return d is null ? NotFound() : Ok(ToDto(d));
+        var result = await sender.Send(new GetDealByIdQuery(id), ct);
+        return OkOrError(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateDealReq req, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CreateDealCommand cmd, CancellationToken ct)
     {
-        var d = new Deal(req.Title, req.Company, req.Value, req.Stage, req.Priority,
-            req.Probability, req.ExpectedCloseDate, req.AssignedTo, req.Source, req.Industry, req.Description);
-        db.Deals.Add(d); await db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(GetById), new { id = d.Id }, ToDto(d));
+        var result = await sender.Send(cmd, ct);
+        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDealReq req, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDealRequest req, CancellationToken ct)
     {
-        var d = await db.Deals.FindAsync([id], ct);
-        if (d is null) return NotFound();
-        d.Update(req.Title, req.Company, req.Value, req.Stage, req.Priority, req.Probability,
-            req.ExpectedCloseDate, req.AssignedTo, req.Source, req.Industry, req.Description,
-            req.NextAction, req.NextActionDate, req.Tags);
-        await db.SaveChangesAsync(ct);
-        return NoContent();
+        var result = await sender.Send(new UpdateDealCommand(id, req.Title, req.Company, req.Value, req.Stage,
+            req.Priority, req.Probability, req.ExpectedCloseDate, req.AssignedTo, req.Source, req.Industry,
+            req.Description, req.NextAction, req.NextActionDate, req.Tags), ct);
+        return NoContentOrError(result);
     }
 
     [HttpPatch("{id:guid}/stage")]
     public async Task<IActionResult> MoveStage(Guid id, [FromBody] StageReq req, CancellationToken ct)
     {
-        var d = await db.Deals.FindAsync([id], ct);
-        if (d is null) return NotFound();
-        d.MoveStage(req.Stage, req.Probability); await db.SaveChangesAsync(ct); return NoContent();
+        var result = await sender.Send(new MoveDealStageCommand(id, req.Stage, req.Probability), ct);
+        return NoContentOrError(result);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var d = await db.Deals.FindAsync([id], ct);
-        if (d is null) return NotFound();
-        d.Delete(); await db.SaveChangesAsync(ct); return NoContent();
+        var result = await sender.Send(new DeleteDealCommand(id), ct);
+        return NoContentOrError(result);
     }
 
-    public record CreateDealReq(string Title, string Company, decimal Value, string Stage, string Priority,
-        int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry, string Description);
-    public record UpdateDealReq(string Title, string Company, decimal Value, string Stage, string Priority,
+    public sealed record UpdateDealRequest(string Title, string Company, decimal Value, string Stage, string Priority,
         int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry, string Description,
         string? NextAction, string? NextActionDate, List<string>? Tags);
-    public record StageReq(string Stage, int Probability);
-
-    private static object ToDto(Deal d) => new {
-        d.Id, d.Title, d.Company, d.Value, d.Currency, d.Stage, d.Priority, d.Probability,
-        d.ExpectedCloseDate, d.CreatedDate, d.AssignedTo, d.Source, d.Industry, d.Description,
-        tags = d.Tags, contact = new { name="", title="", email="", phone="" },
-        activities = Array.Empty<object>(), d.NextAction, d.NextActionDate,
-    };
+    public sealed record StageReq(string Stage, int Probability);
 }

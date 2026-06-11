@@ -1,131 +1,85 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Softaxis.CRM.Domain.Entities;
-using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.API.Controllers.Common;
+using Softaxis.CRM.Application.Leads.Commands;
+using Softaxis.CRM.Application.Leads.Queries;
 
 namespace Softaxis.CRM.API.Controllers;
 
 [ApiController][Route("api/crm/leads")][Authorize]
-public sealed class LeadsController(CrmDbContext db) : ControllerBase
+public sealed class LeadsController(ISender sender) : CrmControllerBase
 {
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
-        var all = await db.Leads.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.EstimatedValue, x.CreatedAt }).ToListAsync(ct);
-        var weekAgo = DateTime.UtcNow.AddDays(-7);
-        var converted = all.Count(x => x.Status == "converted");
-        var total = all.Count;
-        return Ok(new {
-            total, newThisWeek = all.Count(x => x.CreatedAt >= weekAgo),
-            qualified = all.Count(x => x.Status == "qualified"),
-            contacted = all.Count(x => x.Status == "contacted"),
-            converted,
-            conversionRate = total > 0 ? Math.Round((double)converted / total * 100, 1) : 0,
-            totalEstimatedValue = all.Sum(x => x.EstimatedValue),
-        });
+        var result = await sender.Send(new GetLeadsSummaryQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var items = await db.Leads.AsNoTracking().Where(x => !x.IsDeleted)
-            .OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
-        return Ok(items.Select(ToDto));
+        var result = await sender.Send(new GetLeadsQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var l = await db.Leads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
-        return l is null ? NotFound() : Ok(ToDto(l));
+        var result = await sender.Send(new GetLeadByIdQuery(id), ct);
+        return OkOrError(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateLeadReq req, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CreateLeadCommand cmd, CancellationToken ct)
     {
-        var l = new Lead(req.FirstName, req.LastName, req.Title, req.Company, req.Industry,
-            req.Email, req.Phone, req.Country, req.City, req.Source, req.Priority, req.EstimatedValue, req.AssignedTo, req.Notes);
-        db.Leads.Add(l); await db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(GetById), new { id = l.Id }, ToDto(l));
+        var result = await sender.Send(cmd, ct);
+        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateLeadReq req, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateLeadRequest req, CancellationToken ct)
     {
-        var l = await db.Leads.FindAsync([id], ct);
-        if (l is null) return NotFound();
-        l.Update(req.FirstName, req.LastName, req.Title, req.Company, req.Industry,
-            req.Email, req.Phone, req.Country, req.City, req.Source, req.Priority,
-            req.EstimatedValue, req.AssignedTo, req.Score, req.NextFollowUp, req.Notes, req.Tags);
-        await db.SaveChangesAsync(ct);
-        return NoContent();
+        var result = await sender.Send(new UpdateLeadCommand(id, req.FirstName, req.LastName, req.Title,
+            req.Company, req.Industry, req.Email, req.Phone, req.Country, req.City, req.Source, req.Priority,
+            req.EstimatedValue, req.AssignedTo, req.Score, req.NextFollowUp, req.Notes, req.Tags), ct);
+        return NoContentOrError(result);
     }
 
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] StatusReq req, CancellationToken ct)
     {
-        var l = await db.Leads.FindAsync([id], ct);
-        if (l is null) return NotFound();
-        l.UpdateStatus(req.Status); await db.SaveChangesAsync(ct); return NoContent();
+        var result = await sender.Send(new UpdateLeadStatusCommand(id, req.Status), ct);
+        return NoContentOrError(result);
     }
 
     [HttpPatch("{id:guid}/score")]
     public async Task<IActionResult> UpdateScore(Guid id, [FromBody] ScoreReq req, CancellationToken ct)
     {
-        var l = await db.Leads.FindAsync([id], ct);
-        if (l is null) return NotFound();
-        l.UpdateScore(req.Score); await db.SaveChangesAsync(ct); return NoContent();
+        var result = await sender.Send(new UpdateLeadScoreCommand(id, req.Score), ct);
+        return NoContentOrError(result);
     }
 
     /// <summary>Convert a lead into a customer + an open deal, then mark the lead converted.</summary>
     [HttpPost("{id:guid}/convert")]
     public async Task<IActionResult> Convert(Guid id, [FromBody] ConvertReq req, CancellationToken ct)
     {
-        var l = await db.Leads.FindAsync([id], ct);
-        if (l is null) return NotFound();
-        if (l.Status == "converted") return BadRequest(new { error = "Lead is already converted." });
-
-        var customer = new CrmCustomer(l.Company, l.Industry, l.Country, l.City, "",
-            l.Phone, l.Email, "standard", l.AssignedTo, l.Notes ?? "");
-        db.Customers.Add(customer);
-
-        var deal = new Deal(
-            string.IsNullOrWhiteSpace(req.DealTitle) ? $"{l.Company} — New Opportunity" : req.DealTitle!,
-            l.Company, req.DealValue ?? l.EstimatedValue, "qualified", l.Priority,
-            20, req.ExpectedCloseDate ?? DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-dd"),
-            l.AssignedTo, l.Source, l.Industry, l.Notes ?? "");
-        db.Deals.Add(deal);
-
-        l.Convert(deal.Id.ToString());
-        await db.SaveChangesAsync(ct);
-        return Ok(new { customerId = customer.Id, dealId = deal.Id });
+        var result = await sender.Send(new ConvertLeadCommand(id, req.DealTitle, req.DealValue, req.ExpectedCloseDate), ct);
+        return OkOrError(result);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var l = await db.Leads.FindAsync([id], ct);
-        if (l is null) return NotFound();
-        l.Delete(); await db.SaveChangesAsync(ct); return NoContent();
+        var result = await sender.Send(new DeleteLeadCommand(id), ct);
+        return NoContentOrError(result);
     }
 
-    public record CreateLeadReq(string FirstName, string LastName, string Title, string Company, string Industry,
-        string Email, string Phone, string Country, string City, string Source, string Priority,
-        decimal EstimatedValue, string AssignedTo, string? Notes);
-    public record UpdateLeadReq(string FirstName, string LastName, string Title, string Company, string Industry,
+    public sealed record UpdateLeadRequest(string FirstName, string LastName, string Title, string Company, string Industry,
         string Email, string Phone, string Country, string City, string Source, string Priority,
         decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes, List<string>? Tags);
-    public record StatusReq(string Status);
-    public record ScoreReq(int Score);
-    public record ConvertReq(string? DealTitle, decimal? DealValue, string? ExpectedCloseDate);
-
-    private static object ToDto(Lead l) => new {
-        l.Id, l.FirstName, l.LastName, fullName = l.FullName, l.Title, l.Company, l.Industry,
-        l.Email, l.Phone, l.Country, l.City, l.Source, l.Status, l.Priority, l.Score,
-        l.EstimatedValue, l.Currency, l.AssignedTo, l.CreatedDate, l.LastContactDate,
-        l.NextFollowUp, l.Notes, l.ConvertedDealId, tags = l.Tags, activities = Array.Empty<object>(),
-        l.CreatedAt, l.UpdatedAt,
-    };
+    public sealed record StatusReq(string Status);
+    public sealed record ScoreReq(int Score);
+    public sealed record ConvertReq(string? DealTitle, decimal? DealValue, string? ExpectedCloseDate);
 }
