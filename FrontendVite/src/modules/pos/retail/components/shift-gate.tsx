@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
 import { useActiveSessions, useOpenSession, useCloseSession } from "@/hooks/pos/use-sessions";
 import { useTransactions } from "@/hooks/pos/use-transactions";
@@ -66,16 +67,16 @@ const CURRENCY_TO_COUNTRY_SHIFT: Record<string, string> = {
   INR: "in", GBP: "gb", USD: "us",
 };
 
-function getDenominations(country?: string | null, currency?: string | null): { denoms: Denomination[]; currency: string } {
+function getDenominations(country?: string | null, currency?: string | null): Denomination[] {
   // Resolve country code — check stored string first, then fall back to currency
   const c = (country ?? "").toLowerCase().trim();
   const isUAE =
     c === "ae" || c.includes("uae") || c.includes("emirates") ||
     (!!currency && CURRENCY_TO_COUNTRY_SHIFT[currency.toUpperCase()] === "ae");
 
-  if (isUAE) return { denoms: AED_DENOMINATIONS, currency: "AED" };
+  if (isUAE) return AED_DENOMINATIONS;
   // TODO: add SAR, OMR, GBP, INR denominations when needed
-  return { denoms: PKR_DENOMINATIONS, currency: "PKR" };
+  return PKR_DENOMINATIONS;
 }
 
 function fmtMoney(n: number, currency: string) {
@@ -212,7 +213,8 @@ function OpenShiftScreen({ onOpened }: { onOpened: (s: POSSessionSummaryDto) => 
   // "form"   = open-shift form (info → cash steps)
   const [mode, setMode] = React.useState<"choice" | "form">("choice");
 
-  const { denoms, currency } = getDenominations(tenant?.country, tenant?.currency);
+  const currency = useCurrency();
+  const denoms = getDenominations(tenant?.country, tenant?.currency);
   const [counts, setCounts]     = React.useState<Record<number, number>>({});
   const [registerId, setRegisterId] = React.useState("Terminal-1");
   const [notes, setNotes]       = React.useState("");
@@ -501,7 +503,8 @@ function CloseShiftPanel({
   const { tenant } = useAuthStore();
   const closeMutation = useCloseSession();
 
-  const { denoms, currency } = getDenominations(tenant?.country, tenant?.currency);
+  const currency = useCurrency();
+  const denoms = getDenominations(tenant?.country, tenant?.currency);
   const [counts, setCounts]  = React.useState<Record<number, number>>({});
   const [notes, setNotes]    = React.useState("");
   const [step, setStep]      = React.useState<"summary" | "cash" | "confirm">("summary");
