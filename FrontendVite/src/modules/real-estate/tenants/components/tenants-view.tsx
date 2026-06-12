@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, getInitials } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { TenantDto as Tenant, TenantStatus } from "@/lib/real-estate/re.api";
 import { useTenants, useTenantSummary, useUnits } from "@/hooks/real-estate/use-re";
 import { TenantsDrawer } from "./tenants-drawer";
@@ -40,6 +41,7 @@ const PAYMENT_BADGE: Record<string, string> = {
 };
 
 export function TenantsView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -84,7 +86,7 @@ export function TenantsView() {
     },
     {
       label: "Outstanding",
-      value: formatCurrency(tenantSummary?.totalOutstanding ?? tenants.reduce((s, t) => s + t.outstandingBalance, 0), "AED"),
+      value: formatCurrency(tenantSummary?.totalOutstanding ?? tenants.reduce((s, t) => s + t.outstandingBalance, 0), currency),
       icon: AlertTriangle,
       color: "text-destructive bg-destructive/10",
     },
@@ -283,13 +285,13 @@ export function TenantsView() {
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold whitespace-nowrap">
                       {tenant.monthlyRent > 0
-                        ? formatCurrency(tenant.monthlyRent, "AED")
+                        ? formatCurrency(tenant.monthlyRent, currency)
                         : <span className="text-muted-foreground font-normal">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {tenant.outstandingBalance > 0 ? (
                         <span className="text-sm font-bold text-destructive whitespace-nowrap">
-                          {formatCurrency(tenant.outstandingBalance, "AED")}
+                          {formatCurrency(tenant.outstandingBalance, currency)}
                         </span>
                       ) : (
                         <span className="text-sm text-success font-semibold">—</span>

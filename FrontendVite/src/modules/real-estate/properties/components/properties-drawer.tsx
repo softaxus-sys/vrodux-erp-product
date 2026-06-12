@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { PropertyDto as Property } from "@/lib/real-estate/re.api";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -49,6 +50,7 @@ interface Props {
 }
 
 export function PropertiesDrawer({ open, onClose, property }: Props) {
+  const currency = useCurrency();
   return (
     <AnimatePresence>
       {open && property && (
@@ -176,14 +178,14 @@ export function PropertiesDrawer({ open, onClose, property }: Props) {
                     label="Total Value"
                     value={
                       <span className="font-bold text-primary">
-                        {formatCurrency(property.totalValue, "AED")}
+                        {formatCurrency(property.totalValue, currency)}
                       </span>
                     }
                   />
                   <InfoRow
                     icon={TrendingUp}
                     label="Annual Rent Revenue"
-                    value={formatCurrency(property.annualRent, "AED")}
+                    value={formatCurrency(property.annualRent, currency)}
                   />
                   <InfoRow
                     icon={BarChart3}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreatePurchaseBill, useSuppliers } from "@/hooks/finance/use-finance";
+import { useCurrency } from "@/hooks/use-currency";
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -28,12 +29,13 @@ interface CreatePurchaseBillFormProps {
 }
 
 export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillFormProps) {
+  const defaultCurrency = useCurrency();
   const [supplierId, setSupplierId] = React.useState("");
   const [billDate, setBillDate]     = React.useState(TODAY);
   const [dueDate, setDueDate]       = React.useState(addDays(TODAY, 30));
   const [taxed, setTaxed]           = React.useState(true);
   const [taxRate, setTaxRate]       = React.useState(5);
-  const [currencyCode, setCurrencyCode] = React.useState("AED");
+  const [currencyCode, setCurrencyCode] = React.useState(defaultCurrency);
   const [reference, setReference]   = React.useState("");
   const [notes, setNotes]           = React.useState("");
   const [lines, setLines]           = React.useState<BillLine[]>([{ description: "", quantity: 1, unitPrice: 0 }]);
@@ -48,7 +50,7 @@ export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillForm
       setDueDate(addDays(TODAY, 30));
       setTaxed(true);
       setTaxRate(5);
-      setCurrencyCode("AED");
+      setCurrencyCode(defaultCurrency);
       setReference("");
       setNotes("");
       setLines([{ description: "", quantity: 1, unitPrice: 0 }]);

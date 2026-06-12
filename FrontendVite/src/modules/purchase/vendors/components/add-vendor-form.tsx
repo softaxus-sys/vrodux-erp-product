@@ -4,6 +4,7 @@ import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreatePurchaseVendor, useUpdatePurchaseVendor } from "@/hooks/purchase/use-vendors";
+import { useCurrency } from "@/hooks/use-currency";
 import type { VendorDto } from "@/lib/pos/types";
 
 const CATEGORIES    = ["IT & Technology", "Construction Materials", "Office Supplies", "Professional Services", "Facilities", "Logistics", "Marketing", "Utilities", "Other"];
@@ -19,6 +20,7 @@ interface AddVendorFormProps {
 
 export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
   const isEdit = !!vendor;
+  const defaultCurrency = useCurrency();
 
   const [name, setName]               = React.useState("");
   const [code, setCode]               = React.useState("");
@@ -29,7 +31,7 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
   const [address, setAddress]         = React.useState("");
   const [taxNumber, setTaxNumber]     = React.useState("");
   const [paymentTerms, setPaymentTerms] = React.useState("Net 30");
-  const [currency, setCurrency]       = React.useState("PKR");
+  const [currency, setCurrency]       = React.useState(defaultCurrency);
   const [notes, setNotes]             = React.useState("");
 
   const { mutate: createVendor, isPending: isCreating } = useCreatePurchaseVendor();
@@ -50,7 +52,7 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
       setAddress(vendor.address ?? "");
       setTaxNumber(vendor.taxNumber ?? "");
       setPaymentTerms(vendor.paymentTerms ?? "Net 30");
-      setCurrency(vendor.currency ?? "PKR");
+      setCurrency(vendor.currency ?? defaultCurrency);
       setNotes(vendor.notes ?? "");
     }
   }, [vendor]);
@@ -58,7 +60,7 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
   const reset = () => {
     setName(""); setCode(""); setCategory(""); setContactPerson("");
     setEmail(""); setPhone(""); setAddress(""); setTaxNumber("");
-    setPaymentTerms("Net 30"); setCurrency("PKR"); setNotes("");
+    setPaymentTerms("Net 30"); setCurrency(defaultCurrency); setNotes("");
   };
 
   const handleClose = () => { if (!isEdit) reset(); onClose(); };

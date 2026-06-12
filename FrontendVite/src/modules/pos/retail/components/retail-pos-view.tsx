@@ -114,7 +114,7 @@ function ScanToast({ feedback, itemName }: { feedback: "found" | "not_found" | n
 
 function ProductCard({ product, onAdd }: { product: ReturnType<typeof mapToCartProduct>; onAdd: (p: ReturnType<typeof mapToCartProduct>) => void }) {
   const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "PKR";
+  const currency = tenant?.currency || "AED";
   const outOfStock = product.stock <= 0;
   return (
     <button
@@ -147,7 +147,7 @@ function CartItemRow({ item, onInc, onDec, onRemove }: {
   item: CartItem; onInc: () => void; onDec: () => void; onRemove: () => void;
 }) {
   const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "PKR";
+  const currency = tenant?.currency || "AED";
   return (
     <motion.div layout initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
       className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0">
@@ -255,7 +255,7 @@ function CategoryScroller({
 
 export function RetailPOSView() {
   const { user, hasRawPermission, tenant } = useAuthStore();
-  const currency       = tenant?.currency || "PKR";
+  const currency       = tenant?.currency || "AED";
   const paymentMethods = usePaymentMethods();
   const { openDrawer, printRaw, printerStatus } = useHardware();
   // Must be called before any conditional return (rules of hooks)

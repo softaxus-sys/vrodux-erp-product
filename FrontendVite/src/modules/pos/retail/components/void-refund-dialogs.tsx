@@ -59,7 +59,7 @@ interface VoidConfirmDialogProps {
 
 export function VoidConfirmDialog({ transaction, onClose }: VoidConfirmDialogProps) {
   const { tenant }      = useAuthStore();
-  const currency        = tenant?.currency ?? "PKR";
+  const currency        = tenant?.currency ?? "AED";
   const voidMutation    = useVoidTransaction();
 
   const [reason, setReason] = React.useState("");
@@ -200,7 +200,7 @@ interface RefundDialogProps {
 
 export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogProps) {
   const { tenant }       = useAuthStore();
-  const currency         = tenant?.currency ?? "PKR";
+  const currency         = tenant?.currency ?? "AED";
   const paymentMethods   = usePaymentMethods();
   const refundMutation   = useRefundTransaction();
 

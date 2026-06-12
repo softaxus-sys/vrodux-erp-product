@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Check, ChevronsUpDown, Package } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
@@ -12,6 +13,7 @@ interface ProductPickerProps {
 }
 
 export function ProductPicker({ value, onSelect, onTextChange }: ProductPickerProps) {
+  const currency = useCurrency();
   const [open, setOpen]     = React.useState(false);
   const [search, setSearch] = React.useState("");
 
@@ -60,7 +62,7 @@ export function ProductPicker({ value, onSelect, onTextChange }: ProductPickerPr
                     <p className="truncate text-sm">{p.name}</p>
                     {p.sku && <p className="truncate text-[10px] text-muted-foreground">SKU: {p.sku}</p>}
                   </div>
-                  <span className="text-[11px] text-muted-foreground shrink-0">{formatCurrency(p.costPrice, "PKR")}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{formatCurrency(p.costPrice, currency)}</span>
                   {value === p.name && <Check className="h-3.5 w-3.5 shrink-0" />}
                 </CommandItem>
               ))}

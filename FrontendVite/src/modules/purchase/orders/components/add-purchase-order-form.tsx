@@ -4,6 +4,7 @@ import { X, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePurchaseOrder } from "@/hooks/purchase/use-purchase-orders";
 import { useAllPurchaseVendors } from "@/hooks/purchase/use-vendors";
 import { ProductPicker } from "./product-picker";
@@ -33,6 +34,7 @@ interface AddPurchaseOrderFormProps {
 }
 
 export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProps) {
+  const currency = useCurrency();
   const [vendorId, setVendorId]         = React.useState("");
   const [expectedDate, setExpectedDate] = React.useState("");
   const [taxRate, setTaxRate]           = React.useState(17);
@@ -184,7 +186,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                               placeholder="0.00" className="h-8 text-xs text-right border-transparent bg-transparent focus-visible:border-primary/40 px-2" />
                           </td>
                           <td className="px-3 py-1.5 text-right text-xs font-semibold text-foreground">
-                            {formatCurrency(lineTotal(line), "PKR")}
+                            {formatCurrency(lineTotal(line), currency)}
                           </td>
                           <td className="px-2 py-1.5">
                             <button onClick={() => setLines(p => p.filter(l => l.id !== line.id))} disabled={lines.length <= 1}
@@ -198,17 +200,17 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
                         <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">Subtotal</td>
-                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(subtotal, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(subtotal, currency)}</td>
                         <td />
                       </tr>
                       <tr>
                         <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">Tax ({taxRate}%)</td>
-                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, currency)}</td>
                         <td />
                       </tr>
                       <tr className="border-t border-border">
                         <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">Total</td>
-                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                         <td />
                       </tr>
                     </tfoot>

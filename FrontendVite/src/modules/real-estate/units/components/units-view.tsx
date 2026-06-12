@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { UnitDto as Unit, UnitStatus } from "@/lib/real-estate/re.api";
 import { useUnits, useUnitSummary, useProperties } from "@/hooks/real-estate/use-re";
 import { UnitsDrawer } from "./units-drawer";
@@ -47,6 +48,7 @@ function isExpiringSoon(date: string | null): boolean {
 }
 
 export function UnitsView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [propertyFilter, setPropertyFilter] = React.useState("all");
@@ -276,7 +278,7 @@ export function UnitsView() {
                           : unit.bedrooms}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold whitespace-nowrap">
-                      {formatCurrency(unit.rentPricePA, "AED")}
+                      {formatCurrency(unit.rentPricePA, currency)}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {unit.tenantName ? (

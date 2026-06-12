@@ -4,6 +4,7 @@ import { X, Loader2, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreateGoodsReceiptNote } from "@/hooks/purchase/use-grn";
 import type { PurchaseOrderDto } from "@/lib/pos/types";
 
@@ -26,6 +27,7 @@ interface CreateGrnFormProps {
 }
 
 export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
+  const currency = useCurrency();
   const [grnDate, setGrnDate]     = React.useState(TODAY);
   const [driverName, setDriverName] = React.useState("");
   const [notes, setNotes]         = React.useState("");
@@ -148,7 +150,7 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
                               className="h-8 text-xs text-right" />
                           </td>
                           <td className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                            {formatCurrency(line.receiveQty * line.unitCost, "PKR")}
+                            {formatCurrency(line.receiveQty * line.unitCost, currency)}
                           </td>
                         </tr>
                       ))}
@@ -156,7 +158,7 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
                         <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">Total Received Value</td>
-                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                       </tr>
                     </tfoot>
                   </table>

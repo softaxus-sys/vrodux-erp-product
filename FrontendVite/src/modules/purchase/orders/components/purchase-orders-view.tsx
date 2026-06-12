@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { usePurchaseOrders, usePurchaseOrder, useUpdatePurchaseOrderStatus } from "@/hooks/purchase/use-purchase-orders";
 import type { PurchaseOrderSummaryDto } from "@/lib/pos/types";
 import { PurchaseOrderDrawer } from "./purchase-order-drawer";
@@ -32,6 +33,7 @@ const STATUS_FILTERS = [
 ];
 
 export function PurchaseOrdersView() {
+  const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]               = React.useState(1);
@@ -70,7 +72,7 @@ export function PurchaseOrdersView() {
     { label: "Sent",        value: stats.sent,                           icon: Send,         color: "text-blue-600",  bg: "bg-blue-50 dark:bg-blue-900/20" },
     { label: "Partial",     value: stats.partial,                        icon: Package,      color: "text-primary",   bg: "bg-primary/10" },
     { label: "Received",    value: stats.received,                       icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
-    { label: "Total Value", value: formatCurrency(stats.value, "PKR"),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
+    { label: "Total Value", value: formatCurrency(stats.value, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
   ];
 
   return (
@@ -174,7 +176,7 @@ export function PurchaseOrdersView() {
                       <span className="text-xs text-muted-foreground">{po.expectedDate ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-semibold text-sm">{formatCurrency(po.total, "PKR")}</span>
+                      <span className="font-semibold text-sm">{formatCurrency(po.total, currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right hidden md:table-cell">
                       <span className="text-sm text-muted-foreground">{po.itemCount}</span>

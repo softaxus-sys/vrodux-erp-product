@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Calendar, Loader2, RotateCcw, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { usePurchaseReturns } from "@/hooks/purchase/use-purchase-returns";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -11,6 +12,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 export function PurchaseReturnsView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const { data, isLoading } = usePurchaseReturns();
 
@@ -89,7 +91,7 @@ export function PurchaseReturnsView() {
                       <span className="text-xs text-muted-foreground">{r.reason}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-semibold text-sm">{formatCurrency(r.totalAmount, "PKR")}</span>
+                      <span className="font-semibold text-sm">{formatCurrency(r.totalAmount, currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>

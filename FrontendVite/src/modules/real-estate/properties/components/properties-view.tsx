@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { PropertyDto as Property, PropertyType, PropertyStatus } from "@/lib/real-estate/re.api";
 import { useProperties, usePropertySummary } from "@/hooks/real-estate/use-re";
 import { PropertiesDrawer } from "./properties-drawer";
@@ -49,6 +50,7 @@ const getTypeBadge = (t: string) => TYPE_BADGE[t as PropertyType] ?? "bg-muted t
 const getTypeLabel = (t: string) => TYPE_LABELS[t as PropertyType] ?? t;
 
 export function PropertiesView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [typeFilter, setTypeFilter] = React.useState("all");
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -85,13 +87,13 @@ export function PropertiesView() {
     },
     {
       label: "Portfolio Value",
-      value: formatCurrency(propertySummary?.totalPortfolioValue ?? properties.reduce((s, p) => s + p.totalValue, 0), "AED"),
+      value: formatCurrency(propertySummary?.totalPortfolioValue ?? properties.reduce((s, p) => s + p.totalValue, 0), currency),
       icon: DollarSign,
       color: "text-purple-600 bg-purple-500/10",
     },
     {
       label: "Annual Rent",
-      value: formatCurrency(propertySummary?.totalAnnualRent ?? properties.reduce((s, p) => s + p.annualRent, 0), "AED"),
+      value: formatCurrency(propertySummary?.totalAnnualRent ?? properties.reduce((s, p) => s + p.annualRent, 0), currency),
       icon: TrendingUp,
       color: "text-success bg-success/10",
     },
@@ -294,7 +296,7 @@ export function PropertiesView() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold whitespace-nowrap">
-                      {formatCurrency(prop.totalValue, "AED")}
+                      {formatCurrency(prop.totalValue, currency)}
                     </td>
                     <td className="px-4 py-3">
                       <span

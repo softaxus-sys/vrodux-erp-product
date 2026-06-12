@@ -4,6 +4,7 @@ import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePurchaseReturn } from "@/hooks/purchase/use-purchase-returns";
 import type { PurchaseOrderDto } from "@/lib/pos/types";
 
@@ -34,6 +35,7 @@ interface CreatePurchaseReturnFormProps {
 }
 
 export function CreatePurchaseReturnForm({ order, open, onClose }: CreatePurchaseReturnFormProps) {
+  const currency = useCurrency();
   const [returnDate, setReturnDate] = React.useState(TODAY);
   const [reason, setReason]         = React.useState(REASONS[0]);
   const [notes, setNotes]           = React.useState("");
@@ -153,7 +155,7 @@ export function CreatePurchaseReturnForm({ order, open, onClose }: CreatePurchas
                               className="h-8 text-xs text-right" />
                           </td>
                           <td className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                            {formatCurrency(line.returnQty * line.unitCost, "PKR")}
+                            {formatCurrency(line.returnQty * line.unitCost, currency)}
                           </td>
                         </tr>
                       ))}
@@ -161,7 +163,7 @@ export function CreatePurchaseReturnForm({ order, open, onClose }: CreatePurchas
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
                         <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">Total Return Value</td>
-                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                       </tr>
                     </tfoot>
                   </table>
