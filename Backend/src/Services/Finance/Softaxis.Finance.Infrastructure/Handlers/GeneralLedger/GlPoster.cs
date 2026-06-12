@@ -18,6 +18,7 @@ internal static class GlPoster
     public const string VatPayable    = "2200"; // net VAT control account (output - input)
     public const string SalesRevenue  = "4001";
     public const string Purchases     = "5400"; // Cost of Goods Sold / Purchases
+    public const string FxGainLoss    = "4950"; // Foreign Exchange Gain/Loss (net account)
 
     public sealed record Line(string AccountNumber, decimal Debit, decimal Credit, string? Description = null);
 
@@ -61,6 +62,30 @@ internal static class GlPoster
         var entry = await db.JournalEntries.FindAsync([journalEntryId.Value], ct);
         if (entry is not null && entry.Status == "posted")
             entry.Void();
+    }
+
+    /// <summary>
+    /// Returns the AED-per-unit rate for <paramref name="currencyCode"/> as of <paramref name="date"/>
+    /// (the most recent rate on or before that date, falling back to the most recent rate overall).
+    /// Returns 1 for AED or when no rate has been recorded for the currency.
+    /// </summary>
+    public static async Task<decimal> GetRateAsync(FinanceDbContext db, string currencyCode, string date, CancellationToken ct)
+    {
+        var code = currencyCode.Trim().ToUpperInvariant();
+        if (code == "AED")
+            return 1m;
+
+        var rates = await db.ExchangeRates.AsNoTracking()
+            .Where(r => r.CurrencyCode == code)
+            .ToListAsync(ct);
+
+        if (rates.Count == 0)
+            return 1m;
+
+        var onOrBefore = rates.Where(r => string.CompareOrdinal(r.RateDate, date) <= 0)
+            .OrderByDescending(r => r.RateDate).FirstOrDefault();
+
+        return (onOrBefore ?? rates.OrderByDescending(r => r.RateDate).First()).Rate;
     }
 
     /// <summary>Maps a receipt/payment/expense payment method to the GL cash or bank account.</summary>

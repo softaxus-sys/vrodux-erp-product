@@ -22,13 +22,14 @@ internal sealed class ApprovePurchaseBillHandler(FinanceDbContext db) : ICommand
 
         bill.Approve();
 
+        var rate = await GlPoster.GetRateAsync(db, bill.CurrencyCode, bill.BillDate, ct);
         var lines = new List<GlPoster.Line>
         {
-            new(GlPoster.Purchases, bill.SubTotal, 0, $"Purchase Bill {bill.BillNumber} - {bill.SupplierName}"),
+            new(GlPoster.Purchases, bill.SubTotal * rate, 0, $"Purchase Bill {bill.BillNumber} - {bill.SupplierName}"),
         };
         if (bill.TaxAmount > 0)
-            lines.Add(new(GlPoster.VatPayable, bill.TaxAmount, 0, $"VAT Input - Bill {bill.BillNumber}"));
-        lines.Add(new(GlPoster.AccountsPayable, 0, bill.Total, $"AP - Bill {bill.BillNumber}"));
+            lines.Add(new(GlPoster.VatPayable, bill.TaxAmount * rate, 0, $"VAT Input - Bill {bill.BillNumber}"));
+        lines.Add(new(GlPoster.AccountsPayable, 0, bill.Total * rate, $"AP - Bill {bill.BillNumber}"));
 
         var journalEntryId = await GlPoster.PostAsync(db, bill.BillDate, $"Purchase Bill {bill.BillNumber}", bill.BillNumber, lines, ct);
         bill.SetJournalEntryId(journalEntryId);

@@ -165,6 +165,7 @@ public static class FinanceSeedData
     private static readonly Guid AccTelecomExp       = new("b1000001-0000-0000-0000-000000000048");
     private static readonly Guid AccInsuranceExp     = new("b1000001-0000-0000-0000-000000000049");
     private static readonly Guid AccMiscExp          = new("b1000001-0000-0000-0000-000000000050");
+    private static readonly Guid AccFxGainLoss       = new("b1000001-0000-0000-0000-000000000051");
 
     private static async Task SeedAccountsAsync(FinanceDbContext db)
     {
@@ -195,6 +196,7 @@ public static class FinanceSeedData
             (AccRevenueSales,     "4001", "Sales Revenue",              "income",    (Guid?)null,   2850000m),
             (AccRevenueServices,  "4002", "Service Revenue",            "income",    (Guid?)null,   680000m),
             (AccOtherIncome,      "4900", "Other Income",               "income",    (Guid?)null,   24000m),
+            (AccFxGainLoss,       "4950", "Foreign Exchange Gain/Loss", "income",    (Guid?)null,   0m),
             // Expenses
             (AccSalaryExp,        "5001", "Salaries & Wages",           "expense",   (Guid?)null,   1260000m),
             (AccRentExp,          "5100", "Rent Expense",               "expense",   (Guid?)null,   180000m),

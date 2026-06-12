@@ -21,13 +21,14 @@ internal sealed class SendInvoiceHandler(FinanceDbContext db) : ICommandHandler<
 
         invoice.Send();
 
+        var rate = await GlPoster.GetRateAsync(db, invoice.CurrencyCode, invoice.InvoiceDate, ct);
         var lines = new List<GlPoster.Line>
         {
-            new(GlPoster.AccountsReceivable, invoice.Total, 0, $"Invoice {invoice.InvoiceNumber} - {invoice.CustomerName}"),
-            new(GlPoster.SalesRevenue, 0, invoice.SubTotal, $"Sales - Invoice {invoice.InvoiceNumber}"),
+            new(GlPoster.AccountsReceivable, invoice.Total * rate, 0, $"Invoice {invoice.InvoiceNumber} - {invoice.CustomerName}"),
+            new(GlPoster.SalesRevenue, 0, invoice.SubTotal * rate, $"Sales - Invoice {invoice.InvoiceNumber}"),
         };
         if (invoice.TaxAmount > 0)
-            lines.Add(new(GlPoster.VatPayable, 0, invoice.TaxAmount, $"VAT Output - Invoice {invoice.InvoiceNumber}"));
+            lines.Add(new(GlPoster.VatPayable, 0, invoice.TaxAmount * rate, $"VAT Output - Invoice {invoice.InvoiceNumber}"));
 
         var journalEntryId = await GlPoster.PostAsync(db, invoice.InvoiceDate, $"Sales Invoice {invoice.InvoiceNumber}", invoice.InvoiceNumber, lines, ct);
         invoice.SetJournalEntryId(journalEntryId);

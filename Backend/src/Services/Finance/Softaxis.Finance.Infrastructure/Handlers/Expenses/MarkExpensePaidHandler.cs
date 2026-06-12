@@ -22,10 +22,12 @@ internal sealed class MarkExpensePaidHandler(FinanceDbContext db) : ICommandHand
 
         var expenseAccount = GlPoster.ResolveExpenseAccount(expense.Category);
         var cashAccount    = GlPoster.ResolveCashAccount(expense.PaymentMethod);
+        var rate = await GlPoster.GetRateAsync(db, expense.CurrencyCode, expense.ExpenseDate, ct);
+        var amountAed = expense.Amount * rate;
         var lines = new List<GlPoster.Line>
         {
-            new(expenseAccount, expense.Amount, 0, $"Expense {expense.ExpenseNumber} - {expense.Title}"),
-            new(cashAccount, 0, expense.Amount, $"Payment - Expense {expense.ExpenseNumber}"),
+            new(expenseAccount, amountAed, 0, $"Expense {expense.ExpenseNumber} - {expense.Title}"),
+            new(cashAccount, 0, amountAed, $"Payment - Expense {expense.ExpenseNumber}"),
         };
 
         var journalEntryId = await GlPoster.PostAsync(db, expense.ExpenseDate, $"Expense {expense.ExpenseNumber} - {expense.Title}", expense.ExpenseNumber, lines, ct);

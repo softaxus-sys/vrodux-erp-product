@@ -40,11 +40,29 @@ internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandH
         voucher.Post();
 
         var cashAccount = GlPoster.ResolveCashAccount(voucher.ReceiptMethod);
+        var settlementRate = await GlPoster.GetRateAsync(db, voucher.CurrencyCode, voucher.ReceiptDate, ct);
+        var cashAed = voucher.Amount * settlementRate;
+
+        var arAed = 0m;
+        foreach (var allocation in voucher.Allocations)
+        {
+            var invoice = invoices.First(x => x.Id == allocation.InvoiceId);
+            var invoiceRate = await GlPoster.GetRateAsync(db, invoice.CurrencyCode, invoice.InvoiceDate, ct);
+            arAed += allocation.AmountApplied * invoiceRate;
+        }
+
         var lines = new List<GlPoster.Line>
         {
-            new(cashAccount, voucher.Amount, 0, $"Receipt {voucher.VoucherNumber} - {voucher.CustomerName}"),
-            new(GlPoster.AccountsReceivable, 0, voucher.Amount, $"AR - Receipt {voucher.VoucherNumber}"),
+            new(cashAccount, cashAed, 0, $"Receipt {voucher.VoucherNumber} - {voucher.CustomerName}"),
+            new(GlPoster.AccountsReceivable, 0, arAed, $"AR - Receipt {voucher.VoucherNumber}"),
         };
+
+        // Realized FX gain/loss: cash received (at settlement rate) vs. AR relieved (at invoice rate).
+        var fx = cashAed - arAed;
+        if (fx > 0)
+            lines.Add(new(GlPoster.FxGainLoss, 0, fx, $"FX Gain - Receipt {voucher.VoucherNumber}"));
+        else if (fx < 0)
+            lines.Add(new(GlPoster.FxGainLoss, -fx, 0, $"FX Loss - Receipt {voucher.VoucherNumber}"));
 
         var journalEntryId = await GlPoster.PostAsync(db, voucher.ReceiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, lines, ct);
         voucher.SetJournalEntryId(journalEntryId);
