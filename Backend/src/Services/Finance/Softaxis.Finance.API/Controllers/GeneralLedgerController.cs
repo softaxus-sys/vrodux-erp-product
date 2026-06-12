@@ -45,4 +45,11 @@ public sealed class GeneralLedgerController(ISender sender) : FinanceControllerB
         var result = await sender.Send(new GetCashFlowQuery(from, to), ct);
         return OkOrError(result);
     }
+
+    [HttpGet("accounts/{accountId:guid}/ledger")]
+    public async Task<IActionResult> GetAccountLedger(Guid accountId, [FromQuery] string? from, [FromQuery] string? to, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetAccountLedgerQuery(accountId, from, to), ct);
+        return OkOrError(result);
+    }
 }

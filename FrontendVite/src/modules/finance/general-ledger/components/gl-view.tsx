@@ -1,11 +1,11 @@
 ﻿import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  CheckCircle2, AlertTriangle, BarChart3, BookOpen, Calendar, TrendingUp,
+  CheckCircle2, AlertTriangle, BarChart3, BookOpen, Calendar, TrendingUp, X, Loader2,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { GLPeriod, TrialBalanceLine } from "@/lib/finance/finance.api";
-import { useTrialBalance, useGLSummary } from "@/hooks/finance/use-finance";
+import { useTrialBalance, useGLSummary, useAccountLedger } from "@/hooks/finance/use-finance";
 
 const TYPE_LABELS: Record<string, string> = {
   asset: "Assets",
@@ -46,6 +46,7 @@ export function GLView() {
   const { data: glSummary } = useGLSummary();
 
   const [activePeriod, setActivePeriod] = React.useState<GLPeriod>("2026-05");
+  const [selectedAccount, setSelectedAccount] = React.useState<TrialBalanceLine | null>(null);
 
   // For this view, the trial balance is the same data regardless of period
   // In a real system, filtering by period would change the data
@@ -184,7 +185,11 @@ export function GLView() {
                 </thead>
                 <tbody>
                   {lines.map((line) => (
-                    <tr key={line.accountCode} className="border-b border-border/30 last:border-0 hover:bg-muted/20 transition-colors">
+                    <tr
+                      key={line.accountCode}
+                      onClick={() => setSelectedAccount(line)}
+                      className="border-b border-border/30 last:border-0 hover:bg-muted/20 transition-colors cursor-pointer"
+                    >
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{line.accountCode}</td>
                       <td className="px-4 py-3 text-sm font-medium">{line.accountName}</td>
                       <td className="px-4 py-3 text-right text-sm text-muted-foreground">
@@ -246,6 +251,108 @@ export function GLView() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {selectedAccount && (
+          <AccountLedgerDrawer account={selectedAccount} onClose={() => setSelectedAccount(null)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function AccountLedgerDrawer({ account, onClose }: { account: TrialBalanceLine; onClose: () => void }) {
+  const { data, isLoading } = useAccountLedger(account.accountId);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="relative w-full max-w-2xl h-full bg-card border-l border-border overflow-y-auto"
+      >
+        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <h2 className="text-lg font-bold">{account.accountName}</h2>
+            <p className="text-xs text-muted-foreground font-mono">{account.accountCode} · {TYPE_LABELS[account.accountType] ?? account.accountType}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading ledger…
+            </div>
+          ) : !data ? (
+            <p className="text-sm text-muted-foreground py-12 text-center">No ledger data available.</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground">Opening Balance</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.openingBalance), "AED")}{data.openingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground">Total Dr / Cr</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(data.totalDebits, "AED")} / {formatCurrency(data.totalCredits, "AED")}</p>
+                </div>
+                <div className="bg-muted/30 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground">Closing Balance</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.closingBalance), "AED")}{data.closingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
+                </div>
+              </div>
+
+              <div className="border border-border rounded-xl overflow-hidden">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-muted/30">
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Date</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Entry #</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Description</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Debit</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Credit</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.entries.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">No posted activity yet.</td>
+                      </tr>
+                    ) : (
+                      data.entries.map((entry, i) => (
+                        <tr key={`${entry.entryNumber}-${i}`} className="border-b border-border/30 last:border-0">
+                          <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(entry.date)}</td>
+                          <td className="px-3 py-2 text-xs font-mono">{entry.entryNumber}</td>
+                          <td className="px-3 py-2 text-sm">{entry.description}</td>
+                          <td className="px-3 py-2 text-right text-sm">{entry.debit !== 0 ? formatCurrency(entry.debit, "AED") : "—"}</td>
+                          <td className="px-3 py-2 text-right text-sm">{entry.credit !== 0 ? formatCurrency(entry.credit, "AED") : "—"}</td>
+                          <td className="px-3 py-2 text-right text-sm font-semibold">
+                            {formatCurrency(Math.abs(entry.runningBalance), "AED")}
+                            {entry.runningBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

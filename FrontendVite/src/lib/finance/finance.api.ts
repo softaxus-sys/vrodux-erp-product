@@ -204,10 +204,35 @@ export interface ExpensesSummaryDto {
 export type GLPeriod = "2026-01" | "2026-02" | "2026-03" | "2026-04" | "2026-05";
 
 export interface TrialBalanceLine {
+  accountId: string;
   accountCode: string;
   accountName: string;
   accountType: string;
   openingBalance: number;
+  totalDebits: number;
+  totalCredits: number;
+  closingBalance: number;
+}
+
+export interface AccountLedgerEntryDto {
+  date: string;
+  entryNumber: string;
+  reference?: string | null;
+  description: string;
+  debit: number;
+  credit: number;
+  runningBalance: number;
+}
+
+export interface AccountLedgerDto {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  from?: string | null;
+  to?: string | null;
+  openingBalance: number;
+  entries: AccountLedgerEntryDto[];
   totalDebits: number;
   totalCredits: number;
   closingBalance: number;
@@ -502,6 +527,13 @@ export const financeApi = {
   // General Ledger
   getTrialBalance: (): Promise<TrialBalanceLine[]> => rawApiClient.get(`${BASE}/gl/trial-balance`),
   getGLSummary:    (): Promise<GLSummaryDto>       => rawApiClient.get(`${BASE}/gl/summary`),
+  getAccountLedger: (accountId: string, from?: string, to?: string): Promise<AccountLedgerDto> => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const query = params.toString();
+    return rawApiClient.get(`${BASE}/gl/accounts/${accountId}/ledger${query ? `?${query}` : ""}`);
+  },
 
   // Financial statements
   getProfitLoss:   (from?: string, to?: string): Promise<ProfitLossDto> =>

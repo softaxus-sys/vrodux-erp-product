@@ -9,6 +9,7 @@ public sealed record GlSummaryDto(
     string   CurrentPeriod);
 
 public sealed record TrialBalanceLineDto(
+    Guid    AccountId,
     string  AccountCode,
     string  AccountName,
     string  AccountType,
@@ -39,6 +40,28 @@ public sealed record BalanceSheetDto(
     decimal TotalEquity,
     decimal TotalLiabilitiesAndEquity,
     bool IsBalanced);
+
+public sealed record AccountLedgerEntryDto(
+    string  Date,
+    string  EntryNumber,
+    string? Reference,
+    string  Description,
+    decimal Debit,
+    decimal Credit,
+    decimal RunningBalance);
+
+public sealed record AccountLedgerDto(
+    Guid    AccountId,
+    string  AccountCode,
+    string  AccountName,
+    string  AccountType,
+    string? From,
+    string? To,
+    decimal OpeningBalance,
+    IReadOnlyList<AccountLedgerEntryDto> Entries,
+    decimal TotalDebits,
+    decimal TotalCredits,
+    decimal ClosingBalance);
 
 public sealed record CashFlowDto(
     string  From,

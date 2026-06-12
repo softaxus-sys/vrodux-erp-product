@@ -215,6 +215,15 @@ export function useGLSummary() {
   });
 }
 
+export function useAccountLedger(accountId: string | null, from?: string, to?: string) {
+  return useQuery({
+    queryKey: [QK, "account-ledger", accountId, from, to],
+    queryFn:  () => financeApi.getAccountLedger(accountId!, from, to),
+    enabled:  !!accountId,
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useJournals() {
   return useQuery({
     queryKey: [QK, "journals"],

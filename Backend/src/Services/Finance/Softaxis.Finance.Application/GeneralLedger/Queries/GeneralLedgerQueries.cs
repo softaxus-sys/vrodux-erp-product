@@ -12,3 +12,5 @@ public sealed record GetProfitLossQuery(string? From, string? To) : IQuery<Profi
 public sealed record GetBalanceSheetQuery(string? AsOf) : IQuery<BalanceSheetDto>;
 
 public sealed record GetCashFlowQuery(string? From, string? To) : IQuery<CashFlowDto>;
+
+public sealed record GetAccountLedgerQuery(Guid AccountId, string? From, string? To) : IQuery<AccountLedgerDto>;

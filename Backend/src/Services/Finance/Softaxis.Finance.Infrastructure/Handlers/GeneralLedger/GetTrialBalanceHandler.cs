@@ -33,7 +33,7 @@ internal sealed class GetTrialBalanceHandler(FinanceDbContext db) : IQueryHandle
             var debits  = line?.TotalDebits  ?? 0m;
             var credits = line?.TotalCredits ?? 0m;
             return new TrialBalanceLineDto(
-                a.AccountNumber, a.Name, a.AccountType,
+                a.Id, a.AccountNumber, a.Name, a.AccountType,
                 a.Balance,
                 debits, credits,
                 a.Balance + debits - credits);
