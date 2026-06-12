@@ -14,8 +14,6 @@ export function formatCurrency(
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency || "AED",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
   }).format(amount);
 }
 
