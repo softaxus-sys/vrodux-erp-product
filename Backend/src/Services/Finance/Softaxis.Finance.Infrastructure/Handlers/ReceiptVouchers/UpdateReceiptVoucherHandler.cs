@@ -25,7 +25,7 @@ internal sealed class UpdateReceiptVoucherHandler(FinanceDbContext db) : IComman
             return Result.Failure(Error.Custom("ReceiptVoucher.OverAllocated", "Allocated amount cannot exceed the receipt amount."));
 
         var invoiceIds = cmd.Allocations.Select(a => a.InvoiceId).ToList();
-        var invoices = await db.Invoices.Where(x => invoiceIds.Contains(x.Id)).ToListAsync(ct);
+        var invoices = await db.Invoices.Include(x => x.Items).Where(x => invoiceIds.Contains(x.Id)).ToListAsync(ct);
 
         foreach (var allocation in cmd.Allocations)
         {

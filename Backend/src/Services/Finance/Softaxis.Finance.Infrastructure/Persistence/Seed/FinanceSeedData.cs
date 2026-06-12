@@ -517,7 +517,7 @@ public static class FinanceSeedData
             {
                 foreach (var (invoiceId, applied) in allocations)
                 {
-                    var invoice = await db.Invoices.FirstAsync(x => x.Id == invoiceId);
+                    var invoice = await db.Invoices.Include(x => x.Items).FirstAsync(x => x.Id == invoiceId);
                     invoice.RecordPayment(applied);
                 }
                 voucher.Post();

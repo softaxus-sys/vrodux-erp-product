@@ -21,7 +21,7 @@ internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandH
             return Result.Failure(Error.Custom("ReceiptVoucher.Conflict", "Only draft receipt vouchers can be posted."));
 
         var invoiceIds = voucher.Allocations.Select(a => a.InvoiceId).ToList();
-        var invoices = await db.Invoices.Where(x => invoiceIds.Contains(x.Id)).ToListAsync(ct);
+        var invoices = await db.Invoices.Include(x => x.Items).Where(x => invoiceIds.Contains(x.Id)).ToListAsync(ct);
 
         foreach (var allocation in voucher.Allocations)
         {
