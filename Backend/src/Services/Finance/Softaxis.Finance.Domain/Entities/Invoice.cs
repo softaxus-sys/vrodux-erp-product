@@ -19,7 +19,7 @@ public sealed class Invoice
         InvoiceDate    = invoiceDate;
         DueDate        = dueDate;
         TaxRate        = taxRate;
-        Status         = "draft";  // draft | sent | paid | overdue | cancelled
+        Status         = "draft";  // draft | sent | partially_paid | paid | overdue | cancelled
         Notes          = notes?.Trim();
         CreatedAt      = DateTime.UtcNow;
     }
@@ -36,6 +36,7 @@ public sealed class Invoice
     public string    Status        { get; private set; } = "draft";
     public string?   Notes         { get; private set; }
     public DateTime? PaidAt        { get; private set; }
+    public decimal   AmountPaid    { get; private set; }
     public DateTime  CreatedAt     { get; private set; }
     public DateTime? UpdatedAt     { get; private set; }
     public bool      IsDeleted     { get; private set; }
@@ -45,6 +46,7 @@ public sealed class Invoice
     public decimal SubTotal  => Items.Sum(i => i.Quantity * i.UnitPrice);
     public decimal TaxAmount => SubTotal * TaxRate / 100;
     public decimal Total     => SubTotal + TaxAmount;
+    public decimal AmountDue => Total - AmountPaid;
 
     public void Update(string customerName, string? customerEmail, string invoiceDate, string dueDate, decimal taxRate, string? notes, string status)
     {
@@ -83,6 +85,29 @@ public sealed class Invoice
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 
     public void SetCustomerId(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
+
+    public void RecordPayment(decimal amount)
+    {
+        AmountPaid += amount;
+        if (AmountPaid >= Total)
+        {
+            Status = "paid";
+            PaidAt = DateTime.UtcNow;
+        }
+        else
+        {
+            Status = "partially_paid";
+        }
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void ReversePayment(decimal amount)
+    {
+        AmountPaid = Math.Max(0, AmountPaid - amount);
+        Status     = AmountPaid <= 0 ? "sent" : "partially_paid";
+        if (Status != "paid") PaidAt = null;
+        UpdatedAt  = DateTime.UtcNow;
+    }
 }
 
 public sealed class InvoiceItem

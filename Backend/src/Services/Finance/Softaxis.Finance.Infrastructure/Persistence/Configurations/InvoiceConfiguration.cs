@@ -22,6 +22,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.CurrencyCode).IsRequired().HasMaxLength(3).HasDefaultValue("AED");
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("draft");
         builder.Property(x => x.Notes).HasMaxLength(1000);
+        builder.Property(x => x.AmountPaid).HasPrecision(18, 2);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 
@@ -29,6 +30,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Ignore(x => x.SubTotal);
         builder.Ignore(x => x.TaxAmount);
         builder.Ignore(x => x.Total);
+        builder.Ignore(x => x.AmountDue);
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 

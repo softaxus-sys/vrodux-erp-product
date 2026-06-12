@@ -30,6 +30,8 @@ public static class FinanceSeedData
         await db.SaveChangesAsync();
         await SeedPaymentVouchersAsync(db);
         await db.SaveChangesAsync();
+        await SeedReceiptVouchersAsync(db);
+        await db.SaveChangesAsync();
         await SeedBudgetsAsync(db);
         await db.SaveChangesAsync();
         await SeedJournalsAsync(db);
@@ -470,6 +472,53 @@ public static class FinanceSeedData
                 {
                     var bill = await db.PurchaseBills.FirstAsync(x => x.Id == billId);
                     bill.RecordPayment(applied);
+                }
+                voucher.Post();
+            }
+        }
+    }
+
+    // ── Receipt Vouchers (AR) ────────────────────────────────────────────────────
+
+    private static readonly Guid InvoiceDewa             = new("b3000003-0000-0000-0000-000000000004");
+    private static readonly Guid InvoiceEtisalat         = new("b3000003-0000-0000-0000-000000000005");
+    private static readonly Guid InvoiceDubaiProperties  = new("b3000003-0000-0000-0000-000000000006");
+
+    private static async Task SeedReceiptVouchersAsync(FinanceDbContext db)
+    {
+        var existing = await db.ReceiptVouchers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        // (id, customer, receiptDate, amount, method, status, [(invoiceId, amountApplied)])
+        var vouchers = new (Guid id, string customer, string receiptDate, decimal amount, string method, string status, (Guid invoiceId, decimal amount)[] allocations)[]
+        {
+            (new Guid("bb00000b-0000-0000-0000-000000000001"), "Etisalat",         "2026-04-25", 48825m, "bank_transfer", "posted",
+                new[] { (InvoiceEtisalat, 48825m) }),
+            (new Guid("bb00000b-0000-0000-0000-000000000002"), "DEWA",             "2026-05-12", 20000m, "bank_transfer", "posted",
+                new[] { (InvoiceDewa, 20000m) }),
+            (new Guid("bb00000b-0000-0000-0000-000000000003"), "Dubai Properties", "2026-05-25", 30000m, "cheque",         "draft",
+                new[] { (InvoiceDubaiProperties, 30000m) }),
+        };
+
+        foreach (var (id, customer, receiptDate, amount, method, status, allocations) in vouchers)
+        {
+            if (existing.Contains(id)) continue;
+
+            var customerId = CustomerIdByName[customer];
+            var voucher = new ReceiptVoucher(customerId, customer, receiptDate, amount, method, null, null, null);
+            SetId(voucher, id);
+
+            foreach (var (invoiceId, applied) in allocations)
+                voucher.Allocations.Add(new ReceiptAllocation(id, invoiceId, applied));
+
+            db.ReceiptVouchers.Add(voucher);
+
+            if (status == "posted")
+            {
+                foreach (var (invoiceId, applied) in allocations)
+                {
+                    var invoice = await db.Invoices.FirstAsync(x => x.Id == invoiceId);
+                    invoice.RecordPayment(applied);
                 }
                 voucher.Post();
             }
