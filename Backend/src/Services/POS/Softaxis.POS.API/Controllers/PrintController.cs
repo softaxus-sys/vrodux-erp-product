@@ -23,7 +23,7 @@ public sealed class PrintController(IOptions<PrinterSettings> opts) : Controller
 
     private bool UseWindows =>
         string.Equals(_cfg.Mode, "windows", StringComparison.OrdinalIgnoreCase)
-        || (string.IsNullOrWhiteSpace(_cfg.Mode) && !string.IsNullOrWhiteSpace(_cfg.WindowsPrinterName));
+        || (string.IsNullOrWhiteSpace(_cfg.Mode) && OperatingSystem.IsWindows());
 
     // ── POST /api/pos/print/raw ───────────────────────────────────────────────
     [HttpPost("raw")]
@@ -36,15 +36,20 @@ public sealed class PrintController(IOptions<PrinterSettings> opts) : Controller
         try   { bytes = Convert.FromBase64String(req.Data); }
         catch { return BadRequest(new { success = false, message = "Invalid base64 data." }); }
 
-        // ── Windows local printer ──────────────────────────────────────────────
+        // ── Windows local printer (auto-detected, USB/COM/LPT) ─────────────────
         if (UseWindows)
         {
-            if (string.IsNullOrWhiteSpace(_cfg.WindowsPrinterName))
-                return StatusCode(503, new { success = false, message = "No Windows printer configured. Set PrinterSettings:WindowsPrinterName." });
+            if (!OperatingSystem.IsWindows())
+                return StatusCode(503, new { success = false, message = "Windows printer mode is only supported when the API runs on Windows." });
+
+            var printerName = RawPrinterHelper.AutoDetectPrinterName(_cfg.WindowsPrinterName);
+            if (printerName is null)
+                return StatusCode(503, new { success = false, message = "No local printer detected. Connect the receipt printer via USB and ensure it's installed in Windows." });
+
             try
             {
-                RawPrinterHelper.SendBytes(_cfg.WindowsPrinterName, bytes);
-                return Ok(new { success = true, message = $"Sent {bytes.Length} bytes to '{_cfg.WindowsPrinterName}'." });
+                RawPrinterHelper.SendBytes(printerName, bytes);
+                return Ok(new { success = true, message = $"Sent {bytes.Length} bytes to '{printerName}'." });
             }
             catch (Exception ex)
             {
@@ -76,16 +81,18 @@ public sealed class PrintController(IOptions<PrinterSettings> opts) : Controller
     {
         if (UseWindows)
         {
-            var name = _cfg.WindowsPrinterName ?? "";
-            var ok = OperatingSystem.IsWindows() && RawPrinterHelper.PrinterExists(name);
+            if (!OperatingSystem.IsWindows())
+                return Ok(new { reachable = false, mode = "windows", printer = "", ip = "", port = 0, message = "Windows printer mode is only supported when the API runs on Windows." });
+
+            var name = RawPrinterHelper.AutoDetectPrinterName(_cfg.WindowsPrinterName);
             return Ok(new
             {
-                reachable = ok,
+                reachable = name is not null,
                 mode      = "windows",
-                printer   = name,
+                printer   = name ?? "",
                 ip        = "",
                 port      = 0,
-                message   = ok ? (string?)null : $"Windows printer '{name}' not found. Check the exact name in Control Panel → Devices and Printers.",
+                message   = name is not null ? (string?)null : "No local printer detected. Connect the receipt printer via USB and ensure it's installed in Windows.",
             });
         }
 
