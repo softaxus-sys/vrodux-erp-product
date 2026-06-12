@@ -17,6 +17,8 @@ public static class FinanceSeedData
         await SeedAccountTypesAsync(db);
         await SeedCurrenciesAsync(db);
         await db.SaveChangesAsync();
+        await SeedExchangeRatesAsync(db);
+        await db.SaveChangesAsync();
         await SeedAccountsAsync(db);
         await db.SaveChangesAsync();
         await SeedCustomersAsync(db);
@@ -94,6 +96,36 @@ public static class FinanceSeedData
             var currency = new Currency(code, name, symbol, decimalPlaces, isBase);
             SetId(currency, id);
             db.Currencies.Add(currency);
+        }
+    }
+
+    // ── Exchange Rates (AED base) ────────────────────────────────────────────
+
+    private static async Task SeedExchangeRatesAsync(FinanceDbContext db)
+    {
+        var existing = await db.ExchangeRates.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        const string rateDate = "2026-06-01";
+
+        // (id, currencyCode, rate) — AED per 1 unit of currencyCode
+        var rates = new[]
+        {
+            (new Guid("a3000003-0000-0000-0000-000000000001"), "USD", 3.6725m),
+            (new Guid("a3000003-0000-0000-0000-000000000002"), "EUR", 4.0000m),
+            (new Guid("a3000003-0000-0000-0000-000000000003"), "GBP", 4.6500m),
+            (new Guid("a3000003-0000-0000-0000-000000000004"), "SAR", 0.9788m),
+            (new Guid("a3000003-0000-0000-0000-000000000005"), "KWD", 12.0000m),
+            (new Guid("a3000003-0000-0000-0000-000000000006"), "BHD", 9.7400m),
+            (new Guid("a3000003-0000-0000-0000-000000000007"), "OMR", 9.5500m),
+        };
+
+        foreach (var (id, code, rate) in rates)
+        {
+            if (existing.Contains(id)) continue;
+            var exchangeRate = new ExchangeRate(code, rateDate, rate);
+            SetId(exchangeRate, id);
+            db.ExchangeRates.Add(exchangeRate);
         }
     }
 

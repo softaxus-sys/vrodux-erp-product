@@ -23,6 +23,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<RecurringInvoiceLine> RecurringInvoiceLines => Set<RecurringInvoiceLine>();
     public DbSet<AccountType>          AccountTypes          => Set<AccountType>();
     public DbSet<Currency>             Currencies            => Set<Currency>();
+    public DbSet<ExchangeRate>         ExchangeRates         => Set<ExchangeRate>();
     public DbSet<Customer>             Customers             => Set<Customer>();
     public DbSet<Supplier>             Suppliers             => Set<Supplier>();
     public DbSet<PurchaseBill>         PurchaseBills         => Set<PurchaseBill>();
