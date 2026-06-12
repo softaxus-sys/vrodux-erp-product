@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { type ProjectDto as Project, type ProjectStatus, type ProjectType } from "@/lib/construction/construction.api";
 import { useProjects, useProjectsSummary } from "@/hooks/construction/use-construction";
 import { AddProjectForm } from "./add-project-form";
@@ -34,6 +35,7 @@ const PHASE_STATUS_CONFIG = {
 };
 
 function ProjectDrawer({ project, open, onClose }: { project: Project | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<"overview" | "phases">("overview");
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
   if (!project) return null;
@@ -75,15 +77,15 @@ function ProjectDrawer({ project, open, onClose }: { project: Project | null; op
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Contract Value</p>
-                  <p className="font-bold text-sm text-primary">{formatCurrency(project.contractValue, "AED")}</p>
+                  <p className="font-bold text-sm text-primary">{formatCurrency(project.contractValue, currency)}</p>
                 </div>
                 <div className="bg-warning/5 border border-warning/20 rounded-xl p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Spent</p>
-                  <p className="font-bold text-sm text-warning">{formatCurrency(project.budgetSpent, "AED")}</p>
+                  <p className="font-bold text-sm text-warning">{formatCurrency(project.budgetSpent, currency)}</p>
                 </div>
                 <div className="bg-success/5 border border-success/20 rounded-xl p-3 text-center">
                   <p className="text-[10px] text-muted-foreground">Remaining</p>
-                  <p className="font-bold text-sm text-success">{formatCurrency(project.budgetRemaining, "AED")}</p>
+                  <p className="font-bold text-sm text-success">{formatCurrency(project.budgetRemaining, currency)}</p>
                 </div>
               </div>
               <div>
@@ -147,6 +149,7 @@ function ProjectDrawer({ project, open, onClose }: { project: Project | null; op
 const STATUS_FILTERS = ["all", "planning", "in_progress", "on_hold", "completed", "cancelled"] as const;
 
 export function ProjectsView() {
+  const currency = useCurrency();
   const { data: projects = [], isLoading } = useProjects();
   const { data: projectsSummary }          = useProjectsSummary();
   const [search, setSearch] = React.useState("");
@@ -170,7 +173,7 @@ export function ProjectsView() {
     { label: "In Progress",    value: projectsSummary?.inProgress ?? projects.filter(p=>p.status==="in_progress").length, icon: HardHat,    color: "text-primary",   bg: "bg-primary/10" },
     { label: "On Hold",        value: projectsSummary?.onHold ?? projects.filter(p=>p.status==="on_hold").length,         icon: PauseCircle,color: "text-warning",   bg: "bg-warning/10" },
     { label: "Completed",      value: projectsSummary?.completed ?? projects.filter(p=>p.status==="completed").length,    icon: CheckCircle2,color: "text-success",  bg: "bg-success/10" },
-    { label: "Contract Value", value: formatCurrency(projectsSummary?.totalContractValue ?? projects.reduce((s,p)=>s+p.contractValue,0), "AED"), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
+    { label: "Contract Value", value: formatCurrency(projectsSummary?.totalContractValue ?? projects.reduce((s,p)=>s+p.contractValue,0), currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
   ];
 
   return (
@@ -232,7 +235,7 @@ export function ProjectsView() {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-base">{formatCurrency(p.contractValue, "AED")}</p>
+                  <p className="font-bold text-base">{formatCurrency(p.contractValue, currency)}</p>
                   <p className="text-xs text-muted-foreground">Contract Value</p>
                   {p.workers > 0 && (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end mt-1">
@@ -254,7 +257,7 @@ export function ProjectsView() {
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-0.5">Budget Spent</p>
-                  <p className="font-semibold">{spentPct}% <span className="text-muted-foreground font-normal">({formatCurrency(p.budgetSpent, "AED")})</span></p>
+                  <p className="font-semibold">{spentPct}% <span className="text-muted-foreground font-normal">({formatCurrency(p.budgetSpent, currency)})</span></p>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-0.5">Timeline</p>

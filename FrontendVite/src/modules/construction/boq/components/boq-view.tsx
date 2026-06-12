@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { type BOQDto as BOQ, type BOQStatus } from "@/lib/construction/construction.api";
 import { useBOQs, useBOQSummary } from "@/hooks/construction/use-construction";
 import { AddBOQForm } from "./add-boq-form";
@@ -19,6 +20,7 @@ const STATUS_CONFIG: Record<BOQStatus, { label: string; color: string; bg: strin
 };
 
 function BOQDrawer({ boq, open, onClose }: { boq: BOQ | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   const [expanded, setExpanded] = React.useState<string | null>(null);
   if (!boq) return null;
   const sc = STATUS_CONFIG[boq.status];
@@ -47,19 +49,19 @@ function BOQDrawer({ boq, open, onClose }: { boq: BOQ | null; open: boolean; onC
             <div className="grid grid-cols-4 gap-3">
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Contract</p>
-                <p className="font-bold text-xs text-primary">{formatCurrency(boq.totalAmount, "AED")}</p>
+                <p className="font-bold text-xs text-primary">{formatCurrency(boq.totalAmount, currency)}</p>
               </div>
               <div className="bg-success/5 border border-success/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Completed</p>
-                <p className="font-bold text-xs text-success">{formatCurrency(boq.completedAmount, "AED")}</p>
+                <p className="font-bold text-xs text-success">{formatCurrency(boq.completedAmount, currency)}</p>
               </div>
               <div className="bg-warning/5 border border-warning/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Variations</p>
-                <p className="font-bold text-xs text-warning">{formatCurrency(boq.variationAmount, "AED")}</p>
+                <p className="font-bold text-xs text-warning">{formatCurrency(boq.variationAmount, currency)}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Final</p>
-                <p className="font-bold text-xs">{formatCurrency(boq.finalAmount, "AED")}</p>
+                <p className="font-bold text-xs">{formatCurrency(boq.finalAmount, currency)}</p>
               </div>
             </div>
             <div>
@@ -100,7 +102,7 @@ function BOQDrawer({ boq, open, onClose }: { boq: BOQ | null; open: boolean; onC
                             <p className="text-[10px] text-muted-foreground">{item.unit}</p>
                           </td>
                           <td className="px-3 py-2.5 text-right text-xs">{item.quantity.toLocaleString()}</td>
-                          <td className="px-3 py-2.5 text-right text-xs font-semibold">{formatCurrency(item.amount, "AED")}</td>
+                          <td className="px-3 py-2.5 text-right text-xs font-semibold">{formatCurrency(item.amount, currency)}</td>
                           <td className="px-3 py-2.5 text-right">
                             <p className={cn("text-xs font-semibold", donePct === 100 ? "text-success" : donePct > 0 ? "text-primary" : "text-muted-foreground")}>{donePct}%</p>
                           </td>
@@ -121,6 +123,7 @@ function BOQDrawer({ boq, open, onClose }: { boq: BOQ | null; open: boolean; onC
 const STATUS_FILTERS = ["all", "draft", "approved", "in_progress", "completed"] as const;
 
 export function BOQView() {
+  const currency = useCurrency();
   const { data: boqs = [], isLoading } = useBOQs();
   const { data: boqSummary }           = useBOQSummary();
   const [search, setSearch] = React.useState("");
@@ -143,7 +146,7 @@ export function BOQView() {
     { label: "Total BOQs",  value: boqSummary?.total ?? boqs.length,                                     icon: FileText,   color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: "In Progress", value: boqSummary?.inProgress ?? boqs.filter(b=>b.status==="in_progress").length, icon: TrendingUp, color: "text-warning",   bg: "bg-warning/10" },
     { label: "Completed",   value: boqSummary?.completed ?? boqs.filter(b=>b.status==="completed").length, icon: CheckCircle2,color: "text-success",  bg: "bg-success/10" },
-    { label: "Total Value", value: formatCurrency(boqSummary?.totalValue ?? boqs.reduce((s,b)=>s+b.totalAmount,0), "AED"), icon: DollarSign, color: "text-primary", bg: "bg-primary/10", isText: true },
+    { label: "Total Value", value: formatCurrency(boqSummary?.totalValue ?? boqs.reduce((s,b)=>s+b.totalAmount,0), currency), icon: DollarSign, color: "text-primary", bg: "bg-primary/10", isText: true },
   ];
 
   return (
@@ -206,10 +209,10 @@ export function BOQView() {
                     <p className="text-sm font-medium">{b.projectName}</p>
                     <p className="text-xs text-muted-foreground">{b.items.length} items</p>
                   </td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(b.totalAmount, "AED")}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(b.totalAmount, currency)}</td>
                   <td className="px-4 py-3.5 text-right text-sm hidden lg:table-cell">
                     {b.variationAmount > 0 ? (
-                      <span className="text-warning font-medium">+{formatCurrency(b.variationAmount, "AED")}</span>
+                      <span className="text-warning font-medium">+{formatCurrency(b.variationAmount, currency)}</span>
                     ) : <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3.5">
