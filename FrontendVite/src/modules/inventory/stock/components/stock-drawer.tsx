@@ -106,7 +106,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               </div>
 
               {/* Stock by warehouse */}
-              {stockBreakdown && stockBreakdown.warehouses.length > 0 && (
+              {stockBreakdown && stockBreakdown.warehouses?.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                     <WarehouseIcon className="h-3.5 w-3.5 text-primary" />Stock by Warehouse
@@ -139,7 +139,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               )}
 
               {/* Batches & expiry */}
-              {batches && batches.length > 0 && (
+              {Array.isArray(batches) && batches.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                     <CalendarClock className="h-3.5 w-3.5 text-primary" />Batches &amp; Expiry
