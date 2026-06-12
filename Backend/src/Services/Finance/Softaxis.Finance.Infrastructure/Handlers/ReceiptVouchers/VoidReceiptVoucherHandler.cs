@@ -21,6 +21,9 @@ internal sealed class VoidReceiptVoucherHandler(FinanceDbContext db) : ICommandH
         if (voucher.Status == "void")
             return Result.Failure(Error.Custom("ReceiptVoucher.Conflict", "Receipt voucher is already void."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, voucher.ReceiptDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {voucher.ReceiptDate} is closed for posting."));
+
         if (voucher.Status == "posted")
         {
             var invoiceIds = voucher.Allocations.Select(a => a.InvoiceId).ToList();

@@ -18,6 +18,9 @@ internal sealed class MarkExpensePaidHandler(FinanceDbContext db) : ICommandHand
         if (expense.Status != "approved")
             return Result.Failure(Error.Custom("Expense.Conflict", "Only approved expenses can be marked as paid."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, expense.ExpenseDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {expense.ExpenseDate} is closed for posting."));
+
         expense.MarkPaid();
 
         var expenseAccount = GlPoster.ResolveExpenseAccount(expense.Category);

@@ -21,6 +21,9 @@ internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandH
         if (voucher.Status != "draft")
             return Result.Failure(Error.Custom("ReceiptVoucher.Conflict", "Only draft receipt vouchers can be posted."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, voucher.ReceiptDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {voucher.ReceiptDate} is closed for posting."));
+
         var invoiceIds = voucher.Allocations.Select(a => a.InvoiceId).ToList();
         var invoices = await db.Invoices.Include(x => x.Items).Where(x => invoiceIds.Contains(x.Id)).ToListAsync(ct);
 

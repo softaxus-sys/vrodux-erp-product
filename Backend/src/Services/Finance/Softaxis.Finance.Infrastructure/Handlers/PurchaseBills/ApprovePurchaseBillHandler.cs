@@ -20,6 +20,9 @@ internal sealed class ApprovePurchaseBillHandler(FinanceDbContext db) : ICommand
         if (bill.Status != "draft")
             return Result.Failure(Error.Custom("PurchaseBill.Conflict", "Only draft bills can be approved."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, bill.BillDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {bill.BillDate} is closed for posting."));
+
         bill.Approve();
 
         var rate = await GlPoster.GetRateAsync(db, bill.CurrencyCode, bill.BillDate, ct);

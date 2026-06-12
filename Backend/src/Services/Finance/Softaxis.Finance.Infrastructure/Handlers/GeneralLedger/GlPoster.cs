@@ -88,6 +88,19 @@ internal static class GlPoster
         return (onOrBefore ?? rates.OrderByDescending(r => r.RateDate).First()).Rate;
     }
 
+    /// <summary>Returns true if the fiscal period containing <paramref name="date"/> ("yyyy-MM-dd") is closed.</summary>
+    public static async Task<bool> IsPeriodClosedAsync(FinanceDbContext db, string date, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(date) || date.Length < 7)
+            return false;
+
+        var periodCode = date[..7];
+        var period = await db.FiscalPeriods.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.PeriodCode == periodCode, ct);
+
+        return period?.Status == "closed";
+    }
+
     /// <summary>Maps a receipt/payment/expense payment method to the GL cash or bank account.</summary>
     public static string ResolveCashAccount(string? method) =>
         string.Equals(method?.Trim(), "cash", StringComparison.OrdinalIgnoreCase) ? Cash : Bank;

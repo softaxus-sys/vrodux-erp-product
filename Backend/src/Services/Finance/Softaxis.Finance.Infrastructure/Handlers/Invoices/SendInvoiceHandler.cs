@@ -19,6 +19,9 @@ internal sealed class SendInvoiceHandler(FinanceDbContext db) : ICommandHandler<
         if (invoice.Status != "draft")
             return Result.Failure(Error.Custom("Invoice.Conflict", "Only draft invoices can be sent."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, invoice.InvoiceDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {invoice.InvoiceDate} is closed for posting."));
+
         invoice.Send();
 
         var rate = await GlPoster.GetRateAsync(db, invoice.CurrencyCode, invoice.InvoiceDate, ct);

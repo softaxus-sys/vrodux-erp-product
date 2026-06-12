@@ -21,6 +21,9 @@ internal sealed class VoidPaymentVoucherHandler(FinanceDbContext db) : ICommandH
         if (voucher.Status == "void")
             return Result.Failure(Error.Custom("PaymentVoucher.Conflict", "Payment voucher is already void."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, voucher.PaymentDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {voucher.PaymentDate} is closed for posting."));
+
         if (voucher.Status == "posted")
         {
             var billIds = voucher.Allocations.Select(a => a.BillId).ToList();

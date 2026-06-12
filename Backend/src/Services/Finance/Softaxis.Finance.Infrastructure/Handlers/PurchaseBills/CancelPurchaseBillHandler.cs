@@ -22,6 +22,9 @@ internal sealed class CancelPurchaseBillHandler(FinanceDbContext db) : ICommandH
         if (bill.Status == "cancelled")
             return Result.Failure(Error.Custom("PurchaseBill.Conflict", "Bill is already cancelled."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, bill.BillDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {bill.BillDate} is closed for posting."));
+
         await GlPoster.VoidAsync(db, bill.JournalEntryId, ct);
         bill.SetJournalEntryId(null);
         bill.Cancel();

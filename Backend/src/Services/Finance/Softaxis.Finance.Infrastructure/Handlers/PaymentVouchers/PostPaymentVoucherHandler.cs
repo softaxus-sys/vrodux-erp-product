@@ -21,6 +21,9 @@ internal sealed class PostPaymentVoucherHandler(FinanceDbContext db) : ICommandH
         if (voucher.Status != "draft")
             return Result.Failure(Error.Custom("PaymentVoucher.Conflict", "Only draft payment vouchers can be posted."));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, voucher.PaymentDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {voucher.PaymentDate} is closed for posting."));
+
         var billIds = voucher.Allocations.Select(a => a.BillId).ToList();
         var bills = await db.PurchaseBills.Where(x => billIds.Contains(x.Id)).ToListAsync(ct);
 

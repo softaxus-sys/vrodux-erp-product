@@ -15,6 +15,9 @@ internal sealed class CancelInvoiceHandler(FinanceDbContext db) : ICommandHandle
         if (invoice is null)
             return Result.Failure(Error.NotFoundById("Invoice", cmd.Id));
 
+        if (await GlPoster.IsPeriodClosedAsync(db, invoice.InvoiceDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {invoice.InvoiceDate} is closed for posting."));
+
         await GlPoster.VoidAsync(db, invoice.JournalEntryId, ct);
         invoice.SetJournalEntryId(null);
         invoice.Cancel();
