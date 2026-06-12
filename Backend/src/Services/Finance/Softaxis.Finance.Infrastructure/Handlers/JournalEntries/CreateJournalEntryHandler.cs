@@ -18,6 +18,10 @@ internal sealed class CreateJournalEntryHandler(FinanceDbContext db) : ICommandH
                 entry.Id, l.AccountId, l.AccountName,
                 l.DebitAmount, l.CreditAmount, l.Description));
 
+        if (!entry.IsBalanced)
+            return Result.Failure<JournalEntryDto>(Error.Custom("JournalEntry.Unbalanced",
+                $"Entry is not balanced. Debit: {entry.TotalDebit}, Credit: {entry.TotalCredit}"));
+
         db.JournalEntries.Add(entry);
         await db.SaveChangesAsync(ct);
 

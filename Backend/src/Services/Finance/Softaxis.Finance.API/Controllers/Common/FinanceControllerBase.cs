@@ -45,6 +45,7 @@ public abstract class FinanceControllerBase : ControllerBase
             var c when c.EndsWith(".Duplicate")     => Conflict(body),
             var c when c.EndsWith(".HasTransactions")=> Conflict(body),
             var c when c.EndsWith(".Conflict")      => Conflict(body),
+            var c when c.EndsWith(".Unbalanced")    => UnprocessableEntity(body),
             "Validation.Failed"                     => UnprocessableEntity(body),
             _                                       => StatusCode(StatusCodes.Status500InternalServerError, body),
         };

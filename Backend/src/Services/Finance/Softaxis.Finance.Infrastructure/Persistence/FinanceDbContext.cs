@@ -21,6 +21,8 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<TaxTransaction>   TaxTransactions  => Set<TaxTransaction>();
     public DbSet<RecurringInvoice>     RecurringInvoices     => Set<RecurringInvoice>();
     public DbSet<RecurringInvoiceLine> RecurringInvoiceLines => Set<RecurringInvoiceLine>();
+    public DbSet<AccountType>          AccountTypes          => Set<AccountType>();
+    public DbSet<Currency>             Currencies            => Set<Currency>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

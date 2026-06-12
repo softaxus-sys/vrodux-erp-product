@@ -21,7 +21,7 @@ internal sealed class PostJournalEntryHandler(FinanceDbContext db) : ICommandHan
             return Result.Failure(Error.Custom("JournalEntry.Conflict", "Only draft entries can be posted."));
 
         if (!entry.IsBalanced)
-            return Result.Failure(Error.Custom("JournalEntry.Conflict",
+            return Result.Failure(Error.Custom("JournalEntry.Unbalanced",
                 $"Entry is not balanced. Debit: {entry.TotalDebit}, Credit: {entry.TotalCredit}"));
 
         entry.Post();

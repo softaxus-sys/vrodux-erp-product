@@ -14,6 +14,19 @@ public sealed class CreateJournalEntryValidator : AbstractValidator<CreateJourna
     {
         RuleFor(x => x.Date).NotEmpty();
         RuleFor(x => x.Description).NotEmpty();
+        RuleFor(x => x.Lines).Must(l => l.Count >= 2)
+            .WithMessage("A journal entry requires at least two lines.");
+
+        RuleForEach(x => x.Lines).ChildRules(line =>
+        {
+            line.RuleFor(l => l)
+                .Must(l => l.DebitAmount > 0 ^ l.CreditAmount > 0)
+                .WithMessage("Each journal line must have either a debit or a credit amount, not both or neither.");
+        });
+
+        RuleFor(x => x.Lines)
+            .Must(l => l.Sum(x => x.DebitAmount) == l.Sum(x => x.CreditAmount))
+            .WithMessage("Total debits must equal total credits.");
     }
 }
 

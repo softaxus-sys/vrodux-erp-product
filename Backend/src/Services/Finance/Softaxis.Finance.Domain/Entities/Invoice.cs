@@ -31,6 +31,7 @@ public sealed class Invoice
     public string    InvoiceDate   { get; private set; } = string.Empty;
     public string    DueDate       { get; private set; } = string.Empty;
     public decimal   TaxRate       { get; private set; }
+    public string    CurrencyCode  { get; private set; } = "AED";
     public string    Status        { get; private set; } = "draft";
     public string?   Notes         { get; private set; }
     public DateTime? PaidAt        { get; private set; }
@@ -77,6 +78,8 @@ public sealed class Invoice
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 }
 
 public sealed class InvoiceItem

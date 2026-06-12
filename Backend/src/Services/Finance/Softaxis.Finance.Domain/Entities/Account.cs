@@ -28,6 +28,8 @@ public sealed class Account
     public string    AccountType   { get; private set; } = string.Empty;
     public string?   Description   { get; private set; }
     public Guid?     ParentId      { get; private set; }
+    public Guid?     AccountTypeId { get; private set; }
+    public string    CurrencyCode  { get; private set; } = "AED";
     public bool      IsActive      { get; private set; }
     public decimal   Balance       { get; private set; }
     public DateTime  CreatedAt     { get; private set; }
@@ -48,6 +50,10 @@ public sealed class Account
     }
 
     public void AdjustBalance(decimal amount) { Balance += amount; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetAccountTypeId(Guid? accountTypeId) { AccountTypeId = accountTypeId; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }

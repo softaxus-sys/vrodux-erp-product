@@ -24,13 +24,15 @@ internal sealed class GetLeavesSummaryHandler(HrDbContext db)
         var approved = statusCounts.FirstOrDefault(c => c.Status == "approved")?.Count ?? 0;
         var rejected = statusCounts.FirstOrDefault(c => c.Status == "rejected")?.Count ?? 0;
 
-        var thisMonthByType = await db.Leaves
+        var thisMonthByType = (await db.Leaves
             .AsNoTracking()
             .Where(x => x.StartDate.StartsWith(thisMonthPrefix))
             .GroupBy(x => x.LeaveType)
-            .Select(g => new LeaveTypeCountDto(g.Key, g.Count()))
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToListAsync(ct))
+            .Select(g => new LeaveTypeCountDto(g.Type, g.Count))
             .OrderByDescending(g => g.Count)
-            .ToListAsync(ct);
+            .ToList();
 
         return Result.Success(new LeavesSummaryDto(
             pending, approved, rejected, thisMonthByType, pending, approved));

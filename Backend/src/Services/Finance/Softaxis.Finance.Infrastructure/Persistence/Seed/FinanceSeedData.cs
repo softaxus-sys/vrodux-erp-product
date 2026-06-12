@@ -14,6 +14,9 @@ public static class FinanceSeedData
 
     public static async Task SeedAsync(FinanceDbContext db)
     {
+        await SeedAccountTypesAsync(db);
+        await SeedCurrenciesAsync(db);
+        await db.SaveChangesAsync();
         await SeedAccountsAsync(db);
         await db.SaveChangesAsync();
         await SeedExpensesAsync(db);
@@ -24,6 +27,65 @@ public static class FinanceSeedData
         await db.SaveChangesAsync();
         await SeedJournalsAsync(db);
         await db.SaveChangesAsync();
+    }
+
+    // ── Account Types ─────────────────────────────────────────────────────────
+
+    private static readonly Guid AccTypeAsset     = new("a1000001-0000-0000-0000-000000000001");
+    private static readonly Guid AccTypeLiability = new("a1000001-0000-0000-0000-000000000002");
+    private static readonly Guid AccTypeEquity    = new("a1000001-0000-0000-0000-000000000003");
+    private static readonly Guid AccTypeIncome    = new("a1000001-0000-0000-0000-000000000004");
+    private static readonly Guid AccTypeExpense   = new("a1000001-0000-0000-0000-000000000005");
+
+    private static async Task SeedAccountTypesAsync(FinanceDbContext db)
+    {
+        var existing = await db.AccountTypes.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        var types = new[]
+        {
+            (AccTypeAsset,     "asset",     "Asset",     "debit",  1),
+            (AccTypeLiability, "liability", "Liability", "credit", 2),
+            (AccTypeEquity,    "equity",    "Equity",    "credit", 3),
+            (AccTypeIncome,    "income",    "Income",    "credit", 4),
+            (AccTypeExpense,   "expense",   "Expense",   "debit",  5),
+        };
+
+        foreach (var (id, code, name, normalBalance, sortOrder) in types)
+        {
+            if (existing.Contains(id)) continue;
+            var type = new AccountType(code, name, normalBalance, sortOrder);
+            SetId(type, id);
+            db.AccountTypes.Add(type);
+        }
+    }
+
+    // ── Currencies ────────────────────────────────────────────────────────────
+
+    private static async Task SeedCurrenciesAsync(FinanceDbContext db)
+    {
+        var existing = await db.Currencies.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        var currencies = new[]
+        {
+            (new Guid("a2000002-0000-0000-0000-000000000001"), "AED", "UAE Dirham",       "د.إ", 2, true),
+            (new Guid("a2000002-0000-0000-0000-000000000002"), "USD", "US Dollar",        "$",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000003"), "EUR", "Euro",             "€",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000004"), "GBP", "British Pound",    "£",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000005"), "SAR", "Saudi Riyal",      "ر.س", 2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000006"), "KWD", "Kuwaiti Dinar",    "د.ك", 3, false),
+            (new Guid("a2000002-0000-0000-0000-000000000007"), "BHD", "Bahraini Dinar",   "د.ب", 3, false),
+            (new Guid("a2000002-0000-0000-0000-000000000008"), "OMR", "Omani Rial",       "ر.ع.", 3, false),
+        };
+
+        foreach (var (id, code, name, symbol, decimalPlaces, isBase) in currencies)
+        {
+            if (existing.Contains(id)) continue;
+            var currency = new Currency(code, name, symbol, decimalPlaces, isBase);
+            SetId(currency, id);
+            db.Currencies.Add(currency);
+        }
     }
 
     // ── Chart of Accounts ─────────────────────────────────────────────────────
@@ -104,12 +166,22 @@ public static class FinanceSeedData
             (AccMiscExp,          "5900", "Miscellaneous Expenses",     "expense",   (Guid?)null,   12000m),
         };
 
+        var accountTypeIdByCode = new Dictionary<string, Guid>
+        {
+            ["asset"]     = AccTypeAsset,
+            ["liability"] = AccTypeLiability,
+            ["equity"]    = AccTypeEquity,
+            ["income"]    = AccTypeIncome,
+            ["expense"]   = AccTypeExpense,
+        };
+
         foreach (var (id, number, name, type, parentId, balance) in accounts)
         {
             if (existing.Contains(id)) continue;
             var acc = new Account(number, name, type, null, parentId);
             SetId(acc, id);
             SetProp(acc, "Balance", balance);
+            acc.SetAccountTypeId(accountTypeIdByCode[type]);
             db.Accounts.Add(acc);
         }
     }

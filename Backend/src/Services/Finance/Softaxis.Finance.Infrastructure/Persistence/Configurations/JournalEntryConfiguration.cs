@@ -17,6 +17,7 @@ internal sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journ
         builder.Property(x => x.Date).IsRequired().HasMaxLength(20);
         builder.Property(x => x.Description).IsRequired().HasMaxLength(500);
         builder.Property(x => x.Reference).HasMaxLength(100);
+        builder.Property(x => x.CurrencyCode).IsRequired().HasMaxLength(3).HasDefaultValue("AED");
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("draft");
         builder.Property(x => x.Notes).HasMaxLength(1000);
         builder.Property(x => x.CreatedAt).IsRequired();

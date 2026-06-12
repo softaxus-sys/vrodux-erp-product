@@ -38,6 +38,7 @@ public sealed class Expense
     public string?   PaymentMethod { get; private set; }
     public string?   Reference     { get; private set; }
     public string?   Notes         { get; private set; }
+    public string    CurrencyCode  { get; private set; } = "AED";
     public string    Status        { get; private set; } = "pending";
     public Guid?     ApprovedById  { get; private set; }
     public DateTime? ApprovedAt    { get; private set; }
@@ -82,4 +83,6 @@ public sealed class Expense
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 }

@@ -17,6 +17,7 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
         builder.Property(x => x.AccountType).IsRequired().HasMaxLength(30);
         builder.Property(x => x.Description).HasMaxLength(500);
+        builder.Property(x => x.CurrencyCode).IsRequired().HasMaxLength(3).HasDefaultValue("AED");
         builder.Property(x => x.Balance).HasPrecision(18, 2);
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(x => x.CreatedAt).IsRequired();
@@ -30,6 +31,11 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
         builder.HasMany(x => x.JournalLines)
                .WithOne(x => x.Account)
                .HasForeignKey(x => x.AccountId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<AccountType>()
+               .WithMany()
+               .HasForeignKey(x => x.AccountTypeId)
                .OnDelete(DeleteBehavior.Restrict);
     }
 }
