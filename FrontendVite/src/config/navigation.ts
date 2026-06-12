@@ -305,6 +305,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "RotateCcw",
           },
           {
+            id: "purchase-bills",
+            label: "Purchase Invoices",
+            labelAr: "فواتير المشتريات",
+            href: "/purchase/bills",
+            icon: "Receipt",
+          },
+          {
             id: "approvals",
             label: "Approvals",
             labelAr: "الموافقات",

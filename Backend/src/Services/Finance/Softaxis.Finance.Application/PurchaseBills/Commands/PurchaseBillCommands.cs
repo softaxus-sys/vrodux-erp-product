@@ -6,7 +6,7 @@ namespace Softaxis.Finance.Application.PurchaseBills.Commands;
 
 public sealed record CreatePurchaseBillCommand(
     Guid SupplierId, string BillDate, string DueDate,
-    decimal TaxRate, string? Reference, string? Notes,
+    decimal TaxRate, string? CurrencyCode, string? Reference, string? Notes,
     IReadOnlyList<PurchaseBillItemRequest> Items) : ICommand<PurchaseBillDto>;
 
 public sealed class CreatePurchaseBillValidator : AbstractValidator<CreatePurchaseBillCommand>

@@ -540,6 +540,51 @@ Unlike GRN, Purchase Return does **NOT** modify `PurchaseOrder.Status` — it's 
 
 ---
 
+## Module 5d — Purchase: Purchase Invoices (AP Bills — Tax / Non-Tax / Import)
+
+**Frontend built for an existing backend feature.** `Softaxis.Finance` already had a fully CQRS-compliant
+`PurchaseBill` entity + `PurchaseBillsController` from a prior "AP module" phase (commit "Add AP module:
+PurchaseBill and PaymentVoucher with billwise allocation"), but **zero frontend** existed for it. Rather than
+build separate "Non-Tax Purchase Invoice" / "Import Purchase Invoice" features, this single feature covers all
+three via the existing `TaxRate` and `CurrencyCode` fields:
+- `TaxRate === 0` → Non-Tax Purchase Invoice
+- `CurrencyCode !== "AED"` → Import Purchase Invoice
+
+### Backend Files (Softaxis.Finance — additions only, `CurrencyCode` was on the entity but not exposed)
+- `Softaxis.Finance.Application/PurchaseBills/Dtos/PurchaseBillDtos.cs` — added `string CurrencyCode` to `PurchaseBillSummaryDto` and `PurchaseBillDto` (after `TaxRate`)
+- `Softaxis.Finance.Application/PurchaseBills/Commands/PurchaseBillCommands.cs` — added `string? CurrencyCode` to `CreatePurchaseBillCommand` (not added to `UpdatePurchaseBillCommand` — currency not editable post-creation)
+- `Softaxis.Finance.Infrastructure/Handlers/PurchaseBills/CreatePurchaseBillHandler.cs` — calls existing `bill.SetCurrencyCode(cmd.CurrencyCode)` when provided
+- `Softaxis.Finance.Infrastructure/Handlers/PurchaseBills/PurchaseBillMappings.cs` — `ToDto` includes `x.CurrencyCode`
+- `Softaxis.Finance.Infrastructure/Handlers/PurchaseBills/GetPurchaseBillsHandler.cs` — list projection includes `x.CurrencyCode`
+
+Existing routes used as-is: `GET/POST /api/finance/purchase-bills`, `GET .../summary`, `GET/PUT .../{id}`,
+`POST .../{id}/approve`, `POST .../{id}/cancel`, `DELETE .../{id}`. Also added `getSuppliers` to the frontend
+using the existing `GET /api/finance/suppliers?search=&isActive=`.
+
+### Frontend Files
+- `FrontendVite/src/lib/finance/finance.api.ts` — new `SupplierDto`, `PurchaseBillStatus`, `PurchaseBillItemDto`,
+  `PurchaseBillSummaryDto`, `PurchaseBillDto`, `PurchaseBillsSummaryDto`, `PagedResult<T>`,
+  `CreatePurchaseBillRequest`; `getSuppliers`, `getPurchaseBills`, `getPurchaseBillsSummary`,
+  `getPurchaseBillById`, `createPurchaseBill`, `approvePurchaseBill`, `cancelPurchaseBill`, `deletePurchaseBill`
+- `FrontendVite/src/hooks/finance/use-finance.ts` — `useSuppliers`, `usePurchaseBills`, `usePurchaseBillsSummary`,
+  `usePurchaseBillById`, `useCreatePurchaseBill`, `useApprovePurchaseBill`, `useCancelPurchaseBill`,
+  `useDeletePurchaseBill` (all mutations invalidate `purchase-bills` + `purchase-bills-summary`)
+- `FrontendVite/src/modules/purchase/bills/components/create-purchase-bill-form.tsx` — drawer form with
+  "Invoice Type" Tax/Non-Tax toggle (drives `taxRate` sent as 0 when Non-Tax) and a Currency `<select>`
+  (shows "Import invoice — amounts recorded in {currencyCode}" banner when non-AED)
+- `FrontendVite/src/modules/purchase/bills/components/purchase-bills-view.tsx` — list view with stat cards
+  (Total/Draft/Outstanding/Total Amount/Paid/Due), status filters, "Non-Tax" and "Import · {currencyCode}"
+  badges per row, Approve/Cancel actions, amounts shown via `formatCurrency(amount, b.currencyCode)`
+- `FrontendVite/src/pages/purchase/bills.tsx` + `App.tsx` route `/purchase/bills` (inside `ModuleGuard
+  module="purchase"`) + `navigation.ts` nav item "Purchase Invoices" (icon `Receipt`, already in
+  `nav-utils.tsx` iconMap from Finance Invoicing)
+
+### Build Status
+- **Backend Finance service:** 0 errors, 0 warnings ✅
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

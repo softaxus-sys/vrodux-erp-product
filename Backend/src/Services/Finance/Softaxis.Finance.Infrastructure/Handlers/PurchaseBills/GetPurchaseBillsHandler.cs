@@ -35,7 +35,7 @@ internal sealed class GetPurchaseBillsHandler(FinanceDbContext db) : IQueryHandl
             .Take(query.PageSize)
             .Select(x => new PurchaseBillSummaryDto(
                 x.Id, x.BillNumber, x.SupplierId, x.SupplierName,
-                x.BillDate, x.DueDate, x.TaxRate,
+                x.BillDate, x.DueDate, x.TaxRate, x.CurrencyCode,
                 x.Items.Sum(i => i.Quantity * i.UnitPrice),
                 x.Items.Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
                 x.Items.Sum(i => i.Quantity * i.UnitPrice) + x.Items.Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,

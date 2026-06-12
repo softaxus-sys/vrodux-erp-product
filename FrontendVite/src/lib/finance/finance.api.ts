@@ -199,6 +199,113 @@ export interface ExpensesSummaryDto {
   pendingApproval: number;
 }
 
+// ─── Suppliers ──────────────────────────────────────────────────────────────────
+
+export interface SupplierDto {
+  id: string;
+  code: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  accountId?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+// ─── Purchase Bills (AP Invoices) ────────────────────────────────────────────────
+
+export type PurchaseBillStatus = "draft" | "approved" | "partially_paid" | "paid" | "cancelled";
+
+export interface PurchaseBillItemDto {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
+export interface PurchaseBillSummaryDto {
+  id: string;
+  billNumber: string;
+  supplierId: string;
+  supplierName: string;
+  billDate: string;
+  dueDate: string;
+  taxRate: number;
+  currencyCode: string;
+  subTotal: number;
+  taxAmount: number;
+  total: number;
+  amountPaid: number;
+  amountDue: number;
+  status: PurchaseBillStatus;
+  itemCount: number;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface PurchaseBillDto {
+  id: string;
+  billNumber: string;
+  supplierId: string;
+  supplierName: string;
+  billDate: string;
+  dueDate: string;
+  taxRate: number;
+  currencyCode: string;
+  subTotal: number;
+  taxAmount: number;
+  total: number;
+  amountPaid: number;
+  amountDue: number;
+  status: PurchaseBillStatus;
+  reference?: string | null;
+  notes?: string | null;
+  items: PurchaseBillItemDto[];
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface PurchaseBillsSummaryDto {
+  totalBills: number;
+  totalAmount: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  draftCount: number;
+  outstandingCount: number;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface PurchaseBillItemRequest {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface CreatePurchaseBillRequest {
+  supplierId: string;
+  billDate: string;
+  dueDate: string;
+  taxRate: number;
+  currencyCode?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  items: PurchaseBillItemRequest[];
+}
+
 // ─── General Ledger ───────────────────────────────────────────────────────────
 
 export type GLPeriod = "2026-01" | "2026-02" | "2026-03" | "2026-04" | "2026-05";
@@ -515,6 +622,34 @@ export const financeApi = {
   getBudgets:          (): Promise<BudgetDto[]>          => rawApiClient.get(`${BASE}/budgets`),
   getBudgetingSummary: (): Promise<BudgetingSummaryDto>  => rawApiClient.get(`${BASE}/budgets/summary`),
   createBudget:        (data: CreateBudgetRequest): Promise<BudgetDto> => rawApiClient.post(`${BASE}/budgets`, data),
+
+  // Suppliers
+  getSuppliers: (params?: { search?: string; isActive?: boolean }): Promise<SupplierDto[]> => {
+    const qs = new URLSearchParams();
+    if (params?.search)                 qs.set("search",   params.search);
+    if (params?.isActive !== undefined) qs.set("isActive", String(params.isActive));
+    const query = qs.toString();
+    return rawApiClient.get(`${BASE}/suppliers${query ? `?${query}` : ""}`);
+  },
+
+  // Purchase Bills (AP Invoices)
+  getPurchaseBills: (params?: { page?: number; pageSize?: number; search?: string; status?: string; supplierId?: string; outstanding?: boolean }): Promise<PagedResult<PurchaseBillSummaryDto>> => {
+    const qs = new URLSearchParams();
+    if (params?.page)                     qs.set("page",        String(params.page));
+    if (params?.pageSize)                 qs.set("pageSize",    String(params.pageSize));
+    if (params?.search)                   qs.set("search",      params.search);
+    if (params?.status)                   qs.set("status",      params.status);
+    if (params?.supplierId)               qs.set("supplierId",  params.supplierId);
+    if (params?.outstanding !== undefined) qs.set("outstanding", String(params.outstanding));
+    const query = qs.toString();
+    return rawApiClient.get(`${BASE}/purchase-bills${query ? `?${query}` : ""}`);
+  },
+  getPurchaseBillsSummary: (): Promise<PurchaseBillsSummaryDto> => rawApiClient.get(`${BASE}/purchase-bills/summary`),
+  getPurchaseBillById:     (id: string): Promise<PurchaseBillDto> => rawApiClient.get(`${BASE}/purchase-bills/${id}`),
+  createPurchaseBill:      (data: CreatePurchaseBillRequest): Promise<PurchaseBillDto> => rawApiClient.post(`${BASE}/purchase-bills`, data),
+  approvePurchaseBill:     (id: string): Promise<void> => rawApiClient.post(`${BASE}/purchase-bills/${id}/approve`),
+  cancelPurchaseBill:      (id: string): Promise<void> => rawApiClient.post(`${BASE}/purchase-bills/${id}/cancel`),
+  deletePurchaseBill:      (id: string): Promise<void> => rawApiClient.delete(`${BASE}/purchase-bills/${id}`),
 
   // Expenses
   getExpenses:         (): Promise<ExpenseDto[]>         => rawApiClient.get(`${BASE}/expenses`),

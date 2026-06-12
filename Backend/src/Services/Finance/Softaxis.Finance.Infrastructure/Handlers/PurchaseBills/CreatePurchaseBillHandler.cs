@@ -18,6 +18,9 @@ internal sealed class CreatePurchaseBillHandler(FinanceDbContext db) : ICommandH
 
         var bill = new PurchaseBill(cmd.SupplierId, supplier.Name, cmd.BillDate, cmd.DueDate, cmd.TaxRate, cmd.Reference, cmd.Notes);
 
+        if (!string.IsNullOrWhiteSpace(cmd.CurrencyCode))
+            bill.SetCurrencyCode(cmd.CurrencyCode);
+
         foreach (var item in cmd.Items)
             bill.Items.Add(new PurchaseBillItem(bill.Id, item.Description, item.Quantity, item.UnitPrice));
 
