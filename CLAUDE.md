@@ -585,6 +585,74 @@ using the existing `GET /api/finance/suppliers?search=&isActive=`.
 
 ---
 
+## Module 5e — Sales: Delivery Challan
+
+**New CQRS feature in `Softaxis.Sales` microservice** — first CQRS feature ever added to this service, mirroring
+the Purchase GRN pattern (Module 5b) exactly. Records goods delivered to a customer against an existing
+`SalesOrder` and drives `SalesOrder.Status` (`"confirmed"`/`"shipped"` → `"shipped"`/`"delivered"`) based on
+cumulative delivered quantities, analogous to how GRN drives PO status.
+
+`Softaxis.Sales.Application` previously had **no CQRS feature folders** and `Softaxis.Sales.Infrastructure`
+had **no MediatR/FluentValidation registration** — both added for the first time here (`AddMediatR` with
+Logging + Validation behaviors + `AddValidatorsFromAssembly`; required adding the
+`FluentValidation.DependencyInjectionExtensions` package reference to `Softaxis.Sales.Infrastructure.csproj`,
+which Purchase already had). `SalesOrdersController` / `SalesReturnsController` remain tech debt (inject
+`SalesDbContext` directly) — DeliveryChallan follows the mandatory CQRS pattern regardless.
+
+### Backend Files
+- `Softaxis.Sales.Domain/Entities/DeliveryChallan.cs` — `DeliveryChallan` aggregate (private ctor, public ctor
+  `(salesOrderId, customerId?, challanDate, driverName?, notes?)`, auto `ChallanNumber = "DC-{yyyyMMdd}-{6CHAR}"`,
+  `Status` "posted"/"cancelled", `Items`, `AddItem(...)`, `Cancel()`) + `DeliveryChallanItem`
+  (ctor `(deliveryChallanId, salesOrderItemId?, productId?, description, orderedQuantity, deliveredQuantity, unitPrice)`,
+  computed `LineTotal => DeliveredQuantity * UnitPrice`). `ChallanDate` is `string` (matches GRN's `GrnDate`).
+  `CustomerId` is nullable (`Guid?`), copied from `SalesOrder.CustomerId`.
+- `Softaxis.Sales.Infrastructure/Persistence/Configurations/DeliveryChallanConfiguration.cs` — tables
+  `delivery_challans`/`delivery_challan_items`, FK to `SalesOrder`/`Customer` (`DeleteBehavior.Restrict`),
+  `HasQueryFilter(!IsDeleted)`, unique index on `ChallanNumber`, indexes on `SalesOrderId`/`CustomerId`,
+  cascade on Items, `Ignore(LineTotal)`
+- `Softaxis.Sales.Application/DeliveryChallans/` — `Commands/CreateDeliveryChallanCommand.cs` (+ FluentValidation),
+  `Queries/DeliveryChallanQueries.cs`, `Dtos/DeliveryChallanDtos.cs`
+- `Softaxis.Sales.Infrastructure/Handlers/DeliveryChallans/` — `CreateDeliveryChallanHandler.cs`,
+  `GetDeliveryChallansHandler.cs`, `GetDeliveryChallanByIdHandler.cs`
+- `Softaxis.Sales.API/Controllers/Common/SalesControllerBase.cs` — NEW, mirrors `PurchaseControllerBase`
+  (`OkOrError`/`CreatedOrError`/`NoContentOrError`)
+- `Softaxis.Sales.API/Controllers/DeliveryChallansController.cs` — `GET /api/sales/delivery-challans?salesOrderId=&customerId=`,
+  `GET /api/sales/delivery-challans/{id}`, `POST /api/sales/delivery-challans`
+- `Softaxis.Sales.Infrastructure/Extensions/InfrastructureExtensions.cs` — added `AddMediatR` (Logging +
+  Validation behaviors) + `AddValidatorsFromAssembly`
+- Migration `AddDeliveryChallans` — applied to `sales` schema of `SoftaxisErpDb`
+
+### SalesOrder Status Logic (CreateDeliveryChallanHandler)
+On each Delivery Challan creation, cumulative delivered quantity per sales order line = sum across all
+previously-posted challans + the new one. If **every** order item has cumulative delivered ≥ ordered quantity
+→ order status = `"delivered"`; if **any** item has been delivered but not all → `"shipped"`. Returns
+`DeliveryChallan.Conflict` if the sales order is cancelled.
+
+### Frontend Files
+- `FrontendVite/src/lib/sales/delivery-challans.api.ts` — `deliveryChallansApi` (`getAll`, `getById`, `create`),
+  `BASE = .../api/sales/delivery-challans`
+- `FrontendVite/src/hooks/sales/use-delivery-challans.ts` — `useDeliveryChallans`, `useDeliveryChallan`,
+  `useCreateDeliveryChallan` (invalidates both `deliveryChallanKeys.lists()` and `salesOrderKeys.lists()`)
+- `FrontendVite/src/modules/sales/delivery-challans/components/create-delivery-challan-form.tsx` — drawer form,
+  pre-fills lines from `order.items` (delivered qty defaults to ordered qty), dynamic `TODAY`
+- `FrontendVite/src/modules/sales/delivery-challans/components/delivery-challans-view.tsx` — list view
+- `FrontendVite/src/pages/sales/delivery-challans.tsx` + `App.tsx` route `/sales/delivery-challans` (inside
+  `ModuleGuard module="sales"`) + `navigation.ts` nav item "Delivery Challans" (icon `Truck`, already in
+  `nav-utils.tsx` iconMap)
+
+### Wired into Sales Orders view
+`orders-view.tsx` — the previous separate "Ship" and "Deliver" status-change buttons (shown for
+`status === "confirmed"`/`"shipped"`) were replaced with a single "Delivery Challan" button (shown for
+`status === "confirmed" || "shipped"`) that opens `CreateDeliveryChallanForm` for that order. Fetches the full
+`SalesOrderDto` (with `items`) via `useSalesOrder(dcOrderId)` since the list view only has `SalesOrderSummaryDto`.
+The "Confirm" button (`pending` → `confirmed`) still uses `useUpdateSalesOrderStatus` directly.
+
+### Build Status
+- **Backend Sales service:** 0 errors, 0 warnings ✅ (migration applied)
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

@@ -259,6 +259,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "ClipboardList",
           },
           {
+            id: "delivery-challans",
+            label: "Delivery Challans",
+            labelAr: "إشعارات التسليم",
+            href: "/sales/delivery-challans",
+            icon: "Truck",
+          },
+          {
             id: "returns",
             label: "Returns",
             labelAr: "المرتجعات",

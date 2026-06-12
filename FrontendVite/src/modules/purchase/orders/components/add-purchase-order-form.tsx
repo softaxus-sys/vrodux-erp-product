@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreatePurchaseOrder } from "@/hooks/purchase/use-purchase-orders";
 import { useAllPurchaseVendors } from "@/hooks/purchase/use-vendors";
+import { ProductPicker } from "./product-picker";
 
 const TAX_OPTIONS = [
   { label: "Standard (17%)", rate: 17 },
@@ -15,6 +16,7 @@ const TAX_OPTIONS = [
 
 interface POLine {
   id: string;
+  productId: string | null;
   description: string;
   qty: number;
   unitCost: number;
@@ -22,7 +24,7 @@ interface POLine {
 }
 
 function newLine(defaultTax: number): POLine {
-  return { id: String(Date.now() + Math.random()), description: "", qty: 1, unitCost: 0, taxRate: defaultTax };
+  return { id: String(Date.now() + Math.random()), productId: null, description: "", qty: 1, unitCost: 0, taxRate: defaultTax };
 }
 
 interface AddPurchaseOrderFormProps {
@@ -73,7 +75,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
         notes:        notes.trim() || null,
         expectedDate: expectedDate || null,
         items: validLines.map(l => ({
-          productId:   null,
+          productId:   l.productId,
           description: l.description,
           quantity:    l.qty,
           unitCost:    l.unitCost,
@@ -162,8 +164,16 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                       {lines.map(line => (
                         <tr key={line.id} className="hover:bg-muted/10">
                           <td className="px-2 py-1.5">
-                            <Input value={line.description} onChange={e => updateLine(line.id, "description", e.target.value)}
-                              placeholder="Item / service description…" className="h-8 text-xs border-transparent bg-transparent focus-visible:border-primary/40 px-2" />
+                            <ProductPicker
+                              value={line.description}
+                              onTextChange={text => setLines(prev => prev.map(l => l.id === line.id ? { ...l, description: text, productId: null } : l))}
+                              onSelect={product => setLines(prev => prev.map(l => l.id === line.id ? {
+                                ...l,
+                                productId: product.id,
+                                description: product.name,
+                                unitCost: l.unitCost || product.costPrice,
+                              } : l))}
+                            />
                           </td>
                           <td className="px-2 py-1.5">
                             <Input type="number" min={1} step={1} value={line.qty || ""} onChange={e => updateLine(line.id, "qty", +e.target.value)}

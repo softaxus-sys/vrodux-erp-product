@@ -47,6 +47,7 @@ const CrmActivitiesPage    = React.lazy(() => import("@/pages/crm/activities"));
 const QuotationsPage       = React.lazy(() => import("@/pages/sales/quotations"));
 const SalesOrdersPage      = React.lazy(() => import("@/pages/sales/orders"));
 const ReturnsPage          = React.lazy(() => import("@/pages/sales/returns"));
+const DeliveryChallansPage = React.lazy(() => import("@/pages/sales/delivery-challans"));
 
 // ── Purchase ──────────────────────────────────────────────────────────────────
 const VendorsPage          = React.lazy(() => import("@/pages/purchase/vendors"));
@@ -259,6 +260,7 @@ export function App() {
           <Route element={<ModuleGuard module="sales" />}>
             <Route path="/sales/quotations" element={<QuotationsPage />} />
             <Route path="/sales/orders"     element={<SalesOrdersPage />} />
+            <Route path="/sales/delivery-challans" element={<DeliveryChallansPage />} />
             <Route path="/sales/returns"    element={<ReturnsPage />} />
           </Route>
 
