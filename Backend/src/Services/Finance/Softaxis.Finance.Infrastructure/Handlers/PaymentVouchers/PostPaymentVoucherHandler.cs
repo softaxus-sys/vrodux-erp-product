@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.PaymentVouchers.Commands;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.PaymentVouchers;
@@ -37,6 +38,17 @@ internal sealed class PostPaymentVoucherHandler(FinanceDbContext db) : ICommandH
         }
 
         voucher.Post();
+
+        var cashAccount = GlPoster.ResolveCashAccount(voucher.PaymentMethod);
+        var lines = new List<GlPoster.Line>
+        {
+            new(GlPoster.AccountsPayable, voucher.Amount, 0, $"AP - Payment {voucher.VoucherNumber}"),
+            new(cashAccount, 0, voucher.Amount, $"Payment {voucher.VoucherNumber} - {voucher.SupplierName}"),
+        };
+
+        var journalEntryId = await GlPoster.PostAsync(db, voucher.PaymentDate, $"Payment Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, lines, ct);
+        voucher.SetJournalEntryId(journalEntryId);
+
         await db.SaveChangesAsync(ct);
 
         return Result.Success();

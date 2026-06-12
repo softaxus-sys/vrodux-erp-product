@@ -46,6 +46,7 @@ public sealed class Expense
     public DateTime  CreatedAt     { get; private set; }
     public DateTime? UpdatedAt     { get; private set; }
     public bool      IsDeleted     { get; private set; }
+    public Guid?     JournalEntryId { get; private set; }
 
     public void Update(string title, string category, decimal amount, string expenseDate,
         string? paidBy, string? paymentMethod, string? reference, string? notes)
@@ -88,4 +89,6 @@ public sealed class Expense
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 
     public void SetSupplierId(Guid? supplierId) { SupplierId = supplierId; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetJournalEntryId(Guid? journalEntryId) { JournalEntryId = journalEntryId; UpdatedAt = DateTime.UtcNow; }
 }

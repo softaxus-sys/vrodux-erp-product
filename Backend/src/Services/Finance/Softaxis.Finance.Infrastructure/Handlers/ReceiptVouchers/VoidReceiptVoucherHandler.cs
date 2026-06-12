@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.ReceiptVouchers.Commands;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.ReceiptVouchers;
@@ -30,6 +31,9 @@ internal sealed class VoidReceiptVoucherHandler(FinanceDbContext db) : ICommandH
                 var invoice = invoices.FirstOrDefault(x => x.Id == allocation.InvoiceId);
                 invoice?.ReversePayment(allocation.AmountApplied);
             }
+
+            await GlPoster.VoidAsync(db, voucher.JournalEntryId, ct);
+            voucher.SetJournalEntryId(null);
         }
 
         voucher.Void();

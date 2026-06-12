@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.PaymentVouchers.Commands;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.PaymentVouchers;
@@ -30,6 +31,9 @@ internal sealed class VoidPaymentVoucherHandler(FinanceDbContext db) : ICommandH
                 var bill = bills.FirstOrDefault(x => x.Id == allocation.BillId);
                 bill?.ReversePayment(allocation.AmountApplied);
             }
+
+            await GlPoster.VoidAsync(db, voucher.JournalEntryId, ct);
+            voucher.SetJournalEntryId(null);
         }
 
         voucher.Void();

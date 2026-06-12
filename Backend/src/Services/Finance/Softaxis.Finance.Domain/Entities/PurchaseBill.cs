@@ -41,6 +41,7 @@ public sealed class PurchaseBill
     public DateTime  CreatedAt    { get; private set; }
     public DateTime? UpdatedAt    { get; private set; }
     public bool      IsDeleted    { get; private set; }
+    public Guid?     JournalEntryId { get; private set; }
 
     public ICollection<PurchaseBillItem> Items { get; private set; } = new List<PurchaseBillItem>();
 
@@ -89,6 +90,8 @@ public sealed class PurchaseBill
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
+
+    public void SetJournalEntryId(Guid? journalEntryId) { JournalEntryId = journalEntryId; UpdatedAt = DateTime.UtcNow; }
 }
 
 public sealed class PurchaseBillItem

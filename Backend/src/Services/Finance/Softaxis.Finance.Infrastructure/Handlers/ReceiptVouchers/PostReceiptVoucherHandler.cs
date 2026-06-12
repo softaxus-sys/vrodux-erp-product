@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.ReceiptVouchers.Commands;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.ReceiptVouchers;
@@ -37,6 +38,17 @@ internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandH
         }
 
         voucher.Post();
+
+        var cashAccount = GlPoster.ResolveCashAccount(voucher.ReceiptMethod);
+        var lines = new List<GlPoster.Line>
+        {
+            new(cashAccount, voucher.Amount, 0, $"Receipt {voucher.VoucherNumber} - {voucher.CustomerName}"),
+            new(GlPoster.AccountsReceivable, 0, voucher.Amount, $"AR - Receipt {voucher.VoucherNumber}"),
+        };
+
+        var journalEntryId = await GlPoster.PostAsync(db, voucher.ReceiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, lines, ct);
+        voucher.SetJournalEntryId(journalEntryId);
+
         await db.SaveChangesAsync(ct);
 
         return Result.Success();

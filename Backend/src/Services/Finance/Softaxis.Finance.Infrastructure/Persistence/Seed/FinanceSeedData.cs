@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 
 namespace Softaxis.Finance.Infrastructure.Persistence.Seed;
 
@@ -376,33 +377,60 @@ public static class FinanceSeedData
         var itemCounter = 1;
         foreach (var (id, customer, email, date, dueDate, status, items) in invoices)
         {
-            if (existing.Contains(id)) continue;
-
-            // Correct constructor: (customerName, customerEmail, invoiceDate, dueDate, taxRate, notes)
-            var inv = new Invoice(customer, email, date, dueDate, 5m, null);
-            SetId(inv, id);
-            if (CustomerIdByName.TryGetValue(customer, out var customerId))
-                inv.SetCustomerId(customerId);
-
-            foreach (var (desc, qty, price) in items)
+            Invoice inv;
+            if (existing.Contains(id))
             {
-                var itemId = new Guid($"b4{itemCounter++:000000}-0000-0000-0000-000000000001");
-                // Correct constructor: (invoiceId, description, quantity, unitPrice)
-                var item = new InvoiceItem(id, desc, qty, price);
-                SetId(item, itemId);
-                db.InvoiceItems.Add(item);
+                inv = await db.Invoices.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                // Correct constructor: (customerName, customerEmail, invoiceDate, dueDate, taxRate, notes)
+                inv = new Invoice(customer, email, date, dueDate, 5m, null);
+                SetId(inv, id);
+                if (CustomerIdByName.TryGetValue(customer, out var customerId))
+                    inv.SetCustomerId(customerId);
+
+                foreach (var (desc, qty, price) in items)
+                {
+                    var itemId = new Guid($"b4{itemCounter++:000000}-0000-0000-0000-000000000001");
+                    // Correct constructor: (invoiceId, description, quantity, unitPrice)
+                    var item = new InvoiceItem(id, desc, qty, price);
+                    SetId(item, itemId);
+                    db.InvoiceItems.Add(item);
+                }
+
+                // Transition status — Invoice only has MarkPaid() and Cancel()
+                // For "sent" and "overdue" we update the Status property via Update()
+                if (status == "sent")
+                    inv.Update(customer, email, date, dueDate, 5m, null, "sent");
+                else if (status == "overdue")
+                    inv.Update(customer, email, date, dueDate, 5m, null, "overdue");
+                else if (status == "paid")
+                    inv.MarkPaid();
+
+                db.Invoices.Add(inv);
             }
 
-            // Transition status — Invoice only has MarkPaid() and Cancel()
-            // For "sent" and "overdue" we update the Status property via Update()
-            if (status == "sent")
-                inv.Update(customer, email, date, dueDate, 5m, null, "sent");
-            else if (status == "overdue")
-                inv.Update(customer, email, date, dueDate, 5m, null, "overdue");
-            else if (status == "paid")
-                inv.MarkPaid();
+            // Post the AR/Sales/VAT journal entry for any issued (non-draft) invoice —
+            // mirrors SendInvoiceHandler. Items navigation isn't populated here, so
+            // totals are computed directly from the seed item tuples.
+            if (status is "sent" or "overdue" or "paid" && inv.JournalEntryId is null)
+            {
+                var subTotal  = items.Sum(i => i.Item2 * i.Item3);
+                var taxAmount = subTotal * 5m / 100;
+                var total     = subTotal + taxAmount;
 
-            db.Invoices.Add(inv);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(GlPoster.AccountsReceivable, total, 0, $"Invoice {inv.InvoiceNumber} - {customer}"),
+                    new(GlPoster.SalesRevenue, 0, subTotal, $"Sales - Invoice {inv.InvoiceNumber}"),
+                };
+                if (taxAmount > 0)
+                    glLines.Add(new(GlPoster.VatPayable, 0, taxAmount, $"VAT Output - Invoice {inv.InvoiceNumber}"));
+
+                var journalEntryId = await GlPoster.PostAsync(db, date, $"Sales Invoice {inv.InvoiceNumber}", inv.InvoiceNumber, glLines, CancellationToken.None);
+                inv.SetJournalEntryId(journalEntryId);
+            }
         }
     }
 
@@ -440,28 +468,55 @@ public static class FinanceSeedData
         var itemCounter = 1;
         foreach (var (id, supplier, billDate, dueDate, taxRate, status, items) in bills)
         {
-            if (existing.Contains(id)) continue;
-
-            var supplierId = SupplierIdByName[supplier];
-            var bill = new PurchaseBill(supplierId, supplier, billDate, dueDate, taxRate, null, null);
-            SetId(bill, id);
-
-            foreach (var (desc, qty, price) in items)
+            PurchaseBill bill;
+            if (existing.Contains(id))
             {
-                var itemId = new Guid($"b9{itemCounter++:000000}-0000-0000-0000-000000000001");
-                var item = new PurchaseBillItem(id, desc, qty, price);
-                SetId(item, itemId);
-                db.PurchaseBillItems.Add(item);
+                bill = await db.PurchaseBills.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                var supplierId = SupplierIdByName[supplier];
+                bill = new PurchaseBill(supplierId, supplier, billDate, dueDate, taxRate, null, null);
+                SetId(bill, id);
+
+                foreach (var (desc, qty, price) in items)
+                {
+                    var itemId = new Guid($"b9{itemCounter++:000000}-0000-0000-0000-000000000001");
+                    var item = new PurchaseBillItem(id, desc, qty, price);
+                    SetId(item, itemId);
+                    db.PurchaseBillItems.Add(item);
+                }
+
+                // "paid"/"partially_paid" are reached via RecordPayment in SeedPaymentVouchersAsync —
+                // here we only set up the statuses that don't require a payment voucher.
+                if (status is "approved" or "paid" or "partially_paid")
+                    bill.Approve();
+                else if (status == "cancelled")
+                    bill.Cancel();
+
+                db.PurchaseBills.Add(bill);
             }
 
-            // "paid"/"partially_paid" are reached via RecordPayment in SeedPaymentVouchersAsync —
-            // here we only set up the statuses that don't require a payment voucher.
-            if (status is "approved" or "paid" or "partially_paid")
-                bill.Approve();
-            else if (status == "cancelled")
-                bill.Cancel();
+            // Post the Purchases/VAT/AP journal entry for any approved bill —
+            // mirrors ApprovePurchaseBillHandler. Items navigation isn't populated
+            // here, so totals are computed directly from the seed item tuples.
+            if (status is "approved" or "paid" or "partially_paid" && bill.JournalEntryId is null)
+            {
+                var subTotal  = items.Sum(i => i.qty * i.price);
+                var taxAmount = subTotal * taxRate / 100;
+                var total     = subTotal + taxAmount;
 
-            db.PurchaseBills.Add(bill);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(GlPoster.Purchases, subTotal, 0, $"Purchase Bill {bill.BillNumber} - {supplier}"),
+                };
+                if (taxAmount > 0)
+                    glLines.Add(new(GlPoster.VatPayable, taxAmount, 0, $"VAT Input - Bill {bill.BillNumber}"));
+                glLines.Add(new(GlPoster.AccountsPayable, 0, total, $"AP - Bill {bill.BillNumber}"));
+
+                var journalEntryId = await GlPoster.PostAsync(db, billDate, $"Purchase Bill {bill.BillNumber}", bill.BillNumber, glLines, CancellationToken.None);
+                bill.SetJournalEntryId(journalEntryId);
+            }
         }
     }
 
@@ -487,25 +542,43 @@ public static class FinanceSeedData
 
         foreach (var (id, supplier, paymentDate, amount, method, status, allocations) in vouchers)
         {
-            if (existing.Contains(id)) continue;
-
-            var supplierId = SupplierIdByName[supplier];
-            var voucher = new PaymentVoucher(supplierId, supplier, paymentDate, amount, method, null, null, null);
-            SetId(voucher, id);
-
-            foreach (var (billId, applied) in allocations)
-                voucher.Allocations.Add(new PaymentAllocation(id, billId, applied));
-
-            db.PaymentVouchers.Add(voucher);
-
-            if (status == "posted")
+            PaymentVoucher voucher;
+            if (existing.Contains(id))
             {
+                voucher = await db.PaymentVouchers.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                var supplierId = SupplierIdByName[supplier];
+                voucher = new PaymentVoucher(supplierId, supplier, paymentDate, amount, method, null, null, null);
+                SetId(voucher, id);
+
                 foreach (var (billId, applied) in allocations)
+                    voucher.Allocations.Add(new PaymentAllocation(id, billId, applied));
+
+                db.PaymentVouchers.Add(voucher);
+
+                if (status == "posted")
                 {
-                    var bill = await db.PurchaseBills.FirstAsync(x => x.Id == billId);
-                    bill.RecordPayment(applied);
+                    foreach (var (billId, applied) in allocations)
+                    {
+                        var bill = await db.PurchaseBills.FirstAsync(x => x.Id == billId);
+                        bill.RecordPayment(applied);
+                    }
+                    voucher.Post();
                 }
-                voucher.Post();
+            }
+
+            if (status == "posted" && voucher.JournalEntryId is null)
+            {
+                var cashAccount = GlPoster.ResolveCashAccount(method);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(GlPoster.AccountsPayable, amount, 0, $"AP - Payment {voucher.VoucherNumber}"),
+                    new(cashAccount, 0, amount, $"Payment {voucher.VoucherNumber} - {supplier}"),
+                };
+                var journalEntryId = await GlPoster.PostAsync(db, paymentDate, $"Payment Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, glLines, CancellationToken.None);
+                voucher.SetJournalEntryId(journalEntryId);
             }
         }
     }
@@ -534,25 +607,43 @@ public static class FinanceSeedData
 
         foreach (var (id, customer, receiptDate, amount, method, status, allocations) in vouchers)
         {
-            if (existing.Contains(id)) continue;
-
-            var customerId = CustomerIdByName[customer];
-            var voucher = new ReceiptVoucher(customerId, customer, receiptDate, amount, method, null, null, null);
-            SetId(voucher, id);
-
-            foreach (var (invoiceId, applied) in allocations)
-                voucher.Allocations.Add(new ReceiptAllocation(id, invoiceId, applied));
-
-            db.ReceiptVouchers.Add(voucher);
-
-            if (status == "posted")
+            ReceiptVoucher voucher;
+            if (existing.Contains(id))
             {
+                voucher = await db.ReceiptVouchers.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                var customerId = CustomerIdByName[customer];
+                voucher = new ReceiptVoucher(customerId, customer, receiptDate, amount, method, null, null, null);
+                SetId(voucher, id);
+
                 foreach (var (invoiceId, applied) in allocations)
+                    voucher.Allocations.Add(new ReceiptAllocation(id, invoiceId, applied));
+
+                db.ReceiptVouchers.Add(voucher);
+
+                if (status == "posted")
                 {
-                    var invoice = await db.Invoices.Include(x => x.Items).FirstAsync(x => x.Id == invoiceId);
-                    invoice.RecordPayment(applied);
+                    foreach (var (invoiceId, applied) in allocations)
+                    {
+                        var invoice = await db.Invoices.Include(x => x.Items).FirstAsync(x => x.Id == invoiceId);
+                        invoice.RecordPayment(applied);
+                    }
+                    voucher.Post();
                 }
-                voucher.Post();
+            }
+
+            if (status == "posted" && voucher.JournalEntryId is null)
+            {
+                var cashAccount = GlPoster.ResolveCashAccount(method);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(cashAccount, amount, 0, $"Receipt {voucher.VoucherNumber} - {customer}"),
+                    new(GlPoster.AccountsReceivable, 0, amount, $"AR - Receipt {voucher.VoucherNumber}"),
+                };
+                var journalEntryId = await GlPoster.PostAsync(db, receiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, glLines, CancellationToken.None);
+                voucher.SetJournalEntryId(journalEntryId);
             }
         }
     }

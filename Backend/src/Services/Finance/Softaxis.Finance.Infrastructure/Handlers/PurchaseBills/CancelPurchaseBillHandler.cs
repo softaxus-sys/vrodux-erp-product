@@ -2,6 +2,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Finance.Application.PurchaseBills.Commands;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.PurchaseBills;
@@ -21,6 +22,8 @@ internal sealed class CancelPurchaseBillHandler(FinanceDbContext db) : ICommandH
         if (bill.Status == "cancelled")
             return Result.Failure(Error.Custom("PurchaseBill.Conflict", "Bill is already cancelled."));
 
+        await GlPoster.VoidAsync(db, bill.JournalEntryId, ct);
+        bill.SetJournalEntryId(null);
         bill.Cancel();
         await db.SaveChangesAsync(ct);
 
