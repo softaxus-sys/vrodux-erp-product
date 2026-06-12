@@ -26,6 +26,10 @@ public static class FinanceSeedData
         await db.SaveChangesAsync();
         await SeedInvoicesAsync(db);
         await db.SaveChangesAsync();
+        await SeedPurchaseBillsAsync(db);
+        await db.SaveChangesAsync();
+        await SeedPaymentVouchersAsync(db);
+        await db.SaveChangesAsync();
         await SeedBudgetsAsync(db);
         await db.SaveChangesAsync();
         await SeedJournalsAsync(db);
@@ -365,6 +369,110 @@ public static class FinanceSeedData
                 inv.MarkPaid();
 
             db.Invoices.Add(inv);
+        }
+    }
+
+    // ── Purchase Bills (AP) ──────────────────────────────────────────────────────
+
+    private static readonly Guid BillAwsMarch       = new("b8000008-0000-0000-0000-000000000001");
+    private static readonly Guid BillAwsApril        = new("b8000008-0000-0000-0000-000000000002");
+    private static readonly Guid BillLinkedInMarch   = new("b8000008-0000-0000-0000-000000000003");
+    private static readonly Guid BillEtisalatMarch   = new("b8000008-0000-0000-0000-000000000004");
+    private static readonly Guid BillInsuranceMarch  = new("b8000008-0000-0000-0000-000000000005");
+    private static readonly Guid BillDewaApril       = new("b8000008-0000-0000-0000-000000000006");
+
+    private static async Task SeedPurchaseBillsAsync(FinanceDbContext db)
+    {
+        var existing = await db.PurchaseBills.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        // (id, supplier, billDate, dueDate, taxRate, status, [(desc, qty, price)])
+        var bills = new (Guid id, string supplier, string billDate, string dueDate, decimal taxRate, string status, (string desc, decimal qty, decimal price)[] items)[]
+        {
+            (BillAwsMarch,      "Amazon Web Services",  "2026-03-05", "2026-04-05", 5m, "paid",
+                new[] { ("Cloud Hosting — March", 1m, 8500m) }),
+            (BillAwsApril,      "Amazon Web Services",  "2026-04-05", "2026-05-05", 5m, "partially_paid",
+                new[] { ("Cloud Hosting — April", 1m, 9200m) }),
+            (BillLinkedInMarch, "LinkedIn",              "2026-03-07", "2026-04-07", 5m, "paid",
+                new[] { ("Recruiter Seats — Q1", 1m, 12000m) }),
+            (BillEtisalatMarch, "Etisalat Business",     "2026-03-15", "2026-04-15", 5m, "draft",
+                new[] { ("Business Internet & Lines — March", 1m, 2800m) }),
+            (BillInsuranceMarch,"Al Futtaim Insurance",  "2026-03-20", "2026-04-20", 0m, "approved",
+                new[] { ("Annual Insurance Premium", 1m, 22000m) }),
+            (BillDewaApril,     "DEWA",                  "2026-04-20", "2026-05-20", 0m, "cancelled",
+                new[] { ("Electricity — April (disputed)", 1m, 3200m) }),
+        };
+
+        var itemCounter = 1;
+        foreach (var (id, supplier, billDate, dueDate, taxRate, status, items) in bills)
+        {
+            if (existing.Contains(id)) continue;
+
+            var supplierId = SupplierIdByName[supplier];
+            var bill = new PurchaseBill(supplierId, supplier, billDate, dueDate, taxRate, null, null);
+            SetId(bill, id);
+
+            foreach (var (desc, qty, price) in items)
+            {
+                var itemId = new Guid($"b9{itemCounter++:000000}-0000-0000-0000-000000000001");
+                var item = new PurchaseBillItem(id, desc, qty, price);
+                SetId(item, itemId);
+                db.PurchaseBillItems.Add(item);
+            }
+
+            // "paid"/"partially_paid" are reached via RecordPayment in SeedPaymentVouchersAsync —
+            // here we only set up the statuses that don't require a payment voucher.
+            if (status is "approved" or "paid" or "partially_paid")
+                bill.Approve();
+            else if (status == "cancelled")
+                bill.Cancel();
+
+            db.PurchaseBills.Add(bill);
+        }
+    }
+
+    // ── Payment Vouchers (AP) ────────────────────────────────────────────────────
+
+    private static async Task SeedPaymentVouchersAsync(FinanceDbContext db)
+    {
+        var existing = await db.PaymentVouchers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        // (id, supplier, paymentDate, amount, paymentMethod, status, [(billId, amountApplied)])
+        var vouchers = new (Guid id, string supplier, string paymentDate, decimal amount, string method, string status, (Guid billId, decimal amount)[] allocations)[]
+        {
+            (new Guid("ba00000a-0000-0000-0000-000000000001"), "Amazon Web Services", "2026-03-10", 8925m,  "bank_transfer", "posted",
+                new[] { (BillAwsMarch, 8925m) }),
+            (new Guid("ba00000a-0000-0000-0000-000000000002"), "Amazon Web Services", "2026-04-12", 5000m,  "bank_transfer", "posted",
+                new[] { (BillAwsApril, 5000m) }),
+            (new Guid("ba00000a-0000-0000-0000-000000000003"), "LinkedIn",            "2026-03-12", 12600m, "card",          "posted",
+                new[] { (BillLinkedInMarch, 12600m) }),
+            (new Guid("ba00000a-0000-0000-0000-000000000004"), "Al Futtaim Insurance","2026-04-02",  10000m, "bank_transfer", "draft",
+                new[] { (BillInsuranceMarch, 10000m) }),
+        };
+
+        foreach (var (id, supplier, paymentDate, amount, method, status, allocations) in vouchers)
+        {
+            if (existing.Contains(id)) continue;
+
+            var supplierId = SupplierIdByName[supplier];
+            var voucher = new PaymentVoucher(supplierId, supplier, paymentDate, amount, method, null, null, null);
+            SetId(voucher, id);
+
+            foreach (var (billId, applied) in allocations)
+                voucher.Allocations.Add(new PaymentAllocation(id, billId, applied));
+
+            db.PaymentVouchers.Add(voucher);
+
+            if (status == "posted")
+            {
+                foreach (var (billId, applied) in allocations)
+                {
+                    var bill = await db.PurchaseBills.FirstAsync(x => x.Id == billId);
+                    bill.RecordPayment(applied);
+                }
+                voucher.Post();
+            }
         }
     }
 

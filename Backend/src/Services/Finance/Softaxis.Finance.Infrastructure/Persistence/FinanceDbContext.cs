@@ -25,6 +25,10 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<Currency>             Currencies            => Set<Currency>();
     public DbSet<Customer>             Customers             => Set<Customer>();
     public DbSet<Supplier>             Suppliers             => Set<Supplier>();
+    public DbSet<PurchaseBill>         PurchaseBills         => Set<PurchaseBill>();
+    public DbSet<PurchaseBillItem>     PurchaseBillItems     => Set<PurchaseBillItem>();
+    public DbSet<PaymentVoucher>       PaymentVouchers       => Set<PaymentVoucher>();
+    public DbSet<PaymentAllocation>    PaymentAllocations    => Set<PaymentAllocation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
