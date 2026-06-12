@@ -53,6 +53,7 @@ const VendorsPage          = React.lazy(() => import("@/pages/purchase/vendors")
 const PurchaseOrdersPage   = React.lazy(() => import("@/pages/purchase/orders"));
 const ApprovalsPage        = React.lazy(() => import("@/pages/purchase/approvals"));
 const GrnPage              = React.lazy(() => import("@/pages/purchase/grn"));
+const PurchaseReturnsPage  = React.lazy(() => import("@/pages/purchase/returns"));
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 const WarehousesPage       = React.lazy(() => import("@/pages/inventory/warehouses"));
@@ -265,6 +266,7 @@ export function App() {
             <Route path="/purchase/vendors"   element={<VendorsPage />} />
             <Route path="/purchase/orders"    element={<PurchaseOrdersPage />} />
             <Route path="/purchase/grn"       element={<GrnPage />} />
+            <Route path="/purchase/returns"   element={<PurchaseReturnsPage />} />
             <Route path="/purchase/approvals" element={<ApprovalsPage />} />
           </Route>
 

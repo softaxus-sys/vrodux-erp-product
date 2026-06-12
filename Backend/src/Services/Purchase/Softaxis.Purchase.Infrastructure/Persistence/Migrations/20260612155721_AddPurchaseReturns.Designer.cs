@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Softaxis.Purchase.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Softaxis.Purchase.Infrastructure.Persistence;
 namespace Softaxis.Purchase.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(PurchaseDbContext))]
-    partial class PurchaseDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612155721_AddPurchaseReturns")]
+    partial class AddPurchaseReturns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

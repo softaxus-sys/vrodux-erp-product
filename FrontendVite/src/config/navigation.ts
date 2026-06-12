@@ -298,6 +298,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "PackageCheck",
           },
           {
+            id: "purchase-returns",
+            label: "Purchase Returns",
+            labelAr: "مرتجعات المشتريات",
+            href: "/purchase/returns",
+            icon: "RotateCcw",
+          },
+          {
             id: "approvals",
             label: "Approvals",
             labelAr: "الموافقات",

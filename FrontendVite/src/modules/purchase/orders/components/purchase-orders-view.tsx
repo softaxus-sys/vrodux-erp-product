@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  ShoppingBag, FileText, Send, CheckCircle2, Package, Ban, PackageCheck,
+  ShoppingBag, FileText, Send, CheckCircle2, Package, Ban, PackageCheck, RotateCcw,
   Search, Plus, DollarSign, Calendar, AlertCircle, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import type { PurchaseOrderSummaryDto } from "@/lib/pos/types";
 import { PurchaseOrderDrawer } from "./purchase-order-drawer";
 import { AddPurchaseOrderForm } from "./add-purchase-order-form";
 import { CreateGrnForm } from "@/modules/purchase/grn/components/create-grn-form";
+import { CreatePurchaseReturnForm } from "@/modules/purchase/returns/components/create-purchase-return-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -39,6 +40,8 @@ export function PurchaseOrdersView() {
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [grnOrderId, setGrnOrderId]   = React.useState<string | null>(null);
   const [grnOpen, setGrnOpen]         = React.useState(false);
+  const [returnOrderId, setReturnOrderId] = React.useState<string | null>(null);
+  const [returnOpen, setReturnOpen]       = React.useState(false);
 
   const { data, isLoading } = usePurchaseOrders({
     page,
@@ -49,6 +52,7 @@ export function PurchaseOrdersView() {
 
   const updateStatus = useUpdatePurchaseOrderStatus();
   const { data: grnOrder } = usePurchaseOrder(grnOrderId);
+  const { data: returnOrder } = usePurchaseOrder(returnOrderId);
   const items = data?.items ?? [];
 
   const stats = React.useMemo(() => ({
@@ -193,6 +197,12 @@ export function PurchaseOrdersView() {
                           <PackageCheck className="h-3 w-3" />Receive
                         </Button>
                       )}
+                      {(po.status === "received" || po.status === "partial") && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ml-1.5"
+                          onClick={() => { setReturnOrderId(po.id); setReturnOpen(true); }}>
+                          <RotateCcw className="h-3 w-3" />Return
+                        </Button>
+                      )}
                     </td>
                   </motion.tr>
                 );
@@ -216,6 +226,7 @@ export function PurchaseOrdersView() {
       <PurchaseOrderDrawer order={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AddPurchaseOrderForm open={showAddForm} onClose={() => setShowAddForm(false)} />
       <CreateGrnForm order={grnOrder ?? null} open={grnOpen} onClose={() => { setGrnOpen(false); setGrnOrderId(null); }} />
+      <CreatePurchaseReturnForm order={returnOrder ?? null} open={returnOpen} onClose={() => { setReturnOpen(false); setReturnOrderId(null); }} />
     </div>
   );
 }

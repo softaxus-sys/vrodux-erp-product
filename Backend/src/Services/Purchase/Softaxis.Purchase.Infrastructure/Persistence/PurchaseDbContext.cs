@@ -14,6 +14,8 @@ public sealed class PurchaseDbContext(DbContextOptions<PurchaseDbContext> option
     public DbSet<PurchaseApprovalItem> PurchaseApprovalItems => Set<PurchaseApprovalItem>();
     public DbSet<GoodsReceiptNote>     GoodsReceiptNotes     => Set<GoodsReceiptNote>();
     public DbSet<GoodsReceiptNoteItem> GoodsReceiptNoteItems => Set<GoodsReceiptNoteItem>();
+    public DbSet<PurchaseReturn>     PurchaseReturns     => Set<PurchaseReturn>();
+    public DbSet<PurchaseReturnItem> PurchaseReturnItems => Set<PurchaseReturnItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
