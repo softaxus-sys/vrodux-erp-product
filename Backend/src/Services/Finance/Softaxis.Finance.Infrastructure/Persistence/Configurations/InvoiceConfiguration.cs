@@ -40,6 +40,11 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
                .WithOne(x => x.Invoice)
                .HasForeignKey(x => x.InvoiceId)
                .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Customer>()
+               .WithMany()
+               .HasForeignKey(x => x.CustomerId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

@@ -26,6 +26,7 @@ public sealed class Invoice
 
     public Guid      Id            { get; private set; }
     public string    InvoiceNumber { get; private set; } = string.Empty;
+    public Guid?     CustomerId    { get; private set; }
     public string    CustomerName  { get; private set; } = string.Empty;
     public string?   CustomerEmail { get; private set; }
     public string    InvoiceDate   { get; private set; } = string.Empty;
@@ -80,6 +81,8 @@ public sealed class Invoice
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
+
+    public void SetCustomerId(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
 }
 
 public sealed class InvoiceItem

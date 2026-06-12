@@ -33,5 +33,10 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.Category);
         builder.HasIndex(x => x.ExpenseDate);
+
+        builder.HasOne<Supplier>()
+               .WithMany()
+               .HasForeignKey(x => x.SupplierId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -19,6 +19,9 @@ public static class FinanceSeedData
         await db.SaveChangesAsync();
         await SeedAccountsAsync(db);
         await db.SaveChangesAsync();
+        await SeedCustomersAsync(db);
+        await SeedSuppliersAsync(db);
+        await db.SaveChangesAsync();
         await SeedExpensesAsync(db);
         await db.SaveChangesAsync();
         await SeedInvoicesAsync(db);
@@ -186,6 +189,71 @@ public static class FinanceSeedData
         }
     }
 
+    // ── Customers (AR) ────────────────────────────────────────────────────────
+
+    private static readonly Dictionary<string, Guid> CustomerIdByName = new()
+    {
+        ["Emirates NBD"]              = new("c1000001-0000-0000-0000-000000000001"),
+        ["Abu Dhabi Commercial Bank"] = new("c1000001-0000-0000-0000-000000000002"),
+        ["Majid Al Futtaim"]          = new("c1000001-0000-0000-0000-000000000003"),
+        ["DEWA"]                      = new("c1000001-0000-0000-0000-000000000004"),
+        ["Etisalat"]                  = new("c1000001-0000-0000-0000-000000000005"),
+        ["Dubai Properties"]          = new("c1000001-0000-0000-0000-000000000006"),
+        ["Carrefour UAE"]             = new("c1000001-0000-0000-0000-000000000007"),
+        ["ADNOC"]                     = new("c1000001-0000-0000-0000-000000000008"),
+    };
+
+    private static async Task SeedCustomersAsync(FinanceDbContext db)
+    {
+        var existing = await db.Customers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        var emailByName = new Dictionary<string, string>
+        {
+            ["Emirates NBD"]              = "accounts@emiratesnbd.com",
+            ["Abu Dhabi Commercial Bank"] = "finance@adcb.com",
+            ["Majid Al Futtaim"]          = "it@maf.ae",
+            ["DEWA"]                      = "procurement@dewa.gov.ae",
+            ["Etisalat"]                  = "enterprise@etisalat.ae",
+            ["Dubai Properties"]          = "billing@dubaiproperties.ae",
+            ["Carrefour UAE"]             = "it@carrefour.ae",
+            ["ADNOC"]                     = "erp@adnoc.ae",
+        };
+
+        foreach (var (name, id) in CustomerIdByName)
+        {
+            if (existing.Contains(id)) continue;
+            var customer = new Customer(name, emailByName[name], null, null, AccAccountsRec);
+            SetId(customer, id);
+            db.Customers.Add(customer);
+        }
+    }
+
+    // ── Suppliers (AP) ───────────────────────────────────────────────────────
+
+    private static readonly Dictionary<string, Guid> SupplierIdByName = new()
+    {
+        ["Amazon Web Services"]  = new("c2000002-0000-0000-0000-000000000001"),
+        ["LinkedIn"]             = new("c2000002-0000-0000-0000-000000000002"),
+        ["Etisalat Business"]    = new("c2000002-0000-0000-0000-000000000003"),
+        ["Al Futtaim Insurance"] = new("c2000002-0000-0000-0000-000000000004"),
+        ["DEWA"]                 = new("c2000002-0000-0000-0000-000000000005"),
+    };
+
+    private static async Task SeedSuppliersAsync(FinanceDbContext db)
+    {
+        var existing = await db.Suppliers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        foreach (var (name, id) in SupplierIdByName)
+        {
+            if (existing.Contains(id)) continue;
+            var supplier = new Supplier(name, null, null, null, AccAccountsPay);
+            SetId(supplier, id);
+            db.Suppliers.Add(supplier);
+        }
+    }
+
     // ── Expenses ──────────────────────────────────────────────────────────────
 
     private static async Task SeedExpensesAsync(FinanceDbContext db)
@@ -215,12 +283,26 @@ public static class FinanceSeedData
             (new Guid("b2000002-0000-0000-0000-000000000018"), "Client Entertaining — Q2",      "Marketing",  3200m,   "2026-05-20", "Omar Abdullah",      "cash",          "approved"),
         };
 
+        var supplierByTitleKeyword = new (string keyword, string supplier)[]
+        {
+            ("AWS",          "Amazon Web Services"),
+            ("LinkedIn",     "LinkedIn"),
+            ("Electricity",  "DEWA"),
+            ("Telephone",    "Etisalat Business"),
+            ("Insurance",    "Al Futtaim Insurance"),
+        };
+
         foreach (var (id, title, category, amount, date, paidBy, method, status) in expenses)
         {
             if (existing.Contains(id)) continue;
             var exp = new Expense(title, category, amount, date, paidBy, method, null, null);
             SetId(exp, id);
             if (status == "approved") exp.Approve(FinanceManagerId);
+
+            var match = supplierByTitleKeyword.FirstOrDefault(s => title.Contains(s.keyword, StringComparison.OrdinalIgnoreCase));
+            if (match.supplier is not null)
+                exp.SetSupplierId(SupplierIdByName[match.supplier]);
+
             db.Expenses.Add(exp);
         }
     }
@@ -261,6 +343,8 @@ public static class FinanceSeedData
             // Correct constructor: (customerName, customerEmail, invoiceDate, dueDate, taxRate, notes)
             var inv = new Invoice(customer, email, date, dueDate, 5m, null);
             SetId(inv, id);
+            if (CustomerIdByName.TryGetValue(customer, out var customerId))
+                inv.SetCustomerId(customerId);
 
             foreach (var (desc, qty, price) in items)
             {

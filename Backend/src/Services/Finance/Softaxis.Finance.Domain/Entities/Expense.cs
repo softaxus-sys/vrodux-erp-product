@@ -30,6 +30,7 @@ public sealed class Expense
 
     public Guid      Id            { get; private set; }
     public string    ExpenseNumber { get; private set; } = string.Empty;
+    public Guid?     SupplierId    { get; private set; }
     public string    Title         { get; private set; } = string.Empty;
     public string    Category      { get; private set; } = string.Empty;
     public decimal   Amount        { get; private set; }
@@ -85,4 +86,6 @@ public sealed class Expense
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
+
+    public void SetSupplierId(Guid? supplierId) { SupplierId = supplierId; UpdatedAt = DateTime.UtcNow; }
 }
