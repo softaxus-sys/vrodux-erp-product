@@ -1,16 +1,17 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  ShoppingBag, FileText, Send, CheckCircle2, Package, Ban,
+  ShoppingBag, FileText, Send, CheckCircle2, Package, Ban, PackageCheck,
   Search, Plus, DollarSign, Calendar, AlertCircle, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { usePurchaseOrders, useUpdatePurchaseOrderStatus } from "@/hooks/purchase/use-purchase-orders";
+import { usePurchaseOrders, usePurchaseOrder, useUpdatePurchaseOrderStatus } from "@/hooks/purchase/use-purchase-orders";
 import type { PurchaseOrderSummaryDto } from "@/lib/pos/types";
 import { PurchaseOrderDrawer } from "./purchase-order-drawer";
 import { AddPurchaseOrderForm } from "./add-purchase-order-form";
+import { CreateGrnForm } from "@/modules/purchase/grn/components/create-grn-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -36,6 +37,8 @@ export function PurchaseOrdersView() {
   const [selected, setSelected]       = React.useState<PurchaseOrderSummaryDto | null>(null);
   const [drawerOpen, setDrawerOpen]   = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [grnOrderId, setGrnOrderId]   = React.useState<string | null>(null);
+  const [grnOpen, setGrnOpen]         = React.useState(false);
 
   const { data, isLoading } = usePurchaseOrders({
     page,
@@ -45,6 +48,7 @@ export function PurchaseOrdersView() {
   });
 
   const updateStatus = useUpdatePurchaseOrderStatus();
+  const { data: grnOrder } = usePurchaseOrder(grnOrderId);
   const items = data?.items ?? [];
 
   const stats = React.useMemo(() => ({
@@ -183,10 +187,10 @@ export function PurchaseOrdersView() {
                           <Send className="h-3 w-3" />Send
                         </Button>
                       )}
-                      {po.status === "sent" && (
-                        <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90" disabled={updateStatus.isPending}
-                          onClick={() => updateStatus.mutate({ id: po.id, status: "received" })}>
-                          <CheckCircle2 className="h-3 w-3" />Receive
+                      {(po.status === "sent" || po.status === "partial") && (
+                        <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90"
+                          onClick={() => { setGrnOrderId(po.id); setGrnOpen(true); }}>
+                          <PackageCheck className="h-3 w-3" />Receive
                         </Button>
                       )}
                     </td>
@@ -211,6 +215,7 @@ export function PurchaseOrdersView() {
 
       <PurchaseOrderDrawer order={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AddPurchaseOrderForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <CreateGrnForm order={grnOrder ?? null} open={grnOpen} onClose={() => { setGrnOpen(false); setGrnOrderId(null); }} />
     </div>
   );
 }

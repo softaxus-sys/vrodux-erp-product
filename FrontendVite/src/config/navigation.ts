@@ -291,6 +291,13 @@ export const navigationConfig: NavGroup[] = [
             badgeVariant: "default",
           },
           {
+            id: "grn",
+            label: "Goods Receipt Notes",
+            labelAr: "إشعارات استلام البضائع",
+            href: "/purchase/grn",
+            icon: "PackageCheck",
+          },
+          {
             id: "approvals",
             label: "Approvals",
             labelAr: "الموافقات",
