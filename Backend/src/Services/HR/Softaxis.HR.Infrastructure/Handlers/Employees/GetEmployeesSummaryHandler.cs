@@ -29,14 +29,18 @@ internal sealed class GetEmployeesSummaryHandler(HrDbContext db)
             .AsNoTracking()
             .CountAsync(x => x.JoiningDate.StartsWith(joiningThisMonthPrefix), ct);
 
-        var byDepartment = await db.Employees
+        var byDepartmentRaw = await db.Employees
             .AsNoTracking()
             .Where(x => x.Status == "active" && x.DepartmentName != null)
             .GroupBy(x => x.DepartmentName!)
-            .Select(g => new DepartmentCountDto(g.Key, g.Count()))
+            .Select(g => new { Department = g.Key, Count = g.Count() })
             .OrderByDescending(g => g.Count)
             .Take(10)
             .ToListAsync(ct);
+
+        var byDepartment = byDepartmentRaw
+            .Select(g => new DepartmentCountDto(g.Department, g.Count))
+            .ToList();
 
         return Result.Success(new EmployeesSummaryDto(
             total, active, inactive, terminated, newHiresThisMonth, byDepartment,
