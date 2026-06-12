@@ -25,12 +25,21 @@ export interface EscPosReceiptParams {
   tendered:       number;
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** ISO 4217 default decimal precision for a currency (e.g. BHD/KWD/OMR = 3, JPY = 0, most = 2). */
+function getCurrencyDecimals(currency: string): number {
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency: currency || "AED" }).resolvedOptions().maximumFractionDigits;
+  } catch {
+    return 2;
+  }
+}
+
+function fmt(n: number, decimals: number): string {
+  return n.toLocaleString("en", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function money(n: number, currency: string): string {
-  return `${currency} ${fmt(n)}`;
+  return `${currency} ${fmt(n, getCurrencyDecimals(currency))}`;
 }
 
 function nowStr(): string {
@@ -47,7 +56,9 @@ function nowStr(): string {
 export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
   const COLS = 48;
   const esc  = new EscPos(COLS);
+  const decimals = getCurrencyDecimals(p.currency);
   const m    = (n: number) => money(n, p.currency);
+  const f    = (n: number) => fmt(n, decimals);
 
   // ── Header ────────────────────────────────────────────────────────────────────
   esc
@@ -77,7 +88,7 @@ export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
   for (const item of p.cart) {
     const name   = item.name.substring(0, itemCols).padEnd(itemCols);
     const qty    = String(item.quantity).padStart(6);
-    const amount = fmt(item.total).padStart(10);
+    const amount = f(item.total).padStart(10);
     esc.text(name + qty + amount + "\n");
 
     // Unit price on second line

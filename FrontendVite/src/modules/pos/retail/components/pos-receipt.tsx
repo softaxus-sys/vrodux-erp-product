@@ -131,8 +131,18 @@ function getCountryCode(country?: string | null, currency?: string | null): stri
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** ISO 4217 default decimal precision for a currency (e.g. BHD/KWD/OMR = 3, JPY = 0, most = 2). */
+function getCurrencyDecimals(currency: string): number {
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency: currency || "AED" }).resolvedOptions().maximumFractionDigits;
+  } catch {
+    return 2;
+  }
+}
+
 function fmtMoney(n: number, currency: string): string {
-  return `${currency} ${n.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const decimals = getCurrencyDecimals(currency);
+  return `${currency} ${n.toLocaleString("en", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`.trim();
 }
 
 function fmtDate(locale: string): string {
@@ -214,10 +224,10 @@ function PakistanReceipt({
               <span className="flex-1 leading-tight">{item.name}</span>
               <span className="w-7 text-center shrink-0">{item.quantity}</span>
               <span className="w-14 text-right shrink-0">
-                {item.price.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {item.price.toLocaleString("en", { minimumFractionDigits: getCurrencyDecimals(cfg.currency), maximumFractionDigits: getCurrencyDecimals(cfg.currency) })}
               </span>
               <span className="w-16 text-right shrink-0">
-                {item.total.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {item.total.toLocaleString("en", { minimumFractionDigits: getCurrencyDecimals(cfg.currency), maximumFractionDigits: getCurrencyDecimals(cfg.currency) })}
               </span>
             </div>
             {item.taxRate > 0 && (
@@ -346,10 +356,10 @@ function UAEReceipt({
             <span className="flex-1 leading-tight">{item.name}</span>
             <span className="w-7 text-center shrink-0">{item.quantity}</span>
             <span className="w-16 text-right shrink-0">
-              {lineExclVAT.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {lineExclVAT.toLocaleString("en", { minimumFractionDigits: getCurrencyDecimals(cfg.currency), maximumFractionDigits: getCurrencyDecimals(cfg.currency) })}
             </span>
             <span className="w-14 text-right shrink-0 text-gray-500">
-              {lineVAT.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {lineVAT.toLocaleString("en", { minimumFractionDigits: getCurrencyDecimals(cfg.currency), maximumFractionDigits: getCurrencyDecimals(cfg.currency) })}
             </span>
           </div>
         );
@@ -495,7 +505,7 @@ export function PosReceipt(props: PosReceiptProps) {
           </motion.div>
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-80">Payment Successful</p>
           <p className="text-2xl font-black mt-1">
-            {cfg.currency} {props.total.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {cfg.currency} {props.total.toLocaleString("en", { minimumFractionDigits: getCurrencyDecimals(cfg.currency), maximumFractionDigits: getCurrencyDecimals(cfg.currency) })}
           </p>
           <p className="text-[11px] opacity-70 mt-0.5">{props.paymentMethod}</p>
           {/* Country badge */}
