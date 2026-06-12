@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { BookingDto as Booking, BookingStatus, BookingSource } from "@/lib/hospitality/hospitality.api";
 import { useBookings, useBookingsSummary } from "@/hooks/hospitality/use-hospitality";
 import { AddBookingForm } from "./add-booking-form";
@@ -28,6 +29,7 @@ const ROOM_TYPE_LABELS = {
 };
 
 function BookingDrawer({ booking, open, onClose }: { booking: Booking | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   if (!booking) return null;
   const sc = STATUS_CONFIG[booking.status];
   const balanceDue = booking.balance > 0;
@@ -59,22 +61,22 @@ function BookingDrawer({ booking, open, onClose }: { booking: Booking | null; op
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Rate / Night</p>
-                <p className="font-bold text-sm text-primary">{formatCurrency(booking.ratePerNight, "AED")}</p>
+                <p className="font-bold text-sm text-primary">{formatCurrency(booking.ratePerNight, currency)}</p>
                 <p className="text-[10px] text-muted-foreground">{booking.nights} nights</p>
               </div>
               <div className="bg-success/5 border border-success/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Paid</p>
-                <p className="font-bold text-sm text-success">{formatCurrency(booking.paidAmount, "AED")}</p>
+                <p className="font-bold text-sm text-success">{formatCurrency(booking.paidAmount, currency)}</p>
               </div>
               <div className={cn("border rounded-xl p-3 text-center", balanceDue ? "bg-warning/5 border-warning/20" : "bg-muted/30")}>
                 <p className="text-[10px] text-muted-foreground">Balance</p>
-                <p className={cn("font-bold text-sm", balanceDue ? "text-warning" : "text-success")}>{formatCurrency(booking.balance, "AED")}</p>
+                <p className={cn("font-bold text-sm", balanceDue ? "text-warning" : "text-success")}>{formatCurrency(booking.balance, currency)}</p>
                 <p className="text-[10px] text-muted-foreground">{balanceDue ? "Due" : "Settled"}</p>
               </div>
             </div>
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Total Booking Value</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(booking.totalAmount, "AED")}</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(booking.totalAmount, currency)}</p>
             </div>
             {/* Stay Details */}
             <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">
@@ -125,6 +127,7 @@ const STATUS_FILTER_LABELS: Record<typeof STATUS_FILTERS[number], string> = {
 };
 
 export function BookingsView() {
+  const currency = useCurrency();
   const { data: bookings = [] } = useBookings();
   const { data: bookingsSummary } = useBookingsSummary();
 
@@ -149,7 +152,7 @@ export function BookingsView() {
     { label: "Checked In", value: bookingsSummary?.checkedIn ?? bookings.filter(b => b.status === "checked_in").length, icon: BedDouble, color: "text-success", bg: "bg-success/10" },
     { label: "Arriving Today", value: bookingsSummary?.confirmed ?? bookings.filter(b => b.status === "confirmed").length, icon: LogIn, color: "text-primary", bg: "bg-primary/10" },
     { label: "Occupancy", value: `${bookingsSummary?.occupancyRate ?? 0}%`, icon: Users, color: "text-warning", bg: "bg-warning/10" },
-    { label: "Revenue", value: formatCurrency(bookingsSummary?.totalRevenue ?? 0, "AED"), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
+    { label: "Revenue", value: formatCurrency(bookingsSummary?.totalRevenue ?? 0, currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
   ];
 
   return (
@@ -173,7 +176,7 @@ export function BookingsView() {
       {(bookingsSummary?.outstandingBalance ?? 0) > 0 && (
         <div className="flex items-center gap-2 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3 text-sm text-warning">
           <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>Outstanding balance of <strong>{formatCurrency(bookingsSummary!.outstandingBalance, "AED")}</strong> across active bookings.</span>
+          <span>Outstanding balance of <strong>{formatCurrency(bookingsSummary!.outstandingBalance, currency)}</strong> across active bookings.</span>
         </div>
       )}
       <div className="flex items-center gap-3 flex-wrap">
@@ -231,7 +234,7 @@ export function BookingsView() {
                     <span className="text-sm">{b.adults + b.children}</span>
                   </td>
                   <td className="px-4 py-3.5 text-right">
-                    <p className="font-semibold text-sm">{formatCurrency(b.totalAmount, "AED")}</p>
+                    <p className="font-semibold text-sm">{formatCurrency(b.totalAmount, currency)}</p>
                     {b.balance > 0 && <p className="text-[10px] text-warning">AED {b.balance.toLocaleString()} due</p>}
                   </td>
                   <td className="px-4 py-3.5 text-center">

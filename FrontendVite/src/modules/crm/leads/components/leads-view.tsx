@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LeadDrawer } from "./lead-drawer";
 import { AddLeadForm } from "./add-lead-form";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary } from "@/hooks/crm/use-crm";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -87,6 +88,7 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
 
 /* ── Kanban board ── */
 function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: Lead) => void }) {
+  const currency = useCurrency();
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
       {KANBAN_COLS.map(status => {
@@ -104,7 +106,7 @@ function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: L
                 </span>
               </div>
               <span className="text-[11px] font-semibold text-muted-foreground">
-                {colValue > 0 ? formatCurrency(colValue, "AED") : "—"}
+                {colValue > 0 ? formatCurrency(colValue, currency) : "—"}
               </span>
             </div>
             {/* Cards */}
@@ -205,7 +207,7 @@ export function LeadsView() {
           { label: "Qualified",         value: leadsSummary?.qualified ?? leads.filter(l=>l.status==="qualified").length, sub: "Hot leads", icon: Target, color: "text-success bg-success/10" },
           { label: "Contacted",         value: leadsSummary?.contacted ?? leads.filter(l=>l.status==="contacted").length, sub: "In follow-up", icon: TrendingUp, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
           { label: "Converted",         value: leadsSummary?.converted ?? leads.filter(l=>l.status==="converted").length, sub: "To deals", icon: CheckCircle2, color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-          { label: "Pipeline Value",    value: formatCurrency(leadsSummary?.totalEstimatedValue ?? leads.reduce((s,l)=>s+l.estimatedValue,0), "AED"), sub: "Est. value", icon: DollarSign, color: "text-warning bg-warning/10" },
+          { label: "Pipeline Value",    value: formatCurrency(leadsSummary?.totalEstimatedValue ?? leads.reduce((s,l)=>s+l.estimatedValue,0), currency), sub: "Est. value", icon: DollarSign, color: "text-warning bg-warning/10" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { InvoiceDto as Invoice, InvoiceStatus } from "@/lib/finance/finance.api";
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ interface InvoiceTableProps {
 }
 
 export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTableProps) {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [sortField, setSortField] = React.useState<SortField>("invoiceDate");
@@ -173,7 +175,7 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
                       </span>
                     </td>
                     <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                      {formatCurrency(inv.total, "AED")}
+                      {formatCurrency(inv.total, currency)}
                     </td>
                     <td className="px-4 py-3">
                       <InvoiceStatusBadge status={inv.status} />

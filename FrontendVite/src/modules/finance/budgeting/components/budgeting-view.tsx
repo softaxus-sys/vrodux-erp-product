@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { BudgetDto as Budget, BudgetStatus } from "@/lib/finance/finance.api";
 import { useBudgets, useBudgetingSummary } from "@/hooks/finance/use-finance";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -39,6 +40,7 @@ function UtilisationBar({ actual, budget }: { actual: number; budget: number }) 
 }
 
 function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void }) {
+  const currency = useCurrency();
   const variancePct = budget.totalBudgeted > 0
     ? ((budget.variance / budget.totalBudgeted) * 100).toFixed(1)
     : "0.0";
@@ -80,18 +82,18 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">Budgeted</p>
-              <p className="text-lg font-bold text-primary mt-1">{formatCurrency(budget.totalBudgeted, "AED")}</p>
+              <p className="text-lg font-bold text-primary mt-1">{formatCurrency(budget.totalBudgeted, currency)}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">Actual</p>
               <p className={cn("text-lg font-bold mt-1", budget.totalActual > budget.totalBudgeted ? "text-destructive" : "text-success")}>
-                {formatCurrency(budget.totalActual, "AED")}
+                {formatCurrency(budget.totalActual, currency)}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">Variance</p>
               <p className={cn("text-lg font-bold mt-1", budget.variance > 0 ? "text-destructive" : "text-success")}>
-                {budget.variance > 0 ? "+" : ""}{formatCurrency(Math.abs(budget.variance), "AED")}
+                {budget.variance > 0 ? "+" : ""}{formatCurrency(Math.abs(budget.variance), currency)}
               </p>
             </div>
           </div>
@@ -151,9 +153,9 @@ export function BudgetingView() {
   const utilisationPct = totalBudgeted > 0 ? ((totalActual / totalBudgeted) * 100).toFixed(1) : "0.0";
 
   const STAT_CARDS = [
-    { label: "Total Budgeted", value: formatCurrency(totalBudgeted, "AED"), icon: Target, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Actual Spend", value: formatCurrency(totalActual, "AED"), icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
-    { label: "Overall Variance", value: formatCurrency(budgetingSummary?.overallVariance ?? 0, "AED"), icon: TrendingDown, color: "text-success", bg: "bg-success/10" },
+    { label: "Total Budgeted", value: formatCurrency(totalBudgeted, currency), icon: Target, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Actual Spend", value: formatCurrency(totalActual, currency), icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
+    { label: "Overall Variance", value: formatCurrency(budgetingSummary?.overallVariance ?? 0, currency), icon: TrendingDown, color: "text-success", bg: "bg-success/10" },
     { label: "Deps Over Budget", value: budgetingSummary?.depsOverBudget ?? budgets.filter(b => b.totalActual > b.totalBudgeted).length, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
     { label: "Deps Under Budget", value: budgetingSummary?.depsUnderBudget ?? budgets.filter(b => b.totalActual <= b.totalBudgeted).length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
     { label: "Utilisation", value: `${budgetingSummary?.utilisation ?? utilisationPct}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
@@ -226,13 +228,13 @@ export function BudgetingView() {
                     <p className="text-xs text-muted-foreground capitalize">{budget.period} · {budget.lineCount} lines</p>
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                    {formatCurrency(budget.totalBudgeted, "AED")}
+                    {formatCurrency(budget.totalBudgeted, currency)}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-medium">
-                    {formatCurrency(budget.totalActual, "AED")}
+                    {formatCurrency(budget.totalActual, currency)}
                   </td>
                   <td className={cn("px-4 py-3 text-right text-sm font-semibold", budget.variance > 0 ? "text-destructive" : "text-success")}>
-                    {budget.variance > 0 ? "+" : ""}{formatCurrency(Math.abs(budget.variance), "AED")}
+                    {budget.variance > 0 ? "+" : ""}{formatCurrency(Math.abs(budget.variance), currency)}
                     <span className="text-xs ml-1">({Number(varPct) > 0 ? "+" : ""}{varPct}%)</span>
                   </td>
                   <td className="px-4 py-3">

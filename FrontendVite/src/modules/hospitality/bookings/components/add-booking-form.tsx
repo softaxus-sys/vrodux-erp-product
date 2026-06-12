@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 
 const ROOM_TYPES   = ["Standard", "Studio", "Deluxe", "Suite", "Penthouse"];
 const SOURCES      = ["Direct", "OTA", "Travel Agent", "Walk-in", "Corporate"];
@@ -17,6 +18,7 @@ interface AddBookingFormProps {
 }
 
 export function AddBookingForm({ open, onClose }: AddBookingFormProps) {
+  const currency = useCurrency();
   const [roomType, setRoomType]           = React.useState("Deluxe");
   const [source, setSource]               = React.useState("Direct");
   const [roomNumber, setRoomNumber]       = React.useState("");
@@ -199,7 +201,7 @@ export function AddBookingForm({ open, onClose }: AddBookingFormProps) {
                 {totalAmount > 0 && (
                   <div className="flex items-center justify-between mt-3 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-xl">
                     <span className="text-xs text-muted-foreground">Total ({nights} nights)</span>
-                    <span className="text-sm font-bold text-primary">{formatCurrency(totalAmount, "AED")}</span>
+                    <span className="text-sm font-bold text-primary">{formatCurrency(totalAmount, currency)}</span>
                   </div>
                 )}
               </div>

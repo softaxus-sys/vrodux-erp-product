@@ -4,6 +4,7 @@ import { X, Plus, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useAccounts, useCreateJournal } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ interface AddJournalFormProps {
 }
 
 export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
+  const currency = useCurrency();
   const { data: accounts = [] } = useAccounts({ isActive: true });
   const createJournal = useCreateJournal();
 
@@ -150,8 +152,8 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
               }`}>
                 <AlertCircle className="w-3.5 h-3.5" />
                 {isBalanced && totalDebit > 0
-                  ? `Balanced — ${formatCurrency(totalDebit, "AED")}`
-                  : `Out of balance — Dr: ${formatCurrency(totalDebit, "AED")} / Cr: ${formatCurrency(totalCredit, "AED")} (diff: ${formatCurrency(Math.abs(totalDebit - totalCredit), "AED")})`
+                  ? `Balanced — ${formatCurrency(totalDebit, currency)}`
+                  : `Out of balance — Dr: ${formatCurrency(totalDebit, currency)} / Cr: ${formatCurrency(totalCredit, currency)} (diff: ${formatCurrency(Math.abs(totalDebit - totalCredit), currency)})`
                 }
               </div>
 
@@ -232,8 +234,8 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                     <tfoot className="bg-muted/20 border-t border-border">
                       <tr>
                         <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground">Totals</td>
-                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalDebit, "AED")}</td>
-                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalCredit, "AED")}</td>
+                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalDebit, currency)}</td>
+                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalCredit, currency)}</td>
                         <td />
                       </tr>
                     </tfoot>

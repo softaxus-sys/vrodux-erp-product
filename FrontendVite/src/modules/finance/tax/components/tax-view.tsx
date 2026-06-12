@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { TaxPeriodDto as TaxPeriod } from "@/lib/finance/finance.api";
 import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod } from "@/hooks/finance/use-finance";
 
@@ -17,6 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeriod | null; open: boolean; onClose: () => void; taxTransactions: { id: string; date: string; type: "sale" | "purchase"; reference: string; amount: number; vatAmount: number; vatRate: number; description: string; period: string }[] }) {
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<"overview" | "sales" | "purchases">("overview");
   const fileReturn = useFileTaxPeriod();
   const payReturn  = usePayTaxPeriod();
@@ -60,17 +62,17 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-success/5 border border-success/20 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-muted-foreground mb-1">Output VAT</p>
-                    <p className="font-bold text-lg text-success">{formatCurrency(period.outputVat, "AED")}</p>
+                    <p className="font-bold text-lg text-success">{formatCurrency(period.outputVat, currency)}</p>
                     <p className="text-[10px] text-muted-foreground">From sales</p>
                   </div>
                   <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-muted-foreground mb-1">Input VAT</p>
-                    <p className="font-bold text-lg text-primary">{formatCurrency(period.inputVat, "AED")}</p>
+                    <p className="font-bold text-lg text-primary">{formatCurrency(period.inputVat, currency)}</p>
                     <p className="text-[10px] text-muted-foreground">From purchases</p>
                   </div>
                   <div className={cn("border rounded-xl p-4 text-center", period.netVat >= 0 ? "bg-warning/5 border-warning/20" : "bg-success/5 border-success/20")}>
                     <p className="text-[10px] text-muted-foreground mb-1">Net VAT</p>
-                    <p className={cn("font-bold text-lg", period.netVat >= 0 ? "text-warning" : "text-success")}>{formatCurrency(Math.abs(period.netVat), "AED")}</p>
+                    <p className={cn("font-bold text-lg", period.netVat >= 0 ? "text-warning" : "text-success")}>{formatCurrency(Math.abs(period.netVat), currency)}</p>
                     <p className="text-[10px] text-muted-foreground">{period.netVat >= 0 ? "Payable" : "Refundable"}</p>
                   </div>
                 </div>
@@ -78,7 +80,7 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
                   <div className="flex justify-between"><span className="text-muted-foreground">Filing Due</span><span className={cn(period.status === "overdue" ? "text-destructive font-semibold" : "")}>{formatDate(period.dueDate, "medium")}</span></div>
                   {period.filedDate && <div className="flex justify-between"><span className="text-muted-foreground">Filed On</span><span className="text-success">{formatDate(period.filedDate, "medium")}</span></div>}
                   {period.paidDate && <div className="flex justify-between"><span className="text-muted-foreground">Paid On</span><span className="text-success">{formatDate(period.paidDate, "medium")}</span></div>}
-                  {period.penalty && <div className="flex justify-between"><span className="text-muted-foreground">Penalty</span><span className="text-destructive font-semibold">{formatCurrency(period.penalty, "AED")}</span></div>}
+                  {period.penalty && <div className="flex justify-between"><span className="text-muted-foreground">Penalty</span><span className="text-destructive font-semibold">{formatCurrency(period.penalty, currency)}</span></div>}
                 </div>
               </>
             )}
@@ -100,8 +102,8 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
                           <p className="text-sm font-medium">{t.description}</p>
                           <p className="text-xs text-muted-foreground font-mono">{t.reference}</p>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm">{formatCurrency(t.amount, "AED")}</td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-warning">{formatCurrency(t.vatAmount, "AED")}</td>
+                        <td className="px-4 py-3 text-right text-sm">{formatCurrency(t.amount, currency)}</td>
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-warning">{formatCurrency(t.vatAmount, currency)}</td>
                       </motion.tr>
                     ))}
                   </tbody>
@@ -120,6 +122,7 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
 }
 
 export function TaxView() {
+  const currency = useCurrency();
   const { data: taxPeriods = [] } = useTaxPeriods();
   const { data: taxTransactions = [] } = useTaxTransactions();
   const { data: taxSummary } = useTaxSummary();
@@ -130,10 +133,10 @@ export function TaxView() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const STATS = [
-    { label: "Output VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodOutput ?? 0, "AED"), icon: ArrowUpRight, color: "text-success", bg: "bg-success/10" },
-    { label: "Input VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodInput ?? 0, "AED"), icon: ArrowDownRight, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Net VAT Payable", value: formatCurrency(taxSummary?.currentNetVat ?? 0, "AED"), icon: Receipt, color: "text-warning", bg: "bg-warning/10" },
-    { label: "YTD VAT Paid", value: formatCurrency(taxSummary?.ytdVatPaid ?? 0, "AED"), icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+    { label: "Output VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodOutput ?? 0, currency), icon: ArrowUpRight, color: "text-success", bg: "bg-success/10" },
+    { label: "Input VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodInput ?? 0, currency), icon: ArrowDownRight, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Net VAT Payable", value: formatCurrency(taxSummary?.currentNetVat ?? 0, currency), icon: Receipt, color: "text-warning", bg: "bg-warning/10" },
+    { label: "YTD VAT Paid", value: formatCurrency(taxSummary?.ytdVatPaid ?? 0, currency), icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
     { label: "Next Filing Due", value: taxSummary?.nextDueDate ? formatDate(taxSummary.nextDueDate, "short") : "—", icon: Calendar, color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
@@ -182,9 +185,9 @@ export function TaxView() {
                   className="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors cursor-pointer">
                   <td className="px-4 py-4 font-semibold text-sm">{p.period}</td>
                   <td className="px-4 py-4 text-sm text-muted-foreground hidden md:table-cell">{formatDate(p.from, "short")} — {formatDate(p.to, "short")}</td>
-                  <td className="px-4 py-4 text-right font-medium text-success text-sm">{formatCurrency(p.outputVat, "AED")}</td>
-                  <td className="px-4 py-4 text-right text-muted-foreground text-sm hidden lg:table-cell">{formatCurrency(p.inputVat, "AED")}</td>
-                  <td className="px-4 py-4 text-right font-bold text-sm">{formatCurrency(p.netVat, "AED")}</td>
+                  <td className="px-4 py-4 text-right font-medium text-success text-sm">{formatCurrency(p.outputVat, currency)}</td>
+                  <td className="px-4 py-4 text-right text-muted-foreground text-sm hidden lg:table-cell">{formatCurrency(p.inputVat, currency)}</td>
+                  <td className="px-4 py-4 text-right font-bold text-sm">{formatCurrency(p.netVat, currency)}</td>
                   <td className="px-4 py-4 text-sm text-muted-foreground hidden md:table-cell">
                     <span className={cn(p.status === "overdue" ? "text-destructive font-semibold" : "")}>{formatDate(p.dueDate, "short")}</span>
                   </td>

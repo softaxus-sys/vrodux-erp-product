@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { EmployeeStatusBadge } from "./employee-status-badge";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { EmployeeDto as Employee } from "@/lib/hr/hr.api";
 
 type Tab = "overview" | "documents" | "payroll" | "leave";
@@ -91,6 +92,7 @@ function OverviewTab({ emp }: { emp: Employee }) {
 }
 
 function PayrollTab({ emp }: { emp: Employee }) {
+  const currency = useCurrency();
   const allowances = [
     { label: "Housing Allowance", amount: Math.round(emp.basicSalary * 0.25) },
     { label: "Transport Allowance", amount: Math.round(emp.basicSalary * 0.1) },
@@ -105,13 +107,13 @@ function PayrollTab({ emp }: { emp: Employee }) {
       <div>
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Salary Structure</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          <InfoRow icon={Banknote} label="Basic Salary" value={<span className="font-bold">{formatCurrency(emp.basicSalary, "AED")}</span>} />
+          <InfoRow icon={Banknote} label="Basic Salary" value={<span className="font-bold">{formatCurrency(emp.basicSalary, currency)}</span>} />
           {allowances.map(a => (
-            <InfoRow key={a.label} icon={CreditCard} label={a.label} value={formatCurrency(a.amount, "AED")} />
+            <InfoRow key={a.label} icon={CreditCard} label={a.label} value={formatCurrency(a.amount, currency)} />
           ))}
           <div className="flex justify-between items-center pt-2 mt-1 border-t border-border">
             <span className="text-sm font-bold">Gross Salary</span>
-            <span className="text-sm font-bold text-primary">{formatCurrency(grossSalary, "AED")}</span>
+            <span className="text-sm font-bold text-primary">{formatCurrency(grossSalary, currency)}</span>
           </div>
         </div>
       </div>
@@ -142,7 +144,7 @@ function PayrollTab({ emp }: { emp: Employee }) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{formatCurrency(grossSalary, "AED")}</span>
+                <span className="text-sm font-semibold">{formatCurrency(grossSalary, currency)}</span>
                 <CheckCircle2 className="h-4 w-4 text-success" />
               </div>
             </div>

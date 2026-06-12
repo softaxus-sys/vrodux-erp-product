@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { ExpenseDto as Expense, ExpenseStatus } from "@/lib/finance/finance.api";
 import { useExpenses, useExpensesSummary, useApproveExpense, useRejectExpense, usePayExpense } from "@/hooks/finance/use-finance";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -182,6 +183,7 @@ function ExpenseDrawer({ expense, onClose }: { expense: Expense; onClose: () => 
 }
 
 export function ExpensesView() {
+  const currency = useCurrency();
   const { data: expenses = [] } = useExpenses();
   const { data: expensesSummary } = useExpensesSummary();
 
@@ -269,7 +271,7 @@ export function ExpensesView() {
             <p className="text-xs text-muted-foreground">{card.label}</p>
             <p className={cn("text-base font-bold leading-tight", card.color)}>
               {card.format === "currency"
-                ? formatCurrency(card.value as number, "AED")
+                ? formatCurrency(card.value as number, currency)
                 : card.value}
             </p>
           </motion.div>

@@ -4,6 +4,7 @@ import {
   CheckCircle2, AlertTriangle, BarChart3, BookOpen, Calendar, TrendingUp, X, Loader2,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { GLPeriod, TrialBalanceLine } from "@/lib/finance/finance.api";
 import { useTrialBalance, useGLSummary, useAccountLedger } from "@/hooks/finance/use-finance";
 
@@ -42,6 +43,7 @@ const PERIOD_LABELS: Record<GLPeriod, string> = {
 };
 
 export function GLView() {
+  const currency = useCurrency();
   const { data: trialBalance = [] } = useTrialBalance();
   const { data: glSummary } = useGLSummary();
 
@@ -77,8 +79,8 @@ export function GLView() {
 
   const isBalanced = glSummary?.isBalanced ?? true;
   const STAT_CARDS = [
-    { label: "Total Debits", value: formatCurrency(glSummary?.totalDebits ?? 0, "AED"), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Total Credits", value: formatCurrency(glSummary?.totalCredits ?? 0, "AED"), icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Total Debits", value: formatCurrency(glSummary?.totalDebits ?? 0, currency), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Total Credits", value: formatCurrency(glSummary?.totalCredits ?? 0, currency), icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
     {
       label: "Balance Status",
       value: isBalanced ? "Balanced" : "Unbalanced",
@@ -165,10 +167,10 @@ export function GLView() {
                 </span>
                 <div className="flex items-center gap-6 text-xs font-semibold">
                   <span className="text-muted-foreground">
-                    Dr: <span className="text-foreground">{formatCurrency(sub.debits, "AED")}</span>
+                    Dr: <span className="text-foreground">{formatCurrency(sub.debits, currency)}</span>
                   </span>
                   <span className="text-muted-foreground">
-                    Cr: <span className="text-foreground">{formatCurrency(sub.credits, "AED")}</span>
+                    Cr: <span className="text-foreground">{formatCurrency(sub.credits, currency)}</span>
                   </span>
                 </div>
               </div>
@@ -193,16 +195,16 @@ export function GLView() {
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{line.accountCode}</td>
                       <td className="px-4 py-3 text-sm font-medium">{line.accountName}</td>
                       <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                        {line.openingBalance !== 0 ? formatCurrency(line.openingBalance, "AED") : "—"}
+                        {line.openingBalance !== 0 ? formatCurrency(line.openingBalance, currency) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right text-sm">
-                        {line.totalDebits !== 0 ? formatCurrency(line.totalDebits, "AED") : "—"}
+                        {line.totalDebits !== 0 ? formatCurrency(line.totalDebits, currency) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right text-sm">
-                        {line.totalCredits !== 0 ? formatCurrency(line.totalCredits, "AED") : "—"}
+                        {line.totalCredits !== 0 ? formatCurrency(line.totalCredits, currency) : "—"}
                       </td>
                       <td className={cn("px-4 py-3 text-right text-sm font-bold", TYPE_BALANCE_COLOR[type])}>
-                        {formatCurrency(Math.abs(line.closingBalance), "AED")}
+                        {formatCurrency(Math.abs(line.closingBalance), currency)}
                         {line.closingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}
                       </td>
                     </tr>
@@ -213,10 +215,10 @@ export function GLView() {
                       {TYPE_LABELS[type]} Subtotal
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs font-bold"></td>
-                    <td className="px-4 py-2.5 text-right text-xs font-bold">{formatCurrency(sub.debits, "AED")}</td>
-                    <td className="px-4 py-2.5 text-right text-xs font-bold">{formatCurrency(sub.credits, "AED")}</td>
+                    <td className="px-4 py-2.5 text-right text-xs font-bold">{formatCurrency(sub.debits, currency)}</td>
+                    <td className="px-4 py-2.5 text-right text-xs font-bold">{formatCurrency(sub.credits, currency)}</td>
                     <td className={cn("px-4 py-2.5 text-right text-xs font-bold", TYPE_BALANCE_COLOR[type])}>
-                      {formatCurrency(Math.abs(sub.balance), "AED")}
+                      {formatCurrency(Math.abs(sub.balance), currency)}
                     </td>
                   </tr>
                 </tbody>
@@ -243,10 +245,10 @@ export function GLView() {
           </div>
           <div className="flex items-center gap-8 text-sm font-bold">
             <span className="text-muted-foreground">
-              Total Dr: <span className="text-foreground">{formatCurrency(grandTotalDebits, "AED")}</span>
+              Total Dr: <span className="text-foreground">{formatCurrency(grandTotalDebits, currency)}</span>
             </span>
             <span className="text-muted-foreground">
-              Total Cr: <span className="text-foreground">{formatCurrency(grandTotalCredits, "AED")}</span>
+              Total Cr: <span className="text-foreground">{formatCurrency(grandTotalCredits, currency)}</span>
             </span>
           </div>
         </div>
@@ -262,6 +264,7 @@ export function GLView() {
 }
 
 function AccountLedgerDrawer({ account, onClose }: { account: TrialBalanceLine; onClose: () => void }) {
+  const currency = useCurrency();
   const { data, isLoading } = useAccountLedger(account.accountId);
 
   return (
@@ -302,15 +305,15 @@ function AccountLedgerDrawer({ account, onClose }: { account: TrialBalanceLine; 
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-muted/30 rounded-xl p-3">
                   <p className="text-xs text-muted-foreground">Opening Balance</p>
-                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.openingBalance), "AED")}{data.openingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.openingBalance), currency)}{data.openingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
                 </div>
                 <div className="bg-muted/30 rounded-xl p-3">
                   <p className="text-xs text-muted-foreground">Total Dr / Cr</p>
-                  <p className="text-sm font-bold mt-1">{formatCurrency(data.totalDebits, "AED")} / {formatCurrency(data.totalCredits, "AED")}</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(data.totalDebits, currency)} / {formatCurrency(data.totalCredits, currency)}</p>
                 </div>
                 <div className="bg-muted/30 rounded-xl p-3">
                   <p className="text-xs text-muted-foreground">Closing Balance</p>
-                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.closingBalance), "AED")}{data.closingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.closingBalance), currency)}{data.closingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
                 </div>
               </div>
 
@@ -337,10 +340,10 @@ function AccountLedgerDrawer({ account, onClose }: { account: TrialBalanceLine; 
                           <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">{formatDate(entry.date)}</td>
                           <td className="px-3 py-2 text-xs font-mono">{entry.entryNumber}</td>
                           <td className="px-3 py-2 text-sm">{entry.description}</td>
-                          <td className="px-3 py-2 text-right text-sm">{entry.debit !== 0 ? formatCurrency(entry.debit, "AED") : "—"}</td>
-                          <td className="px-3 py-2 text-right text-sm">{entry.credit !== 0 ? formatCurrency(entry.credit, "AED") : "—"}</td>
+                          <td className="px-3 py-2 text-right text-sm">{entry.debit !== 0 ? formatCurrency(entry.debit, currency) : "—"}</td>
+                          <td className="px-3 py-2 text-right text-sm">{entry.credit !== 0 ? formatCurrency(entry.credit, currency) : "—"}</td>
                           <td className="px-3 py-2 text-right text-sm font-semibold">
-                            {formatCurrency(Math.abs(entry.runningBalance), "AED")}
+                            {formatCurrency(Math.abs(entry.runningBalance), currency)}
                             {entry.runningBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}
                           </td>
                         </tr>

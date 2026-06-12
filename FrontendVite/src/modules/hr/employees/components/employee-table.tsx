@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { EmployeeStatusBadge } from "./employee-status-badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { DEPARTMENTS, type EmployeeDto as Employee, type EmployeeStatus } from "@/lib/hr/hr.api";
 
 const STATUS_FILTERS: { label: string; value: string }[] = [
@@ -24,6 +25,7 @@ type SortDir = "asc" | "desc";
 interface Props { employees: Employee[]; onView: (e: Employee) => void; }
 
 export function EmployeeTable({ employees, onView }: Props) {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deptFilter, setDeptFilter] = React.useState("All Departments");
@@ -145,7 +147,7 @@ export function EmployeeTable({ employees, onView }: Props) {
                     <td className="px-4 py-3 text-sm">{emp.designation}</td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">{emp.branch}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{formatDate(emp.joinDate, "medium")}</td>
-                    <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(emp.basicSalary, "AED")}</td>
+                    <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(emp.basicSalary, currency)}</td>
                     <td className="px-4 py-3"><EmployeeStatusBadge status={emp.status} /></td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <DropdownMenu>

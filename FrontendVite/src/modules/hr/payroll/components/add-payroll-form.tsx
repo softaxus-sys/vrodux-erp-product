@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePayrollRun, useEmployees } from "@/hooks/hr/use-hr";
 import type { EmployeeDto } from "@/lib/hr/hr.api";
 
@@ -66,6 +67,7 @@ interface AddPayrollFormProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps) {
+  const currency = useCurrency();
   const PERIODS = React.useMemo(buildPeriodOptions, []);
 
   const createPayroll = useCreatePayrollRun();
@@ -374,7 +376,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                               <p className="text-[10px] text-muted-foreground">{row.jobTitle}</p>
                             </td>
                             <td className="px-4 py-2.5 text-xs text-muted-foreground">{row.departmentName || "—"}</td>
-                            <td className="px-4 py-2.5 text-sm font-medium">{formatCurrency(row.basicSalary, "AED")}</td>
+                            <td className="px-4 py-2.5 text-sm font-medium">{formatCurrency(row.basicSalary, currency)}</td>
 
                             {/* Allowances input */}
                             <td className="px-4 py-2.5">
@@ -406,7 +408,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
 
                             {/* Net salary */}
                             <td className="px-4 py-2.5 font-bold text-primary text-sm">
-                              {formatCurrency(net, "AED")}
+                              {formatCurrency(net, currency)}
                             </td>
                           </motion.tr>
                         );
@@ -421,14 +423,14 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                             {rows.length} Employees
                           </td>
                           <td />
-                          <td className="px-4 py-3 text-sm font-bold">{formatCurrency(totalBasic, "AED")}</td>
+                          <td className="px-4 py-3 text-sm font-bold">{formatCurrency(totalBasic, currency)}</td>
                           <td className="px-4 py-3 text-sm font-bold text-success">
-                            {totalAllowances > 0 ? `+ ${formatCurrency(totalAllowances, "AED")}` : "—"}
+                            {totalAllowances > 0 ? `+ ${formatCurrency(totalAllowances, currency)}` : "—"}
                           </td>
                           <td className="px-4 py-3 text-sm font-bold text-destructive">
-                            {totalDeductions > 0 ? `− ${formatCurrency(totalDeductions, "AED")}` : "—"}
+                            {totalDeductions > 0 ? `− ${formatCurrency(totalDeductions, currency)}` : "—"}
                           </td>
-                          <td className="px-4 py-3 text-base font-bold text-primary">{formatCurrency(totalNet, "AED")}</td>
+                          <td className="px-4 py-3 text-base font-bold text-primary">{formatCurrency(totalNet, currency)}</td>
                         </tr>
                       </tfoot>
                     )}
@@ -440,10 +442,10 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                   <div className="flex items-center gap-6 text-xs flex-wrap">
                     <span className="text-muted-foreground">Period: <span className="font-semibold text-foreground">{period}</span></span>
                     <span className="text-muted-foreground">Employees: <span className="font-semibold text-foreground">{rows.length}</span></span>
-                    <span className="text-muted-foreground">Basic: <span className="font-semibold text-foreground">{formatCurrency(totalBasic, "AED")}</span></span>
-                    {totalAllowances > 0 && <span className="text-muted-foreground">Allowances: <span className="font-semibold text-success">+{formatCurrency(totalAllowances, "AED")}</span></span>}
-                    {totalDeductions > 0 && <span className="text-muted-foreground">Deductions: <span className="font-semibold text-destructive">−{formatCurrency(totalDeductions, "AED")}</span></span>}
-                    <span className="ml-auto font-bold">Net Payroll: <span className="text-primary">{formatCurrency(totalNet, "AED")}</span></span>
+                    <span className="text-muted-foreground">Basic: <span className="font-semibold text-foreground">{formatCurrency(totalBasic, currency)}</span></span>
+                    {totalAllowances > 0 && <span className="text-muted-foreground">Allowances: <span className="font-semibold text-success">+{formatCurrency(totalAllowances, currency)}</span></span>}
+                    {totalDeductions > 0 && <span className="text-muted-foreground">Deductions: <span className="font-semibold text-destructive">−{formatCurrency(totalDeductions, currency)}</span></span>}
+                    <span className="ml-auto font-bold">Net Payroll: <span className="text-primary">{formatCurrency(totalNet, currency)}</span></span>
                   </div>
                 </div>
               </div>
@@ -471,7 +473,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                   className="gap-1.5"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  {createPayroll.isPending ? "Processing…" : `Run Payroll — ${formatCurrency(totalNet, "AED")}`}
+                  {createPayroll.isPending ? "Processing…" : `Run Payroll — ${formatCurrency(totalNet, currency)}`}
                 </Button>
               )}
             </div>

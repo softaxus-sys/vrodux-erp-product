@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { AccountDto as Account, AccountType } from "@/lib/finance/finance.api";
 import {
   useAccounts, useAccountingSummary,
@@ -57,6 +58,7 @@ function AccountDrawer({
   onEdit: (a: Account) => void;
   onDelete: (a: Account) => void;
 }) {
+  const currency = useCurrency();
   const parentAccount = account.parentId
     ? accounts.find((a) => a.id === account.parentId)
     : null;
@@ -109,7 +111,7 @@ function AccountDrawer({
           <div className="rounded-xl border border-border bg-card p-5">
             <p className="text-xs text-muted-foreground mb-1">Current Balance</p>
             <p className={cn("text-3xl font-bold", account.balance >= 0 ? "text-success" : "text-destructive")}>
-              {formatCurrency(Math.abs(account.balance), "AED")}
+              {formatCurrency(Math.abs(account.balance), currency)}
             </p>
             {account.balance < 0 && <p className="text-xs text-muted-foreground mt-1">Credit balance</p>}
           </div>
@@ -143,7 +145,7 @@ function AccountDrawer({
                       <span className="text-sm">{child.name}</span>
                     </div>
                     <span className={cn("text-sm font-semibold", TYPE_COLORS[child.accountType])}>
-                      {formatCurrency(child.balance, "AED")}
+                      {formatCurrency(child.balance, currency)}
                     </span>
                   </div>
                 ))}
@@ -312,6 +314,7 @@ function AccountFormModal({
 // ── Main View ──────────────────────────────────────────────────────────────────
 
 export function AccountingView() {
+  const currency = useCurrency();
   const { data: accounts = [] } = useAccounts();
 
   const exportCsv = () => {
@@ -429,7 +432,7 @@ export function AccountingView() {
             </div>
             <p className="text-xs text-muted-foreground">{card.label}</p>
             <p className={cn("text-base font-bold leading-tight", card.color)}>
-              {formatCurrency(card.value, "AED")}
+              {formatCurrency(card.value, currency)}
             </p>
           </motion.div>
         ))}
@@ -479,7 +482,7 @@ export function AccountingView() {
                   <span className="text-xs text-muted-foreground">{typeAccounts.length} accounts</span>
                 </div>
                 <span className={cn("text-sm font-bold", TYPE_COLORS[type])}>
-                  Subtotal: {formatCurrency(subtotals[type] ?? 0, "AED")}
+                  Subtotal: {formatCurrency(subtotals[type] ?? 0, currency)}
                 </span>
               </div>
               <table className="w-full">
@@ -521,7 +524,7 @@ export function AccountingView() {
                         </span>
                       </td>
                       <td className={cn("px-4 py-3 text-right text-sm font-semibold", TYPE_COLORS[account.accountType])}>
-                        {formatCurrency(Math.abs(account.balance), "AED")}
+                        {formatCurrency(Math.abs(account.balance), currency)}
                         {account.balance < 0 && <span className="text-xs ml-1">(Cr)</span>}
                       </td>
                     </tr>

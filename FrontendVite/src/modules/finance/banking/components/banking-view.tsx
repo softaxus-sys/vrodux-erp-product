@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { AddTransactionForm } from "./add-transaction-form";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { BankAccountDto as BankAccount } from "@/lib/finance/finance.api";
 import { useBankAccounts, useBankTransactions, useBankingSummary, useReconcileTransaction } from "@/hooks/finance/use-finance";
 
@@ -17,6 +18,7 @@ const CURRENCY_FLAGS: Record<string, string> = {
 
 
 export function BankingView() {
+  const currency = useCurrency();
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: bankTransactions = [] } = useBankTransactions();
   const reconcile = useReconcileTransaction();
@@ -77,7 +79,7 @@ export function BankingView() {
             <p className="text-xs text-muted-foreground">{card.label}</p>
             <p className={cn("text-base font-bold leading-tight", card.color)}>
               {card.format === "currency"
-                ? formatCurrency(card.value as number, "AED")
+                ? formatCurrency(card.value as number, currency)
                 : card.value}
             </p>
           </motion.div>
