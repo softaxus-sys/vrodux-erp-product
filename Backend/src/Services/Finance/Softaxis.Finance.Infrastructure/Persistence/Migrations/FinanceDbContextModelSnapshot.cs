@@ -125,6 +125,9 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
@@ -140,6 +143,8 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("ParentId", "SortOrder");
 
                     b.ToTable("account_types", "finance");
                 });
@@ -584,6 +589,17 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.Property<string>("PaymentMethod")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ReceiptContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("ReceiptData")
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ReceiptFileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
 
                     b.Property<string>("Reference")
                         .HasMaxLength(100)
@@ -1572,6 +1588,14 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.HasOne("Softaxis.Finance.Domain.Entities.AccountType", null)
                         .WithMany()
                         .HasForeignKey("AccountTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Softaxis.Finance.Domain.Entities.AccountType", b =>
+                {
+                    b.HasOne("Softaxis.Finance.Domain.Entities.AccountType", null)
+                        .WithMany()
+                        .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 

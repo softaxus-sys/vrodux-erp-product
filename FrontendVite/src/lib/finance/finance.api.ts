@@ -1,6 +1,36 @@
-import { rawApiClient } from "@/lib/api-client";
+import { rawApiClient, ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/store/auth.store";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/finance`;
+
+/** POST multipart/form-data with the JWT bearer (browser sets the multipart boundary). */
+async function uploadMultipart(url: string, form: FormData): Promise<void> {
+  const token = useAuthStore.getState().token;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  if (res.status === 204 || res.ok) return;
+  const body = await res.json().catch(() => null) as Record<string, unknown> | null;
+  const msg =
+    (body?.detail as string | undefined) ??
+    (body?.description as string | undefined) ??
+    (body?.message as string | undefined) ??
+    `HTTP ${res.status}`;
+  throw new ApiError(res.status, null, msg);
+}
+
+/** GET a binary resource with the JWT bearer and return an object URL the browser can open. */
+async function fetchBlobUrl(url: string): Promise<string> {
+  const token = useAuthStore.getState().token;
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) throw new ApiError(res.status, null, `HTTP ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
 
 // ─── Invoicing ────────────────────────────────────────────────────────────────
 
@@ -63,7 +93,17 @@ export interface InvoiceDetailDto {
 
 // ─── Accounting ───────────────────────────────────────────────────────────────
 
-export type AccountType = "asset" | "liability" | "equity" | "income" | "expense";
+export type AccountType = string;
+
+export interface AccountTypeDto {
+  id: string;
+  code: string;
+  name: string;
+  normalBalance: "debit" | "credit";
+  parentId: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
 
 export interface AccountDto {
   id: string;
@@ -76,6 +116,7 @@ export interface AccountDto {
   balance: number;
   createdAt: string;
   updatedAt?: string | null;
+  accountTypeId?: string | null;
 }
 
 export interface AccountingSummaryDto {
@@ -90,7 +131,7 @@ export interface AccountingSummaryDto {
 export interface CreateAccountRequest {
   accountNumber: string;
   name: string;
-  accountType: AccountType;
+  accountTypeId: string;
   description?: string | null;
   parentId?: string | null;
   isActive?: boolean;
@@ -99,10 +140,27 @@ export interface CreateAccountRequest {
 export interface UpdateAccountRequest {
   accountNumber: string;
   name: string;
-  accountType: AccountType;
+  accountTypeId: string;
   description?: string | null;
   parentId?: string | null;
   isActive?: boolean;
+}
+
+export interface CreateAccountTypeRequest {
+  name: string;
+  normalBalance?: "debit" | "credit" | null;
+  parentId?: string | null;
+}
+
+export interface UpdateAccountTypeRequest {
+  name: string;
+  normalBalance?: "debit" | "credit" | null;
+  isActive?: boolean;
+}
+
+export interface ReorderAccountTypeItem {
+  id: string;
+  sortOrder: number;
 }
 
 // ─── Banking ──────────────────────────────────────────────────────────────────
@@ -185,6 +243,9 @@ export interface ExpenseDto {
   approvedAt?: string;
   paymentMethod?: string;
   notes?: string;
+  reference?: string;
+  hasReceipt?: boolean;
+  receiptFileName?: string | null;
 }
 
 export interface ExpensesSummaryDto {
@@ -308,7 +369,7 @@ export interface CreatePurchaseBillRequest {
 
 // ─── General Ledger ───────────────────────────────────────────────────────────
 
-export type GLPeriod = "2026-01" | "2026-02" | "2026-03" | "2026-04" | "2026-05";
+export type GLPeriod = string;
 
 export interface TrialBalanceLine {
   accountId: string;
@@ -410,6 +471,13 @@ export interface TaxPeriodDto {
   penalty?: number;
 }
 
+export interface CreateTaxPeriodRequest {
+  period: string;
+  fromDate: string;
+  toDate: string;
+  dueDate: string;
+}
+
 export interface TaxTransactionDto {
   id: string;
   date: string;
@@ -499,6 +567,15 @@ export interface CreateBudgetRequest {
   period: string;
   notes?: string | null;
   lines: BudgetLineRequest[];
+}
+
+export interface CreateBankAccountRequest {
+  accountName: string;
+  bankName: string;
+  accountNumber: string;
+  iban: string;
+  currency: string;
+  accountType: "current" | "savings";
 }
 
 export interface CreateBankTransactionRequest {
@@ -611,10 +688,18 @@ export const financeApi = {
   updateAccount:  (id: string, data: UpdateAccountRequest): Promise<void> => rawApiClient.put(`${BASE}/accounts/${id}`, data),
   deleteAccount:  (id: string): Promise<void>                => rawApiClient.delete(`${BASE}/accounts/${id}`),
 
+  // Account Types
+  getAccountTypes:      (): Promise<AccountTypeDto[]>          => rawApiClient.get(`${BASE}/account-types`),
+  createAccountType:    (data: CreateAccountTypeRequest): Promise<AccountTypeDto> => rawApiClient.post(`${BASE}/account-types`, data),
+  updateAccountType:    (id: string, data: UpdateAccountTypeRequest): Promise<AccountTypeDto> => rawApiClient.put(`${BASE}/account-types/${id}`, data),
+  deleteAccountType:    (id: string): Promise<void>            => rawApiClient.delete(`${BASE}/account-types/${id}`),
+  reorderAccountTypes:  (items: ReorderAccountTypeItem[]): Promise<AccountTypeDto[]> => rawApiClient.post(`${BASE}/account-types/reorder`, { items }),
+
   // Banking
   getBankAccounts:        (): Promise<BankAccountDto[]>     => rawApiClient.get(`${BASE}/banking/accounts`),
   getBankTransactions:    (): Promise<BankTransactionDto[]> => rawApiClient.get(`${BASE}/banking/transactions`),
   getBankingSummary:      (): Promise<BankingSummaryDto>    => rawApiClient.get(`${BASE}/banking/summary`),
+  createBankAccount:      (data: CreateBankAccountRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/accounts`, data),
   createBankTransaction:  (data: CreateBankTransactionRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/transactions`, data),
   reconcileTransaction:   (id: string): Promise<void> => rawApiClient.post(`${BASE}/banking/transactions/${id}/reconcile`),
 
@@ -622,6 +707,7 @@ export const financeApi = {
   getBudgets:          (): Promise<BudgetDto[]>          => rawApiClient.get(`${BASE}/budgets`),
   getBudgetingSummary: (): Promise<BudgetingSummaryDto>  => rawApiClient.get(`${BASE}/budgets/summary`),
   createBudget:        (data: CreateBudgetRequest): Promise<BudgetDto> => rawApiClient.post(`${BASE}/budgets`, data),
+  changeBudgetStatus:  (id: string, status: BudgetStatus): Promise<void> => rawApiClient.post(`${BASE}/budgets/${id}/status`, { status }),
 
   // Suppliers
   getSuppliers: (params?: { search?: string; isActive?: boolean }): Promise<SupplierDto[]> => {
@@ -658,6 +744,14 @@ export const financeApi = {
   approveExpense:      (id: string, approverId: string): Promise<void> => rawApiClient.post(`${BASE}/expenses/${id}/approve`, { approverId }),
   rejectExpense:       (id: string, approverId: string): Promise<void> => rawApiClient.post(`${BASE}/expenses/${id}/reject`, { approverId }),
   payExpense:          (id: string): Promise<void> => rawApiClient.post(`${BASE}/expenses/${id}/pay`),
+  uploadExpenseReceipt: (id: string, file: File): Promise<void> => {
+    const form = new FormData();
+    form.append("file", file);
+    return uploadMultipart(`${BASE}/expenses/${id}/receipt`, form);
+  },
+  deleteExpenseReceipt: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/expenses/${id}/receipt`),
+  /** Fetches the receipt with the auth header and returns an object URL for viewing/downloading. */
+  getExpenseReceiptObjectUrl: (id: string): Promise<string> => fetchBlobUrl(`${BASE}/expenses/${id}/receipt`),
 
   // General Ledger
   getTrialBalance: (): Promise<TrialBalanceLine[]> => rawApiClient.get(`${BASE}/gl/trial-balance`),
@@ -689,6 +783,7 @@ export const financeApi = {
   getTaxPeriods:       (): Promise<TaxPeriodDto[]>      => rawApiClient.get(`${BASE}/tax/periods`),
   getTaxTransactions:  (): Promise<TaxTransactionDto[]> => rawApiClient.get(`${BASE}/tax/transactions`),
   getTaxSummary:       (): Promise<TaxSummaryDto>       => rawApiClient.get(`${BASE}/tax/summary`),
+  createTaxPeriod:     (data: CreateTaxPeriodRequest): Promise<TaxPeriodDto> => rawApiClient.post(`${BASE}/tax/periods`, data),
   fileTaxPeriod:       (id: string): Promise<void> => rawApiClient.post(`${BASE}/tax/periods/${id}/file`),
   payTaxPeriod:        (id: string): Promise<void> => rawApiClient.post(`${BASE}/tax/periods/${id}/pay`),
 

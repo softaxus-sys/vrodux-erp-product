@@ -20,5 +20,11 @@ internal sealed class AccountTypeConfiguration : IEntityTypeConfiguration<Accoun
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => x.Code).IsUnique();
+        builder.HasIndex(x => new { x.ParentId, x.SortOrder });
+
+        builder.HasOne<AccountType>()
+               .WithMany()
+               .HasForeignKey(x => x.ParentId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

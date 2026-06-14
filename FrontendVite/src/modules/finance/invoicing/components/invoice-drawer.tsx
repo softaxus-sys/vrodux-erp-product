@@ -287,6 +287,7 @@ function EditInvoice({
 function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
   const currency = useCurrency();
   const [editMode, setEditMode] = React.useState(false);
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
 
   const sendInvoice   = useSendInvoice();
   const markPaid      = useMarkInvoicePaid();
@@ -324,8 +325,6 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
       toast.error(err instanceof Error ? err.message : "Failed to record payment.");
     }
   };
-
-  const [confirmCancel, setConfirmCancel] = React.useState(false);
 
   const handleCancel = () => setConfirmCancel(true);
 

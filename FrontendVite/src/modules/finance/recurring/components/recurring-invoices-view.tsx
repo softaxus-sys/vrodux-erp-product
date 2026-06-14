@@ -128,6 +128,7 @@ function RowActions({ r, onEdit }: { r: RecurringInvoiceDto; onEdit: () => void 
   const gen = useGenerateRecurringNow();
   const del = useDeleteRecurringInvoice();
   const busy = pause.isPending || resume.isPending || gen.isPending || del.isPending;
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
   return (
     <div className="flex items-center justify-end gap-1">
       <button title="Generate invoice now" disabled={busy} onClick={() => gen.mutate(r.id)}
@@ -141,8 +142,36 @@ function RowActions({ r, onEdit }: { r: RecurringInvoiceDto; onEdit: () => void 
       )}
       <button title="Edit" disabled={busy} onClick={onEdit}
         className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-50"><Pencil className="h-3.5 w-3.5" /></button>
-      <button title="Delete" disabled={busy} onClick={() => { if (confirm(`Delete template "${r.templateName}"?`)) del.mutate(r.id); }}
+      <button title="Delete" disabled={busy} onClick={() => setConfirmOpen(true)}
         className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" /></button>
+
+      <AnimatePresence>
+        {confirmOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-[60]" onClick={() => setConfirmOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+              className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none"
+            >
+              <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 pointer-events-auto space-y-4 text-left"
+                onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-base font-bold">Delete "{r.templateName}"?</h3>
+                <p className="text-sm text-muted-foreground">This recurring invoice template will be removed. This cannot be undone.</p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                  <Button variant="destructive" disabled={del.isPending}
+                    onClick={() => del.mutate(r.id, { onSuccess: () => setConfirmOpen(false) })}>
+                    {del.isPending ? "Deleting…" : "Delete"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

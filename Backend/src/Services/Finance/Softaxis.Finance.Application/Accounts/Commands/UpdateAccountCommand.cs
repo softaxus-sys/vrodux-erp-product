@@ -8,7 +8,7 @@ public sealed record UpdateAccountCommand(
     Guid    Id,
     string  AccountNumber,
     string  Name,
-    string  AccountType,
+    Guid    AccountTypeId,
     string? Description = null,
     Guid?   ParentId    = null,
     bool    IsActive    = true
@@ -16,9 +16,6 @@ public sealed record UpdateAccountCommand(
 
 public sealed class UpdateAccountValidator : AbstractValidator<UpdateAccountCommand>
 {
-    private static readonly string[] ValidTypes =
-        ["asset", "liability", "equity", "income", "expense"];
-
     public UpdateAccountValidator()
     {
         RuleFor(x => x.Id).NotEmpty().WithMessage("Account ID is required.");
@@ -31,10 +28,8 @@ public sealed class UpdateAccountValidator : AbstractValidator<UpdateAccountComm
             .NotEmpty().WithMessage("Account name is required.")
             .MaximumLength(200).WithMessage("Account name must be ≤ 200 characters.");
 
-        RuleFor(x => x.AccountType)
-            .NotEmpty().WithMessage("Account type is required.")
-            .Must(t => ValidTypes.Contains(t, StringComparer.OrdinalIgnoreCase))
-                .WithMessage($"Account type must be one of: {string.Join(", ", ValidTypes)}.");
+        RuleFor(x => x.AccountTypeId)
+            .NotEmpty().WithMessage("Account type is required.");
 
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Description must be ≤ 500 characters.")

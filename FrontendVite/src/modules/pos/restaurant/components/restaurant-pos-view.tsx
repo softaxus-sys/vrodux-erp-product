@@ -169,6 +169,7 @@ function OrderDrawer({ table, order, isTakeaway, currency, onClose, onOrderCreat
         paymentMethod: paidOrder.payments.length > 1 ? "Split" : (paidOrder.payments[0]?.method ?? "Cash"),
         payments: paidOrder.payments.map(p => ({ method: p.method, amount: p.amount })),
         tendered: 0,
+        openDrawer: paidOrder.payments.some(p => p.method.toLowerCase() === "cash"),
       });
       await printRaw(esc).catch(() => {});
     }

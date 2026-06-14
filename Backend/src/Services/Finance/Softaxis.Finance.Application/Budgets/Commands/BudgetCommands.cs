@@ -31,4 +31,16 @@ public sealed class UpdateBudgetValidator : AbstractValidator<UpdateBudgetComman
     }
 }
 
+public sealed record ChangeBudgetStatusCommand(Guid Id, string Status) : ICommand;
+
+public sealed class ChangeBudgetStatusValidator : AbstractValidator<ChangeBudgetStatusCommand>
+{
+    public ChangeBudgetStatusValidator()
+    {
+        RuleFor(x => x.Status).NotEmpty()
+            .Must(s => Softaxis.Finance.Domain.Entities.Budget.Statuses.Contains(s))
+            .WithMessage("Status must be one of: draft, approved, active, closed.");
+    }
+}
+
 public sealed record DeleteBudgetCommand(Guid Id) : ICommand;

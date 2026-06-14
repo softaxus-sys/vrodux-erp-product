@@ -23,6 +23,8 @@ export interface EscPosReceiptParams {
   paymentMethod:  string;
   payments?:      { method: string; amount: number }[]; // split-tender breakdown
   tendered:       number;
+  /** Pulse the cash drawer kick (both pins) at the start of this print job — for cash payments. */
+  openDrawer?:    boolean;
 }
 
 /** ISO 4217 default decimal precision for a currency (e.g. BHD/KWD/OMR = 3, JPY = 0, most = 2). */
@@ -54,15 +56,27 @@ function nowStr(): string {
 }
 
 export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
-  const COLS = 48;
+  // 80mm paper is physically 48 columns wide at the default font, but most
+  // printers' printable area is slightly narrower — using the full 48 cuts
+  // off the right edge. Leave a 2-column margin.
+  const COLS = 46;
   const esc  = new EscPos(COLS);
   const decimals = getCurrencyDecimals(p.currency);
   const m    = (n: number) => money(n, p.currency);
   const f    = (n: number) => fmt(n, decimals);
 
   // ── Header ────────────────────────────────────────────────────────────────────
+  esc.init();
+
+  // ── Cash drawer kick ──────────────────────────────────────────────────────────
+  // Bundled into this print job (rather than sent as a separate job) so the kick
+  // reaches the printer reliably even if a standalone drawer-open request is
+  // dropped/raced by the print spooler. Must come AFTER init() — ESC @ (init)
+  // clears the print buffer and would otherwise discard a queued drawer pulse.
+  // Pulses both pins — different drawers are wired to different pins.
+  if (p.openDrawer) esc.openDrawerPin2().openDrawerPin5();
+
   esc
-    .init()
     .center()
     .bigOn().boldOn().println(p.companyName.toUpperCase()).bigOff().boldOff();
 
@@ -140,6 +154,10 @@ export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
     .center()
     .println("Thank you for your purchase!")
     .println("Please retain this receipt.")
+    .println()
+    .println("Powered by VroduxERP")
+    .println("www.vrodux.com")
+    .println("WhatsApp: +971 56 938 3079 / +92 314 9511674")
     .feed(4)
     .cut();
 

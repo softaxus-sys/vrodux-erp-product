@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Expenses.Commands;
 using Softaxis.Finance.Application.Expenses.Queries;
+using Softaxis.Finance.Application.Expenses.Dtos;
 
 namespace Softaxis.Finance.API.Controllers;
 
@@ -88,6 +89,41 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteExpenseCommand(id), ct);
+        return NoContentOrError(result);
+    }
+
+    [HttpPost("{id:guid}/receipt")]
+    [RequestSizeLimit(6 * 1024 * 1024)]
+    public async Task<IActionResult> UploadReceipt(Guid id, IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "No file uploaded." });
+
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+
+        var result = await sender.Send(new UploadExpenseReceiptCommand(
+            id, ms.ToArray(), file.FileName, file.ContentType ?? "application/octet-stream"), ct);
+        return NoContentOrError(result);
+    }
+
+    [HttpGet("{id:guid}/receipt")]
+    public async Task<IActionResult> GetReceipt(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetExpenseReceiptQuery(id), ct);
+        if (!result.IsSuccess)
+            return OkOrError(result);
+
+        var r = result.Value;
+        // Inline so browsers preview images/PDFs in a new tab rather than force-download.
+        Response.Headers.ContentDisposition = $"inline; filename=\"{r.FileName}\"";
+        return File(r.Data, r.ContentType);
+    }
+
+    [HttpDelete("{id:guid}/receipt")]
+    public async Task<IActionResult> DeleteReceipt(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new DeleteExpenseReceiptCommand(id), ct);
         return NoContentOrError(result);
     }
 }

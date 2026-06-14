@@ -22,11 +22,15 @@ internal sealed class GetGlSummaryHandler(FinanceDbContext db) : IQueryHandler<G
         var totalDebits  = lines.Sum(l => l.DebitAmount);
         var totalCredits = lines.Sum(l => l.CreditAmount);
 
+        var periods = Enumerable.Range(0, 6)
+            .Select(i => DateTime.UtcNow.AddMonths(-(5 - i)).ToString("yyyy-MM"))
+            .ToArray();
+
         return Result.Success(new GlSummaryDto(
             totalDebits,
             totalCredits,
             Math.Abs(totalDebits - totalCredits) < 0.01m,
-            new[] { "2026-01", "2026-02", "2026-03", "2026-04", "2026-05" },
+            periods,
             accounts,
             $"{DateTime.UtcNow:yyyy-MM}"));
     }

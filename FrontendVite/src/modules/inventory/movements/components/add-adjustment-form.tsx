@@ -63,8 +63,17 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
   const [scanFeedback, setScanFeedback] = React.useState<"found" | "not_found" | null>(null);
   const searchRef = React.useRef<HTMLInputElement>(null);
 
-  const { data: productsPage } = useInventoryProducts({});
+  const { data: productsPage } = useInventoryProducts({
+    search: itemSearch.trim() || undefined,
+    isActive: true,
+    pageSize: 20,
+  });
   const allProducts = productsPage?.items ?? [];
+
+  // Separate unfiltered list (for barcode-scan lookups, which match by exact
+  // barcode/SKU/id and shouldn't depend on the search box's text).
+  const { data: allProductsPage } = useInventoryProducts({ isActive: true, pageSize: 100 });
+  const scanLookupProducts = allProductsPage?.items ?? allProducts;
 
   const { data: warehouses = [] } = useWarehouses();
   // Default the warehouse to the default one (or first) once loaded
@@ -76,11 +85,11 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
 
   // Pre-select item if provided
   React.useEffect(() => {
-    if (preselectedItemId && allProducts.length > 0) {
-      const item = allProducts.find(i => i.id === preselectedItemId);
+    if (preselectedItemId && scanLookupProducts.length > 0) {
+      const item = scanLookupProducts.find(i => i.id === preselectedItemId);
       if (item) { setSelectedItem(item); }
     }
-  }, [preselectedItemId, allProducts]);
+  }, [preselectedItemId, scanLookupProducts]);
 
   // Reset when closed
   React.useEffect(() => {
@@ -105,7 +114,7 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
   useBarcodeScanner({
     enabled: open,
     onScan: ({ barcode }) => {
-      const item = allProducts.find(
+      const item = scanLookupProducts.find(
         i => i.barcode === barcode || i.sku === barcode || i.id === barcode
       );
       if (item) {

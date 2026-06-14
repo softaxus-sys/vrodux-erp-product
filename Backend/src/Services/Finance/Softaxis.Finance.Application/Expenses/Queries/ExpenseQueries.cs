@@ -10,3 +10,5 @@ public sealed record GetExpensesQuery(
     string? Category, string? DateFrom, string? DateTo) : IQuery<PagedResult<ExpenseDto>>;
 
 public sealed record GetExpenseByIdQuery(Guid Id) : IQuery<ExpenseDto>;
+
+public sealed record GetExpenseReceiptQuery(Guid Id) : IQuery<ExpenseReceiptDto>;

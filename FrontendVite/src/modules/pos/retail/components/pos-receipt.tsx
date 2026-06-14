@@ -295,6 +295,15 @@ function PakistanReceipt({
         ))}
         <p className="text-[9px] text-gray-400 mt-1 font-semibold">{cfg.poweredBy}</p>
       </div>
+
+      <Divider />
+
+      {/* ── Software promotion ── */}
+      <div className="text-center space-y-0.5">
+        <p className="text-[9px] text-gray-400 font-semibold">Powered by VroduxERP</p>
+        <p className="text-[9px] text-gray-400">www.vrodux.com</p>
+        <p className="text-[9px] text-gray-400">WhatsApp: +971 56 938 3079 / +92 314 9511674</p>
+      </div>
     </div>
   );
 }
@@ -430,6 +439,15 @@ function UAEReceipt({
         ))}
         <p className="text-[9px] text-gray-400 mt-1 font-semibold">{cfg.poweredBy}</p>
       </div>
+
+      <Divider />
+
+      {/* ── Software promotion ── */}
+      <div className="text-center space-y-0.5">
+        <p className="text-[9px] text-gray-400 font-semibold">Powered by VroduxERP</p>
+        <p className="text-[9px] text-gray-400">www.vrodux.com</p>
+        <p className="text-[9px] text-gray-400">WhatsApp: +971 56 938 3079 / +92 314 9511674</p>
+      </div>
     </div>
   );
 }
@@ -454,6 +472,7 @@ export function PosReceipt(props: PosReceiptProps) {
 
   const buildEscData = () => buildEscPosReceipt({
     companyName:    companyName,
+    regNumber:      cfg.regNumber,
     txnNumber:      props.txnNumber,
     cashierName:    cashierName,
     currency:       cfg.currency,
@@ -465,6 +484,8 @@ export function PosReceipt(props: PosReceiptProps) {
     total:          props.total,
     paymentMethod:  props.paymentMethod,
     tendered:       props.tendered,
+    openDrawer:     props.paymentMethod.toLowerCase() === "cash"
+      || !!props.payments?.some(p => p.method.toLowerCase() === "cash"),
   });
 
   /** Send ESC/POS bytes to the network printer — no browser dialog. */

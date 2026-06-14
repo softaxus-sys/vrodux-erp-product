@@ -145,7 +145,10 @@ public sealed class CreateSaleCommandHandler(
         // ── Validate sufficient payment ───────────────────────────────────────
         var totalAmount = lineItems.Sum(i => i.LineTotal);
         var totalPaid   = payments.Sum(p => p.Amount);
-        if (totalPaid < totalAmount)
+        // Allow a 1-cent tolerance: the frontend computes its displayed total via
+        // continuous (unrounded) per-item tax shares, which can differ from the
+        // backend's per-line-rounded total by up to a cent.
+        if (totalPaid < totalAmount - 0.01m)
             return Result.Failure<POSTransactionDto>(Error.Custom("Sale.Underpaid",
                 $"Payment amount ({totalPaid:F2}) is less than total ({totalAmount:F2})."));
 

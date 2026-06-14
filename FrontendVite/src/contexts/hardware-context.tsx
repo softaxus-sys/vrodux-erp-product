@@ -13,9 +13,9 @@
  *
  * Cash drawer:
  *   The drawer is connected to the RJ11/RJ12 port on the receipt printer.
- *   openDrawer() sends the ESC p command via the network print API.
- *   Since we can't poll drawer status over TCP (one-way), the user must click
- *   "Mark Closed" manually if the drawer guard blocks the next transaction.
+ *   openDrawer() sends the ESC p command via the network print API. There's
+ *   no way to query drawer-closed status over this connection, so the UI
+ *   doesn't track or block on drawer state — staff close it manually.
  */
 
 import * as React from "react";
@@ -43,9 +43,7 @@ export interface HardwareContextValue {
   refreshPrinter:     () => Promise<void>;
 
   // ── Cash drawer ───────────────────────────────────────────────────────────
-  drawerIsOpen:       boolean;
   openDrawer:         () => Promise<void>;
-  markDrawerClosed:   () => void;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -57,14 +55,10 @@ const HardwareContext = React.createContext<HardwareContextValue | null>(null);
 export function HardwareProvider({ children }: { children: React.ReactNode }) {
   const printer = useNetworkPrinter();
 
-  const [drawerIsOpen, setDrawerIsOpen] = React.useState(false);
-
   // ── Actions ───────────────────────────────────────────────────────────────
 
   /**
    * Send the ESC p (open drawer) command via the network print API.
-   * Network printers don't support bidirectional status queries, so we mark
-   * the drawer open optimistically and require manual "Mark Closed" reset.
    */
   const openDrawer = React.useCallback(async (): Promise<void> => {
     try {
@@ -75,12 +69,7 @@ export function HardwareProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Non-fatal — drawer may still open if the printer received the command
     }
-    setDrawerIsOpen(true);
   }, [printer]);
-
-  const markDrawerClosed = React.useCallback((): void => {
-    setDrawerIsOpen(false);
-  }, []);
 
   const value: HardwareContextValue = {
     printerStatus:     printer.status,
@@ -90,9 +79,7 @@ export function HardwareProvider({ children }: { children: React.ReactNode }) {
     disconnectPrinter: () => {},       // no persistent connection to close
     printRaw:          printer.send,
     refreshPrinter:    printer.refresh,
-    drawerIsOpen,
     openDrawer,
-    markDrawerClosed,
   };
 
   return (

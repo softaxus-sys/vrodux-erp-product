@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { BudgetDto as Budget, BudgetStatus } from "@/lib/finance/finance.api";
-import { useBudgets, useBudgetingSummary } from "@/hooks/finance/use-finance";
+import { useBudgets, useBudgetingSummary, useChangeBudgetStatus } from "@/hooks/finance/use-finance";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -19,6 +19,14 @@ const STATUS_STYLES: Record<BudgetStatus, string> = {
   approved: "bg-primary/10 text-primary",
   active: "bg-success/10 text-success",
   closed: "bg-muted text-muted-foreground",
+};
+
+/** Valid lifecycle transitions, mirroring Budget.CanTransitionTo on the backend. */
+const STATUS_ACTIONS: Record<BudgetStatus, { to: BudgetStatus; label: string; variant?: "outline" }[]> = {
+  draft:    [{ to: "approved", label: "Submit for Approval" }],
+  approved: [{ to: "active", label: "Activate" }, { to: "draft", label: "Send Back to Draft", variant: "outline" }],
+  active:   [{ to: "closed", label: "Close Budget" }],
+  closed:   [{ to: "active", label: "Reopen", variant: "outline" }],
 };
 
 function UtilisationBar({ actual, budget }: { actual: number; budget: number }) {
@@ -41,6 +49,8 @@ function UtilisationBar({ actual, budget }: { actual: number; budget: number }) 
 
 function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void }) {
   const currency = useCurrency();
+  const changeStatus = useChangeBudgetStatus();
+  const actions = STATUS_ACTIONS[budget.status] ?? [];
   const variancePct = budget.totalBudgeted > 0
     ? ((budget.variance / budget.totalBudgeted) * 100).toFixed(1)
     : "0.0";
@@ -77,6 +87,29 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
             <span className={cn("px-3 py-1 rounded-full text-xs font-semibold capitalize", STATUS_STYLES[budget.status])}>
               {budget.status}
             </span>
+          </div>
+
+          {/* Status workflow actions */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-2">Status Workflow</p>
+            {actions.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {actions.map((a) => (
+                  <Button
+                    key={a.to}
+                    size="sm"
+                    variant={a.variant ?? "default"}
+                    disabled={changeStatus.isPending}
+                    onClick={() => changeStatus.mutate({ id: budget.id, status: a.to })}
+                  >
+                    {a.label}
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">This budget is closed — no further actions.</p>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-2">Lifecycle: Draft → Approved → Active → Closed</p>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -122,6 +155,7 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
 }
 
 export function BudgetingView() {
+  const currency = useCurrency();
   const { data: budgets = [] } = useBudgets();
 
   const exportCsv = () => {

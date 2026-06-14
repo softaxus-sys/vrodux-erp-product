@@ -13,7 +13,11 @@ internal sealed class GetExpenseByIdHandler(FinanceDbContext db) : IQueryHandler
     {
         var expense = await db.Expenses.AsNoTracking()
             .Where(x => x.Id == query.Id)
-            .Select(x => ExpenseMappings.ToDto(x))
+            .Select(x => new ExpenseDto(
+                x.Id, x.ExpenseNumber, x.Title, x.Category, x.Amount, x.ExpenseDate,
+                x.PaidBy, x.PaymentMethod, x.Reference, x.Notes, x.Status,
+                x.ApprovedById, x.ApprovedAt, x.CreatedAt, x.UpdatedAt,
+                x.ReceiptData != null, x.ReceiptFileName))
             .FirstOrDefaultAsync(ct);
 
         if (expense is null)

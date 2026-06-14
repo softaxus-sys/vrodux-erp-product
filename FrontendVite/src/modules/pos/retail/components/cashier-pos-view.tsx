@@ -420,6 +420,7 @@ export function CashierPOSView() {
           total,
           paymentMethod,
           tendered:       parseFloat(cashInput) || 0,
+          openDrawer:     paymentMethod.toLowerCase() === "cash",
         });
         printRaw(escData).catch(() => {});
       }

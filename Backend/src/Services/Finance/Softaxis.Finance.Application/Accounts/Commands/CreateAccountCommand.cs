@@ -8,7 +8,7 @@ namespace Softaxis.Finance.Application.Accounts.Commands;
 public sealed record CreateAccountCommand(
     string  AccountNumber,
     string  Name,
-    string  AccountType,
+    Guid    AccountTypeId,
     string? Description = null,
     Guid?   ParentId    = null,
     bool    IsActive    = true
@@ -16,9 +16,6 @@ public sealed record CreateAccountCommand(
 
 public sealed class CreateAccountValidator : AbstractValidator<CreateAccountCommand>
 {
-    private static readonly string[] ValidTypes =
-        ["asset", "liability", "equity", "income", "expense"];
-
     public CreateAccountValidator()
     {
         RuleFor(x => x.AccountNumber)
@@ -31,10 +28,8 @@ public sealed class CreateAccountValidator : AbstractValidator<CreateAccountComm
             .NotEmpty().WithMessage("Account name is required.")
             .MaximumLength(200).WithMessage("Account name must be ≤ 200 characters.");
 
-        RuleFor(x => x.AccountType)
-            .NotEmpty().WithMessage("Account type is required.")
-            .Must(t => ValidTypes.Contains(t, StringComparer.OrdinalIgnoreCase))
-                .WithMessage($"Account type must be one of: {string.Join(", ", ValidTypes)}.");
+        RuleFor(x => x.AccountTypeId)
+            .NotEmpty().WithMessage("Account type is required.");
 
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Description must be ≤ 500 characters.")

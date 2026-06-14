@@ -422,12 +422,12 @@ export function RetailPOSView() {
   }, [cart.length, appliedDiscount]);
 
   const taxBase   = subtotal - discountAmount;
-  const taxAmount = cart.reduce((s, i) => {
+  const taxAmount = Math.round(cart.reduce((s, i) => {
     if (!subtotal) return 0;
     const itemShare = (i.total / subtotal) * taxBase;
     return s + itemShare * (i.taxRate / 100);
-  }, 0);
-  const total   = taxBase + taxAmount;
+  }, 0) * 100) / 100;
+  const total   = Math.round((taxBase + taxAmount) * 100) / 100;
   const change  = Math.max(0, (parseFloat(tenderedAmount) || 0) - total);
 
   // ── Checkout ──────────────────────────────────────────────────────────────────
@@ -479,6 +479,7 @@ export function RetailPOSView() {
           paymentMethod: payments.length > 1 ? "Split" : paymentMethod,
           payments:      payments.map(p => ({ method: p.method, amount: p.amount })),
           tendered:       parseFloat(tenderedAmount) || 0,
+          openDrawer:     hasCash,
         });
         printRaw(escData).catch(() => {/* non-fatal — receipt modal is still shown */});
       }

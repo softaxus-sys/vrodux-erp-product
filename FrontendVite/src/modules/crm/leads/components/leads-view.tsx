@@ -131,6 +131,7 @@ function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: L
 }
 
 export function LeadsView() {
+  const currency = useCurrency();
   const { data: leads = [], isLoading } = useLeads();
 
   const exportCsv = () => {

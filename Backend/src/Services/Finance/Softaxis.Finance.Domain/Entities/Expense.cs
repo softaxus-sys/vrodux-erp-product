@@ -48,6 +48,12 @@ public sealed class Expense
     public bool      IsDeleted     { get; private set; }
     public Guid?     JournalEntryId { get; private set; }
 
+    // Receipt attachment (stored in-DB; null when no receipt uploaded).
+    public byte[]?   ReceiptData        { get; private set; }
+    public string?   ReceiptFileName    { get; private set; }
+    public string?   ReceiptContentType { get; private set; }
+    public bool      HasReceipt => ReceiptData is { Length: > 0 };
+
     public void Update(string title, string category, decimal amount, string expenseDate,
         string? paidBy, string? paymentMethod, string? reference, string? notes)
     {
@@ -91,4 +97,20 @@ public sealed class Expense
     public void SetSupplierId(Guid? supplierId) { SupplierId = supplierId; UpdatedAt = DateTime.UtcNow; }
 
     public void SetJournalEntryId(Guid? journalEntryId) { JournalEntryId = journalEntryId; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetReceipt(byte[] data, string fileName, string contentType)
+    {
+        ReceiptData        = data;
+        ReceiptFileName    = fileName.Trim();
+        ReceiptContentType = contentType.Trim();
+        UpdatedAt          = DateTime.UtcNow;
+    }
+
+    public void ClearReceipt()
+    {
+        ReceiptData        = null;
+        ReceiptFileName    = null;
+        ReceiptContentType = null;
+        UpdatedAt          = DateTime.UtcNow;
+    }
 }

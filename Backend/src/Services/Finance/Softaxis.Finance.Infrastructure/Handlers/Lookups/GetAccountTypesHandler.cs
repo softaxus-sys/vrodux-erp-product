@@ -14,9 +14,9 @@ internal sealed class GetAccountTypesHandler(FinanceDbContext db)
     {
         var items = await db.AccountTypes
             .AsNoTracking()
-            .Where(x => x.IsActive)
-            .OrderBy(x => x.SortOrder)
-            .Select(x => new AccountTypeDto(x.Id, x.Code, x.Name, x.NormalBalance, x.SortOrder))
+            .OrderBy(x => x.ParentId.HasValue)
+            .ThenBy(x => x.SortOrder)
+            .Select(x => new AccountTypeDto(x.Id, x.Code, x.Name, x.NormalBalance, x.ParentId, x.SortOrder, x.IsActive))
             .ToListAsync(ct);
 
         return Result.Success<IReadOnlyList<AccountTypeDto>>(items);

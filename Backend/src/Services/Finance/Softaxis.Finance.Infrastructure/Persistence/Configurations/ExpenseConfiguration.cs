@@ -24,6 +24,9 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.Property(x => x.Reference).HasMaxLength(100);
         builder.Property(x => x.Notes).HasMaxLength(1000);
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("pending");
+        builder.Property(x => x.ReceiptFileName).HasMaxLength(260);
+        builder.Property(x => x.ReceiptContentType).HasMaxLength(100);
+        builder.Ignore(x => x.HasReceipt);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 

@@ -5,7 +5,9 @@ public sealed record AccountTypeDto(
     string Code,
     string Name,
     string NormalBalance,
-    int    SortOrder);
+    Guid?  ParentId,
+    int    SortOrder,
+    bool   IsActive);
 
 public sealed record CurrencyDto(
     Guid   Id,

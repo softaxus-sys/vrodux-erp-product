@@ -1,5 +1,5 @@
 ﻿import * as React from "react";
-import { Search, Filter, Eye, MoreHorizontal, Copy, Send, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Filter, Eye, MoreHorizontal, Send, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -190,9 +190,6 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onView(inv)}>
                             <Eye className="mr-2 h-4 w-4" /> View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Copy className="mr-2 h-4 w-4" /> Duplicate
                           </DropdownMenuItem>
                           {inv.status === "draft" && (
                             <DropdownMenuItem onClick={() => onSend(inv)}>

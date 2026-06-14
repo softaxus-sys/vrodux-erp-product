@@ -5,16 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useProfitLoss, useBalanceSheet, useCashFlow } from "@/hooks/finance/use-finance";
+import { useCurrency } from "@/hooks/use-currency";
 import type { StatementLine } from "@/lib/finance/finance.api";
 import { toCsv, downloadFile } from "@/lib/csv";
+import { printProfitLoss, printBalanceSheet, printCashFlow } from "./statement-print";
 
 type Tab = "pl" | "bs" | "cf";
-const CUR = "AED";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const yearStartIso = () => `${new Date().getFullYear()}-01-01`;
 
 export function FinancialStatementsView() {
+  const currency = useCurrency();
   const [tab, setTab]   = React.useState<Tab>("pl");
   const [from, setFrom] = React.useState(yearStartIso());
   const [to, setTo]     = React.useState(todayIso());
@@ -22,6 +24,12 @@ export function FinancialStatementsView() {
   const pl = useProfitLoss(from, to);
   const bs = useBalanceSheet(to);
   const cf = useCashFlow(from, to);
+
+  const handlePrint = () => {
+    if (tab === "pl" && pl.data) printProfitLoss(pl.data, currency);
+    else if (tab === "bs" && bs.data) printBalanceSheet(bs.data, currency);
+    else if (tab === "cf" && cf.data) printCashFlow(cf.data, currency);
+  };
 
   const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
     { key: "pl", label: "Profit & Loss", icon: TrendingUp },
@@ -72,7 +80,7 @@ export function FinancialStatementsView() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={exportCsv}><Download className="h-4 w-4" />Export</Button>
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handlePrint}><Printer className="h-4 w-4" />Print</Button>
         </div>
       </div>
 
@@ -116,6 +124,7 @@ export function FinancialStatementsView() {
 // ── Section table ─────────────────────────────────────────────────────────────
 
 function Section({ title, lines, total, tone = "default" }: { title: string; lines: StatementLine[]; total: number; tone?: "default" | "good" | "bad" }) {
+  const currency = useCurrency();
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
       <div className="px-4 py-2.5 bg-muted/30 border-b border-border">
@@ -128,7 +137,7 @@ function Section({ title, lines, total, tone = "default" }: { title: string; lin
           ) : lines.map(l => (
             <tr key={l.accountCode} className="hover:bg-muted/20">
               <td className="px-4 py-2.5"><span className="font-mono text-xs text-muted-foreground mr-2">{l.accountCode}</span>{l.accountName}</td>
-              <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(l.amount, CUR)}</td>
+              <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(l.amount, currency)}</td>
             </tr>
           ))}
         </tbody>
@@ -136,7 +145,7 @@ function Section({ title, lines, total, tone = "default" }: { title: string; lin
           <tr className="border-t-2 border-border bg-muted/20">
             <td className="px-4 py-2.5 font-bold">Total {title}</td>
             <td className={cn("px-4 py-2.5 text-right font-bold tabular-nums",
-              tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : "")}>{formatCurrency(total, CUR)}</td>
+              tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : "")}>{formatCurrency(total, currency)}</td>
           </tr>
         </tfoot>
       </table>
@@ -151,6 +160,7 @@ function Loading() {
 // ── P&L ─────────────────────────────────────────────────────────────────────────
 
 function ProfitLoss({ data, loading }: { data: ReturnType<typeof useProfitLoss>["data"]; loading: boolean }) {
+  const currency = useCurrency();
   if (loading || !data) return <Loading />;
   const margin = data.totalRevenue > 0 ? Math.round((data.netProfit / data.totalRevenue) * 100) : 0;
   return (
@@ -162,7 +172,7 @@ function ProfitLoss({ data, loading }: { data: ReturnType<typeof useProfitLoss>[
           <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground">Net Profit</p>
           <p className="text-[11px] text-muted-foreground">Margin {margin}% · {data.from} → {data.to}</p>
         </div>
-        <p className={cn("text-2xl font-bold tabular-nums", data.netProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(data.netProfit, CUR)}</p>
+        <p className={cn("text-2xl font-bold tabular-nums", data.netProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(data.netProfit, currency)}</p>
       </div>
     </div>
   );
@@ -171,6 +181,7 @@ function ProfitLoss({ data, loading }: { data: ReturnType<typeof useProfitLoss>[
 // ── Balance Sheet ────────────────────────────────────────────────────────────────
 
 function BalanceSheet({ data, loading }: { data: ReturnType<typeof useBalanceSheet>["data"]; loading: boolean }) {
+  const currency = useCurrency();
   if (loading || !data) return <Loading />;
   return (
     <div className="space-y-4">
@@ -188,7 +199,7 @@ function BalanceSheet({ data, loading }: { data: ReturnType<typeof useBalanceShe
             total={data.totalEquity} />
           <div className="bg-card border border-border rounded-xl px-4 py-3 flex items-center justify-between">
             <span className="font-bold text-sm">Total Liabilities + Equity</span>
-            <span className="font-bold tabular-nums">{formatCurrency(data.totalLiabilitiesAndEquity, CUR)}</span>
+            <span className="font-bold tabular-nums">{formatCurrency(data.totalLiabilitiesAndEquity, currency)}</span>
           </div>
         </div>
       </div>
@@ -199,6 +210,7 @@ function BalanceSheet({ data, loading }: { data: ReturnType<typeof useBalanceShe
 // ── Cash Flow ─────────────────────────────────────────────────────────────────────
 
 function CashFlow({ data, loading }: { data: ReturnType<typeof useCashFlow>["data"]; loading: boolean }) {
+  const currency = useCurrency();
   if (loading || !data) return <Loading />;
   const rows: { label: string; value: number; tone?: "good" | "bad" }[] = [
     { label: "Opening Cash Balance", value: data.openingCash },
@@ -215,14 +227,14 @@ function CashFlow({ data, loading }: { data: ReturnType<typeof useCashFlow>["dat
               <tr key={r.label} className="hover:bg-muted/20">
                 <td className="px-4 py-3 font-medium">{r.label}</td>
                 <td className={cn("px-4 py-3 text-right tabular-nums font-semibold",
-                  r.tone === "good" ? "text-success" : r.tone === "bad" ? "text-destructive" : "")}>{formatCurrency(r.value, CUR)}</td>
+                  r.tone === "good" ? "text-success" : r.tone === "bad" ? "text-destructive" : "")}>{formatCurrency(r.value, currency)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-border bg-primary/5">
               <td className="px-4 py-3 font-bold">Closing Cash Balance</td>
-              <td className="px-4 py-3 text-right font-bold tabular-nums text-primary">{formatCurrency(data.closingCash, CUR)}</td>
+              <td className="px-4 py-3 text-right font-bold tabular-nums text-primary">{formatCurrency(data.closingCash, currency)}</td>
             </tr>
           </tfoot>
         </table>

@@ -47,6 +47,13 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
     setLines(prev => prev.map(l => l.id === id ? { ...l, [key]: value } : l));
   };
 
+  // Debit and credit are mutually exclusive per line — entering one clears the other.
+  const updateAmount = (id: string, key: "debit" | "credit", value: number) => {
+    setLines(prev => prev.map(l => l.id === id
+      ? { ...l, debit: 0, credit: 0, [key]: value }
+      : l));
+  };
+
   const selectAccount = (lineId: string, accountId: string) => {
     const acc = accounts.find(a => a.id === accountId);
     if (!acc) { updateLine(lineId, "accountId", ""); updateLine(lineId, "accountName", ""); return; }
@@ -205,7 +212,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                             <Input
                               type="number" min={0} step={0.01}
                               value={line.debit || ""}
-                              onChange={e => updateLine(line.id, "debit", +e.target.value)}
+                              onChange={e => updateAmount(line.id, "debit", +e.target.value)}
                               placeholder="0.00"
                               className="h-8 text-xs text-right border-transparent bg-transparent focus-visible:border-primary/40 px-2"
                             />
@@ -214,7 +221,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                             <Input
                               type="number" min={0} step={0.01}
                               value={line.credit || ""}
-                              onChange={e => updateLine(line.id, "credit", +e.target.value)}
+                              onChange={e => updateAmount(line.id, "credit", +e.target.value)}
                               placeholder="0.00"
                               className="h-8 text-xs text-right border-transparent bg-transparent focus-visible:border-primary/40 px-2"
                             />

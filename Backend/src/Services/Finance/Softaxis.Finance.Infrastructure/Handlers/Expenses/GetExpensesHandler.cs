@@ -32,11 +32,17 @@ internal sealed class GetExpensesHandler(FinanceDbContext db) : IQueryHandler<Ge
         var total      = await q.CountAsync(ct);
         var totalPages = (int)Math.Ceiling((double)total / query.PageSize);
 
+        // Explicit projection so the (potentially multi-MB) ReceiptData blob is
+        // never pulled into the list — only a HasReceipt flag + filename.
         var items = await q
             .OrderByDescending(x => x.ExpenseDate)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(x => ExpenseMappings.ToDto(x))
+            .Select(x => new ExpenseDto(
+                x.Id, x.ExpenseNumber, x.Title, x.Category, x.Amount, x.ExpenseDate,
+                x.PaidBy, x.PaymentMethod, x.Reference, x.Notes, x.Status,
+                x.ApprovedById, x.ApprovedAt, x.CreatedAt, x.UpdatedAt,
+                x.ReceiptData != null, x.ReceiptFileName))
             .ToListAsync(ct);
 
         return Result.Success(new PagedResult<ExpenseDto>(

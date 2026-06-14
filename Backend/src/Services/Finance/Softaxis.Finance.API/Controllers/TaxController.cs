@@ -26,6 +26,14 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
         return OkOrError(result);
     }
 
+    [HttpPost("periods")]
+    public async Task<IActionResult> CreatePeriod([FromBody] CreateTaxPeriodCommand cmd, CancellationToken ct)
+    {
+        var result = await sender.Send(cmd, ct);
+        return CreatedOrError(result, nameof(GetPeriods),
+            result.IsSuccess ? new { id = result.Value.Id } : null!);
+    }
+
     [HttpPost("periods/{id:guid}/file")]
     public async Task<IActionResult> FilePeriod(Guid id, CancellationToken ct)
     {

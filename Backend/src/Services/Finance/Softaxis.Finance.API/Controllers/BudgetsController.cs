@@ -56,6 +56,15 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
         return NoContentOrError(result);
     }
 
+    public sealed record ChangeStatusRequest(string Status);
+
+    [HttpPost("{id:guid}/status")]
+    public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeStatusRequest req, CancellationToken ct)
+    {
+        var result = await sender.Send(new ChangeBudgetStatusCommand(id, req.Status), ct);
+        return NoContentOrError(result);
+    }
+
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
