@@ -430,7 +430,7 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                     b.HasOne("Softaxis.ProjectManagement.Domain.Entities.Issue", "Epic")
                         .WithMany()
                         .HasForeignKey("EpicId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Softaxis.ProjectManagement.Domain.Entities.Project", "Project")
                         .WithMany("Issues")

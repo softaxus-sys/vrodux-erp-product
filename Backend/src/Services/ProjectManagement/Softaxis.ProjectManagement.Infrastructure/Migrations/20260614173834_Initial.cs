@@ -163,7 +163,7 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                         principalSchema: "projectmanagement",
                         principalTable: "issues",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_issues_projects_ProjectId",
                         column: x => x.ProjectId,
