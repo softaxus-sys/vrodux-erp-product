@@ -441,7 +441,7 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                     b.HasOne("Softaxis.ProjectManagement.Domain.Entities.Sprint", "Sprint")
                         .WithMany("Issues")
                         .HasForeignKey("SprintId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("BoardColumn");
 
