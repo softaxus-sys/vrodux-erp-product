@@ -177,7 +177,7 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                         principalSchema: "projectmanagement",
                         principalTable: "sprints",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
