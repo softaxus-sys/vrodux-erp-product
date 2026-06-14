@@ -8,7 +8,7 @@
  * Reference: Epson ESC/POS Application Programming Guide rev. 2.3
  */
 
-export type PaperWidth = 48 | 32; // characters per line
+export type PaperWidth = 48 | 46 | 32; // characters per line
 
 export class EscPos {
   private readonly chunks: Uint8Array[] = [];

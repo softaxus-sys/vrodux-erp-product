@@ -307,6 +307,7 @@ export interface ApplicantDto {
   rating?: number;
   notes?: string;
   source: string;
+  hasResume: boolean;
 }
 
 export interface RecruitmentSummaryDto {
@@ -388,6 +389,66 @@ export interface UpdateAttendancePayload {
   notes?: string | null;
 }
 
+export interface CreateJobPostingPayload {
+  title: string;
+  department: string;
+  branch: string;
+  type: string;
+  experienceLevel: string;
+  headcount: number;
+  salaryMin: number;
+  salaryMax: number;
+  currency: string;
+  closingDate?: string;
+  hiringManager?: string;
+  description: string;
+  requirements: string[];
+  responsibilities: string[];
+  status: "draft" | "open";
+}
+
+export interface CreateApplicantPayload {
+  jobId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  nationality?: string;
+  currentRole?: string;
+  currentCompany?: string;
+  experience: number;
+  source?: string;
+  notes?: string;
+}
+
+export interface CreateReviewPayload {
+  employeeId: string;
+  reviewPeriod: string;
+  reviewType: PerformanceReviewDto["reviewType"];
+  dueDate: string;
+  reviewedBy: string;
+}
+
+export interface CompleteReviewPayload {
+  overallRating?: Rating;
+  technicalRating?: Rating;
+  communicationRating?: Rating;
+  teamworkRating?: Rating;
+  leadershipRating?: Rating;
+  strengths?: string;
+  improvements?: string;
+}
+
+export interface CreateGoalPayload {
+  title: string;
+  target: string;
+  dueDate: string;
+}
+
+export interface UpdateGoalPayload {
+  progress: number;
+  status: PerformanceGoalDto["status"];
+}
+
 // ─── Response mapper helpers ──────────────────────────────────────────────────
 
 /** Map raw backend employee to unified EmployeeDto */
@@ -456,6 +517,60 @@ function mapLeave(raw: any): LeaveRequestDto {
     approvedOn:       raw.approvedOn  ?? raw.approvedAt,
     rejectionReason:  raw.rejectionReason ?? raw.approverNotes,
     coveringEmployee: raw.coveringEmployee,
+  };
+}
+
+/** Map raw backend applicant to unified ApplicantDto */
+function mapApplicant(raw: any): ApplicantDto {
+  return {
+    id:             raw.id,
+    jobId:          raw.jobId ?? raw.jobPostingId ?? "",
+    jobTitle:       raw.jobTitle ?? "",
+    name:           raw.name ?? "",
+    email:          raw.email ?? "",
+    phone:          raw.phone ?? "",
+    nationality:    raw.nationality ?? "",
+    currentRole:    raw.currentRole ?? "",
+    currentCompany: raw.currentCompany ?? "",
+    experience:     raw.experience ?? raw.experienceYears ?? 0,
+    stage:          (raw.stage as ApplicantStage) ?? "applied",
+    appliedDate:    raw.appliedDate ?? undefined,
+    rating:         raw.rating ?? undefined,
+    notes:          raw.notes ?? undefined,
+    source:         raw.source ?? "",
+    hasResume:      raw.hasResume ?? false,
+  };
+}
+
+/** Map raw backend review to unified PerformanceReviewDto */
+function mapPerformanceReview(raw: any): PerformanceReviewDto {
+  return {
+    id:                  raw.id,
+    employeeId:          raw.employeeId ?? "",
+    employeeName:        raw.employeeName ?? "",
+    department:          raw.department ?? "",
+    designation:         raw.designation ?? "",
+    reviewPeriod:        raw.reviewPeriod ?? "",
+    reviewType:          (raw.reviewType as PerformanceReviewDto["reviewType"]) ?? "annual",
+    status:              (raw.status as ReviewStatus) ?? "pending",
+    overallRating:       raw.overallRating ?? undefined,
+    technicalRating:     raw.technicalRating ?? undefined,
+    communicationRating: raw.communicationRating ?? undefined,
+    teamworkRating:      raw.teamworkRating ?? undefined,
+    leadershipRating:    raw.leadershipRating ?? undefined,
+    reviewedBy:          raw.reviewedBy ?? "",
+    dueDate:             raw.dueDate ?? "",
+    completedDate:       raw.completedDate ?? undefined,
+    strengths:           raw.strengths ?? undefined,
+    improvements:        raw.improvements ?? undefined,
+    goals:               (raw.goals ?? []).map((g: any) => ({
+      id:       g.id,
+      title:    g.title ?? "",
+      target:   g.target ?? "",
+      progress: g.progress ?? 0,
+      status:   g.status ?? "on_track",
+      dueDate:  g.dueDate ?? "",
+    })),
   };
 }
 
@@ -560,18 +675,60 @@ export const hrApi = {
 
   // ── Performance ───────────────────────────────────────────────────────────
   getPerformanceReviews: (): Promise<PerformanceReviewDto[]> =>
-    rawApiClient.get(`${BASE}/performance?pageSize=500`).then((r: any) => r.items ?? r),
+    rawApiClient.get(`${BASE}/performance?pageSize=500`).then((r: any) => (r.items ?? r).map(mapPerformanceReview)),
 
   getPerformanceSummary: (): Promise<PerformanceSummaryDto> =>
     rawApiClient.get(`${BASE}/performance/summary`),
+
+  createPerformanceReview: (payload: CreateReviewPayload): Promise<PerformanceReviewDto> =>
+    rawApiClient.post(`${BASE}/performance`, payload).then(mapPerformanceReview),
+
+  startPerformanceReview: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/performance/${id}/start`, {}),
+
+  completePerformanceReview: (id: string, payload: CompleteReviewPayload): Promise<PerformanceReviewDto> =>
+    rawApiClient.post(`${BASE}/performance/${id}/complete`, payload).then(mapPerformanceReview),
+
+  deletePerformanceReview: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/performance/${id}`),
+
+  addPerformanceGoal: (id: string, payload: CreateGoalPayload): Promise<PerformanceReviewDto> =>
+    rawApiClient.post(`${BASE}/performance/${id}/goals`, payload).then(mapPerformanceReview),
+
+  updatePerformanceGoal: (id: string, goalId: string, payload: UpdateGoalPayload): Promise<void> =>
+    rawApiClient.put(`${BASE}/performance/${id}/goals/${goalId}`, payload),
+
+  deletePerformanceGoal: (id: string, goalId: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/performance/${id}/goals/${goalId}`),
 
   // ── Recruitment ───────────────────────────────────────────────────────────
   getJobPostings: (): Promise<JobPostingDto[]> =>
     rawApiClient.get(`${BASE}/recruitment/jobs?pageSize=500`).then((r: any) => r.items ?? r),
 
   getApplicants: (): Promise<ApplicantDto[]> =>
-    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => r.items ?? r),
+    rawApiClient.get(`${BASE}/recruitment/applicants?pageSize=500`).then((r: any) => (r.items ?? r).map(mapApplicant)),
 
   getRecruitmentSummary: (): Promise<RecruitmentSummaryDto> =>
     rawApiClient.get(`${BASE}/recruitment/summary`),
+
+  createJobPosting: (payload: CreateJobPostingPayload): Promise<JobPostingDto> =>
+    rawApiClient.post(`${BASE}/recruitment/jobs`, payload),
+
+  deleteJobPosting: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/recruitment/jobs/${id}`),
+
+  updateJobStatus: (id: string, status: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/recruitment/jobs/${id}/status`, { status }),
+
+  createApplicant: (payload: CreateApplicantPayload): Promise<ApplicantDto> =>
+    rawApiClient.post(`${BASE}/recruitment/applicants`, payload).then(mapApplicant),
+
+  updateApplicantStage: (id: string, stage: ApplicantStage): Promise<void> =>
+    rawApiClient.put(`${BASE}/recruitment/applicants/${id}/stage`, { stage }),
+
+  deleteApplicant: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/recruitment/applicants/${id}`),
+
+  getApplicantResumeUrl: (id: string): string =>
+    `${BASE}/recruitment/applicants/${id}/resume`,
 };

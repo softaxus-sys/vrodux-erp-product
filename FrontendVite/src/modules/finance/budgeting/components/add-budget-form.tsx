@@ -4,6 +4,7 @@ import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreateBudget } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 
@@ -43,6 +44,7 @@ interface AddBudgetFormProps {
 }
 
 export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
+  const currency = useCurrency();
   const createBudget = useCreateBudget();
 
   const [department, setDepartment] = React.useState("");
@@ -151,7 +153,7 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
               {/* Grand total banner */}
               <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
                 <span className="text-sm font-semibold text-foreground">Total Annual Budget</span>
-                <span className="text-xl font-bold text-primary">{formatCurrency(grandTotal, "AED")}</span>
+                <span className="text-xl font-bold text-primary">{formatCurrency(grandTotal, currency)}</span>
               </div>
 
               {/* Budget Lines */}
@@ -196,7 +198,7 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
                             </td>
                           ))}
                           <td className="px-3 py-1.5 text-right text-xs font-semibold text-foreground">
-                            {formatCurrency(lineTotal(line), "AED")}
+                            {formatCurrency(lineTotal(line), currency)}
                           </td>
                           <td className="px-2 py-1.5">
                             <button onClick={() => removeLine(line.id)} disabled={lines.length <= 1}
@@ -212,10 +214,10 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
                         <td className="px-3 py-2 text-xs text-muted-foreground">Totals</td>
                         {(["q1", "q2", "q3", "q4"] as const).map(q => (
                           <td key={q} className="px-3 py-2 text-right text-xs text-foreground">
-                            {formatCurrency(totalByQ(q), "AED")}
+                            {formatCurrency(totalByQ(q), currency)}
                           </td>
                         ))}
-                        <td className="px-3 py-2 text-right text-xs text-primary">{formatCurrency(grandTotal, "AED")}</td>
+                        <td className="px-3 py-2 text-right text-xs text-primary">{formatCurrency(grandTotal, currency)}</td>
                         <td />
                       </tr>
                     </tfoot>

@@ -26,6 +26,13 @@ public abstract class FinanceControllerBase : ControllerBase
     protected IActionResult NoContentOrError(Result result) =>
         result.IsSuccess ? NoContent() : ErrorResponse(result.Error);
 
+    /// <summary>201 Created with a manually-built location URL, or an error response.</summary>
+    protected IActionResult CreatedAtUrlOrError<T>(
+        Result<T> result, Func<T, string> urlFactory, Func<T, object> bodyFactory) =>
+        result.IsSuccess
+            ? Created(urlFactory(result.Value), bodyFactory(result.Value))
+            : ErrorResponse(result.Error);
+
     // ── Error mapping ─────────────────────────────────────────────────────────
 
     private ObjectResult ErrorResponse(Error error)
@@ -37,6 +44,8 @@ public abstract class FinanceControllerBase : ControllerBase
             var c when c.EndsWith(".NotFound")      => NotFound(body),
             var c when c.EndsWith(".Duplicate")     => Conflict(body),
             var c when c.EndsWith(".HasTransactions")=> Conflict(body),
+            var c when c.EndsWith(".Conflict")      => Conflict(body),
+            var c when c.EndsWith(".Unbalanced")    => UnprocessableEntity(body),
             "Validation.Failed"                     => UnprocessableEntity(body),
             _                                       => StatusCode(StatusCodes.Status500InternalServerError, body),
         };

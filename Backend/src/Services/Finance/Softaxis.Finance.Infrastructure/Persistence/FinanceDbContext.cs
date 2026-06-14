@@ -21,6 +21,18 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<TaxTransaction>   TaxTransactions  => Set<TaxTransaction>();
     public DbSet<RecurringInvoice>     RecurringInvoices     => Set<RecurringInvoice>();
     public DbSet<RecurringInvoiceLine> RecurringInvoiceLines => Set<RecurringInvoiceLine>();
+    public DbSet<AccountType>          AccountTypes          => Set<AccountType>();
+    public DbSet<Currency>             Currencies            => Set<Currency>();
+    public DbSet<ExchangeRate>         ExchangeRates         => Set<ExchangeRate>();
+    public DbSet<Customer>             Customers             => Set<Customer>();
+    public DbSet<Supplier>             Suppliers             => Set<Supplier>();
+    public DbSet<PurchaseBill>         PurchaseBills         => Set<PurchaseBill>();
+    public DbSet<PurchaseBillItem>     PurchaseBillItems     => Set<PurchaseBillItem>();
+    public DbSet<PaymentVoucher>       PaymentVouchers       => Set<PaymentVoucher>();
+    public DbSet<PaymentAllocation>    PaymentAllocations    => Set<PaymentAllocation>();
+    public DbSet<ReceiptVoucher>       ReceiptVouchers       => Set<ReceiptVoucher>();
+    public DbSet<ReceiptAllocation>    ReceiptAllocations    => Set<ReceiptAllocation>();
+    public DbSet<FiscalPeriod>         FiscalPeriods         => Set<FiscalPeriod>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -114,7 +114,7 @@ function ScanToast({ feedback, itemName }: { feedback: "found" | "not_found" | n
 
 function ProductCard({ product, onAdd }: { product: ReturnType<typeof mapToCartProduct>; onAdd: (p: ReturnType<typeof mapToCartProduct>) => void }) {
   const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "PKR";
+  const currency = tenant?.currency || "AED";
   const outOfStock = product.stock <= 0;
   return (
     <button
@@ -147,7 +147,7 @@ function CartItemRow({ item, onInc, onDec, onRemove }: {
   item: CartItem; onInc: () => void; onDec: () => void; onRemove: () => void;
 }) {
   const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "PKR";
+  const currency = tenant?.currency || "AED";
   return (
     <motion.div layout initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
       className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0">
@@ -255,7 +255,7 @@ function CategoryScroller({
 
 export function RetailPOSView() {
   const { user, hasRawPermission, tenant } = useAuthStore();
-  const currency       = tenant?.currency || "PKR";
+  const currency       = tenant?.currency || "AED";
   const paymentMethods = usePaymentMethods();
   const { openDrawer, printRaw, printerStatus } = useHardware();
   // Must be called before any conditional return (rules of hooks)
@@ -422,12 +422,12 @@ export function RetailPOSView() {
   }, [cart.length, appliedDiscount]);
 
   const taxBase   = subtotal - discountAmount;
-  const taxAmount = cart.reduce((s, i) => {
+  const taxAmount = Math.round(cart.reduce((s, i) => {
     if (!subtotal) return 0;
     const itemShare = (i.total / subtotal) * taxBase;
     return s + itemShare * (i.taxRate / 100);
-  }, 0);
-  const total   = taxBase + taxAmount;
+  }, 0) * 100) / 100;
+  const total   = Math.round((taxBase + taxAmount) * 100) / 100;
   const change  = Math.max(0, (parseFloat(tenderedAmount) || 0) - total);
 
   // ── Checkout ──────────────────────────────────────────────────────────────────
@@ -479,6 +479,7 @@ export function RetailPOSView() {
           paymentMethod: payments.length > 1 ? "Split" : paymentMethod,
           payments:      payments.map(p => ({ method: p.method, amount: p.amount })),
           tendered:       parseFloat(tenderedAmount) || 0,
+          openDrawer:     hasCash,
         });
         printRaw(escData).catch(() => {/* non-fatal — receipt modal is still shown */});
       }

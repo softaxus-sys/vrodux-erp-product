@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { hrApi } from "@/lib/hr/hr.api";
 import type { PayrollRunDto as PayrollRun } from "@/lib/hr/hr.api";
 import { usePayrollRuns, usePayrollSummary, usePayrollRunById, useProcessPayrollRun, usePayPayrollRun, useSendPayslipEmail, useDeletePayrollRun, useRejectPayrollRun, useReopenPayrollRun, useUpdatePayrollSlip } from "@/hooks/hr/use-hr";
@@ -57,6 +58,7 @@ type NormalisedSlip = ReturnType<typeof normaliseSlip>;
 function PayslipDetailView({
   slip, runId, onBack,
 }: { slip: NormalisedSlip; runId: string; onBack: () => void }) {
+  const currency = useCurrency();
   const sendEmail = useSendPayslipEmail();
   const [sentTo,   setSentTo]   = React.useState<string | null>(slip.emailSentTo ?? null);
   const [sentAt,   setSentAt]   = React.useState<string | null>(slip.emailSentAt ?? null);
@@ -123,7 +125,7 @@ function PayslipDetailView({
           </div>
           <div className="text-right shrink-0">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Net Salary</p>
-            <p className="text-xl font-bold text-primary">{formatCurrency(slip.netSalary, "AED")}</p>
+            <p className="text-xl font-bold text-primary">{formatCurrency(slip.netSalary, currency)}</p>
           </div>
         </div>
 
@@ -133,17 +135,17 @@ function PayslipDetailView({
           <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
             <div className="flex justify-between items-center px-4 py-3 text-sm">
               <span className="text-muted-foreground">Basic Salary</span>
-              <span className="font-semibold">{formatCurrency(slip.basicSalary, "AED")}</span>
+              <span className="font-semibold">{formatCurrency(slip.basicSalary, currency)}</span>
             </div>
             {slip.allowances > 0 && (
               <div className="flex justify-between items-center px-4 py-3 text-sm">
                 <span className="text-muted-foreground">Allowances</span>
-                <span className="text-success">+ {formatCurrency(slip.allowances, "AED")}</span>
+                <span className="text-success">+ {formatCurrency(slip.allowances, currency)}</span>
               </div>
             )}
             <div className="flex justify-between items-center px-4 py-3 text-sm font-bold bg-muted/20 rounded-b-xl">
               <span>Gross Salary</span>
-              <span className="text-primary">{formatCurrency(slip.grossSalary, "AED")}</span>
+              <span className="text-primary">{formatCurrency(slip.grossSalary, currency)}</span>
             </div>
           </div>
         </div>
@@ -155,7 +157,7 @@ function PayslipDetailView({
             <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
               <div className="flex justify-between items-center px-4 py-3 text-sm">
                 <span className="text-muted-foreground">Total Deductions</span>
-                <span className="text-destructive font-semibold">- {formatCurrency(slip.deductions, "AED")}</span>
+                <span className="text-destructive font-semibold">- {formatCurrency(slip.deductions, currency)}</span>
               </div>
             </div>
           </div>
@@ -167,7 +169,7 @@ function PayslipDetailView({
             <p className="text-xs font-semibold text-primary uppercase tracking-wide">Net Salary</p>
             <p className="text-xs text-muted-foreground mt-0.5">Amount to be credited</p>
           </div>
-          <p className="text-2xl font-bold text-primary">{formatCurrency(slip.netSalary, "AED")}</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(slip.netSalary, currency)}</p>
         </div>
 
         {/* Payment info */}
@@ -228,6 +230,7 @@ function PayslipDetailView({
 
 // ── Payroll run drawer (single panel, push-navigation for payslip detail) ─────
 function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   const [selectedSlip,  setSelectedSlip]  = React.useState<NormalisedSlip | null>(null);
   const [search,        setSearch]        = React.useState("");
   const [showReject,    setShowReject]    = React.useState(false);
@@ -361,9 +364,9 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
               {/* Summary cards */}
               <div className="grid grid-cols-3 gap-3 px-6 pt-4 pb-3 shrink-0">
                 {[
-                  { label: "Gross Payroll", value: formatCurrency(grossTotal, "AED"),                    color: "text-foreground" },
-                  { label: "Deductions",    value: formatCurrency(activeRun.totalDeductions, "AED"),     color: "text-destructive" },
-                  { label: "Net Payroll",   value: formatCurrency(activeRun.totalNetSalary, "AED"),      color: "text-primary" },
+                  { label: "Gross Payroll", value: formatCurrency(grossTotal, currency),                    color: "text-foreground" },
+                  { label: "Deductions",    value: formatCurrency(activeRun.totalDeductions, currency),     color: "text-destructive" },
+                  { label: "Net Payroll",   value: formatCurrency(activeRun.totalNetSalary, currency),      color: "text-primary" },
                 ].map(s => (
                   <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -502,7 +505,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{formatCurrency(ps.basicSalary, "AED")}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{formatCurrency(ps.basicSalary, currency)}</td>
                             <td className="px-4 py-2">
                               <input type="number" min={0} step={0.01}
                                 value={allowances}
@@ -518,7 +521,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                               />
                             </td>
                             <td className={cn("px-4 py-3 text-sm font-bold", changed ? "text-amber-500" : "text-primary")}>
-                              {formatCurrency(net, "AED")}
+                              {formatCurrency(net, currency)}
                             </td>
                           </motion.tr>
                         );
@@ -553,8 +556,8 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">{ps.department}</td>
-                          <td className="px-4 py-3 text-sm">{formatCurrency(ps.basicSalary, "AED")}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-primary">{formatCurrency(ps.netSalary, "AED")}</td>
+                          <td className="px-4 py-3 text-sm">{formatCurrency(ps.basicSalary, currency)}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-primary">{formatCurrency(ps.netSalary, currency)}</td>
                           <td className="px-4 py-3">
                             {ps.emailSentAt ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full">
@@ -626,6 +629,7 @@ function generateWpsSif(run: PayrollRun): string {
 function WpsSubmitModal({ runId, period, open, onClose }: {
   runId: string | null; period: string; open: boolean; onClose: () => void;
 }) {
+  const currency = useCurrency();
   const { data: run, isLoading } = usePayrollRunById(runId);
   const [submitted, setSubmitted] = React.useState(false);
 
@@ -679,7 +683,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
                   {[
                     { label: "Pay Period",    value: run.period },
                     { label: "Employees",     value: run.slipCount },
-                    { label: "Total Payroll", value: formatCurrency(run.totalNetSalary, "AED") },
+                    { label: "Total Payroll", value: formatCurrency(run.totalNetSalary, currency) },
                   ].map(s => (
                     <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
@@ -714,7 +718,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
                             <td className="px-3 py-2 font-mono">{ps.employeeNumber}</td>
                             <td className="px-3 py-2">{ps.employeeName}</td>
                             <td className="px-3 py-2 font-mono text-[10px]">{ps.iban || "—"}</td>
-                            <td className="px-3 py-2 font-semibold text-primary">{formatCurrency(ps.netSalary, "AED")}</td>
+                            <td className="px-3 py-2 font-semibold text-primary">{formatCurrency(ps.netSalary, currency)}</td>
                             <td className="px-3 py-2">
                               <span className={cn(
                                 "px-2 py-0.5 rounded-full text-[10px] font-semibold",
@@ -757,6 +761,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
 }
 
 export function PayrollView() {
+  const currency = useCurrency();
   const [selectedRun, setSelectedRun] = React.useState<PayrollRun | null>(null);
   const [runDrawerOpen, setRunDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
@@ -793,8 +798,8 @@ export function PayrollView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Current Month Net",  value: formatCurrency(thisMonth?.totalNetSalary ?? currentRun?.totalNetSalary ?? 0, "AED"), sub: currentMonth ?? currentRun?.period ?? "—", icon: DollarSign, color: "text-primary bg-primary/10" },
-          { label: "All-Time Paid",      value: formatCurrency(0, "AED"),                                                                  sub: "YTD (not tracked)",                                       icon: TrendingUp, color: "text-success bg-success/10" },
+          { label: "Current Month Net",  value: formatCurrency(thisMonth?.totalNetSalary ?? currentRun?.totalNetSalary ?? 0, currency), sub: currentMonth ?? currentRun?.period ?? "—", icon: DollarSign, color: "text-primary bg-primary/10" },
+          { label: "All-Time Paid",      value: formatCurrency(0, currency),                                                                  sub: "YTD (not tracked)",                                       icon: TrendingUp, color: "text-success bg-success/10" },
           { label: "Total Employees",    value: thisMonth?.employeeCount ?? currentRun?.slipCount ?? 0,                                    sub: "On payroll",                                              icon: Users,      color: "text-info bg-info/10" },
           { label: "Paid Runs",          value: payrollSummary?.allTime?.paid ?? payrollRuns.filter(r => r.status === "paid").length,      sub: "All time",                                                icon: BarChart3,  color: "text-muted-foreground bg-muted" },
         ].map((s, i) => (
@@ -830,7 +835,7 @@ export function PayrollView() {
                   </div>
                   <p className="font-bold text-xl">{currentMonth ?? currentRun.period}</p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {thisMonth?.employeeCount ?? currentRun.slipCount} employees · Net {formatCurrency(thisMonth?.totalNetSalary ?? currentRun.totalNetSalary, "AED")}
+                    {thisMonth?.employeeCount ?? currentRun.slipCount} employees · Net {formatCurrency(thisMonth?.totalNetSalary ?? currentRun.totalNetSalary, currency)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -872,9 +877,9 @@ export function PayrollView() {
                       <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{run.runNumber}</td>
                       <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{run.period}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{run.slipCount}</td>
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">{formatCurrency(gross, "AED")}</td>
-                      <td className="px-4 py-3 text-sm text-destructive whitespace-nowrap">- {formatCurrency(run.totalDeductions, "AED")}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-primary whitespace-nowrap">{formatCurrency(run.totalNetSalary, "AED")}</td>
+                      <td className="px-4 py-3 text-sm whitespace-nowrap">{formatCurrency(gross, currency)}</td>
+                      <td className="px-4 py-3 text-sm text-destructive whitespace-nowrap">- {formatCurrency(run.totalDeductions, currency)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-primary whitespace-nowrap">{formatCurrency(run.totalNetSalary, currency)}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{run.processedAt ? formatDate(run.processedAt, "medium") : "—"}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{run.paidAt ? formatDate(run.paidAt, "medium") : "—"}</td>
                       <td className="px-4 py-3">

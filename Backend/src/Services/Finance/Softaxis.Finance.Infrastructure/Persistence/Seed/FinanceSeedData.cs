@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 
 namespace Softaxis.Finance.Infrastructure.Persistence.Seed;
 
@@ -14,16 +15,119 @@ public static class FinanceSeedData
 
     public static async Task SeedAsync(FinanceDbContext db)
     {
+        await SeedAccountTypesAsync(db);
+        await SeedCurrenciesAsync(db);
+        await db.SaveChangesAsync();
+        await SeedExchangeRatesAsync(db);
+        await db.SaveChangesAsync();
         await SeedAccountsAsync(db);
+        await db.SaveChangesAsync();
+        await SeedCustomersAsync(db);
+        await SeedSuppliersAsync(db);
         await db.SaveChangesAsync();
         await SeedExpensesAsync(db);
         await db.SaveChangesAsync();
         await SeedInvoicesAsync(db);
         await db.SaveChangesAsync();
+        await SeedPurchaseBillsAsync(db);
+        await db.SaveChangesAsync();
+        await SeedPaymentVouchersAsync(db);
+        await db.SaveChangesAsync();
+        await SeedReceiptVouchersAsync(db);
+        await db.SaveChangesAsync();
         await SeedBudgetsAsync(db);
         await db.SaveChangesAsync();
         await SeedJournalsAsync(db);
         await db.SaveChangesAsync();
+    }
+
+    // ── Account Types ─────────────────────────────────────────────────────────
+
+    private static readonly Guid AccTypeAsset     = new("a1000001-0000-0000-0000-000000000001");
+    private static readonly Guid AccTypeLiability = new("a1000001-0000-0000-0000-000000000002");
+    private static readonly Guid AccTypeEquity    = new("a1000001-0000-0000-0000-000000000003");
+    private static readonly Guid AccTypeIncome    = new("a1000001-0000-0000-0000-000000000004");
+    private static readonly Guid AccTypeExpense   = new("a1000001-0000-0000-0000-000000000005");
+
+    private static async Task SeedAccountTypesAsync(FinanceDbContext db)
+    {
+        var existing = await db.AccountTypes.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        var types = new[]
+        {
+            (AccTypeAsset,     "asset",     "Asset",     "debit",  1),
+            (AccTypeLiability, "liability", "Liability", "credit", 2),
+            (AccTypeEquity,    "equity",    "Equity",    "credit", 3),
+            (AccTypeIncome,    "income",    "Income",    "credit", 4),
+            (AccTypeExpense,   "expense",   "Expense",   "debit",  5),
+        };
+
+        foreach (var (id, code, name, normalBalance, sortOrder) in types)
+        {
+            if (existing.Contains(id)) continue;
+            var type = new AccountType(code, name, normalBalance, sortOrder);
+            SetId(type, id);
+            db.AccountTypes.Add(type);
+        }
+    }
+
+    // ── Currencies ────────────────────────────────────────────────────────────
+
+    private static async Task SeedCurrenciesAsync(FinanceDbContext db)
+    {
+        var existing = await db.Currencies.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        var currencies = new[]
+        {
+            (new Guid("a2000002-0000-0000-0000-000000000001"), "AED", "UAE Dirham",       "د.إ", 2, true),
+            (new Guid("a2000002-0000-0000-0000-000000000002"), "USD", "US Dollar",        "$",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000003"), "EUR", "Euro",             "€",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000004"), "GBP", "British Pound",    "£",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000005"), "SAR", "Saudi Riyal",      "ر.س", 2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000006"), "KWD", "Kuwaiti Dinar",    "د.ك", 3, false),
+            (new Guid("a2000002-0000-0000-0000-000000000007"), "BHD", "Bahraini Dinar",   "د.ب", 3, false),
+            (new Guid("a2000002-0000-0000-0000-000000000008"), "OMR", "Omani Rial",       "ر.ع.", 3, false),
+        };
+
+        foreach (var (id, code, name, symbol, decimalPlaces, isBase) in currencies)
+        {
+            if (existing.Contains(id)) continue;
+            var currency = new Currency(code, name, symbol, decimalPlaces, isBase);
+            SetId(currency, id);
+            db.Currencies.Add(currency);
+        }
+    }
+
+    // ── Exchange Rates (AED base) ────────────────────────────────────────────
+
+    private static async Task SeedExchangeRatesAsync(FinanceDbContext db)
+    {
+        var existing = await db.ExchangeRates.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        const string rateDate = "2026-06-01";
+
+        // (id, currencyCode, rate) — AED per 1 unit of currencyCode
+        var rates = new[]
+        {
+            (new Guid("a3000003-0000-0000-0000-000000000001"), "USD", 3.6725m),
+            (new Guid("a3000003-0000-0000-0000-000000000002"), "EUR", 4.0000m),
+            (new Guid("a3000003-0000-0000-0000-000000000003"), "GBP", 4.6500m),
+            (new Guid("a3000003-0000-0000-0000-000000000004"), "SAR", 0.9788m),
+            (new Guid("a3000003-0000-0000-0000-000000000005"), "KWD", 12.0000m),
+            (new Guid("a3000003-0000-0000-0000-000000000006"), "BHD", 9.7400m),
+            (new Guid("a3000003-0000-0000-0000-000000000007"), "OMR", 9.5500m),
+        };
+
+        foreach (var (id, code, rate) in rates)
+        {
+            if (existing.Contains(id)) continue;
+            var exchangeRate = new ExchangeRate(code, rateDate, rate);
+            SetId(exchangeRate, id);
+            db.ExchangeRates.Add(exchangeRate);
+        }
     }
 
     // ── Chart of Accounts ─────────────────────────────────────────────────────
@@ -61,6 +165,7 @@ public static class FinanceSeedData
     private static readonly Guid AccTelecomExp       = new("b1000001-0000-0000-0000-000000000048");
     private static readonly Guid AccInsuranceExp     = new("b1000001-0000-0000-0000-000000000049");
     private static readonly Guid AccMiscExp          = new("b1000001-0000-0000-0000-000000000050");
+    private static readonly Guid AccFxGainLoss       = new("b1000001-0000-0000-0000-000000000051");
 
     private static async Task SeedAccountsAsync(FinanceDbContext db)
     {
@@ -91,6 +196,7 @@ public static class FinanceSeedData
             (AccRevenueSales,     "4001", "Sales Revenue",              "income",    (Guid?)null,   2850000m),
             (AccRevenueServices,  "4002", "Service Revenue",            "income",    (Guid?)null,   680000m),
             (AccOtherIncome,      "4900", "Other Income",               "income",    (Guid?)null,   24000m),
+            (AccFxGainLoss,       "4950", "Foreign Exchange Gain/Loss", "income",    (Guid?)null,   0m),
             // Expenses
             (AccSalaryExp,        "5001", "Salaries & Wages",           "expense",   (Guid?)null,   1260000m),
             (AccRentExp,          "5100", "Rent Expense",               "expense",   (Guid?)null,   180000m),
@@ -104,13 +210,88 @@ public static class FinanceSeedData
             (AccMiscExp,          "5900", "Miscellaneous Expenses",     "expense",   (Guid?)null,   12000m),
         };
 
+        var accountTypeIdByCode = new Dictionary<string, Guid>
+        {
+            ["asset"]     = AccTypeAsset,
+            ["liability"] = AccTypeLiability,
+            ["equity"]    = AccTypeEquity,
+            ["income"]    = AccTypeIncome,
+            ["expense"]   = AccTypeExpense,
+        };
+
         foreach (var (id, number, name, type, parentId, balance) in accounts)
         {
             if (existing.Contains(id)) continue;
             var acc = new Account(number, name, type, null, parentId);
             SetId(acc, id);
             SetProp(acc, "Balance", balance);
+            acc.SetAccountTypeId(accountTypeIdByCode[type]);
             db.Accounts.Add(acc);
+        }
+    }
+
+    // ── Customers (AR) ────────────────────────────────────────────────────────
+
+    private static readonly Dictionary<string, Guid> CustomerIdByName = new()
+    {
+        ["Emirates NBD"]              = new("c1000001-0000-0000-0000-000000000001"),
+        ["Abu Dhabi Commercial Bank"] = new("c1000001-0000-0000-0000-000000000002"),
+        ["Majid Al Futtaim"]          = new("c1000001-0000-0000-0000-000000000003"),
+        ["DEWA"]                      = new("c1000001-0000-0000-0000-000000000004"),
+        ["Etisalat"]                  = new("c1000001-0000-0000-0000-000000000005"),
+        ["Dubai Properties"]          = new("c1000001-0000-0000-0000-000000000006"),
+        ["Carrefour UAE"]             = new("c1000001-0000-0000-0000-000000000007"),
+        ["ADNOC"]                     = new("c1000001-0000-0000-0000-000000000008"),
+    };
+
+    private static async Task SeedCustomersAsync(FinanceDbContext db)
+    {
+        var existing = await db.Customers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        var emailByName = new Dictionary<string, string>
+        {
+            ["Emirates NBD"]              = "accounts@emiratesnbd.com",
+            ["Abu Dhabi Commercial Bank"] = "finance@adcb.com",
+            ["Majid Al Futtaim"]          = "it@maf.ae",
+            ["DEWA"]                      = "procurement@dewa.gov.ae",
+            ["Etisalat"]                  = "enterprise@etisalat.ae",
+            ["Dubai Properties"]          = "billing@dubaiproperties.ae",
+            ["Carrefour UAE"]             = "it@carrefour.ae",
+            ["ADNOC"]                     = "erp@adnoc.ae",
+        };
+
+        foreach (var (name, id) in CustomerIdByName)
+        {
+            if (existing.Contains(id)) continue;
+            var customer = new Customer(name, emailByName[name], null, null, AccAccountsRec);
+            SetId(customer, id);
+            db.Customers.Add(customer);
+        }
+    }
+
+    // ── Suppliers (AP) ───────────────────────────────────────────────────────
+
+    private static readonly Dictionary<string, Guid> SupplierIdByName = new()
+    {
+        ["Amazon Web Services"]  = new("c2000002-0000-0000-0000-000000000001"),
+        ["LinkedIn"]             = new("c2000002-0000-0000-0000-000000000002"),
+        ["Etisalat Business"]    = new("c2000002-0000-0000-0000-000000000003"),
+        ["Al Futtaim Insurance"] = new("c2000002-0000-0000-0000-000000000004"),
+        ["DEWA"]                 = new("c2000002-0000-0000-0000-000000000005"),
+    };
+
+    private static async Task SeedSuppliersAsync(FinanceDbContext db)
+    {
+        var existing = await db.Suppliers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        foreach (var (name, id) in SupplierIdByName)
+        {
+            if (existing.Contains(id)) continue;
+            var supplier = new Supplier(name, null, null, null, AccAccountsPay);
+            SetId(supplier, id);
+            db.Suppliers.Add(supplier);
         }
     }
 
@@ -143,12 +324,26 @@ public static class FinanceSeedData
             (new Guid("b2000002-0000-0000-0000-000000000018"), "Client Entertaining — Q2",      "Marketing",  3200m,   "2026-05-20", "Omar Abdullah",      "cash",          "approved"),
         };
 
+        var supplierByTitleKeyword = new (string keyword, string supplier)[]
+        {
+            ("AWS",          "Amazon Web Services"),
+            ("LinkedIn",     "LinkedIn"),
+            ("Electricity",  "DEWA"),
+            ("Telephone",    "Etisalat Business"),
+            ("Insurance",    "Al Futtaim Insurance"),
+        };
+
         foreach (var (id, title, category, amount, date, paidBy, method, status) in expenses)
         {
             if (existing.Contains(id)) continue;
             var exp = new Expense(title, category, amount, date, paidBy, method, null, null);
             SetId(exp, id);
             if (status == "approved") exp.Approve(FinanceManagerId);
+
+            var match = supplierByTitleKeyword.FirstOrDefault(s => title.Contains(s.keyword, StringComparison.OrdinalIgnoreCase));
+            if (match.supplier is not null)
+                exp.SetSupplierId(SupplierIdByName[match.supplier]);
+
             db.Expenses.Add(exp);
         }
     }
@@ -184,31 +379,274 @@ public static class FinanceSeedData
         var itemCounter = 1;
         foreach (var (id, customer, email, date, dueDate, status, items) in invoices)
         {
-            if (existing.Contains(id)) continue;
-
-            // Correct constructor: (customerName, customerEmail, invoiceDate, dueDate, taxRate, notes)
-            var inv = new Invoice(customer, email, date, dueDate, 5m, null);
-            SetId(inv, id);
-
-            foreach (var (desc, qty, price) in items)
+            Invoice inv;
+            if (existing.Contains(id))
             {
-                var itemId = new Guid($"b4{itemCounter++:000000}-0000-0000-0000-000000000001");
-                // Correct constructor: (invoiceId, description, quantity, unitPrice)
-                var item = new InvoiceItem(id, desc, qty, price);
-                SetId(item, itemId);
-                db.InvoiceItems.Add(item);
+                inv = await db.Invoices.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                // Correct constructor: (customerName, customerEmail, invoiceDate, dueDate, taxRate, notes)
+                inv = new Invoice(customer, email, date, dueDate, 5m, null);
+                SetId(inv, id);
+                if (CustomerIdByName.TryGetValue(customer, out var customerId))
+                    inv.SetCustomerId(customerId);
+
+                foreach (var (desc, qty, price) in items)
+                {
+                    var itemId = new Guid($"b4{itemCounter++:000000}-0000-0000-0000-000000000001");
+                    // Correct constructor: (invoiceId, description, quantity, unitPrice)
+                    var item = new InvoiceItem(id, desc, qty, price);
+                    SetId(item, itemId);
+                    db.InvoiceItems.Add(item);
+                }
+
+                // Transition status — Invoice only has MarkPaid() and Cancel()
+                // For "sent" and "overdue" we update the Status property via Update()
+                if (status == "sent")
+                    inv.Update(customer, email, date, dueDate, 5m, null, "sent");
+                else if (status == "overdue")
+                    inv.Update(customer, email, date, dueDate, 5m, null, "overdue");
+                else if (status == "paid")
+                    inv.MarkPaid();
+
+                db.Invoices.Add(inv);
             }
 
-            // Transition status — Invoice only has MarkPaid() and Cancel()
-            // For "sent" and "overdue" we update the Status property via Update()
-            if (status == "sent")
-                inv.Update(customer, email, date, dueDate, 5m, null, "sent");
-            else if (status == "overdue")
-                inv.Update(customer, email, date, dueDate, 5m, null, "overdue");
-            else if (status == "paid")
-                inv.MarkPaid();
+            // Post the AR/Sales/VAT journal entry for any issued (non-draft) invoice —
+            // mirrors SendInvoiceHandler. Items navigation isn't populated here, so
+            // totals are computed directly from the seed item tuples.
+            if (status is "sent" or "overdue" or "paid" && inv.JournalEntryId is null)
+            {
+                var subTotal  = items.Sum(i => i.Item2 * i.Item3);
+                var taxAmount = subTotal * 5m / 100;
+                var total     = subTotal + taxAmount;
 
-            db.Invoices.Add(inv);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(GlPoster.AccountsReceivable, total, 0, $"Invoice {inv.InvoiceNumber} - {customer}"),
+                    new(GlPoster.SalesRevenue, 0, subTotal, $"Sales - Invoice {inv.InvoiceNumber}"),
+                };
+                if (taxAmount > 0)
+                    glLines.Add(new(GlPoster.VatPayable, 0, taxAmount, $"VAT Output - Invoice {inv.InvoiceNumber}"));
+
+                var journalEntryId = await GlPoster.PostAsync(db, date, $"Sales Invoice {inv.InvoiceNumber}", inv.InvoiceNumber, glLines, CancellationToken.None);
+                inv.SetJournalEntryId(journalEntryId);
+            }
+        }
+    }
+
+    // ── Purchase Bills (AP) ──────────────────────────────────────────────────────
+
+    private static readonly Guid BillAwsMarch       = new("b8000008-0000-0000-0000-000000000001");
+    private static readonly Guid BillAwsApril        = new("b8000008-0000-0000-0000-000000000002");
+    private static readonly Guid BillLinkedInMarch   = new("b8000008-0000-0000-0000-000000000003");
+    private static readonly Guid BillEtisalatMarch   = new("b8000008-0000-0000-0000-000000000004");
+    private static readonly Guid BillInsuranceMarch  = new("b8000008-0000-0000-0000-000000000005");
+    private static readonly Guid BillDewaApril       = new("b8000008-0000-0000-0000-000000000006");
+
+    private static async Task SeedPurchaseBillsAsync(FinanceDbContext db)
+    {
+        var existing = await db.PurchaseBills.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        // (id, supplier, billDate, dueDate, taxRate, status, [(desc, qty, price)])
+        var bills = new (Guid id, string supplier, string billDate, string dueDate, decimal taxRate, string status, (string desc, decimal qty, decimal price)[] items)[]
+        {
+            (BillAwsMarch,      "Amazon Web Services",  "2026-03-05", "2026-04-05", 5m, "paid",
+                new[] { ("Cloud Hosting — March", 1m, 8500m) }),
+            (BillAwsApril,      "Amazon Web Services",  "2026-04-05", "2026-05-05", 5m, "partially_paid",
+                new[] { ("Cloud Hosting — April", 1m, 9200m) }),
+            (BillLinkedInMarch, "LinkedIn",              "2026-03-07", "2026-04-07", 5m, "paid",
+                new[] { ("Recruiter Seats — Q1", 1m, 12000m) }),
+            (BillEtisalatMarch, "Etisalat Business",     "2026-03-15", "2026-04-15", 5m, "draft",
+                new[] { ("Business Internet & Lines — March", 1m, 2800m) }),
+            (BillInsuranceMarch,"Al Futtaim Insurance",  "2026-03-20", "2026-04-20", 0m, "approved",
+                new[] { ("Annual Insurance Premium", 1m, 22000m) }),
+            (BillDewaApril,     "DEWA",                  "2026-04-20", "2026-05-20", 0m, "cancelled",
+                new[] { ("Electricity — April (disputed)", 1m, 3200m) }),
+        };
+
+        var itemCounter = 1;
+        foreach (var (id, supplier, billDate, dueDate, taxRate, status, items) in bills)
+        {
+            PurchaseBill bill;
+            if (existing.Contains(id))
+            {
+                bill = await db.PurchaseBills.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                var supplierId = SupplierIdByName[supplier];
+                bill = new PurchaseBill(supplierId, supplier, billDate, dueDate, taxRate, null, null);
+                SetId(bill, id);
+
+                foreach (var (desc, qty, price) in items)
+                {
+                    var itemId = new Guid($"b9{itemCounter++:000000}-0000-0000-0000-000000000001");
+                    var item = new PurchaseBillItem(id, desc, qty, price);
+                    SetId(item, itemId);
+                    db.PurchaseBillItems.Add(item);
+                }
+
+                // "paid"/"partially_paid" are reached via RecordPayment in SeedPaymentVouchersAsync —
+                // here we only set up the statuses that don't require a payment voucher.
+                if (status is "approved" or "paid" or "partially_paid")
+                    bill.Approve();
+                else if (status == "cancelled")
+                    bill.Cancel();
+
+                db.PurchaseBills.Add(bill);
+            }
+
+            // Post the Purchases/VAT/AP journal entry for any approved bill —
+            // mirrors ApprovePurchaseBillHandler. Items navigation isn't populated
+            // here, so totals are computed directly from the seed item tuples.
+            if (status is "approved" or "paid" or "partially_paid" && bill.JournalEntryId is null)
+            {
+                var subTotal  = items.Sum(i => i.qty * i.price);
+                var taxAmount = subTotal * taxRate / 100;
+                var total     = subTotal + taxAmount;
+
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(GlPoster.Purchases, subTotal, 0, $"Purchase Bill {bill.BillNumber} - {supplier}"),
+                };
+                if (taxAmount > 0)
+                    glLines.Add(new(GlPoster.VatPayable, taxAmount, 0, $"VAT Input - Bill {bill.BillNumber}"));
+                glLines.Add(new(GlPoster.AccountsPayable, 0, total, $"AP - Bill {bill.BillNumber}"));
+
+                var journalEntryId = await GlPoster.PostAsync(db, billDate, $"Purchase Bill {bill.BillNumber}", bill.BillNumber, glLines, CancellationToken.None);
+                bill.SetJournalEntryId(journalEntryId);
+            }
+        }
+    }
+
+    // ── Payment Vouchers (AP) ────────────────────────────────────────────────────
+
+    private static async Task SeedPaymentVouchersAsync(FinanceDbContext db)
+    {
+        var existing = await db.PaymentVouchers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        // (id, supplier, paymentDate, amount, paymentMethod, status, [(billId, amountApplied)])
+        var vouchers = new (Guid id, string supplier, string paymentDate, decimal amount, string method, string status, (Guid billId, decimal amount)[] allocations)[]
+        {
+            (new Guid("ba00000a-0000-0000-0000-000000000001"), "Amazon Web Services", "2026-03-10", 8925m,  "bank_transfer", "posted",
+                new[] { (BillAwsMarch, 8925m) }),
+            (new Guid("ba00000a-0000-0000-0000-000000000002"), "Amazon Web Services", "2026-04-12", 5000m,  "bank_transfer", "posted",
+                new[] { (BillAwsApril, 5000m) }),
+            (new Guid("ba00000a-0000-0000-0000-000000000003"), "LinkedIn",            "2026-03-12", 12600m, "card",          "posted",
+                new[] { (BillLinkedInMarch, 12600m) }),
+            (new Guid("ba00000a-0000-0000-0000-000000000004"), "Al Futtaim Insurance","2026-04-02",  10000m, "bank_transfer", "draft",
+                new[] { (BillInsuranceMarch, 10000m) }),
+        };
+
+        foreach (var (id, supplier, paymentDate, amount, method, status, allocations) in vouchers)
+        {
+            PaymentVoucher voucher;
+            if (existing.Contains(id))
+            {
+                voucher = await db.PaymentVouchers.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                var supplierId = SupplierIdByName[supplier];
+                voucher = new PaymentVoucher(supplierId, supplier, paymentDate, amount, method, null, null, null);
+                SetId(voucher, id);
+
+                foreach (var (billId, applied) in allocations)
+                    voucher.Allocations.Add(new PaymentAllocation(id, billId, applied));
+
+                db.PaymentVouchers.Add(voucher);
+
+                if (status == "posted")
+                {
+                    foreach (var (billId, applied) in allocations)
+                    {
+                        var bill = await db.PurchaseBills.FirstAsync(x => x.Id == billId);
+                        bill.RecordPayment(applied);
+                    }
+                    voucher.Post();
+                }
+            }
+
+            if (status == "posted" && voucher.JournalEntryId is null)
+            {
+                var cashAccount = GlPoster.ResolveCashAccount(method);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(GlPoster.AccountsPayable, amount, 0, $"AP - Payment {voucher.VoucherNumber}"),
+                    new(cashAccount, 0, amount, $"Payment {voucher.VoucherNumber} - {supplier}"),
+                };
+                var journalEntryId = await GlPoster.PostAsync(db, paymentDate, $"Payment Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, glLines, CancellationToken.None);
+                voucher.SetJournalEntryId(journalEntryId);
+            }
+        }
+    }
+
+    // ── Receipt Vouchers (AR) ────────────────────────────────────────────────────
+
+    private static readonly Guid InvoiceDewa             = new("b3000003-0000-0000-0000-000000000004");
+    private static readonly Guid InvoiceEtisalat         = new("b3000003-0000-0000-0000-000000000005");
+    private static readonly Guid InvoiceDubaiProperties  = new("b3000003-0000-0000-0000-000000000006");
+
+    private static async Task SeedReceiptVouchersAsync(FinanceDbContext db)
+    {
+        var existing = await db.ReceiptVouchers.IgnoreQueryFilters()
+            .Select(x => x.Id).ToHashSetAsync();
+
+        // (id, customer, receiptDate, amount, method, status, [(invoiceId, amountApplied)])
+        var vouchers = new (Guid id, string customer, string receiptDate, decimal amount, string method, string status, (Guid invoiceId, decimal amount)[] allocations)[]
+        {
+            (new Guid("bb00000b-0000-0000-0000-000000000001"), "Etisalat",         "2026-04-25", 48825m, "bank_transfer", "posted",
+                new[] { (InvoiceEtisalat, 48825m) }),
+            (new Guid("bb00000b-0000-0000-0000-000000000002"), "DEWA",             "2026-05-12", 20000m, "bank_transfer", "posted",
+                new[] { (InvoiceDewa, 20000m) }),
+            (new Guid("bb00000b-0000-0000-0000-000000000003"), "Dubai Properties", "2026-05-25", 30000m, "cheque",         "draft",
+                new[] { (InvoiceDubaiProperties, 30000m) }),
+        };
+
+        foreach (var (id, customer, receiptDate, amount, method, status, allocations) in vouchers)
+        {
+            ReceiptVoucher voucher;
+            if (existing.Contains(id))
+            {
+                voucher = await db.ReceiptVouchers.IgnoreQueryFilters().FirstAsync(x => x.Id == id);
+            }
+            else
+            {
+                var customerId = CustomerIdByName[customer];
+                voucher = new ReceiptVoucher(customerId, customer, receiptDate, amount, method, null, null, null);
+                SetId(voucher, id);
+
+                foreach (var (invoiceId, applied) in allocations)
+                    voucher.Allocations.Add(new ReceiptAllocation(id, invoiceId, applied));
+
+                db.ReceiptVouchers.Add(voucher);
+
+                if (status == "posted")
+                {
+                    foreach (var (invoiceId, applied) in allocations)
+                    {
+                        var invoice = await db.Invoices.Include(x => x.Items).FirstAsync(x => x.Id == invoiceId);
+                        invoice.RecordPayment(applied);
+                    }
+                    voucher.Post();
+                }
+            }
+
+            if (status == "posted" && voucher.JournalEntryId is null)
+            {
+                var cashAccount = GlPoster.ResolveCashAccount(method);
+                var glLines = new List<GlPoster.Line>
+                {
+                    new(cashAccount, amount, 0, $"Receipt {voucher.VoucherNumber} - {customer}"),
+                    new(GlPoster.AccountsReceivable, 0, amount, $"AR - Receipt {voucher.VoucherNumber}"),
+                };
+                var journalEntryId = await GlPoster.PostAsync(db, receiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, glLines, CancellationToken.None);
+                voucher.SetJournalEntryId(journalEntryId);
+            }
         }
     }
 

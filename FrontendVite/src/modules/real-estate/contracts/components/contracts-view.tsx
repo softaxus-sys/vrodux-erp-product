@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { ContractDto as Contract, ContractStatus } from "@/lib/real-estate/re.api";
 import { useContracts, useContractSummary } from "@/hooks/real-estate/use-re";
 import { AddContractForm } from "./add-contract-form";
@@ -24,6 +25,7 @@ const FREQ_LABELS: Record<string, string> = {
 };
 
 function ContractDrawer({ contract, open, onClose }: { contract: Contract | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   if (!contract) return null;
   const sc = STATUS_CONFIG[contract.status];
   return (
@@ -54,14 +56,14 @@ function ContractDrawer({ contract, open, onClose }: { contract: Contract | null
             <div className={cn("border rounded-xl p-4 text-center", contract.type === "lease" ? "bg-primary/5 border-primary/20" : "bg-success/5 border-success/20")}>
               <p className="text-xs text-muted-foreground mb-1">{contract.type === "lease" ? "Annual Rent" : "Sale Price"}</p>
               <p className={cn("text-2xl font-bold", contract.type === "lease" ? "text-primary" : "text-success")}>
-                {formatCurrency(contract.type === "lease" ? (contract.rentAmount ?? 0) : (contract.saleAmount ?? 0), "AED")}
+                {formatCurrency(contract.type === "lease" ? (contract.rentAmount ?? 0) : (contract.saleAmount ?? 0), currency)}
               </p>
               {contract.type === "lease" && <p className="text-xs text-muted-foreground mt-1">{FREQ_LABELS[contract.paymentFrequency]} payments</p>}
             </div>
             <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Tenant</span><span className="font-medium">{contract.tenantName}</span></div>
               {contract.brokerName && <div className="flex justify-between"><span className="text-muted-foreground">Broker</span><span>{contract.brokerName}</span></div>}
-              <div className="flex justify-between"><span className="text-muted-foreground">Deposit</span><span>{formatCurrency(contract.depositAmount, "AED")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Deposit</span><span>{formatCurrency(contract.depositAmount, currency)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Start Date</span><span>{formatDate(contract.startDate, "medium")}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">End Date</span><span className={cn(contract.status === "expiring_soon" ? "text-warning font-semibold" : contract.status === "expired" ? "text-destructive font-semibold" : "")}>{formatDate(contract.endDate, "medium")}</span></div>
               {contract.nextPaymentDate && <div className="flex justify-between"><span className="text-muted-foreground">Next Payment</span><span className="text-primary">{formatDate(contract.nextPaymentDate, "medium")}</span></div>}
@@ -83,6 +85,7 @@ function ContractDrawer({ contract, open, onClose }: { contract: Contract | null
 const STATUS_FILTERS = ["all", "draft", "active", "expiring_soon", "expired", "terminated"] as const;
 
 export function ContractsView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<ContractStatus | "all">("all");
   const [typeFilter, setTypeFilter] = React.useState<"all" | "lease" | "sale">("all");
@@ -195,7 +198,7 @@ export function ContractsView() {
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-right font-semibold text-sm">
-                    {formatCurrency(c.type === "lease" ? (c.rentAmount ?? 0) : (c.saleAmount ?? 0), "AED")}
+                    {formatCurrency(c.type === "lease" ? (c.rentAmount ?? 0) : (c.saleAmount ?? 0), currency)}
                     {c.type === "lease" && <p className="text-[10px] text-muted-foreground font-normal">/year</p>}
                   </td>
                   <td className="px-4 py-3.5 text-center">

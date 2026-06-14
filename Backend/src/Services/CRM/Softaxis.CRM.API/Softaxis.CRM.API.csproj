@@ -11,5 +11,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.CRM.Infrastructure\Softaxis.CRM.Infrastructure.csproj" />
+    <ProjectReference Include="..\Softaxis.CRM.Application\Softaxis.CRM.Application.csproj" />
   </ItemGroup>
 </Project>

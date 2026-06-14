@@ -52,7 +52,7 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
         CancellationToken ct) =>
         NoContentOrError(await sender.Send(
             new UpdateAccountCommand(id, req.AccountNumber, req.Name,
-                req.AccountType, req.Description, req.ParentId, req.IsActive), ct));
+                req.AccountTypeId, req.Description, req.ParentId, req.IsActive), ct));
 
     /// <summary>DELETE /api/finance/accounts/{id}</summary>
     [HttpDelete("{id:guid}")]
@@ -67,7 +67,7 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
     public sealed record UpdateAccountRequest(
         string  AccountNumber,
         string  Name,
-        string  AccountType,
+        Guid    AccountTypeId,
         string? Description = null,
         Guid?   ParentId    = null,
         bool    IsActive    = true);

@@ -1,8 +1,8 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Softaxis.Identity.Application.Abstractions;
-using Softaxis.Identity.Domain.Repositories;
-using Softaxis.Identity.API.Models;
+using Softaxis.Identity.Application.License.Commands.Heartbeat;
+using Softaxis.Identity.Application.License.Queries.ValidateLicenseKey;
 
 namespace Softaxis.Identity.API.Controllers;
 
@@ -14,10 +14,7 @@ namespace Softaxis.Identity.API.Controllers;
 [ApiController]
 [Route("api/license")]
 [Produces("application/json")]
-public sealed class LicenseController(
-    ITenantRepository tenantRepo,
-    ILicenseService   licenseService,
-    IUnitOfWork       uow) : ControllerBase
+public sealed class LicenseController(ISender sender) : BaseApiController(sender)
 {
     /// <summary>
     /// POST /api/license/heartbeat
@@ -26,35 +23,10 @@ public sealed class LicenseController(
     /// </summary>
     [HttpPost("heartbeat")]
     [AllowAnonymous]
-    public async Task<IActionResult> Heartbeat(
-        [FromBody] HeartbeatRequest req,
-        CancellationToken ct)
+    public async Task<IActionResult> Heartbeat([FromBody] HeartbeatRequest req, CancellationToken ct)
     {
-        if (req.TenantId == Guid.Empty || string.IsNullOrWhiteSpace(req.LicenseKey))
-            return BadRequest(ApiResponse<HeartbeatResponse>.Fail(
-                "License.Invalid", "TenantId and LicenseKey are required."));
-
-        var tenant = await tenantRepo.GetByIdAsync(req.TenantId, ct);
-        if (tenant is null)
-            return NotFound(ApiResponse<HeartbeatResponse>.Fail(
-                "Tenant.NotFound", "Tenant not found."));
-
-        // Validate license key signature + expiry
-        var payload = licenseService.ValidateLicenseKey(req.LicenseKey);
-        if (payload is null || payload.TenantId != req.TenantId)
-            return StatusCode(403, ApiResponse<HeartbeatResponse>.Fail(
-                "License.Invalid", "License key is invalid or expired."));
-
-        tenant.RecordHeartbeat();
-        tenantRepo.Update(tenant);
-        await uow.SaveChangesAsync(ct);
-
-        return Ok(ApiResponse<HeartbeatResponse>.Ok(new HeartbeatResponse(
-            Valid:       true,
-            Plan:        payload.Plan,
-            MaxUsers:    payload.MaxUsers,
-            ExpiresAt:   payload.ExpiresAt,
-            ServerTime:  DateTime.UtcNow)));
+        var result = await Sender.Send(new LicenseHeartbeatCommand(req.TenantId, req.LicenseKey), ct);
+        return HandleResult(result);
     }
 
     /// <summary>
@@ -63,33 +35,13 @@ public sealed class LicenseController(
     /// </summary>
     [HttpPost("validate")]
     [Authorize(Policy = "SuperAdminOnly")]
-    public IActionResult Validate([FromBody] ValidateLicenseRequest req)
+    public async Task<IActionResult> Validate([FromBody] ValidateLicenseRequest req, CancellationToken ct)
     {
-        var payload = licenseService.ValidateLicenseKey(req.LicenseKey);
-        if (payload is null)
-            return Ok(ApiResponse<object>.Ok(new { Valid = false }));
-
-        return Ok(ApiResponse<object>.Ok(new
-        {
-            Valid      = true,
-            payload.TenantId,
-            payload.TenantSlug,
-            payload.Plan,
-            payload.MaxUsers,
-            payload.Features,
-            payload.IssuedAt,
-            payload.ExpiresAt,
-        }));
+        var result = await Sender.Send(new ValidateLicenseKeyQuery(req.LicenseKey), ct);
+        return HandleResult(result);
     }
 }
 
 public sealed record HeartbeatRequest(Guid TenantId, string LicenseKey);
-
-public sealed record HeartbeatResponse(
-    bool     Valid,
-    string   Plan,
-    int      MaxUsers,
-    DateTime ExpiresAt,
-    DateTime ServerTime);
 
 public sealed record ValidateLicenseRequest(string LicenseKey);

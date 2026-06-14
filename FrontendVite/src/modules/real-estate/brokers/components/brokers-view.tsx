@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { BrokerDto as Broker, BrokerStatus, PropertyType } from "@/lib/real-estate/re.api";
 import { useBrokers, useBrokerSummary } from "@/hooks/real-estate/use-re";
 import { AddBrokerForm } from "./add-broker-form";
@@ -32,6 +33,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function BrokerDrawer({ broker, open, onClose }: { broker: Broker | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   if (!broker) return null;
   const sc = STATUS_CONFIG[broker.status];
   return (
@@ -63,7 +65,7 @@ function BrokerDrawer({ broker, open, onClose }: { broker: Broker | null; open: 
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-success/5 border border-success/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Commission</p>
-                <p className="font-bold text-sm text-success">{formatCurrency(broker.totalCommission, "AED")}</p>
+                <p className="font-bold text-sm text-success">{formatCurrency(broker.totalCommission, currency)}</p>
               </div>
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Closed Deals</p>
@@ -85,7 +87,7 @@ function BrokerDrawer({ broker, open, onClose }: { broker: Broker | null; open: 
             <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="text-primary text-xs">{broker.email}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Phone</span><span className="font-mono text-xs">{broker.phone}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Avg Deal Value</span><span className="font-semibold">{formatCurrency(broker.avgDealValue, "AED")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Avg Deal Value</span><span className="font-semibold">{formatCurrency(broker.avgDealValue, currency)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Joined</span><span>{formatDate(broker.joinDate, "medium")}</span></div>
             </div>
           </div>
@@ -99,6 +101,7 @@ function BrokerDrawer({ broker, open, onClose }: { broker: Broker | null; open: 
 }
 
 export function BrokersView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<BrokerStatus | "all">("all");
   const [selected, setSelected] = React.useState<Broker | null>(null);
@@ -122,7 +125,7 @@ export function BrokersView() {
     { label: "Total Brokers", value: brokerSummary?.total ?? brokers.length, icon: UserCheck, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: "Active", value: brokerSummary?.active ?? brokers.filter(b => b.status === "active").length, icon: BadgeCheck, color: "text-success", bg: "bg-success/10" },
     { label: "Total Deals", value: brokerSummary?.totalDeals ?? brokers.reduce((s, b) => s + b.closedDeals, 0), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Total Commission", value: formatCurrency(brokerSummary?.totalCommission ?? brokers.reduce((s, b) => s + b.totalCommission, 0), "AED"), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
+    { label: "Total Commission", value: formatCurrency(brokerSummary?.totalCommission ?? brokers.reduce((s, b) => s + b.totalCommission, 0), currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
     { label: "Avg Rating", value: `${(brokerSummary?.avgRating ?? (brokers.length > 0 ? brokers.reduce((s, b) => s + b.rating, 0) / brokers.length : 0)).toFixed(1)}★`, icon: Star, color: "text-warning", bg: "bg-warning/10" },
   ];
 
@@ -200,7 +203,7 @@ export function BrokersView() {
                     <p className="font-semibold text-sm">{b.closedDeals}</p>
                     <p className="text-[10px] text-muted-foreground">{b.activeListings} active</p>
                   </td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(b.totalCommission, "AED")}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(b.totalCommission, currency)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
                       <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}

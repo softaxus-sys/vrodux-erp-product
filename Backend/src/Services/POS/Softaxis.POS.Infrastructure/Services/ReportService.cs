@@ -239,17 +239,23 @@ public sealed class ReportService(POSDbContext db) : IReportService
 
         var items = await db.LineItems
             .Include(i => i.Transaction)
-            .Include(i => i.Product).ThenInclude(pr => pr.Category)
             .Where(i => i.Transaction.CompletedAt >= from && i.Transaction.CompletedAt < to)
             .Where(i => i.Transaction.Status == TransactionStatus.Completed && i.Transaction.Type == TransactionType.Sale)
             .AsNoTracking()
             .ToListAsync(ct);
 
+        var productIds = items.Select(i => i.ProductId).Distinct().ToList();
+        var categoryByProductId = await db.Products
+            .Include(pr => pr.Category)
+            .Where(pr => productIds.Contains(pr.Id))
+            .AsNoTracking()
+            .ToDictionaryAsync(pr => pr.Id, pr => pr.Category?.Name ?? "Uncategorised", ct);
+
         var totalRevenue = items.Sum(i => i.LineTotal);
         var cols = new[] { "Category", "Transactions", "Units Sold", "Revenue", "Contribution %", "Avg Price" };
 
         var rows = items
-            .GroupBy(i => i.Product?.Category?.Name ?? "Uncategorised")
+            .GroupBy(i => categoryByProductId.GetValueOrDefault(i.ProductId, "Uncategorised"))
             .Select(g =>
             {
                 var txnCount = g.Select(i => i.TransactionId).Distinct().Count();

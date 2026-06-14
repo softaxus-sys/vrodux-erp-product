@@ -1,0 +1,77 @@
+using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Finance.Application.ReceiptVouchers.Commands;
+using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
+using Softaxis.Finance.Infrastructure.Persistence;
+
+namespace Softaxis.Finance.Infrastructure.Handlers.ReceiptVouchers;
+
+internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandHandler<PostReceiptVoucherCommand>
+{
+    public async Task<Result> Handle(PostReceiptVoucherCommand cmd, CancellationToken ct)
+    {
+        var voucher = await db.ReceiptVouchers.Include(x => x.Allocations)
+            .FirstOrDefaultAsync(x => x.Id == cmd.Id, ct);
+
+        if (voucher is null)
+            return Result.Failure(Error.NotFoundById(nameof(ReceiptVoucher), cmd.Id));
+
+        if (voucher.Status != "draft")
+            return Result.Failure(Error.Custom("ReceiptVoucher.Conflict", "Only draft receipt vouchers can be posted."));
+
+        if (await GlPoster.IsPeriodClosedAsync(db, voucher.ReceiptDate, ct))
+            return Result.Failure(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {voucher.ReceiptDate} is closed for posting."));
+
+        var invoiceIds = voucher.Allocations.Select(a => a.InvoiceId).ToList();
+        var invoices = await db.Invoices.Include(x => x.Items).Where(x => invoiceIds.Contains(x.Id)).ToListAsync(ct);
+
+        foreach (var allocation in voucher.Allocations)
+        {
+            var invoice = invoices.First(x => x.Id == allocation.InvoiceId);
+            if (allocation.AmountApplied > invoice.AmountDue)
+                return Result.Failure(Error.Custom("ReceiptVoucher.OverAllocated", $"Allocated amount for invoice {invoice.InvoiceNumber} exceeds its outstanding balance."));
+        }
+
+        foreach (var allocation in voucher.Allocations)
+        {
+            var invoice = invoices.First(x => x.Id == allocation.InvoiceId);
+            invoice.RecordPayment(allocation.AmountApplied);
+        }
+
+        voucher.Post();
+
+        var cashAccount = GlPoster.ResolveCashAccount(voucher.ReceiptMethod);
+        var settlementRate = await GlPoster.GetRateAsync(db, voucher.CurrencyCode, voucher.ReceiptDate, ct);
+        var cashAed = voucher.Amount * settlementRate;
+
+        var arAed = 0m;
+        foreach (var allocation in voucher.Allocations)
+        {
+            var invoice = invoices.First(x => x.Id == allocation.InvoiceId);
+            var invoiceRate = await GlPoster.GetRateAsync(db, invoice.CurrencyCode, invoice.InvoiceDate, ct);
+            arAed += allocation.AmountApplied * invoiceRate;
+        }
+
+        var lines = new List<GlPoster.Line>
+        {
+            new(cashAccount, cashAed, 0, $"Receipt {voucher.VoucherNumber} - {voucher.CustomerName}"),
+            new(GlPoster.AccountsReceivable, 0, arAed, $"AR - Receipt {voucher.VoucherNumber}"),
+        };
+
+        // Realized FX gain/loss: cash received (at settlement rate) vs. AR relieved (at invoice rate).
+        var fx = cashAed - arAed;
+        if (fx > 0)
+            lines.Add(new(GlPoster.FxGainLoss, 0, fx, $"FX Gain - Receipt {voucher.VoucherNumber}"));
+        else if (fx < 0)
+            lines.Add(new(GlPoster.FxGainLoss, -fx, 0, $"FX Loss - Receipt {voucher.VoucherNumber}"));
+
+        var journalEntryId = await GlPoster.PostAsync(db, voucher.ReceiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, lines, ct);
+        voucher.SetJournalEntryId(journalEntryId);
+
+        await db.SaveChangesAsync(ct);
+
+        return Result.Success();
+    }
+}

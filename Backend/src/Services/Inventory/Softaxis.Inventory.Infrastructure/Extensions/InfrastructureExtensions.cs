@@ -26,6 +26,8 @@ public static class InfrastructureExtensions
         services.AddScoped<ICategoryRepository,      CategoryRepository>();
         services.AddScoped<IWarehouseRepository,     WarehouseRepository>();
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+        services.AddScoped<IProductStockRepository,  ProductStockRepository>();
+        services.AddScoped<IStockTransferRepository, StockTransferRepository>();
         services.AddScoped<IBrandRepository,         BrandRepository>();
         services.AddScoped<IUnitOfMeasureRepository, UnitOfMeasureRepository>();
         services.AddScoped<IInventoryUnitOfWork,      InventoryUnitOfWork>();

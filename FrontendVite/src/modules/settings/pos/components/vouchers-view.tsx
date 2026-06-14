@@ -284,7 +284,7 @@ export function VouchersView() {
   const deleteVoucher = useDeleteVoucher();
   const { tenant }  = useAuthStore();
   const companyName = tenant?.branding?.companyName ?? "Vrodux";
-  const currency    = tenant?.currency ?? "PKR";
+  const currency    = tenant?.currency ?? "AED";
 
   const [preview, setPreview]   = React.useState<VoucherDto | null>(null);
   const [printing, setPrinting] = React.useState(false);

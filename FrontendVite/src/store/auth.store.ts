@@ -145,7 +145,7 @@ export function extractRawPermissions(dto: UserDto): string[] {
 function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
   // These are always visible regardless of plan
   const keys = new Set<ModuleKey>([
-    "dashboard", "notifications", "file-manager",
+    "dashboard", "notifications", "file-manager", "project-management",
   ]);
 
   for (const m of backendModules) {
@@ -223,7 +223,7 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     // No modules claim in JWT (old token) — fall back to enterprise for super-admin
     : (["dashboard", "pos", "inventory", "finance", "hr", "crm",
         "sales", "purchase", "reports", "settings", "users",
-        "notifications", "file-manager"] as ModuleKey[]);
+        "notifications", "file-manager", "project-management"] as ModuleKey[]);
 
   return {
     id:             (claims["tenant_id"] as string | undefined) ?? "unknown",

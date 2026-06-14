@@ -9,7 +9,7 @@ public sealed class Budget
         Id        = Guid.NewGuid();
         Name      = name.Trim();
         Period    = period;      // "yyyy-MM" or "yyyy" for annual
-        Status    = "active";    // active | closed
+        Status    = "draft";     // lifecycle: draft → approved → active → closed
         Notes     = notes?.Trim();
         CreatedAt = DateTime.UtcNow;
     }
@@ -17,7 +17,7 @@ public sealed class Budget
     public Guid      Id        { get; private set; }
     public string    Name      { get; private set; } = string.Empty;
     public string    Period    { get; private set; } = string.Empty;
-    public string    Status    { get; private set; } = "active";
+    public string    Status    { get; private set; } = "draft";
     public string?   Notes     { get; private set; }
     public DateTime  CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
@@ -39,6 +39,25 @@ public sealed class Budget
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Valid lifecycle: draft → approved → active → closed. A closed budget can be reopened to active.</summary>
+    public static readonly string[] Statuses = ["draft", "approved", "active", "closed"];
+
+    public bool CanTransitionTo(string target) => (Status, target) switch
+    {
+        ("draft", "approved")    => true,
+        ("approved", "active")   => true,
+        ("approved", "draft")    => true,  // send back for edits
+        ("active", "closed")     => true,
+        ("closed", "active")     => true,  // reopen
+        _ => false,
+    };
+
+    public void SetStatus(string status)
+    {
+        Status    = status;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 
 public sealed class BudgetLine

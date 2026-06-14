@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { type SalesQuotationSummaryDto } from "@/lib/pos/types";
 import { useSalesQuotation, useConvertQuotationToOrder, useDeleteSalesQuotation } from "@/hooks/sales/use-sales-quotations";
 
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<Tab>("overview");
 
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
@@ -136,13 +138,13 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                       {/* Total value card */}
                       <div className="bg-primary/5 border border-primary/20 rounded-xl p-5">
                         <p className="text-xs text-muted-foreground mb-1">Total Value (incl. Tax)</p>
-                        <p className="text-3xl font-bold text-primary">{formatCurrency(total, "PKR")}</p>
+                        <p className="text-3xl font-bold text-primary">{formatCurrency(total, currency)}</p>
                         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
-                          <span>Subtotal: {formatCurrency(subTotal, "PKR")}</span>
+                          <span>Subtotal: {formatCurrency(subTotal, currency)}</span>
                           {quote.discountPercent > 0 && (
                             <span className="text-warning">Discount: {quote.discountPercent}%</span>
                           )}
-                          <span>Tax: {formatCurrency(taxAmount, "PKR")}</span>
+                          <span>Tax: {formatCurrency(taxAmount, currency)}</span>
                         </div>
                       </div>
 
@@ -229,18 +231,18 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                                     <td className="px-4 py-3">
                                       <p className="font-medium text-sm leading-snug">{item.description}</p>
                                       <p className="text-xs text-muted-foreground mt-0.5">
-                                        {formatCurrency(item.unitPrice, "PKR")} × {item.quantity}
+                                        {formatCurrency(item.unitPrice, currency)} × {item.quantity}
                                       </p>
                                     </td>
                                     <td className="px-4 py-3 text-right text-sm">{item.quantity}</td>
-                                    <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.unitPrice, "PKR")}</td>
+                                    <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.unitPrice, currency)}</td>
                                     <td className="px-4 py-3 text-right text-sm">
                                       {item.discountPercent > 0
                                         ? <span className="text-destructive font-medium">{item.discountPercent}%</span>
                                         : <span className="text-muted-foreground">—</span>}
                                     </td>
                                     <td className="px-4 py-3 text-right text-sm text-muted-foreground">{item.taxRate}%</td>
-                                    <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.lineTotal, "PKR")}</td>
+                                    <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.lineTotal, currency)}</td>
                                   </motion.tr>
                                 ))}
                               </tbody>
@@ -252,23 +254,23 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                             <div className="space-y-2">
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Subtotal</span>
-                                <span>{formatCurrency(subTotal, "PKR")}</span>
+                                <span>{formatCurrency(subTotal, currency)}</span>
                               </div>
                               {quote.discountPercent > 0 && (
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground flex items-center gap-1">
                                     <Percent className="h-3 w-3" />Discount ({quote.discountPercent}%)
                                   </span>
-                                  <span className="text-destructive">−{formatCurrency(subTotal * quote.discountPercent / 100, "PKR")}</span>
+                                  <span className="text-destructive">−{formatCurrency(subTotal * quote.discountPercent / 100, currency)}</span>
                                 </div>
                               )}
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Tax</span>
-                                <span>{formatCurrency(taxAmount, "PKR")}</span>
+                                <span>{formatCurrency(taxAmount, currency)}</span>
                               </div>
                               <div className="border-t border-border/60 pt-2 flex justify-between font-bold text-base">
                                 <span>Total</span>
-                                <span className="text-primary">{formatCurrency(total, "PKR")}</span>
+                                <span className="text-primary">{formatCurrency(total, currency)}</span>
                               </div>
                             </div>
                           </div>

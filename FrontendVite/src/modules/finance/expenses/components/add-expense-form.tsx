@@ -1,10 +1,10 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Plus, Trash2, Upload, Receipt } from "lucide-react";
+import { X, Plus, Trash2, Upload, Receipt, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
-import { useCreateExpense } from "@/hooks/finance/use-finance";
+import { useCreateExpense, useUploadExpenseReceipt } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 
 const CATEGORIES = [
@@ -32,11 +32,16 @@ interface ExpenseLine {
   description: string;
   amount: number;
   receiptNo: string;
+  receiptFile: File | null;
 }
 
 function newLine(): ExpenseLine {
-  return { id: String(Date.now() + Math.random()), category: "travel", description: "", amount: 0, receiptNo: "" };
+  return { id: String(Date.now() + Math.random()), category: "travel", description: "", amount: 0, receiptNo: "", receiptFile: null };
 }
+
+/** Accepted receipt file types and max size (browser-side validation). */
+const ACCEPTED_RECEIPT = "image/png,image/jpeg,image/webp,application/pdf";
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024; // 5 MB
 
 interface AddExpenseFormProps {
   open: boolean;
@@ -45,6 +50,7 @@ interface AddExpenseFormProps {
 
 export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
   const createExpense = useCreateExpense();
+  const uploadReceipt = useUploadExpenseReceipt();
 
   const [lines, setLines] = React.useState<ExpenseLine[]>([newLine()]);
   const [date, setDate] = React.useState(new Date().toISOString().split("T")[0]);
@@ -62,6 +68,14 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
   const addLine    = () => setLines(prev => [...prev, newLine()]);
   const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
 
+  const attachReceipt = (id: string, file: File | null) => {
+    if (file && file.size > MAX_RECEIPT_BYTES) {
+      toast.error("Receipt must be 5 MB or smaller.");
+      return;
+    }
+    setLines(prev => prev.map(l => l.id === id ? { ...l, receiptFile: file } : l));
+  };
+
   const reset = () => {
     setLines([newLine()]);
     setDate(new Date().toISOString().split("T")[0]);
@@ -78,16 +92,21 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
 
     try {
       for (const line of activeLines) {
-        await createExpense.mutateAsync({
+        const refParts = [line.receiptNo, project].filter(Boolean);
+        const created = await createExpense.mutateAsync({
           title:         line.description.trim() || `${CATEGORIES.find(c => c.value === line.category)?.label ?? line.category} expense`,
           category:      line.category,
           amount:        line.amount,
           expenseDate:   date,
           paidBy:        department || undefined,
           paymentMethod: paymentMethod,
-          reference:     line.receiptNo || project || undefined,
+          reference:     refParts.join(" · ") || undefined,
           notes:         notes || undefined,
         });
+        // Upload the receipt file (if any) against the newly created expense.
+        if (line.receiptFile && created?.id) {
+          await uploadReceipt.mutateAsync({ id: created.id, file: line.receiptFile });
+        }
       }
       toast.success(asDraft
         ? `${activeLines.length} expense(s) saved as draft.`
@@ -98,7 +117,7 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
     }
   };
 
-  const isPending = createExpense.isPending;
+  const isPending = createExpense.isPending || uploadReceipt.isPending;
 
   return (
     <AnimatePresence>
@@ -197,9 +216,22 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
                           placeholder="Description…" className="h-8 text-xs col-span-2" />
                         <Input value={line.receiptNo} onChange={e => updateLine(line.id, "receiptNo", e.target.value)}
                           placeholder="Receipt / Ref #" className="h-8 text-xs" />
-                        <button className="h-8 flex items-center gap-1.5 px-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
-                          <Upload className="w-3 h-3" /> Attach Receipt
-                        </button>
+                        {line.receiptFile ? (
+                          <div className="h-8 flex items-center gap-1.5 px-2 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary min-w-0">
+                            <FileText className="w-3 h-3 shrink-0" />
+                            <span className="truncate flex-1" title={line.receiptFile.name}>{line.receiptFile.name}</span>
+                            <button type="button" onClick={() => attachReceipt(line.id, null)}
+                              className="shrink-0 text-muted-foreground hover:text-destructive" aria-label="Remove receipt">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="h-8 flex items-center gap-1.5 px-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
+                            <Upload className="w-3 h-3" /> Attach Receipt
+                            <input type="file" accept={ACCEPTED_RECEIPT} className="hidden"
+                              onChange={e => { attachReceipt(line.id, e.target.files?.[0] ?? null); e.target.value = ""; }} />
+                          </label>
+                        )}
                       </div>
                     </div>
                   ))}

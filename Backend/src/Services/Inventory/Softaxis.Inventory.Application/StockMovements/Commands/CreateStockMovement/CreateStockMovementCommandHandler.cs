@@ -16,10 +16,6 @@ public sealed class CreateStockMovementCommandHandler(
 
     public async Task<Result<Guid>> Handle(CreateStockMovementCommand cmd, CancellationToken ct)
     {
-        var product = await movementRepo.GetTrackedProductAsync(cmd.ProductId, ct);
-        if (product is null)
-            return Result.Failure<Guid>(Error.Custom("StockMovement.Product.NotFound", "Product not found."));
-
         // Adjustment / count-correction carry a SIGNED quantity (negative = decrease).
         // Out-movements (Sale/WriteOff/Transfer) always decrease; the rest increase.
         var delta = cmd.MovementType.Equals(MovementTypes.Adjustment, StringComparison.OrdinalIgnoreCase)
@@ -27,6 +23,20 @@ public sealed class CreateStockMovementCommandHandler(
             : OutMovements.Contains(cmd.MovementType)
                 ? -Math.Abs(cmd.Quantity)
                 :  Math.Abs(cmd.Quantity);
+
+        var product = await movementRepo.GetTrackedProductAsync(cmd.ProductId, ct);
+        if (product is null)
+        {
+            // The product picker also shows pos.products rows (see ProductReadService's
+            // combined UNION) — those have no row in inventory.products and therefore no
+            // FK target for stock_movements, so we can only adjust their stock quantity
+            // directly rather than recording a full movement/batch trail.
+            var adjusted = await movementRepo.AdjustPosProductStockAsync(cmd.ProductId, delta, ct);
+            if (!adjusted)
+                return Result.Failure<Guid>(Error.Custom("StockMovement.Product.NotFound", "Product not found."));
+
+            return Result.Success(Guid.NewGuid());
+        }
 
         product.AdjustStock(delta);
 

@@ -24,6 +24,7 @@ public abstract class BaseApiController(ISender sender) : ControllerBase
         {
             var c when c.EndsWith(".NotFound")    => NotFound(ApiResponse<T>.Fail(result.Error.Code, result.Error.Description)),
             var c when c.EndsWith(".Unauthorized") => Unauthorized(ApiResponse<T>.Fail(result.Error.Code, result.Error.Description)),
+            var c when c.EndsWith(".Forbidden")   => StatusCode(403, ApiResponse<T>.Fail(result.Error.Code, result.Error.Description)),
             "Validation.Failed"                   => BadRequest(ApiResponse<T>.Fail(result.Error.Code, result.Error.Description)),
             var c when c.Contains(".Taken") ||
                        c.Contains(".InUse") ||

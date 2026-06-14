@@ -6,6 +6,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { type ContractorDto as Contractor, type ContractorStatus, type ContractorTrade } from "@/lib/construction/construction.api";
 import { useContractors, useContractorsSummary } from "@/hooks/construction/use-construction";
 import { AddContractorForm } from "./add-contractor-form";
@@ -34,6 +35,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function ContractorDrawer({ contractor, open, onClose }: { contractor: Contractor | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   if (!contractor) return null;
   const sc = STATUS_CONFIG[contractor.status];
   const today = new Date("2026-05-20");
@@ -67,7 +69,7 @@ function ContractorDrawer({ contractor, open, onClose }: { contractor: Contracto
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Contract Value</p>
-                <p className="font-bold text-sm text-primary">{formatCurrency(contractor.totalContractValue, "AED")}</p>
+                <p className="font-bold text-sm text-primary">{formatCurrency(contractor.totalContractValue, currency)}</p>
               </div>
               <div className="bg-success/5 border border-success/20 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-muted-foreground">Active</p>
@@ -126,6 +128,7 @@ function ContractorDrawer({ contractor, open, onClose }: { contractor: Contracto
 }
 
 export function ContractorsView() {
+  const currency = useCurrency();
   const { data: contractors = [], isLoading } = useContractors();
   const { data: contractorsSummary }          = useContractorsSummary();
   const [search, setSearch] = React.useState("");
@@ -151,7 +154,7 @@ export function ContractorsView() {
     { label: "Active",      value: contractorsSummary?.active ?? contractors.filter(c=>c.status==="active").length,          icon: CheckCircle2,color: "text-success",    bg: "bg-success/10" },
     { label: "Blacklisted", value: contractorsSummary?.blacklisted ?? contractors.filter(c=>c.status==="blacklisted").length,icon: Ban,        color: "text-destructive", bg: "bg-destructive/10" },
     { label: "Avg Rating",  value: `${contractorsSummary?.avgRating ?? 0}★`,                                                icon: Star,       color: "text-warning",     bg: "bg-warning/10" },
-    { label: "Total Value", value: formatCurrency(contractorsSummary?.totalContractValue ?? contractors.reduce((s,c)=>s+c.totalContractValue,0), "AED"), icon: Shield, color: "text-primary", bg: "bg-primary/10", isText: true },
+    { label: "Total Value", value: formatCurrency(contractorsSummary?.totalContractValue ?? contractors.reduce((s,c)=>s+c.totalContractValue,0), currency), icon: Shield, color: "text-primary", bg: "bg-primary/10", isText: true },
   ];
 
   const FILTERS: { key: ContractorStatus | "all"; label: string }[] = [
@@ -242,7 +245,7 @@ export function ContractorsView() {
                     <p className="text-sm font-semibold">{c.activeProjects} <span className="text-xs text-muted-foreground font-normal">active</span></p>
                     <p className="text-[10px] text-muted-foreground">{c.completedProjects} done</p>
                   </td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(c.totalContractValue, "AED")}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(c.totalContractValue, currency)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
                       <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}

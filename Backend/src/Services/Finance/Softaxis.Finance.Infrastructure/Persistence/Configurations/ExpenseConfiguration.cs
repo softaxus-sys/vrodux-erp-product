@@ -17,12 +17,16 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.Property(x => x.Title).IsRequired().HasMaxLength(200);
         builder.Property(x => x.Category).IsRequired().HasMaxLength(50);
         builder.Property(x => x.Amount).HasPrecision(18, 2);
+        builder.Property(x => x.CurrencyCode).IsRequired().HasMaxLength(3).HasDefaultValue("AED");
         builder.Property(x => x.ExpenseDate).IsRequired().HasMaxLength(20);
         builder.Property(x => x.PaidBy).HasMaxLength(200);
         builder.Property(x => x.PaymentMethod).HasMaxLength(30);
         builder.Property(x => x.Reference).HasMaxLength(100);
         builder.Property(x => x.Notes).HasMaxLength(1000);
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("pending");
+        builder.Property(x => x.ReceiptFileName).HasMaxLength(260);
+        builder.Property(x => x.ReceiptContentType).HasMaxLength(100);
+        builder.Ignore(x => x.HasReceipt);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 
@@ -32,5 +36,10 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.Category);
         builder.HasIndex(x => x.ExpenseDate);
+
+        builder.HasOne<Supplier>()
+               .WithMany()
+               .HasForeignKey(x => x.SupplierId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

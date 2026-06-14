@@ -1,40 +1,25 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.API.Controllers.Common;
+using Softaxis.RealEstate.Application.Contracts.Queries;
 
 namespace Softaxis.RealEstate.API.Controllers;
 
 [ApiController][Route("api/real-estate/contracts")][Authorize]
-public sealed class ContractsController(RealEstateDbContext db) : ControllerBase
+public sealed class ContractsController(ISender sender) : RealEstateControllerBase
 {
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
-        var all = await db.LeaseContracts.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.AnnualRent, x.TotalPaid, x.EndDate }).ToListAsync(ct);
-        var expiringSoon = DateTime.UtcNow.AddDays(60).ToString("yyyy-MM-dd");
-        return Ok(new {
-            total = all.Count,
-            active = all.Count(x => x.Status == "active"),
-            expired = all.Count(x => x.Status == "expired"),
-            terminated = all.Count(x => x.Status == "terminated"),
-            totalAnnualRent = all.Sum(x => x.AnnualRent),
-            totalCollected = all.Sum(x => x.TotalPaid),
-            outstanding = all.Sum(x => x.AnnualRent - x.TotalPaid),
-            expiringSoon = all.Count(x => x.Status == "active" && string.Compare(x.EndDate, expiringSoon) <= 0),
-        });
+        var result = await sender.Send(new GetContractsSummaryQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var items = await db.LeaseContracts.AsNoTracking().Where(x => !x.IsDeleted)
-            .OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
-        return Ok(items.Select(c => new {
-            c.Id, c.ContractNumber, c.PropertyId, c.PropertyName, c.UnitId, c.UnitNumber,
-            c.TenantId, c.TenantName, c.StartDate, c.EndDate, c.AnnualRent, c.Cheques,
-            c.SecurityDeposit, c.Status, c.TotalPaid, balance = c.Balance, c.EjariNumber, c.Notes,
-        }));
+        var result = await sender.Send(new GetContractsQuery(), ct);
+        return OkOrError(result);
     }
 }

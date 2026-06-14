@@ -1,11 +1,13 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  Building2, ArrowUpCircle, ArrowDownCircle, RefreshCw, Wallet, AlertCircle, CheckCircle2, Plus,
+  Building2, ArrowUpCircle, ArrowDownCircle, Wallet, AlertCircle, CheckCircle2, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddTransactionForm } from "./add-transaction-form";
+import { AddBankAccountForm } from "./add-bank-account-form";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { BankAccountDto as BankAccount } from "@/lib/finance/finance.api";
 import { useBankAccounts, useBankTransactions, useBankingSummary, useReconcileTransaction } from "@/hooks/finance/use-finance";
 
@@ -17,6 +19,7 @@ const CURRENCY_FLAGS: Record<string, string> = {
 
 
 export function BankingView() {
+  const currency = useCurrency();
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: bankTransactions = [] } = useBankTransactions();
   const reconcile = useReconcileTransaction();
@@ -32,6 +35,7 @@ export function BankingView() {
 
   const [selectedAccountId, setSelectedAccountId] = React.useState<string>("");
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [showAddAccount, setShowAddAccount] = React.useState(false);
 
   const selectedAccount = React.useMemo(
     () => bankAccounts.find((a) => a.id === selectedAccountId) ?? bankAccounts[0],
@@ -52,9 +56,9 @@ export function BankingView() {
           <p className="text-muted-foreground mt-0.5 text-sm">Monitor bank balances and reconcile transactions.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card text-sm hover:bg-muted/20 transition-colors">
-            <RefreshCw className="h-4 w-4 text-muted-foreground" /> Sync All
-          </button>
+          <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAddAccount(true)}>
+            <Building2 className="h-4 w-4" /> Add Bank Account
+          </Button>
           <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
             <Plus className="h-4 w-4" /> Add Transaction
           </Button>
@@ -77,7 +81,7 @@ export function BankingView() {
             <p className="text-xs text-muted-foreground">{card.label}</p>
             <p className={cn("text-base font-bold leading-tight", card.color)}>
               {card.format === "currency"
-                ? formatCurrency(card.value as number, "AED")
+                ? formatCurrency(card.value as number, currency)
                 : card.value}
             </p>
           </motion.div>
@@ -170,6 +174,7 @@ export function BankingView() {
         </div>
       </div>
       <AddTransactionForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <AddBankAccountForm open={showAddAccount} onClose={() => setShowAddAccount(false)} />
     </div>
   );
 }

@@ -1,16 +1,19 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import {
-  ShoppingBag, FileText, Send, CheckCircle2, Package, Ban,
+  ShoppingBag, FileText, Send, CheckCircle2, Package, Ban, PackageCheck, RotateCcw,
   Search, Plus, DollarSign, Calendar, AlertCircle, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { usePurchaseOrders, useUpdatePurchaseOrderStatus } from "@/hooks/purchase/use-purchase-orders";
+import { useCurrency } from "@/hooks/use-currency";
+import { usePurchaseOrders, usePurchaseOrder, useUpdatePurchaseOrderStatus } from "@/hooks/purchase/use-purchase-orders";
 import type { PurchaseOrderSummaryDto } from "@/lib/pos/types";
 import { PurchaseOrderDrawer } from "./purchase-order-drawer";
 import { AddPurchaseOrderForm } from "./add-purchase-order-form";
+import { CreateGrnForm } from "@/modules/purchase/grn/components/create-grn-form";
+import { CreatePurchaseReturnForm } from "@/modules/purchase/returns/components/create-purchase-return-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -30,12 +33,17 @@ const STATUS_FILTERS = [
 ];
 
 export function PurchaseOrdersView() {
+  const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]               = React.useState(1);
   const [selected, setSelected]       = React.useState<PurchaseOrderSummaryDto | null>(null);
   const [drawerOpen, setDrawerOpen]   = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [grnOrderId, setGrnOrderId]   = React.useState<string | null>(null);
+  const [grnOpen, setGrnOpen]         = React.useState(false);
+  const [returnOrderId, setReturnOrderId] = React.useState<string | null>(null);
+  const [returnOpen, setReturnOpen]       = React.useState(false);
 
   const { data, isLoading } = usePurchaseOrders({
     page,
@@ -45,6 +53,8 @@ export function PurchaseOrdersView() {
   });
 
   const updateStatus = useUpdatePurchaseOrderStatus();
+  const { data: grnOrder } = usePurchaseOrder(grnOrderId);
+  const { data: returnOrder } = usePurchaseOrder(returnOrderId);
   const items = data?.items ?? [];
 
   const stats = React.useMemo(() => ({
@@ -62,7 +72,7 @@ export function PurchaseOrdersView() {
     { label: "Sent",        value: stats.sent,                           icon: Send,         color: "text-blue-600",  bg: "bg-blue-50 dark:bg-blue-900/20" },
     { label: "Partial",     value: stats.partial,                        icon: Package,      color: "text-primary",   bg: "bg-primary/10" },
     { label: "Received",    value: stats.received,                       icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
-    { label: "Total Value", value: formatCurrency(stats.value, "PKR"),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
+    { label: "Total Value", value: formatCurrency(stats.value, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
   ];
 
   return (
@@ -166,7 +176,7 @@ export function PurchaseOrdersView() {
                       <span className="text-xs text-muted-foreground">{po.expectedDate ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-semibold text-sm">{formatCurrency(po.total, "PKR")}</span>
+                      <span className="font-semibold text-sm">{formatCurrency(po.total, currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right hidden md:table-cell">
                       <span className="text-sm text-muted-foreground">{po.itemCount}</span>
@@ -183,10 +193,16 @@ export function PurchaseOrdersView() {
                           <Send className="h-3 w-3" />Send
                         </Button>
                       )}
-                      {po.status === "sent" && (
-                        <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90" disabled={updateStatus.isPending}
-                          onClick={() => updateStatus.mutate({ id: po.id, status: "received" })}>
-                          <CheckCircle2 className="h-3 w-3" />Receive
+                      {(po.status === "sent" || po.status === "partial") && (
+                        <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90"
+                          onClick={() => { setGrnOrderId(po.id); setGrnOpen(true); }}>
+                          <PackageCheck className="h-3 w-3" />Receive
+                        </Button>
+                      )}
+                      {(po.status === "received" || po.status === "partial") && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ml-1.5"
+                          onClick={() => { setReturnOrderId(po.id); setReturnOpen(true); }}>
+                          <RotateCcw className="h-3 w-3" />Return
                         </Button>
                       )}
                     </td>
@@ -211,6 +227,8 @@ export function PurchaseOrdersView() {
 
       <PurchaseOrderDrawer order={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AddPurchaseOrderForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <CreateGrnForm order={grnOrder ?? null} open={grnOpen} onClose={() => { setGrnOpen(false); setGrnOrderId(null); }} />
+      <CreatePurchaseReturnForm order={returnOrder ?? null} open={returnOpen} onClose={() => { setReturnOpen(false); setReturnOrderId(null); }} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { StockTransferDto as StockTransfer, TransferStatus } from "@/lib/inventory/types";
 import {
   useStockTransfers, useTransfersSummary,
@@ -29,6 +30,7 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
   transfer: StockTransfer | null; open: boolean; onClose: () => void;
   onSubmit: (id: string) => void; onApprove: (id: string) => void; onReceive: (id: string) => void; busy: boolean;
 }) {
+  const currency = useCurrency();
   if (!transfer) return null;
   const sc = STATUS_CONFIG[transfer.status] ?? STATUS_FALLBACK;
   return (
@@ -56,7 +58,7 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
               <p className="text-xs text-muted-foreground mb-1">Transfer Value</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(transfer.totalValue, "AED")}</p>
+              <p className="text-2xl font-bold text-primary">{formatCurrency(transfer.totalValue, currency)}</p>
               <p className="text-xs text-muted-foreground mt-1">{(transfer.items ?? []).length} items</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -94,7 +96,7 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
                           <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
                         </td>
                         <td className="px-3 py-2.5 text-right text-sm">{item.quantity}</td>
-                        <td className="px-3 py-2.5 text-right font-semibold text-sm">{formatCurrency(item.total, "AED")}</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-sm">{formatCurrency(item.total, currency)}</td>
                       </motion.tr>
                     ))}
                   </tbody>
@@ -116,6 +118,7 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
 }
 
 export function TransfersView() {
+  const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<TransferStatus | "all">("all");
   const [selected, setSelected] = React.useState<StockTransfer | null>(null);
@@ -149,7 +152,7 @@ export function TransfersView() {
     { label: "Pending",    value: transfersSummary?.pending    ?? stockTransfers.filter(t => t.status === "pending").length,           icon: Clock,          color: "text-warning",   bg: "bg-warning/10" },
     { label: "In Transit", value: transfersSummary?.inTransit  ?? stockTransfers.filter(t => t.status === "in_transit").length,        icon: Truck,          color: "text-primary",   bg: "bg-primary/10" },
     { label: "Received",   value: transfersSummary?.received   ?? stockTransfers.filter(t => t.status === "received").length,          icon: CheckCircle2,   color: "text-success",   bg: "bg-success/10" },
-    { label: "Total Value", value: formatCurrency(transfersSummary?.totalValue ?? stockTransfers.reduce((s, t) => s + t.totalValue, 0), "AED"), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
+    { label: "Total Value", value: formatCurrency(transfersSummary?.totalValue ?? stockTransfers.reduce((s, t) => s + t.totalValue, 0), currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
   ];
 
   const FILTERS = [
@@ -226,7 +229,7 @@ export function TransfersView() {
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><Calendar className="h-3.5 w-3.5" />{formatDate(t.expectedDate, "short")}</div>
                   </td>
                   <td className="px-4 py-3.5 text-center text-sm">{(t.items ?? []).length}</td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(t.totalValue, "AED")}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(t.totalValue, currency)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
                       <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}

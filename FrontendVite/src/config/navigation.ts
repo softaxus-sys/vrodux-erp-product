@@ -43,6 +43,20 @@ export const navigationConfig: NavGroup[] = [
     ],
   },
   {
+    id: "project-management-group",
+    label: "Projects",
+    items: [
+      {
+        id: "project-management",
+        label: "Project Management",
+        labelAr: "إدارة المشاريع",
+        href: "/project-management",
+        icon: "FolderKanban",
+        module: "project-management",
+      },
+    ],
+  },
+  {
     id: "finance",
     label: "Finance",
     items: [
@@ -259,6 +273,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "ClipboardList",
           },
           {
+            id: "delivery-challans",
+            label: "Delivery Challans",
+            labelAr: "إشعارات التسليم",
+            href: "/sales/delivery-challans",
+            icon: "Truck",
+          },
+          {
             id: "returns",
             label: "Returns",
             labelAr: "المرتجعات",
@@ -289,6 +310,27 @@ export const navigationConfig: NavGroup[] = [
             icon: "ClipboardCheck",
             badge: 5,
             badgeVariant: "default",
+          },
+          {
+            id: "grn",
+            label: "Goods Receipt Notes",
+            labelAr: "إشعارات استلام البضائع",
+            href: "/purchase/grn",
+            icon: "PackageCheck",
+          },
+          {
+            id: "purchase-returns",
+            label: "Purchase Returns",
+            labelAr: "مرتجعات المشتريات",
+            href: "/purchase/returns",
+            icon: "RotateCcw",
+          },
+          {
+            id: "purchase-bills",
+            label: "Purchase Invoices",
+            labelAr: "فواتير المشتريات",
+            href: "/purchase/bills",
+            icon: "Receipt",
           },
           {
             id: "approvals",

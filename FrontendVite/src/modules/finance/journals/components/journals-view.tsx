@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { JournalEntryDto as JournalEntry, JournalStatus } from "@/lib/finance/finance.api";
 import { useJournals, useJournalsSummary, usePostJournal, useVoidJournal } from "@/hooks/finance/use-finance";
 import { AddJournalForm } from "./add-journal-form";
@@ -29,6 +30,7 @@ const FILTERS: { key: JournalStatus | "all"; label: string }[] = [
 const PERIODS = ["All Periods", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"];
 
 function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; open: boolean; onClose: () => void }) {
+  const currency = useCurrency();
   const post = usePostJournal();
   const reverse = useVoidJournal();
   if (!entry) return null;
@@ -92,14 +94,14 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
                         <p className="text-sm font-medium">{line.accountName}</p>
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{line.description}</td>
-                      <td className="px-4 py-3 text-right font-medium text-success">{line.debit > 0 ? formatCurrency(line.debit, "AED") : "—"}</td>
-                      <td className="px-4 py-3 text-right font-medium text-destructive">{line.credit > 0 ? formatCurrency(line.credit, "AED") : "—"}</td>
+                      <td className="px-4 py-3 text-right font-medium text-success">{line.debit > 0 ? formatCurrency(line.debit, currency) : "—"}</td>
+                      <td className="px-4 py-3 text-right font-medium text-destructive">{line.credit > 0 ? formatCurrency(line.credit, currency) : "—"}</td>
                     </motion.tr>
                   ))}
                   <tr className="border-t-2 border-border bg-muted/30">
                     <td colSpan={2} className="px-4 py-3 text-sm font-bold">Totals</td>
-                    <td className="px-4 py-3 text-right font-bold text-success">{formatCurrency(entry.totalDebit, "AED")}</td>
-                    <td className="px-4 py-3 text-right font-bold text-destructive">{formatCurrency(entry.totalCredit, "AED")}</td>
+                    <td className="px-4 py-3 text-right font-bold text-success">{formatCurrency(entry.totalDebit, currency)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-destructive">{formatCurrency(entry.totalCredit, currency)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -121,6 +123,7 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
 }
 
 export function JournalsView() {
+  const currency = useCurrency();
   const { data: journals = [] } = useJournals();
   const { data: journalsSummary } = useJournalsSummary();
 
@@ -146,7 +149,7 @@ export function JournalsView() {
     { label: "Total Journals", value: journalsSummary?.total ?? journals.length, icon: BookOpen, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: "Draft", value: journalsSummary?.draft ?? journals.filter(j => j.status === "draft").length, icon: FileText, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: "Posted", value: journalsSummary?.posted ?? journals.filter(j => j.status === "posted").length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
-    { label: "Posted Value", value: formatCurrency(journalsSummary?.totalPostedValue ?? 0, "AED"), icon: Percent, color: "text-primary", bg: "bg-primary/10", isText: true },
+    { label: "Posted Value", value: formatCurrency(journalsSummary?.totalPostedValue ?? 0, currency), icon: Percent, color: "text-primary", bg: "bg-primary/10", isText: true },
   ];
 
   return (
@@ -224,8 +227,8 @@ export function JournalsView() {
                     <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><Calendar className="h-3.5 w-3.5" />{formatDate(j.date, "short")}</div>
                   </td>
                   <td className="px-4 py-3.5 hidden lg:table-cell"><span className="text-sm text-muted-foreground">{j.period}</span></td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-sm text-success">{formatCurrency(j.totalDebit, "AED")}</td>
-                  <td className="px-4 py-3.5 text-right font-semibold text-sm text-destructive hidden md:table-cell">{formatCurrency(j.totalCredit, "AED")}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-sm text-success">{formatCurrency(j.totalDebit, currency)}</td>
+                  <td className="px-4 py-3.5 text-right font-semibold text-sm text-destructive hidden md:table-cell">{formatCurrency(j.totalCredit, currency)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
                       <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}

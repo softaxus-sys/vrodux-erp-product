@@ -33,16 +33,26 @@ internal sealed class CreateAccountHandler(FinanceDbContext db)
                         $"Parent account '{cmd.ParentId}' was not found."));
         }
 
+        var accountType = await db.AccountTypes.FindAsync([cmd.AccountTypeId], ct);
+        if (accountType is null)
+            return Result.Failure<AccountDto>(
+                Error.Custom("AccountType.NotFound", $"Account type '{cmd.AccountTypeId}' was not found."));
+
+        var rootCode = accountType.ParentId is null
+            ? accountType.Code
+            : (await db.AccountTypes.FindAsync([accountType.ParentId.Value], ct))?.Code ?? accountType.Code;
+
         var account = new Account(
             cmd.AccountNumber,
             cmd.Name,
-            cmd.AccountType.ToLowerInvariant(),
+            rootCode,
             cmd.Description,
             cmd.ParentId);
 
+        account.SetAccountTypeId(cmd.AccountTypeId);
+
         if (!cmd.IsActive)
-            account.Update(cmd.AccountNumber, cmd.Name,
-                cmd.AccountType.ToLowerInvariant(), cmd.Description, cmd.ParentId, false);
+            account.Update(cmd.AccountNumber, cmd.Name, rootCode, cmd.Description, cmd.ParentId, false);
 
         db.Accounts.Add(account);
         await db.SaveChangesAsync(ct);
@@ -50,6 +60,6 @@ internal sealed class CreateAccountHandler(FinanceDbContext db)
         return Result.Success(new AccountDto(
             account.Id, account.AccountNumber, account.Name, account.AccountType,
             account.Description, account.ParentId, account.IsActive, account.Balance,
-            account.CreatedAt, account.UpdatedAt));
+            account.CreatedAt, account.UpdatedAt, account.AccountTypeId));
     }
 }

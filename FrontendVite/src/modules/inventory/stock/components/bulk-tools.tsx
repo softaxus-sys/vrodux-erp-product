@@ -192,7 +192,7 @@ export function ProductImportDialog({ open, onClose }: { open: boolean; onClose:
 
 // ── Label printing ───────────────────────────────────────────────────────────────
 
-export function printProductLabels(products: ProductSummaryDto[], currency = "PKR") {
+export function printProductLabels(products: ProductSummaryDto[], currency = "AED") {
   if (products.length === 0) { toast.error("No products to print labels for."); return; }
   const win = window.open("", "_blank", "width=900,height=700");
   if (!win) { toast.error("Pop-up blocked — allow pop-ups to print labels."); return; }
