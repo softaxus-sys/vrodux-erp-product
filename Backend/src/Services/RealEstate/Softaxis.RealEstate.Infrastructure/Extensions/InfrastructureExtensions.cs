@@ -1,6 +1,10 @@
+using FluentValidation;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Softaxis.BuildingBlocks.Application.Behaviors;
+using Softaxis.RealEstate.Application;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 using Softaxis.RealEstate.Infrastructure.Persistence.Seed;
 
@@ -13,6 +17,22 @@ public static class InfrastructureExtensions
         services.AddDbContext<RealEstateDbContext>(opts =>
             opts.UseSqlServer(configuration.GetConnectionString("RealEstateDb"),
                 sql => sql.MigrationsAssembly(typeof(RealEstateDbContext).Assembly.FullName)));
+
+        // ── MediatR — scan Application + Infrastructure for handlers ─────────
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssemblies(
+                typeof(AssemblyReference).Assembly,         // Application
+                typeof(InfrastructureExtensions).Assembly); // Infrastructure
+
+            // Pipeline order matters: Logging wraps Validation wraps Handler
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+            cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        });
+
+        // ── FluentValidation — register all validators from Application ───────
+        services.AddValidatorsFromAssembly(typeof(AssemblyReference).Assembly);
+
         return services;
     }
 

@@ -4,6 +4,7 @@ import { FileText, Calculator, FileSignature, DollarSign, Plus, X, Trash2, Arrow
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import {
   useConBiddingSummary, useRfqs, useEstimates, useConContracts,
   useCreateRfq, useSetRfqStatus, useDeleteRfq,
@@ -11,7 +12,6 @@ import {
   useCreateConContract, useSetConContractStatus, useDeleteConContract,
 } from "@/hooks/construction/use-con-bidding";
 
-const CUR = "AED";
 type Tab = "rfqs" | "estimates" | "contracts";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
   { key: "rfqs", label: "RFQs", icon: FileText },
@@ -27,6 +27,7 @@ const badge = (s: string) => ({
 }[s] ?? "bg-muted text-muted-foreground");
 
 export function ConstructionBiddingView() {
+  const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("rfqs");
   const { data: s } = useConBiddingSummary();
   const stats = [
@@ -91,6 +92,7 @@ function Table({ cols, children, empty, emptyMsg }: { cols: string[]; children: 
 }
 
 function RfqsTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = useRfqs();
   const create = useCreateRfq(); const setStatus = useSetRfqStatus(); const del = useDeleteRfq();
   const [open, setOpen] = React.useState(false);
@@ -126,6 +128,7 @@ function RfqsTab() {
 }
 
 function EstimatesTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = useEstimates();
   const create = useCreateEstimate(); const setStatus = useSetEstimateStatus(); const del = useDeleteEstimate();
   const [open, setOpen] = React.useState(false);
@@ -162,6 +165,7 @@ function EstimatesTab() {
 }
 
 function ContractsTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = useConContracts();
   const create = useCreateConContract(); const setStatus = useSetConContractStatus(); const del = useDeleteConContract();
   const [open, setOpen] = React.useState(false);

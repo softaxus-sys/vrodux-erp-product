@@ -3,37 +3,39 @@ import { motion } from "framer-motion";
 import { DollarSign, CheckCircle2, AlertTriangle, Clock, FileEdit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { InvoiceSummaryDto } from "@/lib/finance/finance.api";
+import type { Currency } from "@/types/global";
 
 interface InvoiceStatsProps {
   summary: InvoiceSummaryDto;
 }
 
-const stats = (summary: InvoiceSummaryDto) => [
+const stats = (summary: InvoiceSummaryDto, currency: Currency) => [
   {
     label: "Total Invoiced",
-    value: formatCurrency(summary.totalAmount, "AED"),
+    value: formatCurrency(summary.totalAmount, currency),
     sub: `${summary.totalInvoices} invoices`,
     icon: DollarSign,
     color: "text-primary bg-primary/10",
   },
   {
     label: "Collected",
-    value: formatCurrency(summary.totalPaid, "AED"),
+    value: formatCurrency(summary.totalPaid, currency),
     sub: "Paid invoices",
     icon: CheckCircle2,
     color: "text-success bg-success/10",
   },
   {
     label: "Outstanding",
-    value: formatCurrency(summary.totalOutstanding, "AED"),
+    value: formatCurrency(summary.totalOutstanding, currency),
     sub: "Awaiting payment",
     icon: Clock,
     color: "text-warning bg-warning/10",
   },
   {
     label: "Overdue",
-    value: formatCurrency(summary.totalOverdue, "AED"),
+    value: formatCurrency(summary.totalOverdue, currency),
     sub: "Past due date",
     icon: AlertTriangle,
     color: "text-destructive bg-destructive/10",
@@ -48,9 +50,10 @@ const stats = (summary: InvoiceSummaryDto) => [
 ];
 
 export function InvoiceStats({ summary }: InvoiceStatsProps) {
+  const currency = useCurrency();
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-      {stats(summary).map((stat, i) => {
+      {stats(summary, currency).map((stat, i) => {
         const Icon = stat.icon;
         return (
           <motion.div

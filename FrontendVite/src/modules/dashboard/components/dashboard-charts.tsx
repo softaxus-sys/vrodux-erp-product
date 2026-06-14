@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrency } from "@/hooks/use-currency";
 import { cn, formatCurrency } from "@/lib/utils";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
@@ -176,6 +177,7 @@ function fmt(n: number) {
 // ── Custom Tooltip ─────────────────────────────────────────────────────────────
 
 function ChartTooltip({ active, payload, label, currency }: any) {
+  const currencyCode = useCurrency();
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-border bg-popover/95 backdrop-blur p-3 shadow-xl text-xs">
@@ -186,7 +188,7 @@ function ChartTooltip({ active, payload, label, currency }: any) {
           <span className="text-muted-foreground">{entry.name}:</span>
           <span className="font-semibold text-foreground ml-auto pl-3">
             {currency
-              ? formatCurrency(entry.value, "PKR")
+              ? formatCurrency(entry.value, currencyCode)
               : typeof entry.value === "number" && entry.value > 1000
                 ? fmt(entry.value)
                 : entry.value}
@@ -709,6 +711,7 @@ function InventoryCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PosCharts() {
+  const currency = useCurrency();
   const totalSales = POS_HOURLY.reduce((s, d) => s + d.sales, 0);
   const totalTxn   = POS_HOURLY.reduce((s, d) => s + d.txn, 0);
 
@@ -718,7 +721,7 @@ function PosCharts() {
         icon={CreditCard}
         title="POS Overview"
         color={P.sky}
-        description={`Today · ${totalTxn} transactions · ${formatCurrency(totalSales, "PKR")} sales`}
+        description={`Today · ${totalTxn} transactions · ${formatCurrency(totalSales, currency)} sales`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 

@@ -5,7 +5,7 @@
  */
 
 import * as React from "react";
-import { Printer, Loader2, Scan, Zap, AlertTriangle, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { Loader2, Scan, AlertTriangle, Wifi, WifiOff, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHardware } from "@/contexts/hardware-context";
 import type { PrinterStatus } from "@/contexts/hardware-context";
@@ -63,7 +63,6 @@ export function HardwareStatusBar() {
     printerStatus,
     printerError,
     refreshPrinter,
-    drawerIsOpen,
   } = useHardware();
 
   const meta = PRINTER_META[printerStatus];
@@ -105,14 +104,6 @@ export function HardwareStatusBar() {
         <span>{meta.label}</span>
         {isOffline && <RefreshCw className="h-2.5 w-2.5 shrink-0 ml-0.5" />}
       </button>
-
-      {/* Cash drawer status — only show when open */}
-      {drawerIsOpen && (
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-amber-400 bg-amber-50 text-amber-700 text-[10px] font-bold animate-pulse dark:border-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
-          <Zap className="h-3 w-3 shrink-0" />
-          <span>DRAWER OPEN</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -1,67 +1,47 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Softaxis.Construction.Domain.Entities;
-using Softaxis.Construction.Infrastructure.Persistence;
+using Softaxis.Construction.API.Controllers.Common;
+using Softaxis.Construction.Application.Projects.Commands;
+using Softaxis.Construction.Application.Projects.Queries;
 
 namespace Softaxis.Construction.API.Controllers;
 
 [ApiController][Route("api/construction/projects")][Authorize]
-public sealed class ProjectsController(ConstructionDbContext db) : ControllerBase
+public sealed class ProjectsController(ISender sender) : ConstructionControllerBase
 {
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
-        var all = await db.Projects.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.ContractValue, x.BudgetSpent, x.CompletionPct }).ToListAsync(ct);
-        return Ok(new {
-            total = all.Count, inProgress = all.Count(x => x.Status == "in_progress"),
-            completed = all.Count(x => x.Status == "completed"), onHold = all.Count(x => x.Status == "on_hold"),
-            planning = all.Count(x => x.Status == "planning"),
-            totalContractValue = all.Sum(x => x.ContractValue), totalSpent = all.Sum(x => x.BudgetSpent),
-            avgCompletion = all.Any() ? all.Average(x => x.CompletionPct) : 0,
-        });
+        var result = await sender.Send(new GetProjectsSummaryQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var items = await db.Projects.AsNoTracking().Include(x => x.Phases)
-            .Where(x => !x.IsDeleted).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
-        return Ok(items.Select(ToDto));
+        var result = await sender.Send(new GetProjectsQuery(), ct);
+        return OkOrError(result);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
-        var p = await db.Projects.AsNoTracking().Include(x => x.Phases)
-            .FirstOrDefaultAsync(x => x.Id == id, ct);
-        return p is null ? NotFound() : Ok(ToDto(p));
+        var result = await sender.Send(new GetProjectByIdQuery(id), ct);
+        return OkOrError(result);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateProjectReq req, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CreateProjectCommand cmd, CancellationToken ct)
     {
-        var p = new Project(req.Name, req.Client, req.Location, req.ProjectType, req.StartDate, req.EndDate,
-            req.ContractValue, req.ProjectManager, req.SiteEngineer, req.Notes);
-        db.Projects.Add(p); await db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(GetById), new { id = p.Id }, ToDto(p));
+        var result = await sender.Send(cmd, ct);
+        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var p = await db.Projects.FindAsync([id], ct);
-        if (p is null) return NotFound(); p.Delete(); await db.SaveChangesAsync(ct); return NoContent();
+        var result = await sender.Send(new DeleteProjectCommand(id), ct);
+        return NoContentOrError(result);
     }
-
-    public record CreateProjectReq(string Name, string Client, string Location, string ProjectType,
-        string StartDate, string EndDate, decimal ContractValue, string ProjectManager, string SiteEngineer, string? Notes);
-
-    private static object ToDto(Project p) => new {
-        p.Id, p.ProjectNumber, p.Name, p.Client, p.Location, p.ProjectType, p.Status,
-        p.StartDate, p.EndDate, p.ContractValue, p.BudgetSpent, budgetRemaining = p.BudgetRemaining,
-        p.CompletionPct, p.ProjectManager, p.SiteEngineer, p.Workers, p.Notes,
-        phases = p.Phases.Select(ph => new { ph.Id, ph.Name, ph.StartDate, ph.EndDate, ph.Status, ph.CompletionPct }),
-    };
 }

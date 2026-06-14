@@ -5,9 +5,11 @@ import {
   Calendar, X, ArrowUpRight, ArrowDownRight, FileText, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { TaxPeriodDto as TaxPeriod } from "@/lib/finance/finance.api";
-import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod } from "@/hooks/finance/use-finance";
+import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod, useCreateTaxPeriod } from "@/hooks/finance/use-finance";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   open:    { label: "Open",    color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
@@ -17,6 +19,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 };
 
 function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeriod | null; open: boolean; onClose: () => void; taxTransactions: { id: string; date: string; type: "sale" | "purchase"; reference: string; amount: number; vatAmount: number; vatRate: number; description: string; period: string }[] }) {
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<"overview" | "sales" | "purchases">("overview");
   const fileReturn = useFileTaxPeriod();
   const payReturn  = usePayTaxPeriod();
@@ -60,17 +63,17 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-success/5 border border-success/20 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-muted-foreground mb-1">Output VAT</p>
-                    <p className="font-bold text-lg text-success">{formatCurrency(period.outputVat, "AED")}</p>
+                    <p className="font-bold text-lg text-success">{formatCurrency(period.outputVat, currency)}</p>
                     <p className="text-[10px] text-muted-foreground">From sales</p>
                   </div>
                   <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
                     <p className="text-[10px] text-muted-foreground mb-1">Input VAT</p>
-                    <p className="font-bold text-lg text-primary">{formatCurrency(period.inputVat, "AED")}</p>
+                    <p className="font-bold text-lg text-primary">{formatCurrency(period.inputVat, currency)}</p>
                     <p className="text-[10px] text-muted-foreground">From purchases</p>
                   </div>
                   <div className={cn("border rounded-xl p-4 text-center", period.netVat >= 0 ? "bg-warning/5 border-warning/20" : "bg-success/5 border-success/20")}>
                     <p className="text-[10px] text-muted-foreground mb-1">Net VAT</p>
-                    <p className={cn("font-bold text-lg", period.netVat >= 0 ? "text-warning" : "text-success")}>{formatCurrency(Math.abs(period.netVat), "AED")}</p>
+                    <p className={cn("font-bold text-lg", period.netVat >= 0 ? "text-warning" : "text-success")}>{formatCurrency(Math.abs(period.netVat), currency)}</p>
                     <p className="text-[10px] text-muted-foreground">{period.netVat >= 0 ? "Payable" : "Refundable"}</p>
                   </div>
                 </div>
@@ -78,7 +81,7 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
                   <div className="flex justify-between"><span className="text-muted-foreground">Filing Due</span><span className={cn(period.status === "overdue" ? "text-destructive font-semibold" : "")}>{formatDate(period.dueDate, "medium")}</span></div>
                   {period.filedDate && <div className="flex justify-between"><span className="text-muted-foreground">Filed On</span><span className="text-success">{formatDate(period.filedDate, "medium")}</span></div>}
                   {period.paidDate && <div className="flex justify-between"><span className="text-muted-foreground">Paid On</span><span className="text-success">{formatDate(period.paidDate, "medium")}</span></div>}
-                  {period.penalty && <div className="flex justify-between"><span className="text-muted-foreground">Penalty</span><span className="text-destructive font-semibold">{formatCurrency(period.penalty, "AED")}</span></div>}
+                  {period.penalty && <div className="flex justify-between"><span className="text-muted-foreground">Penalty</span><span className="text-destructive font-semibold">{formatCurrency(period.penalty, currency)}</span></div>}
                 </div>
               </>
             )}
@@ -100,8 +103,8 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
                           <p className="text-sm font-medium">{t.description}</p>
                           <p className="text-xs text-muted-foreground font-mono">{t.reference}</p>
                         </td>
-                        <td className="px-4 py-3 text-right text-sm">{formatCurrency(t.amount, "AED")}</td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-warning">{formatCurrency(t.vatAmount, "AED")}</td>
+                        <td className="px-4 py-3 text-right text-sm">{formatCurrency(t.amount, currency)}</td>
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-warning">{formatCurrency(t.vatAmount, currency)}</td>
                       </motion.tr>
                     ))}
                   </tbody>
@@ -119,7 +122,109 @@ function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeri
   );
 }
 
+/** Builds the next 6 quarter options (2 past, current, 3 future) with UAE filing dates. */
+function buildQuarterOptions() {
+  const opts: { label: string; period: string; from: string; to: string; due: string }[] = [];
+  const now = new Date();
+  const baseQ = Math.floor(now.getMonth() / 3);
+  for (let i = -2; i <= 3; i++) {
+    const qIndex = baseQ + i;
+    const year = now.getFullYear() + Math.floor(qIndex / 4);
+    const q = ((qIndex % 4) + 4) % 4; // 0..3
+    const startMonth = q * 3;
+    const from = new Date(year, startMonth, 1);
+    const to = new Date(year, startMonth + 3, 0);          // last day of quarter
+    const due = new Date(year, startMonth + 3, 28);        // 28 days after quarter end
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    opts.push({
+      label: `Q${q + 1}-${year}`,
+      period: `Q${q + 1}-${year}`,
+      from: iso(from), to: iso(to), due: iso(due),
+    });
+  }
+  return opts;
+}
+
+function NewReturnForm({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const create = useCreateTaxPeriod();
+  const quarters = React.useMemo(buildQuarterOptions, []);
+  const [idx, setIdx] = React.useState(2); // current quarter
+  const sel = quarters[idx];
+  const [from, setFrom] = React.useState(sel.from);
+  const [to, setTo] = React.useState(sel.to);
+  const [due, setDue] = React.useState(sel.due);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setIdx(2);
+    setFrom(quarters[2].from); setTo(quarters[2].to); setDue(quarters[2].due);
+  }, [open, quarters]);
+
+  const pickQuarter = (i: number) => {
+    setIdx(i);
+    setFrom(quarters[i].from); setTo(quarters[i].to); setDue(quarters[i].due);
+  };
+
+  const submit = async () => {
+    try {
+      await create.mutateAsync({ period: quarters[idx].period, fromDate: from, toDate: to, dueDate: due });
+      onClose();
+    } catch { /* hook toasts the error; keep form open for retry */ }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (<>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+        <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+          transition={{ type: "spring", damping: 28, stiffness: 280 }}
+          className="fixed top-0 right-0 h-full w-full max-w-[460px] bg-background border-l border-border shadow-2xl z-50 flex flex-col">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div>
+              <h2 className="text-base font-bold">New VAT Return</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Open a new filing period</p>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Period (Quarter)</label>
+              <select value={idx} onChange={e => pickQuarter(Number(e.target.value))}
+                className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                {quarters.map((q, i) => <option key={q.period} value={i}>{q.label}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">From</label>
+                <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">To</label>
+                <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 text-sm" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filing Due Date</label>
+              <Input type="date" value={due} onChange={e => setDue(e.target.value)} className="h-9 text-sm" />
+              <p className="text-[11px] text-muted-foreground">UAE VAT returns are typically due 28 days after the period ends.</p>
+            </div>
+          </div>
+          <div className="border-t border-border px-6 py-4 flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose} disabled={create.isPending}>Cancel</Button>
+            <Button onClick={submit} disabled={create.isPending || !from || !to || !due}>
+              {create.isPending ? "Creating…" : "Create Return"}
+            </Button>
+          </div>
+        </motion.div>
+      </>)}
+    </AnimatePresence>
+  );
+}
+
 export function TaxView() {
+  const currency = useCurrency();
   const { data: taxPeriods = [] } = useTaxPeriods();
   const { data: taxTransactions = [] } = useTaxTransactions();
   const { data: taxSummary } = useTaxSummary();
@@ -128,12 +233,13 @@ export function TaxView() {
 
   const [selected, setSelected] = React.useState<TaxPeriod | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [newReturnOpen, setNewReturnOpen] = React.useState(false);
 
   const STATS = [
-    { label: "Output VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodOutput ?? 0, "AED"), icon: ArrowUpRight, color: "text-success", bg: "bg-success/10" },
-    { label: "Input VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodInput ?? 0, "AED"), icon: ArrowDownRight, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Net VAT Payable", value: formatCurrency(taxSummary?.currentNetVat ?? 0, "AED"), icon: Receipt, color: "text-warning", bg: "bg-warning/10" },
-    { label: "YTD VAT Paid", value: formatCurrency(taxSummary?.ytdVatPaid ?? 0, "AED"), icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+    { label: "Output VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodOutput ?? 0, currency), icon: ArrowUpRight, color: "text-success", bg: "bg-success/10" },
+    { label: "Input VAT (Current)", value: formatCurrency(taxSummary?.currentPeriodInput ?? 0, currency), icon: ArrowDownRight, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Net VAT Payable", value: formatCurrency(taxSummary?.currentNetVat ?? 0, currency), icon: Receipt, color: "text-warning", bg: "bg-warning/10" },
+    { label: "YTD VAT Paid", value: formatCurrency(taxSummary?.ytdVatPaid ?? 0, currency), icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
     { label: "Next Filing Due", value: taxSummary?.nextDueDate ? formatDate(taxSummary.nextDueDate, "short") : "—", icon: Calendar, color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
@@ -141,7 +247,7 @@ export function TaxView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Tax & VAT</h1><p className="text-sm text-muted-foreground mt-0.5">UAE VAT returns, filing, and tax transaction tracking</p></div>
-        <Button className="gap-2 h-9"><Plus className="h-4 w-4" />New Return</Button>
+        <Button className="gap-2 h-9" onClick={() => setNewReturnOpen(true)}><Plus className="h-4 w-4" />New Return</Button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {STATS.map((s, i) => {
@@ -182,9 +288,9 @@ export function TaxView() {
                   className="border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors cursor-pointer">
                   <td className="px-4 py-4 font-semibold text-sm">{p.period}</td>
                   <td className="px-4 py-4 text-sm text-muted-foreground hidden md:table-cell">{formatDate(p.from, "short")} — {formatDate(p.to, "short")}</td>
-                  <td className="px-4 py-4 text-right font-medium text-success text-sm">{formatCurrency(p.outputVat, "AED")}</td>
-                  <td className="px-4 py-4 text-right text-muted-foreground text-sm hidden lg:table-cell">{formatCurrency(p.inputVat, "AED")}</td>
-                  <td className="px-4 py-4 text-right font-bold text-sm">{formatCurrency(p.netVat, "AED")}</td>
+                  <td className="px-4 py-4 text-right font-medium text-success text-sm">{formatCurrency(p.outputVat, currency)}</td>
+                  <td className="px-4 py-4 text-right text-muted-foreground text-sm hidden lg:table-cell">{formatCurrency(p.inputVat, currency)}</td>
+                  <td className="px-4 py-4 text-right font-bold text-sm">{formatCurrency(p.netVat, currency)}</td>
                   <td className="px-4 py-4 text-sm text-muted-foreground hidden md:table-cell">
                     <span className={cn(p.status === "overdue" ? "text-destructive font-semibold" : "")}>{formatDate(p.dueDate, "short")}</span>
                   </td>
@@ -204,6 +310,7 @@ export function TaxView() {
         </table>
       </motion.div>
       <TaxDrawer period={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} taxTransactions={taxTransactions} />
+      <NewReturnForm open={newReturnOpen} onClose={() => setNewReturnOpen(false)} />
     </div>
   );
 }

@@ -20,7 +20,7 @@ internal sealed class GetAccountByIdHandler(FinanceDbContext db)
             .Select(x => new AccountDto(
                 x.Id, x.AccountNumber, x.Name, x.AccountType,
                 x.Description, x.ParentId, x.IsActive, x.Balance,
-                x.CreatedAt, x.UpdatedAt))
+                x.CreatedAt, x.UpdatedAt, x.AccountTypeId))
             .FirstOrDefaultAsync(ct);
 
         return acc is null

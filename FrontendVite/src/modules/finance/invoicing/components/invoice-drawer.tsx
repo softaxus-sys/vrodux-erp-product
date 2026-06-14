@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { InvoiceDto as Invoice } from "@/lib/finance/finance.api";
 import {
   useCreateInvoice, useUpdateInvoice,
@@ -54,6 +55,7 @@ function EditInvoice({
   onClose: () => void;
   onCancel: () => void;
 }) {
+  const currency = useCurrency();
   const { data: detail, isLoading } = useInvoiceById(invoice.id);
   const updateInvoice = useUpdateInvoice();
 
@@ -220,7 +222,7 @@ function EditInvoice({
                         className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1 px-2" />
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">
-                      {formatCurrency(item.quantity * item.unitPrice, "AED")}
+                      {formatCurrency(item.quantity * item.unitPrice, currency)}
                     </td>
                     <td className="px-2 py-2">
                       <Button type="button" variant="ghost" size="icon"
@@ -241,15 +243,15 @@ function EditInvoice({
           <div className="w-56 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCurrency(subtotal, "AED")}</span>
+              <span>{formatCurrency(subtotal, currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-              <span>{formatCurrency(vat, "AED")}</span>
+              <span>{formatCurrency(vat, currency)}</span>
             </div>
             <div className="flex justify-between font-bold pt-2 border-t border-border">
               <span>Total</span>
-              <span>{formatCurrency(total, "AED")}</span>
+              <span>{formatCurrency(total, currency)}</span>
             </div>
           </div>
         </div>
@@ -283,7 +285,9 @@ function EditInvoice({
 /* ─── View Invoice ─────────────────────────────────────────────────────────── */
 
 function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
+  const currency = useCurrency();
   const [editMode, setEditMode] = React.useState(false);
+  const [confirmCancel, setConfirmCancel] = React.useState(false);
 
   const sendInvoice   = useSendInvoice();
   const markPaid      = useMarkInvoicePaid();
@@ -321,8 +325,6 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
       toast.error(err instanceof Error ? err.message : "Failed to record payment.");
     }
   };
-
-  const [confirmCancel, setConfirmCancel] = React.useState(false);
 
   const handleCancel = () => setConfirmCancel(true);
 
@@ -416,15 +418,15 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
             <div className="w-64 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(invoice.subTotal, "AED")}</span>
+                <span>{formatCurrency(invoice.subTotal, currency)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tax ({invoice.taxRate}%)</span>
-                <span>{formatCurrency(invoice.taxAmount, "AED")}</span>
+                <span>{formatCurrency(invoice.taxAmount, currency)}</span>
               </div>
               <div className="flex justify-between font-bold text-base pt-2 border-t border-border">
                 <span>Total</span>
-                <span>{formatCurrency(invoice.total, "AED")}</span>
+                <span>{formatCurrency(invoice.total, currency)}</span>
               </div>
             </div>
           </div>
@@ -462,6 +464,7 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
 /* ─── Create Invoice ───────────────────────────────────────────────────────── */
 
 function CreateInvoice({ onClose }: { onClose: () => void }) {
+  const currency = useCurrency();
   const createInvoice = useCreateInvoice();
 
   const [customerName,  setCustomerName]  = React.useState("");
@@ -578,7 +581,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
                         className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1 px-2" />
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">
-                      {formatCurrency(item.quantity * item.unitPrice, "AED")}
+                      {formatCurrency(item.quantity * item.unitPrice, currency)}
                     </td>
                     <td className="px-2 py-2">
                       <Button type="button" variant="ghost" size="icon"
@@ -599,15 +602,15 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
           <div className="w-56 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatCurrency(subtotal, "AED")}</span>
+              <span>{formatCurrency(subtotal, currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">VAT (5%)</span>
-              <span>{formatCurrency(vat, "AED")}</span>
+              <span>{formatCurrency(vat, currency)}</span>
             </div>
             <div className="flex justify-between font-bold pt-2 border-t border-border">
               <span>Total</span>
-              <span>{formatCurrency(total, "AED")}</span>
+              <span>{formatCurrency(total, currency)}</span>
             </div>
           </div>
         </div>

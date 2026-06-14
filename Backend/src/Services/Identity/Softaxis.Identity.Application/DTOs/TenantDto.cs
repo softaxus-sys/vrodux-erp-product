@@ -72,3 +72,10 @@ public sealed record RenewSubscriptionRequest(DateTime ExpiresAt);
 /// <see cref="Modules"/> = null → reset to plan defaults.
 /// </summary>
 public sealed record SetModulesRequest(IReadOnlyList<string>? Modules);
+
+public sealed record TenantUserCountDto(
+    Guid TenantId,
+    int  Count,
+    int  MaxUsers,
+    int  Remaining,
+    bool AtLimit);

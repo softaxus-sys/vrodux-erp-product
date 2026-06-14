@@ -10,9 +10,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="MediatR" Version="12.*" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.RealEstate.Domain\Softaxis.RealEstate.Domain.csproj" />
+    <ProjectReference Include="..\Softaxis.RealEstate.Application\Softaxis.RealEstate.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

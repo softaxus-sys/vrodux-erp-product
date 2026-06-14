@@ -31,7 +31,7 @@ internal sealed class GetAccountsHandler(FinanceDbContext db)
             .Select(x => new AccountDto(
                 x.Id, x.AccountNumber, x.Name, x.AccountType,
                 x.Description, x.ParentId, x.IsActive, x.Balance,
-                x.CreatedAt, x.UpdatedAt))
+                x.CreatedAt, x.UpdatedAt, x.AccountTypeId))
             .ToListAsync(ct);
 
         return Result.Success<IReadOnlyList<AccountDto>>(items);

@@ -18,7 +18,7 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("sales")
-                .HasAnnotation("ProductVersion", "9.0.16")
+                .HasAnnotation("ProductVersion", "9.0.17")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -75,6 +75,113 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("customers", "sales");
+                });
+
+            modelBuilder.Entity("Softaxis.Sales.Domain.Entities.DeliveryChallan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChallanDate")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ChallanNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DriverName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("SalesOrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)")
+                        .HasDefaultValue("posted");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChallanNumber")
+                        .IsUnique();
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("SalesOrderId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("delivery_challans", "sales");
+                });
+
+            modelBuilder.Entity("Softaxis.Sales.Domain.Entities.DeliveryChallanItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DeliveredQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("DeliveryChallanId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<decimal>("OrderedQuantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("SalesOrderItemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeliveryChallanId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("delivery_challan_items", "sales");
                 });
 
             modelBuilder.Entity("Softaxis.Sales.Domain.Entities.SalesOrder", b =>
@@ -427,6 +534,35 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                     b.ToTable("sales_return_items", "sales");
                 });
 
+            modelBuilder.Entity("Softaxis.Sales.Domain.Entities.DeliveryChallan", b =>
+                {
+                    b.HasOne("Softaxis.Sales.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Softaxis.Sales.Domain.Entities.SalesOrder", "SalesOrder")
+                        .WithMany()
+                        .HasForeignKey("SalesOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("SalesOrder");
+                });
+
+            modelBuilder.Entity("Softaxis.Sales.Domain.Entities.DeliveryChallanItem", b =>
+                {
+                    b.HasOne("Softaxis.Sales.Domain.Entities.DeliveryChallan", "DeliveryChallan")
+                        .WithMany("Items")
+                        .HasForeignKey("DeliveryChallanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DeliveryChallan");
+                });
+
             modelBuilder.Entity("Softaxis.Sales.Domain.Entities.SalesOrder", b =>
                 {
                     b.HasOne("Softaxis.Sales.Domain.Entities.Customer", "Customer")
@@ -485,6 +621,11 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
                     b.Navigation("SalesOrders");
 
                     b.Navigation("SalesQuotations");
+                });
+
+            modelBuilder.Entity("Softaxis.Sales.Domain.Entities.DeliveryChallan", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("Softaxis.Sales.Domain.Entities.SalesOrder", b =>

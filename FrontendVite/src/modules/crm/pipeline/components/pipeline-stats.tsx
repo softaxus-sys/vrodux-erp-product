@@ -3,17 +3,19 @@ import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Target, Award, BarChart3, Percent } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { CrmSummaryDto } from "@/lib/crm/crm.api";
 
 interface Props { summary: CrmSummaryDto; }
 
 export function PipelineStats({ summary }: Props) {
+  const currency = useCurrency();
   const stats = [
-    { label: "Pipeline Value",  value: formatCurrency(summary.totalValue, "AED"),   sub: "Active deals",         icon: DollarSign, color: "text-primary bg-primary/10" },
-    { label: "Won Value",       value: formatCurrency(summary.wonValue, "AED"),      sub: "Closed this quarter",  icon: Award,      color: "text-success bg-success/10" },
+    { label: "Pipeline Value",  value: formatCurrency(summary.totalValue, currency),   sub: "Active deals",         icon: DollarSign, color: "text-primary bg-primary/10" },
+    { label: "Won Value",       value: formatCurrency(summary.wonValue, currency),      sub: "Closed this quarter",  icon: Award,      color: "text-success bg-success/10" },
     { label: "Win Rate",        value: `${summary.winRate}%`,                        sub: "Won vs Lost",          icon: Percent,    color: "text-info bg-info/10" },
     { label: "Total Deals",     value: summary.totalDeals,                           sub: "All stages",           icon: BarChart3,  color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-    { label: "Avg Deal Size",   value: formatCurrency(summary.avgDealSize, "AED"),   sub: "Per active deal",      icon: TrendingUp, color: "text-warning bg-warning/10" },
+    { label: "Avg Deal Size",   value: formatCurrency(summary.avgDealSize, currency),   sub: "Per active deal",      icon: TrendingUp, color: "text-warning bg-warning/10" },
     { label: "Lost Deals",      value: summary.lostDeals,                            sub: "Need follow-up",       icon: Target,     color: "text-destructive bg-destructive/10" },
   ];
 

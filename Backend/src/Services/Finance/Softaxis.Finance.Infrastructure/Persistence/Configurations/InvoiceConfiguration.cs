@@ -19,8 +19,10 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.InvoiceDate).IsRequired().HasMaxLength(20);
         builder.Property(x => x.DueDate).IsRequired().HasMaxLength(20);
         builder.Property(x => x.TaxRate).HasPrecision(5, 2);
+        builder.Property(x => x.CurrencyCode).IsRequired().HasMaxLength(3).HasDefaultValue("AED");
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("draft");
         builder.Property(x => x.Notes).HasMaxLength(1000);
+        builder.Property(x => x.AmountPaid).HasPrecision(18, 2);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 
@@ -28,6 +30,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Ignore(x => x.SubTotal);
         builder.Ignore(x => x.TaxAmount);
         builder.Ignore(x => x.Total);
+        builder.Ignore(x => x.AmountDue);
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
@@ -39,6 +42,11 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
                .WithOne(x => x.Invoice)
                .HasForeignKey(x => x.InvoiceId)
                .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Customer>()
+               .WithMany()
+               .HasForeignKey(x => x.CustomerId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }
 

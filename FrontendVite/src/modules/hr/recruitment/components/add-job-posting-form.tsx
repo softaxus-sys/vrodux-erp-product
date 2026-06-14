@@ -3,13 +3,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { useCreateJobPosting } from "@/hooks/hr/use-hr";
 
 const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management", "Procurement"];
 const JOB_TYPES   = ["Full-Time", "Part-Time", "Contract", "Internship", "Freelance"];
 const LOCATIONS    = ["Dubai HQ", "Abu Dhabi", "Sharjah", "Remote", "Hybrid"];
 const EXPERIENCE_LEVELS = ["Entry Level", "Mid Level", "Senior Level", "Lead / Principal", "Director / VP", "C-Suite"];
 const SALARY_CURRENCIES  = ["AED", "USD", "EUR"];
+
+const JOB_TYPE_MAP: Record<string, string> = {
+  "Full-Time": "full_time", "Part-Time": "part_time", "Contract": "contract",
+  "Internship": "internship", "Freelance": "freelance",
+};
+
+const EXPERIENCE_LEVEL_MAP: Record<string, string> = {
+  "Entry Level": "junior", "Mid Level": "mid", "Senior Level": "senior",
+  "Lead / Principal": "lead", "Director / VP": "executive", "C-Suite": "executive",
+};
 
 interface AddJobPostingFormProps {
   open: boolean;
@@ -34,6 +44,8 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
 
   const isValid = title.trim() && department && description.trim();
 
+  const createJobPosting = useCreateJobPosting();
+
   const updateRequirement = (i: number, val: string) =>
     setRequirements(prev => prev.map((r, idx) => idx === i ? val : r));
   const updateResponsibility = (i: number, val: string) =>
@@ -47,6 +59,31 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSubmit = async (status: "draft" | "open") => {
+    try {
+      await createJobPosting.mutateAsync({
+        title: title.trim(),
+        department,
+        branch: location,
+        type: JOB_TYPE_MAP[jobType] ?? "full_time",
+        experienceLevel: EXPERIENCE_LEVEL_MAP[experienceLevel] ?? "mid",
+        headcount: Number(headcount) || 1,
+        salaryMin: Number(salaryMin) || 0,
+        salaryMax: Number(salaryMax) || 0,
+        currency: salaryCurrency,
+        closingDate: closingDate || undefined,
+        hiringManager: hiringManager.trim() || undefined,
+        description: description.trim(),
+        requirements: requirements.map(r => r.trim()).filter(Boolean),
+        responsibilities: responsibilities.map(r => r.trim()).filter(Boolean),
+        status,
+      });
+      onClose();
+    } catch {
+      // onError in hook shows the toast; drawer stays open for retry
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -208,14 +245,14 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  disabled={!isValid}
-                  onClick={() => toast.info("Recruitment backend not yet configured. Job saved locally.")}
+                  disabled={!isValid || createJobPosting.isPending}
+                  onClick={() => handleSubmit("draft")}
                 >
                   Save as Draft
                 </Button>
                 <Button
-                  disabled={!isValid}
-                  onClick={() => toast.info("Recruitment backend not yet configured. Job posting pending backend implementation.")}
+                  disabled={!isValid || createJobPosting.isPending}
+                  onClick={() => handleSubmit("open")}
                 >
                   Publish Job
                 </Button>

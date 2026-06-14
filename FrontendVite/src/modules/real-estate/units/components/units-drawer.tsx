@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { UnitDto as Unit, UnitStatus } from "@/lib/real-estate/re.api";
 
 const STATUS_CONFIG: Record<UnitStatus, { label: string; className: string }> = {
@@ -59,6 +60,7 @@ function isExpiringSoon(date: string | null): boolean {
 }
 
 export function UnitsDrawer({ open, onClose, unit }: Props) {
+  const currency = useCurrency();
   return (
     <AnimatePresence>
       {open && unit && (
@@ -166,14 +168,14 @@ export function UnitsDrawer({ open, onClose, unit }: Props) {
                     label="Annual Rent"
                     value={
                       <span className="font-bold text-primary">
-                        {formatCurrency(unit.rentPricePA, "AED")}
+                        {formatCurrency(unit.rentPricePA, currency)}
                       </span>
                     }
                   />
                   <InfoRow
                     icon={DollarSign}
                     label="Monthly Rent"
-                    value={formatCurrency(Math.round(unit.rentPricePA / 12), "AED")}
+                    value={formatCurrency(Math.round(unit.rentPricePA / 12), currency)}
                   />
                   {unit.salePriceIfForSale && (
                     <InfoRow
@@ -181,7 +183,7 @@ export function UnitsDrawer({ open, onClose, unit }: Props) {
                       label="Sale Price"
                       value={
                         <span className="font-bold text-blue-600">
-                          {formatCurrency(unit.salePriceIfForSale, "AED")}
+                          {formatCurrency(unit.salePriceIfForSale, currency)}
                         </span>
                       }
                     />

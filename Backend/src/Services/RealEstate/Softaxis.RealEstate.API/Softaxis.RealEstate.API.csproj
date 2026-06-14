@@ -9,5 +9,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.RealEstate.Infrastructure\Softaxis.RealEstate.Infrastructure.csproj" />
+    <ProjectReference Include="..\Softaxis.RealEstate.Application\Softaxis.RealEstate.Application.csproj" />
   </ItemGroup>
 </Project>

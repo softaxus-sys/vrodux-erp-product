@@ -4,11 +4,13 @@ import { financeApi } from "@/lib/finance/finance.api";
 import { useAuthStore } from "@/store/auth.store";
 import type {
   CreateAccountRequest, UpdateAccountRequest,
+  CreateAccountTypeRequest, UpdateAccountTypeRequest, ReorderAccountTypeItem,
   CreateInvoiceRequest, UpdateInvoiceRequest,
   CreateExpenseRequest,
-  CreateJournalEntryRequest, CreateBudgetRequest,
-  CreateBankTransactionRequest,
+  CreateJournalEntryRequest, CreateBudgetRequest, BudgetStatus, CreateTaxPeriodRequest,
+  CreateBankTransactionRequest, CreateBankAccountRequest,
   UpsertRecurringRequest,
+  CreatePurchaseBillRequest,
 } from "@/lib/finance/finance.api";
 
 const QK = "finance";
@@ -117,6 +119,66 @@ export function useDeleteAccount() {
   });
 }
 
+export function useAccountTypes() {
+  return useQuery({
+    queryKey: [QK, "account-types"],
+    queryFn:  financeApi.getAccountTypes,
+    select:   (data) => toItems(data),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateAccountType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateAccountTypeRequest) => financeApi.createAccountType(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "account-types"] });
+      qc.invalidateQueries({ queryKey: [QK, "accounts"] });
+      toast.success("Account type created.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateAccountType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateAccountTypeRequest }) =>
+      financeApi.updateAccountType(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "account-types"] });
+      qc.invalidateQueries({ queryKey: [QK, "accounts"] });
+      toast.success("Account type updated.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteAccountType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteAccountType(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "account-types"] });
+      qc.invalidateQueries({ queryKey: [QK, "accounts"] });
+      toast.success("Account type deleted.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useReorderAccountTypes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: ReorderAccountTypeItem[]) => financeApi.reorderAccountTypes(items),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "account-types"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useBankAccounts() {
   return useQuery({
     queryKey: [QK, "bank-accounts"],
@@ -157,6 +219,92 @@ export function useBudgetingSummary() {
     queryKey: [QK, "budgeting-summary"],
     queryFn:  financeApi.getBudgetingSummary,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSuppliers(params?: { search?: string; isActive?: boolean }) {
+  return useQuery({
+    queryKey: [QK, "suppliers", params],
+    queryFn:  () => financeApi.getSuppliers(params),
+    select:   (data) => toItems(data),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePurchaseBills(params?: { page?: number; pageSize?: number; search?: string; status?: string; supplierId?: string; outstanding?: boolean }) {
+  return useQuery({
+    queryKey: [QK, "purchase-bills", params],
+    queryFn:  () => financeApi.getPurchaseBills(params),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function usePurchaseBillsSummary() {
+  return useQuery({
+    queryKey: [QK, "purchase-bills-summary"],
+    queryFn:  financeApi.getPurchaseBillsSummary,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function usePurchaseBillById(id: string | null) {
+  return useQuery({
+    queryKey: [QK, "purchase-bills", "detail", id],
+    queryFn:  () => financeApi.getPurchaseBillById(id!),
+    enabled:  Boolean(id),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useCreatePurchaseBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreatePurchaseBillRequest) => financeApi.createPurchaseBill(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills"] });
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills-summary"] });
+      toast.success("Purchase invoice created.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useApprovePurchaseBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.approvePurchaseBill(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills"] });
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills-summary"] });
+      toast.success("Purchase invoice approved.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCancelPurchaseBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.cancelPurchaseBill(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills"] });
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills-summary"] });
+      toast.success("Purchase invoice cancelled.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeletePurchaseBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deletePurchaseBill(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills"] });
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills-summary"] });
+      toast.success("Purchase invoice deleted.");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -212,6 +360,15 @@ export function useGLSummary() {
     queryKey: [QK, "gl-summary"],
     queryFn:  financeApi.getGLSummary,
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useAccountLedger(accountId: string | null, from?: string, to?: string) {
+  return useQuery({
+    queryKey: [QK, "account-ledger", accountId, from, to],
+    queryFn:  () => financeApi.getAccountLedger(accountId!, from, to),
+    enabled:  !!accountId,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -353,6 +510,29 @@ export function useCreateExpense() {
   });
 }
 
+export function useUploadExpenseReceipt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => financeApi.uploadExpenseReceipt(id, file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "expenses"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteExpenseReceipt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteExpenseReceipt(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "expenses"] });
+      toast.success("Receipt removed.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCreateJournal() {
   const qc = useQueryClient();
   return useMutation({
@@ -429,6 +609,19 @@ export function useReconcileTransaction() {
       qc.invalidateQueries({ queryKey: [QK, "bank-transactions"] });
       qc.invalidateQueries({ queryKey: [QK, "banking-summary"] });
       toast.success("Transaction reconciled.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCreateTaxPeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTaxPeriodRequest) => financeApi.createTaxPeriod(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "tax-periods"] });
+      qc.invalidateQueries({ queryKey: [QK, "tax-summary"] });
+      toast.success("VAT return period created.");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -523,6 +716,32 @@ export function useCreateBudget() {
       qc.invalidateQueries({ queryKey: [QK, "budgets"] });
       qc.invalidateQueries({ queryKey: [QK, "budgeting-summary"] });
       toast.success("Budget created.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useChangeBudgetStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: BudgetStatus }) => financeApi.changeBudgetStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "budgets"] });
+      qc.invalidateQueries({ queryKey: [QK, "budgeting-summary"] });
+      toast.success("Budget status updated.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCreateBankAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateBankAccountRequest) => financeApi.createBankAccount(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "bank-accounts"] });
+      qc.invalidateQueries({ queryKey: [QK, "banking-summary"] });
+      toast.success("Bank account added.");
     },
     onError: (e: Error) => toast.error(e.message),
   });

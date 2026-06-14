@@ -8,6 +8,13 @@ import {
   type GeneratePayrollPayload,
   type MarkAttendancePayload,
   type UpdateAttendancePayload,
+  type CreateJobPostingPayload,
+  type CreateApplicantPayload,
+  type ApplicantStage,
+  type CreateReviewPayload,
+  type CompleteReviewPayload,
+  type CreateGoalPayload,
+  type UpdateGoalPayload,
 } from "@/lib/hr/hr.api";
 import { toast } from "sonner";
 
@@ -356,6 +363,94 @@ export function usePerformanceSummary() {
   });
 }
 
+export function useCreatePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateReviewPayload) => hrApi.createPerformanceReview(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review created.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useStartPerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.startPerformanceReview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review started.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCompletePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CompleteReviewPayload }) => hrApi.completePerformanceReview(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review completed.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeletePerformanceReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deletePerformanceReview(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      qc.invalidateQueries({ queryKey: [QK, "performance-summary"] });
+      toast.success("Review deleted.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAddPerformanceGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: CreateGoalPayload }) => hrApi.addPerformanceGoal(id, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      toast.success("Goal added.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdatePerformanceGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, goalId, payload }: { id: string; goalId: string; payload: UpdateGoalPayload }) => hrApi.updatePerformanceGoal(id, goalId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      toast.success("Goal updated.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeletePerformanceGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, goalId }: { id: string; goalId: string }) => hrApi.deletePerformanceGoal(id, goalId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "performance-reviews"] });
+      toast.success("Goal removed.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 // ── Recruitment ───────────────────────────────────────────────────────────────
 
 export function useJobPostings() {
@@ -379,5 +474,85 @@ export function useRecruitmentSummary() {
     queryKey: [QK, "recruitment-summary"],
     queryFn:  hrApi.getRecruitmentSummary,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateJobPosting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateJobPostingPayload) => hrApi.createJobPosting(payload),
+    onSuccess: (_, payload) => {
+      qc.invalidateQueries({ queryKey: [QK, "job-postings"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success(payload.status === "open" ? "Job posting published." : "Job saved as draft.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateJobStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => hrApi.updateJobStatus(id, status),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "job-postings"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success("Job status updated.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteJobPosting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deleteJobPosting(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "job-postings"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success("Job posting deleted.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCreateApplicant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateApplicantPayload) => hrApi.createApplicant(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "applicants"] });
+      qc.invalidateQueries({ queryKey: [QK, "job-postings"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success("Applicant added.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateApplicantStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, stage }: { id: string; stage: ApplicantStage }) => hrApi.updateApplicantStage(id, stage),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "applicants"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success("Applicant stage updated.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteApplicant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deleteApplicant(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "applicants"] });
+      qc.invalidateQueries({ queryKey: [QK, "job-postings"] });
+      qc.invalidateQueries({ queryKey: [QK, "recruitment-summary"] });
+      toast.success("Applicant removed.");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }

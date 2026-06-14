@@ -27,13 +27,24 @@ internal sealed class UpdateAccountHandler(FinanceDbContext db)
                 Error.Custom("Account.Duplicate",
                     $"Account number '{cmd.AccountNumber}' is already used by another account."));
 
+        var accountType = await db.AccountTypes.FindAsync([cmd.AccountTypeId], ct);
+        if (accountType is null)
+            return Result.Failure(
+                Error.Custom("AccountType.NotFound", $"Account type '{cmd.AccountTypeId}' was not found."));
+
+        var rootCode = accountType.ParentId is null
+            ? accountType.Code
+            : (await db.AccountTypes.FindAsync([accountType.ParentId.Value], ct))?.Code ?? accountType.Code;
+
         account.Update(
             cmd.AccountNumber,
             cmd.Name,
-            cmd.AccountType.ToLowerInvariant(),
+            rootCode,
             cmd.Description,
             cmd.ParentId,
             cmd.IsActive);
+
+        account.SetAccountTypeId(cmd.AccountTypeId);
 
         await db.SaveChangesAsync(ct);
         return Result.Success();

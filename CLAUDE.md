@@ -4,6 +4,48 @@
 
 ---
 
+## ⚠️ MANDATORY Backend Architecture — CQRS / MediatR (read before touching ANY controller)
+
+**Controllers must NEVER inject a `DbContext` or define DTOs/records inline.** This was violated by older
+controllers (Employees, Leaves, Payroll, Attendance, Recruitment, Departments, Performance, Careers, etc.) —
+those are TECH DEBT to be migrated, not a pattern to copy. The **reference implementation** is
+`Softaxis.Finance.*` → `Accounts` feature (`AccountsController` + `Accounts/Commands|Queries|Dtos` +
+`Handlers/Accounts/*Handler.cs`).
+
+**Required layout per feature** (e.g. `Recruitment`, `Careers`, `Employees`):
+
+```
+Softaxis.<Module>.Application/
+  <Feature>/
+    Commands/   <Verb><Feature>Command.cs   — sealed record : ICommand<TDto> (or ICommand for void),
+                                                + FluentValidation AbstractValidator in same file
+    Queries/    Get<Feature>Query.cs        — sealed record : IQuery<TDto> / IQuery<IReadOnlyList<TDto>>
+    Dtos/       <Feature>Dto.cs             — all response DTOs/records live here, NOT in the controller
+
+Softaxis.<Module>.Infrastructure/
+  Handlers/<Feature>/
+    <Verb><Feature>Handler.cs   — internal sealed class : ICommandHandler<TCmd,TDto> / IQueryHandler<...>
+                                    — only place that touches DbContext
+                                    — returns Result<T> / Result, uses Error.Custom("X.NotFound", "...") etc.
+
+Softaxis.<Module>.API/
+  Controllers/Common/<Module>ControllerBase.cs   — OkOrError / CreatedOrError / NoContentOrError
+                                                     (copy Finance's FinanceControllerBase if missing)
+  Controllers/<Feature>Controller.cs
+    - constructor takes ONLY `ISender sender`
+    - each action: `await sender.Send(new XCommand(...), ct)` → `OkOrError(...)` / `NoContentOrError(...)` / `CreatedOrError(...)`
+    - NO `db.Whatever`, NO inline `record FooDto(...)`, NO business logic
+```
+
+Error codes drive HTTP status in `ErrorResponse`: `*.NotFound` → 404, `*.Duplicate`/`*.HasTransactions` → 409,
+`Validation.Failed` → 422, else 500.
+
+**When asked to add/modify a backend endpoint in ANY service**, follow this structure even if the existing
+controller for that feature doesn't (flag the inconsistency, but don't compound it). When doing larger refactors,
+migrate one feature/controller at a time and confirm scope with the user first — these refactors touch many files.
+
+---
+
 ## Tech Stack
 
 - **Frontend:** React + Vite + TypeScript, Tailwind CSS, `framer-motion`, `react-hook-form` + `zod`, `@tanstack/react-query`, `sonner` (toast)
@@ -430,6 +472,184 @@ Finance Service: /api/finance/*
 | `UnitsOfMeasureController` | GET all (filterable), GET by id, POST create, PUT update, DELETE |
 | `ProductStockController` | GET stock by product, GET batches by product |
 | `InventoryReportsController` | GET reports (read-only) |
+
+---
+
+## Module 5b — Purchase: Goods Receipt Note (GRN)
+
+**New CQRS feature in `Softaxis.Purchase` microservice** — links `PurchaseOrder` → physical receipt and drives PO status (`sent`/`partial` → `partial`/`received`) based on cumulative received quantities.
+
+`Softaxis.Purchase` previously had NO MediatR/FluentValidation registration and an empty `Application` project — this was the first CQRS feature added there. Existing `PurchaseOrdersController` still injects `DbContext` directly (tech debt, not migrated) — GRN follows the mandatory CQRS pattern regardless, per the architecture rule above.
+
+### Backend Files
+- `Softaxis.Purchase.Domain/Entities/GoodsReceiptNote.cs` — `GoodsReceiptNote` (auto `GrnNumber: GRN-{yyyyMMdd}-{6CHAR}`, `Status` "posted"/"cancelled", `Items`) + `GoodsReceiptNoteItem` (`LineTotal => ReceivedQuantity * UnitCost`)
+- `Softaxis.Purchase.Infrastructure/Persistence/Configurations/GoodsReceiptNoteConfiguration.cs` — tables `goods_receipt_notes` / `goods_receipt_note_items`, FK to `PurchaseOrder`/`Vendor` (`DeleteBehavior.Restrict`), `HasQueryFilter(!IsDeleted)`
+- `Softaxis.Purchase.Application/GoodsReceiptNotes/` — `Commands/CreateGoodsReceiptNoteCommand.cs` (+ FluentValidation), `Queries/GoodsReceiptNoteQueries.cs`, `Dtos/GoodsReceiptNoteDtos.cs`
+- `Softaxis.Purchase.Infrastructure/Handlers/GoodsReceiptNotes/` — `CreateGoodsReceiptNoteHandler.cs`, `GetGoodsReceiptNotesHandler.cs`, `GetGoodsReceiptNoteByIdHandler.cs`
+- `Softaxis.Purchase.API/Controllers/Common/PurchaseControllerBase.cs` — NEW, mirrors `FinanceControllerBase` (`OkOrError`/`CreatedOrError`/`NoContentOrError`)
+- `Softaxis.Purchase.API/Controllers/GoodsReceiptNotesController.cs` — `GET /api/purchase/grn?purchaseOrderId=&vendorId=`, `GET /api/purchase/grn/{id}`, `POST /api/purchase/grn`
+- `Softaxis.Purchase.Infrastructure/Extensions/InfrastructureExtensions.cs` — added `AddMediatR` (Logging + Validation behaviors) + `AddValidatorsFromAssembly`
+- Migration `AddGoodsReceiptNotes` — applied to `purchase` schema of `SoftaxisErpDb`
+
+### PO Status Logic (CreateGoodsReceiptNoteHandler)
+On each GRN creation, cumulative received quantity per PO line = sum across all previously-posted GRNs + the new one. If **every** PO item has cumulative received ≥ ordered quantity → PO status = `"received"`; if **any** item has been received but not all → `"partial"`. Returns `GoodsReceiptNote.Conflict` if the PO is cancelled.
+
+### Frontend Files
+- `FrontendVite/src/lib/purchase/grn.api.ts` — `goodsReceiptNotesApi` (`getAll`, `getById`, `create`), `BASE = .../api/purchase/grn`
+- `FrontendVite/src/hooks/purchase/use-grn.ts` — `useGoodsReceiptNotes`, `useGoodsReceiptNote`, `useCreateGoodsReceiptNote` (invalidates both `grnKeys.lists()` and `purchaseOrderKeys.lists()`)
+- `FrontendVite/src/modules/purchase/grn/components/create-grn-form.tsx` — drawer form, pre-fills lines from `order.items` (received qty defaults to ordered qty), dynamic `TODAY`
+- `FrontendVite/src/modules/purchase/grn/components/grn-view.tsx` — GRN list view
+- `FrontendVite/src/pages/purchase/grn.tsx` + `App.tsx` route `/purchase/grn` (inside `ModuleGuard module="purchase"`) + `navigation.ts` nav item (icon `PackageCheck`, added to `nav-utils.tsx` iconMap)
+
+### Wired into Purchase Orders view
+`purchase-orders-view.tsx` — the "Receive" action button (shown for `status === "sent" || "partial"`) now opens `CreateGrnForm` for that PO instead of directly setting `status: "received"`. Fetches the full `PurchaseOrderDto` (with `items`) via `usePurchaseOrder(grnOrderId)` since the list view only has `PurchaseOrderSummaryDto`.
+
+### Build Status
+- **Backend Purchase service:** 0 errors, 0 warnings ✅ (migration applied)
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+
+---
+
+## Module 5c — Purchase: Purchase Return
+
+**New CQRS feature in `Softaxis.Purchase` microservice** — records goods returned to a vendor against an existing `PurchaseOrder`. Reuses MediatR/FluentValidation registration added for GRN (Module 5b) — no further `InfrastructureExtensions.cs` changes needed.
+
+Unlike GRN, Purchase Return does **NOT** modify `PurchaseOrder.Status` — it's recorded independently with its own computed `TotalAmount`.
+
+### Backend Files
+- `Softaxis.Purchase.Domain/Entities/PurchaseReturn.cs` — `PurchaseReturn` (auto `ReturnNumber: PRET-{yyyyMMdd}-{6CHAR}`, `Status` "posted"/"cancelled", `Items`, computed `TotalAmount => Items.Sum(LineTotal)`) + `PurchaseReturnItem` (`LineTotal => Quantity * UnitCost`)
+- `Softaxis.Purchase.Infrastructure/Persistence/Configurations/PurchaseReturnConfiguration.cs` — tables `purchase_returns` / `purchase_return_items`, FK to `PurchaseOrder`/`Vendor` (`DeleteBehavior.Restrict`), `HasQueryFilter(!IsDeleted)`, `Ignore(TotalAmount)` / `Ignore(LineTotal)`
+- `Softaxis.Purchase.Application/PurchaseReturns/` — `Commands/CreatePurchaseReturnCommand.cs` (+ FluentValidation), `Queries/PurchaseReturnQueries.cs`, `Dtos/PurchaseReturnDtos.cs`
+- `Softaxis.Purchase.Infrastructure/Handlers/PurchaseReturns/` — `CreatePurchaseReturnHandler.cs` (returns `PurchaseReturn.NotFound`/`PurchaseReturn.Conflict` if PO cancelled), `GetPurchaseReturnsHandler.cs`, `GetPurchaseReturnByIdHandler.cs`
+- `Softaxis.Purchase.API/Controllers/PurchaseReturnsController.cs` — `GET /api/purchase/returns?purchaseOrderId=&vendorId=`, `GET /api/purchase/returns/{id}`, `POST /api/purchase/returns`
+- Migration `AddPurchaseReturns` — applied to `purchase` schema of `SoftaxisErpDb`
+
+### Frontend Files
+- `FrontendVite/src/lib/purchase/returns.api.ts` — `purchaseReturnsApi` (`getAll`, `getById`, `create`), `BASE = .../api/purchase/returns`
+- `FrontendVite/src/hooks/purchase/use-purchase-returns.ts` — `usePurchaseReturns`, `usePurchaseReturn`, `useCreatePurchaseReturn` (invalidates `purchaseReturnKeys.lists()` only — return doesn't change PO status)
+- `FrontendVite/src/modules/purchase/returns/components/create-purchase-return-form.tsx` — drawer form, pre-fills lines from `order.items` with `returnQty` defaulting to `0` (opt-in per item, `max={orderedQuantity}`), `REASONS` dropdown (`bg-card`), dynamic `TODAY`
+- `FrontendVite/src/modules/purchase/returns/components/purchase-returns-view.tsx` — list view (search by return #/PO #/vendor, `STATUS_CONFIG` for posted/cancelled)
+- `FrontendVite/src/pages/purchase/returns.tsx` + `App.tsx` route `/purchase/returns` (inside `ModuleGuard module="purchase"`) + `navigation.ts` nav item (icon `RotateCcw`, already in `nav-utils.tsx` iconMap from Sales Returns)
+
+### Wired into Purchase Orders view
+`purchase-orders-view.tsx` — a "Return" outline button (shown for `status === "received" || "partial"`) opens `CreatePurchaseReturnForm` for that PO. Fetches the full `PurchaseOrderDto` via a second `usePurchaseOrder(returnOrderId)` call (separate from the GRN one).
+
+### Build Status
+- **Backend Purchase service:** 0 errors, 0 warnings ✅ (migration applied)
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+
+---
+
+## Module 5d — Purchase: Purchase Invoices (AP Bills — Tax / Non-Tax / Import)
+
+**Frontend built for an existing backend feature.** `Softaxis.Finance` already had a fully CQRS-compliant
+`PurchaseBill` entity + `PurchaseBillsController` from a prior "AP module" phase (commit "Add AP module:
+PurchaseBill and PaymentVoucher with billwise allocation"), but **zero frontend** existed for it. Rather than
+build separate "Non-Tax Purchase Invoice" / "Import Purchase Invoice" features, this single feature covers all
+three via the existing `TaxRate` and `CurrencyCode` fields:
+- `TaxRate === 0` → Non-Tax Purchase Invoice
+- `CurrencyCode !== "AED"` → Import Purchase Invoice
+
+### Backend Files (Softaxis.Finance — additions only, `CurrencyCode` was on the entity but not exposed)
+- `Softaxis.Finance.Application/PurchaseBills/Dtos/PurchaseBillDtos.cs` — added `string CurrencyCode` to `PurchaseBillSummaryDto` and `PurchaseBillDto` (after `TaxRate`)
+- `Softaxis.Finance.Application/PurchaseBills/Commands/PurchaseBillCommands.cs` — added `string? CurrencyCode` to `CreatePurchaseBillCommand` (not added to `UpdatePurchaseBillCommand` — currency not editable post-creation)
+- `Softaxis.Finance.Infrastructure/Handlers/PurchaseBills/CreatePurchaseBillHandler.cs` — calls existing `bill.SetCurrencyCode(cmd.CurrencyCode)` when provided
+- `Softaxis.Finance.Infrastructure/Handlers/PurchaseBills/PurchaseBillMappings.cs` — `ToDto` includes `x.CurrencyCode`
+- `Softaxis.Finance.Infrastructure/Handlers/PurchaseBills/GetPurchaseBillsHandler.cs` — list projection includes `x.CurrencyCode`
+
+Existing routes used as-is: `GET/POST /api/finance/purchase-bills`, `GET .../summary`, `GET/PUT .../{id}`,
+`POST .../{id}/approve`, `POST .../{id}/cancel`, `DELETE .../{id}`. Also added `getSuppliers` to the frontend
+using the existing `GET /api/finance/suppliers?search=&isActive=`.
+
+### Frontend Files
+- `FrontendVite/src/lib/finance/finance.api.ts` — new `SupplierDto`, `PurchaseBillStatus`, `PurchaseBillItemDto`,
+  `PurchaseBillSummaryDto`, `PurchaseBillDto`, `PurchaseBillsSummaryDto`, `PagedResult<T>`,
+  `CreatePurchaseBillRequest`; `getSuppliers`, `getPurchaseBills`, `getPurchaseBillsSummary`,
+  `getPurchaseBillById`, `createPurchaseBill`, `approvePurchaseBill`, `cancelPurchaseBill`, `deletePurchaseBill`
+- `FrontendVite/src/hooks/finance/use-finance.ts` — `useSuppliers`, `usePurchaseBills`, `usePurchaseBillsSummary`,
+  `usePurchaseBillById`, `useCreatePurchaseBill`, `useApprovePurchaseBill`, `useCancelPurchaseBill`,
+  `useDeletePurchaseBill` (all mutations invalidate `purchase-bills` + `purchase-bills-summary`)
+- `FrontendVite/src/modules/purchase/bills/components/create-purchase-bill-form.tsx` — drawer form with
+  "Invoice Type" Tax/Non-Tax toggle (drives `taxRate` sent as 0 when Non-Tax) and a Currency `<select>`
+  (shows "Import invoice — amounts recorded in {currencyCode}" banner when non-AED)
+- `FrontendVite/src/modules/purchase/bills/components/purchase-bills-view.tsx` — list view with stat cards
+  (Total/Draft/Outstanding/Total Amount/Paid/Due), status filters, "Non-Tax" and "Import · {currencyCode}"
+  badges per row, Approve/Cancel actions, amounts shown via `formatCurrency(amount, b.currencyCode)`
+- `FrontendVite/src/pages/purchase/bills.tsx` + `App.tsx` route `/purchase/bills` (inside `ModuleGuard
+  module="purchase"`) + `navigation.ts` nav item "Purchase Invoices" (icon `Receipt`, already in
+  `nav-utils.tsx` iconMap from Finance Invoicing)
+
+### Build Status
+- **Backend Finance service:** 0 errors, 0 warnings ✅
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+
+---
+
+## Module 5e — Sales: Delivery Challan
+
+**New CQRS feature in `Softaxis.Sales` microservice** — first CQRS feature ever added to this service, mirroring
+the Purchase GRN pattern (Module 5b) exactly. Records goods delivered to a customer against an existing
+`SalesOrder` and drives `SalesOrder.Status` (`"confirmed"`/`"shipped"` → `"shipped"`/`"delivered"`) based on
+cumulative delivered quantities, analogous to how GRN drives PO status.
+
+`Softaxis.Sales.Application` previously had **no CQRS feature folders** and `Softaxis.Sales.Infrastructure`
+had **no MediatR/FluentValidation registration** — both added for the first time here (`AddMediatR` with
+Logging + Validation behaviors + `AddValidatorsFromAssembly`; required adding the
+`FluentValidation.DependencyInjectionExtensions` package reference to `Softaxis.Sales.Infrastructure.csproj`,
+which Purchase already had). `SalesOrdersController` / `SalesReturnsController` remain tech debt (inject
+`SalesDbContext` directly) — DeliveryChallan follows the mandatory CQRS pattern regardless.
+
+### Backend Files
+- `Softaxis.Sales.Domain/Entities/DeliveryChallan.cs` — `DeliveryChallan` aggregate (private ctor, public ctor
+  `(salesOrderId, customerId?, challanDate, driverName?, notes?)`, auto `ChallanNumber = "DC-{yyyyMMdd}-{6CHAR}"`,
+  `Status` "posted"/"cancelled", `Items`, `AddItem(...)`, `Cancel()`) + `DeliveryChallanItem`
+  (ctor `(deliveryChallanId, salesOrderItemId?, productId?, description, orderedQuantity, deliveredQuantity, unitPrice)`,
+  computed `LineTotal => DeliveredQuantity * UnitPrice`). `ChallanDate` is `string` (matches GRN's `GrnDate`).
+  `CustomerId` is nullable (`Guid?`), copied from `SalesOrder.CustomerId`.
+- `Softaxis.Sales.Infrastructure/Persistence/Configurations/DeliveryChallanConfiguration.cs` — tables
+  `delivery_challans`/`delivery_challan_items`, FK to `SalesOrder`/`Customer` (`DeleteBehavior.Restrict`),
+  `HasQueryFilter(!IsDeleted)`, unique index on `ChallanNumber`, indexes on `SalesOrderId`/`CustomerId`,
+  cascade on Items, `Ignore(LineTotal)`
+- `Softaxis.Sales.Application/DeliveryChallans/` — `Commands/CreateDeliveryChallanCommand.cs` (+ FluentValidation),
+  `Queries/DeliveryChallanQueries.cs`, `Dtos/DeliveryChallanDtos.cs`
+- `Softaxis.Sales.Infrastructure/Handlers/DeliveryChallans/` — `CreateDeliveryChallanHandler.cs`,
+  `GetDeliveryChallansHandler.cs`, `GetDeliveryChallanByIdHandler.cs`
+- `Softaxis.Sales.API/Controllers/Common/SalesControllerBase.cs` — NEW, mirrors `PurchaseControllerBase`
+  (`OkOrError`/`CreatedOrError`/`NoContentOrError`)
+- `Softaxis.Sales.API/Controllers/DeliveryChallansController.cs` — `GET /api/sales/delivery-challans?salesOrderId=&customerId=`,
+  `GET /api/sales/delivery-challans/{id}`, `POST /api/sales/delivery-challans`
+- `Softaxis.Sales.Infrastructure/Extensions/InfrastructureExtensions.cs` — added `AddMediatR` (Logging +
+  Validation behaviors) + `AddValidatorsFromAssembly`
+- Migration `AddDeliveryChallans` — applied to `sales` schema of `SoftaxisErpDb`
+
+### SalesOrder Status Logic (CreateDeliveryChallanHandler)
+On each Delivery Challan creation, cumulative delivered quantity per sales order line = sum across all
+previously-posted challans + the new one. If **every** order item has cumulative delivered ≥ ordered quantity
+→ order status = `"delivered"`; if **any** item has been delivered but not all → `"shipped"`. Returns
+`DeliveryChallan.Conflict` if the sales order is cancelled.
+
+### Frontend Files
+- `FrontendVite/src/lib/sales/delivery-challans.api.ts` — `deliveryChallansApi` (`getAll`, `getById`, `create`),
+  `BASE = .../api/sales/delivery-challans`
+- `FrontendVite/src/hooks/sales/use-delivery-challans.ts` — `useDeliveryChallans`, `useDeliveryChallan`,
+  `useCreateDeliveryChallan` (invalidates both `deliveryChallanKeys.lists()` and `salesOrderKeys.lists()`)
+- `FrontendVite/src/modules/sales/delivery-challans/components/create-delivery-challan-form.tsx` — drawer form,
+  pre-fills lines from `order.items` (delivered qty defaults to ordered qty), dynamic `TODAY`
+- `FrontendVite/src/modules/sales/delivery-challans/components/delivery-challans-view.tsx` — list view
+- `FrontendVite/src/pages/sales/delivery-challans.tsx` + `App.tsx` route `/sales/delivery-challans` (inside
+  `ModuleGuard module="sales"`) + `navigation.ts` nav item "Delivery Challans" (icon `Truck`, already in
+  `nav-utils.tsx` iconMap)
+
+### Wired into Sales Orders view
+`orders-view.tsx` — the previous separate "Ship" and "Deliver" status-change buttons (shown for
+`status === "confirmed"`/`"shipped"`) were replaced with a single "Delivery Challan" button (shown for
+`status === "confirmed" || "shipped"`) that opens `CreateDeliveryChallanForm` for that order. Fetches the full
+`SalesOrderDto` (with `items`) via `useSalesOrder(dcOrderId)` since the list view only has `SalesOrderSummaryDto`.
+The "Confirm" button (`pending` → `confirmed`) still uses `useUpdateSalesOrderStatus` directly.
+
+### Build Status
+- **Backend Sales service:** 0 errors, 0 warnings ✅ (migration applied)
+- **Frontend:** `tsc --noEmit` 0 errors ✅
 
 ---
 

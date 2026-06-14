@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { StockDrawer } from "./stock-drawer";
@@ -43,6 +44,7 @@ const STATUS_FILTERS: { key: StockStatus | "all"; label: string }[] = [
 // ─── Main View ────────────────────────────────────────────────────────────────
 
 export function StockView() {
+  const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StockStatus | "all">("all");
   const [page, setPage]               = React.useState(1);
@@ -90,7 +92,7 @@ export function StockView() {
     { label: "Total SKUs",   value: stats.total,                                     icon: Package,       color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: "Low Stock",    value: stats.lowStock,                                  icon: AlertTriangle, color: "text-warning",   bg: "bg-warning/10" },
     { label: "Out of Stock", value: stats.outOfStock,                                icon: XCircle,       color: "text-destructive", bg: "bg-destructive/10" },
-    { label: "Total Value",  value: formatCurrency(stats.totalValue, "PKR"),         icon: DollarSign,    color: "text-success",   bg: "bg-success/10", isText: true },
+    { label: "Total Value",  value: formatCurrency(stats.totalValue, currency),         icon: DollarSign,    color: "text-success",   bg: "bg-success/10", isText: true },
   ];
 
   return (
@@ -108,7 +110,7 @@ export function StockView() {
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setShowImport(true)}>
             <Upload className="h-4 w-4" />Import
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => printProductLabels(items)} disabled={items.length === 0}>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => printProductLabels(items, currency)} disabled={items.length === 0}>
             <Printer className="h-4 w-4" />Labels
           </Button>
           <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
@@ -213,7 +215,7 @@ export function StockView() {
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <p className="font-semibold text-sm">{formatCurrency(p.salePrice, "PKR")}</p>
+                      <p className="font-semibold text-sm">{formatCurrency(p.salePrice, currency)}</p>
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>

@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.14.14" />
     <PackageReference Include="Serilog" Version="4.3.1" />
   </ItemGroup>
@@ -41,6 +41,8 @@
     <ProjectReference Include="..\..\Services\Restaurant\Softaxis.Restaurant.Infrastructure\Softaxis.Restaurant.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Recipe\Softaxis.Recipe.API\Softaxis.Recipe.API.csproj" />
     <ProjectReference Include="..\..\Services\Recipe\Softaxis.Recipe.Infrastructure\Softaxis.Recipe.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\ProjectManagement\Softaxis.ProjectManagement.API\Softaxis.ProjectManagement.API.csproj" />
+    <ProjectReference Include="..\..\Services\ProjectManagement\Softaxis.ProjectManagement.Infrastructure\Softaxis.ProjectManagement.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

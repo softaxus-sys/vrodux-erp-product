@@ -10,6 +10,7 @@ import {
 import type { RoomDto as Room, RoomStatus, RoomType } from "@/lib/hospitality/hospitality.api";
 import { useRooms, useRoomsSummary } from "@/hooks/hospitality/use-hospitality";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { AddRoomForm } from "./add-room-form";
 
 const STATUS_CONFIG: Record<RoomStatus, { label: string; color: string; bg: string; dot: string }> = {
@@ -65,6 +66,7 @@ function StatCard({ label, value, sub, accent = "bg-primary" }: StatCardProps) {
 
 // ─── Room Drawer ──────────────────────────────────────────────────────────────
 function RoomDrawer({ room, onClose }: { room: Room; onClose: () => void }) {
+  const currency = useCurrency();
   const cfg = STATUS_CONFIG[room.status];
 
   return (
@@ -139,7 +141,7 @@ function RoomDrawer({ room, onClose }: { room: Room; onClose: () => void }) {
           {/* Rate */}
           <div className="bg-muted/20 rounded-xl p-4">
             <p className="text-xs text-muted-foreground mb-1">Rate Per Night</p>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(room.ratePerNight, "AED")}</p>
+            <p className="text-2xl font-bold text-foreground">{formatCurrency(room.ratePerNight, currency)}</p>
           </div>
 
           {/* Flags */}
@@ -210,6 +212,7 @@ function RoomDrawer({ room, onClose }: { room: Room; onClose: () => void }) {
 
 // ─── Room Card (Grid View) ────────────────────────────────────────────────────
 function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
+  const currency = useCurrency();
   const cfg = STATUS_CONFIG[room.status];
   return (
     <motion.button
@@ -247,7 +250,7 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
           <span className="flex items-center gap-1 text-xs"><Maximize2 className="w-3 h-3" />{room.sizeSqm}m²</span>
         </div>
         <span className="text-xs font-semibold text-foreground">
-          {formatCurrency(room.ratePerNight, "AED")}<span className="text-muted-foreground font-normal">/n</span>
+          {formatCurrency(room.ratePerNight, currency)}<span className="text-muted-foreground font-normal">/n</span>
         </span>
       </div>
 

@@ -89,7 +89,7 @@ function ProductTile({
   onAdd: () => void;
 }) {
   const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "PKR";
+  const currency = tenant?.currency || "AED";
   const oos = product.stock <= 0;
   return (
     <motion.button
@@ -245,7 +245,7 @@ function CashNumpad({ value, onChange }: { value: string; onChange: (v: string) 
 
 export function CashierPOSView() {
   const { user, tenant } = useAuthStore();
-  const currency       = tenant?.currency || "PKR";
+  const currency       = tenant?.currency || "AED";
   const paymentMethods = usePaymentMethods();
   const { sessionId, shiftDuration, openClosePanel } = useShift();
   const { openDrawer, printRaw, printerStatus } = useHardware();
@@ -420,6 +420,7 @@ export function CashierPOSView() {
           total,
           paymentMethod,
           tendered:       parseFloat(cashInput) || 0,
+          openDrawer:     paymentMethod.toLowerCase() === "cash",
         });
         printRaw(escData).catch(() => {});
       }

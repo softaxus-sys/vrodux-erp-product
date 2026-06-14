@@ -4,6 +4,7 @@ import { X, Plus, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useAccounts, useCreateJournal } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ interface AddJournalFormProps {
 }
 
 export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
+  const currency = useCurrency();
   const { data: accounts = [] } = useAccounts({ isActive: true });
   const createJournal = useCreateJournal();
 
@@ -43,6 +45,13 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
 
   const updateLine = (id: string, key: keyof JournalLine, value: string | number) => {
     setLines(prev => prev.map(l => l.id === id ? { ...l, [key]: value } : l));
+  };
+
+  // Debit and credit are mutually exclusive per line — entering one clears the other.
+  const updateAmount = (id: string, key: "debit" | "credit", value: number) => {
+    setLines(prev => prev.map(l => l.id === id
+      ? { ...l, debit: 0, credit: 0, [key]: value }
+      : l));
   };
 
   const selectAccount = (lineId: string, accountId: string) => {
@@ -150,8 +159,8 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
               }`}>
                 <AlertCircle className="w-3.5 h-3.5" />
                 {isBalanced && totalDebit > 0
-                  ? `Balanced — ${formatCurrency(totalDebit, "AED")}`
-                  : `Out of balance — Dr: ${formatCurrency(totalDebit, "AED")} / Cr: ${formatCurrency(totalCredit, "AED")} (diff: ${formatCurrency(Math.abs(totalDebit - totalCredit), "AED")})`
+                  ? `Balanced — ${formatCurrency(totalDebit, currency)}`
+                  : `Out of balance — Dr: ${formatCurrency(totalDebit, currency)} / Cr: ${formatCurrency(totalCredit, currency)} (diff: ${formatCurrency(Math.abs(totalDebit - totalCredit), currency)})`
                 }
               </div>
 
@@ -203,7 +212,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                             <Input
                               type="number" min={0} step={0.01}
                               value={line.debit || ""}
-                              onChange={e => updateLine(line.id, "debit", +e.target.value)}
+                              onChange={e => updateAmount(line.id, "debit", +e.target.value)}
                               placeholder="0.00"
                               className="h-8 text-xs text-right border-transparent bg-transparent focus-visible:border-primary/40 px-2"
                             />
@@ -212,7 +221,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                             <Input
                               type="number" min={0} step={0.01}
                               value={line.credit || ""}
-                              onChange={e => updateLine(line.id, "credit", +e.target.value)}
+                              onChange={e => updateAmount(line.id, "credit", +e.target.value)}
                               placeholder="0.00"
                               className="h-8 text-xs text-right border-transparent bg-transparent focus-visible:border-primary/40 px-2"
                             />
@@ -232,8 +241,8 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                     <tfoot className="bg-muted/20 border-t border-border">
                       <tr>
                         <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground">Totals</td>
-                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalDebit, "AED")}</td>
-                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalCredit, "AED")}</td>
+                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalDebit, currency)}</td>
+                        <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalCredit, currency)}</td>
                         <td />
                       </tr>
                     </tfoot>

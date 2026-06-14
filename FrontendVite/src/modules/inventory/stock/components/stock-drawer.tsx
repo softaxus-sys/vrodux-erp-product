@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, Tag, ShoppingCart, BarChart3, Pencil, SlidersHorizontal, Warehouse as WarehouseIcon, Star, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { useProductStock, useProductBatches } from "@/hooks/inventory/use-product-stock";
 
@@ -21,6 +22,7 @@ function getStockColor(p: ProductSummaryDto) {
 }
 
 export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDrawerProps) {
+  const currency = useCurrency();
   const { data: stockBreakdown } = useProductStock(open ? item?.id : null);
   const { data: batches } = useProductBatches(open ? item?.id : null);
   if (!item) return null;
@@ -104,7 +106,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               </div>
 
               {/* Stock by warehouse */}
-              {stockBreakdown && stockBreakdown.warehouses.length > 0 && (
+              {stockBreakdown && stockBreakdown.warehouses?.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                     <WarehouseIcon className="h-3.5 w-3.5 text-primary" />Stock by Warehouse
@@ -137,7 +139,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               )}
 
               {/* Batches & expiry */}
-              {batches && batches.length > 0 && (
+              {Array.isArray(batches) && batches.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
                     <CalendarClock className="h-3.5 w-3.5 text-primary" />Batches &amp; Expiry
@@ -173,11 +175,11 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
                     <p className="text-xs text-muted-foreground">Sale Price</p>
-                    <p className="text-sm font-bold mt-1">{formatCurrency(item.salePrice, "PKR")}</p>
+                    <p className="text-sm font-bold mt-1">{formatCurrency(item.salePrice, currency)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
                     <p className="text-xs text-muted-foreground">Cost Price</p>
-                    <p className="text-sm font-bold mt-1 text-muted-foreground">{formatCurrency(item.costPrice, "PKR")}</p>
+                    <p className="text-sm font-bold mt-1 text-muted-foreground">{formatCurrency(item.costPrice, currency)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
                     <p className="text-xs text-muted-foreground">Margin</p>

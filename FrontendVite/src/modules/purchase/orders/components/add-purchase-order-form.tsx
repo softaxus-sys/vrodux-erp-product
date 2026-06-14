@@ -4,8 +4,10 @@ import { X, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePurchaseOrder } from "@/hooks/purchase/use-purchase-orders";
 import { useAllPurchaseVendors } from "@/hooks/purchase/use-vendors";
+import { ProductPicker } from "./product-picker";
 
 const TAX_OPTIONS = [
   { label: "Standard (17%)", rate: 17 },
@@ -15,6 +17,7 @@ const TAX_OPTIONS = [
 
 interface POLine {
   id: string;
+  productId: string | null;
   description: string;
   qty: number;
   unitCost: number;
@@ -22,7 +25,7 @@ interface POLine {
 }
 
 function newLine(defaultTax: number): POLine {
-  return { id: String(Date.now() + Math.random()), description: "", qty: 1, unitCost: 0, taxRate: defaultTax };
+  return { id: String(Date.now() + Math.random()), productId: null, description: "", qty: 1, unitCost: 0, taxRate: defaultTax };
 }
 
 interface AddPurchaseOrderFormProps {
@@ -31,6 +34,7 @@ interface AddPurchaseOrderFormProps {
 }
 
 export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProps) {
+  const currency = useCurrency();
   const [vendorId, setVendorId]         = React.useState("");
   const [expectedDate, setExpectedDate] = React.useState("");
   const [taxRate, setTaxRate]           = React.useState(17);
@@ -73,7 +77,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
         notes:        notes.trim() || null,
         expectedDate: expectedDate || null,
         items: validLines.map(l => ({
-          productId:   null,
+          productId:   l.productId,
           description: l.description,
           quantity:    l.qty,
           unitCost:    l.unitCost,
@@ -162,8 +166,16 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                       {lines.map(line => (
                         <tr key={line.id} className="hover:bg-muted/10">
                           <td className="px-2 py-1.5">
-                            <Input value={line.description} onChange={e => updateLine(line.id, "description", e.target.value)}
-                              placeholder="Item / service description…" className="h-8 text-xs border-transparent bg-transparent focus-visible:border-primary/40 px-2" />
+                            <ProductPicker
+                              value={line.description}
+                              onTextChange={text => setLines(prev => prev.map(l => l.id === line.id ? { ...l, description: text, productId: null } : l))}
+                              onSelect={product => setLines(prev => prev.map(l => l.id === line.id ? {
+                                ...l,
+                                productId: product.id,
+                                description: product.name,
+                                unitCost: l.unitCost || product.costPrice,
+                              } : l))}
+                            />
                           </td>
                           <td className="px-2 py-1.5">
                             <Input type="number" min={1} step={1} value={line.qty || ""} onChange={e => updateLine(line.id, "qty", +e.target.value)}
@@ -174,7 +186,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                               placeholder="0.00" className="h-8 text-xs text-right border-transparent bg-transparent focus-visible:border-primary/40 px-2" />
                           </td>
                           <td className="px-3 py-1.5 text-right text-xs font-semibold text-foreground">
-                            {formatCurrency(lineTotal(line), "PKR")}
+                            {formatCurrency(lineTotal(line), currency)}
                           </td>
                           <td className="px-2 py-1.5">
                             <button onClick={() => setLines(p => p.filter(l => l.id !== line.id))} disabled={lines.length <= 1}
@@ -188,17 +200,17 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
                         <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">Subtotal</td>
-                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(subtotal, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(subtotal, currency)}</td>
                         <td />
                       </tr>
                       <tr>
                         <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">Tax ({taxRate}%)</td>
-                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, currency)}</td>
                         <td />
                       </tr>
                       <tr className="border-t border-border">
                         <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">Total</td>
-                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, "PKR")}</td>
+                        <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                         <td />
                       </tr>
                     </tfoot>

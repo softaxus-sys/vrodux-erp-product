@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { usePurchaseOrder, useDeletePurchaseOrder } from "@/hooks/purchase/use-purchase-orders";
 import type { PurchaseOrderSummaryDto } from "@/lib/pos/types";
 
@@ -28,6 +29,7 @@ const STEPS = [
 type Tab = "overview" | "items";
 
 export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   React.useEffect(() => { if (open) { setTab("overview"); setConfirmDelete(false); } }, [open]);
@@ -90,10 +92,10 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
                     {/* Total */}
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-5">
                       <p className="text-xs text-muted-foreground mb-1">Purchase Total</p>
-                      <p className="text-3xl font-bold text-primary">{formatCurrency(full.total, "PKR")}</p>
+                      <p className="text-3xl font-bold text-primary">{formatCurrency(full.total, currency)}</p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                        <span>Subtotal: {formatCurrency(full.subTotal, "PKR")}</span>
-                        <span>Tax: {formatCurrency(full.taxAmount, "PKR")}</span>
+                        <span>Subtotal: {formatCurrency(full.subTotal, currency)}</span>
+                        <span>Tax: {formatCurrency(full.taxAmount, currency)}</span>
                       </div>
                     </div>
 
@@ -159,24 +161,24 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold leading-tight">{item.description}</p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {item.quantity} × {formatCurrency(item.unitCost, "PKR")}
+                              {item.quantity} × {formatCurrency(item.unitCost, currency)}
                               {item.taxRate > 0 && ` + ${item.taxRate}% tax`}
                             </p>
                           </div>
-                          <p className="font-bold text-sm shrink-0">{formatCurrency(item.lineTotal, "PKR")}</p>
+                          <p className="font-bold text-sm shrink-0">{formatCurrency(item.lineTotal, currency)}</p>
                         </div>
                       </div>
                     ))}
                     {/* Summary */}
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2 mt-3">
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Subtotal</span><span>{formatCurrency(full.subTotal, "PKR")}</span>
+                        <span>Subtotal</span><span>{formatCurrency(full.subTotal, currency)}</span>
                       </div>
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Tax</span><span>{formatCurrency(full.taxAmount, "PKR")}</span>
+                        <span>Tax</span><span>{formatCurrency(full.taxAmount, currency)}</span>
                       </div>
                       <div className="flex justify-between text-sm font-bold border-t border-primary/20 pt-2">
-                        <span>Total</span><span className="text-primary">{formatCurrency(full.total, "PKR")}</span>
+                        <span>Total</span><span className="text-primary">{formatCurrency(full.total, currency)}</span>
                       </div>
                     </div>
                   </div>

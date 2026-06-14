@@ -47,11 +47,15 @@ const CrmActivitiesPage    = React.lazy(() => import("@/pages/crm/activities"));
 const QuotationsPage       = React.lazy(() => import("@/pages/sales/quotations"));
 const SalesOrdersPage      = React.lazy(() => import("@/pages/sales/orders"));
 const ReturnsPage          = React.lazy(() => import("@/pages/sales/returns"));
+const DeliveryChallansPage = React.lazy(() => import("@/pages/sales/delivery-challans"));
 
 // ── Purchase ──────────────────────────────────────────────────────────────────
 const VendorsPage          = React.lazy(() => import("@/pages/purchase/vendors"));
 const PurchaseOrdersPage   = React.lazy(() => import("@/pages/purchase/orders"));
 const ApprovalsPage        = React.lazy(() => import("@/pages/purchase/approvals"));
+const GrnPage              = React.lazy(() => import("@/pages/purchase/grn"));
+const PurchaseReturnsPage  = React.lazy(() => import("@/pages/purchase/returns"));
+const PurchaseBillsPage    = React.lazy(() => import("@/pages/purchase/bills"));
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 const WarehousesPage       = React.lazy(() => import("@/pages/inventory/warehouses"));
@@ -90,6 +94,12 @@ const KitchenDisplayPage   = React.lazy(() => import("@/pages/pos/kitchen"));
 const RecipesPage          = React.lazy(() => import("@/pages/recipe/recipes"));
 const IngredientsPage      = React.lazy(() => import("@/pages/recipe/ingredients"));
 
+// ── Project Management ──────────────────────────────────────────────────────
+const ProjectManagementPage = React.lazy(() => import("@/pages/project-management/index"));
+const ProjectBoardPage      = React.lazy(() => import("@/pages/project-management/board"));
+const ProjectBacklogPage    = React.lazy(() => import("@/pages/project-management/backlog"));
+const ProjectIssuesPage     = React.lazy(() => import("@/pages/project-management/issues"));
+
 // ── Hospitality ───────────────────────────────────────────────────────────────
 const BookingsPage         = React.lazy(() => import("@/pages/hospitality/bookings"));
 const RoomsPage            = React.lazy(() => import("@/pages/hospitality/rooms"));
@@ -111,6 +121,10 @@ const MasterDataPage       = React.lazy(() => import("@/pages/master-data"));
 
 // ── Onboarding / Trial ────────────────────────────────────────────────────────
 const OnboardingPage            = React.lazy(() => import("@/pages/trial/onboarding"));
+
+// ── Careers (public) ─────────────────────────────────────────────────────────
+const CareersJobsPage           = React.lazy(() => import("@/pages/careers/jobs"));
+const CareersJobDetailPage      = React.lazy(() => import("@/pages/careers/job-detail"));
 
 // ── Super Admin ───────────────────────────────────────────────────────────────
 const SuperAdminPage            = React.lazy(() => import("@/pages/super-admin/index"));
@@ -186,6 +200,10 @@ export function App() {
         {/* Subscription expired — shown when enforcement middleware blocks requests */}
         <Route path="/subscription-expired" element={<SubscriptionExpiredPage />} />
 
+        {/* Careers portal — fully public, no auth */}
+        <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />
+        <Route path="/careers/:tenantSlug/jobs/:jobId" element={<CareersJobDetailPage />} />
+
         {/* ERP (authenticated) — layout wraps all children */}
         <Route
           element={
@@ -248,6 +266,7 @@ export function App() {
           <Route element={<ModuleGuard module="sales" />}>
             <Route path="/sales/quotations" element={<QuotationsPage />} />
             <Route path="/sales/orders"     element={<SalesOrdersPage />} />
+            <Route path="/sales/delivery-challans" element={<DeliveryChallansPage />} />
             <Route path="/sales/returns"    element={<ReturnsPage />} />
           </Route>
 
@@ -255,6 +274,9 @@ export function App() {
           <Route element={<ModuleGuard module="purchase" />}>
             <Route path="/purchase/vendors"   element={<VendorsPage />} />
             <Route path="/purchase/orders"    element={<PurchaseOrdersPage />} />
+            <Route path="/purchase/grn"       element={<GrnPage />} />
+            <Route path="/purchase/returns"   element={<PurchaseReturnsPage />} />
+            <Route path="/purchase/bills"     element={<PurchaseBillsPage />} />
             <Route path="/purchase/approvals" element={<ApprovalsPage />} />
           </Route>
 
@@ -319,6 +341,14 @@ export function App() {
           <Route element={<ModuleGuard module="recipe" />}>
             <Route path="/recipe/recipes"     element={<RecipesPage />} />
             <Route path="/recipe/ingredients" element={<IngredientsPage />} />
+          </Route>
+
+          {/* ── Project Management ──────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="project-management" />}>
+            <Route path="/project-management"                  element={<ProjectManagementPage />} />
+            <Route path="/project-management/:projectId/board"   element={<ProjectBoardPage />} />
+            <Route path="/project-management/:projectId/backlog" element={<ProjectBacklogPage />} />
+            <Route path="/project-management/:projectId/issues"  element={<ProjectIssuesPage />} />
           </Route>
 
           {/* ── Hospitality ─────────────────────────────────────────────────── */}

@@ -2,14 +2,18 @@
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, X, CheckCircle2, XCircle, Receipt, Clock, Send, DollarSign,
+  FileText, Eye, Trash2,
 } from "lucide-react";
 // Send used in stat card icon below
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
+import { financeApi } from "@/lib/finance/finance.api";
 import type { ExpenseDto as Expense, ExpenseStatus } from "@/lib/finance/finance.api";
-import { useExpenses, useExpensesSummary, useApproveExpense, useRejectExpense, usePayExpense } from "@/hooks/finance/use-finance";
+import { useExpenses, useExpensesSummary, useApproveExpense, useRejectExpense, usePayExpense, useDeleteExpenseReceipt } from "@/hooks/finance/use-finance";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -175,13 +179,58 @@ function ExpenseDrawer({ expense, onClose }: { expense: Expense; onClose: () => 
               <p className="text-sm">{expense.notes}</p>
             </div>
           )}
+
+          <ReceiptBlock expense={expense} />
         </div>
       </motion.div>
     </AnimatePresence>
   );
 }
 
+function ReceiptBlock({ expense }: { expense: Expense }) {
+  const deleteReceipt = useDeleteExpenseReceipt();
+  const [opening, setOpening] = React.useState(false);
+
+  const viewReceipt = async () => {
+    setOpening(true);
+    try {
+      const url = await financeApi.getExpenseReceiptObjectUrl(expense.id);
+      window.open(url, "_blank", "noopener");
+      // Revoke shortly after so the new tab has time to load it.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not open receipt.");
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg bg-muted/40 p-4">
+      <p className="text-xs font-semibold text-muted-foreground mb-2">Receipt</p>
+      {expense.hasReceipt ? (
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm truncate flex-1" title={expense.receiptFileName ?? undefined}>
+            {expense.receiptFileName ?? "Receipt"}
+          </span>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={viewReceipt} disabled={opening}>
+            <Eye className="h-3.5 w-3.5" /> {opening ? "Opening…" : "View"}
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 text-muted-foreground hover:text-destructive"
+            onClick={() => deleteReceipt.mutate(expense.id)} disabled={deleteReceipt.isPending}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">No receipt attached.</p>
+      )}
+    </div>
+  );
+}
+
 export function ExpensesView() {
+  const currency = useCurrency();
   const { data: expenses = [] } = useExpenses();
   const { data: expensesSummary } = useExpensesSummary();
 
@@ -269,7 +318,7 @@ export function ExpensesView() {
             <p className="text-xs text-muted-foreground">{card.label}</p>
             <p className={cn("text-base font-bold leading-tight", card.color)}>
               {card.format === "currency"
-                ? formatCurrency(card.value as number, "AED")
+                ? formatCurrency(card.value as number, currency)
                 : card.value}
             </p>
           </motion.div>

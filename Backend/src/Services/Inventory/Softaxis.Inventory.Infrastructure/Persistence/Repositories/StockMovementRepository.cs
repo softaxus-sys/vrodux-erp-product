@@ -38,6 +38,14 @@ public sealed class StockMovementRepository(InventoryDbContext db) : IStockMovem
     public async Task<Product?> GetTrackedProductAsync(Guid productId, CancellationToken ct = default) =>
         await db.Products.FindAsync([productId], ct);
 
+    public async Task<bool> AdjustPosProductStockAsync(Guid productId, decimal delta, CancellationToken ct = default)
+    {
+        var rows = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE [pos].[products] SET StockQuantity = StockQuantity + {delta} WHERE Id = {productId} AND IsDeleted = 0",
+            ct);
+        return rows > 0;
+    }
+
     public async Task<ProductStock> GetOrCreateStockAsync(Guid productId, Guid warehouseId, CancellationToken ct = default)
     {
         var existing = await db.ProductStocks

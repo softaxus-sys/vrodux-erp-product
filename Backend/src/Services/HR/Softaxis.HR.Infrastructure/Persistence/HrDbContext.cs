@@ -13,12 +13,30 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options)
     public DbSet<AttendanceLog> AttendanceLogs => Set<AttendanceLog>();
     public DbSet<PayrollRun>   PayrollRuns   => Set<PayrollRun>();
     public DbSet<PayrollSlip>  PayrollSlips  => Set<PayrollSlip>();
+    public DbSet<JobPosting>   JobPostings   => Set<JobPosting>();
+    public DbSet<Applicant>    Applicants    => Set<Applicant>();
+    public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
+    public DbSet<PerformanceGoal>   PerformanceGoals   => Set<PerformanceGoal>();
+
+    /// <summary>Read-only view of identity.tenants — see <see cref="TenantLookup"/>.</summary>
+    public DbSet<TenantLookup> TenantLookups => Set<TenantLookup>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("hr");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HrDbContext).Assembly);
         TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.HR.Domain");
+
+        modelBuilder.Entity<TenantLookup>(b =>
+        {
+            b.ToTable("tenants", "identity", t => t.ExcludeFromMigrations());
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedNever();
+            b.Property(x => x.Slug).HasMaxLength(100);
+            b.Property(x => x.Name).HasMaxLength(200);
+            b.Property(x => x.Status).HasMaxLength(30);
+        });
+
         base.OnModelCreating(modelBuilder);
     }
 

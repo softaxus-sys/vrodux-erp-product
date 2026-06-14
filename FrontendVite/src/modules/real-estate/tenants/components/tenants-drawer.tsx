@@ -8,6 +8,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDate, getInitials, cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import type { TenantDto as Tenant, TenantStatus, UnitDto } from "@/lib/real-estate/re.api";
 
 type Tab = "overview" | "units";
@@ -46,6 +47,7 @@ function InfoRow({
 }
 
 function OverviewTab({ tenant }: { tenant: Tenant }) {
+  const currency = useCurrency();
   return (
     <div className="space-y-6">
       {tenant.outstandingBalance > 0 && (
@@ -54,7 +56,7 @@ function OverviewTab({ tenant }: { tenant: Tenant }) {
           <div>
             <p className="text-sm font-semibold text-destructive">Outstanding Balance</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {formatCurrency(tenant.outstandingBalance, "AED")} is overdue. Follow-up required.
+              {formatCurrency(tenant.outstandingBalance, currency)} is overdue. Follow-up required.
             </p>
           </div>
         </div>
@@ -104,14 +106,14 @@ function OverviewTab({ tenant }: { tenant: Tenant }) {
             label="Monthly Rent"
             value={
               <span className="font-bold text-primary">
-                {formatCurrency(tenant.monthlyRent, "AED")}
+                {formatCurrency(tenant.monthlyRent, currency)}
               </span>
             }
           />
           <InfoRow
             icon={DollarSign}
             label="Annual Rent"
-            value={formatCurrency(tenant.monthlyRent * 12, "AED")}
+            value={formatCurrency(tenant.monthlyRent * 12, currency)}
           />
           <InfoRow
             icon={DollarSign}
@@ -124,7 +126,7 @@ function OverviewTab({ tenant }: { tenant: Tenant }) {
                 )}
               >
                 {tenant.outstandingBalance > 0
-                  ? formatCurrency(tenant.outstandingBalance, "AED")
+                  ? formatCurrency(tenant.outstandingBalance, currency)
                   : "AED 0"}
               </span>
             }
@@ -181,6 +183,7 @@ function OverviewTab({ tenant }: { tenant: Tenant }) {
 }
 
 function UnitsTab({ tenant, units }: { tenant: Tenant; units: UnitDto[] }) {
+  const currency = useCurrency();
   const tenantUnits = units.filter((u) => u.tenantId === tenant.id);
 
   if (tenantUnits.length === 0) {
@@ -224,7 +227,7 @@ function UnitsTab({ tenant, units }: { tenant: Tenant; units: UnitDto[] }) {
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div>
                 <p className="text-muted-foreground">Annual Rent</p>
-                <p className="font-semibold">{formatCurrency(unit.rentPricePA, "AED")}</p>
+                <p className="font-semibold">{formatCurrency(unit.rentPricePA, currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Contract Expiry</p>

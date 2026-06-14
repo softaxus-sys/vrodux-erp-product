@@ -7,10 +7,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import { useSalesOrders, useUpdateSalesOrderStatus } from "@/hooks/sales/use-sales-orders";
+import { useCurrency } from "@/hooks/use-currency";
+import { useSalesOrders, useUpdateSalesOrderStatus, useSalesOrder } from "@/hooks/sales/use-sales-orders";
 import type { SalesOrderSummaryDto } from "@/lib/pos/types";
 import { OrderDrawer } from "./order-drawer";
 import { AddSalesOrderForm } from "./add-sales-order-form";
+import { CreateDeliveryChallanForm } from "@/modules/sales/delivery-challans/components/create-delivery-challan-form";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   pending:   { label: "Pending",   color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -30,12 +32,15 @@ const STATUS_FILTERS = [
 ];
 
 export function OrdersView() {
+  const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]               = React.useState(1);
   const [selected, setSelected]       = React.useState<SalesOrderSummaryDto | null>(null);
   const [drawerOpen, setDrawerOpen]   = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [dcOrderId, setDcOrderId]     = React.useState<string | null>(null);
+  const [showDcForm, setShowDcForm]   = React.useState(false);
 
   const { data, isLoading } = useSalesOrders({
     page,
@@ -45,6 +50,7 @@ export function OrdersView() {
   });
 
   const updateOrder = useUpdateSalesOrderStatus();
+  const { data: dcOrder } = useSalesOrder(dcOrderId);
 
   const items = data?.items ?? [];
 
@@ -64,7 +70,7 @@ export function OrdersView() {
     { label: "Shipped",       value: stats.shipped,                              icon: Truck,        color: "text-primary",   bg: "bg-primary/10",                    isText: false },
     { label: "Delivered",     value: stats.delivered,                            icon: CheckCircle2, color: "text-success",   bg: "bg-success/10",                    isText: false },
     { label: "Cancelled",     value: stats.cancelled,                            icon: Ban,          color: "text-destructive", bg: "bg-destructive/10",              isText: false },
-    { label: "Revenue",       value: formatCurrency(stats.revenue, "PKR"),       icon: DollarSign,   color: "text-success",   bg: "bg-success/10",                    isText: true },
+    { label: "Revenue",       value: formatCurrency(stats.revenue, currency),       icon: DollarSign,   color: "text-success",   bg: "bg-success/10",                    isText: true },
   ];
 
   function handleStatusChange(order: SalesOrderSummaryDto, newStatus: string) {
@@ -172,7 +178,7 @@ export function OrdersView() {
                       <span className="text-xs text-muted-foreground">{o.expectedDate ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-semibold text-sm">{formatCurrency(o.total, "PKR")}</span>
+                      <span className="font-semibold text-sm">{formatCurrency(o.total, currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right hidden md:table-cell">
                       <span className="text-sm text-muted-foreground">{o.itemCount}</span>
@@ -188,14 +194,9 @@ export function OrdersView() {
                           <CheckCircle2 className="h-3 w-3" />Confirm
                         </Button>
                       )}
-                      {o.status === "confirmed" && (
-                        <Button size="sm" className="h-7 text-xs gap-1" onClick={() => handleStatusChange(o, "shipped")}>
-                          <Truck className="h-3 w-3" />Ship
-                        </Button>
-                      )}
-                      {o.status === "shipped" && (
-                        <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90" onClick={() => handleStatusChange(o, "delivered")}>
-                          <CheckCircle2 className="h-3 w-3" />Deliver
+                      {(o.status === "confirmed" || o.status === "shipped") && (
+                        <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setDcOrderId(o.id); setShowDcForm(true); }}>
+                          <Truck className="h-3 w-3" />Delivery Challan
                         </Button>
                       )}
                     </td>
@@ -220,6 +221,7 @@ export function OrdersView() {
 
       <OrderDrawer order={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AddSalesOrderForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <CreateDeliveryChallanForm order={dcOrder ?? null} open={showDcForm} onClose={() => setShowDcForm(false)} />
     </div>
   );
 }

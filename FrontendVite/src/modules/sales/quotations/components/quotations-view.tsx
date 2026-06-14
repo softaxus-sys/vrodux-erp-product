@@ -7,6 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 import { useSalesQuotations, useConvertQuotationToOrder } from "@/hooks/sales/use-sales-quotations";
 import type { SalesQuotationSummaryDto } from "@/lib/pos/types";
 import { QuotationDrawer } from "./quotation-drawer";
@@ -32,6 +33,7 @@ const STATUS_FILTERS = [
 ];
 
 export function QuotationsView() {
+  const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]               = React.useState(1);
@@ -64,7 +66,7 @@ export function QuotationsView() {
     { label: "Sent",            value: stats.sent,                              icon: Send,        color: "text-blue-600",  bg: "bg-blue-50 dark:bg-blue-900/20" },
     { label: "Approved",        value: stats.approved,                          icon: CheckCircle2,color: "text-success",   bg: "bg-success/10" },
     { label: "Converted",       value: stats.converted,                         icon: ArrowRight,  color: "text-primary",   bg: "bg-primary/10" },
-    { label: "Pipeline Value",  value: formatCurrency(stats.pipeline, "PKR"),   icon: DollarSign,  color: "text-success",   bg: "bg-success/10" },
+    { label: "Pipeline Value",  value: formatCurrency(stats.pipeline, currency),   icon: DollarSign,  color: "text-success",   bg: "bg-success/10" },
   ];
 
   return (
@@ -168,7 +170,7 @@ export function QuotationsView() {
                       <span className="text-xs text-muted-foreground">{q.validUntil ?? "—"}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-semibold text-sm">{formatCurrency(q.total, "PKR")}</span>
+                      <span className="font-semibold text-sm">{formatCurrency(q.total, currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right hidden md:table-cell">
                       <span className="text-sm text-muted-foreground">{q.itemCount}</span>

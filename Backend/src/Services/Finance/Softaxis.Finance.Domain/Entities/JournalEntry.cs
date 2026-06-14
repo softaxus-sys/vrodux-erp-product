@@ -21,6 +21,7 @@ public sealed class JournalEntry
     public string    Date        { get; private set; } = string.Empty;
     public string    Description { get; private set; } = string.Empty;
     public string?   Reference   { get; private set; }
+    public string    CurrencyCode { get; private set; } = "AED";
     public string    Status      { get; private set; } = "draft";
     public string?   Notes       { get; private set; }
     public DateTime  CreatedAt   { get; private set; }
@@ -47,6 +48,8 @@ public sealed class JournalEntry
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 }
 
 public sealed class JournalEntryLine
@@ -61,6 +64,11 @@ public sealed class JournalEntryLine
         decimal creditAmount,
         string? description)
     {
+        if (debitAmount > 0 && creditAmount > 0)
+            throw new InvalidOperationException("A journal line cannot have both a debit and a credit amount.");
+        if (debitAmount <= 0 && creditAmount <= 0)
+            throw new InvalidOperationException("A journal line must have either a debit or a credit amount.");
+
         Id             = Guid.NewGuid();
         JournalEntryId = journalEntryId;
         AccountId      = accountId;

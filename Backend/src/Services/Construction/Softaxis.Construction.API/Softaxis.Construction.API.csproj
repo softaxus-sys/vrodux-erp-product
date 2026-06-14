@@ -6,5 +6,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.Construction.Infrastructure\Softaxis.Construction.Infrastructure.csproj" />
+    <ProjectReference Include="..\Softaxis.Construction.Application\Softaxis.Construction.Application.csproj" />
   </ItemGroup>
 </Project>

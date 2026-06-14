@@ -14,6 +14,8 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options)
     public DbSet<SalesQuotationItem> SalesQuotationItems => Set<SalesQuotationItem>();
     public DbSet<SalesReturn>       SalesReturns       => Set<SalesReturn>();
     public DbSet<SalesReturnItem>   SalesReturnItems   => Set<SalesReturnItem>();
+    public DbSet<DeliveryChallan>     DeliveryChallans     => Set<DeliveryChallan>();
+    public DbSet<DeliveryChallanItem> DeliveryChallanItems => Set<DeliveryChallanItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
