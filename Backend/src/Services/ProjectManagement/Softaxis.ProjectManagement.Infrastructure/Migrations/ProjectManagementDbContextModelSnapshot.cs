@@ -474,7 +474,7 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                     b.HasOne("Softaxis.ProjectManagement.Domain.Entities.Label", "Label")
                         .WithMany("IssueLabels")
                         .HasForeignKey("LabelId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Issue");

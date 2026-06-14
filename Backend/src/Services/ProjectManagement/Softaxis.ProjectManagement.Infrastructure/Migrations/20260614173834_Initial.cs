@@ -232,7 +232,7 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                         principalSchema: "projectmanagement",
                         principalTable: "labels",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(
