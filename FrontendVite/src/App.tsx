@@ -94,6 +94,12 @@ const KitchenDisplayPage   = React.lazy(() => import("@/pages/pos/kitchen"));
 const RecipesPage          = React.lazy(() => import("@/pages/recipe/recipes"));
 const IngredientsPage      = React.lazy(() => import("@/pages/recipe/ingredients"));
 
+// ── Project Management ──────────────────────────────────────────────────────
+const ProjectManagementPage = React.lazy(() => import("@/pages/project-management/index"));
+const ProjectBoardPage      = React.lazy(() => import("@/pages/project-management/board"));
+const ProjectBacklogPage    = React.lazy(() => import("@/pages/project-management/backlog"));
+const ProjectIssuesPage     = React.lazy(() => import("@/pages/project-management/issues"));
+
 // ── Hospitality ───────────────────────────────────────────────────────────────
 const BookingsPage         = React.lazy(() => import("@/pages/hospitality/bookings"));
 const RoomsPage            = React.lazy(() => import("@/pages/hospitality/rooms"));
@@ -335,6 +341,14 @@ export function App() {
           <Route element={<ModuleGuard module="recipe" />}>
             <Route path="/recipe/recipes"     element={<RecipesPage />} />
             <Route path="/recipe/ingredients" element={<IngredientsPage />} />
+          </Route>
+
+          {/* ── Project Management ──────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="project-management" />}>
+            <Route path="/project-management"                  element={<ProjectManagementPage />} />
+            <Route path="/project-management/:projectId/board"   element={<ProjectBoardPage />} />
+            <Route path="/project-management/:projectId/backlog" element={<ProjectBacklogPage />} />
+            <Route path="/project-management/:projectId/issues"  element={<ProjectIssuesPage />} />
           </Route>
 
           {/* ── Hospitality ─────────────────────────────────────────────────── */}

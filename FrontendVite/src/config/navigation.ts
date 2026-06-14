@@ -43,6 +43,20 @@ export const navigationConfig: NavGroup[] = [
     ],
   },
   {
+    id: "project-management-group",
+    label: "Projects",
+    items: [
+      {
+        id: "project-management",
+        label: "Project Management",
+        labelAr: "إدارة المشاريع",
+        href: "/project-management",
+        icon: "FolderKanban",
+        module: "project-management",
+      },
+    ],
+  },
+  {
     id: "finance",
     label: "Finance",
     items: [

@@ -19,6 +19,7 @@ using Softaxis.RealEstate.Infrastructure.Extensions;
 using Softaxis.Hospitality.Infrastructure.Extensions;
 using Softaxis.Restaurant.Infrastructure.Extensions;
 using Softaxis.Recipe.Infrastructure.Extensions;
+using Softaxis.ProjectManagement.Infrastructure.Extensions;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -77,6 +78,7 @@ try
     builder.Services.AddHospitalityInfrastructure(builder.Configuration);
     builder.Services.AddRestaurantInfrastructure(builder.Configuration);
     builder.Services.AddRecipeInfrastructure(builder.Configuration);
+    builder.Services.AddProjectManagementInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -109,7 +111,8 @@ try
         .AddApplicationPart(typeof(Softaxis.RealEstate.API.Controllers.PropertiesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Hospitality.API.Controllers.RoomsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Restaurant.API.Controllers.TablesController).Assembly)
-        .AddApplicationPart(typeof(Softaxis.Recipe.API.Controllers.RecipesController).Assembly);
+        .AddApplicationPart(typeof(Softaxis.Recipe.API.Controllers.RecipesController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly);
 
     // ── Authorization + OpenAPI ───────────────────────────────────────────────
     builder.Services.AddAuthorization();
@@ -145,6 +148,7 @@ try
         await app.Services.MigrateAndSeedHospitalityAsync();    // Hospitality
         await app.Services.MigrateAndSeedRestaurantAsync();     // Restaurant POS
         await app.Services.MigrateAndSeedRecipeAsync();         // Recipe
+        await app.Services.MigrateAndSeedProjectManagementAsync(); // Project Management
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
@@ -176,7 +180,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);

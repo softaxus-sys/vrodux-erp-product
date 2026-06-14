@@ -27,6 +27,12 @@
     <Project Path="src/Services/Inventory/Softaxis.Inventory.Domain/Softaxis.Inventory.Domain.csproj" />
     <Project Path="src/Services/Inventory/Softaxis.Inventory.Infrastructure/Softaxis.Inventory.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/ProjectManagement/">
+    <Project Path="src/Services/ProjectManagement/Softaxis.ProjectManagement.API/Softaxis.ProjectManagement.API.csproj" />
+    <Project Path="src/Services/ProjectManagement/Softaxis.ProjectManagement.Application/Softaxis.ProjectManagement.Application.csproj" />
+    <Project Path="src/Services/ProjectManagement/Softaxis.ProjectManagement.Domain/Softaxis.ProjectManagement.Domain.csproj" />
+    <Project Path="src/Services/ProjectManagement/Softaxis.ProjectManagement.Infrastructure/Softaxis.ProjectManagement.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Sales/">
     <Project Path="src/Services/Sales/Softaxis.Sales.API/Softaxis.Sales.API.csproj" />
     <Project Path="src/Services/Sales/Softaxis.Sales.Application/Softaxis.Sales.Application.csproj" />
