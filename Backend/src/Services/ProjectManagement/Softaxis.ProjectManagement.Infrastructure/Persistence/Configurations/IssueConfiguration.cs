@@ -46,7 +46,7 @@ internal sealed class IssueConfiguration : IEntityTypeConfiguration<Issue>
         builder.HasOne(x => x.Sprint)
                .WithMany(x => x.Issues)
                .HasForeignKey(x => x.SprintId)
-               .OnDelete(DeleteBehavior.SetNull);
+               .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.Epic)
                .WithMany()
