@@ -79,7 +79,7 @@ internal sealed class IssueLabelConfiguration : IEntityTypeConfiguration<IssueLa
         builder.HasOne(x => x.Label)
                .WithMany(x => x.IssueLabels)
                .HasForeignKey(x => x.LabelId)
-               .OnDelete(DeleteBehavior.Cascade);
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }
 
