@@ -89,6 +89,7 @@ services:
     environment:
       ACCEPT_EULA: "Y"
       SEQ_API_KEY: "${SEQ_API_KEY:-}"
+      SEQ_FIRSTRUN_ADMINPASSWORD: "${SEQ_ADMIN_PASSWORD:-Vrodux2026!}"
     volumes:
       - seq-data:/data
     ports:
