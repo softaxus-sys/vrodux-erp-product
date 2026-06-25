@@ -122,7 +122,7 @@ services:
     container_name: vrodux-api
     hostname: vrodux-api
     environment:
-      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_ENVIRONMENT: "Docker"
       ASPNETCORE_URLS: "http://+:8080"
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
       ConnectionStrings__IdentityDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
