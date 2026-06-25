@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCreateContract } from "@/hooks/real-estate/use-re";
 
 const CONTRACT_TYPES  = ["Lease", "Sale", "Management", "Service"];
 const PAYMENT_FREQ    = ["Monthly", "Quarterly", "Semi-Annual", "Annual", "One-Time"];
@@ -16,6 +17,7 @@ interface AddContractFormProps {
 }
 
 export function AddContractForm({ open, onClose }: AddContractFormProps) {
+  const createContract = useCreateContract();
   const [contractType, setContractType] = React.useState("Lease");
   const [unit, setUnit]                 = React.useState("");
   const [tenantName, setTenantName]     = React.useState("");
@@ -49,6 +51,20 @@ export function AddContractForm({ open, onClose }: AddContractFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleCreate = async (asDraft: boolean) => {
+    try {
+      await createContract.mutateAsync({
+        contractType: contractType.toLowerCase(), unit, tenantName, tenantEmail, tenantPhone,
+        startDate, endDate, rentAmount: parseFloat(rentAmount) || 0, annualRent,
+        currency, paymentFreq, paymentMethod, deposit: parseFloat(deposit) || undefined,
+        noOfCheques: parseInt(noOfCheques) || 1, brokerName: brokerName.trim() || undefined,
+        commission: parseFloat(commission) || undefined, notes: notes.trim() || undefined,
+        status: asDraft ? 'draft' : 'active',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -189,8 +205,8 @@ export function AddContractForm({ open, onClose }: AddContractFormProps) {
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} disabled={!isValid}>Save as Draft</Button>
-                <Button onClick={onClose} disabled={!isValid}>Create Contract</Button>
+                <Button variant="outline" onClick={() => handleCreate(true)} disabled={!isValid || createContract.isPending}>Save as Draft</Button>
+                <Button onClick={() => handleCreate(false)} disabled={!isValid || createContract.isPending}>Create Contract</Button>
               </div>
             </div>
           </motion.div>

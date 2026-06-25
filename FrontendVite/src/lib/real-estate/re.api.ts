@@ -186,10 +186,21 @@ export const reApi = {
 
   getUnits:            (): Promise<UnitDto[]>              => rawApiClient.get(`${BASE}/units`),
   getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient.get(`${BASE}/units/summary`),
+  createUnit:          (data: Record<string, unknown>): Promise<UnitDto> => rawApiClient.post(`${BASE}/units`, data),
+  deleteUnit:          (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/units/${id}`),
+
   getTenants:          (): Promise<TenantDto[]>            => rawApiClient.get(`${BASE}/tenants`),
   getTenantSummary:    (): Promise<ReTenantSummaryDto>     => rawApiClient.get(`${BASE}/tenants/summary`),
+  createTenant:        (data: Record<string, unknown>): Promise<TenantDto> => rawApiClient.post(`${BASE}/tenants`, data),
+  deleteTenant:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/tenants/${id}`),
+
   getBrokers:          (): Promise<BrokerDto[]>            => rawApiClient.get(`${BASE}/brokers`),
   getBrokerSummary:    (): Promise<ReBrokerSummaryDto>     => rawApiClient.get(`${BASE}/brokers/summary`),
+  createBroker:        (data: Record<string, unknown>): Promise<BrokerDto> => rawApiClient.post(`${BASE}/brokers`, data),
+  deleteBroker:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/brokers/${id}`),
+
   getContracts:        (): Promise<ContractDto[]>          => rawApiClient.get(`${BASE}/contracts`),
   getContractSummary:  (): Promise<ReContractSummaryDto>   => rawApiClient.get(`${BASE}/contracts/summary`),
+  createContract:      (data: Record<string, unknown>): Promise<ContractDto> => rawApiClient.post(`${BASE}/contracts`, data),
+  deleteContract:      (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/contracts/${id}`),
 };

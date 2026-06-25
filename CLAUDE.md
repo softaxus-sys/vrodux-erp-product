@@ -653,6 +653,188 @@ The "Confirm" button (`pending` → `confirmed`) still uses `useUpdateSalesOrder
 
 ---
 
+## Module 5f — Project Management: Role-Based Access Control (RBAC)
+
+**Brought the new Project Management module (Module 5/Kanban — Projects/Boards/Sprints/Issues/Comments) into
+the existing tenant-wide RBAC system.** Previously any authenticated user could do anything in this module —
+no backend controller anywhere enforced `Permission`/`Role`/`RolePermission`, it was frontend-only (and not
+even gated there). This introduces the **first backend permission-enforcement pattern** in the codebase
+(`[RequirePermission]`), reusable by other services going forward.
+
+### Permission groups seeded (5 groups × 4 actions = 20 permissions)
+`Backend/.../Identity/Softaxis.Identity.Application/Seed/PermissionSeedData.cs` — added to `ModuleActions`:
+```csharp
+["project-management.projects"] = ["view","create","edit","delete"],
+["project-management.boards"]   = ["view","create","edit","delete"],
+["project-management.labels"]   = ["view","create","edit","delete"],
+["project-management.sprints"]  = ["view","create","edit","delete"],
+["project-management.issues"]   = ["view","create","edit","delete"],
+```
+Migration `AddProjectManagementPermissions` (Identity service) generated — applies automatically via
+`MigrateAndSeedAsync` on next gateway startup.
+
+### `SyncAdministratorPermissionsAsync` (new, idempotent — runs every startup)
+`Backend/.../Identity/Softaxis.Identity.Infrastructure/Extensions/InfrastructureExtensions.cs` — for every
+system `Administrator` role, diffs `allPermissionIds` against `role.RolePermissions` and calls the existing
+idempotent `Role.AddPermission(id)` for any missing ones (`.Include(r => r.RolePermissions)` required).
+Ensures existing tenants' Administrator roles automatically gain new permissions (like the 20 above) without
+manual intervention.
+
+### `[RequirePermission]` attribute (new pattern)
+`Backend/src/Services/ProjectManagement/Softaxis.ProjectManagement.API/Authorization/RequirePermissionAttribute.cs`
+— `IAuthorizationFilter`. Bypasses check if JWT has `is_super_admin == "true"`; otherwise requires a
+`"permission"` claim matching the given string (e.g. `"project-management.issues.edit"`). On failure returns
+`403` with `{ Code: "Permission.Denied", Description: "Missing permission: <perm>" }`.
+
+Applied to every action across `ProjectsController`, `BoardColumnsController`, `LabelsController`,
+`SprintsController`, `IssuesController`, `CommentsController` — `GetAll`/`GetById` → `*.view`, `Create` →
+`*.create`, `Update`/`Move`/`MoveToSprint`/`Start`/`Complete`/`Reorder` → `*.edit`, `Delete` → `*.delete`.
+
+### Frontend gating (`hasRawPermission("project-management.<feature>.<action>")`)
+Same pattern as `retail-pos-view.tsx` — `const canX = hasRawPermission(...)`, then `{canX && <Button>...}`.
+Applied across `project-management-view.tsx`, `board-view.tsx`, `manage-columns-modal.tsx`, `issue-card.tsx`,
+`backlog-view.tsx`, `issues-view.tsx`, `issue-detail-drawer.tsx`.
+
+**Drag-and-drop gating (`@dnd-kit`)** — defense in depth, since the backend now also enforces via
+`[RequirePermission]`:
+- `SortableIssueCard` (`issue-card.tsx`) takes `canDrag?: boolean` (default `true`) — only spreads
+  `{...attributes} {...listeners}` when `canDrag`.
+- `Column` (`board-view.tsx`) and `Section` (`backlog-view.tsx`) take `canDrag`/`canCreate` props, passed down
+  to cards and gating the quick-add UI.
+- `DndContext`'s `onDragEnd` is set to `undefined` (not just a no-op) when the relevant edit permission is
+  missing — disables drops entirely rather than allowing a drag that fails server-side.
+
+### `roles-permissions-view.tsx`
+```ts
+const MODULE_GROUPS: Record<string, string> = {
+  inventory: "Inventory", pos: "POS", finance: "Finance", hr: "HR",
+  crm: "CRM", sales: "Sales", purchase: "Purchase", settings: "Settings",
+  "project-management": "Project Management",
+};
+const GROUP_ORDER = ["POS","Inventory","Finance","Sales","Purchase","CRM","HR","Project Management","Settings"];
+```
+`groupPermissions`/`moduleLabel` already derive groups generically from `moduleId.split(".")[0]` — no other
+changes needed.
+
+### Build Status
+- **Backend ProjectManagement.API:** 0 errors, 0 warnings ✅
+- **Backend Identity.API:** 0 errors, 1 pre-existing unrelated warning (SmtpEmailService nullable) ✅
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+- **Pending:** apply the `AddProjectManagementPermissions` migration on next service startup (runs
+  automatically via `MigrateAndSeedAsync`); manual end-to-end test with a restricted custom role to confirm
+  403s + UI hide/show.
+
+---
+
+## Module 5g — Project Management: Project-Team Membership / Access Scoping
+
+**Builds on top of Module 5f's tenant-wide RBAC** — permissions still gate *what actions* a user can perform;
+a new `ProjectMember` join entity now also gates *which projects* a user can see/act on at all. Previously
+any user with `project-management.projects.view` could see (and drill into) every project in the tenant.
+
+### New entity — `ProjectMember`
+`Backend/.../Softaxis.ProjectManagement.Domain/Entities/ProjectMember.cs` — `(Id, ProjectId, UserId, UserName,
+UserEmail?, Role, CreatedAt)`, `Role` is `"owner" | "member" | "viewer"`. `UserName`/`UserEmail` denormalized
+at add-time (same pattern as `Project.LeadName` — avoids a cross-service call to Identity on every read).
+Table `project_members` (`projectmanagement` schema), unique index on `(ProjectId, UserId)`. Gets the usual
+`TenantId` shadow column + query filter automatically via `TenantIsolation.ApplyTenantId(...)` (entity lives in
+`Softaxis.ProjectManagement.Domain`). Migration: `AddProjectMembers`.
+
+### `ICurrentUser` + `IProjectAccessGuard` (new pattern, first use of `ICurrentUser` in this service)
+- `Application/Abstractions/ICurrentUser.cs` — `Id`, `Username`, `Email`, `IsSuperAdmin`, `HasPermission(key)`.
+- `API/Middleware/CurrentUserService.cs` — HttpContext-claims-based impl (mirrors POS service's
+  `ICurrentUser`/`CurrentUserService`).
+- `Infrastructure/Services/ProjectAccessGuard.cs` — `IProjectAccessGuard`:
+  ```csharp
+  Task<bool> CanAccessAsync(Guid projectId, CancellationToken ct);          // admin OR is a ProjectMember
+  IQueryable<Project> AccessibleProjects(IQueryable<Project> source);       // filters to projects where Members.Any(UserId == me)
+  ```
+  Admin bypass = `currentUser.IsSuperAdmin || currentUser.HasPermission("project-management.projects.delete")`.
+
+### Enforcement (Tier 1 + one Tier 2 spot-check — NOT yet applied everywhere)
+- `GetProjectsHandler` — `accessGuard.AccessibleProjects(db.Projects.AsNoTracking())`.
+- `GetProjectByIdHandler` — after existence check, `if (!await accessGuard.CanAccessAsync(...)) return Error.NotFoundById(...)` (404, not 403 — avoids leaking existence of projects the user can't see).
+- `GetIssueByIdHandler` — same 404 pattern, checked against the issue's `ProjectId`.
+- **Fast-follow (not done in this pass)**: Sprints/Labels/BoardColumns/Comments/Issue-list handlers should get
+  the same one-line `accessGuard` check — mechanical, same pattern as above.
+
+### Creator auto-enrollment
+`CreateProjectHandler` now injects `ICurrentUser` and adds the creating user as an `"owner"` `ProjectMember`
+alongside the default board-column seed.
+
+### Backfill (idempotent, runs every startup via `MigrateAndSeedProjectManagementAsync`)
+`BackfillProjectMembersAsync` in `InfrastructureExtensions.cs` — any project with **zero** members gets every
+tenant user holding `project-management.projects.edit` added as an `"owner"` member. Self-limiting (no-op once
+every project has ≥1 member). Cross-schema lookup via `db.Database.SqlQueryRaw<EditorRow>("... FROM
+[identity].users u JOIN [identity].user_roles ... ")` — **`identity` is a reserved SQL Server keyword and MUST
+be bracketed (`[identity].users`)**, otherwise `SqlException: Incorrect syntax near the keyword 'identity'` at
+startup. Both `Softaxis.ProjectManagement.API` and `Softaxis.Identity.API` point at the same physical
+`SoftaxisErpDb` (different schemas), enabling this raw cross-schema query without an HTTP call.
+
+### New CQRS feature — `ProjectMembers`
+`Application/ProjectMembers/{Dtos,Queries,Commands}` + `Infrastructure/Handlers/ProjectMembers/{Get,Add,Remove,
+UpdateRole}ProjectMemberHandler.cs` + `API/Controllers/ProjectMembersController.cs`:
+- `GET    /api/projectmanagement/projects/{projectId}/members` — `project-management.projects.view`
+- `POST   /api/projectmanagement/projects/{projectId}/members` — `project-management.projects.edit` (no new permission for member management)
+- `PUT    /api/projectmanagement/projects/{projectId}/members/{memberId}` — `.edit` (change role)
+- `DELETE /api/projectmanagement/projects/{projectId}/members/{memberId}` — `.edit`
+
+Both `Remove` and `UpdateRole` return `409 Error.Custom("ProjectMember.Conflict", "Cannot remove/change the
+role of the only owner of a project.")` when the target is the project's sole `"owner"`.
+
+### Frontend
+- `FrontendVite/src/lib/project-management/project-members.api.ts` — `projectMembersApi` (getAll/add/updateRole/remove)
+- `FrontendVite/src/hooks/project-management/use-project-members.ts` — `useProjectMembers`,
+  `useAddProjectMember`, `useUpdateProjectMemberRole`, `useRemoveProjectMember` (invalidate
+  `["pm-project-members", projectId]` + project list on add/remove)
+- `FrontendVite/src/modules/project-management/components/manage-members-modal.tsx` — member list with
+  role `<select className="bg-card">` per row (disabled for the sole owner), remove button (disabled for the
+  sole owner, mirrors backend `ProjectMember.Conflict` guard so it's not even clickable), debounced user search
+  via existing `usersApi.getAll({ search })` (Identity service) to add new members as `"member"`
+- `project-management-view.tsx` — new `Users` icon button per project card (gated by
+  `hasRawPermission("project-management.projects.edit")`) opens `ManageMembersModal`
+
+### Bug found & fixed during verification — backfilled rows had `TenantId = NULL`
+
+`BackfillProjectMembersAsync` originally relied on `SaveChangesAsync` → `TenantIsolation.StampTenantId` to
+stamp the shadow `TenantId` column on new `ProjectMember` rows. `StampTenantId` is a no-op unless
+`TenantAmbient.IsResolved` — which is **never true** during the startup seed step (no HTTP request context).
+Result: every backfilled `ProjectMember` row got `TenantId = NULL`, while `Project.TenantId` was the real
+tenant guid. `TenantIsolation`'s global query filter is `TenantId == ambientTenantId`, and `NULL == guid` is
+`NULL` (false) in SQL — so `GET /projects/{id}/members` returned `[]` for everyone despite the rows existing.
+
+**Fix** (`InfrastructureExtensions.cs`):
+- `BackfillProjectMembersAsync` now explicitly sets `db.Entry(member).Property("TenantId").CurrentValue =
+  project.TenantId` on each newly-added `ProjectMember`, instead of relying on `StampTenantId`.
+- New `RepairProjectMemberTenantIdsAsync` (runs once per startup, before the backfill, idempotent) finds any
+  existing `ProjectMember` rows with `TenantId IS NULL` (via `IgnoreQueryFilters()`) and stamps them from
+  their parent `Project.TenantId`. One-time repair for rows created by the original buggy backfill.
+
+### Build Status
+- **Backend ProjectManagement service:** 0 errors, 0 warnings ✅ (migration `AddProjectMembers` applied,
+  gateway rebuilt and restarted with the `TenantId` repair fix)
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+- **Verified — full manual walkthrough completed** (as `pmuser@softaxis.io` / `pmviewer@softaxis.io`, both
+  Project Manager / PM Viewer Only test roles, against the running ApiGateway on :5000):
+  - `pmuser` (owner via backfill): `GET /projects` → "PM Test Project" present; `GET /projects/{id}` → 200;
+    `GET /projects/{id}/members` → pmuser + admin1 both listed as `"owner"` (after the TenantId repair —
+    previously returned `[]`).
+  - `pmviewer` (tenant-wide `*.view` only, not a project member): `GET /projects` → `[]`; `GET
+    /projects/{id}` → `404`; `POST /projects/{id}/members` → `403 Permission.Denied` (lacks `.edit`).
+  - `pmuser` adds `pmviewer` as `"member"` via `POST /projects/{id}/members` → `200`.
+  - `pmviewer` re-run: `GET /projects` → "PM Test Project" now visible; `GET /projects/{id}` → `200`.
+  - `pmuser` updates `pmviewer`'s role to `"viewer"` via `PUT .../members/{id}` → `200`.
+  - `pmuser` removes `admin1` (owner, not sole owner) via `DELETE .../members/{id}` → `204`.
+  - `pmuser` attempts to remove/demote themselves (now sole remaining owner) → both `409
+    ProjectMember.Conflict` (`"Cannot remove the only owner of a project."` /
+    `"Cannot change the role of the only owner of a project."`).
+  - **Frontend**: logged in as `pmuser` in the browser, opened Project Management → "Manage members" on "PM
+    Test Project" → `ManageMembersModal` renders pmuser (Owner, delete disabled) and pmviewer (Viewer, role
+    `<select>` + remove enabled); searched "admin1" → user picker found "Shahbaz Shafiq"
+    (`admin1@pro360rp.com`) → added as `"Member"` → list updated live with toast.
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

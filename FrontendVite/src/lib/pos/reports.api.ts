@@ -1,9 +1,9 @@
-import { apiClient, rawApiClient } from "@/lib/api-client";
+﻿import { apiClient } from "@/lib/api-client";
 import type { DailySummaryDto } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/reports`;
 
-// ── Report filter params (mirrors backend ReportParams) ──────────────────────
+// â”€â”€ Report filter params (mirrors backend ReportParams) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ReportRunParams {
   from?: string;            // yyyy-MM-dd
@@ -19,7 +19,7 @@ export interface ReportRunParams {
   idleDays?: number;
 }
 
-// ── Generic report result ─────────────────────────────────────────────────────
+// â”€â”€ Generic report result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ReportResult {
   columns: string[];
@@ -27,7 +27,7 @@ export interface ReportResult {
   totalCount: number;
 }
 
-// ── API functions ─────────────────────────────────────────────────────────────
+// â”€â”€ API functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const reportsApi = {
   /** Legacy: cashier dashboard daily summary */
@@ -52,6 +52,6 @@ export const reportsApi = {
     if (params.valuationMethod)  qs.set("valuationMethod", params.valuationMethod);
     if (params.fiscalYear)       qs.set("fiscalYear",      params.fiscalYear);
     if (params.idleDays != null) qs.set("idleDays",        String(params.idleDays));
-    return rawApiClient.get<ReportResult>(`${BASE}/${encodeURIComponent(reportId)}?${qs}`);
+    return apiClient.get<ReportResult>(`${BASE}/${encodeURIComponent(reportId)}?${qs}`);
   },
 };

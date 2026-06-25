@@ -548,10 +548,9 @@ function CloseShiftPanel({
       />
 
       {/* Panel */}
-      <motion.div
+      <div
         className="fixed right-0 top-0 h-full w-full max-w-lg bg-card border-l border-border z-50 flex flex-col shadow-2xl"
-        initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        style={{ transform: "translateX(0)" }}
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-border shrink-0 flex items-center justify-between">
@@ -762,7 +761,7 @@ function CloseShiftPanel({
             )}
           </AnimatePresence>
         </div>
-      </motion.div>
+      </div>
     </>
   );
 }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateProject } from "@/hooks/construction/use-construction";
 
 const PROJECT_TYPES = ["Residential", "Commercial", "Infrastructure", "Industrial"];
 const STATUSES      = ["Planning", "In Progress", "On Hold"];
@@ -22,6 +23,7 @@ interface AddProjectFormProps {
 }
 
 export function AddProjectForm({ open, onClose }: AddProjectFormProps) {
+  const createProject = useCreateProject();
   const [projectType, setProjectType]   = React.useState("Residential");
   const [status, setStatus]             = React.useState("Planning");
   const [name, setName]                 = React.useState("");
@@ -55,6 +57,19 @@ export function AddProjectForm({ open, onClose }: AddProjectFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleCreate = async (status_: string) => {
+    try {
+      await createProject.mutateAsync({
+        name, type: projectType.toLowerCase(), status: status_.toLowerCase().replace(' ', '_'),
+        clientName: client, location, emirate, startDate, endDate,
+        budget: parseFloat(contractValue) || 0, currency, workers: parseInt(workers) || 0,
+        projectManager, siteEngineer, notes: notes.trim() || undefined,
+        phases: phases.filter(p => p.name.trim()),
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -213,8 +228,8 @@ export function AddProjectForm({ open, onClose }: AddProjectFormProps) {
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} disabled={!isValid}>Save as Draft</Button>
-                <Button onClick={onClose} disabled={!isValid}>Create Project</Button>
+                <Button variant="outline" onClick={() => handleCreate("planning")} disabled={!isValid || createProject.isPending}>Save as Draft</Button>
+                <Button onClick={() => handleCreate(status)} disabled={!isValid || createProject.isPending}>Create Project</Button>
               </div>
             </div>
           </motion.div>

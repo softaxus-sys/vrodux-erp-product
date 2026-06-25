@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
+import { useCreateBooking } from "@/hooks/hospitality/use-hospitality";
 
 const ROOM_TYPES   = ["Standard", "Studio", "Deluxe", "Suite", "Penthouse"];
 const SOURCES      = ["Direct", "OTA", "Travel Agent", "Walk-in", "Corporate"];
@@ -19,6 +20,7 @@ interface AddBookingFormProps {
 
 export function AddBookingForm({ open, onClose }: AddBookingFormProps) {
   const currency = useCurrency();
+  const createBooking = useCreateBooking();
   const [roomType, setRoomType]           = React.useState("Deluxe");
   const [source, setSource]               = React.useState("Direct");
   const [roomNumber, setRoomNumber]       = React.useState("");
@@ -56,6 +58,20 @@ export function AddBookingForm({ open, onClose }: AddBookingFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async (status_: string) => {
+    try {
+      await createBooking.mutateAsync({
+        roomNumber, roomType: roomType.toLowerCase(), source: source.toLowerCase().replace(' ', '_'),
+        guestName, guestEmail, guestPhone, nationality, idNumber,
+        adults: parseInt(adults) || 1, children: parseInt(children) || 0,
+        checkIn, checkOut, nights, mealPlan, ratePerNight: parseFloat(ratePerNight) || 0,
+        totalAmount, paidAmount: parseFloat(depositPaid) || 0,
+        paymentMethod, specialRequests, notes: notes.trim() || undefined, status: status_,
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -224,8 +240,8 @@ export function AddBookingForm({ open, onClose }: AddBookingFormProps) {
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} disabled={!isValid}>Hold</Button>
-                <Button onClick={onClose} disabled={!isValid}>Confirm Booking</Button>
+                <Button variant="outline" onClick={() => handleSave("hold")} disabled={!isValid || createBooking.isPending}>Hold</Button>
+                <Button onClick={() => handleSave("confirmed")} disabled={!isValid || createBooking.isPending}>Confirm Booking</Button>
               </div>
             </div>
           </motion.div>

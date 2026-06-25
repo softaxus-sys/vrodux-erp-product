@@ -1,8 +1,8 @@
-import { apiClient, rawApiClient } from "@/lib/api-client";
+﻿import { apiClient } from "@/lib/api-client";
 
 const POS = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ DTOs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface CurrencyDto {
   id: string;
@@ -58,7 +58,7 @@ export interface CustomerGroupDto {
   updatedAt: string | null;
 }
 
-// ─── Request types ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Request types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface UpsertCurrencyRequest {
   id?: string | null;
@@ -102,7 +102,7 @@ export interface UpsertCustomerGroupRequest {
   isActive: boolean;
 }
 
-// ─── API clients ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ API clients â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const currenciesApi = {
   getAll: (): Promise<CurrencyDto[]> =>
@@ -112,7 +112,7 @@ export const currenciesApi = {
     apiClient.put<CurrencyDto>(`${POS}/api/currencies`, req),
 
   delete: (id: string): Promise<void> =>
-    rawApiClient.delete<void>(`${POS}/api/currencies/${id}`),
+    apiClient.delete<void>(`${POS}/api/currencies/${id}`),
 };
 
 export const taxRatesApi = {
@@ -123,7 +123,7 @@ export const taxRatesApi = {
     apiClient.put<TaxRateDto>(`${POS}/api/tax-rates`, req),
 
   delete: (id: string): Promise<void> =>
-    rawApiClient.delete<void>(`${POS}/api/tax-rates/${id}`),
+    apiClient.delete<void>(`${POS}/api/tax-rates/${id}`),
 };
 
 export const paymentTermsApi = {
@@ -134,7 +134,7 @@ export const paymentTermsApi = {
     apiClient.put<PaymentTermDto>(`${POS}/api/payment-terms`, req),
 
   delete: (id: string): Promise<void> =>
-    rawApiClient.delete<void>(`${POS}/api/payment-terms/${id}`),
+    apiClient.delete<void>(`${POS}/api/payment-terms/${id}`),
 };
 
 export const customerGroupsApi = {
@@ -145,5 +145,5 @@ export const customerGroupsApi = {
     apiClient.put<CustomerGroupDto>(`${POS}/api/customer-groups`, req),
 
   delete: (id: string): Promise<void> =>
-    rawApiClient.delete<void>(`${POS}/api/customer-groups/${id}`),
+    apiClient.delete<void>(`${POS}/api/customer-groups/${id}`),
 };

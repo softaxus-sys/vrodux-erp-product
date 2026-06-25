@@ -1,4 +1,4 @@
-import { apiClient, type PagedResult } from "@/lib/api-client";
+﻿import { apiClient, type PagedResult } from "@/lib/api-client";
 import type {
   POSTransactionDto,
   POSTransactionSummaryDto,

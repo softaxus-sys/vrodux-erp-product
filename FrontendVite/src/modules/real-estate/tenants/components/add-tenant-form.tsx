@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateTenant } from "@/hooks/real-estate/use-re";
 
 const TENANT_TYPES   = ["Individual", "Company"];
 const NATIONALITIES  = ["UAE", "Indian", "Pakistani", "Filipino", "Egyptian", "British", "American", "European", "Other"];
@@ -13,6 +14,7 @@ interface AddTenantFormProps {
 }
 
 export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
+  const createTenant = useCreateTenant();
   const [tenantType, setTenantType]   = React.useState("Individual");
   const [name, setName]               = React.useState("");
   const [email, setEmail]             = React.useState("");
@@ -36,6 +38,19 @@ export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      await createTenant.mutateAsync({
+        fullName: name, tenantType: tenantType.toLowerCase(), email, phone, nationality,
+        emiratesId: emiratesId.trim() || undefined, passportNo: passportNo.trim() || undefined,
+        company: company.trim() || undefined, trn: trn.trim() || undefined,
+        occupation: occupation.trim() || undefined, monthlyIncome: parseFloat(monthlyIncome) || undefined,
+        emergencyContact: emergencyContact.trim() || undefined, notes: notes.trim() || undefined, status: 'active',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -149,7 +164,7 @@ export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Tenant</Button>
+              <Button onClick={handleSave} disabled={!isValid || createTenant.isPending}>Save Tenant</Button>
             </div>
           </motion.div>
         </>

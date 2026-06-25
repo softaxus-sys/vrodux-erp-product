@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateSite } from "@/hooks/construction/use-construction";
 
 const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
 
@@ -12,6 +13,7 @@ interface AddSiteFormProps {
 }
 
 export function AddSiteForm({ open, onClose }: AddSiteFormProps) {
+  const createSite = useCreateSite();
   const [name, setName]                         = React.useState("");
   const [projectName, setProjectName]           = React.useState("");
   const [address, setAddress]                   = React.useState("");
@@ -45,6 +47,19 @@ export function AddSiteForm({ open, onClose }: AddSiteFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      await createSite.mutateAsync({
+        name, project: projectName, address, city, emirate, area: parseFloat(area) || undefined,
+        siteManager, managerPhone: siteManagerPhone, safetyOfficer, officerPhone: safetyOfficerPhone,
+        startDate, maxWorkers: parseInt(maxWorkers) || undefined, currentWorkers: parseInt(currentWorkers) || 0,
+        permitNumber: permitNumber.trim() || undefined, permitExpiry: permitExpiry || undefined,
+        notes: notes.trim() || undefined, status: "active",
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -172,7 +187,7 @@ export function AddSiteForm({ open, onClose }: AddSiteFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Register Site</Button>
+              <Button onClick={handleSave} disabled={!isValid || createSite.isPending}>Register Site</Button>
             </div>
           </motion.div>
         </>

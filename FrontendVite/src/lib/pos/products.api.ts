@@ -1,4 +1,4 @@
-import { apiClient, type PagedResult } from "@/lib/api-client";
+﻿import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { ProductDto, ProductSummaryDto, StockMovementDto } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/products`;

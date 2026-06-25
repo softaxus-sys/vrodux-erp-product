@@ -15,6 +15,7 @@ import {
   useBoardColumns, useCreateBoardColumn, useUpdateBoardColumn, useDeleteBoardColumn, useReorderBoardColumns,
 } from "@/hooks/project-management/use-board-columns";
 import type { BoardColumnDto } from "@/lib/project-management/board-columns.api";
+import { useAuthStore } from "@/store/auth.store";
 
 interface ManageColumnsModalProps {
   projectId: string;
@@ -32,6 +33,11 @@ function SortableColumnRow({ id, children }: { id: string; children: (handle: { 
 }
 
 export function ManageColumnsModal({ projectId, onClose }: ManageColumnsModalProps) {
+  const { hasRawPermission } = useAuthStore();
+  const canCreate = hasRawPermission("project-management.boards.create");
+  const canEdit = hasRawPermission("project-management.boards.edit");
+  const canDelete = hasRawPermission("project-management.boards.delete");
+
   const { data: columns = [], isLoading } = useBoardColumns(projectId);
   const createColumn = useCreateBoardColumn(projectId);
   const updateColumn = useUpdateBoardColumn(projectId);
@@ -94,16 +100,18 @@ export function ManageColumnsModal({ projectId, onClose }: ManageColumnsModalPro
               <Loader2 className="h-4 w-4 animate-spin" /><span className="text-sm">Loading columns…</span>
             </div>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={canEdit ? handleDragEnd : undefined}>
               <SortableContext items={sorted.map(c => c.id)} strategy={verticalListSortingStrategy}>
                 <div className="space-y-2">
                   {sorted.map(c => (
                     <SortableColumnRow key={c.id} id={c.id}>
                       {({ attributes, listeners }) => (
                         <div className="flex items-center gap-2 bg-muted/20 border border-border rounded-lg px-2 py-2">
-                          <button {...attributes} {...listeners} className="p-1 cursor-grab text-muted-foreground touch-none">
-                            <GripVertical className="h-4 w-4" />
-                          </button>
+                          {canEdit && (
+                            <button {...attributes} {...listeners} className="p-1 cursor-grab text-muted-foreground touch-none">
+                              <GripVertical className="h-4 w-4" />
+                            </button>
+                          )}
                           {editingId === c.id ? (
                             <Input value={editingName} onChange={e => setEditingName(e.target.value)}
                               onKeyDown={e => e.key === "Enter" && saveEdit()}
@@ -112,12 +120,12 @@ export function ManageColumnsModal({ projectId, onClose }: ManageColumnsModalPro
                             <span className="flex-1 text-sm font-medium">{c.name}</span>
                           )}
                           <span className="text-[10px] uppercase font-semibold text-muted-foreground px-1.5 py-0.5 rounded bg-muted/40">{c.category.replace("_", " ")}</span>
-                          {editingId === c.id ? (
+                          {canEdit && (editingId === c.id ? (
                             <button onClick={saveEdit} className="p-1.5 rounded-lg hover:bg-success/10 text-success"><Check className="h-3.5 w-3.5" /></button>
                           ) : (
                             <button onClick={() => startEdit(c)} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                          )}
-                          {!c.isDefault && (
+                          ))}
+                          {canDelete && !c.isDefault && (
                             <button onClick={() => setPendingDelete(c)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -131,7 +139,7 @@ export function ManageColumnsModal({ projectId, onClose }: ManageColumnsModalPro
             </DndContext>
           )}
 
-          {adding ? (
+          {canCreate && (adding ? (
             <div className="flex items-center gap-2 pt-1">
               <Input value={newName} onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAdd()}
@@ -144,7 +152,7 @@ export function ManageColumnsModal({ projectId, onClose }: ManageColumnsModalPro
               className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
               <Plus className="h-3.5 w-3.5" /> Add Column
             </button>
-          )}
+          ))}
         </div>
 
         <div className="px-5 py-4 border-t border-border flex justify-end">

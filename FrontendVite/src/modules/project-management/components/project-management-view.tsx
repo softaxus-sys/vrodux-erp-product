@@ -3,24 +3,31 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, FolderKanban, Loader2, AlertTriangle, Archive, ArchiveRestore,
-  Trash2, KanbanSquare, ListTodo, ListChecks, MoreVertical, User,
+  Trash2, KanbanSquare, ListTodo, ListChecks, MoreVertical, User, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth.store";
 import {
   useProjects, useArchiveProject, useActivateProject, useDeleteProject,
 } from "@/hooks/project-management/use-projects";
 import type { ProjectSummaryDto } from "@/lib/project-management/projects.api";
 import { CreateProjectForm } from "./create-project-form";
+import { ManageMembersModal } from "./manage-members-modal";
 
 export function ProjectManagementView() {
   const navigate = useNavigate();
+  const { hasRawPermission } = useAuthStore();
+  const canCreate = hasRawPermission("project-management.projects.create");
+  const canEdit = hasRawPermission("project-management.projects.edit");
+  const canDelete = hasRawPermission("project-management.projects.delete");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"active" | "archived" | "all">("active");
   const [createOpen, setCreateOpen] = React.useState(false);
   const [pendingDelete, setPendingDelete] = React.useState<ProjectSummaryDto | null>(null);
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
+  const [membersProject, setMembersProject] = React.useState<ProjectSummaryDto | null>(null);
 
   const { data, isLoading } = useProjects();
   const archive = useArchiveProject();
@@ -47,9 +54,11 @@ export function ProjectManagementView() {
           <h1 className="text-2xl font-bold">Project Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Plan, track and ship work with Kanban boards, sprints and issues</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-1.5" /> New Project
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1.5" /> New Project
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -87,9 +96,11 @@ export function ProjectManagementView() {
             <p className="text-sm font-semibold">No projects found</p>
             <p className="text-xs text-muted-foreground mt-0.5">Create a project to get started with boards, sprints and issues.</p>
           </div>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> New Project
-          </Button>
+          {canCreate && (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> New Project
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -120,36 +131,49 @@ export function ProjectManagementView() {
                     </div>
                   </div>
 
-                  <div className="relative shrink-0">
+                  {canEdit && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id); }}
-                      className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                      <MoreVertical className="h-4 w-4" />
+                      onClick={(e) => { e.stopPropagation(); setMembersProject(p); }}
+                      title="Manage members"
+                      className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <Users className="h-4 w-4" />
                     </button>
-                    <AnimatePresence>
-                      {openMenuId === p.id && (
-                        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 mt-1 w-40 bg-card border border-border rounded-lg shadow-lg z-10 py-1">
-                          {p.status === "active" ? (
-                            <button onClick={() => { archive.mutate(p.id); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/30 text-left">
-                              <Archive className="h-3.5 w-3.5" /> Archive
-                            </button>
-                          ) : (
-                            <button onClick={() => { activate.mutate(p.id); setOpenMenuId(null); }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/30 text-left">
-                              <ArchiveRestore className="h-3.5 w-3.5" /> Activate
-                            </button>
-                          )}
-                          <button onClick={() => { setPendingDelete(p); setOpenMenuId(null); }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-destructive/10 text-destructive text-left">
-                            <Trash2 className="h-3.5 w-3.5" /> Delete
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+                  )}
+
+                  {(canEdit || canDelete) && (
+                    <div className="relative shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id); }}
+                        className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                      <AnimatePresence>
+                        {openMenuId === p.id && (
+                          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 mt-1 w-40 bg-card border border-border rounded-lg shadow-lg z-10 py-1">
+                            {canEdit && (p.status === "active" ? (
+                              <button onClick={() => { archive.mutate(p.id); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/30 text-left">
+                                <Archive className="h-3.5 w-3.5" /> Archive
+                              </button>
+                            ) : (
+                              <button onClick={() => { activate.mutate(p.id); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/30 text-left">
+                                <ArchiveRestore className="h-3.5 w-3.5" /> Activate
+                              </button>
+                            ))}
+                            {canDelete && (
+                              <button onClick={() => { setPendingDelete(p); setOpenMenuId(null); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-destructive/10 text-destructive text-left">
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </button>
+                            )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
                 </div>
 
                 {p.description && (
@@ -188,6 +212,16 @@ export function ProjectManagementView() {
       )}
 
       <CreateProjectForm open={createOpen} onClose={() => setCreateOpen(false)} />
+
+      <AnimatePresence>
+        {membersProject && (
+          <ManageMembersModal
+            projectId={membersProject.id}
+            projectName={membersProject.name}
+            onClose={() => setMembersProject(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Delete confirmation */}
       <AnimatePresence>

@@ -10,6 +10,7 @@ import { useSprints } from "@/hooks/project-management/use-sprints";
 import { useComments, useCreateComment, useDeleteComment } from "@/hooks/project-management/use-comments";
 import { ISSUE_TYPES, ISSUE_PRIORITIES, type IssueType, type IssuePriority } from "@/lib/project-management/issues.api";
 import { ISSUE_TYPE_CONFIG, ISSUE_PRIORITY_CONFIG } from "../lib/issue-meta";
+import { useAuthStore } from "@/store/auth.store";
 
 interface IssueDetailDrawerProps {
   issueId: string | null;
@@ -18,6 +19,12 @@ interface IssueDetailDrawerProps {
 }
 
 export function IssueDetailDrawer({ issueId, projectId, onClose }: IssueDetailDrawerProps) {
+  const { hasRawPermission } = useAuthStore();
+  const canEdit = hasRawPermission("project-management.issues.edit");
+  const canDelete = hasRawPermission("project-management.issues.delete");
+  const canCreateComment = hasRawPermission("project-management.issues.create");
+  const canDeleteComment = hasRawPermission("project-management.issues.delete");
+
   const { data: issue, isLoading } = useIssue(issueId);
   const { data: labels = [] } = useLabels(projectId);
   const { data: sprints = [] } = useSprints(projectId);
@@ -125,9 +132,11 @@ export function IssueDetailDrawer({ issueId, projectId, onClose }: IssueDetailDr
                 <span className="font-mono text-sm font-semibold text-muted-foreground">{issue?.issueKey}</span>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {canDelete && (
+                  <button onClick={() => setConfirmDelete(true)} className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
                 <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                   <X className="w-4 h-4" />
                 </button>
@@ -141,51 +150,51 @@ export function IssueDetailDrawer({ issueId, projectId, onClose }: IssueDetailDr
             ) : (
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
                 {/* Title */}
-                <Input value={title} onChange={e => setTitle(e.target.value)}
+                <Input value={title} onChange={e => setTitle(e.target.value)} disabled={!canEdit}
                   className="text-base font-semibold h-10" placeholder="Issue title" />
 
                 {/* Description */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
-                  <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4}
+                  <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} disabled={!canEdit}
                     placeholder="Add a description…"
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none disabled:opacity-60" />
                 </div>
 
                 {/* Field grid */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</label>
-                    <select value={type} onChange={e => setType(e.target.value as IssueType)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <select value={type} onChange={e => setType(e.target.value as IssueType)} disabled={!canEdit}
+                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60">
                       {ISSUE_TYPES.map(t => <option key={t} value={t}>{ISSUE_TYPE_CONFIG[t].label}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Priority</label>
-                    <select value={priority} onChange={e => setPriority(e.target.value as IssuePriority)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <select value={priority} onChange={e => setPriority(e.target.value as IssuePriority)} disabled={!canEdit}
+                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60">
                       {ISSUE_PRIORITIES.map(p => <option key={p} value={p}>{ISSUE_PRIORITY_CONFIG[p].label}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assignee</label>
-                    <Input value={assigneeName} onChange={e => setAssigneeName(e.target.value)}
+                    <Input value={assigneeName} onChange={e => setAssigneeName(e.target.value)} disabled={!canEdit}
                       placeholder="Unassigned" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Story Points</label>
-                    <Input type="number" min={0} value={storyPoints} onChange={e => setStoryPoints(e.target.value)}
+                    <Input type="number" min={0} value={storyPoints} onChange={e => setStoryPoints(e.target.value)} disabled={!canEdit}
                       placeholder="—" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Due Date</label>
-                    <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-9 text-sm" />
+                    <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} disabled={!canEdit} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sprint</label>
-                    <select value={issue.sprintId ?? ""} onChange={e => handleSprintChange(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <select value={issue.sprintId ?? ""} onChange={e => handleSprintChange(e.target.value)} disabled={!canEdit}
+                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60">
                       <option value="">Backlog</option>
                       {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -202,9 +211,10 @@ export function IssueDetailDrawer({ issueId, projectId, onClose }: IssueDetailDr
                     {labels.map(l => {
                       const active = labelIds.includes(l.id);
                       return (
-                        <button key={l.id} type="button" onClick={() => toggleLabel(l.id)}
+                        <button key={l.id} type="button" onClick={() => canEdit && toggleLabel(l.id)} disabled={!canEdit}
                           className={cn("px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors",
-                            active ? "border-transparent" : "border-border text-muted-foreground hover:border-foreground/30")}
+                            active ? "border-transparent" : "border-border text-muted-foreground hover:border-foreground/30",
+                            !canEdit && "cursor-default opacity-80")}
                           style={active ? { backgroundColor: `${l.color}22`, color: l.color, borderColor: `${l.color}55` } : undefined}>
                           {l.name}
                         </button>
@@ -221,11 +231,13 @@ export function IssueDetailDrawer({ issueId, projectId, onClose }: IssueDetailDr
                 </div>
 
                 {/* Save */}
-                <div className="flex justify-end">
-                  <Button onClick={handleSave} disabled={!title.trim() || isPending}>
-                    {isPending ? "Saving…" : "Save Changes"}
-                  </Button>
-                </div>
+                {canEdit && (
+                  <div className="flex justify-end">
+                    <Button onClick={handleSave} disabled={!title.trim() || isPending}>
+                      {isPending ? "Saving…" : "Save Changes"}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Comments */}
                 <div className="border-t border-border pt-4 space-y-3">
@@ -247,21 +259,25 @@ export function IssueDetailDrawer({ issueId, projectId, onClose }: IssueDetailDr
                             <p className="text-sm mt-0.5 whitespace-pre-wrap">{c.body}</p>
                           </div>
                         </div>
-                        <button onClick={() => deleteComment.mutate(c.id)}
-                          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-opacity shrink-0">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {canDeleteComment && (
+                          <button onClick={() => deleteComment.mutate(c.id)}
+                            className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-opacity shrink-0">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-end gap-2">
-                    <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
-                      placeholder="Add a comment…"
-                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
-                    <Button size="sm" onClick={handleAddComment} disabled={!comment.trim() || createComment.isPending}>
-                      <Send className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {canCreateComment && (
+                    <div className="flex items-end gap-2">
+                      <textarea value={comment} onChange={e => setComment(e.target.value)} rows={2}
+                        placeholder="Add a comment…"
+                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+                      <Button size="sm" onClick={handleAddComment} disabled={!comment.trim() || createComment.isPending}>
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

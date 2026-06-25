@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateHKTask } from "@/hooks/hospitality/use-hospitality";
 
 const TASK_TYPES = [
   { value: "checkout",   label: "🏃 Checkout",    desc: "Full clean after guest departure" },
@@ -33,6 +34,7 @@ interface AddHKTaskFormProps {
 }
 
 export function AddHKTaskForm({ open, onClose }: AddHKTaskFormProps) {
+  const createTask = useCreateHKTask();
   const [taskType, setTaskType]     = React.useState("checkout");
   const [priority, setPriority]     = React.useState("normal");
   const [roomNumber, setRoomNumber] = React.useState("");
@@ -61,6 +63,20 @@ export function AddHKTaskForm({ open, onClose }: AddHKTaskFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      const TODAY = new Date().toISOString().split("T")[0];
+      await createTask.mutateAsync({
+        taskType, priority, roomNumber, floor: parseInt(floor) || undefined,
+        assignedTo, scheduledAt: scheduledTime || TODAY,
+        estimatedMins: parseInt(estimatedMins) || 45,
+        checklist: checklist.filter(c => c.trim()).map(item => ({ item, done: false })),
+        notes: notes.trim() || undefined, status: 'pending',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -174,7 +190,7 @@ export function AddHKTaskForm({ open, onClose }: AddHKTaskFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Create Task</Button>
+              <Button onClick={handleSave} disabled={!isValid || createTask.isPending}>Create Task</Button>
             </div>
           </motion.div>
         </>

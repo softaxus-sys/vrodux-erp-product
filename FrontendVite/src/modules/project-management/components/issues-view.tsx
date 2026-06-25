@@ -14,11 +14,14 @@ import { ISSUE_TYPES, ISSUE_PRIORITIES, type IssueSummaryDto } from "@/lib/proje
 import { ISSUE_TYPE_CONFIG, ISSUE_PRIORITY_CONFIG } from "../lib/issue-meta";
 import { CreateIssueForm } from "./create-issue-form";
 import { IssueDetailDrawer } from "./issue-detail-drawer";
+import { useAuthStore } from "@/store/auth.store";
 
 type SortKey = "issueKey" | "title" | "priority" | "dueDate" | "storyPoints";
 
 export function IssuesView() {
   const { projectId = "" } = useParams<{ projectId: string }>();
+  const { hasRawPermission } = useAuthStore();
+  const canCreateIssue = hasRawPermission("project-management.issues.create");
 
   const { data: project } = useProject(projectId);
   const { data: issues = [], isLoading } = useIssues({ projectId });
@@ -114,9 +117,11 @@ export function IssuesView() {
             </Link>
           </div>
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> New Issue
-          </Button>
+          {canCreateIssue && (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> New Issue
+            </Button>
+          )}
         </div>
       </div>
 

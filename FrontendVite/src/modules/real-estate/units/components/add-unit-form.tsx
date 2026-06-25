@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateUnit } from "@/hooks/real-estate/use-re";
 
 const UNIT_TYPES    = ["Studio", "1 BR", "2 BR", "3 BR", "4 BR", "5+ BR", "Penthouse", "Duplex", "Office", "Retail", "Warehouse", "Parking"];
 const FURNISHING    = ["Unfurnished", "Semi-Furnished", "Fully Furnished"];
@@ -15,6 +16,7 @@ interface AddUnitFormProps {
 }
 
 export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
+  const createUnit = useCreateUnit();
   const [property, setProperty]       = React.useState("");
   const [unitNo, setUnitNo]           = React.useState("");
   const [floor, setFloor]             = React.useState("");
@@ -39,6 +41,20 @@ export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      await createUnit.mutateAsync({
+        propertyName: property, unitNumber: unitNo, floor: parseInt(floor) || undefined,
+        unitType, area: parseFloat(area) || undefined, furnishing: furnishing.toLowerCase().replace(' ', '_'),
+        view, bedrooms: parseInt(bedrooms) || undefined, bathrooms: parseInt(bathrooms) || undefined,
+        parking: parseInt(parking) || 0, annualRent: parseFloat(annualRent) || undefined,
+        sellingPrice: parseFloat(sellingPrice) || undefined, serviceCharge: parseFloat(serviceCharge) || undefined,
+        notes: notes.trim() || undefined, status: 'available',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -159,7 +175,7 @@ export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Unit</Button>
+              <Button onClick={handleSave} disabled={!isValid || createUnit.isPending}>Save Unit</Button>
             </div>
           </motion.div>
         </>

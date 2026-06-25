@@ -67,9 +67,10 @@ export function IssueCardContent({ issue, onClick, className }: IssueCardContent
 interface SortableIssueCardProps {
   issue: IssueSummaryDto;
   onClick?: () => void;
+  canDrag?: boolean;
 }
 
-export function SortableIssueCard({ issue, onClick }: SortableIssueCardProps) {
+export function SortableIssueCard({ issue, onClick, canDrag = true }: SortableIssueCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: issue.id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -78,7 +79,7 @@ export function SortableIssueCard({ issue, onClick }: SortableIssueCardProps) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...(canDrag ? { ...attributes, ...listeners } : {})}>
       <IssueCardContent issue={issue} onClick={onClick} />
     </div>
   );

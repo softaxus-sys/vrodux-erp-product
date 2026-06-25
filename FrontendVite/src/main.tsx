@@ -1,8 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, HashRouter } from "react-router-dom";
 import { AppProviders } from "@/components/providers/app-providers";
 import { App } from "./App";
+import { initDesktopApiUrl, isDesktop } from "@/lib/desktop";
 import "./index.css";
 
 // ── Global error boundary — shows a readable crash screen instead of blank page ──
@@ -27,14 +28,23 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AppProviders>
-          <App />
-        </AppProviders>
-      </BrowserRouter>
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+// Electron loads from file:// — BrowserRouter can't handle that, so use HashRouter
+const Router = isDesktop ? HashRouter : BrowserRouter;
+
+async function boot() {
+  await initDesktopApiUrl();
+
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <Router>
+          <AppProviders>
+            <App />
+          </AppProviders>
+        </Router>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}
+
+boot();

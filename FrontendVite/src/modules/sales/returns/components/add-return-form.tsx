@@ -4,6 +4,7 @@ import { X, Plus, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCreateReturn } from "@/hooks/sales/use-returns";
 
 const RETURN_REASONS = [
   "Defective / Damaged",
@@ -44,6 +45,7 @@ interface AddReturnFormProps {
 }
 
 export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
+  const createReturn = useCreateReturn();
   const [orderRef, setOrderRef]       = React.useState("");
   const [customer, setCustomer]       = React.useState("");
   const [returnDate, setReturnDate]   = React.useState(new Date().toISOString().split("T")[0]);
@@ -64,6 +66,25 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleProcess = async () => {
+    try {
+      const validLines = lines.filter(l => l.qtyReturned > 0 && l.unitPrice > 0);
+      await createReturn.mutateAsync({
+        salesOrderId: orderRef.trim(),
+        reason: "other" as const,
+        reasonDetail: notes.trim() || undefined,
+        returnAction,
+        items: validLines.map(l => ({
+          description: l.description || l.sku || "Item",
+          quantity: l.qtyReturned,
+          unitPrice: l.unitPrice,
+          lineTotal: l.qtyReturned * l.unitPrice,
+        })),
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -193,7 +214,7 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Process Return</Button>
+              <Button onClick={handleProcess} disabled={!isValid || createReturn.isPending}>Process Return</Button>
             </div>
           </motion.div>
         </>
