@@ -14,6 +14,7 @@ public sealed class ProjectManagementDbContext(DbContextOptions<ProjectManagemen
     public DbSet<Issue>        Issues       => Set<Issue>();
     public DbSet<IssueLabel>   IssueLabels  => Set<IssueLabel>();
     public DbSet<IssueComment> IssueComments => Set<IssueComment>();
+    public DbSet<ProjectMember> ProjectMembers => Set<ProjectMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

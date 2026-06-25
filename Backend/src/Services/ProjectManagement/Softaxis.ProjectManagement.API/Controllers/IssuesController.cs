@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.ProjectManagement.API.Authorization;
 using Softaxis.ProjectManagement.API.Controllers.Common;
 using Softaxis.ProjectManagement.Application.Issues.Commands;
 using Softaxis.ProjectManagement.Application.Issues.Queries;
@@ -15,6 +16,7 @@ public sealed class IssuesController(ISender sender) : ProjectManagementControll
 {
     /// <summary>GET /api/projectmanagement/issues?projectId=&amp;sprintId=&amp;boardColumnId=&amp;type=&amp;assigneeName=&amp;search=</summary>
     [HttpGet]
+    [RequirePermission("project-management.issues.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid projectId, [FromQuery] Guid? sprintId, [FromQuery] Guid? boardColumnId,
         [FromQuery] string? type, [FromQuery] string? assigneeName, [FromQuery] string? search,
@@ -23,11 +25,13 @@ public sealed class IssuesController(ISender sender) : ProjectManagementControll
 
     /// <summary>GET /api/projectmanagement/issues/{id}</summary>
     [HttpGet("{id:guid}")]
+    [RequirePermission("project-management.issues.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetIssueByIdQuery(id), ct));
 
     /// <summary>POST /api/projectmanagement/issues</summary>
     [HttpPost]
+    [RequirePermission("project-management.issues.create")]
     public async Task<IActionResult> Create([FromBody] CreateIssueRequest req, CancellationToken ct)
     {
         var reporterName = User.FindFirstValue(ClaimTypes.Name)
@@ -44,6 +48,7 @@ public sealed class IssuesController(ISender sender) : ProjectManagementControll
 
     /// <summary>PUT /api/projectmanagement/issues/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("project-management.issues.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateIssueRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new UpdateIssueCommand(
             id, req.Title, req.Description, req.Type, req.Priority,
@@ -51,16 +56,19 @@ public sealed class IssuesController(ISender sender) : ProjectManagementControll
 
     /// <summary>POST /api/projectmanagement/issues/{id}/move</summary>
     [HttpPost("{id:guid}/move")]
+    [RequirePermission("project-management.issues.edit")]
     public async Task<IActionResult> Move(Guid id, [FromBody] MoveIssueRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new MoveIssueCommand(id, req.BoardColumnId, req.SortOrder), ct));
 
     /// <summary>POST /api/projectmanagement/issues/{id}/move-to-sprint</summary>
     [HttpPost("{id:guid}/move-to-sprint")]
+    [RequirePermission("project-management.issues.edit")]
     public async Task<IActionResult> MoveToSprint(Guid id, [FromBody] MoveIssueToSprintRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new MoveIssueToSprintCommand(id, req.SprintId, req.SortOrder), ct));
 
     /// <summary>DELETE /api/projectmanagement/issues/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("project-management.issues.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteIssueCommand(id), ct));
 

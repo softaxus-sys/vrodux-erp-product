@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.ProjectManagement.API.Authorization;
 using Softaxis.ProjectManagement.API.Controllers.Common;
 using Softaxis.ProjectManagement.Application.BoardColumns.Commands;
 using Softaxis.ProjectManagement.Application.BoardColumns.Queries;
@@ -14,11 +15,13 @@ public sealed class BoardColumnsController(ISender sender) : ProjectManagementCo
 {
     /// <summary>GET /api/projectmanagement/projects/{projectId}/columns</summary>
     [HttpGet]
+    [RequirePermission("project-management.boards.view")]
     public async Task<IActionResult> GetAll(Guid projectId, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetBoardColumnsQuery(projectId), ct));
 
     /// <summary>POST /api/projectmanagement/projects/{projectId}/columns</summary>
     [HttpPost]
+    [RequirePermission("project-management.boards.create")]
     public async Task<IActionResult> Create(Guid projectId, [FromBody] CreateBoardColumnRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new CreateBoardColumnCommand(projectId, req.Name, req.Category ?? "todo"), ct);
@@ -27,16 +30,19 @@ public sealed class BoardColumnsController(ISender sender) : ProjectManagementCo
 
     /// <summary>PUT /api/projectmanagement/projects/{projectId}/columns/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("project-management.boards.edit")]
     public async Task<IActionResult> Update(Guid projectId, Guid id, [FromBody] UpdateBoardColumnRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new UpdateBoardColumnCommand(id, req.Name), ct));
 
     /// <summary>DELETE /api/projectmanagement/projects/{projectId}/columns/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("project-management.boards.delete")]
     public async Task<IActionResult> Delete(Guid projectId, Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteBoardColumnCommand(id), ct));
 
     /// <summary>POST /api/projectmanagement/projects/{projectId}/columns/reorder</summary>
     [HttpPost("reorder")]
+    [RequirePermission("project-management.boards.edit")]
     public async Task<IActionResult> Reorder(Guid projectId, [FromBody] ReorderBoardColumnsRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new ReorderBoardColumnsCommand(projectId, req.Items), ct));
 

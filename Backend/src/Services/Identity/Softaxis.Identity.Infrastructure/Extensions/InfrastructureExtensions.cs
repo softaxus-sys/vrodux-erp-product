@@ -90,6 +90,34 @@ public static class InfrastructureExtensions
         await SeedAdminAsync(db, passwordHasher);
         await SeedSuperAdminAsync(db, passwordHasher);   // always runs — idempotent
         await SeedPOSRolesAsync(db, passwordHasher);
+        await SyncAdministratorPermissionsAsync(db);     // always runs — idempotent
+    }
+
+    /// <summary>
+    /// Ensures every system "Administrator" role has all currently-seeded permissions.
+    /// New permissions added to <see cref="Softaxis.Identity.Application.Seed.PermissionSeedData"/>
+    /// land here automatically on existing tenants — runs every startup, fully idempotent.
+    /// </summary>
+    private static async Task SyncAdministratorPermissionsAsync(IdentityDbContext db)
+    {
+        var allPermissionIds = db.Set<Identity.Domain.Entities.Permission>().Select(p => p.Id).ToList();
+        var adminRoles = db.Set<Identity.Domain.Entities.Role>()
+            .Include(r => r.RolePermissions)
+            .Where(r => r.IsSystem && r.Name == "Administrator")
+            .ToList();
+
+        var changed = false;
+        foreach (var role in adminRoles)
+        {
+            var existing = role.RolePermissions.Select(rp => rp.PermissionId).ToHashSet();
+            foreach (var id in allPermissionIds.Where(id => !existing.Contains(id)))
+            {
+                role.AddPermission(id);
+                changed = true;
+            }
+        }
+
+        if (changed) await db.SaveChangesAsync();
     }
 
     /// <summary>
