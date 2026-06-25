@@ -15,8 +15,8 @@ RUN dotnet publish src/ApiGateway/Softaxis.ApiGateway/Softaxis.ApiGateway.csproj
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# "Docker" environment triggers the auto-migrate/seed block in Program.cs
 ENV ASPNETCORE_ENVIRONMENT=Docker
+ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
 RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
@@ -24,6 +24,7 @@ USER appuser
 
 COPY --from=build /app/publish .
 
-# Render (and similar PaaS) inject $PORT at runtime and require the app to
-# bind to it; default to 8080 for local docker-compose use where PORT is unset.
-ENTRYPOINT ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-8080} exec dotnet Softaxis.ApiGateway.dll"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -sf http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["dotnet", "Softaxis.ApiGateway.dll"]
