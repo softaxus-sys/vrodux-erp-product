@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vs
+.vscode
+.idea
+*.user
+*.suo
+
+# .NET build output
+**/bin/
+**/obj/
+artifacts/
+
+# Node
+**/node_modules/
+FrontendVite/dist/
+FrontendVite/dist-ssr/
+FrontendVite/.vite/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+**/appsettings.Development.json
+**/appsettings.*.Local.json
+**/secrets.json
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Docker (avoid recursive context)
+docker-compose*.yml
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Misc
+Pricing/
+Frontend/
+Softaxis_ERP_User_Manual.docx
+monitoring/
+scripts/
+ansible/
+database/

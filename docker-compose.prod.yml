@@ -1,0 +1,305 @@
+# ============================================================================
+# Vrodux ERP — Production Docker Compose
+# Contabo VPS: 8 vCPU / 24 GB RAM / 200 GB NVMe / Ubuntu 24.04
+# ============================================================================
+
+services:
+  # ── SQL Server 2022 ───────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: vrodux-sqlserver
+    hostname: vrodux-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SQL_SA_PASSWORD}"
+      MSSQL_PID: "Express"
+      MSSQL_MEMORY_LIMIT_MB: "4096"
+      MSSQL_COLLATION: "SQL_Latin1_General_CP1_CI_AS"
+      TZ: "Asia/Dubai"
+    volumes:
+      - sqlserver-data:/var/opt/mssql/data
+      - sqlserver-log:/var/opt/mssql/log
+      - sqlserver-backup:/var/opt/mssql/backup
+      - ./docker/sqlserver/mssql.conf:/var/opt/mssql/mssql.conf:ro
+    ports:
+      - "127.0.0.1:1433:1433"
+    networks:
+      - vrodux-internal
+    restart: unless-stopped
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" -b -o /dev/null
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+          cpus: "3.0"
+        reservations:
+          memory: 2G
+          cpus: "1.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vrodux-redis
+    hostname: vrodux-redis
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - vrodux-internal
+    restart: unless-stopped
+    healthcheck:
+      test: redis-cli -a "$${REDIS_PASSWORD}" ping | grep -q PONG
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Seq (Structured Logging) ──────────────────────────────────────────────
+  seq:
+    image: datalust/seq:latest
+    container_name: vrodux-seq
+    hostname: vrodux-seq
+    environment:
+      ACCEPT_EULA: "Y"
+      SEQ_API_KEY: "${SEQ_API_KEY:-}"
+    volumes:
+      - seq-data:/data
+    ports:
+      - "127.0.0.1:5341:80"
+    networks:
+      - vrodux-internal
+    restart: unless-stopped
+    healthcheck:
+      test: wget -qO- http://localhost:80/api || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ── Vrodux API (Backend Gateway) ──────────────────────────────────────────
+  vrodux-api:
+    image: ghcr.io/${GITHUB_REPOSITORY:-vrodux/erp}/vrodux-api:${IMAGE_TAG:-latest}
+    container_name: vrodux-api
+    hostname: vrodux-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__IdentityDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__POSDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__InventoryDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__SalesDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__PurchaseDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__HrDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__FinanceDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__CrmDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__ConstructionDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__RealEstateDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__HospitalityDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__RestaurantDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__RecipeDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__ProjectManagementDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      Jwt__Secret: "${JWT_SECRET}"
+      Jwt__Issuer: "Softaxis.Identity.API"
+      Jwt__Audience: "Softaxis.ERP.Clients"
+      Jwt__AccessTokenMinutes: "60"
+      Jwt__RefreshTokenDays: "30"
+      AllowedOrigins__0: "https://${DOMAIN}"
+      AllowedOrigins__1: "https://www.${DOMAIN}"
+      FrontendUrl: "https://${DOMAIN}"
+      Seq__Url: "http://vrodux-seq"
+      Email__SmtpHost: "${SMTP_HOST}"
+      Email__SmtpPort: "${SMTP_PORT}"
+      Email__SmtpUsername: "${SMTP_USERNAME}"
+      Email__SmtpPassword: "${SMTP_PASSWORD}"
+      Email__FromAddress: "${SMTP_FROM_ADDRESS}"
+      Email__FromName: "${SMTP_FROM_NAME}"
+      Redis__ConnectionString: "vrodux-redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - vrodux-internal
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      seq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: curl -sf http://localhost:8080/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+          cpus: "3.0"
+        reservations:
+          memory: 1G
+          cpus: "1.0"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+
+  # ── Vrodux Web (Frontend) ─────────────────────────────────────────────────
+  vrodux-web:
+    image: ghcr.io/${GITHUB_REPOSITORY:-vrodux/erp}/vrodux-web:${IMAGE_TAG:-latest}
+    container_name: vrodux-web
+    hostname: vrodux-web
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - vrodux-internal
+    restart: unless-stopped
+    healthcheck:
+      test: wget -qO- http://localhost:3000/ || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+        reservations:
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Nginx (Reverse Proxy + SSL Termination) ───────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: vrodux-nginx
+    hostname: vrodux-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+      - nginx-cache:/var/cache/nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - vrodux-internal
+    depends_on:
+      - vrodux-api
+      - vrodux-web
+    restart: unless-stopped
+    healthcheck:
+      test: wget -qO- http://localhost:80/nginx-health || exit 1
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ── Certbot (SSL Certificate Renewal) ─────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: vrodux-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done"
+    networks:
+      - vrodux-internal
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.1"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  sqlserver-data:
+    name: vrodux-sqlserver-data
+  sqlserver-log:
+    name: vrodux-sqlserver-log
+  sqlserver-backup:
+    name: vrodux-sqlserver-backup
+  redis-data:
+    name: vrodux-redis-data
+  seq-data:
+    name: vrodux-seq-data
+  certbot-webroot:
+    name: vrodux-certbot-webroot
+  certbot-certs:
+    name: vrodux-certbot-certs
+  nginx-cache:
+    name: vrodux-nginx-cache
+
+# ── Networks ────────────────────────────────────────────────────────────────
+networks:
+  vrodux-internal:
+    name: vrodux-internal
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

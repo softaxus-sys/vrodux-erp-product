@@ -1,0 +1,17 @@
+# ============================================================================
+# Vrodux ERP — Grafana Dashboard Provisioning
+# ============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: "Vrodux ERP"
+    orgId: 1
+    folder: "Vrodux ERP"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

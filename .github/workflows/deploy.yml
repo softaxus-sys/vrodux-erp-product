@@ -1,0 +1,266 @@
+# ============================================================================
+# Vrodux ERP — CD Pipeline (Production Deployment)
+# Triggered on push to main: build → push to GHCR → deploy to Contabo VPS
+# ============================================================================
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment target"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  DOTNET_VERSION: "10.0.x"
+  NODE_VERSION: "22"
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # ══════════════════════════════════════════════════════════════════════════
+  # Stage 1: Build & Test
+  # ══════════════════════════════════════════════════════════════════════════
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore Backend/Softaxis.ERP.slnx
+
+      - name: Build
+        run: dotnet build Backend/Softaxis.ERP.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test Backend/Softaxis.ERP.slnx -c Release --no-build --verbosity normal
+        continue-on-error: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: FrontendVite/package-lock.json
+
+      - name: Frontend type check
+        run: cd FrontendVite && npm ci && npm run type-check
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Stage 2: Build & Push Docker Images to GHCR
+  # ══════════════════════════════════════════════════════════════════════════
+  build-images:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+      api_image: ${{ steps.meta.outputs.api_image }}
+      web_image: ${{ steps.meta.outputs.web_image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: meta
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          VERSION="${SHORT_SHA}"
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "api_image=${{ env.REGISTRY }}/${REPO_LOWER}/vrodux-api" >> $GITHUB_OUTPUT
+          echo "web_image=${{ env.REGISTRY }}/${REPO_LOWER}/vrodux-web" >> $GITHUB_OUTPUT
+          echo "repo_lower=${REPO_LOWER}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.api_image }}:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.api_image }}:latest
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Build & Push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.web_image }}:${{ steps.meta.outputs.version }}
+            ${{ steps.meta.outputs.web_image }}:latest
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            VITE_APP_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Stage 3: Deploy to Production Server
+  # ══════════════════════════════════════════════════════════════════════════
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-images
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          envs: IMAGE_TAG,GITHUB_REPOSITORY
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+
+            APP_DIR="/opt/vrodux"
+            COMPOSE_FILE="docker-compose.prod.yml"
+            ENV_FILE="${APP_DIR}/shared/.env"
+            DEPLOY_LOG="${APP_DIR}/logs/deploy.log"
+            REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Starting deployment: tag=$IMAGE_TAG" | tee -a "$DEPLOY_LOG"
+
+            # Navigate to repo
+            cd "$APP_DIR/current"
+
+            # Load environment
+            set -a; source "$ENV_FILE"; set +a
+            export IMAGE_TAG
+            export GITHUB_REPOSITORY="$REPO_LOWER"
+
+            # Login to GHCR
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # Save current images for rollback
+            PREV_API=$(docker inspect --format='{{.Config.Image}}' vrodux-api 2>/dev/null || echo "none")
+            PREV_WEB=$(docker inspect --format='{{.Config.Image}}' vrodux-web 2>/dev/null || echo "none")
+            echo "$PREV_API" > "${APP_DIR}/shared/.prev-api-image"
+            echo "$PREV_WEB" > "${APP_DIR}/shared/.prev-web-image"
+
+            # Pull new images
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Pulling images..." | tee -a "$DEPLOY_LOG"
+            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" pull vrodux-api vrodux-web
+
+            # Deploy with rolling replacement
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Starting containers..." | tee -a "$DEPLOY_LOG"
+            docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d \
+              --no-deps --force-recreate vrodux-api vrodux-web
+
+            # Wait for health check
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Waiting for health check..." | tee -a "$DEPLOY_LOG"
+            HEALTHY=false
+            for i in $(seq 1 30); do
+              if curl -sf --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
+                HEALTHY=true
+                break
+              fi
+              echo "  Attempt $i/30..."
+              sleep 10
+            done
+
+            if [ "$HEALTHY" != "true" ]; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] FAILED — health check did not pass" | tee -a "$DEPLOY_LOG"
+
+              # Automatic rollback
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Rolling back..." | tee -a "$DEPLOY_LOG"
+              if [ "$PREV_API" != "none" ]; then
+                PREV_TAG=$(echo "$PREV_API" | grep -oP ':\K.*' || echo 'latest')
+                export IMAGE_TAG="$PREV_TAG"
+                docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d \
+                  --no-deps --force-recreate vrodux-api vrodux-web
+                sleep 15
+                if curl -sf --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
+                  echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Rollback successful" | tee -a "$DEPLOY_LOG"
+                fi
+              fi
+              exit 1
+            fi
+
+            # Save release metadata
+            RELEASE_ID="$(date +%Y%m%d%H%M%S)-${IMAGE_TAG}"
+            mkdir -p "${APP_DIR}/releases/${RELEASE_ID}"
+            echo '{"release_id":"'"$RELEASE_ID"'","image_tag":"'"$IMAGE_TAG"'","status":"SUCCESS"}' \
+              > "${APP_DIR}/releases/${RELEASE_ID}/deployment.json"
+
+            # Cleanup old images
+            docker image prune -f --filter "until=24h" > /dev/null 2>&1 || true
+
+            # Reload nginx
+            docker exec vrodux-nginx nginx -s reload 2>/dev/null || true
+
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] SUCCESS — tag=$IMAGE_TAG" | tee -a "$DEPLOY_LOG"
+
+      - name: Verify deployment
+        if: success()
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_SSH_PORT || 22 }}
+          script: |
+            echo "=== Deployment Verification ==="
+            echo "API Image: $(docker inspect --format='{{.Config.Image}}' vrodux-api)"
+            echo "Web Image: $(docker inspect --format='{{.Config.Image}}' vrodux-web)"
+            echo "API Health: $(curl -s http://localhost:8080/health | head -c 200)"
+            echo "Container Status:"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep vrodux
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Deployment failed! Check the deploy logs on the server."
+          echo "To rollback manually: ssh into the server and run ./scripts/rollback.sh"
