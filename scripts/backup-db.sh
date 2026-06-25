@@ -58,11 +58,9 @@ BACKUP_PATH_CONTAINER="/var/opt/mssql/backup/${BACKUP_FILE}.bak"
 # ═══════════════════════════════════════════════════════════════════════════
 info "Step 1/4: Creating compressed SQL Server backup..."
 
-docker exec "$CONTAINER_NAME" /opt/mssql-tools18/bin/sqlcmd \
+if ! docker exec "$CONTAINER_NAME" /opt/mssql-tools18/bin/sqlcmd \
     -S localhost -U sa -P "$SA_PASSWORD" -C \
-    -Q "BACKUP DATABASE [$DATABASE_NAME] TO DISK = N'$BACKUP_PATH_CONTAINER' WITH COMPRESSION, CHECKSUM, INIT, STATS = 10, NAME = N'${BACKUP_FILE}'"
-
-if [[ $? -ne 0 ]]; then
+    -Q "BACKUP DATABASE [$DATABASE_NAME] TO DISK = N'$BACKUP_PATH_CONTAINER' WITH CHECKSUM, INIT, STATS = 10, NAME = N'${BACKUP_FILE}'"; then
     error "SQL Server backup failed!"
     exit 1
 fi
