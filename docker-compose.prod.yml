@@ -163,9 +163,9 @@ services:
       sqlserver:
         condition: service_healthy
       redis:
-        condition: service_healthy
+        condition: service_started
       seq:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: curl -sf http://localhost:8080/health || exit 1
