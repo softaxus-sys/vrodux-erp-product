@@ -20,7 +20,8 @@ RUN dotnet publish src/ApiGateway/Softaxis.ApiGateway/Softaxis.ApiGateway.csproj
     -o /app/publish \
     --no-restore \
     /p:DebugType=none \
-    /p:DebugSymbols=false
+    /p:DebugSymbols=false \
+    /p:ErrorOnDuplicatePublishOutputFiles=false
 
 # ── Stage 2: Runtime ────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
