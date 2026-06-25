@@ -22,7 +22,7 @@ ARG VITE_APP_VERSION
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 
-RUN npm run build
+RUN npx vite build
 
 # ── Stage 3: Production Serve ───────────────────────────────────────────────
 FROM nginx:1.27-alpine AS runtime
