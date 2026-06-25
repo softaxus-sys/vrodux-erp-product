@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.ProjectManagement.Application.Abstractions;
 using Softaxis.ProjectManagement.Application.Projects.Commands;
 using Softaxis.ProjectManagement.Application.Projects.Dtos;
 using Softaxis.ProjectManagement.Domain.Entities;
@@ -8,7 +9,7 @@ using Softaxis.ProjectManagement.Infrastructure.Persistence;
 
 namespace Softaxis.ProjectManagement.Infrastructure.Handlers.Projects;
 
-internal sealed class CreateProjectHandler(ProjectManagementDbContext db)
+internal sealed class CreateProjectHandler(ProjectManagementDbContext db, ICurrentUser currentUser)
     : ICommandHandler<CreateProjectCommand, ProjectDto>
 {
     public async Task<Result<ProjectDto>> Handle(CreateProjectCommand cmd, CancellationToken ct)
@@ -28,7 +29,33 @@ internal sealed class CreateProjectHandler(ProjectManagementDbContext db)
         };
         db.BoardColumns.AddRange(columns);
 
+        ProjectMember? creatorMember = null;
+        if (currentUser.Id is { } uid)
+        {
+            creatorMember = new ProjectMember(
+                entity.Id, uid, currentUser.Username ?? currentUser.Email ?? "Unknown", currentUser.Email, "owner");
+            db.ProjectMembers.Add(creatorMember);
+        }
+
         await db.SaveChangesAsync(ct);
+
+        // Ensure the creator's member row carries the same TenantId as the project.
+        // StampTenantId fires during SaveChangesAsync, but if TenantAmbient.TenantId is
+        // null (super-admin context, no ambient tenant), the stamp is skipped and the
+        // member row gets TenantId = NULL. The project itself also has NULL in that case,
+        // so the tenant query filter (BypassFilter = true for super-admin) still works.
+        // For regular tenant users the stamp succeeds and no repair is needed; this read
+        // is a no-op in that path.
+        if (creatorMember is not null)
+        {
+            var projectTenantId = db.Entry(entity).Property("TenantId").CurrentValue;
+            var memberTenantId  = db.Entry(creatorMember).Property("TenantId").CurrentValue;
+            if (projectTenantId is not null && memberTenantId is null)
+            {
+                db.Entry(creatorMember).Property("TenantId").CurrentValue = projectTenantId;
+                await db.SaveChangesAsync(ct);
+            }
+        }
 
         return Result.Success(ToDto(entity));
     }

@@ -25,6 +25,10 @@ appsettings.Development.json
 appsettings.*.Local.json
 secrets.json
 
+# ── Deploy / build output ─────────────────────────────
+Deploy/server/output/
+FrontendVite/release/
+
 # ── Logs / OS ─────────────────────────────────────────
 *.log
 npm-debug.log*

@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  base: "./",
   plugins: [react()],
   define: {
     // Prevent "process is not defined" from any leftover process.env references

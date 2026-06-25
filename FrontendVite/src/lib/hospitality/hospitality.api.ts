@@ -128,10 +128,15 @@ export interface HKSummaryDto {
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const hospitalityApi = {
-  getRooms:          (): Promise<RoomDto[]>          => rawApiClient.get(`${BASE}/rooms`),
-  getRoomsSummary:   (): Promise<RoomsSummaryDto>    => rawApiClient.get(`${BASE}/rooms/summary`),
-  getBookings:       (): Promise<BookingDto[]>       => rawApiClient.get(`${BASE}/bookings`),
-  getBookingsSummary:(): Promise<BookingsSummaryDto> => rawApiClient.get(`${BASE}/bookings/summary`),
-  getHKTasks:        (): Promise<HKTaskDto[]>        => rawApiClient.get(`${BASE}/housekeeping`),
-  getHKSummary:      (): Promise<HKSummaryDto>       => rawApiClient.get(`${BASE}/housekeeping/summary`),
+  getRooms:           (): Promise<RoomDto[]>          => rawApiClient.get(`${BASE}/rooms`),
+  getRoomsSummary:    (): Promise<RoomsSummaryDto>    => rawApiClient.get(`${BASE}/rooms/summary`),
+  createRoom:         (data: Record<string, unknown>): Promise<RoomDto> => rawApiClient.post(`${BASE}/rooms`, data),
+
+  getBookings:        (): Promise<BookingDto[]>       => rawApiClient.get(`${BASE}/bookings`),
+  getBookingsSummary: (): Promise<BookingsSummaryDto> => rawApiClient.get(`${BASE}/bookings/summary`),
+  createBooking:      (data: Record<string, unknown>): Promise<BookingDto> => rawApiClient.post(`${BASE}/bookings`, data),
+
+  getHKTasks:         (): Promise<HKTaskDto[]>        => rawApiClient.get(`${BASE}/housekeeping`),
+  getHKSummary:       (): Promise<HKSummaryDto>       => rawApiClient.get(`${BASE}/housekeeping/summary`),
+  createHKTask:       (data: Record<string, unknown>): Promise<HKTaskDto> => rawApiClient.post(`${BASE}/housekeeping`, data),
 };

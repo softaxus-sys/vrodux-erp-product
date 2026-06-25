@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateContractor } from "@/hooks/construction/use-construction";
 
 const TRADES = [
   "Civil", "MEP", "Structural", "Finishing", "Landscaping",
@@ -23,6 +24,7 @@ interface AddContractorFormProps {
 }
 
 export function AddContractorForm({ open, onClose }: AddContractorFormProps) {
+  const createContractor = useCreateContractor();
   const [selectedTrades, setSelectedTrades]     = React.useState<string[]>([]);
   const [category, setCategory]                 = React.useState("Subcontractor");
   const [companyName, setCompanyName]           = React.useState("");
@@ -57,6 +59,20 @@ export function AddContractorForm({ open, onClose }: AddContractorFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      await createContractor.mutateAsync({
+        name: companyName, tradeName: tradeName.trim() || undefined, trade: selectedTrades[0],
+        trades: selectedTrades, category: category.toLowerCase(), contactPerson, email, phone,
+        website: website.trim() || undefined, city, emirate, licenseNumber, licenseExpiry,
+        insuranceProvider, insuranceExpiry, paymentTerms, currency,
+        creditLimit: parseFloat(creditLimit) || undefined, bankName, iban,
+        notes: notes.trim() || undefined, status: 'active',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -213,7 +229,7 @@ export function AddContractorForm({ open, onClose }: AddContractorFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Contractor</Button>
+              <Button onClick={handleSave} disabled={!isValid || createContractor.isPending}>Save Contractor</Button>
             </div>
           </motion.div>
         </>

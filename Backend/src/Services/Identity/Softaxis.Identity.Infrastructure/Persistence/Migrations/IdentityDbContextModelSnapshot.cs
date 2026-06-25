@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.16")
+                .HasAnnotation("ProductVersion", "9.0.17")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -1423,6 +1423,146 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "export",
                             Description = "Export settings audit",
                             ModuleId = "settings.audit"
+                        },
+                        new
+                        {
+                            Id = new Guid("5c8ef311-9483-1edb-abac-157b94360757"),
+                            Action = "view",
+                            Description = "View project-management projects",
+                            ModuleId = "project-management.projects"
+                        },
+                        new
+                        {
+                            Id = new Guid("16a51a80-e82c-cf90-ff42-9d45fb65cdb8"),
+                            Action = "create",
+                            Description = "Create project-management projects",
+                            ModuleId = "project-management.projects"
+                        },
+                        new
+                        {
+                            Id = new Guid("fcd125cc-3d8f-4345-30bd-263dce041e19"),
+                            Action = "edit",
+                            Description = "Edit project-management projects",
+                            ModuleId = "project-management.projects"
+                        },
+                        new
+                        {
+                            Id = new Guid("a107e633-3277-4767-3293-e5ed4275ec8b"),
+                            Action = "delete",
+                            Description = "Delete project-management projects",
+                            ModuleId = "project-management.projects"
+                        },
+                        new
+                        {
+                            Id = new Guid("e9ac5cb5-9fc6-3400-5c9c-4181910091d9"),
+                            Action = "view",
+                            Description = "View project-management boards",
+                            ModuleId = "project-management.boards"
+                        },
+                        new
+                        {
+                            Id = new Guid("e6febf8c-f744-7b33-5ce7-c6fa08bf9923"),
+                            Action = "create",
+                            Description = "Create project-management boards",
+                            ModuleId = "project-management.boards"
+                        },
+                        new
+                        {
+                            Id = new Guid("00bd5152-4790-6bec-38c8-04fc3e683c69"),
+                            Action = "edit",
+                            Description = "Edit project-management boards",
+                            ModuleId = "project-management.boards"
+                        },
+                        new
+                        {
+                            Id = new Guid("c90af273-fe09-62ad-d270-7fba027da776"),
+                            Action = "delete",
+                            Description = "Delete project-management boards",
+                            ModuleId = "project-management.boards"
+                        },
+                        new
+                        {
+                            Id = new Guid("bd820bc2-276b-a144-e157-75036e22bd5b"),
+                            Action = "view",
+                            Description = "View project-management labels",
+                            ModuleId = "project-management.labels"
+                        },
+                        new
+                        {
+                            Id = new Guid("47f38351-9553-b3e5-fe74-c550bf76bfc9"),
+                            Action = "create",
+                            Description = "Create project-management labels",
+                            ModuleId = "project-management.labels"
+                        },
+                        new
+                        {
+                            Id = new Guid("f617bf97-49aa-792e-b058-2d6a34294be5"),
+                            Action = "edit",
+                            Description = "Edit project-management labels",
+                            ModuleId = "project-management.labels"
+                        },
+                        new
+                        {
+                            Id = new Guid("f9962e25-cda0-8dec-61f4-cc591ec39d09"),
+                            Action = "delete",
+                            Description = "Delete project-management labels",
+                            ModuleId = "project-management.labels"
+                        },
+                        new
+                        {
+                            Id = new Guid("b38d69f2-9808-4eff-51b0-070eaf7a5980"),
+                            Action = "view",
+                            Description = "View project-management sprints",
+                            ModuleId = "project-management.sprints"
+                        },
+                        new
+                        {
+                            Id = new Guid("b1cfa67d-ea33-315d-acf1-b88ae01143fe"),
+                            Action = "create",
+                            Description = "Create project-management sprints",
+                            ModuleId = "project-management.sprints"
+                        },
+                        new
+                        {
+                            Id = new Guid("40d8dcfe-99b8-8d64-fc4a-77a38a87ed9f"),
+                            Action = "edit",
+                            Description = "Edit project-management sprints",
+                            ModuleId = "project-management.sprints"
+                        },
+                        new
+                        {
+                            Id = new Guid("18671174-7bec-d1df-8b9e-86b1fbea0579"),
+                            Action = "delete",
+                            Description = "Delete project-management sprints",
+                            ModuleId = "project-management.sprints"
+                        },
+                        new
+                        {
+                            Id = new Guid("051c3686-5005-352e-2ecc-139a91256248"),
+                            Action = "view",
+                            Description = "View project-management issues",
+                            ModuleId = "project-management.issues"
+                        },
+                        new
+                        {
+                            Id = new Guid("f1317258-217c-b68e-0330-f20e2871fbbc"),
+                            Action = "create",
+                            Description = "Create project-management issues",
+                            ModuleId = "project-management.issues"
+                        },
+                        new
+                        {
+                            Id = new Guid("b6762b04-baf8-8676-0af0-d9bdb52fd40e"),
+                            Action = "edit",
+                            Description = "Edit project-management issues",
+                            ModuleId = "project-management.issues"
+                        },
+                        new
+                        {
+                            Id = new Guid("489e93f5-766a-81e6-137e-5b83f12c0c49"),
+                            Action = "delete",
+                            Description = "Delete project-management issues",
+                            ModuleId = "project-management.issues"
                         });
                 });
 

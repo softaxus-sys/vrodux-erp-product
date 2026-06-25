@@ -4,6 +4,7 @@ import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
+import { useCreateBOQ } from "@/hooks/construction/use-construction";
 
 const UOM_OPTIONS = ["m²", "m³", "m", "nos", "kg", "ton", "ls", "hr", "day"];
 
@@ -22,6 +23,7 @@ interface AddBOQFormProps {
 }
 
 export function AddBOQForm({ open, onClose }: AddBOQFormProps) {
+  const createBOQ = useCreateBOQ();
   const [projectName, setProjectName]   = React.useState("");
   const [projectRef, setProjectRef]     = React.useState("");
   const [preparedBy, setPreparedBy]     = React.useState("");
@@ -56,6 +58,18 @@ export function AddBOQForm({ open, onClose }: AddBOQFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleCreate = async (asDraft: boolean) => {
+    try {
+      await createBOQ.mutateAsync({
+        name: projectName, projectRef, preparedBy, currency, vatRate: parseFloat(vatRate) || 0,
+        status: asDraft ? 'draft' : 'draft',
+        lines: validLines.map(l => ({ ...l, quantity: l.quantity, unitRate: l.unitRate })),
+        notes: notes.trim() || undefined,
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -208,8 +222,8 @@ export function AddBOQForm({ open, onClose }: AddBOQFormProps) {
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose} disabled={!isValid}>Save as Draft</Button>
-                <Button onClick={onClose} disabled={!isValid}>Create BOQ</Button>
+                <Button variant="outline" onClick={() => handleCreate(true)} disabled={!isValid || createBOQ.isPending}>Save as Draft</Button>
+                <Button onClick={() => handleCreate(false)} disabled={!isValid || createBOQ.isPending}>Create BOQ</Button>
               </div>
             </div>
           </motion.div>

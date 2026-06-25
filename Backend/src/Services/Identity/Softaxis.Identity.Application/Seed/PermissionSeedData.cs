@@ -65,6 +65,13 @@ public static class PermissionSeedData
         ["settings.branches"]    = ["view","create","edit","delete"],
         ["settings.integrations"]= ["view","edit"],
         ["settings.audit"]       = ["view","export"],
+
+        // Project Management
+        ["project-management.projects"] = ["view","create","edit","delete"],
+        ["project-management.boards"]   = ["view","create","edit","delete"],
+        ["project-management.labels"]   = ["view","create","edit","delete"],
+        ["project-management.sprints"]  = ["view","create","edit","delete"],
+        ["project-management.issues"]   = ["view","create","edit","delete"],
     };
 
     public static IReadOnlyList<Permission> GetPermissions()

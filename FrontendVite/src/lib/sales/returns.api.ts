@@ -45,8 +45,17 @@ export interface ReturnsSummaryDto {
 
 // ── API client ────────────────────────────────────────────────────────────────
 
+export interface CreateReturnRequest {
+  salesOrderId: string;
+  reason: ReturnReason;
+  reasonDetail?: string;
+  returnAction?: string;
+  items: { description: string; quantity: number; unitPrice: number; lineTotal: number }[];
+}
+
 export const returnsApi = {
-  getAll:     (): Promise<SalesReturnDto[]>    => rawApiClient(`${BASE}`),
-  getSummary: (): Promise<ReturnsSummaryDto>   => rawApiClient(`${BASE}/summary`),
+  getAll:     (): Promise<SalesReturnDto[]>         => rawApiClient(`${BASE}`),
+  getSummary: (): Promise<ReturnsSummaryDto>        => rawApiClient(`${BASE}/summary`),
   getById:    (id: string): Promise<SalesReturnDto> => rawApiClient(`${BASE}/${id}`),
+  create:     (data: CreateReturnRequest): Promise<SalesReturnDto> => rawApiClient.post(`${BASE}`, data),
 };

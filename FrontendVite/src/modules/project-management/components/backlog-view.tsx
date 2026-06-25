@@ -21,6 +21,7 @@ import type { IssueSummaryDto } from "@/lib/project-management/issues.api";
 import type { SprintDto } from "@/lib/project-management/sprints.api";
 import { SortableIssueCard } from "./issue-card";
 import { IssueDetailDrawer } from "./issue-detail-drawer";
+import { useAuthStore } from "@/store/auth.store";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   planned:   { label: "Planned",   color: "text-muted-foreground", bg: "bg-muted/50" },
@@ -29,7 +30,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 };
 
 function Section({
-  containerId, title, badge, issues, onCardClick, onQuickAdd, children,
+  containerId, title, badge, issues, onCardClick, onQuickAdd, children, canDrag, canCreate,
 }: {
   containerId: string;
   title: React.ReactNode;
@@ -38,6 +39,8 @@ function Section({
   onCardClick: (id: string) => void;
   onQuickAdd: (title: string) => void;
   children?: React.ReactNode;
+  canDrag: boolean;
+  canCreate: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: containerId });
   const [adding, setAdding] = React.useState(false);
@@ -61,7 +64,7 @@ function Section({
       <div ref={setNodeRef} className={cn("p-2 space-y-2 min-h-[64px] transition-colors", isOver && "bg-primary/5")}>
         <SortableContext items={issues.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {issues.map(issue => (
-            <SortableIssueCard key={issue.id} issue={issue} onClick={() => onCardClick(issue.id)} />
+            <SortableIssueCard key={issue.id} issue={issue} onClick={() => onCardClick(issue.id)} canDrag={canDrag} />
           ))}
         </SortableContext>
         {issues.length === 0 && (
@@ -69,7 +72,7 @@ function Section({
             Drop issues here
           </div>
         )}
-        {adding ? (
+        {canCreate && (adding ? (
           <Input value={title2} onChange={e => setTitle2(e.target.value)} autoFocus
             placeholder="Issue title…"
             onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setAdding(false); setTitle2(""); } }}
@@ -80,7 +83,7 @@ function Section({
             className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">
             <Plus className="h-3.5 w-3.5" /> Add issue
           </button>
-        )}
+        ))}
       </div>
       {children}
     </div>
@@ -89,6 +92,12 @@ function Section({
 
 export function BacklogView() {
   const { projectId = "" } = useParams<{ projectId: string }>();
+  const { hasRawPermission } = useAuthStore();
+  const canCreateSprint = hasRawPermission("project-management.sprints.create");
+  const canEditSprint = hasRawPermission("project-management.sprints.edit");
+  const canDeleteSprint = hasRawPermission("project-management.sprints.delete");
+  const canEditIssues = hasRawPermission("project-management.issues.edit");
+  const canCreateIssues = hasRawPermission("project-management.issues.create");
 
   const { data: project } = useProject(projectId);
   const { data: sprints = [], isLoading: sprintsLoading } = useSprints(projectId);
@@ -213,9 +222,11 @@ export function BacklogView() {
               <ListChecks className="h-3.5 w-3.5" /> Issues
             </Link>
           </div>
-          <Button size="sm" onClick={() => setCreatingSprint(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" /> New Sprint
-          </Button>
+          {canCreateSprint && (
+            <Button size="sm" onClick={() => setCreatingSprint(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> New Sprint
+            </Button>
+          )}
         </div>
       </div>
 
@@ -249,13 +260,14 @@ export function BacklogView() {
           <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading backlog…</span>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={canEditIssues ? handleDragEnd : undefined}>
           <div className="space-y-4">
             {activeSprints.map(sprint => {
               const sc = STATUS_CONFIG[sprint.status] ?? STATUS_CONFIG.planned;
               return (
                 <Section key={sprint.id} containerId={sprint.id} issues={board[sprint.id] ?? []}
                   onCardClick={setSelectedIssueId} onQuickAdd={handleQuickAdd(sprint.id)}
+                  canDrag={canEditIssues} canCreate={canCreateIssues}
                   title={
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-sm font-bold truncate">{sprint.name}</span>
@@ -270,17 +282,17 @@ export function BacklogView() {
                   }
                   badge={
                     <div className="flex items-center gap-1.5">
-                      {sprint.status === "planned" && (
+                      {canEditSprint && sprint.status === "planned" && (
                         <Button size="sm" variant="outline" onClick={() => setConfirmAction({ type: "start", sprint })}>
                           <Play className="h-3.5 w-3.5 mr-1.5" /> Start Sprint
                         </Button>
                       )}
-                      {sprint.status === "active" && (
+                      {canEditSprint && sprint.status === "active" && (
                         <Button size="sm" variant="outline" onClick={() => setConfirmAction({ type: "complete", sprint })}>
                           <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Complete Sprint
                         </Button>
                       )}
-                      {sprint.status === "planned" && (board[sprint.id]?.length ?? 0) === 0 && (
+                      {canDeleteSprint && sprint.status === "planned" && (board[sprint.id]?.length ?? 0) === 0 && (
                         <button onClick={() => setConfirmAction({ type: "delete", sprint })}
                           className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive">
                           <Trash2 className="h-3.5 w-3.5" />
@@ -293,6 +305,7 @@ export function BacklogView() {
             })}
 
             <Section containerId="backlog" issues={board.backlog ?? []} onCardClick={setSelectedIssueId} onQuickAdd={handleQuickAdd(null)}
+              canDrag={canEditIssues} canCreate={canCreateIssues}
               title={
                 <div className="flex items-center gap-2">
                   <Inbox className="h-4 w-4 text-muted-foreground" />

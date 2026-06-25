@@ -30,9 +30,20 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    // ── Windows Service support (no-op when run as console) ──────────────────
+    builder.Host.UseWindowsService();
+
     // ── Serilog ───────────────────────────────────────────────────────────────
+    // Single-file publish strips assembly metadata — tell Serilog where to find sinks explicitly
+    var serilogAssemblies = new[]
+    {
+        typeof(Serilog.ConsoleLoggerConfigurationExtensions).Assembly,
+        typeof(Serilog.SerilogHostBuilderExtensions).Assembly,
+        System.Reflection.Assembly.Load("Serilog.Enrichers.Environment"),
+    };
+    var readerOptions = new Serilog.Settings.Configuration.ConfigurationReaderOptions(serilogAssemblies);
     builder.Host.UseSerilog((ctx, cfg) => cfg
-        .ReadFrom.Configuration(ctx.Configuration)
+        .ReadFrom.Configuration(ctx.Configuration, readerOptions)
         .Enrich.FromLogContext()
         .Enrich.WithMachineName());
 
@@ -96,6 +107,11 @@ try
     builder.Services.AddScoped<
         Softaxis.POS.Application.Abstractions.ICurrentUser,
         Softaxis.POS.API.Middleware.CurrentUserService>();
+
+    // ProjectManagement.Application.Abstractions.ICurrentUser  →  ProjectManagement CurrentUserService
+    builder.Services.AddScoped<
+        Softaxis.ProjectManagement.Application.Abstractions.ICurrentUser,
+        Softaxis.ProjectManagement.API.Middleware.CurrentUserService>();
 
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()

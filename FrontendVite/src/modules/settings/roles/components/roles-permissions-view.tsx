@@ -31,9 +31,10 @@ const ACTION_LABELS: Record<Action, string> = {
 const MODULE_GROUPS: Record<string, string> = {
   inventory: "Inventory", pos: "POS", finance: "Finance", hr: "HR",
   crm: "CRM", sales: "Sales", purchase: "Purchase", settings: "Settings",
+  "project-management": "Project Management",
 };
 
-const GROUP_ORDER = ["POS","Inventory","Finance","Sales","Purchase","CRM","HR","Settings"];
+const GROUP_ORDER = ["POS","Inventory","Finance","Sales","Purchase","CRM","HR","Project Management","Settings"];
 
 const ROLE_ICONS = ["🔑","👔","💼","📊","🎯","🛡️","👁️","⚙️","🔧","📋"];
 const ROLE_COLORS = [

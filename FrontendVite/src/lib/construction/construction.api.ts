@@ -179,18 +179,62 @@ export interface BOQSummaryDto {
   totalValue:  number;
 }
 
+// ── Mappers ──────────────────────────────────────────────────────────────────
+
+function mapSite(r: any): SiteDto {
+  return {
+    id:                 r._id ?? r.id ?? "",
+    siteCode:           r.siteCode ?? "",
+    name:               r.name ?? "",
+    projectId:          r.projectId ?? "",
+    projectName:        r.projectName ?? r.project ?? "",
+    location: {
+      address:  r.address ?? r.location?.address ?? "",
+      city:     r.city    ?? r.location?.city    ?? "",
+      emirate:  r.emirate ?? r.location?.emirate ?? "",
+      lat:      r.lat     ?? r.location?.lat     ?? "",
+      lng:      r.lng     ?? r.location?.lng     ?? "",
+    },
+    siteManager:        r.siteManager ?? r.supervisor ?? "",
+    siteManagerPhone:   r.siteManagerPhone ?? r.managerPhone ?? "",
+    safetyOfficer:      r.safetyOfficer ?? "",
+    safetyOfficerPhone: r.safetyOfficerPhone ?? r.officerPhone ?? "",
+    status:             r.status ?? "active",
+    workers: {
+      current: r.currentWorkers ?? r.workers?.current ?? r.workers ?? 0,
+      max:     r.maxWorkers     ?? r.workers?.max     ?? 0,
+    },
+    area:               r.area ?? 0,
+    startDate:          r.startDate ?? "",
+    permitNumber:       r.permitNumber ?? "",
+    permitExpiry:       r.permitExpiry ?? "PENDING",
+    lastInspection:     r.lastInspection ?? "",
+    nextInspection:     r.nextInspection ?? "",
+    safetyScore:        r.safetyScore ?? 0,
+    notes:              r.notes ?? "",
+  };
+}
+
 // ── API ─────────────────────────────────────────────────────────────────────
 
 export const constructionApi = {
-  getProjects:         (): Promise<ProjectDto[]>          => rawApiClient.get(`${BASE}/projects`),
-  getProjectsSummary:  (): Promise<ProjectsSummaryDto>    => rawApiClient.get(`${BASE}/projects/summary`),
+  getProjects:          (): Promise<ProjectDto[]>           => rawApiClient.get(`${BASE}/projects`),
+  getProjectsSummary:   (): Promise<ProjectsSummaryDto>     => rawApiClient.get(`${BASE}/projects/summary`),
+  createProject:        (data: Record<string, unknown>): Promise<ProjectDto> => rawApiClient.post(`${BASE}/projects`, data),
+  deleteProject:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/projects/${id}`),
 
-  getSites:            (): Promise<SiteDto[]>             => rawApiClient.get(`${BASE}/sites`),
-  getSitesSummary:     (): Promise<SitesSummaryDto>       => rawApiClient.get(`${BASE}/sites/summary`),
+  getSites:             (): Promise<SiteDto[]>              => rawApiClient.get(`${BASE}/sites`).then((r: any) => (Array.isArray(r) ? r : r.items ?? []).map(mapSite)),
+  getSitesSummary:      (): Promise<SitesSummaryDto>        => rawApiClient.get(`${BASE}/sites/summary`),
+  createSite:           (data: Record<string, unknown>): Promise<SiteDto> => rawApiClient.post(`${BASE}/sites`, data).then(mapSite),
+  deleteSite:           (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/sites/${id}`),
 
-  getContractors:      (): Promise<ContractorDto[]>       => rawApiClient.get(`${BASE}/contractors`),
-  getContractorsSummary:(): Promise<ContractorsSummaryDto>=> rawApiClient.get(`${BASE}/contractors/summary`),
+  getContractors:       (): Promise<ContractorDto[]>        => rawApiClient.get(`${BASE}/contractors`),
+  getContractorsSummary:(): Promise<ContractorsSummaryDto>  => rawApiClient.get(`${BASE}/contractors/summary`),
+  createContractor:     (data: Record<string, unknown>): Promise<ContractorDto> => rawApiClient.post(`${BASE}/contractors`, data),
+  deleteContractor:     (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/contractors/${id}`),
 
-  getBOQs:             (): Promise<BOQDto[]>              => rawApiClient.get(`${BASE}/boqs`),
-  getBOQSummary:       (): Promise<BOQSummaryDto>         => rawApiClient.get(`${BASE}/boqs/summary`),
+  getBOQs:              (): Promise<BOQDto[]>               => rawApiClient.get(`${BASE}/boqs`),
+  getBOQSummary:        (): Promise<BOQSummaryDto>          => rawApiClient.get(`${BASE}/boqs/summary`),
+  createBOQ:            (data: Record<string, unknown>): Promise<BOQDto> => rawApiClient.post(`${BASE}/boqs`, data),
+  deleteBOQ:            (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/boqs/${id}`),
 };

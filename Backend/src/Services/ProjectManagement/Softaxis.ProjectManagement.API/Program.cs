@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
+using Softaxis.ProjectManagement.API.Middleware;
+using Softaxis.ProjectManagement.Application.Abstractions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
 
 Log.Logger = new LoggerConfiguration()
@@ -40,6 +42,8 @@ try
         });
 
     builder.Services.AddAuthorization();
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<ICurrentUser, CurrentUserService>();
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
 

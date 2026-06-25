@@ -4,16 +4,16 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.ProjectManagement.Application.Projects.Dtos;
 using Softaxis.ProjectManagement.Application.Projects.Queries;
 using Softaxis.ProjectManagement.Infrastructure.Persistence;
+using Softaxis.ProjectManagement.Infrastructure.Services;
 
 namespace Softaxis.ProjectManagement.Infrastructure.Handlers.Projects;
 
-internal sealed class GetProjectsHandler(ProjectManagementDbContext db)
+internal sealed class GetProjectsHandler(ProjectManagementDbContext db, IProjectAccessGuard accessGuard)
     : IQueryHandler<GetProjectsQuery, IReadOnlyList<ProjectSummaryDto>>
 {
     public async Task<Result<IReadOnlyList<ProjectSummaryDto>>> Handle(GetProjectsQuery query, CancellationToken ct)
     {
-        var projects = await db.Projects
-            .AsNoTracking()
+        var projects = await accessGuard.AccessibleProjects(db.Projects.AsNoTracking())
             .OrderBy(p => p.Name)
             .Select(p => new
             {

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
 import type { ModuleKey } from "@/types";
 import { ErpLayout } from "@/components/layout/layouts/erp-layout";
+import { ServerSettingsPrompt } from "@/components/desktop/server-settings-prompt";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 const LoginPage          = React.lazy(() => import("@/pages/auth/login"));
@@ -180,6 +181,7 @@ function PageLoader() {
 export function App() {
   return (
     <React.Suspense fallback={<PageLoader />}>
+      <ServerSettingsPrompt />
       <Routes>
         {/* Root redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />

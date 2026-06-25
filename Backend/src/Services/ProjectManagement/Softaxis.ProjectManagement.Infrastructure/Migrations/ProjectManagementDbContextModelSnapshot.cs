@@ -348,6 +348,51 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                     b.ToTable("projects", "projectmanagement");
                 });
 
+            modelBuilder.Entity("Softaxis.ProjectManagement.Domain.Entities.ProjectMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("member");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ProjectId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("project_members", "projectmanagement");
+                });
+
             modelBuilder.Entity("Softaxis.ProjectManagement.Domain.Entities.Sprint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -493,6 +538,17 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Softaxis.ProjectManagement.Domain.Entities.ProjectMember", b =>
+                {
+                    b.HasOne("Softaxis.ProjectManagement.Domain.Entities.Project", "Project")
+                        .WithMany("Members")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Softaxis.ProjectManagement.Domain.Entities.Sprint", b =>
                 {
                     b.HasOne("Softaxis.ProjectManagement.Domain.Entities.Project", "Project")
@@ -528,6 +584,8 @@ namespace Softaxis.ProjectManagement.Infrastructure.Migrations
                     b.Navigation("Issues");
 
                     b.Navigation("Labels");
+
+                    b.Navigation("Members");
 
                     b.Navigation("Sprints");
                 });

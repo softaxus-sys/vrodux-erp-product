@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateRoom } from "@/hooks/hospitality/use-hospitality";
 
 const ROOM_TYPES    = ["Standard", "Studio", "Deluxe", "Suite", "Penthouse"];
 const VIEWS         = ["Sea", "City", "Pool", "Garden", "Courtyard"];
@@ -24,6 +25,7 @@ interface AddRoomFormProps {
 }
 
 export function AddRoomForm({ open, onClose }: AddRoomFormProps) {
+  const createRoom = useCreateRoom();
   const [roomType, setRoomType]       = React.useState("Standard");
   const [roomNumber, setRoomNumber]   = React.useState("");
   const [floor, setFloor]             = React.useState("1");
@@ -47,6 +49,19 @@ export function AddRoomForm({ open, onClose }: AddRoomFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      await createRoom.mutateAsync({
+        roomNumber, roomType: roomType.toLowerCase(), floor: parseInt(floor) || 1,
+        view: view.toLowerCase(), area: parseFloat(area) || undefined,
+        maxGuests: parseInt(maxGuests) || 2, beds: parseInt(beds) || 1,
+        ratePerNight: parseFloat(ratePerNight) || 0, amenities,
+        description: description.trim() || undefined, status: 'available',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -147,7 +162,7 @@ export function AddRoomForm({ open, onClose }: AddRoomFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Add Room</Button>
+              <Button onClick={handleSave} disabled={!isValid || createRoom.isPending}>Add Room</Button>
             </div>
           </motion.div>
         </>

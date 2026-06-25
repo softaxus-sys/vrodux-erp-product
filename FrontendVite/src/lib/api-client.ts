@@ -7,6 +7,7 @@
  */
 
 import { useAuthStore } from "@/store/auth.store";
+import { getApiBaseUrl } from "@/lib/desktop";
 
 // ── Backend envelope types ────────────────────────────────────────────────────
 
@@ -43,8 +44,7 @@ export class ApiError extends Error {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const IDENTITY_URL =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:5000";
+const IDENTITY_URL = getApiBaseUrl();
 
 // ── Token refresh (called inline, not via auth.api to avoid circular import) ──
 //

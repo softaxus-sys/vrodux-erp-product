@@ -27,10 +27,11 @@ public sealed class Project
     public DateTime? UpdatedAt      { get; private set; }
     public bool      IsDeleted      { get; private set; }
 
-    public ICollection<BoardColumn> BoardColumns { get; private set; } = new List<BoardColumn>();
-    public ICollection<Label>       Labels       { get; private set; } = new List<Label>();
-    public ICollection<Sprint>      Sprints      { get; private set; } = new List<Sprint>();
-    public ICollection<Issue>       Issues       { get; private set; } = new List<Issue>();
+    public ICollection<BoardColumn>   BoardColumns { get; private set; } = new List<BoardColumn>();
+    public ICollection<Label>         Labels       { get; private set; } = new List<Label>();
+    public ICollection<Sprint>        Sprints      { get; private set; } = new List<Sprint>();
+    public ICollection<Issue>         Issues       { get; private set; } = new List<Issue>();
+    public ICollection<ProjectMember> Members      { get; private set; } = new List<ProjectMember>();
 
     public void Rename(string name)
     {

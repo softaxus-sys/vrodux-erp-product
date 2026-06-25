@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth.store";
 import { useProject } from "@/hooks/project-management/use-projects";
 import { useBoardColumns } from "@/hooks/project-management/use-board-columns";
 import { useIssues, useMoveIssue, useCreateIssue } from "@/hooks/project-management/use-issues";
@@ -22,12 +23,14 @@ import { ManageColumnsModal } from "./manage-columns-modal";
 import { IssueDetailDrawer } from "./issue-detail-drawer";
 
 function Column({
-  column, issues, onCardClick, onQuickAdd,
+  column, issues, onCardClick, onQuickAdd, canDrag, canCreate,
 }: {
   column: BoardColumnDto;
   issues: IssueSummaryDto[];
   onCardClick: (id: string) => void;
   onQuickAdd: (columnId: string, title: string) => void;
+  canDrag: boolean;
+  canCreate: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [adding, setAdding] = React.useState(false);
@@ -48,7 +51,7 @@ function Column({
       <div ref={setNodeRef} className={cn("flex-1 p-2 space-y-2 min-h-[120px] overflow-y-auto transition-colors", isOver && "bg-primary/5")}>
         <SortableContext items={issues.map(i => i.id)} strategy={verticalListSortingStrategy}>
           {issues.map(issue => (
-            <SortableIssueCard key={issue.id} issue={issue} onClick={() => onCardClick(issue.id)} />
+            <SortableIssueCard key={issue.id} issue={issue} onClick={() => onCardClick(issue.id)} canDrag={canDrag} />
           ))}
         </SortableContext>
         {issues.length === 0 && !adding && (
@@ -57,26 +60,34 @@ function Column({
           </div>
         )}
       </div>
-      <div className="p-2 border-t border-border/60">
-        {adding ? (
-          <Input value={title} onChange={e => setTitle(e.target.value)} autoFocus
-            placeholder="Issue title…"
-            onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setAdding(false); setTitle(""); } }}
-            onBlur={submit}
-            className="h-8 text-sm" />
-        ) : (
-          <button onClick={() => setAdding(true)}
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">
-            <Plus className="h-3.5 w-3.5" /> Add issue
-          </button>
-        )}
-      </div>
+      {canCreate && (
+        <div className="p-2 border-t border-border/60">
+          {adding ? (
+            <Input value={title} onChange={e => setTitle(e.target.value)} autoFocus
+              placeholder="Issue title…"
+              onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") { setAdding(false); setTitle(""); } }}
+              onBlur={submit}
+              className="h-8 text-sm" />
+          ) : (
+            <button onClick={() => setAdding(true)}
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">
+              <Plus className="h-3.5 w-3.5" /> Add issue
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 export function BoardView() {
   const { projectId = "" } = useParams<{ projectId: string }>();
+  const { hasRawPermission } = useAuthStore();
+  const canManageBoards = hasRawPermission("project-management.boards.create")
+    || hasRawPermission("project-management.boards.edit")
+    || hasRawPermission("project-management.boards.delete");
+  const canEditIssues = hasRawPermission("project-management.issues.edit");
+  const canCreateIssues = hasRawPermission("project-management.issues.create");
 
   const { data: project } = useProject(projectId);
   const { data: columns = [] } = useBoardColumns(projectId);
@@ -179,9 +190,11 @@ export function BoardView() {
               <ListChecks className="h-3.5 w-3.5" /> Issues
             </Link>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setManageOpen(true)}>
-            <Settings2 className="h-3.5 w-3.5 mr-1.5" /> Manage Columns
-          </Button>
+          {canManageBoards && (
+            <Button variant="outline" size="sm" onClick={() => setManageOpen(true)}>
+              <Settings2 className="h-3.5 w-3.5 mr-1.5" /> Manage Columns
+            </Button>
+          )}
         </div>
       </div>
 
@@ -195,11 +208,12 @@ export function BoardView() {
           No board columns configured. Use "Manage Columns" to add one.
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={canEditIssues ? handleDragEnd : undefined}>
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             className="flex gap-3 overflow-x-auto pb-2 flex-1 items-start">
             {boardColumns.map(col => (
-              <Column key={col.id} column={col} issues={board[col.id] ?? []} onCardClick={setSelectedIssueId} onQuickAdd={handleQuickAdd} />
+              <Column key={col.id} column={col} issues={board[col.id] ?? []} onCardClick={setSelectedIssueId} onQuickAdd={handleQuickAdd}
+                canDrag={canEditIssues} canCreate={canCreateIssues} />
             ))}
           </motion.div>
         </DndContext>

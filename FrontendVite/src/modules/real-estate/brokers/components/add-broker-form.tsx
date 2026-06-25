@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCreateBroker } from "@/hooks/real-estate/use-re";
 
 const BROKER_TYPES   = ["Individual Agent", "Agency / Company", "Developer Rep", "Corporate Broker"];
 const SPECIALIZATIONS = ["Residential Sales", "Commercial Sales", "Residential Leasing", "Commercial Leasing", "Off-Plan", "Property Management", "Industrial"];
@@ -14,6 +15,7 @@ interface AddBrokerFormProps {
 }
 
 export function AddBrokerForm({ open, onClose }: AddBrokerFormProps) {
+  const createBroker = useCreateBroker();
   const [brokerType, setBrokerType]     = React.useState("Individual Agent");
   const [name, setName]                 = React.useState("");
   const [company, setCompany]           = React.useState("");
@@ -38,6 +40,18 @@ export function AddBrokerForm({ open, onClose }: AddBrokerFormProps) {
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
+
+  const handleSave = async () => {
+    try {
+      await createBroker.mutateAsync({
+        name, brokerType: brokerType.toLowerCase().replace(' / ', '_').replace(' ', '_'),
+        company: company.trim() || undefined, email, phone, reraNo, reraExpiry: reraExpiry || undefined,
+        specialization, languages, commissionRate: parseFloat(commissionRate) || 2,
+        notes: notes.trim() || undefined, status: 'active',
+      });
+      onClose();
+    } catch { /* hook toasts */ }
+  };
 
   return (
     <AnimatePresence>
@@ -151,7 +165,7 @@ export function AddBrokerForm({ open, onClose }: AddBrokerFormProps) {
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={onClose} disabled={!isValid}>Save Broker</Button>
+              <Button onClick={handleSave} disabled={!isValid || createBroker.isPending}>Save Broker</Button>
             </div>
           </motion.div>
         </>
