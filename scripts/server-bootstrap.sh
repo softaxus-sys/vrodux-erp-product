@@ -121,10 +121,11 @@ MaxSessions 5
 ClientAliveInterval 300
 ClientAliveCountMax 2
 LoginGraceTime 30
-AllowUsers $DEPLOY_USER
+AllowUsers $DEPLOY_USER root
 SSHEOF
 
-systemctl restart sshd
+# Ubuntu 24.04 uses 'ssh' not 'sshd'
+systemctl restart ssh || systemctl restart sshd
 success "SSH hardened (port $SSH_PORT, key-only, root disabled)."
 
 # ═══════════════════════════════════════════════════════════════════════════
