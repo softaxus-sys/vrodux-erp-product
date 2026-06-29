@@ -1,6 +1,7 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.Common;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Entities;
 using RefreshTokenEntity = Softaxis.Identity.Domain.Entities.RefreshToken;
@@ -49,9 +50,6 @@ public sealed class RefreshTokenCommandHandler(
 
         return Result.Success(new AuthTokenDto(
             accessToken, newRaw, jwtService.AccessTokenExpiry,
-            new UserDto(user.Id, user.Email.Value, user.Username,
-                user.FirstName, user.LastName, user.FullName,
-                user.Status.ToString(), user.EmailVerified,
-                user.AvatarUrl, user.PhoneNumber, user.LastLoginAt, user.CreatedAt, [])));
+            UserDtoMapper.ToDto(user)));
     }
 }

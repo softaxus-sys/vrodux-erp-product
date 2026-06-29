@@ -14,6 +14,7 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<Permission>     Permissions     => Set<Permission>();
     public DbSet<UserRole>       UserRoles       => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<RefreshToken>   RefreshTokens   => Set<RefreshToken>();
     public DbSet<AuditLog>       AuditLogs       => Set<AuditLog>();
     public DbSet<Branch>         Branches        => Set<Branch>();

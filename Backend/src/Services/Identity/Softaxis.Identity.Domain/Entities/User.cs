@@ -12,7 +12,8 @@ namespace Softaxis.Identity.Domain.Entities;
 /// </summary>
 public sealed class User : AuditableEntity<Guid>
 {
-    private readonly List<UserRole> _userRoles = [];
+    private readonly List<UserRole>       _userRoles       = [];
+    private readonly List<UserPermission> _userPermissions = [];
 
     // EF Core constructor
     private User() { }
@@ -65,7 +66,8 @@ public sealed class User : AuditableEntity<Guid>
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     // Navigation
-    public IReadOnlyCollection<UserRole> UserRoles => _userRoles.AsReadOnly();
+    public IReadOnlyCollection<UserRole>       UserRoles       => _userRoles.AsReadOnly();
+    public IReadOnlyCollection<UserPermission> UserPermissions => _userPermissions.AsReadOnly();
 
     // ── Factory ───────────────────────────────────────────────────────────────
 
@@ -195,5 +197,24 @@ public sealed class User : AuditableEntity<Guid>
     {
         var userRole = _userRoles.FirstOrDefault(ur => ur.RoleId == roleId);
         if (userRole is not null) _userRoles.Remove(userRole);
+    }
+
+    /// <summary>
+    /// Replace all per-user permission overrides. Each tuple is a (permissionId, isGranted) pair —
+    /// isGranted=true adds a permission beyond the user's roles, isGranted=false explicitly denies one.
+    /// Pass an empty sequence to clear all overrides (revert to pure role permissions).
+    /// </summary>
+    public void SetPermissionOverrides(IEnumerable<(Guid permissionId, bool isGranted)> overrides, string assignedBy = "system")
+    {
+        _userPermissions.Clear();
+        foreach (var (permissionId, isGranted) in overrides.DistinctBy(o => o.permissionId))
+            _userPermissions.Add(new UserPermission
+            {
+                UserId       = Id,
+                PermissionId = permissionId,
+                IsGranted    = isGranted,
+                AssignedBy   = assignedBy,
+            });
+        UpdatedAt = DateTime.UtcNow;
     }
 }

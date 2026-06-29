@@ -16,25 +16,13 @@ import type { RoleSummaryDto, PermissionDto } from "@/lib/identity/types";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth.store";
 import type { ModuleKey } from "@/types";
+import {
+  ACTION_ORDER, ACTION_LABELS, GROUP_ORDER,
+  groupPermissions, moduleLabel,
+} from "@/lib/identity/permission-matrix";
+import { Can } from "@/components/auth/can";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const ACTION_ORDER = ["view","create","edit","delete","approve","export","print","void","refund","discount","adjust"] as const;
-type Action = typeof ACTION_ORDER[number];
-
-const ACTION_LABELS: Record<Action, string> = {
-  view: "View", create: "Create", edit: "Edit", delete: "Delete",
-  approve: "Approve", export: "Export", print: "Print",
-  void: "Void", refund: "Refund", discount: "Discount", adjust: "Adjust",
-};
-
-const MODULE_GROUPS: Record<string, string> = {
-  inventory: "Inventory", pos: "POS", finance: "Finance", hr: "HR",
-  crm: "CRM", sales: "Sales", purchase: "Purchase", settings: "Settings",
-  "project-management": "Project Management",
-};
-
-const GROUP_ORDER = ["POS","Inventory","Finance","Sales","Purchase","CRM","HR","Project Management","Settings"];
 
 const ROLE_ICONS = ["🔑","👔","💼","📊","🎯","🛡️","👁️","⚙️","🔧","📋"];
 const ROLE_COLORS = [
@@ -45,37 +33,6 @@ const ROLE_COLORS = [
   "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
   "bg-cyan-500/10 text-cyan-600 border-cyan-500/20",
 ];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function groupPermissions(perms: PermissionDto[]) {
-  // moduleId examples: "pos.sessions", "finance.invoicing"
-  // group by prefix before first dot
-  const byModule: Record<string, PermissionDto[]> = {};
-  for (const p of perms) {
-    if (!byModule[p.moduleId]) byModule[p.moduleId] = [];
-    byModule[p.moduleId].push(p);
-  }
-  // group modules by prefix
-  const byGroup: Record<string, string[]> = {};
-  for (const moduleId of Object.keys(byModule)) {
-    const prefix = moduleId.split(".")[0];
-    const group = MODULE_GROUPS[prefix] ?? prefix;
-    if (!byGroup[group]) byGroup[group] = [];
-    if (!byGroup[group].includes(moduleId)) byGroup[group].push(moduleId);
-  }
-  // sort modules within each group
-  for (const g of Object.keys(byGroup)) {
-    byGroup[g].sort();
-  }
-  return { byModule, byGroup };
-}
-
-function moduleLabel(moduleId: string) {
-  const parts = moduleId.split(".");
-  if (parts.length < 2) return moduleId;
-  return parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
-}
 
 // ── Confirm Delete Modal ───────────────────────────────────────────────────────
 
@@ -449,9 +406,11 @@ export function RolesPermissionsView() {
             disabled={rolesLoading}>
             <RefreshCw className={cn("h-4 w-4", rolesLoading && "animate-spin")} />
           </Button>
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" />New Role
-          </Button>
+          <Can permission="settings.roles.create">
+            <Button size="sm" className="gap-1.5 h-9" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" />New Role
+            </Button>
+          </Can>
         </div>
       </div>
 

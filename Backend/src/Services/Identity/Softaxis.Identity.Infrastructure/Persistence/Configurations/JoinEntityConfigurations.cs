@@ -27,3 +27,23 @@ public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RoleP
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public sealed class UserPermissionConfiguration : IEntityTypeConfiguration<UserPermission>
+{
+    public void Configure(EntityTypeBuilder<UserPermission> builder)
+    {
+        builder.ToTable("user_permissions");
+        builder.HasKey(up => new { up.UserId, up.PermissionId });
+        builder.Property(up => up.AssignedBy).HasMaxLength(100).HasDefaultValue("system");
+
+        builder.HasOne(up => up.User)
+            .WithMany(u => u.UserPermissions)
+            .HasForeignKey(up => up.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(up => up.Permission)
+            .WithMany()
+            .HasForeignKey(up => up.PermissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

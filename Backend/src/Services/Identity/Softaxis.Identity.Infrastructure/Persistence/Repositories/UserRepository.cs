@@ -12,7 +12,9 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
           .Include(u => u.UserRoles)
             .ThenInclude(ur => ur.Role)
             .ThenInclude(r => r.RolePermissions)
-            .ThenInclude(rp => rp.Permission);
+            .ThenInclude(rp => rp.Permission)
+          .Include(u => u.UserPermissions)
+            .ThenInclude(up => up.Permission);
 
     public Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         BaseQuery.FirstOrDefaultAsync(u => u.Id == id, ct);

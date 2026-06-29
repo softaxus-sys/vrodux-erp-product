@@ -835,6 +835,76 @@ tenant guid. `TenantIsolation`'s global query filter is `TenantId == ambientTena
 
 ---
 
+## Module 5h — Identity: User-Based Permission Overrides (Grant + Deny)
+
+**Added per-user permission overrides on top of the existing role-based system.** Previously a user's
+permissions came *only* from their roles. Now each user can have explicit **grants** (extra permissions beyond
+their roles) and **denies** (remove a role-granted permission for just that user). Industry-standard model
+(AWS IAM / Odoo): **effective = (rolePerms ∪ userGrants) − userDenies**, with **Deny winning**.
+
+### Why it's low-risk — the single chokepoint
+`PermissionRepository.GetPermissionKeysForUserAsync(userId)` is the ONE method that produces the permission
+keys embedded in the JWT (used by both `LoginCommandHandler` and `RefreshTokenCommandHandler`). Applying the
+effective formula there means the JWT `permission` claims, the frontend `hasRawPermission`, and any backend
+`[RequirePermission]` check all respect overrides automatically — no enforcement code changed.
+
+### Backend (Identity service)
+- New entity `Domain/Entities/UserPermission.cs` — `(UserId, PermissionId, IsGranted)`; IsGranted=false = deny.
+- `User.cs` — `_userPermissions` collection + `SetPermissionOverrides(IEnumerable<(Guid,bool)>, assignedBy)`
+  (mirrors `_userRoles`).
+- `JoinEntityConfigurations.cs` — `UserPermissionConfiguration` (table `user_permissions`, PK `{UserId,PermissionId}`,
+  cascade FKs to User + Permission). `IdentityDbContext` — `DbSet<UserPermission> UserPermissions`.
+- **Chokepoint** `PermissionRepository.GetPermissionKeysForUserAsync` rewritten to `(role ∪ grants) − denies`.
+- `UserRepository.BaseQuery` — added `.Include(u => u.UserPermissions).ThenInclude(up => up.Permission)`.
+- `UserDto` — new `IReadOnlyList<PermissionOverrideDto> PermissionOverrides` (`PermissionOverrideDto(PermissionId,Key,IsGranted)`).
+- **New shared mapper** `Application/Common/UserDtoMapper.ToDto(User)` — single source of truth for User→UserDto
+  (roles + overrides). All 5 construction sites now use it: Login, RefreshToken, GetUserById, UpdateUser, CreateUser.
+  (CreateUser reloads via `GetByIdAsync` after save so Role navigation is populated; Register passes `[], []`.)
+- New CQRS `Users/Commands/UpdateUserPermissions/*` + endpoint `PUT /api/users/{id}/permissions`
+  body `{ overrides: [{ permissionId, isGranted }] }`. Empty list clears all overrides. Behind `settings.users.edit`
+  (same surface as role assignment — no new permission key).
+- Migration `AddUserPermissions` (applied; `identity.user_permissions` table confirmed).
+
+### Frontend
+- `lib/identity/types.ts` — `PermissionOverrideDto` + `permissionOverrides` on `UserDto`.
+- `lib/identity/users.api.ts` — `updatePermissions(userId, overrides)`. `hooks/identity/use-users.ts` — `useUpdateUserPermissions`.
+- **`lib/identity/permission-matrix.ts`** (NEW) — extracted shared matrix helpers (`ACTION_ORDER`, `ACTION_LABELS`,
+  `MODULE_GROUPS`, `GROUP_ORDER`, `groupPermissions`, `moduleLabel`, `buildPermActionMap`); `roles-permissions-view.tsx`
+  now imports them (deduped).
+- **`modules/settings/users/components/user-permissions-tab.tsx`** (NEW) — tri-state matrix editor. Cell states:
+  inherited-from-role (faded check), **granted** (green check), **denied** (red ✕), off (empty). Click cycles:
+  role-granted ⇄ deny; not-granted ⇄ off/grant. "Save overrides" sends only non-inherited cells;
+  "Reset to role defaults" clears all. Amber dot marks any non-inherited cell.
+- `users-view.tsx` — `UserDrawer` gained a **Profile | Permissions** tab switcher; panel widens to `max-w-3xl`
+  on the Permissions tab to fit the matrix.
+- `store/auth.store.ts` — `extractRawPermissions(dto)` now applies overrides (`(role∪grants)−denies`, deny last)
+  so the logged-in user's own `hasRawPermission` matches the backend JWT.
+- **`components/auth/can.tsx`** (NEW) — `<Can permission="x.y.z">…</Can>` + `useCan(key)` gating helper
+  (wraps `hasRawPermission`). Applied as the **reference** to the Create User (`settings.users.create`) and
+  New Role (`settings.roles.create`) buttons.
+
+### Scope boundaries (confirmed follow-ups, NOT done here)
+- Backend `[RequirePermission]` enforcement still only in ProjectManagement — rollout to the other 14 services
+  is separate mechanical follow-up. The override chokepoint already makes those checks correct once added.
+- Exhaustive per-button `<Can>`/`hasRawPermission` gating across all modules is follow-up; only the reference
+  buttons are gated so far.
+
+### ⚠️ Deploy note (on-prem / self-contained service)
+The **VroduxERP Windows Service runs the published self-contained exe** (`Deploy/server/output/`), so backend
+changes do NOT take effect until you **republish + restart the service** (`Deploy/server/publish.bat`, then
+stop/start the service from an elevated shell). The `AddUserPermissions` migration is already applied to
+`SoftaxisErpDb` and runs automatically on startup via `MigrateAndSeedAsync` for fresh deployments. End-to-end
+verified by running the new build on port 5099 against the same DB (grant/deny/reset all confirmed at JWT level).
+
+### Build / Verification Status
+- **Backend (Identity.API + full ApiGateway):** 0 errors ✅
+- **Frontend `tsc --noEmit`:** 0 errors ✅
+- **E2E (port 5099, same DB):** no-role user + grant `hr.payroll.approve` → claim appears; Administrator-role
+  user + deny `finance.expenses.delete` → claim removed (deny beats role); `GET /users/{id}` returns the
+  override; reset restores defaults; no-override user unchanged (regression). ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

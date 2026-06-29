@@ -1,6 +1,7 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.Common;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Repositories;
@@ -60,11 +61,8 @@ public sealed class CreateUserCommandHandler(
         auditRepo.Add(new AuditLog(currentUser.Id, "CREATE_USER", "User", user.Id.ToString(), null, null, null, null, true, currentUser.TenantId));
         await uow.SaveChangesAsync(ct);
 
-        return Result.Success(ToDto(user));
+        // Reload with full role/permission navigation so the DTO is complete.
+        var created = await userRepo.GetByIdAsync(user.Id, ct);
+        return Result.Success(UserDtoMapper.ToDto(created ?? user));
     }
-
-    private static UserDto ToDto(User u) =>
-        new(u.Id, u.Email.Value, u.Username, u.FirstName, u.LastName,
-            u.FullName, u.Status.ToString(), u.EmailVerified,
-            u.AvatarUrl, u.PhoneNumber, u.LastLoginAt, u.CreatedAt, []);
 }
