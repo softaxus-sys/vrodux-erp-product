@@ -53,6 +53,16 @@ public interface IPollSyncLeadProvider : ILeadProvider
     Task<IReadOnlyList<CanonicalLead>> FetchAsync(Integration integration, CancellationToken ct);
 }
 
+/// <summary>
+/// Providers whose inbound payload only references a lead (e.g. Meta sends a leadgen_id) and
+/// must call back to the provider API to retrieve the full record. The inbox processor prefers
+/// <see cref="NormalizeAsync"/> over the synchronous <see cref="ILeadProvider.Normalize"/>.
+/// </summary>
+public interface IAsyncLeadProvider : ILeadProvider
+{
+    Task<IReadOnlyList<CanonicalLead>> NormalizeAsync(string rawPayload, Integration integration, CancellationToken ct);
+}
+
 public sealed record OAuthResult(
     string AccessToken,
     string? RefreshToken,

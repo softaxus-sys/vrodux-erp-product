@@ -96,6 +96,7 @@ public sealed class RawLeadInboxProcessor(
     {
         var integration = await db.Integrations
             .Include(x => x.FieldMappings)
+            .Include(x => x.Resources)
             .FirstOrDefaultAsync(x => x.Id == row.IntegrationId, ct);
 
         if (integration is null)
@@ -110,7 +111,9 @@ public sealed class RawLeadInboxProcessor(
         db.IntegrationSyncLogs.Add(log);
 
         var provider = registry.Find(integration.ProviderKey);
-        var leads = provider?.Normalize(row.Payload, integration) ?? [];
+        var leads = provider is IAsyncLeadProvider asyncProvider
+            ? await asyncProvider.NormalizeAsync(row.Payload, integration, ct)
+            : provider?.Normalize(row.Payload, integration) ?? [];
 
         if (leads.Count == 0)
         {

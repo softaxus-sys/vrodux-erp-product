@@ -8,6 +8,7 @@ using Softaxis.CRM.Application;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Infrastructure.Integrations;
 using Softaxis.CRM.Infrastructure.Integrations.Providers;
+using Softaxis.CRM.Infrastructure.Integrations.Providers.Meta;
 using Softaxis.CRM.Infrastructure.Integrations.Security;
 using Softaxis.CRM.Infrastructure.Integrations.Services;
 using Softaxis.CRM.Infrastructure.Persistence;
@@ -65,7 +66,11 @@ public static class InfrastructureExtensions
             "custom-api", "Custom API", ProviderCategory.Custom,
             "Push leads programmatically with a per-tenant inbound key and optional HMAC signing.",
             inbound | ProviderCapabilities.ApiKey)));
-        // OAuth / poll providers (Meta in C3, stubs in C5) register alongside these.
+        // ── Meta (Facebook / Instagram Lead Ads) — OAuth + webhook + poll ─────
+        services.Configure<MetaOptions>(configuration.GetSection(MetaOptions.Section));
+        services.AddHttpClient("meta");
+        services.AddSingleton<MetaGraphClient>();
+        services.AddSingleton<ILeadProvider, MetaLeadProvider>();
 
         // ── Background processing (inbox drain + retry) ───────────────────────
         services.AddHostedService<RawLeadInboxProcessor>();
