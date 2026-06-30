@@ -15,9 +15,13 @@ public sealed class MetaOptions
     public string VerifyToken  { get; set; } = string.Empty;
     public string GraphVersion { get; set; } = "v21.0";
 
-    /// <summary>OAuth scopes requested for Lead Ads retrieval + page management.</summary>
+    /// <summary>
+    /// OAuth scopes requested for Lead Ads retrieval + page management.
+    /// pages_manage_ads is required to read a page's leadgen_forms; leads_retrieval to
+    /// download the lead data; pages_manage_metadata to subscribe the page to webhooks.
+    /// </summary>
     public string Scopes { get; set; } =
-        "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_metadata,ads_management,business_management";
+        "leads_retrieval,pages_show_list,pages_read_engagement,pages_manage_metadata,pages_manage_ads,business_management";
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(AppId) && !string.IsNullOrWhiteSpace(AppSecret);
 }

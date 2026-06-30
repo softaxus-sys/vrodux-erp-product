@@ -646,9 +646,17 @@ function Empty({ text }: { text: string }) {
 function MetaSelectModal({ integrationId, onClose }: { integrationId: string; onClose: () => void }) {
   const { data: pages = [], isLoading } = useMetaPages(integrationId, true);
   const select = useSelectMetaTargets();
+  const startOAuth = useStartMetaOAuth();
   const [expanded, setExpanded] = React.useState<string | null>(null);
   const [forms, setForms] = React.useState<Record<string, MetaForm[]>>({});
   const [picked, setPicked] = React.useState<Record<string, Set<string>>>({});
+
+  async function reauthorize() {
+    try {
+      const { url } = await startOAuth.mutateAsync(integrationId);
+      window.location.href = url;   // re-consent to refresh granted permissions
+    } catch { /* hook toasts */ }
+  }
 
   async function toggleExpand(pageId: string) {
     setExpanded((p) => (p === pageId ? null : pageId));
@@ -723,11 +731,17 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
             ))}
         </div>
 
-        <div className="p-4 border-t border-border flex justify-end gap-2">
+        <div className="p-4 border-t border-border flex items-center justify-between gap-2">
+          <Button variant="ghost" size="sm" className="gap-1.5" disabled={startOAuth.isPending} onClick={reauthorize}>
+            {startOAuth.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Re-authorize with Facebook
+          </Button>
+          <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button size="sm" disabled={select.isPending} onClick={save}>
             {select.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect selected"}
           </Button>
+          </div>
         </div>
       </motion.div>
     </>
