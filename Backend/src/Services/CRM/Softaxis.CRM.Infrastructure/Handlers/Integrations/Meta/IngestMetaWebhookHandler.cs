@@ -44,8 +44,10 @@ internal sealed class IngestMetaWebhookHandler(CrmDbContext db, ILeadProviderReg
             if (!matches) continue;
 
             var tenantId = (Guid?)db.Entry(integration).Property(TenantIsolation.Column).CurrentValue;
+            if (tenantId is null) continue;   // tenant-less (orphaned) integration — skip, never queue null-tenant leads
+
             var inbox = new RawLeadInbox(integration.Id, "meta", cmd.RawBody, externalId: null);
-            if (tenantId is not null) db.Entry(inbox).Property(TenantIsolation.Column).CurrentValue = tenantId;
+            db.Entry(inbox).Property(TenantIsolation.Column).CurrentValue = tenantId;
             db.RawLeadInbox.Add(inbox);
             queued++;
         }

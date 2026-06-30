@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Integrations.Commands;
 using Softaxis.CRM.Application.Integrations.Dtos;
@@ -18,6 +19,13 @@ internal sealed class CreateIntegrationHandler(
 {
     public async Task<Result<IntegrationDto>> Handle(CreateIntegrationCommand cmd, CancellationToken ct)
     {
+        // Integrations belong to a tenant — leads created from them are tenant-scoped.
+        // A super-admin session has no tenant, so block creation there (otherwise the
+        // row is stamped TenantId = NULL and its leads can never be attributed).
+        if (TenantAmbient.TenantId is null)
+            return Result.Failure<IntegrationDto>(Error.Custom("Integration.Conflict",
+                "Connect integrations from a tenant account, not a super-admin session."));
+
         var provider = registry.Find(cmd.ProviderKey);
         if (provider is null)
             return Result.Failure<IntegrationDto>(Error.Custom("Integration.UnknownProvider",

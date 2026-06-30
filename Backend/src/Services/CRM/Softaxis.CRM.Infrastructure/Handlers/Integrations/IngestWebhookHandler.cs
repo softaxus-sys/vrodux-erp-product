@@ -35,10 +35,12 @@ internal sealed class IngestWebhookHandler(
             return Result.Failure<WebhookAck>(Error.Custom("Webhook.Unauthorized", "Invalid signature."));
 
         var tenantId = (Guid?)db.Entry(integration).Property(TenantIsolation.Column).CurrentValue;
+        if (tenantId is null)
+            return Result.Failure<WebhookAck>(Error.Custom("Webhook.Conflict",
+                "Integration is not attached to a tenant."));
 
         var inbox = new RawLeadInbox(integration.Id, integration.ProviderKey, cmd.RawBody, externalId: null);
-        if (tenantId is not null)
-            db.Entry(inbox).Property(TenantIsolation.Column).CurrentValue = tenantId;
+        db.Entry(inbox).Property(TenantIsolation.Column).CurrentValue = tenantId;
 
         db.RawLeadInbox.Add(inbox);
         await db.SaveChangesAsync(ct);
