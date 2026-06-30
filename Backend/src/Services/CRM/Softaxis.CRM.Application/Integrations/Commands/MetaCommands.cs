@@ -18,5 +18,12 @@ public sealed record MetaCallbackResult(Guid IntegrationId);
 /// <summary>Enable the chosen pages/forms, subscribe pages to webhooks, mark the integration connected.</summary>
 public sealed record SelectMetaTargetsCommand(Guid IntegrationId, IReadOnlyList<MetaPageSelection> Pages) : ICommand;
 
+/// <summary>
+/// App-level Meta leadgen webhook (anonymous). Meta posts ALL pages' events to one callback URL,
+/// so this fans out by page_id to the matching tenant integration(s) and queues them for processing.
+/// </summary>
+public sealed record IngestMetaWebhookCommand(
+    string RawBody, IReadOnlyDictionary<string, string> Headers) : ICommand<WebhookAck>;
+
 public sealed record MetaPageSelection(string PageId, IReadOnlyList<MetaFormSelection> Forms);
 public sealed record MetaFormSelection(string FormId, string Name);

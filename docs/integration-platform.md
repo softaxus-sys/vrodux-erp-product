@@ -89,9 +89,10 @@ company,title,industry,address,city,country,notes,source,campaign,fields{}`). Re
 ### Inbound (anonymous, resolved by inbound key)
 | Method | Route | Notes |
 |---|---|---|
-| GET | `/api/webhooks/{inboundKey}` | Provider verification handshake (e.g. Meta `hub.challenge`). |
+| GET | `/api/webhooks/{inboundKey}` | Provider verification handshake. |
 | POST | `/api/webhooks/{inboundKey}` | Receive a lead (JSON or HTML form). Stored + acked immediately. |
 | GET | `/api/webhooks/{inboundKey}/snippet.js` | Website capture snippet. |
+| GET/POST | `/api/webhooks/meta` | App-level Meta leadgen webhook (single callback for all pages/tenants; fans out by `page_id`). |
 
 ### Meta OAuth (JWT except the callback)
 `POST /meta/{id}/oauth/start` → `{url}`; `GET /meta/oauth/callback` (anonymous);
@@ -120,7 +121,10 @@ immediately** and gets an unguessable inbound URL: `{PublicBaseUrl}/api/webhooks
 1. Create a Meta app (developers.facebook.com); add **Webhooks** + **Leads Retrieval**.
 2. Configure `Meta:AppId`, `Meta:AppSecret`, `Meta:VerifyToken`, `Meta:GraphVersion` (env:
    `Meta__AppId`, …). Whitelist `{PublicBaseUrl}/api/crm/integrations/meta/oauth/callback`.
-3. Set the app's webhook callback URL to a tenant's inbound URL with verify token = `Meta:VerifyToken`.
+3. Set the app's **single** webhook callback URL (Meta App → Webhooks → Page) to
+   `{PublicBaseUrl}/api/webhooks/meta` with verify token = `Meta:VerifyToken`, and subscribe to
+   the `leadgen` field. Meta delivers every page's events to this one URL; the handler fans them
+   out to the matching tenant integration by `page_id`.
 4. In the UI: **Connect** Meta → OAuth consent → pick pages & forms. Selected pages are subscribed
    to `leadgen`; page access tokens are stored encrypted.
 5. On a new lead, Meta posts a `leadgen` notification → stored in the inbox → the processor calls

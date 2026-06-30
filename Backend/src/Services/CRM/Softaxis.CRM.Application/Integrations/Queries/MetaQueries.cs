@@ -11,3 +11,6 @@ public sealed record MetaPageDto(string PageId, string Name, bool Enabled);
 public sealed record GetMetaFormsQuery(Guid IntegrationId, string PageId) : IQuery<IReadOnlyList<MetaFormDto>>;
 
 public sealed record MetaFormDto(string FormId, string Name, bool Enabled);
+
+/// <summary>App-level Meta webhook verification handshake (hub.challenge against the app verify token).</summary>
+public sealed record VerifyMetaWebhookQuery(IReadOnlyDictionary<string, string> Query) : IQuery<string>;
