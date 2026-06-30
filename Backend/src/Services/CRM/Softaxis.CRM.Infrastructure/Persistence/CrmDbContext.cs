@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.CRM.Domain.Entities;
+using Softaxis.CRM.Domain.Entities.Integrations;
 
 namespace Softaxis.CRM.Infrastructure.Persistence;
 
@@ -23,6 +24,14 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
     public DbSet<Proposal>        Proposals        => Set<Proposal>();
     public DbSet<ServiceContract> ServiceContracts => Set<ServiceContract>();
     public DbSet<SupportTicket>   SupportTickets   => Set<SupportTicket>();
+
+    // ── Integration platform (lead sources) ───────────────────────────────────
+    public DbSet<Integration>         Integrations             => Set<Integration>();
+    public DbSet<FieldMapping>        IntegrationFieldMappings => Set<FieldMapping>();
+    public DbSet<IntegrationResource> IntegrationResources     => Set<IntegrationResource>();
+    public DbSet<IntegrationSyncLog>  IntegrationSyncLogs      => Set<IntegrationSyncLog>();
+    public DbSet<RawLeadInbox>        RawLeadInbox             => Set<RawLeadInbox>();
+    public DbSet<LeadSource>          LeadSources              => Set<LeadSource>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -5,6 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.CRM.Application;
+using Softaxis.CRM.Application.LeadIntake.Abstractions;
+using Softaxis.CRM.Infrastructure.Integrations;
+using Softaxis.CRM.Infrastructure.Integrations.Providers;
+using Softaxis.CRM.Infrastructure.Integrations.Security;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Persistence.Seed;
 
@@ -32,6 +36,16 @@ public static class InfrastructureExtensions
 
         // ── FluentValidation — register all validators from Application ───────
         services.AddValidatorsFromAssembly(typeof(AssemblyReference).Assembly);
+
+        // ── Integration platform (lead sources) ──────────────────────────────
+        // Secret encryption over ASP.NET Core Data Protection (host calls AddDataProtection()).
+        services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
+        // Provider registry auto-discovers every ILeadProvider registered below.
+        services.AddSingleton<ILeadProviderRegistry, LeadProviderRegistry>();
+        // The single intake pipeline (mapping → dedupe → create → routing → notification).
+        services.AddScoped<ILeadIntakeService, LeadIntakeService>();
+        // Providers are registered here as they come online (Webhook/Meta/… in later phases):
+        //   services.AddSingleton<ILeadProvider, MetaLeadProvider>();
 
         return services;
     }

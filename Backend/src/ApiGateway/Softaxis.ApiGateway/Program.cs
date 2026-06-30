@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.AspNetCore.DataProtection;
 using Scalar.AspNetCore;
 using Serilog;
 using Softaxis.ApiGateway.Middleware;
@@ -93,6 +94,16 @@ try
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
+
+    // ── Data Protection — encrypts integration secrets (OAuth tokens, API keys, ──
+    //    webhook signing secrets). Keys are persisted so encrypted values survive
+    //    restarts; a fixed application name keeps the ring stable across hosts.
+    var dpKeyPath = builder.Configuration["DataProtection:KeyPath"]
+        ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "dp-keys");
+    Directory.CreateDirectory(dpKeyPath);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(dpKeyPath))
+        .SetApplicationName("Softaxis.ERP");
 
     // ── HTTP Context ──────────────────────────────────────────────────────────
     builder.Services.AddHttpContextAccessor();
