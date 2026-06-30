@@ -2,8 +2,11 @@ import path from "path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  base: "./",
+// Web build (nginx) must use an absolute base so deep links / hard refreshes resolve
+// assets from "/assets/...". Electron loads over file:// and needs a relative base,
+// so the electron build passes `--mode electron`.
+export default defineConfig(({ mode }) => ({
+  base: mode === "electron" ? "./" : "/",
   plugins: [react()],
   define: {
     // Prevent "process is not defined" from any leftover process.env references
@@ -57,4 +60,4 @@ export default defineConfig({
       "lucide-react",
     ],
   },
-});
+}));
