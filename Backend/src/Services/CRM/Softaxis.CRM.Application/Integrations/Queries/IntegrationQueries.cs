@@ -16,3 +16,6 @@ public sealed record GetIntegrationSyncLogsQuery(Guid IntegrationId)
 /// <summary>Per-integration inbound history / error log (optionally filtered by status).</summary>
 public sealed record GetIntegrationInboxQuery(Guid IntegrationId, string? Status)
     : IQuery<IReadOnlyList<RawLeadInboxDto>>;
+
+/// <summary>Reveal the inbound URL + decrypted signing secret (editors only).</summary>
+public sealed record GetIntegrationSecretQuery(Guid Id) : IQuery<IntegrationSecretDto>;

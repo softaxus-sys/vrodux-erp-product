@@ -48,3 +48,6 @@ public sealed record IntegrationSyncLogDto(
 public sealed record RawLeadInboxDto(
     Guid Id, string ProviderKey, string? ExternalId, string Status, int Attempts,
     string? LastError, Guid? CreatedLeadId, DateTime ReceivedAt, DateTime? ProcessedAt);
+
+/// <summary>The decrypted inbound credentials — returned only to integration editors.</summary>
+public sealed record IntegrationSecretDto(string? InboundUrl, string? SigningSecret);

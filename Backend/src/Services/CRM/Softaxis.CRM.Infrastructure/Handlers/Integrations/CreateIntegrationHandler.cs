@@ -33,6 +33,12 @@ internal sealed class CreateIntegrationHandler(
         var rawSecret = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         integration.SetSigningSecret(protector.Protect(rawSecret));
 
+        // Inbound-key providers (webhook/custom/website/zapier/make) are live on creation —
+        // possession of the inbound URL is the credential. OAuth providers connect separately.
+        var caps = provider.Descriptor.Capabilities;
+        if (caps.HasFlag(ProviderCapabilities.InboundKey) && !caps.HasFlag(ProviderCapabilities.OAuth))
+            integration.MarkConnected();
+
         db.Integrations.Add(integration);
         await db.SaveChangesAsync(ct);
 

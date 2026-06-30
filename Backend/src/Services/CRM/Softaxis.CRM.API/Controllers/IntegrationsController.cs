@@ -43,6 +43,12 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> GetInbox(Guid id, [FromQuery] string? status, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetIntegrationInboxQuery(id, status), ct));
 
+    /// <summary>Reveal the inbound URL + decrypted signing secret (for configuring HMAC senders).</summary>
+    [HttpGet("{id:guid}/secret")]
+    [RequirePermission("settings.integrations.edit")]
+    public async Task<IActionResult> GetSecret(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetIntegrationSecretQuery(id), ct));
+
     [HttpPost]
     [RequirePermission("settings.integrations.edit")]
     public async Task<IActionResult> Create([FromBody] CreateIntegrationCommand cmd, CancellationToken ct)

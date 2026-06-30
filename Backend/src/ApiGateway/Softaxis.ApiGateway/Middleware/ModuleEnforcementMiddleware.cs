@@ -60,6 +60,7 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
         "/api/auth/",
         "/api/admin/",      // super-admin management (gated separately by SuperAdminOnly policy)
         "/api/license/",
+        "/api/webhooks/",   // anonymous inbound lead endpoints (tenant resolved by inbound key)
         "/openapi",
         "/scalar",
     ];
