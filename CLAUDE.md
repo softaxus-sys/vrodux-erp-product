@@ -1093,6 +1093,69 @@ interface EmployeeDto {
 
 ---
 
+## Module 7 — CRM: Integration Platform (lead sources / provider framework)
+
+**New tenant-isolated Integration Framework inside `Softaxis.CRM.*` (schema `crm`)** — connects
+external lead sources and funnels every lead through ONE pipeline into the CRM. Built as a
+plug-in provider model so new sources are one class + one DI line, **zero CRM/pipeline changes**.
+Full design + dev guide: `docs/integration-platform.md`. Lives in CRM because the canonical
+`Lead` + dedupe/routing run in the same `CrmDbContext` transaction (modular monolith, no broker).
+
+### Backend (CRM service)
+- **Domain** `Softaxis.CRM.Domain/Entities/Integrations/`: `Integration` (status/health, encrypted
+  `Credentials`/`SigningSecret`, `InboundKey`, dedupe/routing JSON, telemetry), `FieldMapping`,
+  `IntegrationResource` (page/form/sheet, encrypted per-resource `AccessToken`), `IntegrationSyncLog`,
+  `RawLeadInbox` (durable inbox + retry/backoff + error log), `LeadSource` (1:1 provenance — keeps
+  core `Lead` untouched). All auto tenant-isolated via the CRM namespace filter.
+- **Provider model** (`Application/LeadIntake/Abstractions`): `ILeadProvider` + capability interfaces
+  `IOAuthLeadProvider` / `IWebhookLeadProvider` / `IAsyncLeadProvider` (payload references a lead to
+  fetch — Meta) / `IPollSyncLeadProvider`; `ILeadProviderRegistry` (DI-discovered, Factory).
+- **Pipeline** `ILeadIntakeService` (`Infrastructure/Integrations/LeadIntakeService.cs`): field mapping
+  → configurable dedupe (email/phone/externalId) → `Lead` create → routing (fixed/round_robin/
+  unassigned) → `LeadSource` → publishes `LeadIngestedNotification` (automations = `INotificationHandler`).
+  Tenant-explicit (stamps `TenantId`) so it's safe from anonymous webhook contexts.
+- **Inbound** anonymous `WebhooksController` `/api/webhooks/{inboundKey}` (GET handshake, POST ingest
+  JSON/form, `snippet.js`) → stores to inbox, acks immediately. `RawLeadInboxProcessor` (BackgroundService)
+  drains per-tenant with backoff (max 5).
+- **Providers**: `GenericInboundProvider` registered as 5 cards (webhook/zapier/make/website/custom-api);
+  `MetaLeadProvider` + `MetaGraphClient` (OAuth, page/form select, `hub.challenge` + `X-Hub-Signature-256`
+  verify, Graph lead fetch, poll); `StubLeadProvider` for 11 "coming soon" cards (google-ads/forms/sheets,
+  linkedin, tiktok, whatsapp, microsoft-forms, calendly, jotform, typeform, csv).
+- **Security**: `ISecretProtector` over ASP.NET Core Data Protection (no new dep); gateway
+  `AddDataProtection().PersistKeysToFileSystem(App_Data/dp-keys).SetApplicationName("Softaxis.ERP")`.
+  **All OAuth tokens / API keys / page tokens / HMAC secrets encrypted at rest.**
+- **Endpoints**: `IntegrationsController` (`/api/crm/integrations/*`, `settings.integrations.*` gated via a
+  new CRM `[RequirePermission]` mirroring ProjectManagement), `InternalLeadsController`
+  (`POST /api/internal/leads`), `MetaIntegrationController` (OAuth start/callback/pages/forms/select).
+- **Config**: `Meta` + `Integrations` sections (appsettings + `.env.example`); App ID/secret config-driven.
+- **Migration**: `AddLeadIntegrations` (6 tables, each with shadow `TenantId`).
+
+### Frontend
+- `lib/crm/integrations.api.ts` + `hooks/crm/use-integrations.ts` (React Query, toasts, invalidation).
+- `modules/settings/integrations/components/integrations-view.tsx` — **full rewrite** from static mock
+  to live catalog: provider cards (logo/status/health/last-sync), search + category filters, connect
+  flows (inbound → configure drawer; OAuth → consent redirect → Meta page/form picker), configure
+  drawer tabs (Overview / Inbound URL+secret+snippet+rotate / Field Mapping / Duplicates / Routing /
+  Sync History / Error Log), disconnect/remove. Gated by `hasRawPermission("settings.integrations.edit")`.
+
+### Gotchas confirmed
+- `CrmDbContext` does **not** dispatch domain events (extends `DbContext`, not `BaseDbContext`) → intake
+  publishes `LeadIngestedNotification` via `IMediator` explicitly.
+- `TenantIsolation.ApplyTenantId` runs last in `OnModelCreating` and **overwrites** any entity
+  `HasQueryFilter(!IsDeleted)` (EF9) → handlers filter `!IsDeleted` manually (existing CRM pattern).
+- Anonymous endpoints (webhooks, OAuth callback) have an **unresolved ambient tenant** → resolve tenant
+  from the inbound key / signed OAuth state and **stamp `TenantId` explicitly** (Careers pattern).
+- Meta webhooks deliver only a `leadgen_id` → `IAsyncLeadProvider.NormalizeAsync` fetches the lead from
+  Graph; the inbox processor prefers `NormalizeAsync` and loads `Resources` for page tokens.
+
+### Build Status
+- **Backend gateway (all services):** 0 errors ✅ (only the pre-existing Smtp nullable warning)
+- **Frontend:** `tsc --noEmit` 0 errors ✅
+- **Pending**: apply `AddLeadIntegrations` on next gateway startup (auto via `MigrateAndSeedCrmAsync`);
+  set real `Meta:AppId`/`AppSecret` + a public HTTPS `Integrations:PublicBaseUrl` for a live Meta test.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅
