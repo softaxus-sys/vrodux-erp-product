@@ -105,8 +105,14 @@ export function IntegrationsView() {
         : await createIntegration.mutateAsync({ providerKey: item.key });
 
       if (item.capabilities.includes("oAuth")) {
-        const { url } = await startOAuth.mutateAsync(integration.id);
-        window.location.href = url;            // redirect to provider consent
+        // OAuth already completed (token stored) — resume at page/form selection
+        // instead of bouncing through the provider consent again.
+        if (integration.hasCredentials) {
+          setMetaSelectId(integration.id);
+        } else {
+          const { url } = await startOAuth.mutateAsync(integration.id);
+          window.location.href = url;          // redirect to provider consent
+        }
         return;
       }
       // Inbound providers are live immediately — open the configure drawer.
