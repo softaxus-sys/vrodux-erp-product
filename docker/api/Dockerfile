@@ -43,7 +43,12 @@ EXPOSE 8080
 
 # Non-root user
 RUN addgroup -S vrodux && adduser -S vrodux -G vrodux \
+    && mkdir -p /app/App_Data \
     && chown -R vrodux:vrodux /app
+
+# Persisted Data Protection keyring lives here; declaring it ensures an attached
+# named volume inherits vrodux ownership (the app runs as non-root).
+VOLUME ["/app/App_Data"]
 
 USER vrodux
 
