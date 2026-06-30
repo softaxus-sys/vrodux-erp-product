@@ -30,8 +30,11 @@ internal sealed class SelectMetaTargetsHandler(CrmDbContext db, MetaGraphClient 
 
         var selectedPageIds = cmd.Pages.Select(p => p.PageId).ToHashSet();
         var subscribed = 0;
+        var newForms = new List<IntegrationResource>();
 
-        foreach (var pageRes in integration.Resources.Where(r => r.ResourceType == "page"))
+        // Snapshot page resources first — we add form resources to the same collection below.
+        var pageResources = integration.Resources.Where(r => r.ResourceType == "page").ToList();
+        foreach (var pageRes in pageResources)
         {
             var enabled = selectedPageIds.Contains(pageRes.ExternalId);
             pageRes.SetEnabled(enabled);
@@ -45,9 +48,11 @@ internal sealed class SelectMetaTargetsHandler(CrmDbContext db, MetaGraphClient 
             {
                 var res = new IntegrationResource(integration.Id, "form", form.FormId, form.Name, pageRes.ExternalId);
                 res.SetEnabled(true);
-                integration.Resources.Add(res);
+                newForms.Add(res);
             }
         }
+
+        foreach (var res in newForms) integration.Resources.Add(res);
 
         if (subscribed == 0)
             return Result.Failure(Error.Custom("Integration.Conflict",
