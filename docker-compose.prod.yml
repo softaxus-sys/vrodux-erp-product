@@ -155,10 +155,21 @@ services:
       Email__FromAddress: "${SMTP_FROM_ADDRESS}"
       Email__FromName: "${SMTP_FROM_NAME}"
       Redis__ConnectionString: "vrodux-redis:6379,password=${REDIS_PASSWORD},abortConnect=false"
+      # ── Integration Platform (lead sources) ──────────────────────────────
+      Integrations__PublicBaseUrl: "https://${DOMAIN}"
+      Integrations__FrontendBaseUrl: "https://${DOMAIN}"
+      Meta__AppId: "${META_APP_ID:-}"
+      Meta__AppSecret: "${META_APP_SECRET:-}"
+      Meta__VerifyToken: "${META_VERIFY_TOKEN:-vrodux-meta-verify}"
+      Meta__GraphVersion: "${META_GRAPH_VERSION:-v21.0}"
     ports:
       - "127.0.0.1:8080:8080"
     networks:
       - vrodux-internal
+    volumes:
+      # Persist the Data Protection keyring so encrypted integration secrets
+      # (OAuth/page tokens, HMAC secrets) survive redeploys.
+      - api-dpkeys:/app/App_Data
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -295,6 +306,8 @@ volumes:
     name: vrodux-certbot-certs
   nginx-cache:
     name: vrodux-nginx-cache
+  api-dpkeys:
+    name: vrodux-api-dpkeys
 
 # ── Networks ────────────────────────────────────────────────────────────────
 networks:
