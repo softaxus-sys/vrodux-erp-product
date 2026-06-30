@@ -170,6 +170,7 @@ function UserDrawer({
             <p className="text-sm text-muted-foreground text-center py-16">User not found.</p>
           )
         ) : (
+        <>
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
@@ -274,6 +275,7 @@ function UserDrawer({
             </Button>
           )}
         </div>
+        </>
         )}
       </motion.div>
     </>

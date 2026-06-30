@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.FiscalPeriods.Commands;
 using Softaxis.Finance.Application.FiscalPeriods.Queries;
@@ -17,10 +18,12 @@ public sealed class FiscalPeriodsController(ISender sender) : FinanceControllerB
         OkOrError(await sender.Send(new GetFiscalPeriodsQuery(year), ct));
 
     [HttpPost("close")]
+    [RequirePermission("finance.accounting.approve")]
     public async Task<IActionResult> Close([FromBody] ClosePeriodRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new ClosePeriodCommand(req.PeriodCode, req.ClosedByName), ct));
 
     [HttpPost("reopen")]
+    [RequirePermission("finance.accounting.approve")]
     public async Task<IActionResult> Reopen([FromBody] ReopenPeriodRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new ReopenPeriodCommand(req.PeriodCode), ct));
 

@@ -10,6 +10,7 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { BankAccountDto as BankAccount } from "@/lib/finance/finance.api";
 import { useBankAccounts, useBankTransactions, useBankingSummary, useReconcileTransaction } from "@/hooks/finance/use-finance";
+import { Can } from "@/components/auth/can";
 
 const CURRENCY_FLAGS: Record<string, string> = {
   AED: "🇦🇪",
@@ -56,12 +57,16 @@ export function BankingView() {
           <p className="text-muted-foreground mt-0.5 text-sm">Monitor bank balances and reconcile transactions.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAddAccount(true)}>
-            <Building2 className="h-4 w-4" /> Add Bank Account
-          </Button>
-          <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" /> Add Transaction
-          </Button>
+          <Can permission="finance.banking.create">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAddAccount(true)}>
+              <Building2 className="h-4 w-4" /> Add Bank Account
+            </Button>
+          </Can>
+          <Can permission="finance.banking.create">
+            <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4" /> Add Transaction
+            </Button>
+          </Can>
         </div>
       </div>
 

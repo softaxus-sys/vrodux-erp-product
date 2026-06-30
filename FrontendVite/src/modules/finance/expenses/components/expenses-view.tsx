@@ -14,6 +14,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import { financeApi } from "@/lib/finance/finance.api";
 import type { ExpenseDto as Expense, ExpenseStatus } from "@/lib/finance/finance.api";
 import { useExpenses, useExpensesSummary, useApproveExpense, useRejectExpense, usePayExpense, useDeleteExpenseReceipt } from "@/hooks/finance/use-finance";
+import { Can } from "@/components/auth/can";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -296,9 +297,11 @@ export function ExpensesView() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
-          <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" /> New Claim
-          </Button>
+          <Can permission="finance.expenses.create">
+            <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4" /> New Claim
+            </Button>
+          </Can>
         </div>
       </div>
 

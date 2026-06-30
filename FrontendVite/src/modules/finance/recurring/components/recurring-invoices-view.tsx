@@ -13,6 +13,7 @@ import {
   usePauseRecurringInvoice, useResumeRecurringInvoice, useGenerateRecurringNow, useRunDueRecurring,
 } from "@/hooks/finance/use-finance";
 import type { RecurringInvoiceDto, RecurrenceFrequency, UpsertRecurringRequest } from "@/lib/finance/finance.api";
+import { Can } from "@/components/auth/can";
 
 const FREQ: { value: RecurrenceFrequency; label: string }[] = [
   { value: "weekly", label: "Weekly" },
@@ -54,7 +55,7 @@ export function RecurringInvoicesView() {
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => runDue.mutate()} disabled={runDue.isPending}>
             {runDue.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Run due now
           </Button>
-          <Button className="gap-2 h-9" onClick={openNew}><Plus className="h-4 w-4" />New Template</Button>
+          <Can permission="finance.invoicing.create"><Button className="gap-2 h-9" onClick={openNew}><Plus className="h-4 w-4" />New Template</Button></Can>
         </div>
       </div>
 

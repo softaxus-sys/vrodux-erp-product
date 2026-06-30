@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Suppliers.Commands;
 using Softaxis.Finance.Application.Suppliers.Queries;
@@ -15,6 +16,7 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
 
     /// <summary>GET /api/finance/suppliers?search=&isActive=true</summary>
     [HttpGet]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search   = null,
         [FromQuery] bool?   isActive = null,
@@ -23,6 +25,7 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
 
     /// <summary>GET /api/finance/suppliers/{id}</summary>
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetSupplierByIdQuery(id), ct));
 
@@ -30,6 +33,7 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
 
     /// <summary>POST /api/finance/suppliers</summary>
     [HttpPost]
+    [RequirePermission("finance.expenses.create")]
     public async Task<IActionResult> Create(
         [FromBody] CreateSupplierCommand cmd, CancellationToken ct)
     {
@@ -40,6 +44,7 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
 
     /// <summary>PUT /api/finance/suppliers/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateSupplierRequest req,
@@ -50,6 +55,7 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
 
     /// <summary>DELETE /api/finance/suppliers/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.expenses.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteSupplierCommand(id), ct));
 

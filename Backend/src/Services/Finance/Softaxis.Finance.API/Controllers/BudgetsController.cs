@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Budgets.Commands;
 using Softaxis.Finance.Application.Budgets.Dtos;
@@ -14,6 +15,7 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class BudgetsController(ISender sender) : FinanceControllerBase
 {
     [HttpGet("summary")]
+    [RequirePermission("finance.budgeting.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetBudgetsSummaryQuery(), ct);
@@ -21,6 +23,7 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("finance.budgeting.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? period = null,
         [FromQuery] string? status = null,
@@ -31,6 +34,7 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.budgeting.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetBudgetByIdQuery(id), ct);
@@ -38,6 +42,7 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("finance.budgeting.create")]
     public async Task<IActionResult> Create([FromBody] CreateBudgetCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -50,6 +55,7 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
         IReadOnlyList<BudgetLineRequest> Lines);
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.budgeting.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBudgetRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateBudgetCommand(id, req.Name, req.Period, req.Status, req.Notes, req.Lines), ct);
@@ -59,13 +65,16 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
     public sealed record ChangeStatusRequest(string Status);
 
     [HttpPost("{id:guid}/status")]
+    [RequirePermission("finance.budgeting.approve")]
     public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeStatusRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new ChangeBudgetStatusCommand(id, req.Status), ct);
         return NoContentOrError(result);
     }
 
+    // NOTE: budgeting has no seeded "delete" action — gate on "edit" (closest key) so admins keep working.
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.budgeting.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteBudgetCommand(id), ct);

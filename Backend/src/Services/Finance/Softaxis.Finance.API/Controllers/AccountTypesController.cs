@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.AccountTypes.Commands;
 using Softaxis.Finance.Application.Lookups.Queries;
@@ -19,6 +20,7 @@ public sealed class AccountTypesController(ISender sender) : FinanceControllerBa
 
     /// <summary>POST /api/finance/account-types</summary>
     [HttpPost]
+    [RequirePermission("finance.accounting.create")]
     public async Task<IActionResult> Create(
         [FromBody] CreateAccountTypeCommand cmd, CancellationToken ct)
     {
@@ -28,6 +30,7 @@ public sealed class AccountTypesController(ISender sender) : FinanceControllerBa
 
     /// <summary>PUT /api/finance/account-types/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.accounting.edit")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateAccountTypeRequest req,
@@ -37,11 +40,13 @@ public sealed class AccountTypesController(ISender sender) : FinanceControllerBa
 
     /// <summary>DELETE /api/finance/account-types/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.accounting.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteAccountTypeCommand(id), ct));
 
     /// <summary>POST /api/finance/account-types/reorder</summary>
     [HttpPost("reorder")]
+    [RequirePermission("finance.accounting.edit")]
     public async Task<IActionResult> Reorder(
         [FromBody] ReorderAccountTypesCommand cmd, CancellationToken ct) =>
         OkOrError(await sender.Send(cmd, ct));

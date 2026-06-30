@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Tax.Commands;
 using Softaxis.Finance.Application.Tax.Queries;
@@ -13,6 +14,7 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class TaxController(ISender sender) : FinanceControllerBase
 {
     [HttpGet("summary")]
+    [RequirePermission("finance.tax.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetTaxSummaryQuery(), ct);
@@ -20,6 +22,7 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet("periods")]
+    [RequirePermission("finance.tax.view")]
     public async Task<IActionResult> GetPeriods(CancellationToken ct)
     {
         var result = await sender.Send(new GetTaxPeriodsQuery(), ct);
@@ -27,6 +30,7 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost("periods")]
+    [RequirePermission("finance.tax.create")]
     public async Task<IActionResult> CreatePeriod([FromBody] CreateTaxPeriodCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -35,6 +39,7 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost("periods/{id:guid}/file")]
+    [RequirePermission("finance.tax.approve")]
     public async Task<IActionResult> FilePeriod(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new FileTaxPeriodCommand(id), ct);
@@ -42,6 +47,7 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost("periods/{id:guid}/pay")]
+    [RequirePermission("finance.tax.edit")]
     public async Task<IActionResult> PayPeriod(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new PayTaxPeriodCommand(id), ct);
@@ -49,6 +55,7 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet("transactions")]
+    [RequirePermission("finance.tax.view")]
     public async Task<IActionResult> GetTransactions(CancellationToken ct)
     {
         var result = await sender.Send(new GetTaxTransactionsQuery(), ct);

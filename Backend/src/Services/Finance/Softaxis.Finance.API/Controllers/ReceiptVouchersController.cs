@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.ReceiptVouchers.Commands;
 using Softaxis.Finance.Application.ReceiptVouchers.Dtos;
@@ -14,6 +15,7 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class ReceiptVouchersController(ISender sender) : FinanceControllerBase
 {
     [HttpGet]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page       = 1,
         [FromQuery] int     pageSize   = 20,
@@ -27,6 +29,7 @@ public sealed class ReceiptVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetReceiptVoucherByIdQuery(id), ct);
@@ -34,6 +37,7 @@ public sealed class ReceiptVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpPost]
+    [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> Create([FromBody] CreateReceiptVoucherCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -46,6 +50,7 @@ public sealed class ReceiptVouchersController(ISender sender) : FinanceControlle
         string? Reference, string? Notes, IReadOnlyList<ReceiptAllocationRequest> Allocations);
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.invoicing.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateReceiptVoucherRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateReceiptVoucherCommand(id, req.ReceiptDate, req.Amount,
@@ -54,6 +59,7 @@ public sealed class ReceiptVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpPost("{id:guid}/post")]
+    [RequirePermission("finance.invoicing.approve")]
     public async Task<IActionResult> Post(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new PostReceiptVoucherCommand(id), ct);
@@ -61,6 +67,7 @@ public sealed class ReceiptVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpPost("{id:guid}/void")]
+    [RequirePermission("finance.invoicing.approve")]
     public async Task<IActionResult> Void(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new VoidReceiptVoucherCommand(id), ct);
@@ -68,6 +75,7 @@ public sealed class ReceiptVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.invoicing.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteReceiptVoucherCommand(id), ct);

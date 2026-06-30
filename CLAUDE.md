@@ -905,6 +905,51 @@ verified by running the new build on port 5099 against the same DB (grant/deny/r
 
 ---
 
+## Module 5i — Finance: Full Module Audit & Authorization Hardening
+
+**First module of the systematic "audit + fix every module" program.** Audited Finance across 4 dimensions:
+security/authorization, functional/dead-UI bugs, feature completeness, and architecture/tech-debt.
+
+### Security / Authorization (was the big gap — now closed)
+Finance had `[Authorize]` on every controller but **zero per-permission enforcement**. Added:
+- **`Softaxis.Finance.API/Authorization/RequirePermissionAttribute.cs`** — copy of the ProjectManagement pattern
+  (`IAuthorizationFilter`; reads JWT `permission` claims; super-admin bypass via `is_super_admin`; 403 `{Code,Description}`).
+- `[RequirePermission("finance.<key>.<action>")]` on **all 21 controllers**, mapped to the already-seeded
+  `finance.*` keys (no migration needed → Administrator/super-admin keep working, non-admins need explicit grants):
+  - `finance.invoicing.*` → Invoices, Customers, Receivables, ReceiptVouchers, RecurringInvoices
+  - `finance.expenses.*` → Expenses, Suppliers, Payables, PaymentVouchers, PurchaseBills
+  - `finance.accounting.*` → Accounts, AccountTypes (writes), ExchangeRates (writes), FiscalPeriods (close/reopen)
+  - `finance.journals.*` → Journals, JournalEntries · `finance.gl.view` → GeneralLedger (class-level)
+  - `finance.budgeting.*` → Budgets · `finance.banking.*` → Banking · `finance.tax.*` → Tax
+- **Intentionally left open** (`[Authorize]` only): `LookupsController` + the GET reads on AccountTypes/ExchangeRates/
+  FiscalPeriods — these feed dropdowns across Finance forms; gating their reads would break forms for users who
+  can e.g. create invoices but lack `accounting.view`. Gate writes, leave shared reference reads open.
+- Where a controller exposes an action with no matching seeded key (budget delete, journal delete), gated on the
+  nearest key (`edit`) with a code comment — avoids blocking admins without a migration.
+- **Frontend `<Can>` gating** added to every primary create button across the Finance views (Invoicing, Expenses,
+  Budgeting, Banking ×2, Journals, Tax, Recurring, Accounting).
+- **Verified live** (gateway on :5099, same DB): a user granted only `finance.invoicing.view` → invoice list 200,
+  invoice create/delete 403, expenses 403, GL 403, open lookups 200. Exactly as designed.
+
+### Functional / dead-UI bugs
+- Scanned all Finance views: **no** dead `onClick`, **no** `window.confirm`/`alert`, **no** TODO/console — prior QA was thorough.
+- **Bug found & fixed:** 5 mutation hooks in `hooks/finance/use-finance.ts` (`useSendInvoice`, `useMarkInvoicePaid`,
+  `useCancelInvoice`, `useDeleteInvoice`, `useCreateExpense`) had **no `onError` and no success toast** — they
+  silently swallowed failures (now especially relevant since the new enforcement can return 403). Added
+  `onError: toast.error` + success toasts to all 5, matching every other hook in the file.
+- **Endpoint audit:** every `finance.api.ts` path verified against the backend routes — all correct, including the
+  journals read/write split (`GET /journals`, writes → `/journal-entries`). No 404 mismatches.
+
+### Completeness / Tech-debt
+- Finance is already clean CQRS (`ISender`, no inline `DbContext`/DTOs) — **no tech-debt migration needed**.
+- Minor noted gap (not a bug, left as-is): the budgets API client exposes create + status-change but not
+  `updateBudget`/`deleteBudget`.
+
+### Build / Verification Status
+- **Finance.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **Live 403 enforcement:** verified ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

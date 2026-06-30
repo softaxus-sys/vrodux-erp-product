@@ -460,7 +460,9 @@ export function useSendInvoice() {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoices", id] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      toast.success("Invoice sent.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -472,7 +474,9 @@ export function useMarkInvoicePaid() {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoices", id] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      toast.success("Invoice marked as paid.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -484,7 +488,9 @@ export function useCancelInvoice() {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoices", id] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      toast.success("Invoice cancelled.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -495,7 +501,9 @@ export function useDeleteInvoice() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      toast.success("Invoice deleted.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 
@@ -506,7 +514,9 @@ export function useCreateExpense() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "expenses"] });
       qc.invalidateQueries({ queryKey: [QK, "expenses-summary"] });
+      toast.success("Expense claim created.");
     },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

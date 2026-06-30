@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.RecurringInvoices.Commands;
 using Softaxis.Finance.Application.RecurringInvoices.Dtos;
@@ -14,6 +15,7 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class RecurringInvoicesController(ISender sender) : FinanceControllerBase
 {
     [HttpGet]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await sender.Send(new GetRecurringInvoicesQuery(), ct);
@@ -21,6 +23,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     }
 
     [HttpGet("summary")]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetRecurringInvoicesSummaryQuery(), ct);
@@ -28,6 +31,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetRecurringInvoiceByIdQuery(id), ct);
@@ -42,6 +46,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         int DueDays, decimal TaxRate, string? Notes, IReadOnlyList<LineRequest> Lines);
 
     [HttpPost]
+    [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> Create([FromBody] UpsertRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new CreateRecurringInvoiceCommand(
@@ -53,6 +58,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.invoicing.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateRecurringInvoiceCommand(
@@ -64,6 +70,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     }
 
     [HttpPost("{id:guid}/pause")]
+    [RequirePermission("finance.invoicing.edit")]
     public async Task<IActionResult> Pause(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new PauseRecurringInvoiceCommand(id), ct);
@@ -71,6 +78,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     }
 
     [HttpPost("{id:guid}/resume")]
+    [RequirePermission("finance.invoicing.edit")]
     public async Task<IActionResult> Resume(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new ResumeRecurringInvoiceCommand(id), ct);
@@ -78,6 +86,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.invoicing.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteRecurringInvoiceCommand(id), ct);
@@ -86,6 +95,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
 
     /// <summary>Generate one invoice now from this template (advances the schedule).</summary>
     [HttpPost("{id:guid}/generate")]
+    [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> GenerateNow(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GenerateNowCommand(id), ct);
@@ -94,6 +104,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
 
     /// <summary>Generate invoices for every template that is currently due.</summary>
     [HttpPost("run-due")]
+    [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> RunDue(CancellationToken ct)
     {
         var result = await sender.Send(new RunDueCommand(), ct);

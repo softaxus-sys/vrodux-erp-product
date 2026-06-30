@@ -13,6 +13,7 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddBudgetForm } from "./add-budget-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_STYLES: Record<BudgetStatus, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -205,9 +206,11 @@ export function BudgetingView() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
-          <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" /> New Budget
-          </Button>
+          <Can permission="finance.budgeting.create">
+            <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4" /> New Budget
+            </Button>
+          </Can>
         </div>
       </div>
 

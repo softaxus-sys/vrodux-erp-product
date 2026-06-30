@@ -208,7 +208,7 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Toolbar */}
       <div className="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center gap-3 shrink-0">
         <div className="relative w-44 shrink-0">
@@ -226,7 +226,7 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
       </div>
 
       {/* Matrix */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

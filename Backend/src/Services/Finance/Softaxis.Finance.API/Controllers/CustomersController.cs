@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Customers.Commands;
 using Softaxis.Finance.Application.Customers.Queries;
@@ -15,6 +16,7 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
 
     /// <summary>GET /api/finance/customers?search=&isActive=true</summary>
     [HttpGet]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search   = null,
         [FromQuery] bool?   isActive = null,
@@ -23,6 +25,7 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
 
     /// <summary>GET /api/finance/customers/{id}</summary>
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.invoicing.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetCustomerByIdQuery(id), ct));
 
@@ -30,6 +33,7 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
 
     /// <summary>POST /api/finance/customers</summary>
     [HttpPost]
+    [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> Create(
         [FromBody] CreateCustomerCommand cmd, CancellationToken ct)
     {
@@ -40,6 +44,7 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
 
     /// <summary>PUT /api/finance/customers/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.invoicing.edit")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateCustomerRequest req,
@@ -50,6 +55,7 @@ public sealed class CustomersController(ISender sender) : FinanceControllerBase
 
     /// <summary>DELETE /api/finance/customers/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.invoicing.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteCustomerCommand(id), ct));
 

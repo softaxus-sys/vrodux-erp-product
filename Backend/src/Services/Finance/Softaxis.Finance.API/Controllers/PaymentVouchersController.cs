@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.PaymentVouchers.Commands;
 using Softaxis.Finance.Application.PaymentVouchers.Dtos;
@@ -14,6 +15,7 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class PaymentVouchersController(ISender sender) : FinanceControllerBase
 {
     [HttpGet]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page       = 1,
         [FromQuery] int     pageSize   = 20,
@@ -27,6 +29,7 @@ public sealed class PaymentVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetPaymentVoucherByIdQuery(id), ct);
@@ -34,6 +37,7 @@ public sealed class PaymentVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpPost]
+    [RequirePermission("finance.expenses.create")]
     public async Task<IActionResult> Create([FromBody] CreatePaymentVoucherCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -46,6 +50,7 @@ public sealed class PaymentVouchersController(ISender sender) : FinanceControlle
         string? Reference, string? Notes, IReadOnlyList<PaymentAllocationRequest> Allocations);
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePaymentVoucherRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdatePaymentVoucherCommand(id, req.PaymentDate, req.Amount,
@@ -54,6 +59,7 @@ public sealed class PaymentVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpPost("{id:guid}/post")]
+    [RequirePermission("finance.expenses.approve")]
     public async Task<IActionResult> Post(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new PostPaymentVoucherCommand(id), ct);
@@ -61,6 +67,7 @@ public sealed class PaymentVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpPost("{id:guid}/void")]
+    [RequirePermission("finance.expenses.approve")]
     public async Task<IActionResult> Void(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new VoidPaymentVoucherCommand(id), ct);
@@ -68,6 +75,7 @@ public sealed class PaymentVouchersController(ISender sender) : FinanceControlle
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.expenses.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeletePaymentVoucherCommand(id), ct);

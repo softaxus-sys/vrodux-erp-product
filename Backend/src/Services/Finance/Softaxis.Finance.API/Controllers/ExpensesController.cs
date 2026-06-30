@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Expenses.Commands;
 using Softaxis.Finance.Application.Expenses.Queries;
@@ -16,6 +17,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     public sealed record ApproveRequest(Guid ApproverId);
 
     [HttpGet("summary")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetExpensesSummaryQuery(), ct);
@@ -23,6 +25,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page      = 1,
         [FromQuery] int     pageSize  = 20,
@@ -38,6 +41,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetExpenseByIdQuery(id), ct);
@@ -45,6 +49,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("finance.expenses.create")]
     public async Task<IActionResult> Create([FromBody] CreateExpenseCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -57,6 +62,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
         string? PaidBy, string? PaymentMethod, string? Reference, string? Notes);
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateExpenseRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateExpenseCommand(id, req.Title, req.Category, req.Amount,
@@ -65,6 +71,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
+    [RequirePermission("finance.expenses.approve")]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new ApproveExpenseCommand(id, req.ApproverId), ct);
@@ -72,6 +79,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost("{id:guid}/reject")]
+    [RequirePermission("finance.expenses.approve")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] ApproveRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new RejectExpenseCommand(id, req.ApproverId), ct);
@@ -79,6 +87,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpPost("{id:guid}/pay")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> MarkPaid(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new MarkExpensePaidCommand(id), ct);
@@ -86,6 +95,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.expenses.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteExpenseCommand(id), ct);
@@ -94,6 +104,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
 
     [HttpPost("{id:guid}/receipt")]
     [RequestSizeLimit(6 * 1024 * 1024)]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> UploadReceipt(Guid id, IFormFile file, CancellationToken ct)
     {
         if (file is null || file.Length == 0)
@@ -108,6 +119,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpGet("{id:guid}/receipt")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetReceipt(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetExpenseReceiptQuery(id), ct);
@@ -121,6 +133,7 @@ public sealed class ExpensesController(ISender sender) : FinanceControllerBase
     }
 
     [HttpDelete("{id:guid}/receipt")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> DeleteReceipt(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteExpenseReceiptCommand(id), ct);
