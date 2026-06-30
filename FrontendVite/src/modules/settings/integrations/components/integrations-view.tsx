@@ -647,8 +647,10 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
   async function toggleExpand(pageId: string) {
     setExpanded((p) => (p === pageId ? null : pageId));
     if (!forms[pageId]) {
-      try { setForms((p) => ({ ...p, [pageId]: await integrationsApi.meta.forms(integrationId, pageId) })); }
-      catch (e) { toast.error((e as Error).message); }
+      try {
+        const list = await integrationsApi.meta.forms(integrationId, pageId);
+        setForms((p) => ({ ...p, [pageId]: list }));
+      } catch (e) { toast.error((e as Error).message); }
     }
   }
 
