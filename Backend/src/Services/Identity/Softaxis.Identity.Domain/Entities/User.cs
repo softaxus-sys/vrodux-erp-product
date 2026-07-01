@@ -63,6 +63,9 @@ public sealed class User : AuditableEntity<Guid>
     public string?     PasswordResetTokenHash   { get; private set; }
     public DateTime?   PasswordResetTokenExpiry { get; private set; }
 
+    public string?     EmailVerificationTokenHash   { get; private set; }
+    public DateTime?   EmailVerificationTokenExpiry { get; private set; }
+
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     // Navigation
@@ -183,6 +186,35 @@ public sealed class User : AuditableEntity<Guid>
         PasswordResetTokenHash == tokenHash &&
         PasswordResetTokenExpiry.HasValue &&
         PasswordResetTokenExpiry > DateTime.UtcNow;
+
+    // ── Email verification ────────────────────────────────────────────────────
+
+    /// <summary>Issue a single-use email-verification token (hash stored, raw emailed to the user).</summary>
+    public void SetEmailVerificationToken(string tokenHash, DateTime expiry)
+    {
+        EmailVerificationTokenHash   = tokenHash;
+        EmailVerificationTokenExpiry = expiry;
+        UpdatedAt                    = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Verify the email using the token the user received. On success the account becomes Active and
+    /// the token is cleared. Returns false if the token is wrong or expired.
+    /// </summary>
+    public bool VerifyEmailWithToken(string tokenHash)
+    {
+        var valid = EmailVerificationTokenHash == tokenHash
+                    && EmailVerificationTokenExpiry.HasValue
+                    && EmailVerificationTokenExpiry > DateTime.UtcNow;
+        if (!valid) return false;
+
+        EmailVerified                = true;
+        Status                       = UserStatus.Active;
+        EmailVerificationTokenHash   = null;
+        EmailVerificationTokenExpiry = null;
+        UpdatedAt                    = DateTime.UtcNow;
+        return true;
+    }
 
     public bool IsLocked =>
         Status == UserStatus.Locked || (LockedUntil.HasValue && LockedUntil > DateTime.UtcNow);

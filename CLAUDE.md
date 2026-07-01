@@ -905,6 +905,77 @@ verified by running the new build on port 5099 against the same DB (grant/deny/r
 
 ---
 
+## Module 5l — Identity: Email Verification for Admin-Created Users
+
+**Admin-created users (`POST /api/users`) must now verify their email before they can log in.** Previously
+`CreateUserCommandHandler` called `user.VerifyEmail()` to pre-verify — that line is removed; the user stays in
+`PendingVerification` until they click an emailed link. `LoginCommandHandler` blocks unverified accounts with a
+clear message. **Only** the admin-create path is gated — the trial/onboarding and super-admin tenant-create
+paths still pre-verify (see below), so signup and tenant provisioning are unaffected.
+
+### Token model — reuses the password-reset pattern exactly
+Single-use, hashed-at-rest, 48h expiry. `IJwtTokenService.GenerateRefreshTokenRaw()` makes the raw token
+(base64, 64 random bytes); `HashToken()` (SHA-256 → base64, **deterministic** so lookup-by-hash works) stores
+only the hash. Raw token goes in the email link; the DB never sees it.
+
+### Backend (Identity service)
+- `Domain/Entities/User.cs` — new `EmailVerificationTokenHash` / `EmailVerificationTokenExpiry` (nullable,
+  mapped by convention — no `UserConfiguration` change, same as the reset-token columns).
+  - `SetEmailVerificationToken(hash, expiry)` — issue token.
+  - `VerifyEmailWithToken(hash)` — validates hash + non-expired; on success sets `EmailVerified = true`,
+    `Status = Active`, clears the token; returns `false` otherwise.
+- `Abstractions/IEmailService.cs` + `Infrastructure/Services/SmtpEmailService.cs` —
+  `SendEmailVerificationAsync(toEmail, toName, verificationToken)`. Builds
+  `{FrontendUrl}/auth/verify-email?token=…&email=…` (both URL-encoded). **Dev fallback:** if SMTP host/username
+  unconfigured, logs the link (`LogWarning`) instead of sending — link still usable locally. Same MailKit
+  connect/auth/send/disconnect as the reset email (465 → SslOnConnect, else StartTls).
+- `Users/Commands/CreateUser/CreateUserCommandHandler.cs` — injects `IJwtTokenService` + `IEmailService`;
+  removed the `user.VerifyEmail()` pre-verify; issues a 48h token before `Add`, and after `SaveChanges` sends
+  the email **best-effort** (`try/catch` — SMTP failure never fails user creation; admin can resend).
+- `Auth/Commands/VerifyEmail/` (NEW) — `VerifyEmailCommand(Email, Token)` + handler. Idempotent (already-verified
+  → `Success`); bad/expired → `Error.Custom("Auth.VerifyEmail.Invalid", "Invalid or expired verification link.")`.
+- `Auth/Commands/ResendVerification/` (NEW) — `ResendVerificationCommand(Email)` + handler. **Enumeration-safe:**
+  returns `Success` whether or not the account exists / is already verified; only actually re-issues + sends when
+  a matching unverified user is found.
+- `API/Controllers/AuthController.cs` — `POST /api/auth/verify-email` (`[AllowAnonymous]`) and
+  `POST /api/auth/resend-verification` (`[AllowAnonymous]` + `[EnableRateLimiting("forgot_password")]` — reuses
+  the existing 5-req/IP/300s sliding-window policy). Request records `VerifyEmailRequest`/`ResendVerificationRequest`.
+- `Auth/Commands/Login/LoginCommandHandler.cs` — after the password check passes, `if (!user.EmailVerified)`
+  → `Fail(…, "Please verify your email address before logging in. Check your inbox for the verification link.")`.
+- Migration `AddEmailVerificationToken` (Identity) — adds the two columns; auto-applies via `MigrateAndSeedAsync`.
+
+### Paths that stay pre-verified (login NOT blocked) — verified in code
+- `Trial/Commands/RegisterTrial/RegisterTrialCommandHandler.cs` — `user.VerifyEmail()` (trial accounts).
+- `TenantsAdmin/Commands/CreateTenant/CreateTenantCommandHandler.cs` — `adminUser.VerifyEmail()`.
+- The plain self-serve `Auth/Commands/Register` endpoint creates users unverified and sends **no** email — but
+  `authApi.register` is **not called anywhere in the frontend** (onboarding uses `registerTrial`), so it's a
+  dead endpoint, not a live regression. Left as-is (out of scope).
+
+### Frontend
+- `lib/identity/auth.api.ts` — `verifyEmail(email, token)` → `POST /verify-email`; `resendVerification(email)`
+  → `POST /resend-verification` (both anonymous `post()` helper).
+- `pages/auth/verify-email.tsx` (NEW) — mirrors `reset-password.tsx` theme (DARK/LIGHT palettes, top bar,
+  motion card). Auto-verifies on mount from `?token=&email=` (guarded by a `useRef` so it fires once under
+  StrictMode). Three states: verifying (spinner) / success (green, "Go to login") / error (red, `errorMsg` from
+  the API, plus a "Resend verification link" button when an email is present).
+- `App.tsx` — lazy `VerifyEmailPage` + route `/auth/verify-email` (public, alongside reset-password).
+- `pages/auth/login.tsx` — when the login error message contains "verify your email", the error toast gets an
+  8s **"Resend link"** action calling `authApi.resendVerification(data.email)` (success/failure toast). Other
+  errors unchanged.
+
+### Unrelated small fix in same working tree
+- `modules/settings/general/components/general-settings-view.tsx` — company name/legalName now fall back to the
+  **current tenant's** name (`useAuthStore.getState().tenant?.name`) instead of the hardcoded Softaxis sample,
+  so a fresh tenant admin sees their own company.
+
+### Build / Verification Status
+- **Identity.API build:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · Migration created (auto-applies on startup).
+- **Pending:** end-to-end run — admin creates a user → verification email/logged link → `/auth/verify-email`
+  activates → login succeeds; unverified login blocked + resend works. (Backend service must be republished +
+  restarted to pick up the change per the on-prem deploy note.)
+
+---
+
 ## Module 5i — Finance: Full Module Audit & Authorization Hardening
 
 **First module of the systematic "audit + fix every module" program.** Audited Finance across 4 dimensions:

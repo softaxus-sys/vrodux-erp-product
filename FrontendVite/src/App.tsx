@@ -9,6 +9,7 @@ import { ServerSettingsPrompt } from "@/components/desktop/server-settings-promp
 const LoginPage          = React.lazy(() => import("@/pages/auth/login"));
 const ForgotPasswordPage = React.lazy(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage  = React.lazy(() => import("@/pages/auth/reset-password"));
+const VerifyEmailPage    = React.lazy(() => import("@/pages/auth/verify-email"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 const DashboardPage        = React.lazy(() => import("@/pages/dashboard"));
@@ -197,6 +198,7 @@ export function App() {
         />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password"  element={<ResetPasswordPage />} />
+        <Route path="/auth/verify-email"    element={<VerifyEmailPage />} />
         <Route path="/trial"                element={<OnboardingPage />} />
 
         {/* Subscription expired — shown when enforcement middleware blocks requests */}

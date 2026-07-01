@@ -37,6 +37,11 @@ public sealed class LoginCommandHandler(
             return Fail(user.Id, cmd, false, "Invalid email or password.");
         }
 
+        // Password is correct — but the email must be verified first (admin-created users start unverified).
+        if (!user.EmailVerified)
+            return Fail(user.Id, cmd, false,
+                "Please verify your email address before logging in. Check your inbox for the verification link.");
+
         // Successful login
         user.RecordLoginSuccess();
 

@@ -15,6 +15,8 @@ public sealed class CreateUserCommandHandler(
     IAuditLogRepository auditRepo,
     ICurrentUser        currentUser,
     ITenantContext      tenantContext,
+    IJwtTokenService    jwtService,
+    IEmailService       emailService,
     IUnitOfWork         uow)
     : ICommandHandler<CreateUserCommand, UserDto>
 {
@@ -45,7 +47,8 @@ public sealed class CreateUserCommandHandler(
         if (result.IsFailure) return Result.Failure<UserDto>(result.Error);
 
         var user = result.Value;
-        user.VerifyEmail(); // Admin-created users are pre-verified
+        // NOTE: do NOT pre-verify. The user stays in PendingVerification until they click the
+        // verification link we email below; LoginCommandHandler blocks login until then.
 
         // Assign tenant if the caller is scoped to one
         if (!currentUser.IsSuperAdmin && tenantContext.TenantId.HasValue)
@@ -57,9 +60,17 @@ public sealed class CreateUserCommandHandler(
             if (role is not null) user.AssignRole(roleId);
         }
 
+        // Issue a single-use email-verification token (48h) and email the link.
+        var rawToken = jwtService.GenerateRefreshTokenRaw();
+        user.SetEmailVerificationToken(jwtService.HashToken(rawToken), DateTime.UtcNow.AddHours(48));
+
         userRepo.Add(user);
         auditRepo.Add(new AuditLog(currentUser.Id, "CREATE_USER", "User", user.Id.ToString(), null, null, null, null, true, currentUser.TenantId));
         await uow.SaveChangesAsync(ct);
+
+        // Best-effort send — never fail user creation if SMTP is down (link is also logged server-side).
+        try { await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, rawToken, ct); }
+        catch { /* delivery failure is non-fatal; admin can trigger a resend */ }
 
         // Reload with full role/permission navigation so the DTO is complete.
         var created = await userRepo.GetByIdAsync(user.Id, ct);
