@@ -11,6 +11,7 @@ import {
   useCreateEnrollment, useRecordFee, useDeleteEnrollment,
 } from "@/hooks/education/use-education";
 import type { StudentDto } from "@/lib/education/education.api";
+import { Can } from "@/components/auth/can";
 
 const CUR = "AED";
 type Tab = "admissions" | "students" | "enrollments";
@@ -67,9 +68,9 @@ export function EducationView() {
   );
 }
 
-function AddBar({ open, setOpen, label, children, onSave, saving, canSave }:
-  { open: boolean; setOpen: (v: boolean) => void; label: string; children: React.ReactNode; onSave: () => void; saving: boolean; canSave: boolean }) {
-  if (!open) return <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{label}</Button>;
+function AddBar({ open, setOpen, label, children, onSave, saving, canSave, perm }:
+  { open: boolean; setOpen: (v: boolean) => void; label: string; children: React.ReactNode; onSave: () => void; saving: boolean; canSave: boolean; perm?: string }) {
+  if (!open) return <Can permission={perm}><Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{label}</Button></Can>;
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2">
       {children}
@@ -100,7 +101,7 @@ function AdmissionsTab() {
     { onSuccess: () => { setOpen(false); setName(""); setProgram(""); setGuardian(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="New Admission" onSave={save} saving={create.isPending} canSave={!!name.trim() && !!program.trim()}>
+      <AddBar perm="education.admissions.create" open={open} setOpen={setOpen} label="New Admission" onSave={save} saving={create.isPending} canSave={!!name.trim() && !!program.trim()}>
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="Applicant" className="h-9 w-40 text-sm" />
         <Input value={program} onChange={e => setProgram(e.target.value)} placeholder="Program" className="h-9 w-44 text-sm" />
         <Input value={term} onChange={e => setTerm(e.target.value)} placeholder="Intake term" className="h-9 w-32 text-sm" />
@@ -117,7 +118,7 @@ function AdmissionsTab() {
             <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
               {a.status === "inquiry" && <button title="Mark applied" onClick={() => setStatus.mutate({ id: a.id, status: "applied" })} className="p-1.5 rounded text-warning hover:bg-warning/10"><ArrowRight className="h-3.5 w-3.5" /></button>}
               {(a.status === "applied" || a.status === "offer") && !a.studentId && <button title="Accept & enroll" onClick={() => enroll.mutate(a.id)} className="p-1.5 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>}
-              <button title="Delete" onClick={() => del.mutate(a.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              <Can permission="education.admissions.delete"><button title="Delete" onClick={() => del.mutate(a.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
             </div></td>
           </tr>
         ))}
@@ -135,7 +136,7 @@ function StudentsTab() {
     { onSuccess: () => { setOpen(false); setName(""); setProgram(""); setGuardian(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="Add Student" onSave={save} saving={create.isPending} canSave={!!name.trim()}>
+      <AddBar perm="education.students.create" open={open} setOpen={setOpen} label="Add Student" onSave={save} saving={create.isPending} canSave={!!name.trim()}>
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="h-9 w-44 text-sm" />
         <select value={gender} onChange={e => setGender(e.target.value)} className="h-9 px-2 rounded-lg border border-border bg-background text-sm"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
         <Input value={program} onChange={e => setProgram(e.target.value)} placeholder="Program" className="h-9 w-44 text-sm" />
@@ -149,7 +150,7 @@ function StudentsTab() {
             <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.program || "—"}</td>
             <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.guardianName || "—"}</td>
             <td className="px-4 py-2.5"><span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", badge(p.status))}>{p.status}</span></td>
-            <td className="px-4 py-2.5 text-right"><button title="Delete" onClick={() => del.mutate(p.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></td>
+            <td className="px-4 py-2.5 text-right"><Can permission="education.students.delete"><button title="Delete" onClick={() => del.mutate(p.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can></td>
           </tr>
         ))}
       </Table>
@@ -166,7 +167,7 @@ function EnrollmentsTab({ students }: { students: StudentDto[] }) {
     { onSuccess: () => { setOpen(false); setSid(""); setSname(""); setCourse(""); setFee(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="New Enrollment" onSave={save} saving={create.isPending} canSave={!!sid && !!course.trim()}>
+      <AddBar perm="education.enrollments.create" open={open} setOpen={setOpen} label="New Enrollment" onSave={save} saving={create.isPending} canSave={!!sid && !!course.trim()}>
         <select value={sid} onChange={e => { const st = students.find(x => x.id === e.target.value); setSid(e.target.value); setSname(st?.fullName ?? ""); }} className="h-9 px-2 rounded-lg border border-border bg-background text-sm">
           <option value="">Student…</option>
           {students.map(st => <option key={st.id} value={st.id}>{st.fullName} · {st.studentNumber}</option>)}
@@ -187,7 +188,7 @@ function EnrollmentsTab({ students }: { students: StudentDto[] }) {
             <td className="px-4 py-2.5"><span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", badge(e.status))}>{e.status}</span></td>
             <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
               {e.feeBalance > 0 && <button title="Record fee payment" onClick={() => pay.mutate({ id: e.id, amount: e.feeBalance })} className="p-1.5 rounded text-success hover:bg-success/10"><DollarSign className="h-3.5 w-3.5" /></button>}
-              <button title="Delete" onClick={() => del.mutate(e.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              <Can permission="education.enrollments.delete"><button title="Delete" onClick={() => del.mutate(e.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
             </div></td>
           </tr>
         ))}

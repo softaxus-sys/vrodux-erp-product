@@ -1143,6 +1143,73 @@ per-permission enforcement**.
 
 ---
 
+## Module 5n — CRM Industry Verticals: New Permission Groups + Authorization
+
+**Follow-up to Module 5m's flagged item.** The 4 industry-vertical controllers in the CRM assembly (B2B,
+Education, Healthcare, Insurance — routes `api/b2b`, `api/education`, `api/healthcare`, `api/insurance`) had
+**no seeded permission keys**, so 5m left them `[Authorize]`-only. This module seeds their own permission
+groups and applies per-permission enforcement — bringing them to parity with the audited modules.
+
+### New permission groups seeded — 12 groups (3 sub-features × 4 verticals) = 49 permissions
+`Backend/.../Identity/Softaxis.Identity.Application/Seed/PermissionSeedData.cs` — added to `ModuleActions`:
+```csharp
+// B2B (Proposals → Contracts → Support Tickets)
+["b2b.proposals"]/["b2b.contracts"]/["b2b.tickets"]        = view/create/edit/delete
+// Education (Admissions → Students → Enrollments)
+["education.admissions"]/["education.students"]/["education.enrollments"] = view/create/edit/delete
+// Healthcare (Patients → Appointments → Treatment Plans)
+["healthcare.patients"]/["healthcare.appointments"]/["healthcare.treatment-plans"] = view/create/edit/delete
+// Insurance (Policies → Renewals → Claims)
+["insurance.policies"]/["insurance.renewals"]              = view/create/edit/delete
+["insurance.claims"]                                       = view/create/edit/delete/approve
+```
+**How seeding works** (same as PM Module 5f): `PermissionSeedData.GetPermissions()` → `HasData` in
+`IdentityDbContext.OnModelCreating` → `dotnet ef migrations add` **auto-generates the `InsertData`** for the new
+rows (deterministic MD5-derived GUIDs). Migration `AddCrmVerticalPermissions` applied. On startup,
+`SyncAdministratorPermissionsAsync` (runs every boot, idempotent) diffs all seeded permission ids against each
+system `Administrator` role and adds the 49 new keys automatically — so existing tenants' admins gain them with
+no manual step. Non-admin users need explicit grants.
+
+### Backend enforcement
+`[RequirePermission("<vertical>.<feature>.<action>")]` on **every action** across `B2BController`,
+`EducationController`, `HealthcareController`, `InsuranceController` (reusing the CRM `RequirePermissionAttribute`
+from 5m — these controllers live in `Softaxis.CRM.API`). Mapping: GET → `.view`, POST create → `.create`,
+PATCH status / POST enroll/renew/resolve/complete/payment → `.edit`, POST claim approve → `insurance.claims.approve`,
+DELETE → `.delete`. Each controller's `GET /summary` is a cross-feature overview → gated on the pack's **primary**
+sub-feature view (`b2b.proposals.view` / `education.admissions.view` / `healthcare.patients.view` /
+`insurance.policies.view`).
+
+### Frontend
+- **`lib/identity/permission-matrix.ts`** — added `b2b`/`education`/`healthcare`/`insurance` to `MODULE_GROUPS`
+  (labels "B2B"/"Education"/"Healthcare"/"Insurance") and to `GROUP_ORDER` (after CRM). The matrix groups by
+  `moduleId.split(".")[0]`, so each vertical renders as its own group with its 3 sub-features as rows — no other
+  matrix changes needed. Both the role editor and the per-user override editor pick this up automatically.
+- **`<Can>` gating** in all 4 vertical views (`{vertical}-view.tsx`). Each view has 3 tabs, each with an inline
+  `AddBar` (create) + a table with row quick-actions. **Two gating styles** (both fine):
+  - `b2b-view.tsx` — the `AddBar` create is wrapped externally with `<Can permission="b2b.<feature>.create">`.
+  - `education`/`healthcare`/`insurance` — the local `AddBar` component got an optional `perm?: string` prop that
+    wraps its collapsed trigger button in `<Can permission={perm}>` internally (backward-compatible: no `perm`
+    still renders). Usages pass `perm="<vertical>.<feature>.create"`.
+  - Row **Delete** buttons in every tab wrapped with `<Can permission="<vertical>.<feature>.delete">`.
+- **Audit (dead-UI / hooks):** clean — no `window.confirm`/`alert`/`TODO`/`console`; each vertical's hook file
+  routes every mutation through a shared `useM` factory that already has `onError: toast.error` + success toasts.
+  (Row deletes fire `del.mutate(id)` directly without a confirm modal — not a `window.confirm` violation, and
+  consistent with these dense inline-table views; left as-is.)
+
+### Scope notes / follow-ups (not done here)
+- Enforcement gates **actions**, not tab visibility — a user lacking a sub-feature's `.view` still sees the tab,
+  but its list query 403s (React Query surfaces the toast). Per-tab view gating is a nice-to-have, not done.
+- Status-change quick-actions (`.edit`) are enforced on the backend but **not** hidden on the frontend (only
+  create + delete are `<Can>`-gated) — mirrors the create+delete gating depth used in the CRM 5m pass.
+
+### Build / Verification Status
+- **CRM.API + Identity.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- Migration `AddCrmVerticalPermissions` created (auto-applies + admin-syncs on startup).
+- **Pending:** republish + restart, then live spot-check (grant only `b2b.proposals.view` → proposals 200,
+  proposal create/delete 403, contracts/tickets 403; new groups visible in the roles matrix).
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

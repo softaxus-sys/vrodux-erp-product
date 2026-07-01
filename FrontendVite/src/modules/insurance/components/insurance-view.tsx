@@ -11,6 +11,7 @@ import {
   useCreateClaim, useApproveClaim, useSetClaimStatus, useDeleteClaim,
 } from "@/hooks/insurance/use-insurance";
 import type { PolicyDto } from "@/lib/insurance/insurance.api";
+import { Can } from "@/components/auth/can";
 
 const CUR = "AED";
 type Tab = "policies" | "renewals" | "claims";
@@ -71,9 +72,9 @@ export function InsuranceView() {
   );
 }
 
-function AddBar({ open, setOpen, label, children, onSave, saving, canSave }:
-  { open: boolean; setOpen: (v: boolean) => void; label: string; children: React.ReactNode; onSave: () => void; saving: boolean; canSave: boolean }) {
-  if (!open) return <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{label}</Button>;
+function AddBar({ open, setOpen, label, children, onSave, saving, canSave, perm }:
+  { open: boolean; setOpen: (v: boolean) => void; label: string; children: React.ReactNode; onSave: () => void; saving: boolean; canSave: boolean; perm?: string }) {
+  if (!open) return <Can permission={perm}><Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{label}</Button></Can>;
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2">
       {children}
@@ -105,7 +106,7 @@ function PoliciesTab() {
     { onSuccess: () => { setOpen(false); setHolder(""); setPremium(""); setSum(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="New Policy" onSave={save} saving={create.isPending} canSave={!!holder.trim() && !!premium}>
+      <AddBar perm="insurance.policies.create" open={open} setOpen={setOpen} label="New Policy" onSave={save} saving={create.isPending} canSave={!!holder.trim() && !!premium}>
         <Input value={holder} onChange={e => setHolder(e.target.value)} placeholder="Policy holder" className="h-9 w-44 text-sm" />
         <select value={product} onChange={e => setProduct(e.target.value)} className="h-9 px-2 rounded-lg border border-border bg-background text-sm capitalize">
           {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -125,7 +126,7 @@ function PoliciesTab() {
             <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
               {p.status === "proposal" && <button title="Issue policy" onClick={() => setStatus.mutate({ id: p.id, status: "issued" })} className="p-1.5 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>}
               {(p.status === "issued" || p.status === "renewed") && <button title="Raise renewal" onClick={() => renew.mutate({ id: p.id, data: { renewalDate: plusDays(365), newPremium: null } })} className="p-1.5 rounded text-warning hover:bg-warning/10"><RefreshCw className="h-3.5 w-3.5" /></button>}
-              <button title="Delete" onClick={() => del.mutate(p.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              <Can permission="insurance.policies.delete"><button title="Delete" onClick={() => del.mutate(p.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
             </div></td>
           </tr>
         ))}
@@ -148,7 +149,7 @@ function RenewalsTab() {
           <td className="px-4 py-2.5"><span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", badge(r.status))}>{r.status}</span></td>
           <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
             {r.status === "due" && <button title="Complete renewal" onClick={() => complete.mutate(r.id)} className="p-1.5 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>}
-            <button title="Delete" onClick={() => del.mutate(r.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            <Can permission="insurance.renewals.delete"><button title="Delete" onClick={() => del.mutate(r.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
           </div></td>
         </tr>
       ))}
@@ -165,7 +166,7 @@ function ClaimsTab({ policies }: { policies: PolicyDto[] }) {
     { onSuccess: () => { setOpen(false); setPolicyId(""); setAmount(""); setReason(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="File Claim" onSave={save} saving={create.isPending} canSave={!!policyId && !!amount}>
+      <AddBar perm="insurance.claims.create" open={open} setOpen={setOpen} label="File Claim" onSave={save} saving={create.isPending} canSave={!!policyId && !!amount}>
         <select value={policyId} onChange={e => setPolicyId(e.target.value)} className="h-9 px-2 rounded-lg border border-border bg-background text-sm">
           <option value="">Policy…</option>
           {policies.map(p => <option key={p.id} value={p.id}>{p.policyNumber} · {p.holderName}</option>)}
@@ -185,7 +186,7 @@ function ClaimsTab({ policies }: { policies: PolicyDto[] }) {
             <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
               {(c.status === "filed" || c.status === "under_review") && <button title="Approve full amount" onClick={() => approve.mutate({ id: c.id, amount: c.claimAmount })} className="p-1.5 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>}
               {c.status === "approved" && <button title="Mark paid" onClick={() => setStatus.mutate({ id: c.id, status: "paid" })} className="p-1.5 rounded text-violet-600 hover:bg-violet-50"><ArrowRight className="h-3.5 w-3.5" /></button>}
-              <button title="Delete" onClick={() => del.mutate(c.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              <Can permission="insurance.claims.delete"><button title="Delete" onClick={() => del.mutate(c.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
             </div></td>
           </tr>
         ))}

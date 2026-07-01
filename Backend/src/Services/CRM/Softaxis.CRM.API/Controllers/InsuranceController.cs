@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.Insurance.Commands;
 using Softaxis.CRM.Application.Insurance.Queries;
@@ -14,7 +15,9 @@ namespace Softaxis.CRM.API.Controllers;
 [ApiController][Route("api/insurance")][Authorize]
 public sealed class InsuranceController(ISender sender) : CrmControllerBase
 {
+    // Cross-feature overview — gate on the pack's primary sub-feature view.
     [HttpGet("summary")]
+    [RequirePermission("insurance.policies.view")]
     public async Task<IActionResult> Summary(CancellationToken ct)
     {
         var result = await sender.Send(new GetInsuranceSummaryQuery(), ct);
@@ -23,6 +26,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
 
     // ── Policies ──────────────────────────────────────────────────────────────
     [HttpGet("policies")]
+    [RequirePermission("insurance.policies.view")]
     public async Task<IActionResult> GetPolicies(CancellationToken ct)
     {
         var result = await sender.Send(new GetPoliciesQuery(), ct);
@@ -30,6 +34,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("policies")]
+    [RequirePermission("insurance.policies.create")]
     public async Task<IActionResult> CreatePolicy([FromBody] CreatePolicyCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -37,6 +42,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("policies/{id:guid}/status")]
+    [RequirePermission("insurance.policies.edit")]
     public async Task<IActionResult> PolicyStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdatePolicyStatusCommand(id, r.Status), ct);
@@ -45,6 +51,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
 
     /// <summary>Raise a renewal for a policy that's due.</summary>
     [HttpPost("policies/{id:guid}/renew")]
+    [RequirePermission("insurance.policies.edit")]
     public async Task<IActionResult> Renew(Guid id, [FromBody] RenewReq r, CancellationToken ct)
     {
         var result = await sender.Send(new RenewPolicyCommand(id, r.RenewalDate, r.NewPremium, r.Notes), ct);
@@ -52,6 +59,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("policies/{id:guid}")]
+    [RequirePermission("insurance.policies.delete")]
     public async Task<IActionResult> DeletePolicy(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeletePolicyCommand(id), ct);
@@ -60,6 +68,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
 
     // ── Renewals ──────────────────────────────────────────────────────────────
     [HttpGet("renewals")]
+    [RequirePermission("insurance.renewals.view")]
     public async Task<IActionResult> GetRenewals(CancellationToken ct)
     {
         var result = await sender.Send(new GetRenewalsQuery(), ct);
@@ -67,6 +76,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("renewals/{id:guid}/complete")]
+    [RequirePermission("insurance.renewals.edit")]
     public async Task<IActionResult> CompleteRenewal(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new CompleteRenewalCommand(id), ct);
@@ -74,6 +84,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("renewals/{id:guid}/status")]
+    [RequirePermission("insurance.renewals.edit")]
     public async Task<IActionResult> RenewalStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateRenewalStatusCommand(id, r.Status), ct);
@@ -81,6 +92,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("renewals/{id:guid}")]
+    [RequirePermission("insurance.renewals.delete")]
     public async Task<IActionResult> DeleteRenewal(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteRenewalCommand(id), ct);
@@ -89,6 +101,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
 
     // ── Claims ────────────────────────────────────────────────────────────────
     [HttpGet("claims")]
+    [RequirePermission("insurance.claims.view")]
     public async Task<IActionResult> GetClaims(CancellationToken ct)
     {
         var result = await sender.Send(new GetClaimsQuery(), ct);
@@ -96,6 +109,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("claims")]
+    [RequirePermission("insurance.claims.create")]
     public async Task<IActionResult> CreateClaim([FromBody] CreateClaimCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -103,6 +117,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("claims/{id:guid}/approve")]
+    [RequirePermission("insurance.claims.approve")]
     public async Task<IActionResult> ApproveClaim(Guid id, [FromBody] ApproveReq r, CancellationToken ct)
     {
         var result = await sender.Send(new ApproveClaimCommand(id, r.Amount), ct);
@@ -110,6 +125,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("claims/{id:guid}/status")]
+    [RequirePermission("insurance.claims.edit")]
     public async Task<IActionResult> ClaimStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateClaimStatusCommand(id, r.Status), ct);
@@ -117,6 +133,7 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("claims/{id:guid}")]
+    [RequirePermission("insurance.claims.delete")]
     public async Task<IActionResult> DeleteClaim(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteClaimCommand(id), ct);
