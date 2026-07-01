@@ -12,6 +12,7 @@ import { usePurchaseVendors } from "@/hooks/purchase/use-vendors";
 import type { VendorDto } from "@/lib/pos/types";
 import { VendorDrawer } from "./vendor-drawer";
 import { AddVendorForm } from "./add-vendor-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   active:   { label: "Active",   color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
@@ -76,9 +77,11 @@ export function VendorsView() {
           <h1 className="text-2xl font-bold">Vendors</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage supplier profiles, contracts, and payment terms</p>
         </div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" />Add Vendor
-        </Button>
+        <Can permission="purchase.vendors.create">
+          <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" />Add Vendor
+          </Button>
+        </Can>
       </div>
 
       {/* Stats */}

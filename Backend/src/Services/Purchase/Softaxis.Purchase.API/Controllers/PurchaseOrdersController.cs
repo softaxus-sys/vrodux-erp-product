@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Purchase.API.Authorization;
 using Softaxis.Purchase.Domain.Entities;
 using Softaxis.Purchase.Infrastructure.Persistence;
 
@@ -83,6 +84,7 @@ public sealed class PurchaseOrdersController(PurchaseDbContext db) : ControllerB
 
     // ── GET /api/purchase/orders ──────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("purchase.orders.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -132,6 +134,7 @@ public sealed class PurchaseOrdersController(PurchaseDbContext db) : ControllerB
 
     // ── GET /api/purchase/orders/{id} ─────────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("purchase.orders.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var order = await db.PurchaseOrders
@@ -146,6 +149,7 @@ public sealed class PurchaseOrdersController(PurchaseDbContext db) : ControllerB
 
     // ── POST /api/purchase/orders ─────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("purchase.orders.create")]
     public async Task<IActionResult> Create([FromBody] CreatePurchaseOrderRequest req, CancellationToken ct)
     {
         var vendorExists = await db.Vendors.AnyAsync(x => x.Id == req.VendorId, ct);
@@ -177,6 +181,7 @@ public sealed class PurchaseOrdersController(PurchaseDbContext db) : ControllerB
 
     // ── PUT /api/purchase/orders/{id} ─────────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("purchase.orders.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePurchaseOrderRequest req, CancellationToken ct)
     {
         var order = await db.PurchaseOrders
@@ -200,6 +205,7 @@ public sealed class PurchaseOrdersController(PurchaseDbContext db) : ControllerB
 
     // ── PATCH /api/purchase/orders/{id}/status ────────────────────────────
     [HttpPatch("{id:guid}/status")]
+    [RequirePermission("purchase.orders.edit")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] string status, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.FindAsync([id], ct);
@@ -210,7 +216,9 @@ public sealed class PurchaseOrdersController(PurchaseDbContext db) : ControllerB
     }
 
     // ── DELETE /api/purchase/orders/{id} ─────────────────────────────────
+    // No purchase.orders.delete key seeded — gate on the nearest (edit).
     [HttpDelete("{id:guid}")]
+    [RequirePermission("purchase.orders.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.FindAsync([id], ct);

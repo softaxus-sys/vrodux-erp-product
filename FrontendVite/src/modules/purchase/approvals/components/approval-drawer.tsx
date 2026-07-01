@@ -5,10 +5,15 @@ import {
   User, Calendar, Building2, Tag, FileText,
   ShoppingBag, Zap,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { PurchaseApprovalDto as PurchaseApproval, ApprovalStatus, ApprovalPriority } from "@/lib/purchase/approvals.api";
 import { CATEGORY_LABELS } from "@/lib/purchase/approvals.api";
+import { useApproveApproval, useRejectApproval } from "@/hooks/purchase/use-approvals";
+import { useAuthStore } from "@/store/auth.store";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   pending:   { label: "Pending",   color: "text-warning",      bg: "bg-warning/10",     icon: Clock },
@@ -27,9 +32,15 @@ const PRIORITY_CONFIG: Record<ApprovalPriority, { label: string; color: string; 
 interface Props { approval: PurchaseApproval | null; open: boolean; onClose: () => void; }
 
 export function ApprovalDrawer({ approval, open, onClose }: Props) {
-  React.useEffect(() => { if (open) {} }, [open]);
+  const approve = useApproveApproval();
+  const reject  = useRejectApproval();
+  const by = useAuthStore(s => s.user?.name) ?? "System";
+  const [rejecting, setRejecting] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  React.useEffect(() => { if (!open) { setRejecting(false); setReason(""); } }, [open]);
   if (!approval) return null;
 
+  const busy = approve.isPending || reject.isPending;
   const sc = STATUS_CONFIG[approval.status];
   const pc = PRIORITY_CONFIG[approval.priority];
   const StatusIcon = sc.icon;
@@ -172,14 +183,31 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex items-center gap-2">
               {approval.status === "pending" && (
-                <>
-                  <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90">
-                    <CheckCircle2 className="h-3.5 w-3.5" />Approve
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10">
-                    <Ban className="h-3.5 w-3.5" />Reject
-                  </Button>
-                </>
+                <Can permission="purchase.approvals.approve">
+                  {rejecting ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <Input autoFocus value={reason} onChange={e => setReason(e.target.value)}
+                        placeholder="Rejection reason…" className="h-9 flex-1 text-sm" />
+                      <Button variant="outline" size="sm" className="h-9 text-destructive border-destructive/30 hover:bg-destructive/10"
+                        disabled={busy || !reason.trim()}
+                        onClick={() => reject.mutate({ id: approval.id, by, reason: reason.trim() }, { onSuccess: onClose })}>
+                        {reject.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Reject"}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-9" onClick={() => setRejecting(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={busy}
+                        onClick={() => approve.mutate({ id: approval.id, by }, { onSuccess: onClose })}>
+                        {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}Approve
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10" disabled={busy}
+                        onClick={() => setRejecting(true)}>
+                        <Ban className="h-3.5 w-3.5" />Reject
+                      </Button>
+                    </>
+                  )}
+                </Can>
               )}
               {approval.status === "approved" && !approval.convertedToPO && (
                 <Button size="sm" className="gap-1.5 h-9">

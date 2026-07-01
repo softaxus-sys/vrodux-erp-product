@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Purchase.API.Authorization;
 using Softaxis.Purchase.Domain.Entities;
 using Softaxis.Purchase.Infrastructure.Persistence;
 
@@ -19,6 +20,7 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
         string? ConvertedToPO, DateTime CreatedAt, DateTime? UpdatedAt);
 
     [HttpGet("summary")]
+    [RequirePermission("purchase.approvals.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var all = await db.PurchaseApprovals.AsNoTracking().Where(x => !x.IsDeleted)
@@ -32,6 +34,7 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("purchase.approvals.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var items = await db.PurchaseApprovals.AsNoTracking().Include(x => x.Items)
@@ -40,6 +43,7 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("purchase.approvals.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var a = await db.PurchaseApprovals.AsNoTracking().Include(x => x.Items)
@@ -47,7 +51,10 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
         return a is null ? NotFound() : Ok(ToDto(a));
     }
 
+    // Submitting a purchase requisition is part of the ordering workflow (done by requesters,
+    // not approvers); there is no purchase.approvals.create key → gate on purchase.orders.create.
     [HttpPost]
+    [RequirePermission("purchase.orders.create")]
     public async Task<IActionResult> Create([FromBody] CreateRequest req, CancellationToken ct)
     {
         var a = new PurchaseApproval(req.Title, req.RequestedBy, req.Department, req.RequiredBy,
@@ -60,6 +67,7 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
+    [RequirePermission("purchase.approvals.approve")]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ActionRequest req, CancellationToken ct)
     {
         var a = await db.PurchaseApprovals.FindAsync([id], ct);
@@ -67,7 +75,9 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
         a.Approve(req.By); await db.SaveChangesAsync(ct); return NoContent();
     }
 
+    // Reject is the approval workflow's counterpart → gate on approve.
     [HttpPost("{id:guid}/reject")]
+    [RequirePermission("purchase.approvals.approve")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectRequest req, CancellationToken ct)
     {
         var a = await db.PurchaseApprovals.FindAsync([id], ct);

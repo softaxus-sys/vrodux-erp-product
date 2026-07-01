@@ -14,6 +14,7 @@ import { PurchaseOrderDrawer } from "./purchase-order-drawer";
 import { AddPurchaseOrderForm } from "./add-purchase-order-form";
 import { CreateGrnForm } from "@/modules/purchase/grn/components/create-grn-form";
 import { CreatePurchaseReturnForm } from "@/modules/purchase/returns/components/create-purchase-return-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -83,9 +84,11 @@ export function PurchaseOrdersView() {
           <h1 className="text-2xl font-bold">Purchase Orders</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Manage supplier orders from draft through receipt</p>
         </div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" />New PO
-        </Button>
+        <Can permission="purchase.orders.create">
+          <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" />New PO
+          </Button>
+        </Can>
       </div>
 
       {/* Stats */}
@@ -188,22 +191,28 @@ export function PurchaseOrdersView() {
                     </td>
                     <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                       {po.status === "draft" && (
-                        <Button size="sm" className="h-7 text-xs gap-1" disabled={updateStatus.isPending}
-                          onClick={() => updateStatus.mutate({ id: po.id, status: "sent" })}>
-                          <Send className="h-3 w-3" />Send
-                        </Button>
+                        <Can permission="purchase.orders.edit">
+                          <Button size="sm" className="h-7 text-xs gap-1" disabled={updateStatus.isPending}
+                            onClick={() => updateStatus.mutate({ id: po.id, status: "sent" })}>
+                            <Send className="h-3 w-3" />Send
+                          </Button>
+                        </Can>
                       )}
                       {(po.status === "sent" || po.status === "partial") && (
-                        <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90"
-                          onClick={() => { setGrnOrderId(po.id); setGrnOpen(true); }}>
-                          <PackageCheck className="h-3 w-3" />Receive
-                        </Button>
+                        <Can permission="purchase.orders.edit">
+                          <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90"
+                            onClick={() => { setGrnOrderId(po.id); setGrnOpen(true); }}>
+                            <PackageCheck className="h-3 w-3" />Receive
+                          </Button>
+                        </Can>
                       )}
                       {(po.status === "received" || po.status === "partial") && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ml-1.5"
-                          onClick={() => { setReturnOrderId(po.id); setReturnOpen(true); }}>
-                          <RotateCcw className="h-3 w-3" />Return
-                        </Button>
+                        <Can permission="purchase.orders.edit">
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ml-1.5"
+                            onClick={() => { setReturnOrderId(po.id); setReturnOpen(true); }}>
+                            <RotateCcw className="h-3 w-3" />Return
+                          </Button>
+                        </Can>
                       )}
                     </td>
                   </motion.tr>

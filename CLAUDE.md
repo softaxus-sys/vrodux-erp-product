@@ -1265,6 +1265,59 @@ compounding the debt (attributes are independent of the controller internals). M
 
 ---
 
+## Module 5p — Purchase: Full Module Audit & Authorization Hardening
+
+**Sixth module of the audit program** (after Finance 5i, HR 5j, Inventory 5k, CRM 5m/5n, Sales 5o). Same profile
+as Sales: `[Authorize]` with zero per-permission enforcement, and mixed CQRS/tech-debt — `GoodsReceiptNotes` +
+`PurchaseReturns` are clean CQRS (Modules 5b/5c), while `Vendors`, `PurchaseOrders`, `Approvals` inject
+`PurchaseDbContext` directly (tech debt).
+
+### Security / Authorization
+- **`Softaxis.Purchase.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern; explicit
+  `using Microsoft.AspNetCore.Http;`).
+- `[RequirePermission("purchase.<key>.<action>")]` on **all 5 controllers** → seeded `purchase.*` keys
+  (`purchase.vendors`, `purchase.orders`, `purchase.approvals`):
+  - `VendorsController` → `purchase.vendors.*` (view/create/edit/delete). **Vendor GET reads ARE gated** on
+    `purchase.vendors.view` — unlike Sales customers (which had no key and were left open), vendors is a
+    first-class resource with its own permission group + list page, so gating reads is the intended RBAC.
+    Roles that create POs should also include `purchase.vendors.view` for the PO-form vendor dropdown.
+  - `PurchaseOrdersController` → `purchase.orders.*` (**no `purchase.orders.delete` key** → delete + status
+    gate on `purchase.orders.edit`).
+  - `ApprovalsController` → `purchase.approvals.*` (view for reads; Approve/Reject → `purchase.approvals.approve`;
+    **Create** — submitting a requisition, no `approvals.create` key — → `purchase.orders.create`, commented).
+  - `GoodsReceiptNotesController` → `purchase.orders.*` (receiving drives PO status; GETs → orders.view, Create
+    → orders.edit) and `PurchaseReturnsController` → `purchase.orders.*` (post-PO operation; GETs → orders.view,
+    Create → orders.edit). No dedicated keys — nearest-key rule, commented (mirrors Sales delivery challans).
+- **Frontend `<Can>` gating**: Add Vendor (`purchase.vendors.create`), New PO (`purchase.orders.create`), the
+  PO-row Send/Receive/Return actions (`purchase.orders.edit`), and the approval Approve/Reject (below).
+
+### Functional / dead-UI bug found & fixed — Approval Approve/Reject was never wired
+The entire Purchase-approvals **mutation frontend was unbuilt**: `approvals.api.ts` had only get/summary/getById,
+`use-approvals.ts` only the two queries, and the `approval-drawer.tsx` **Approve / Reject** buttons had **no
+`onClick`** — despite the backend having `POST /approvals/{id}/approve` + `/reject`. **Fixed:** added
+`approvalsApi.approve(id, by)` / `reject(id, by, reason)`, `useApproveApproval` / `useRejectApproval` hooks
+(invalidate list + summary, toast), and wired the drawer — Approve fires directly; **Reject** opens an inline
+reason `<Input>` + "Confirm Reject" (state-based, matches the project pattern), both `<Can
+permission="purchase.approvals.approve">`-gated, approver name from `useAuthStore(s => s.user?.name)`.
+
+### Known feature gaps flagged (NOT built — need whole new forms / missing backend, out of audit scope)
+- **approvals-view "New Request" button** — no `onClick`; the create-requisition flow was never built (no form,
+  no `useCreateApproval`) even though `POST /api/purchase/approvals` exists. Left as-is; spawned as a follow-up
+  task. Same for the approval-drawer **"Create PO"** button — no backend convert-to-PO endpoint exists.
+- No `window.confirm`/`alert`/`TODO`/`console` anywhere in Purchase views; other mutation hooks already have
+  `onError` + toasts.
+
+### Tech debt (flagged, NOT migrated)
+`Vendors`, `PurchaseOrders`, `Approvals` controllers inject `PurchaseDbContext` + inline DTOs — same CQRS
+migration follow-up noted for Sales (5o). Authorization added without compounding the debt.
+
+### Build / Verification Status
+- **Purchase.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** republish + restart, then live spot-check (grant only `purchase.orders.view` → PO list 200,
+  PO create/status 403, vendors list 403, approvals approve 403).
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched
