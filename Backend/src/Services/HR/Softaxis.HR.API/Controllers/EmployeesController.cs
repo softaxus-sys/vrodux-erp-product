@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Employees.Commands;
 using Softaxis.HR.Application.Employees.Queries;
@@ -29,6 +30,7 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/employees/summary ───────────────────────────────────
     [HttpGet("summary")]
+    [RequirePermission("hr.employees.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetEmployeesSummaryQuery(), ct);
@@ -37,6 +39,7 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/employees ────────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("hr.employees.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page           = 1,
         [FromQuery] int     pageSize       = 20,
@@ -52,6 +55,9 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
     }
 
     // ── GET /api/hr/employees/all ────────────────────────────────────────
+    // Lightweight dropdown feed consumed by Leave/Payroll/Attendance forms across HR —
+    // left authenticated-only (not gated) so those forms work for users who can create
+    // leaves/payroll but lack hr.employees.view (shared reference, like Finance lookups).
     [HttpGet("all")]
     public async Task<IActionResult> GetAllSimple(CancellationToken ct)
     {
@@ -61,6 +67,7 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/employees/{id} ───────────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("hr.employees.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetEmployeeByIdQuery(id), ct);
@@ -69,6 +76,7 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/employees ───────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("hr.employees.create")]
     public async Task<IActionResult> Create([FromBody] CreateEmployeeCommand command, CancellationToken ct)
     {
         var result = await sender.Send(command, ct);
@@ -77,6 +85,7 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
 
     // ── PUT /api/hr/employees/{id} ───────────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("hr.employees.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateEmployeeRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateEmployeeCommand(
@@ -89,6 +98,7 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
 
     // ── DELETE /api/hr/employees/{id} ────────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("hr.employees.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteEmployeeCommand(id), ct);

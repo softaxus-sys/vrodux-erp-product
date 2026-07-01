@@ -17,6 +17,7 @@ import { usePayrollRuns, usePayrollSummary, usePayrollRunById, useProcessPayroll
 import { downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { AddPayrollForm } from "./add-payroll-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   draft:      { label: "Draft",      color: "text-muted-foreground", bg: "bg-muted",             icon: FileText },
@@ -791,7 +792,7 @@ export function PayrollView() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => currentRun && openWps(currentRun)} disabled={!currentRun}><Download className="h-3.5 w-3.5" />WPS File</Button>
-          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><CheckCircle2 className="h-4 w-4" />Run Payroll</Button>
+          <Can permission="hr.payroll.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><CheckCircle2 className="h-4 w-4" />Run Payroll</Button></Can>
         </div>
       </div>
 

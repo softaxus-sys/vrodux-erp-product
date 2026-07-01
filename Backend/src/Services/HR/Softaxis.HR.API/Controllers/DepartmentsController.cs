@@ -1,12 +1,15 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Departments.Commands;
 using Softaxis.HR.Application.Departments.Queries;
 
 namespace Softaxis.HR.API.Controllers;
 
+// Departments are HR reference data: GET reads feed the employee-form department dropdown, so they
+// stay authenticated-only. Writes are gated on hr.employees.* (no dedicated departments permission key).
 [Route("api/hr/departments")]
 [Authorize]
 public sealed class DepartmentsController(ISender sender) : HrControllerBase
@@ -30,6 +33,7 @@ public sealed class DepartmentsController(ISender sender) : HrControllerBase
 
     /// <summary>POST /api/hr/departments</summary>
     [HttpPost]
+    [RequirePermission("hr.employees.create")]
     public async Task<IActionResult> Create([FromBody] CreateDepartmentCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -39,12 +43,14 @@ public sealed class DepartmentsController(ISender sender) : HrControllerBase
 
     /// <summary>PUT /api/hr/departments/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("hr.employees.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDepartmentRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(
             new UpdateDepartmentCommand(id, req.Name, req.Code, req.Description, req.ManagerId, req.IsActive), ct));
 
     /// <summary>DELETE /api/hr/departments/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("hr.employees.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteDepartmentCommand(id), ct));
 

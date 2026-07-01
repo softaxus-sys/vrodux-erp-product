@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Payroll.Commands;
 using Softaxis.HR.Application.Payroll.Dtos;
@@ -44,6 +45,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/payroll/summary ──────────────────────────────────────
     [HttpGet("summary")]
+    [RequirePermission("hr.payroll.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetPayrollSummaryQuery(), ct);
@@ -52,6 +54,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/payroll ──────────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("hr.payroll.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -65,6 +68,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/payroll/{id} ─────────────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("hr.payroll.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetPayrollRunByIdQuery(id), ct);
@@ -73,6 +77,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll ─────────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("hr.payroll.create")]
     public async Task<IActionResult> Create([FromBody] CreatePayrollRunRequest req, CancellationToken ct)
     {
         var slips = req.Slips
@@ -88,6 +93,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll/generate ────────────────────────────────────
     [HttpPost("generate")]
+    [RequirePermission("hr.payroll.create")]
     public async Task<IActionResult> Generate([FromBody] GenerateRequest req, CancellationToken ct)
     {
         var result = await sender.Send(
@@ -97,6 +103,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll/{id}/reject ─────────────────────────────────
     [HttpPost("{id:guid}/reject")]
+    [RequirePermission("hr.payroll.approve")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new RejectPayrollRunCommand(id, req.Reason, CurrentUserName), ct);
@@ -105,6 +112,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/payroll/{runId}/slips/{slipId} ───────────────────────
     [HttpGet("{runId:guid}/slips/{slipId:guid}")]
+    [RequirePermission("hr.payroll.view")]
     public async Task<IActionResult> GetSlip(Guid runId, Guid slipId, CancellationToken ct)
     {
         var result = await sender.Send(new GetPayrollSlipQuery(runId, slipId), ct);
@@ -113,6 +121,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll/{runId}/slips/{slipId}/send-email ───────────
     [HttpPost("{runId:guid}/slips/{slipId:guid}/send-email")]
+    [RequirePermission("hr.payroll.print")]
     public async Task<IActionResult> SendSlipEmail(Guid runId, Guid slipId, CancellationToken ct)
     {
         var result = await sender.Send(new SendPayrollSlipEmailCommand(runId, slipId), ct);
@@ -121,6 +130,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll/{id}/process ────────────────────────────────
     [HttpPost("{id:guid}/process")]
+    [RequirePermission("hr.payroll.approve")]
     public async Task<IActionResult> Process(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new ProcessPayrollRunCommand(id), ct);
@@ -129,6 +139,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll/{id}/pay ────────────────────────────────────
     [HttpPost("{id:guid}/pay")]
+    [RequirePermission("hr.payroll.approve")]
     public async Task<IActionResult> Pay(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new PayPayrollRunCommand(id), ct);
@@ -137,14 +148,17 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/payroll/{id}/reopen ─────────────────────────────────
     [HttpPost("{id:guid}/reopen")]
+    [RequirePermission("hr.payroll.approve")]
     public async Task<IActionResult> Reopen(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new ReopenPayrollRunCommand(id), ct);
         return NoContentOrError(result);
     }
 
+    // NOTE: payroll has no seeded "edit"/"delete" — slip edits & run delete are privileged, gate on "approve".
     // ── PUT /api/hr/payroll/{runId}/slips/{slipId} ───────────────────────
     [HttpPut("{runId:guid}/slips/{slipId:guid}")]
+    [RequirePermission("hr.payroll.approve")]
     public async Task<IActionResult> UpdateSlip(Guid runId, Guid slipId, [FromBody] UpdateSlipRequest req, CancellationToken ct)
     {
         var result = await sender.Send(
@@ -154,6 +168,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     // ── DELETE /api/hr/payroll/{id} ──────────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("hr.payroll.approve")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeletePayrollRunCommand(id), ct);

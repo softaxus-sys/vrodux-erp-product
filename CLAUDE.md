@@ -950,6 +950,44 @@ Finance had `[Authorize]` on every controller but **zero per-permission enforcem
 
 ---
 
+## Module 5j — HR: Full Module Audit & Authorization Hardening
+
+**Second module of the audit program** (after Finance 5i). Same 4-dimension pass.
+
+### Doc correction
+CLAUDE.md's HR sections previously implied `PerformanceController`/`RecruitmentController` are **NOT
+IMPLEMENTED** and that HR controllers inject `DbContext` (tech debt). **Both are stale** — all 8 HR controllers
+are clean CQRS (`ISender` + `HrControllerBase`), and Performance/Recruitment are fully implemented.
+
+### Security / Authorization (the gap — now closed)
+Every HR controller had `[Authorize]` but **zero per-permission enforcement**. Added:
+- **`Softaxis.HR.API/Authorization/RequirePermissionAttribute.cs`** (copy of the Finance/PM pattern).
+- `[RequirePermission("hr.<key>.<action>")]` on all action controllers → seeded `hr.*` keys:
+  - `hr.employees.*` → Employees · `hr.attendance.*` → Attendance · `hr.leaves.*` → Leaves
+  - `hr.payroll.*` → Payroll · `hr.performance.*` → Performance · `hr.recruitment.*` → Recruitment
+- **Payroll** has no seeded `edit`/`delete` → workflow transitions (process/pay/reject/reopen), slip edits, and
+  run delete gate on `hr.payroll.approve`; slip email on `hr.payroll.print`. **Leaves/Attendance/Performance**
+  have no `delete` key → deletes gate on `edit`. (Same "nearest seeded key" rule as Finance — no migration, admins unaffected.)
+- **Intentionally left open:**
+  - `CareersController` — it's `[AllowAnonymous]` (public careers portal, tenant resolved from URL slug). Must stay anonymous.
+  - `GET /api/hr/employees/all` — the lightweight dropdown feed consumed by Leave/Payroll/Attendance forms;
+    gating it would break those forms for users who can create leaves/payroll but lack `hr.employees.view`.
+  - `DepartmentsController` GET reads (feed the employee-form department dropdown) — writes gated on `hr.employees.*`.
+- **Frontend `<Can>` gating** on all 6 primary create buttons: Add Employee, Mark Attendance, Apply Leave,
+  Run Payroll, New Review, Post Job.
+- **Verified live** (:5099): a user with only `hr.employees.view` → employees list 200 + `/employees/all` 200,
+  but employee create 403, payroll list/pay 403, leaves 403.
+
+### Functional / dead-UI + Completeness + Tech-debt
+- HR views scanned: **no** dead `onClick`, **no** `window.confirm`/`alert`, **no** TODO/console.
+- `hooks/hr/use-hr.ts`: **all 31 mutation hooks already have `onError` + success toasts** — nothing to fix (cleaner than Finance was).
+- HR is already clean CQRS — no tech-debt migration.
+
+### Build / Verification Status
+- **HR.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **Live 403 enforcement:** verified ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched
