@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Sales.API.Authorization;
 using Softaxis.Sales.Domain.Entities;
 using Softaxis.Sales.Infrastructure.Persistence;
 
@@ -34,6 +35,9 @@ public sealed class CustomersController(SalesDbContext db) : ControllerBase
         string? Notes,
         bool    IsActive = true);
 
+    // GET reads left open ([Authorize] only): the sales customer list/detail feed the customer
+    // dropdown in the quotation/order/return forms. There is no dedicated sales.customers permission
+    // key, so writes below gate on the nearest key (sales.orders.*).
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search   = null,
@@ -79,6 +83,7 @@ public sealed class CustomersController(SalesDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("sales.orders.create")]
     public async Task<IActionResult> Create([FromBody] UpsertCustomerRequest req, CancellationToken ct)
     {
         var customer = new Customer(req.Name, req.Email, req.Phone, req.Address, req.TaxNumber, req.Notes);
@@ -95,6 +100,7 @@ public sealed class CustomersController(SalesDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("sales.orders.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertCustomerRequest req, CancellationToken ct)
     {
         var customer = await db.Customers.FindAsync([id], ct);
@@ -106,6 +112,7 @@ public sealed class CustomersController(SalesDbContext db) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("sales.orders.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var customer = await db.Customers.FindAsync([id], ct);

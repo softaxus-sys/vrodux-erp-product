@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Sales.API.Authorization;
 using Softaxis.Sales.Domain.Entities;
 using Softaxis.Sales.Infrastructure.Persistence;
 
@@ -91,6 +92,7 @@ public sealed class SalesQuotationsController(SalesDbContext db) : ControllerBas
 
     // ── GET /api/sales/quotations ─────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("sales.quotations.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -138,6 +140,7 @@ public sealed class SalesQuotationsController(SalesDbContext db) : ControllerBas
 
     // ── GET /api/sales/quotations/{id} ───────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("sales.quotations.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var q = await db.SalesQuotations
@@ -151,6 +154,7 @@ public sealed class SalesQuotationsController(SalesDbContext db) : ControllerBas
 
     // ── POST /api/sales/quotations ───────────────────────────────────────
     [HttpPost]
+    [RequirePermission("sales.quotations.create")]
     public async Task<IActionResult> Create([FromBody] CreateQuotationRequest req, CancellationToken ct)
     {
         var quotation = new SalesQuotation(
@@ -169,6 +173,7 @@ public sealed class SalesQuotationsController(SalesDbContext db) : ControllerBas
 
     // ── PUT /api/sales/quotations/{id} ───────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("sales.quotations.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateQuotationRequest req, CancellationToken ct)
     {
         var quotation = await db.SalesQuotations
@@ -192,7 +197,9 @@ public sealed class SalesQuotationsController(SalesDbContext db) : ControllerBas
     }
 
     // ── POST /api/sales/quotations/{id}/convert ──────────────────────────
+    // Convert spawns a sales order from the quotation — gate on quotation edit.
     [HttpPost("{id:guid}/convert")]
+    [RequirePermission("sales.quotations.edit")]
     public async Task<IActionResult> ConvertToOrder(Guid id, CancellationToken ct)
     {
         var quotation = await db.SalesQuotations
@@ -218,6 +225,7 @@ public sealed class SalesQuotationsController(SalesDbContext db) : ControllerBas
 
     // ── DELETE /api/sales/quotations/{id} ────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("sales.quotations.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var quotation = await db.SalesQuotations.FindAsync([id], ct);

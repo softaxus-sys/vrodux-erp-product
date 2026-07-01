@@ -12,6 +12,7 @@ import { useSalesQuotations, useConvertQuotationToOrder } from "@/hooks/sales/us
 import type { SalesQuotationSummaryDto } from "@/lib/pos/types";
 import { QuotationDrawer } from "./quotation-drawer";
 import { AddQuotationForm } from "./add-quotation-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   draft:     { label: "Draft",     color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -77,9 +78,11 @@ export function QuotationsView() {
           <h1 className="text-2xl font-bold">Sales Quotations</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Create and track customer quotations through the sales pipeline</p>
         </div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" />New Quotation
-        </Button>
+        <Can permission="sales.quotations.create">
+          <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" />New Quotation
+          </Button>
+        </Can>
       </div>
 
       {/* Stats */}

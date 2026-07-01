@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useSalesOrder, useDeleteSalesOrder } from "@/hooks/sales/use-sales-orders";
+import { Can } from "@/components/auth/can";
 import type { SalesOrderSummaryDto } from "@/lib/pos/types";
 
 interface Props { order: SalesOrderSummaryDto | null; open: boolean; onClose: () => void; }
@@ -193,6 +194,7 @@ export function OrderDrawer({ order, open, onClose }: Props) {
             <div className="p-4 border-t border-border flex items-center gap-2">
               <Button variant="outline" className="h-9" onClick={onClose}>Close</Button>
               {["pending", "cancelled"].includes(order.status) && (
+                <Can permission="sales.orders.edit">{
                 confirmDelete ? (
                   <div className="flex items-center gap-2 ml-auto">
                     <span className="text-xs text-destructive font-medium">Delete this order?</span>
@@ -208,6 +210,7 @@ export function OrderDrawer({ order, open, onClose }: Props) {
                     <Trash2 className="h-3.5 w-3.5" />Delete
                   </Button>
                 )
+                }</Can>
               )}
             </div>
           </motion.div>

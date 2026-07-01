@@ -13,6 +13,7 @@ import type { SalesOrderSummaryDto } from "@/lib/pos/types";
 import { OrderDrawer } from "./order-drawer";
 import { AddSalesOrderForm } from "./add-sales-order-form";
 import { CreateDeliveryChallanForm } from "@/modules/sales/delivery-challans/components/create-delivery-challan-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   pending:   { label: "Pending",   color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -85,9 +86,11 @@ export function OrdersView() {
           <h1 className="text-2xl font-bold">Sales Orders</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Track and manage customer orders through fulfillment</p>
         </div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" />New Order
-        </Button>
+        <Can permission="sales.orders.create">
+          <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" />New Order
+          </Button>
+        </Can>
       </div>
 
       {/* Stats */}
@@ -190,14 +193,18 @@ export function OrdersView() {
                     </td>
                     <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                       {o.status === "pending" && (
-                        <Button size="sm" className="h-7 text-xs gap-1" onClick={() => handleStatusChange(o, "confirmed")}>
-                          <CheckCircle2 className="h-3 w-3" />Confirm
-                        </Button>
+                        <Can permission="sales.orders.edit">
+                          <Button size="sm" className="h-7 text-xs gap-1" onClick={() => handleStatusChange(o, "confirmed")}>
+                            <CheckCircle2 className="h-3 w-3" />Confirm
+                          </Button>
+                        </Can>
                       )}
                       {(o.status === "confirmed" || o.status === "shipped") && (
-                        <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setDcOrderId(o.id); setShowDcForm(true); }}>
-                          <Truck className="h-3 w-3" />Delivery Challan
-                        </Button>
+                        <Can permission="sales.orders.edit">
+                          <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setDcOrderId(o.id); setShowDcForm(true); }}>
+                            <Truck className="h-3 w-3" />Delivery Challan
+                          </Button>
+                        </Can>
                       )}
                     </td>
                   </motion.tr>

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Sales.API.Authorization;
 using Softaxis.Sales.Domain.Entities;
 using Softaxis.Sales.Infrastructure.Persistence;
 
@@ -87,6 +88,7 @@ public sealed class SalesOrdersController(SalesDbContext db) : ControllerBase
 
     // ── GET /api/sales/orders ─────────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("sales.orders.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -133,6 +135,7 @@ public sealed class SalesOrdersController(SalesDbContext db) : ControllerBase
 
     // ── GET /api/sales/orders/{id} ───────────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("sales.orders.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var order = await db.SalesOrders
@@ -147,6 +150,7 @@ public sealed class SalesOrdersController(SalesDbContext db) : ControllerBase
 
     // ── POST /api/sales/orders ───────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("sales.orders.create")]
     public async Task<IActionResult> Create([FromBody] CreateSalesOrderRequest req, CancellationToken ct)
     {
         var order = new SalesOrder(req.CustomerId, req.CustomerName, req.Notes, req.ExpectedDate);
@@ -164,6 +168,7 @@ public sealed class SalesOrdersController(SalesDbContext db) : ControllerBase
 
     // ── PUT /api/sales/orders/{id} ───────────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("sales.orders.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSalesOrderRequest req, CancellationToken ct)
     {
         var order = await db.SalesOrders
@@ -188,6 +193,7 @@ public sealed class SalesOrdersController(SalesDbContext db) : ControllerBase
 
     // ── PATCH /api/sales/orders/{id}/status ─────────────────────────────
     [HttpPatch("{id:guid}/status")]
+    [RequirePermission("sales.orders.edit")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] string status, CancellationToken ct)
     {
         var order = await db.SalesOrders
@@ -202,7 +208,9 @@ public sealed class SalesOrdersController(SalesDbContext db) : ControllerBase
     }
 
     // ── DELETE /api/sales/orders/{id} ───────────────────────────────────
+    // No sales.orders.delete key seeded — gate on the nearest (edit).
     [HttpDelete("{id:guid}")]
+    [RequirePermission("sales.orders.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var order = await db.SalesOrders.FindAsync([id], ct);

@@ -1210,6 +1210,61 @@ sub-feature view (`b2b.proposals.view` / `education.admissions.view` / `healthca
 
 ---
 
+## Module 5o — Sales: Full Module Audit & Authorization Hardening
+
+**Fifth module of the audit program** (after Finance 5i, HR 5j, Inventory 5k, CRM 5m/5n). Sales had
+`[Authorize]` with **zero per-permission enforcement**, and — unlike the earlier clean-CQRS modules — 4 of its 5
+controllers are **tech debt** (inject `SalesDbContext` directly + define DTOs inline). Only `DeliveryChallans`
+(Module 5e) is clean CQRS.
+
+### Security / Authorization
+- **`Softaxis.Sales.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern; includes the
+  explicit `using Microsoft.AspNetCore.Http;` — Sales API has no implicit Http using, same gotcha as CRM 5m).
+- `[RequirePermission("sales.<key>.<action>")]` on **all 5 controllers** → seeded `sales.*` keys
+  (`sales.quotations`, `sales.orders`, `sales.returns`):
+  - `SalesQuotationsController` → `sales.quotations.*` (view/create/edit/delete; **Convert-to-order** → edit,
+    with comment — mirrors CRM lead-convert → leads.edit).
+  - `SalesOrdersController` → `sales.orders.*` (**no `sales.orders.delete` key** → delete + UpdateStatus gate on
+    the nearest key `sales.orders.edit`, commented).
+  - `SalesReturnsController` → `sales.returns.*` (**no edit/delete key** → both Approve and **Reject** gate on
+    `sales.returns.approve`, commented).
+  - `DeliveryChallansController` → `sales.orders.*` (challans are order fulfillment, no dedicated key; GETs →
+    orders.view, Create → orders.edit as a fulfillment action, commented).
+  - `CustomersController` (`api/sales/customers`) — **GET reads left open** (`[Authorize]` only): they feed the
+    customer dropdown in the quotation/order/return forms; gating would break those forms for users who can
+    create orders but lack a customer read. Writes gate on `sales.orders.*` (no `sales.customers` key).
+- **Frontend `<Can>` gating**: create buttons (New Order / New Quotation / New Return), the order-row Confirm +
+  Delivery-Challan actions (`sales.orders.edit`), and drawer actions — order delete (`sales.orders.edit`),
+  quotation Convert (`sales.quotations.edit`) + delete (`sales.quotations.delete`), return Approve/Reject
+  (`sales.returns.approve`).
+
+### Functional / dead-UI bug found & fixed — Return Approve/Reject was never wired
+`return-drawer.tsx`'s **"Approve Return" / "Reject"** buttons had **no `onClick`** — pure dead UI, even though
+the backend has `POST /api/sales/returns/{id}/approve` + `/reject`. `returns.api.ts` had no `approve`/`reject`
+methods and `use-returns.ts` had no hooks. **Fixed:** added `returnsApi.approve/reject(id, by)`,
+`useApproveReturn`/`useRejectReturn` (invalidate list + summary, toast), and wired both buttons (pass the
+approver name from `useAuthStore(s => s.user?.name)`, loading spinners, close on success, `<Can>`-gated).
+- Other decorative footer buttons with no handler and **no matching backend endpoint** — quotation "Send to
+  Customer" / "Re-issue" / "Duplicate", return "Process Refund" — left as-is (no backend to call; same call as
+  the recruitment placeholder). Flagged, not wired.
+- `hooks/sales/*`: all other mutation hooks already have `onError` + success toasts. No `window.confirm`/`alert`
+  anywhere in Sales views (drawers already use state-based `confirmDelete`).
+
+### Tech debt (flagged, NOT migrated — would need user sign-off)
+`CustomersController`, `SalesOrdersController`, `SalesQuotationsController`, `SalesReturnsController` inject
+`SalesDbContext` and define DTOs inline — violating the mandatory CQRS rule. Authorization was added without
+compounding the debt (attributes are independent of the controller internals). Migrating these 4 to
+`ISender` + `SalesControllerBase` + `Application/Commands|Queries|Dtos` is a separate, larger refactor
+(one feature at a time, per the architecture rule) — left for a dedicated pass. Minor pre-existing note:
+`SalesReturns.GetById` (and the other GetByIds) don't filter soft-deleted rows — low-impact, not fixed here.
+
+### Build / Verification Status
+- **Sales.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** republish + restart, then live spot-check (grant only `sales.orders.view` → orders list 200,
+  order create/status/delete 403, quotations/returns 403, customer dropdown still loads).
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

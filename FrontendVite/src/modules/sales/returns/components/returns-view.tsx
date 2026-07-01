@@ -11,6 +11,7 @@ import type { SalesReturnDto as SalesReturn, ReturnStatus, ReturnReason } from "
 import { useReturns, useReturnsSummary } from "@/hooks/sales/use-returns";
 import { ReturnDrawer } from "./return-drawer";
 import { AddReturnForm } from "./add-return-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -103,9 +104,11 @@ export function ReturnsView() {
           <h1 className="text-2xl font-bold">Sales Returns</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Handle return requests, refunds, and credit notes</p>
         </div>
-        <Button size="sm" className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" /> New Return
-        </Button>
+        <Can permission="sales.returns.create">
+          <Button size="sm" className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" /> New Return
+          </Button>
+        </Can>
       </div>
 
       {/* Stats */}

@@ -5,9 +5,13 @@ import {
   Building2, Calendar, FileText, CreditCard, AlertCircle,
   Banknote, User,
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { SalesReturnDto as SalesReturn, ReturnStatus, ReturnReason } from "@/lib/sales/returns.api";
+import { useApproveReturn, useRejectReturn } from "@/hooks/sales/use-returns";
+import { useAuthStore } from "@/store/auth.store";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<ReturnStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   pending:   { label: "Pending",   color: "text-slate-600",    bg: "bg-slate-100 dark:bg-slate-800/50", icon: Clock },
@@ -35,11 +39,14 @@ const REFUND_METHOD_LABELS: Record<string, string> = {
 interface Props { ret: SalesReturn | null; open: boolean; onClose: () => void; }
 
 export function ReturnDrawer({ ret, open, onClose }: Props) {
-  React.useEffect(() => { if (open) {} }, [open]);
+  const approve = useApproveReturn();
+  const reject  = useRejectReturn();
+  const by = useAuthStore(s => s.user?.name) ?? "System";
   if (!ret) return null;
 
   const sc = STATUS_CONFIG[ret.status];
   const StatusIcon = sc.icon;
+  const busy = approve.isPending || reject.isPending;
 
   return (
     <AnimatePresence>
@@ -162,14 +169,16 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex items-center gap-2">
               {ret.status === "pending" && (
-                <>
-                  <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90">
-                    <CheckCircle2 className="h-3.5 w-3.5" />Approve Return
+                <Can permission="sales.returns.approve">
+                  <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={busy}
+                    onClick={() => approve.mutate({ id: ret.id, by }, { onSuccess: onClose })}>
+                    {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}Approve Return
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10">
-                    <Ban className="h-3.5 w-3.5" />Reject
+                  <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10" disabled={busy}
+                    onClick={() => reject.mutate({ id: ret.id, by }, { onSuccess: onClose })}>
+                    {reject.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}Reject
                   </Button>
-                </>
+                </Can>
               )}
               {ret.status === "approved" && (
                 <Button size="sm" className="gap-1.5 h-9">
