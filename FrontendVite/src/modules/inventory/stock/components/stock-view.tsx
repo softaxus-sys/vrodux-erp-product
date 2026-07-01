@@ -12,6 +12,7 @@ import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { StockDrawer } from "./stock-drawer";
 import { AddStockItemForm } from "./add-stock-item-form";
+import { Can } from "@/components/auth/can";
 import { AddAdjustmentForm } from "../../movements/components/add-adjustment-form";
 import { ProductImportDialog, downloadProductsCsv, printProductLabels } from "./bulk-tools";
 
@@ -113,9 +114,11 @@ export function StockView() {
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => printProductLabels(items, currency)} disabled={items.length === 0}>
             <Printer className="h-4 w-4" />Labels
           </Button>
-          <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" />Add Product
-          </Button>
+          <Can permission="inventory.stock.create">
+            <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4" />Add Product
+            </Button>
+          </Can>
         </div>
       </div>
 

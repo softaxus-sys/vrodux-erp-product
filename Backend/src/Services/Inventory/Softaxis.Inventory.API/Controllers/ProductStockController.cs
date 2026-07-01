@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Inventory.Application.ProductStock.Queries.GetProductBatches;
 using Softaxis.Inventory.Application.ProductStock.Queries.GetProductStockByProduct;
+using Softaxis.Inventory.API.Authorization;
 
 namespace Softaxis.Inventory.API.Controllers;
 
@@ -10,6 +11,7 @@ namespace Softaxis.Inventory.API.Controllers;
 [ApiController]
 [Route("api/inventory/product-stock")]
 [Authorize]
+[RequirePermission("inventory.stock.view")]
 public sealed class ProductStockController(ISender sender) : BaseApiController(sender)
 {
     // GET /api/inventory/product-stock/{productId}

@@ -2,12 +2,14 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Inventory.Application.Abstractions;
+using Softaxis.Inventory.API.Authorization;
 
 namespace Softaxis.Inventory.API.Controllers;
 
 [Authorize]
 [Route("api/inventory/reports")]
 [Tags("Inventory Reports")]
+[RequirePermission("inventory.stock.view")]
 public sealed class InventoryReportsController(ISender sender, IInventoryReportService reportService)
     : BaseApiController(sender)
 {

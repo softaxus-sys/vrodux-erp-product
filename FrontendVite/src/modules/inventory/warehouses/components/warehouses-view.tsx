@@ -14,6 +14,7 @@ import {
 } from "@/hooks/inventory/use-warehouses";
 import type { WarehouseDto } from "@/lib/inventory/types";
 import { ClientPagination, useClientPagination } from "@/components/ui/client-pagination";
+import { Can } from "@/components/auth/can";
 
 // ── Add / Edit modal ──────────────────────────────────────────────────────────
 
@@ -145,9 +146,11 @@ export function WarehousesView() {
             Manage storage locations, contact info, and default warehouse.
           </p>
         </div>
-        <Button className="gap-2" onClick={() => setShowForm(true)}>
-          <Plus className="h-4 w-4" /> Add Warehouse
-        </Button>
+        <Can permission="inventory.warehouses.create">
+          <Button className="gap-2" onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4" /> Add Warehouse
+          </Button>
+        </Can>
       </div>
 
       {/* Stat Cards */}

@@ -988,6 +988,38 @@ Every HR controller had `[Authorize]` but **zero per-permission enforcement**. A
 
 ---
 
+## Module 5k — Inventory: Full Module Audit & Authorization Hardening
+
+**Third module of the audit program** (after Finance 5i, HR 5j). Same profile: clean CQRS, `[Authorize]` but
+zero per-permission enforcement.
+
+### Security / Authorization
+- **`Softaxis.Inventory.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern).
+- `[RequirePermission("inventory.<key>.<action>")]` on all 10 controllers → seeded `inventory.*` keys:
+  - `inventory.stock.*` → Products, ProductStock (view), InventoryReports (view), **and the master-data write
+    actions** on Brands/Categories/UnitsOfMeasure.
+  - `inventory.warehouses.*` → Warehouses · `inventory.movements.*` → StockMovements
+  - `inventory.transfers.*` → StockTransfers (submit→create as the requester action; approve & receive→approve).
+- **Intentionally left open** (`[Authorize]` only): the **GET reads** on Brands/Categories/UnitsOfMeasure —
+  they feed the product-create form's brand/category/UoM dropdowns, so gating them would break the form for
+  users who can create products but lack the read. Writes on those three gate on `inventory.stock.*` (no
+  dedicated master-data permission keys).
+- **Frontend `<Can>` gating** on all 7 primary create buttons: Add Product, Add Warehouse, Record Adjustment,
+  New Transfer, New Brand, New Category, New Unit.
+- **Verified live** (:5099): a user with only `inventory.stock.view` → products list 200 + brands dropdown 200,
+  but product create 403, warehouses/transfers 403, stock-movement create 403.
+
+### Functional / dead-UI + Completeness + Tech-debt
+- Inventory views scanned: **no** dead `onClick`, **no** `window.confirm`/`alert`, **no** TODO/console (prior QA
+  Module 5 already replaced the native `confirm()`s).
+- All inventory mutation hooks already have `onError` — nothing to fix.
+- Already clean CQRS — no tech-debt migration.
+
+### Build / Verification Status
+- **Inventory.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **Live 403 enforcement:** verified ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

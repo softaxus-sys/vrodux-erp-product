@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Inventory.API.Authorization;
 using Softaxis.Inventory.Application.Products.Commands.ActivateProduct;
 using Softaxis.Inventory.Application.Products.Commands.CreateProduct;
 using Softaxis.Inventory.Application.Products.Commands.DeactivateProduct;
@@ -19,6 +20,7 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
 {
     // ── GET /api/inventory/products ──────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("inventory.stock.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page       = 1,
         [FromQuery] int     pageSize   = 20,
@@ -32,16 +34,19 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
 
     // ── GET /api/inventory/products/{id} ─────────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("inventory.stock.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new GetProductByIdQuery(id), ct));
 
     // ── GET /api/inventory/products/barcode/{barcode} ─────────────────────────
     [HttpGet("barcode/{barcode}")]
+    [RequirePermission("inventory.stock.view")]
     public async Task<IActionResult> GetByBarcode(string barcode, CancellationToken ct)
         => HandleResult(await Sender.Send(new GetProductByBarcodeQuery(barcode), ct));
 
     // ── POST /api/inventory/products ─────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("inventory.stock.create")]
     public async Task<IActionResult> Create([FromBody] CreateProductRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new CreateProductCommand(
@@ -52,6 +57,7 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
 
     // ── PUT /api/inventory/products/{id} ─────────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("inventory.stock.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new UpdateProductCommand(
@@ -62,16 +68,19 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
 
     // ── PATCH /api/inventory/products/{id}/activate ──────────────────────────
     [HttpPatch("{id:guid}/activate")]
+    [RequirePermission("inventory.stock.edit")]
     public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new ActivateProductCommand(id), ct));
 
     // ── PATCH /api/inventory/products/{id}/deactivate ────────────────────────
     [HttpPatch("{id:guid}/deactivate")]
+    [RequirePermission("inventory.stock.edit")]
     public async Task<IActionResult> Deactivate(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new DeactivateProductCommand(id), ct));
 
     // ── DELETE /api/inventory/products/{id} ──────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("inventory.stock.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new DeleteProductCommand(id), ct));
 }

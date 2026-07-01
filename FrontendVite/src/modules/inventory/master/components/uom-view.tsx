@@ -3,6 +3,7 @@ import { Plus, Search, Pencil, Trash2, Ruler, Loader2, AlertTriangle } from "luc
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUoMs, useCreateUoM, useUpdateUoM, useDeleteUoM } from "@/hooks/inventory/use-uom";
+import { Can } from "@/components/auth/can";
 import type { UnitOfMeasureDto } from "@/lib/inventory/types";
 import { ClientPagination, useClientPagination } from "@/components/ui/client-pagination";
 import { toast } from "sonner";
@@ -136,9 +137,11 @@ export function UoMView() {
             <p className="text-xs text-muted-foreground">Measurement units for inventory items</p>
           </div>
         </div>
-        <Button size="sm" onClick={handleCreate}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New Unit
-        </Button>
+        <Can permission="inventory.stock.create">
+          <Button size="sm" onClick={handleCreate}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Unit
+          </Button>
+        </Can>
       </div>
 
       {/* Search */}

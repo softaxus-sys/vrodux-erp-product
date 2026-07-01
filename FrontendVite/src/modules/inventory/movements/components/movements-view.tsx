@@ -10,6 +10,7 @@ import { cn, formatDate } from "@/lib/utils";
 import { useStockMovements } from "@/hooks/pos/use-stock-movements";
 import type { StockMovementDto } from "@/lib/pos/types";
 import { AddAdjustmentForm } from "./add-adjustment-form";
+import { Can } from "@/components/auth/can";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -163,9 +164,11 @@ export function MovementsView() {
           <Button variant="outline" size="sm" className="gap-1.5 h-9">
             <FileDown className="h-3.5 w-3.5" />Export
           </Button>
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" />Record Adjustment
-          </Button>
+          <Can permission="inventory.movements.create">
+            <Button size="sm" className="gap-1.5 h-9" onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4" />Record Adjustment
+            </Button>
+          </Can>
         </div>
       </div>
 
