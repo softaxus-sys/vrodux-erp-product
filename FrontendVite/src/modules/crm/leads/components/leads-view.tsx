@@ -18,6 +18,7 @@ import { useLeads, useLeadsSummary } from "@/hooks/crm/use-crm";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
+import { Can } from "@/components/auth/can";
 
 type ViewMode = "list" | "kanban";
 
@@ -196,7 +197,9 @@ export function LeadsView() {
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Lead</Button>
+          <Can permission="crm.leads.create">
+            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Lead</Button>
+          </Can>
         </div>
       </div>
 

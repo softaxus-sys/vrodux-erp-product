@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Application.Leads.Queries;
@@ -11,6 +12,7 @@ namespace Softaxis.CRM.API.Controllers;
 public sealed class LeadsController(ISender sender) : CrmControllerBase
 {
     [HttpGet("summary")]
+    [RequirePermission("crm.leads.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetLeadsSummaryQuery(), ct);
@@ -18,6 +20,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("crm.leads.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await sender.Send(new GetLeadsQuery(), ct);
@@ -25,6 +28,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("crm.leads.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetLeadByIdQuery(id), ct);
@@ -32,6 +36,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("crm.leads.create")]
     public async Task<IActionResult> Create([FromBody] CreateLeadCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -39,6 +44,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateLeadRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateLeadCommand(id, req.FirstName, req.LastName, req.Title,
@@ -48,6 +54,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("{id:guid}/status")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] StatusReq req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateLeadStatusCommand(id, req.Status), ct);
@@ -55,6 +62,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("{id:guid}/score")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> UpdateScore(Guid id, [FromBody] ScoreReq req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateLeadScoreCommand(id, req.Score), ct);
@@ -62,7 +70,9 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     /// <summary>Convert a lead into a customer + an open deal, then mark the lead converted.</summary>
+    // Convert mutates the lead and spawns a customer + deal — gate on lead edit.
     [HttpPost("{id:guid}/convert")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> Convert(Guid id, [FromBody] ConvertReq req, CancellationToken ct)
     {
         var result = await sender.Send(new ConvertLeadCommand(id, req.DealTitle, req.DealValue, req.ExpectedCloseDate), ct);
@@ -70,6 +80,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("crm.leads.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteLeadCommand(id), ct);

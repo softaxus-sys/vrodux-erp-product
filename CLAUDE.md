@@ -1091,6 +1091,58 @@ zero per-permission enforcement.
 
 ---
 
+## Module 5m — CRM: Full Module Audit & Authorization Hardening
+
+**Fourth module of the audit program** (after Finance 5i, HR 5j, Inventory 5k). CRM is clean CQRS (all
+controllers `ISender` + `CrmControllerBase`, no `DbContext`, no tech debt) but had `[Authorize]` with **zero
+per-permission enforcement**.
+
+### Security / Authorization
+- **`Softaxis.CRM.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern). **Gotcha:**
+  the CRM API project has **no implicit `Microsoft.AspNetCore.Http` using** (unlike Finance), so the attribute
+  needs an explicit `using Microsoft.AspNetCore.Http;` or `StatusCodes` fails to compile (CS0103).
+- `[RequirePermission("crm.<key>.<action>")]` on the **6 core CRM controllers** → seeded `crm.*` keys
+  (`crm.leads`, `crm.pipeline`, `crm.customers` — each view/create/edit + leads/customers also delete/export):
+  - `LeadsController` → `crm.leads.*` (view/create/edit/delete; Convert → edit; status/score patches → edit).
+  - `PipelineController` (route `api/crm/deals`) → `crm.pipeline.*` (**no `pipeline.delete` key** → delete gates
+    on the nearest key `crm.pipeline.edit`, with a code comment; same "nearest seeded key" rule as Finance/HR).
+  - `CrmCustomersController` → `crm.customers.*`.
+  - `ContactsController` (customer-scoped, `?customerId=`) → `crm.customers.*`.
+  - `ActivitiesController` → `crm.leads.*` — **no dedicated `crm.activities` permission group exists**;
+    activities are the follow-up/task layer over leads & deals, so gated on the nearest key (`crm.leads`) with a
+    class-level comment. A future migration could add `crm.activities` if finer control is needed.
+  - `CrmDashboardController` → class-level `crm.leads.view` (read-only CRM overview).
+- **Deliberately NOT gated in this pass — the 4 industry-vertical controllers** `B2BController` (`api/b2b`),
+  `EducationController` (`api/education`), `HealthcareController` (`api/healthcare`), `InsuranceController`
+  (`api/insurance`). They live in the CRM **assembly** but are effectively **separate modules** (13–15 endpoints
+  each, own frontend API clients under `lib/{b2b,education,healthcare,insurance}/`) with **NO seeded permission
+  keys at all**. Gating them on a made-up key would 403 everyone (no role grants it); gating on `crm.*` keys is
+  semantically wrong. Correct fix = seed their own permission groups (Identity migration) + audit each as its
+  own module — a larger scoped effort, flagged as **follow-up**, left `[Authorize]`-only for now (no worse than
+  before). Same "don't compound; flag it" rule from the architecture section.
+- **Frontend `<Can>` gating** on the 3 primary create buttons (Add Lead / Add Deal / Add Customer) and on the
+  destructive **Delete** buttons in all 3 drawers (`crm.leads.delete` / `crm.pipeline.edit` / `crm.customers.delete`).
+
+### Functional / dead-UI bugs (found & fixed)
+- **3 native `confirm()` calls** — the project rule (never use `window.confirm`) was violated in
+  `lead-drawer.tsx`, `deal-drawer.tsx`, `customer-drawer.tsx` (delete actions). Replaced each with a
+  state-based (`confirmDelete`) in-drawer confirmation modal (Framer Motion overlay, `absolute inset-0 z-[60]`,
+  resets on drawer close), matching the pattern used in Inventory/Finance.
+- No dead `onClick`, no `alert`, no `TODO`/`console` elsewhere in CRM.
+- `hooks/crm/use-crm.ts`: both mutation factories already have `onError: toast.error` + success toasts — nothing to fix.
+
+### Completeness / Tech-debt
+- Core CRM is already clean CQRS — no tech-debt migration. (Minor pre-existing style deviation: Leads/Pipeline/
+  Customers/Contacts controllers define their `Update*Request` records **inline** rather than in `Dtos/` — left
+  as-is, not compounded.)
+
+### Build / Verification Status
+- **CRM.API build:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** live 403 spot-check (grant only `crm.leads.view` → leads list 200, lead create/delete 403,
+  pipeline/customers 403) once the service is republished + restarted.
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched
