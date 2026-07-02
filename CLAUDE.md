@@ -1318,6 +1318,55 @@ migration follow-up noted for Sales (5o). Authorization added without compoundin
 
 ---
 
+## Module 6a — Identity: Per-Tenant Roles (🔴 cross-tenant role leak fix + per-module seeding)
+
+**Critical multi-tenancy fix.** `Role` had **no `TenantId`** and role queries had **no tenant scope**, so
+every tenant saw and shared every other tenant's roles (a tenant admin saw other tenants' custom roles in
+Settings → Roles). Both `RegisterTrial` and `CreateTenant` also assigned **one shared global "Administrator"**
+role to every tenant. This makes roles fully tenant-owned + seeds a per-module role set per tenant.
+
+> Note: CRM/other operational entities ARE correctly tenant-isolated in source (shadow `TenantId` + global
+> query filter via `TenantIsolation`, ambient tenant set by `TenantAmbientMiddleware` after `UseAuthentication`).
+> Roles were the gap because the Identity `Role` entity opted out of that mechanism. If a tenant user *also*
+> sees other tenants' **leads**, that means the **deployed build predates CRM tenant isolation** → republish + restart.
+
+### Backend (Identity)
+- `Domain/Entities/Role.cs` — added `Guid? TenantId` (null = legacy/global, hidden from all tenant lists;
+  non-null = tenant-owned) + `SetTenant(...)`; `Create(..., Guid? tenantId = null)`.
+- `IRoleRepository` / `RoleRepository` — `GetPagedAsync(..., Guid? tenantScope)` filters `TenantId == scope`;
+  `GetByNameAsync(name, Guid? tenantId)` + `NameExistsAsync(..., Guid? tenantScope)` are tenant-aware.
+- **All 5 role handlers** now inject `ICurrentUser` + `ITenantContext` and compute
+  `tenantScope = IsSuperAdmin ? null : TenantId`:
+  - `GetRoles` scopes the list; `GetRoleById`/`UpdateRole`/`DeleteRole`/`UpdateRolePermissions` return
+    `NotFound` if `role.TenantId != tenantScope` (no cross-tenant read/write; NotFound not Forbidden to avoid
+    leaking existence). `CreateRole` stamps `TenantId` from the caller's tenant; name-uniqueness is per-tenant.
+- **`ITenantRoleProvisioner` / `TenantRoleProvisioner`** (NEW) — creates a tenant's **Administrator** (all
+  permissions, `IsSystem=true`) + **one "{Module} Manager" role per enabled module** (CRM/Sales/Purchase/
+  Finance/HR/Inventory/POS/Project/B2B/Education/Healthcare/Insurance — from `tenant.ResolvedModules`; Settings
+  excluded, admin-only). Adds roles to the current UoW, returns the Administrator.
+- `RegisterTrial` + `CreateTenant` — replaced the shared `GetByNameAsync("Administrator")` with
+  `roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules)` and assign the returned Administrator.
+- **`BackfillTenantRolesAsync`** (startup, idempotent, **non-destructive**) — for each existing tenant: ensure
+  it owns an Administrator + module Managers; **re-point** users still holding the legacy global Administrator
+  onto their tenant's own Administrator (`AssignRole` new, then `RemoveRole` global). Never removes access (both
+  admins carry the full permission set) and **never deletes** legacy roles — once queries are tenant-scoped they
+  just stop appearing in any tenant's list. Runs after `SyncAdministratorPermissionsAsync` in `MigrateAndSeedAsync`.
+- Migration `AddRoleTenantId` (adds `roles.TenantId`, nullable).
+
+### ⚠️ Deploy (critical — auth-sensitive)
+- Requires **republish + restart** (`Deploy/server/publish.bat` → elevated `Start-Service VroduxERP`). The
+  `AddRoleTenantId` migration + the backfill auto-run on startup via `MigrateAndSeedAsync`.
+- **Back up `SoftaxisErpDb` before the restart** — the backfill re-points user↔role assignments and stamps
+  role tenancy. It's designed to preserve all access, but this is auth data.
+- Not runtime-tested by the author (no deployable env). Verify on a backup/staging first: each tenant admin
+  logs in → Settings → Roles shows ONLY their own Administrator + per-module Managers; no other tenant's roles;
+  existing admins retain full access.
+
+### Build Status
+- **Identity.API + full ApiGateway:** 0 errors ✅ · migration created.
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

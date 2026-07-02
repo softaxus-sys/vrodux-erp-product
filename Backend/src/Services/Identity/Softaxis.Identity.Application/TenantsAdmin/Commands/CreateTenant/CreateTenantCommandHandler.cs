@@ -9,11 +9,11 @@ using Softaxis.Identity.Domain.Repositories;
 namespace Softaxis.Identity.Application.TenantsAdmin.Commands.CreateTenant;
 
 public sealed class CreateTenantCommandHandler(
-    ITenantRepository tenantRepo,
-    IUserRepository   userRepo,
-    IRoleRepository   roleRepo,
-    IPasswordHasher   passwordHasher,
-    IUnitOfWork       uow)
+    ITenantRepository      tenantRepo,
+    IUserRepository        userRepo,
+    ITenantRoleProvisioner roleProvisioner,
+    IPasswordHasher        passwordHasher,
+    IUnitOfWork            uow)
     : ICommandHandler<CreateTenantCommand, TenantDto>
 {
     public async Task<Result<TenantDto>> Handle(CreateTenantCommand cmd, CancellationToken ct)
@@ -68,8 +68,9 @@ public sealed class CreateTenantCommandHandler(
             adminUser.VerifyEmail();          // pre-verified
             adminUser.SetTenant(tenant.Id);   // bind to the new tenant
 
-            var adminRole = await roleRepo.GetByNameAsync("Administrator", ct);
-            if (adminRole is not null) adminUser.AssignRole(adminRole.Id);
+            // Provision this tenant's own role set (Administrator + per-module Managers).
+            var adminRole = await roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules, ct);
+            adminUser.AssignRole(adminRole.Id);
 
             userRepo.Add(adminUser);
         }

@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Repositories;
 
@@ -7,6 +8,8 @@ namespace Softaxis.Identity.Application.Roles.Commands.UpdateRole;
 
 public sealed class UpdateRoleCommandHandler(
     IRoleRepository roleRepo,
+    ICurrentUser    currentUser,
+    ITenantContext  tenantContext,
     IUnitOfWork     uow)
     : ICommandHandler<UpdateRoleCommand, RoleDto>
 {
@@ -15,10 +18,15 @@ public sealed class UpdateRoleCommandHandler(
         var role = await roleRepo.GetByIdAsync(cmd.Id, ct);
         if (role is null) return Result.Failure<RoleDto>(Error.NotFoundById("Role", cmd.Id));
 
+        // A tenant can only touch its own roles.
+        Guid? tenantScope = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
+        if (tenantScope.HasValue && role.TenantId != tenantScope)
+            return Result.Failure<RoleDto>(Error.NotFoundById("Role", cmd.Id));
+
         if (role.IsSystem)
             return Result.Failure<RoleDto>(Error.Custom("Role.System.ReadOnly", "System roles cannot be modified."));
 
-        if (await roleRepo.NameExistsAsync(cmd.Name, cmd.Id, ct))
+        if (await roleRepo.NameExistsAsync(cmd.Name, cmd.Id, role.TenantId, ct))
             return Result.Failure<RoleDto>(Error.Custom("Role.Name.Taken", $"A role named '{cmd.Name}' already exists."));
 
         var result = role.Update(cmd.Name, cmd.Description);
