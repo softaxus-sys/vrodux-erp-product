@@ -84,6 +84,7 @@ services:
       ConnectionStrings__RestaurantDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       ConnectionStrings__RecipeDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       ConnectionStrings__ProjectManagementDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__AiAssistantDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: "Softaxis.Identity.API"
       Jwt__Audience: "Softaxis.ERP.Clients"

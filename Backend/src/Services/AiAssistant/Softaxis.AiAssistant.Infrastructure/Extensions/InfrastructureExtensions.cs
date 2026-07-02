@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Softaxis.AiAssistant.Application;
 using Softaxis.AiAssistant.Application.Abstractions;
 using Softaxis.AiAssistant.Infrastructure.Orchestration;
@@ -89,7 +90,19 @@ public static class InfrastructureExtensions
     public static async Task MigrateAndSeedAiAssistantAsync(this IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AiAssistantDbContext>();
-        await db.Database.MigrateAsync();
+        // The AI Assistant is an optional add-on module — a failure applying its migrations must NOT
+        // crash the whole ERP API on startup. Log and continue; the assistant stays unavailable until fixed.
+        try
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AiAssistantDbContext>();
+            await db.Database.MigrateAsync();
+        }
+        catch (Exception ex)
+        {
+            var logger = scope.ServiceProvider
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("AiAssistant.Startup");
+            logger.LogError(ex, "AI Assistant migration failed; the module will be unavailable until this is resolved.");
+        }
     }
 }
