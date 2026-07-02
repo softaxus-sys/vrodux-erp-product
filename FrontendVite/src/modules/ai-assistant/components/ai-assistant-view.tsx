@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Send, User, RefreshCw, Copy, ThumbsUp, ThumbsDown,
   Lightbulb, TrendingUp, BarChart3, Settings2, X, Loader2, Check, Ban,
-  MessageCircle, Link2, ExternalLink,
+  MessageCircle, Link2, ExternalLink, Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import {
 } from "@/hooks/ai/use-ai";
 import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
+import { AutomationsModal } from "./automations-modal";
 
 interface Message {
   id: string;
@@ -55,6 +56,7 @@ export function AIAssistantView() {
   ]);
   const [input, setInput] = React.useState("");
   const [showSettings, setShowSettings] = React.useState(false);
+  const [showAutomations, setShowAutomations] = React.useState(false);
   const [showTelegram, setShowTelegram] = React.useState(false);
   const [agent, setAgent] = React.useState<string | null>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
@@ -154,6 +156,11 @@ export function AIAssistantView() {
           <Button variant="ghost" size="sm" onClick={() => setShowTelegram(true)} className="gap-1.5 text-muted-foreground h-8">
             <MessageCircle className="h-3.5 w-3.5" />Telegram
           </Button>
+          {canManageAi && (
+            <Button variant="ghost" size="sm" onClick={() => setShowAutomations(true)} className="gap-1.5 text-muted-foreground h-8">
+              <Bot className="h-3.5 w-3.5" />Automations
+            </Button>
+          )}
           {canManageAi && (
             <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)} className="gap-1.5 text-muted-foreground h-8">
               <Settings2 className="h-3.5 w-3.5" />Settings
@@ -291,6 +298,7 @@ export function AIAssistantView() {
       <AnimatePresence>
         {showSettings && <AiSettingsModal onClose={() => setShowSettings(false)} />}
         {showTelegram && <TelegramLinkModal onClose={() => setShowTelegram(false)} />}
+        {showAutomations && <AutomationsModal onClose={() => setShowAutomations(false)} />}
       </AnimatePresence>
     </div>
   );

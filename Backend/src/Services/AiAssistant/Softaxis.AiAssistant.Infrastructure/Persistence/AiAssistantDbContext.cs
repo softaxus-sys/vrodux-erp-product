@@ -7,8 +7,10 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence;
 public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> options)
     : DbContext(options)
 {
-    public DbSet<TenantAiSettings> AiSettings    => Set<TenantAiSettings>();
-    public DbSet<UserTelegramLink> TelegramLinks => Set<UserTelegramLink>();
+    public DbSet<TenantAiSettings>  AiSettings     => Set<TenantAiSettings>();
+    public DbSet<UserTelegramLink>  TelegramLinks  => Set<UserTelegramLink>();
+    public DbSet<AiAutomationRule>  AutomationRules => Set<AiAutomationRule>();
+    public DbSet<AiAutomationRun>   AutomationRuns  => Set<AiAutomationRun>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

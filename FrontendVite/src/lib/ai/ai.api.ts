@@ -86,6 +86,93 @@ export interface AiAgentDto {
   toolCount: number;
 }
 
+// ── Automations (M4 — scheduled autonomous rules) ──────────────────────────────
+
+export type AiRuleMode = "autopilot" | "confirm";
+export type AiRuleFrequency = "interval" | "hourly" | "daily" | "weekly";
+export type AiRunStatus =
+  | "running"
+  | "success"
+  | "failed"
+  | "pending_confirmation"
+  | "rejected";
+
+export interface AutomationRunDto {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  triggeredBy: "schedule" | "manual";
+  status: AiRunStatus;
+  summary: string | null;
+  toolsUsed: string | null;
+  error: string | null;
+  pendingToolName: string | null;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface AutomationRuleSummaryDto {
+  id: string;
+  name: string;
+  agent: string | null;
+  agentLabel: string | null;
+  mode: AiRuleMode;
+  frequency: AiRuleFrequency;
+  scheduleLabel: string;
+  enabled: boolean;
+  notifyTelegram: boolean;
+  runAsUserName: string;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  lastStatus: AiRunStatus | null;
+  runCount: number;
+  pendingCount: number;
+}
+
+export interface AutomationRuleDto {
+  id: string;
+  name: string;
+  description: string | null;
+  agent: string | null;
+  agentLabel: string | null;
+  instruction: string;
+  runAsUserId: string;
+  runAsUserName: string;
+  mode: AiRuleMode;
+  frequency: AiRuleFrequency;
+  intervalMinutes: number | null;
+  hourUtc: number | null;
+  minuteUtc: number;
+  dayOfWeekUtc: number | null;
+  scheduleLabel: string;
+  notifyTelegram: boolean;
+  enabled: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  lastStatus: AiRunStatus | null;
+  lastError: string | null;
+  runCount: number;
+  recentRuns: AutomationRunDto[];
+}
+
+export interface SaveAutomationRulePayload {
+  name: string;
+  description?: string | null;
+  agent?: string | null;
+  instruction: string;
+  runAsUserId?: string | null;
+  runAsUserName?: string | null;
+  mode: AiRuleMode;
+  frequency: AiRuleFrequency;
+  intervalMinutes?: number | null;
+  hourUtc?: number | null;
+  minuteUtc: number;
+  dayOfWeekUtc?: number | null;
+  notifyTelegram: boolean;
+  /** Only used on create; update keeps the current enabled state. */
+  enabled?: boolean;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const aiApi = {
@@ -116,4 +203,35 @@ export const aiApi = {
 
   registerTelegramWebhook: (): Promise<string> =>
     rawApiClient.post(`${BASE}/telegram/register-webhook`),
+
+  // ── Automations ─────────────────────────────────────────────────────────────
+  getAutomations: (): Promise<AutomationRuleSummaryDto[]> =>
+    rawApiClient.get(`${BASE}/automations`),
+
+  getAutomation: (id: string): Promise<AutomationRuleDto> =>
+    rawApiClient.get(`${BASE}/automations/${id}`),
+
+  createAutomation: (payload: SaveAutomationRulePayload): Promise<AutomationRuleDto> =>
+    rawApiClient.post(`${BASE}/automations`, payload),
+
+  updateAutomation: (id: string, payload: SaveAutomationRulePayload): Promise<AutomationRuleDto> =>
+    rawApiClient.put(`${BASE}/automations/${id}`, payload),
+
+  enableAutomation: (id: string): Promise<AutomationRuleDto> =>
+    rawApiClient.post(`${BASE}/automations/${id}/enable`),
+
+  disableAutomation: (id: string): Promise<AutomationRuleDto> =>
+    rawApiClient.post(`${BASE}/automations/${id}/disable`),
+
+  deleteAutomation: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/automations/${id}`),
+
+  runAutomationNow: (id: string): Promise<AutomationRunDto> =>
+    rawApiClient.post(`${BASE}/automations/${id}/run`),
+
+  approveAutomationRun: (runId: string): Promise<AutomationRunDto> =>
+    rawApiClient.post(`${BASE}/automations/runs/${runId}/approve`),
+
+  rejectAutomationRun: (runId: string): Promise<AutomationRunDto> =>
+    rawApiClient.post(`${BASE}/automations/runs/${runId}/reject`),
 };

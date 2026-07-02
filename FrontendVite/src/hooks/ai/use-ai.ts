@@ -4,7 +4,10 @@ import {
   aiApi,
   type AiAgentDto,
   type AiSettingsDto,
+  type AutomationRuleDto,
+  type AutomationRuleSummaryDto,
   type ConfirmActionPayload,
+  type SaveAutomationRulePayload,
   type SendChatPayload,
   type TelegramLinkStatus,
   type UpdateAiSettingsPayload,
@@ -94,6 +97,109 @@ export function useRegisterTelegramWebhook() {
   return useMutation({
     mutationFn: () => aiApi.registerTelegramWebhook(),
     onSuccess: () => toast.success("Telegram webhook registered."),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Automations (M4) ────────────────────────────────────────────────────────────
+
+export function useAutomations(enabled = true) {
+  return useQuery<AutomationRuleSummaryDto[]>({
+    queryKey: [QK, "automations"],
+    queryFn: () => aiApi.getAutomations(),
+    enabled,
+    staleTime: 15_000,
+  });
+}
+
+export function useAutomation(id: string | null) {
+  return useQuery<AutomationRuleDto>({
+    queryKey: [QK, "automation", id],
+    queryFn: () => aiApi.getAutomation(id!),
+    enabled: !!id,
+    staleTime: 10_000,
+  });
+}
+
+function invalidateAutomations(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: [QK, "automations"] });
+  qc.invalidateQueries({ queryKey: [QK, "automation"] });
+}
+
+export function useCreateAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: SaveAutomationRulePayload) => aiApi.createAutomation(payload),
+    onSuccess: () => {
+      invalidateAutomations(qc);
+      toast.success("Automation created.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: SaveAutomationRulePayload }) =>
+      aiApi.updateAutomation(id, payload),
+    onSuccess: () => {
+      invalidateAutomations(qc);
+      toast.success("Automation updated.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useToggleAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      enabled ? aiApi.enableAutomation(id) : aiApi.disableAutomation(id),
+    onSuccess: (_d, v) => {
+      invalidateAutomations(qc);
+      toast.success(v.enabled ? "Automation enabled." : "Automation paused.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteAutomation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => aiApi.deleteAutomation(id),
+    onSuccess: () => {
+      invalidateAutomations(qc);
+      toast.success("Automation deleted.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRunAutomationNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => aiApi.runAutomationNow(id),
+    onSuccess: (run) => {
+      invalidateAutomations(qc);
+      if (run.status === "success") toast.success("Automation ran successfully.");
+      else if (run.status === "pending_confirmation") toast.info("Automation ran — an action is awaiting approval.");
+      else if (run.status === "failed") toast.error(run.error ?? "Automation run failed.");
+      else toast.success("Automation ran.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useResolveAutomationRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, approve }: { runId: string; approve: boolean }) =>
+      approve ? aiApi.approveAutomationRun(runId) : aiApi.rejectAutomationRun(runId),
+    onSuccess: (_d, v) => {
+      invalidateAutomations(qc);
+      toast.success(v.approve ? "Action approved and run." : "Action rejected.");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

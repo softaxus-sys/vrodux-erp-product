@@ -21,4 +21,15 @@ public interface IAiOrchestrator
         string toolName,
         string argumentsJson,
         CancellationToken ct);
+
+    /// <summary>
+    /// Runs one autonomous (scheduled) instruction with no human in the loop. In <paramref name="autopilot"/>
+    /// mode write tools execute automatically; otherwise the run stops at the first write and returns it as a
+    /// pending action for later approval. Executes as the current (impersonated) user, so RBAC/tenant isolation hold.
+    /// </summary>
+    Task<AiAutonomousResult> RunAutonomousAsync(
+        string instruction,
+        string? agent,
+        bool autopilot,
+        CancellationToken ct);
 }

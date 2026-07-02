@@ -71,6 +71,10 @@ public static class InfrastructureExtensions
 
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();
 
+        // Autonomous rules (M4): per-rule runner + the background scheduler that fires due rules.
+        services.AddScoped<IAiAutomationRunner, Automation.AiAutomationRunner>();
+        services.AddHostedService<Automation.AiAutomationScheduler>();
+
         // Telegram
         services.AddScoped<Telegram.TelegramClient>();
 

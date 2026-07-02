@@ -125,6 +125,83 @@ public sealed class AiOrchestrator(
         return Response(reply, [toolName], settings, null, tool.Agent);
     }
 
+    public async Task<AiAutonomousResult> RunAutonomousAsync(
+        string instruction, string? agent, bool autopilot, CancellationToken ct)
+    {
+        ResolvedSettings settings;
+        try { settings = await ResolveSettingsAsync(ct); }
+        catch (AiNotConfiguredException ex)
+        {
+            return new AiAutonomousResult("failed", "", [], null, ex.Message);
+        }
+
+        var resolvedAgent = string.IsNullOrWhiteSpace(agent) ? null : agent.Trim().ToLowerInvariant();
+        var tools = toolRegistry.GetTools(resolvedAgent);
+        var toolDefs = tools
+            .Select(t => new AiToolDefinition(t.Name, t.Description, t.ParametersJsonSchema, t.IsReadOnly))
+            .ToList();
+
+        var systemPrompt = AiSystemPrompt.Build(resolvedAgent, currentUser, toolDefs.Count > 0)
+            + "\n\nYou are running as a scheduled automation — there is NO human reading this in real time. "
+            + "Be concise and factual, and base every statement strictly on tool results; never invent data. "
+            + (autopilot
+                ? "You may perform write actions directly when the task clearly requires them."
+                : "Do not assume writes are pre-approved: if the task needs a change, call the single most appropriate write tool and stop — a human will approve it.");
+
+        var messages = new List<AiChatMessage> { new(AiRole.User, instruction) };
+        var toolsUsed = new List<string>();
+
+        for (var iteration = 0; iteration < MaxToolIterations; iteration++)
+        {
+            var request = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, toolDefs);
+            AiCompletionResult result;
+            try { result = await settings.Provider.CompleteAsync(request, ct); }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Autonomous run: provider call failed");
+                return new AiAutonomousResult("failed", "", toolsUsed, null, ex.Message);
+            }
+
+            if (!result.WantsTools)
+                return new AiAutonomousResult("success", result.AssistantText ?? "(no output)", toolsUsed, null, null);
+
+            messages.Add(new AiChatMessage(AiRole.Assistant, result.AssistantText, result.ToolCalls));
+
+            foreach (var call in result.ToolCalls)
+            {
+                var tool = toolRegistry.Resolve(call.Name);
+
+                if (tool is not null && !tool.IsReadOnly && !autopilot)
+                {
+                    // Confirm mode: stop at the first write and queue it for approval.
+                    var summary = string.IsNullOrWhiteSpace(result.AssistantText)
+                        ? $"This automation wants to run '{call.Name}'."
+                        : result.AssistantText!;
+                    var pending = new PendingActionDto(call.Id, call.Name, call.ArgumentsJson, summary);
+                    return new AiAutonomousResult("pending_confirmation", summary, toolsUsed, pending, null);
+                }
+
+                // Read tool, or a write tool in autopilot mode — execute and feed the result back.
+                var toolResult = await ExecuteReadToolAsync(tool, call, ct);
+                if (!toolsUsed.Contains(call.Name)) toolsUsed.Add(call.Name);
+                messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: call.Id));
+            }
+        }
+
+        // Loop budget exhausted — one final call with no tools to force a text answer.
+        var finalRequest = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, []);
+        try
+        {
+            var finalResult = await settings.Provider.CompleteAsync(finalRequest, ct);
+            return new AiAutonomousResult("success", finalResult.AssistantText ?? "(no output)", toolsUsed, null, null);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Autonomous run: final provider call failed");
+            return new AiAutonomousResult("failed", "", toolsUsed, null, ex.Message);
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private async Task<ResolvedSettings> ResolveSettingsAsync(CancellationToken ct)
