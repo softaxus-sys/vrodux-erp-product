@@ -19,6 +19,7 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Can } from "@/components/auth/can";
+import { useAuthStore } from "@/store/auth.store";
 
 type ViewMode = "list" | "kanban";
 
@@ -161,9 +162,11 @@ export function LeadsView() {
     landscape: true,
   });
   const { data: leadsSummary }          = useLeadsSummary();
+  const currentUserName = useAuthStore(s => s.user?.name) ?? "";
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [sourceFilter, setSourceFilter] = React.useState("all");
+  const [mineOnly, setMineOnly] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -179,9 +182,10 @@ export function LeadsView() {
       const matchSearch = !search || (l.fullName ?? "").toLowerCase().includes(q) || (l.company ?? "").toLowerCase().includes(q) || (l.email ?? "").toLowerCase().includes(q);
       const matchStatus = statusFilter === "all" || l.status === statusFilter;
       const matchSource = sourceFilter === "all" || l.source === sourceFilter;
-      return matchSearch && matchStatus && matchSource;
+      const matchMine   = !mineOnly || l.assignedTo === currentUserName;
+      return matchSearch && matchStatus && matchSource && matchMine;
     });
-  }, [leads, search, statusFilter, sourceFilter]);
+  }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName]);
 
   const openDrawer = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
 
@@ -196,6 +200,15 @@ export function LeadsView() {
           <p className="text-sm text-muted-foreground mt-0.5">Capture, qualify, and convert inbound leads</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={mineOnly ? "default" : "outline"}
+            className="h-9 gap-1.5 text-sm"
+            onClick={() => setMineOnly(v => !v)}
+            title="Show only leads assigned to me"
+          >
+            <Users className="h-4 w-4" />Assigned to me
+          </Button>
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Can permission="crm.leads.create">
             <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Lead</Button>
