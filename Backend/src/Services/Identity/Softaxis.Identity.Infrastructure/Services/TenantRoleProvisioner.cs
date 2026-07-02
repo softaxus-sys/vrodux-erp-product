@@ -42,7 +42,9 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
             .Where(m => m.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var mod in modules)
+        var modList = modules.ToList();
+
+        foreach (var mod in modList)
         {
             if (!ModuleManagerLabels.TryGetValue(mod, out var label)) continue;
 
@@ -55,6 +57,36 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
                 isSystem: false, tenantId: tenantId).Value;
             mgr.SetPermissions(perms);
             db.Roles.Add(mgr);
+        }
+
+        // POS operational tiers (Cashier / Supervisor) — only for POS-enabled tenants. POS Manager
+        // (full) already comes from the per-module set above; these add the limited/shift roles that
+        // used to be seeded globally and shared across all tenants.
+        if (modList.Any(m => string.Equals(m, "pos", StringComparison.OrdinalIgnoreCase)))
+        {
+            Guid[] PermsFor(string moduleId, params string[] actions) =>
+                [.. allPerms.Where(p => p.ModuleId == moduleId && actions.Contains(p.Action)).Select(p => p.Id)];
+
+            var cashier = Role.Create("Cashier",
+                "Process sales at the POS terminal. View products and print receipts.",
+                isSystem: false, tenantId: tenantId).Value;
+            cashier.SetPermissions([
+                .. PermsFor("pos.sessions",     "view"),
+                .. PermsFor("pos.transactions", "view", "create", "print"),
+                .. PermsFor("pos.products",     "view"),
+            ]);
+            db.Roles.Add(cashier);
+
+            var supervisor = Role.Create("Supervisor",
+                "Full POS operations — open/close shifts, void transactions, apply discounts, manage refunds.",
+                isSystem: false, tenantId: tenantId).Value;
+            supervisor.SetPermissions([
+                .. PermsFor("pos.sessions",     "view", "create", "approve"),
+                .. PermsFor("pos.transactions", "view", "create", "print", "void", "refund", "discount"),
+                .. PermsFor("pos.products",     "view", "create", "edit"),
+                .. PermsFor("pos.reports",      "view", "print"),
+            ]);
+            db.Roles.Add(supervisor);
         }
 
         return admin;
