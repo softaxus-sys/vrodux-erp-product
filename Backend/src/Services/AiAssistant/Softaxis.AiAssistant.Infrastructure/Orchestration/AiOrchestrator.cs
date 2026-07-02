@@ -274,6 +274,6 @@ public sealed class AiOrchestrator(
     private static string DefaultModel(AiProvider provider) => provider switch
     {
         AiProvider.Claude => "claude-opus-4-8",
-        _                 => "llama-3.3-70b-versatile",
+        _                 => "openai/gpt-oss-120b", // Groq: llama-3.3-70b-versatile is deprecating (Aug 2026)
     };
 }

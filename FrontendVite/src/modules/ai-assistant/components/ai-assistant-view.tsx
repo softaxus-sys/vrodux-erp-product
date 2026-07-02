@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Send, User, RefreshCw, Copy, ThumbsUp, ThumbsDown,
@@ -35,6 +36,33 @@ const SUGGESTED_PROMPTS = [
 
 const WELCOME =
   "Hi! I'm your Vrodux assistant. I can answer questions about your company's data using live records — for example your CRM leads and pipeline. What would you like to know?";
+
+/** "crm_create_lead" → "create lead"; "firstName" → "First name". */
+function prettify(raw: string): string {
+  const s = raw
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .trim()
+    .toLowerCase();
+  return s.length ? s[0].toUpperCase() + s.slice(1) : raw;
+}
+/** Human label for a tool name, dropping the module prefix: "crm_create_lead" → "create lead". */
+function prettifyAction(toolName: string): string {
+  const parts = toolName.split("_");
+  return prettify((parts.length > 1 ? parts.slice(1).join(" ") : toolName)).toLowerCase();
+}
+/** Parse a pending action's arguments JSON into displayable {label,value} rows (non-empty only). */
+function pendingFields(argumentsJson: string): { label: string; value: string }[] {
+  try {
+    const obj = JSON.parse(argumentsJson || "{}");
+    if (typeof obj !== "object" || obj === null) return [];
+    return Object.entries(obj)
+      .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "")
+      .map(([k, v]) => ({ label: prettify(k), value: String(v) }));
+  } catch {
+    return [];
+  }
+}
 
 function now() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -75,7 +103,10 @@ export function AIAssistantView() {
   const [speakReplies, setSpeakReplies] = React.useState(false);
   const speakRef = React.useRef(false);
   speakRef.current = speakReplies;
-  const stt = useSpeechToText((text) => { setInput(text); void sendMessage(text); });
+  const stt = useSpeechToText(
+    (text) => { setInput(text); void sendMessage(text); },
+    (msg) => toast.error(msg),
+  );
   const voiceEnabled = !!caps?.voiceEnabled;
   const canSpeak = voiceEnabled && speechSynthesisSupported();
   const canListen = voiceEnabled && stt.supported;
@@ -253,17 +284,29 @@ export function AIAssistantView() {
                 </div>
                 {msg.pending && (
                   <div className="mt-1 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 w-full">
-                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-2">
-                      ⚠ This will change data. Confirm to proceed.
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-1.5">
+                      ⚠ Review before confirming — I'm about to {prettifyAction(msg.pending.toolName)}:
                     </p>
+                    <div className="rounded-lg bg-background/60 border border-border p-2 mb-2 text-xs space-y-0.5">
+                      {pendingFields(msg.pending.argumentsJson).length > 0 ? (
+                        pendingFields(msg.pending.argumentsJson).map(f => (
+                          <div key={f.label} className="flex gap-2">
+                            <span className="text-muted-foreground min-w-[90px]">{f.label}</span>
+                            <span className="font-medium break-all">{f.value}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground">{msg.pending.summary}</span>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <Button size="sm" className="h-7 gap-1" disabled={confirmAction.isPending}
                         onClick={() => handleConfirm(msg.id, msg.pending!)}>
-                        <Check className="h-3.5 w-3.5" /> Confirm
+                        <Check className="h-3.5 w-3.5" /> Confirm & save
                       </Button>
                       <Button size="sm" variant="outline" className="h-7 gap-1" disabled={confirmAction.isPending}
                         onClick={() => handleCancel(msg.id)}>
-                        <Ban className="h-3.5 w-3.5" /> Cancel
+                        <Ban className="h-3.5 w-3.5" /> Reject
                       </Button>
                     </div>
                   </div>
@@ -341,6 +384,24 @@ const PROVIDERS: { value: AiProvider; label: string; hint: string }[] = [
   { value: "GroqPaid", label: "Groq (Paid)",      hint: "Higher limits. Model e.g. llama-3.3-70b-versatile" },
 ];
 const TIERS: AiTier[] = ["starter", "growth", "enterprise"];
+
+// Suggested models per provider (datalist — still free-text, since provider catalogs change).
+const GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "llama-3.3-70b-versatile",
+  "llama-3.1-8b-instant",
+  "qwen/qwen3-32b",
+  "gemma2-9b-it",
+  "meta-llama/llama-4-scout-17b-16e-instruct",
+  "meta-llama/llama-4-maverick-17b-128e-instruct",
+];
+const CLAUDE_MODELS = [
+  "claude-opus-4-8",
+  "claude-sonnet-5",
+  "claude-haiku-4-5-20251001",
+  "claude-fable-5",
+];
 
 /**
  * Client mirror of the backend `AiTierCapabilities` matrix — lets the settings editor gate features
@@ -439,12 +500,20 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
               {selectedHint && <p className="text-[11px] text-muted-foreground">{selectedHint}</p>}
             </div>
 
-            {/* Model */}
+            {/* Model — dropdown of suggestions per provider, but still free-text */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Model</label>
-              <input value={model} onChange={e => setModel(e.target.value)}
-                placeholder={provider === "Claude" ? "claude-opus-4-8" : "llama-3.3-70b-versatile"}
+              <input list="ai-model-options" value={model} onChange={e => setModel(e.target.value)}
+                placeholder={provider === "Claude" ? "claude-opus-4-8" : "openai/gpt-oss-120b"}
                 className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+              <datalist id="ai-model-options">
+                {(provider === "Claude" ? CLAUDE_MODELS : GROQ_MODELS).map(m => <option key={m} value={m} />)}
+              </datalist>
+              <p className="text-[11px] text-muted-foreground">
+                {provider === "Claude"
+                  ? "Pick a Claude model your key supports."
+                  : "Groq free models. Note: llama-3.3-70b-versatile is deprecating — prefer openai/gpt-oss-120b."}
+              </p>
             </div>
 
             {/* API key */}

@@ -20,6 +20,11 @@ public sealed class UserTelegramLinkConfiguration : IEntityTypeConfiguration<Use
         builder.Property(x => x.CreatedAt);
         builder.Property(x => x.LinkedAt);
 
+        builder.Property(x => x.PendingToolName).HasMaxLength(100);
+        builder.Property(x => x.PendingArgumentsJson).HasMaxLength(4000);
+        builder.Property(x => x.PendingSummary).HasMaxLength(2000);
+        builder.Property(x => x.PendingCreatedAt);
+
         builder.HasIndex(x => x.UserId);
         builder.HasIndex(x => x.LinkCode);
         builder.HasIndex(x => x.TelegramChatId);

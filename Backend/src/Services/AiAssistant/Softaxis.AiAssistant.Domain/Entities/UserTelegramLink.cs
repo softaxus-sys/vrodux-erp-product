@@ -32,6 +32,31 @@ public sealed class UserTelegramLink
     public DateTime  CreatedAt { get; private set; }
     public DateTime? LinkedAt  { get; private set; }
 
+    // ── Pending write action (Telegram confirm/reject flow) ───────────────────
+    /// <summary>A write the assistant proposed over Telegram, awaiting the user's "confirm"/"reject" reply.</summary>
+    public string?   PendingToolName      { get; private set; }
+    public string?   PendingArgumentsJson { get; private set; }
+    public string?   PendingSummary       { get; private set; }
+    public DateTime? PendingCreatedAt     { get; private set; }
+
+    public bool HasPending => !string.IsNullOrEmpty(PendingToolName);
+
+    public void SetPending(string toolName, string argumentsJson, string? summary)
+    {
+        PendingToolName      = toolName;
+        PendingArgumentsJson = argumentsJson;
+        PendingSummary       = summary;
+        PendingCreatedAt     = DateTime.UtcNow;
+    }
+
+    public void ClearPending()
+    {
+        PendingToolName      = null;
+        PendingArgumentsJson = null;
+        PendingSummary       = null;
+        PendingCreatedAt     = null;
+    }
+
     /// <summary>Issue a fresh code (e.g. when the user re-connects before completing).</summary>
     public void ResetCode(string newCode)
     {

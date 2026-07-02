@@ -39,5 +39,32 @@ public sealed class TelegramClient(IHttpClientFactory httpClientFactory)
         }
     }
 
+    /// <summary>Downloads a file (e.g. a voice note) by its Telegram file_id. Returns (bytes, fileName) or null.</summary>
+    public async Task<(byte[] Bytes, string FileName)?> DownloadFileAsync(string botToken, string fileId, CancellationToken ct)
+    {
+        try
+        {
+            using var http = httpClientFactory.CreateClient("ai");
+
+            // 1) Resolve file_path via getFile.
+            using var res = await http.GetAsync(Api(botToken, $"getFile?file_id={Uri.EscapeDataString(fileId)}"), ct);
+            var payload = await res.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(payload);
+            if (!doc.RootElement.TryGetProperty("ok", out var ok) || !ok.GetBoolean()) return null;
+            var filePath = doc.RootElement.GetProperty("result").GetProperty("file_path").GetString();
+            if (string.IsNullOrEmpty(filePath)) return null;
+
+            // 2) Download the bytes.
+            var url = $"https://api.telegram.org/file/bot{botToken}/{filePath}";
+            var bytes = await http.GetByteArrayAsync(url, ct);
+            var name = System.IO.Path.GetFileName(filePath);
+            return (bytes, string.IsNullOrEmpty(name) ? "voice.ogg" : name);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static string Trim(string s) => s.Length > 4000 ? s[..4000] : s; // Telegram message cap ~4096
 }

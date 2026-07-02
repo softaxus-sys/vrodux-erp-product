@@ -17,8 +17,24 @@ type SpeechRecognitionLike = {
   abort: () => void;
   onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((e: { error?: string }) => void) | null;
 };
+
+function errorMessage(code?: string): string {
+  switch (code) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return "Microphone access is blocked. Allow mic permission for this site and try again.";
+    case "no-speech":
+      return "I didn't catch any speech — please try again.";
+    case "audio-capture":
+      return "No microphone was found.";
+    case "network":
+      return "Speech recognition network error — check your connection.";
+    default:
+      return "Voice input failed. Please try again or type your question.";
+  }
+}
 
 function getRecognitionCtor(): (new () => SpeechRecognitionLike) | undefined {
   if (typeof window === "undefined") return undefined;
@@ -33,10 +49,12 @@ export interface SpeechToText {
   stop: () => void;
 }
 
-/** Push-to-talk speech recognition. `onFinal` fires once with the transcribed utterance. */
-export function useSpeechToText(onFinal: (text: string) => void): SpeechToText {
+/** Push-to-talk speech recognition. `onFinal` fires with the transcript; `onError` with a user message. */
+export function useSpeechToText(onFinal: (text: string) => void, onError?: (msg: string) => void): SpeechToText {
   const cbRef = React.useRef(onFinal);
   cbRef.current = onFinal;
+  const errRef = React.useRef(onError);
+  errRef.current = onError;
 
   const recRef = React.useRef<SpeechRecognitionLike | null>(null);
   const [listening, setListening] = React.useState(false);
@@ -48,7 +66,7 @@ export function useSpeechToText(onFinal: (text: string) => void): SpeechToText {
   }, []);
 
   const start = React.useCallback(() => {
-    if (!Ctor) return;
+    if (!Ctor) { errRef.current?.("Voice input isn't supported in this browser. Try Chrome or Edge."); return; }
     try {
       const rec = new Ctor();
       rec.lang = "en-US";
@@ -60,12 +78,13 @@ export function useSpeechToText(onFinal: (text: string) => void): SpeechToText {
         if (text.trim()) cbRef.current(text.trim());
       };
       rec.onend = () => setListening(false);
-      rec.onerror = () => setListening(false);
+      rec.onerror = (e) => { setListening(false); errRef.current?.(errorMessage(e?.error)); };
       recRef.current = rec;
       setListening(true);
       rec.start();
     } catch {
       setListening(false);
+      errRef.current?.("Couldn't start voice input. Please try again.");
     }
   }, [Ctor]);
 

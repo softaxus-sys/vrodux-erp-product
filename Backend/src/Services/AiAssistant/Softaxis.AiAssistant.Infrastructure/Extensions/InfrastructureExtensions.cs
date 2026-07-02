@@ -83,6 +83,7 @@ public static class InfrastructureExtensions
 
         // Telegram
         services.AddScoped<Telegram.TelegramClient>();
+        services.AddScoped<Providers.GroqAudioTranscriber>();   // voice-note transcription (Groq Whisper)
 
         return services;
     }
