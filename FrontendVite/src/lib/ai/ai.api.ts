@@ -42,11 +42,33 @@ export interface SendChatPayload {
   agent?: string | null;
 }
 
+/** A write action the assistant wants to perform — the user must confirm it. */
+export interface PendingAction {
+  id: string;
+  toolName: string;
+  argumentsJson: string;
+  summary: string;
+}
+
 export interface AiChatResponse {
   reply: string;
   toolsUsed: string[];
   provider: string;
   model: string;
+  pendingAction: PendingAction | null;
+  agent: string | null;
+}
+
+export interface ConfirmActionPayload {
+  toolName: string;
+  argumentsJson: string;
+}
+
+/** A named agent the current user can talk to (call-by-name target). */
+export interface AiAgentDto {
+  key: string;
+  label: string;
+  toolCount: number;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -60,4 +82,10 @@ export const aiApi = {
 
   sendChat: (payload: SendChatPayload): Promise<AiChatResponse> =>
     rawApiClient.post(`${BASE}/chat`, payload),
+
+  confirmAction: (payload: ConfirmActionPayload): Promise<AiChatResponse> =>
+    rawApiClient.post(`${BASE}/confirm`, payload),
+
+  getAgents: (): Promise<AiAgentDto[]> =>
+    rawApiClient.get(`${BASE}/agents`),
 };

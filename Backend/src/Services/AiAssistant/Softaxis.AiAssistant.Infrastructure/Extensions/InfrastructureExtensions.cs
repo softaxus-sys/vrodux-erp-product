@@ -51,8 +51,16 @@ public static class InfrastructureExtensions
 
         // Tool infrastructure
         services.AddScoped<GatewayToolClient>();
+        // CRM agent
         services.AddScoped<IAiTool, CrmListLeadsTool>();
         services.AddScoped<IAiTool, CrmLeadsSummaryTool>();
+        services.AddScoped<IAiTool, CrmCreateLeadTool>();       // write (confirm-gated)
+        // Other module agents (read-only)
+        services.AddScoped<IAiTool, FinanceInvoicesSummaryTool>();
+        services.AddScoped<IAiTool, FinanceExpensesSummaryTool>();
+        services.AddScoped<IAiTool, HrEmployeesSummaryTool>();
+        services.AddScoped<IAiTool, SalesListOrdersTool>();
+        services.AddScoped<IAiTool, PurchaseListOrdersTool>();
         services.AddScoped<IAiToolRegistry, AiToolRegistry>();
 
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();

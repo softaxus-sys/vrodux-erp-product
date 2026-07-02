@@ -2,13 +2,13 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Send, User, RefreshCw, Copy, ThumbsUp, ThumbsDown,
-  Lightbulb, TrendingUp, BarChart3, Settings2, X, Loader2,
+  Lightbulb, TrendingUp, BarChart3, Settings2, X, Loader2, Check, Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
-import { useSendChat, useAiSettings, useUpdateAiSettings } from "@/hooks/ai/use-ai";
-import type { AiProvider, AiTier, ChatHistoryItem } from "@/lib/ai/ai.api";
+import { useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents } from "@/hooks/ai/use-ai";
+import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
 
 interface Message {
@@ -16,6 +16,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  /** Set on an assistant message that proposed a write action awaiting confirmation. */
+  pending?: PendingAction | null;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -49,11 +51,14 @@ export function AIAssistantView() {
   ]);
   const [input, setInput] = React.useState("");
   const [showSettings, setShowSettings] = React.useState(false);
+  const [agent, setAgent] = React.useState<string | null>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
   const sendChat = useSendChat();
-  const isTyping = sendChat.isPending;
+  const confirmAction = useConfirmAction();
+  const { data: agents } = useAiAgents();
+  const isTyping = sendChat.isPending || confirmAction.isPending;
 
   const canManageAi = useAuthStore((s) => s.hasRawPermission("settings.ai.edit"));
 
@@ -76,9 +81,10 @@ export function AIAssistantView() {
     setInput("");
 
     try {
-      const res = await sendChat.mutateAsync({ message: trimmed, history });
+      const res = await sendChat.mutateAsync({ message: trimmed, history, agent });
       setMessages(prev => [...prev, {
         id: `a-${Date.now()}`, role: "assistant", content: res.reply, timestamp: now(),
+        pending: res.pendingAction ?? null,
       }]);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Something went wrong reaching the assistant.";
@@ -87,7 +93,34 @@ export function AIAssistantView() {
         content: `⚠️ ${msg}`, timestamp: now(),
       }]);
     }
-  }, [messages, sendChat]);
+  }, [messages, sendChat, agent]);
+
+  const handleConfirm = React.useCallback(async (msgId: string, pending: PendingAction) => {
+    // Clear the pending prompt so the buttons disappear immediately.
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, pending: null } : m));
+    try {
+      const res = await confirmAction.mutateAsync({
+        toolName: pending.toolName,
+        argumentsJson: pending.argumentsJson,
+      });
+      setMessages(prev => [...prev, {
+        id: `a-${Date.now()}`, role: "assistant", content: res.reply, timestamp: now(),
+      }]);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "The action could not be completed.";
+      setMessages(prev => [...prev, {
+        id: `a-${Date.now()}`, role: "assistant", content: `⚠️ ${msg}`, timestamp: now(),
+      }]);
+    }
+  }, [confirmAction]);
+
+  const handleCancel = React.useCallback((msgId: string) => {
+    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, pending: null } : m));
+    setMessages(prev => [...prev, {
+      id: `a-${Date.now()}`, role: "assistant",
+      content: "No problem — I won't make that change.", timestamp: now(),
+    }]);
+  }, []);
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -123,6 +156,25 @@ export function AIAssistantView() {
           </Button>
         </div>
       </div>
+
+      {/* Agent selector (call-by-name targets) */}
+      {agents && agents.length > 0 && (
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+          <span className="text-[11px] text-muted-foreground mr-1">Agent:</span>
+          <button onClick={() => setAgent(null)}
+            className={cn("px-2.5 py-1 rounded-full text-[11px] border transition-colors",
+              agent === null ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-primary/40")}>
+            Auto
+          </button>
+          {agents.map(a => (
+            <button key={a.key} onClick={() => setAgent(a.key)}
+              className={cn("px-2.5 py-1 rounded-full text-[11px] border transition-colors",
+                agent === a.key ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-primary/40")}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Suggested prompts */}
       {messages.length === 1 && (
@@ -163,6 +215,23 @@ export function AIAssistantView() {
                     : "bg-card border border-border rounded-tl-sm")}>
                   <div className="whitespace-pre-wrap">{msg.content}</div>
                 </div>
+                {msg.pending && (
+                  <div className="mt-1 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 w-full">
+                    <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-2">
+                      ⚠ This will change data. Confirm to proceed.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 gap-1" disabled={confirmAction.isPending}
+                        onClick={() => handleConfirm(msg.id, msg.pending!)}>
+                        <Check className="h-3.5 w-3.5" /> Confirm
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 gap-1" disabled={confirmAction.isPending}
+                        onClick={() => handleCancel(msg.id)}>
+                        <Ban className="h-3.5 w-3.5" /> Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 px-1">
                   <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
                   {msg.role === "assistant" && msg.id !== "welcome" && (
