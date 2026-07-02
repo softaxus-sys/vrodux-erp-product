@@ -66,3 +66,57 @@ internal sealed class PurchaseListOrdersTool(GatewayToolClient g) : GetTool(g)
     public override string? RequiredPermission => "purchase.orders.view";
     protected override string Path => "api/purchase/orders";
 }
+
+internal sealed class CrmCustomersSummaryTool(GatewayToolClient g) : GetTool(g)
+{
+    public override string Name => "crm_customers_summary";
+    public override string Description => "Summary of CRM customers — total count and breakdowns. Use for questions about the customer base.";
+    public override string Agent => "crm";
+    public override string? RequiredPermission => "crm.customers.view";
+    protected override string Path => "api/crm/customers/summary";
+}
+
+internal sealed class CrmPipelineSummaryTool(GatewayToolClient g) : GetTool(g)
+{
+    public override string Name => "crm_pipeline_summary";
+    public override string Description => "Summary of the sales pipeline / deals — counts and values by stage. Use for questions about deals in progress and pipeline value.";
+    public override string Agent => "crm";
+    public override string? RequiredPermission => "crm.pipeline.view";
+    protected override string Path => "api/crm/deals/summary";
+}
+
+internal sealed class InventoryProductsTool(GatewayToolClient g) : GetTool(g)
+{
+    public override string Name => "inventory_list_products";
+    public override string Description => "List inventory products with stock levels. Use for questions about products, stock on hand, and what is low or out of stock.";
+    public override string Agent => "inventory";
+    public override string? RequiredPermission => "inventory.stock.view";
+    protected override string Path => "api/inventory/products";
+}
+
+internal sealed class SalesQuotationsTool(GatewayToolClient g) : GetTool(g)
+{
+    public override string Name => "sales_list_quotations";
+    public override string Description => "List sales quotations — customer, status, totals. Use for questions about quotes and proposals.";
+    public override string Agent => "sales";
+    public override string? RequiredPermission => "sales.quotations.view";
+    protected override string Path => "api/sales/quotations";
+}
+
+internal sealed class PurchaseVendorsTool(GatewayToolClient g) : GetTool(g)
+{
+    public override string Name => "purchase_list_vendors";
+    public override string Description => "List vendors/suppliers. Use for questions about suppliers.";
+    public override string Agent => "purchase";
+    public override string? RequiredPermission => "purchase.vendors.view";
+    protected override string Path => "api/purchase/vendors";
+}
+
+internal sealed class ProjectsListTool(GatewayToolClient g) : GetTool(g)
+{
+    public override string Name => "projects_list";
+    public override string Description => "List the current user's projects — name, status, progress. Use for questions about projects and their health.";
+    public override string Agent => "project-management";
+    public override string? RequiredPermission => "project-management.projects.view";
+    protected override string Path => "api/projectmanagement/projects";
+}

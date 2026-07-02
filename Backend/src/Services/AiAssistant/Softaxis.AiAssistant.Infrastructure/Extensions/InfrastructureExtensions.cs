@@ -61,6 +61,12 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiTool, HrEmployeesSummaryTool>();
         services.AddScoped<IAiTool, SalesListOrdersTool>();
         services.AddScoped<IAiTool, PurchaseListOrdersTool>();
+        services.AddScoped<IAiTool, CrmCustomersSummaryTool>();
+        services.AddScoped<IAiTool, CrmPipelineSummaryTool>();
+        services.AddScoped<IAiTool, InventoryProductsTool>();
+        services.AddScoped<IAiTool, SalesQuotationsTool>();
+        services.AddScoped<IAiTool, PurchaseVendorsTool>();
+        services.AddScoped<IAiTool, ProjectsListTool>();
         services.AddScoped<IAiToolRegistry, AiToolRegistry>();
 
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();
