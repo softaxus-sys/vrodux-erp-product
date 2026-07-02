@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   aiApi,
   type AiAgentDto,
+  type AiCapabilitiesDto,
   type AiSettingsDto,
   type AutomationRuleDto,
   type AutomationRuleSummaryDto,
@@ -49,6 +50,16 @@ export function useSendChat() {
 export function useConfirmAction() {
   return useMutation({
     mutationFn: (payload: ConfirmActionPayload) => aiApi.confirmAction(payload),
+  });
+}
+
+/** Tenant AI capabilities (tier + enabled features). Available to any user — used to gate voice, automations, etc. */
+export function useAiCapabilities(enabled = true) {
+  return useQuery<AiCapabilitiesDto>({
+    queryKey: [QK, "capabilities"],
+    queryFn: () => aiApi.getCapabilities(),
+    enabled,
+    staleTime: 60_000,
   });
 }
 

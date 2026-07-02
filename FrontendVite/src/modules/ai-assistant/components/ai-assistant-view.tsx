@@ -3,15 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Send, User, RefreshCw, Copy, ThumbsUp, ThumbsDown,
   Lightbulb, TrendingUp, BarChart3, Settings2, X, Loader2, Check, Ban,
-  MessageCircle, Link2, ExternalLink, Bot,
+  MessageCircle, Link2, ExternalLink, Bot, Mic, Volume2, VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import {
-  useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents,
+  useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents, useAiCapabilities,
   useTelegramStatus, useGenerateTelegramLink, useUnlinkTelegram, useRegisterTelegramWebhook,
 } from "@/hooks/ai/use-ai";
+import { useSpeechToText, speak, cancelSpeech, speechSynthesisSupported } from "@/hooks/ai/use-voice";
 import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
 import { AutomationsModal } from "./automations-modal";
@@ -65,9 +66,19 @@ export function AIAssistantView() {
   const sendChat = useSendChat();
   const confirmAction = useConfirmAction();
   const { data: agents } = useAiAgents();
+  const { data: caps } = useAiCapabilities();
   const isTyping = sendChat.isPending || confirmAction.isPending;
 
   const canManageAi = useAuthStore((s) => s.hasRawPermission("settings.ai.edit"));
+
+  // Voice (M5) — gated by the tenant's voice capability + browser support.
+  const [speakReplies, setSpeakReplies] = React.useState(false);
+  const speakRef = React.useRef(false);
+  speakRef.current = speakReplies;
+  const stt = useSpeechToText((text) => { setInput(text); void sendMessage(text); });
+  const voiceEnabled = !!caps?.voiceEnabled;
+  const canSpeak = voiceEnabled && speechSynthesisSupported();
+  const canListen = voiceEnabled && stt.supported;
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -93,6 +104,7 @@ export function AIAssistantView() {
         id: `a-${Date.now()}`, role: "assistant", content: res.reply, timestamp: now(),
         pending: res.pendingAction ?? null,
       }]);
+      if (speakRef.current) speak(res.reply);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Something went wrong reaching the assistant.";
       setMessages(prev => [...prev, {
@@ -113,6 +125,7 @@ export function AIAssistantView() {
       setMessages(prev => [...prev, {
         id: `a-${Date.now()}`, role: "assistant", content: res.reply, timestamp: now(),
       }]);
+      if (speakRef.current) speak(res.reply);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "The action could not be completed.";
       setMessages(prev => [...prev, {
@@ -164,6 +177,14 @@ export function AIAssistantView() {
           {canManageAi && (
             <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)} className="gap-1.5 text-muted-foreground h-8">
               <Settings2 className="h-3.5 w-3.5" />Settings
+            </Button>
+          )}
+          {canSpeak && (
+            <Button variant="ghost" size="sm"
+              onClick={() => { const next = !speakReplies; setSpeakReplies(next); if (!next) cancelSpeech(); }}
+              className={cn("gap-1.5 h-8", speakReplies ? "text-primary" : "text-muted-foreground")}
+              title={speakReplies ? "Spoken replies on" : "Spoken replies off"}>
+              {speakReplies ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}Speak
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={clearChat} className="gap-1.5 text-muted-foreground h-8">
@@ -281,11 +302,19 @@ export function AIAssistantView() {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKey}
-          placeholder="Ask anything about your business data…"
+          placeholder={stt.listening ? "Listening…" : "Ask anything about your business data…"}
           rows={1}
           className="flex-1 resize-none bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground max-h-32"
           style={{ lineHeight: "1.5" }}
         />
+        {canListen && (
+          <Button onClick={() => stt.listening ? stt.stop() : stt.start()} disabled={isTyping}
+            size="sm" variant={stt.listening ? "default" : "ghost"}
+            className={cn("h-8 w-8 p-0 rounded-xl shrink-0", stt.listening && "animate-pulse")}
+            title={stt.listening ? "Stop listening" : "Speak your question"}>
+            <Mic className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <Button onClick={() => sendMessage(input)} disabled={!input.trim() || isTyping}
           size="sm" className="h-8 w-8 p-0 rounded-xl shrink-0">
           {isTyping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
@@ -312,6 +341,16 @@ const PROVIDERS: { value: AiProvider; label: string; hint: string }[] = [
   { value: "GroqPaid", label: "Groq (Paid)",      hint: "Higher limits. Model e.g. llama-3.3-70b-versatile" },
 ];
 const TIERS: AiTier[] = ["starter", "growth", "enterprise"];
+
+/**
+ * Client mirror of the backend `AiTierCapabilities` matrix — lets the settings editor gate features
+ * live as the tier dropdown changes. The backend remains the source of truth (it clamps on save).
+ */
+const TIER_CAPS: Record<AiTier, { voice: boolean; telegram: boolean; automations: boolean; autopilot: boolean; maxRules: number }> = {
+  starter:    { voice: false, telegram: false, automations: false, autopilot: false, maxRules: 0 },
+  growth:     { voice: true,  telegram: true,  automations: true,  autopilot: false, maxRules: 20 },
+  enterprise: { voice: true,  telegram: true,  automations: true,  autopilot: true,  maxRules: -1 },
+};
 
 function AiSettingsModal({ onClose }: { onClose: () => void }) {
   const { data, isLoading } = useAiSettings(true);
@@ -420,21 +459,40 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
             {/* Tier */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Plan tier</label>
-              <select value={tier} onChange={e => setTier(e.target.value as AiTier)}
+              <select value={tier} onChange={e => {
+                const t = e.target.value as AiTier;
+                setTier(t);
+                // Clamp feature toggles to the newly-selected tier (mirrors the backend clamp on save).
+                if (!TIER_CAPS[t].voice) setVoiceEnabled(false);
+                if (!TIER_CAPS[t].telegram) setTelegramEnabled(false);
+              }}
                 className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
                 {TIERS.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}
               </select>
+              <p className="text-[11px] text-muted-foreground">
+                {tier === "starter" && "Chat only. Upgrade for voice, Telegram, and automations."}
+                {tier === "growth" && "Chat + voice + Telegram + confirm-mode automations (up to 20)."}
+                {tier === "enterprise" && "Everything, including autopilot automations and unlimited rules."}
+              </p>
             </div>
 
-            {/* Feature toggles */}
+            {/* Feature toggles — gated by tier */}
             <div className="grid grid-cols-2 gap-3">
-              <label className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5">
-                <span className="text-xs font-medium">Voice</span>
-                <input type="checkbox" checked={voiceEnabled} onChange={e => setVoiceEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
+              <label className={cn("flex items-center justify-between gap-2 rounded-lg border border-border p-2.5",
+                !TIER_CAPS[tier].voice && "opacity-50")}>
+                <span className="text-xs font-medium flex items-center gap-1">
+                  Voice {!TIER_CAPS[tier].voice && <span className="text-[10px] text-muted-foreground">(Growth+)</span>}
+                </span>
+                <input type="checkbox" checked={voiceEnabled} disabled={!TIER_CAPS[tier].voice}
+                  onChange={e => setVoiceEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
               </label>
-              <label className="flex items-center justify-between gap-2 rounded-lg border border-border p-2.5">
-                <span className="text-xs font-medium">Telegram</span>
-                <input type="checkbox" checked={telegramEnabled} onChange={e => setTelegramEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
+              <label className={cn("flex items-center justify-between gap-2 rounded-lg border border-border p-2.5",
+                !TIER_CAPS[tier].telegram && "opacity-50")}>
+                <span className="text-xs font-medium flex items-center gap-1">
+                  Telegram {!TIER_CAPS[tier].telegram && <span className="text-[10px] text-muted-foreground">(Growth+)</span>}
+                </span>
+                <input type="checkbox" checked={telegramEnabled} disabled={!TIER_CAPS[tier].telegram}
+                  onChange={e => setTelegramEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
               </label>
             </div>
 

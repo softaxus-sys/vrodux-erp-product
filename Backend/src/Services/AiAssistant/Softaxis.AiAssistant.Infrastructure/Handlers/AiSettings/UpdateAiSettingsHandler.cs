@@ -25,7 +25,11 @@ internal sealed class UpdateAiSettingsHandler(AiAssistantDbContext db, ISecretPr
             db.AiSettings.Add(settings);
         }
 
-        settings.Configure(provider, cmd.Model, cmd.Tier, cmd.Enabled, cmd.VoiceEnabled, cmd.TelegramEnabled);
+        // Clamp premium feature toggles to what the chosen tier allows — a tenant can never enable a
+        // feature above its plan (single source of truth: AiTierCapabilities).
+        var caps = Domain.AiTierCapabilities.For(cmd.Tier);
+        settings.Configure(provider, cmd.Model, cmd.Tier, cmd.Enabled,
+            cmd.VoiceEnabled && caps.Voice, cmd.TelegramEnabled && caps.Telegram);
 
         if (cmd.ClearApiKey)
             settings.ClearApiKey();
@@ -45,6 +49,7 @@ internal sealed class UpdateAiSettingsHandler(AiAssistantDbContext db, ISecretPr
         return new AiSettingsDto(
             settings.Provider.ToString(), settings.Model, settings.Enabled, settings.Tier,
             settings.VoiceEnabled, settings.TelegramEnabled, settings.HasApiKey,
-            settings.TelegramBotUsername, settings.HasTelegramBotToken, settings.TelegramInboundKey);
+            settings.TelegramBotUsername, settings.HasTelegramBotToken, settings.TelegramInboundKey,
+            Capabilities: AiCapabilitiesMapper.From(settings));
     }
 }

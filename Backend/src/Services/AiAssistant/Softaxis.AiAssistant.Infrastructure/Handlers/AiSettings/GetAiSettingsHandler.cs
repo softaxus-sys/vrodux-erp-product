@@ -16,10 +16,12 @@ internal sealed class GetAiSettingsHandler(AiAssistantDbContext db)
         var s = await db.AiSettings.AsNoTracking().FirstOrDefaultAsync(ct);
 
         if (s is null)
-            return new AiSettingsDto(nameof(AiProvider.Claude), null, false, "starter", false, false, false);
+            return new AiSettingsDto(nameof(AiProvider.Claude), null, false, "starter", false, false, false,
+                Capabilities: AiCapabilitiesMapper.From(null));
 
         return new AiSettingsDto(
             s.Provider.ToString(), s.Model, s.Enabled, s.Tier, s.VoiceEnabled, s.TelegramEnabled, s.HasApiKey,
-            s.TelegramBotUsername, s.HasTelegramBotToken, s.TelegramInboundKey);
+            s.TelegramBotUsername, s.HasTelegramBotToken, s.TelegramInboundKey,
+            Capabilities: AiCapabilitiesMapper.From(s));
     }
 }

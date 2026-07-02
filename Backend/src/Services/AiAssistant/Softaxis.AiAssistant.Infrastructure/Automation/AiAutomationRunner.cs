@@ -52,13 +52,25 @@ public sealed class AiAutomationRunner(
             var tok = tokenResult.Value;
             var baseUrl = ResolveBaseUrl();
 
+            // Re-check the tier at run time so a downgraded tenant can't keep running premium/autopilot
+            // rules (single source of truth: AiTierCapabilities).
+            var settings = await db.AiSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+            var caps = Domain.AiTierCapabilities.For(settings?.Tier);
+            if (!caps.Automations)
+            {
+                run.Complete("failed", null, null, "Automations aren't available on your current plan.");
+                rule.RecordRun("failed", run.Error, DateTime.UtcNow);
+                await db.SaveChangesAsync(ct);
+                return run;
+            }
+            var autopilot = rule.Mode == "autopilot" && caps.Autopilot;
+
             AiAssistant.Application.Chat.Dtos.AiAutonomousResult result;
             using (AiImpersonation.Use(new AiImpersonatedUser(
                 tok.UserId, tok.Username, tok.Email, tok.IsSuperAdmin,
                 tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl)))
             {
-                result = await orchestrator.RunAutonomousAsync(
-                    rule.Instruction, rule.Agent, rule.Mode == "autopilot", ct);
+                result = await orchestrator.RunAutonomousAsync(rule.Instruction, rule.Agent, autopilot, ct);
             }
 
             if (result.Status == "pending_confirmation" && result.Pending is { } p)

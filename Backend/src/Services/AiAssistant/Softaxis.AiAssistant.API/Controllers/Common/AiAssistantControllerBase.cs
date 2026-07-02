@@ -22,6 +22,7 @@ public abstract class AiAssistantControllerBase : ControllerBase
             var c when c.EndsWith(".NotFound")     => NotFound(body),
             var c when c.EndsWith(".Duplicate")    => Conflict(body),
             var c when c.EndsWith(".Conflict")     => Conflict(body),
+            var c when c.EndsWith(".Forbidden")    => StatusCode(StatusCodes.Status403Forbidden, body),
             var c when c.EndsWith(".Invalid")      => BadRequest(body),
             var c when c.EndsWith(".InvalidProvider") => BadRequest(body),
             "Validation.Failed"                    => UnprocessableEntity(body),

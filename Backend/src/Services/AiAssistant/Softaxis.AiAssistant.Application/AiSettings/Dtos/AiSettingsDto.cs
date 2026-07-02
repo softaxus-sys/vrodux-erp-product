@@ -14,4 +14,5 @@ public sealed record AiSettingsDto(
     bool HasApiKey,
     string? TelegramBotUsername = null,
     bool HasTelegramBotToken = false,
-    string? TelegramInboundKey = null);
+    string? TelegramInboundKey = null,
+    AiCapabilitiesDto? Capabilities = null);

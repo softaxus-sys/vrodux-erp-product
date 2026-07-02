@@ -7,7 +7,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import {
-  useAutomations, useAutomation, useAiAgents, useCreateAutomation, useUpdateAutomation,
+  useAutomations, useAutomation, useAiAgents, useAiCapabilities, useCreateAutomation, useUpdateAutomation,
   useToggleAutomation, useDeleteAutomation, useRunAutomationNow, useResolveAutomationRun,
 } from "@/hooks/ai/use-ai";
 import { useUsers } from "@/hooks/identity/use-users";
@@ -71,12 +71,17 @@ export function AutomationsModal({ onClose }: { onClose: () => void }) {
 
 function AutomationsList({ onCreate, onEdit }: { onCreate: () => void; onEdit: (id: string) => void }) {
   const { data: rules, isLoading } = useAutomations(true);
+  const { data: caps } = useAiCapabilities(true);
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = React.useState<AutomationRuleSummaryDto | null>(null);
 
   const toggle = useToggleAutomation();
   const runNow = useRunAutomationNow();
   const del = useDeleteAutomation();
+
+  const canCreate = caps?.automations ?? false;
+  const atLimit = !!caps && !canCreate ? false
+    : !!caps && caps.maxAutomationRules >= 0 && (rules?.length ?? 0) >= caps.maxAutomationRules;
 
   return (
     <>
@@ -85,10 +90,22 @@ function AutomationsList({ onCreate, onEdit }: { onCreate: () => void; onEdit: (
           <p className="text-xs text-muted-foreground">
             Scheduled tasks the assistant runs on its own, as a chosen user.
           </p>
-          <Button size="sm" className="h-8 gap-1.5" onClick={onCreate}>
+          <Button size="sm" className="h-8 gap-1.5" onClick={onCreate} disabled={!canCreate || atLimit}
+            title={!canCreate ? "Automations require the Growth or Enterprise plan" : atLimit ? "Plan automation limit reached" : undefined}>
             <Plus className="h-3.5 w-3.5" /> New
           </Button>
         </div>
+
+        {caps && !canCreate && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] text-amber-600 dark:text-amber-400">
+            Automations require the <b>Growth</b> or <b>Enterprise</b> plan. Ask an administrator to upgrade in AI Settings.
+          </div>
+        )}
+        {caps && canCreate && atLimit && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] text-amber-600 dark:text-amber-400">
+            You've reached your plan's limit of {caps.maxAutomationRules} automations. Delete one or upgrade to add more.
+          </div>
+        )}
 
         {isLoading ? (
           <div className="p-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
@@ -234,8 +251,10 @@ function RunStatusIcon({ status }: { status: AutomationRunDto["status"] }) {
 function AutomationForm({ editingId, onDone }: { editingId: string | null; onDone: () => void }) {
   const { data: existing, isLoading } = useAutomation(editingId);
   const { data: agents } = useAiAgents();
+  const { data: caps } = useAiCapabilities(true);
   const create = useCreateAutomation();
   const update = useUpdateAutomation();
+  const canAutopilot = caps?.autopilot ?? false;
 
   const meId = useAuthStore(s => s.user?.id ?? null);
   const meName = useAuthStore(s => s.user?.name ?? "Me");
@@ -333,7 +352,9 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
           <select value={mode} onChange={e => setMode(e.target.value as AiRuleMode)}
             className="w-full h-9 rounded-lg border border-border bg-card px-2 text-sm">
             <option value="confirm">Confirm — queue writes for approval</option>
-            <option value="autopilot">Autopilot — run writes automatically</option>
+            <option value="autopilot" disabled={!canAutopilot}>
+              Autopilot — run writes automatically{!canAutopilot ? " (Enterprise)" : ""}
+            </option>
           </select>
         </Field>
       </div>

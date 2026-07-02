@@ -7,6 +7,20 @@ const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/ai`
 export type AiProvider = "Claude" | "GroqFree" | "GroqPaid";
 export type AiTier = "starter" | "growth" | "enterprise";
 
+/** What the tenant's plan tier unlocks + which optional features the admin turned on. No secrets. */
+export interface AiCapabilitiesDto {
+  tier: AiTier;
+  voice: boolean;
+  telegram: boolean;
+  automations: boolean;
+  autopilot: boolean;
+  /** -1 = unlimited. */
+  maxAutomationRules: number;
+  voiceEnabled: boolean;
+  telegramEnabled: boolean;
+  aiEnabled: boolean;
+}
+
 export interface AiSettingsDto {
   provider: AiProvider;
   model: string | null;
@@ -19,6 +33,7 @@ export interface AiSettingsDto {
   telegramBotUsername: string | null;
   hasTelegramBotToken: boolean;
   telegramInboundKey: string | null;
+  capabilities: AiCapabilitiesDto | null;
 }
 
 export interface UpdateAiSettingsPayload {
@@ -190,6 +205,10 @@ export const aiApi = {
 
   getAgents: (): Promise<AiAgentDto[]> =>
     rawApiClient.get(`${BASE}/agents`),
+
+  /** Tenant AI capabilities — available to any authenticated user (no secrets). */
+  getCapabilities: (): Promise<AiCapabilitiesDto> =>
+    rawApiClient.get(`${BASE}/capabilities`),
 
   // ── Telegram ──────────────────────────────────────────────────────────────
   getTelegramStatus: (): Promise<TelegramLinkStatus> =>
