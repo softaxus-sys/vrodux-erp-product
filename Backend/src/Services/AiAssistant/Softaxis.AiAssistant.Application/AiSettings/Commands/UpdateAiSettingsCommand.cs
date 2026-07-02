@@ -16,7 +16,10 @@ public sealed record UpdateAiSettingsCommand(
     bool VoiceEnabled,
     bool TelegramEnabled,
     string? ApiKey,
-    bool ClearApiKey) : ICommand<AiSettingsDto>;
+    bool ClearApiKey,
+    string? TelegramBotToken = null,
+    string? TelegramBotUsername = null,
+    bool ClearTelegramBot = false) : ICommand<AiSettingsDto>;
 
 public sealed class UpdateAiSettingsCommandValidator : AbstractValidator<UpdateAiSettingsCommand>
 {

@@ -71,6 +71,9 @@ public static class InfrastructureExtensions
 
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();
 
+        // Telegram
+        services.AddScoped<Telegram.TelegramClient>();
+
         return services;
     }
 

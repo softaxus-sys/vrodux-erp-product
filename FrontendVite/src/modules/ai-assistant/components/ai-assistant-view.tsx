@@ -3,11 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Send, User, RefreshCw, Copy, ThumbsUp, ThumbsDown,
   Lightbulb, TrendingUp, BarChart3, Settings2, X, Loader2, Check, Ban,
+  MessageCircle, Link2, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
-import { useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents } from "@/hooks/ai/use-ai";
+import {
+  useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents,
+  useTelegramStatus, useGenerateTelegramLink, useUnlinkTelegram, useRegisterTelegramWebhook,
+} from "@/hooks/ai/use-ai";
 import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
 
@@ -51,6 +55,7 @@ export function AIAssistantView() {
   ]);
   const [input, setInput] = React.useState("");
   const [showSettings, setShowSettings] = React.useState(false);
+  const [showTelegram, setShowTelegram] = React.useState(false);
   const [agent, setAgent] = React.useState<string | null>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
@@ -146,6 +151,9 @@ export function AIAssistantView() {
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setShowTelegram(true)} className="gap-1.5 text-muted-foreground h-8">
+            <MessageCircle className="h-3.5 w-3.5" />Telegram
+          </Button>
           {canManageAi && (
             <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)} className="gap-1.5 text-muted-foreground h-8">
               <Settings2 className="h-3.5 w-3.5" />Settings
@@ -282,6 +290,7 @@ export function AIAssistantView() {
 
       <AnimatePresence>
         {showSettings && <AiSettingsModal onClose={() => setShowSettings(false)} />}
+        {showTelegram && <TelegramLinkModal onClose={() => setShowTelegram(false)} />}
       </AnimatePresence>
     </div>
   );
@@ -299,6 +308,7 @@ const TIERS: AiTier[] = ["starter", "growth", "enterprise"];
 function AiSettingsModal({ onClose }: { onClose: () => void }) {
   const { data, isLoading } = useAiSettings(true);
   const update = useUpdateAiSettings();
+  const registerWebhook = useRegisterTelegramWebhook();
 
   const [provider, setProvider] = React.useState<AiProvider>("Claude");
   const [model, setModel] = React.useState("");
@@ -307,6 +317,8 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
   const [voiceEnabled, setVoiceEnabled] = React.useState(false);
   const [telegramEnabled, setTelegramEnabled] = React.useState(false);
   const [apiKey, setApiKey] = React.useState("");
+  const [botToken, setBotToken] = React.useState("");
+  const [botUsername, setBotUsername] = React.useState("");
 
   React.useEffect(() => {
     if (!data) return;
@@ -316,6 +328,7 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
     setEnabled(data.enabled);
     setVoiceEnabled(data.voiceEnabled);
     setTelegramEnabled(data.telegramEnabled);
+    setBotUsername(data.telegramBotUsername ?? "");
   }, [data]);
 
   const save = async () => {
@@ -329,8 +342,11 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
         telegramEnabled,
         apiKey: apiKey.trim() ? apiKey.trim() : null,
         clearApiKey: false,
+        telegramBotToken: botToken.trim() ? botToken.trim() : null,
+        telegramBotUsername: telegramEnabled ? botUsername.trim() : null,
+        clearTelegramBot: false,
       });
-      onClose();
+      setBotToken("");
     } catch {
       /* hook shows the toast; keep the modal open for retry */
     }
@@ -413,6 +429,36 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
                 <input type="checkbox" checked={telegramEnabled} onChange={e => setTelegramEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
               </label>
             </div>
+
+            {/* Telegram bot (per-tenant bot; users link their own accounts) */}
+            {telegramEnabled && (
+              <div className="rounded-xl border border-border p-3 space-y-3">
+                <p className="text-xs font-semibold flex items-center gap-1.5"><MessageCircle className="h-3.5 w-3.5 text-primary" /> Telegram bot</p>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Bot token {data?.hasTelegramBotToken && <span className="text-[11px] text-success">(stored)</span>}</label>
+                  <input type="password" value={botToken} onChange={e => setBotToken(e.target.value)}
+                    placeholder={data?.hasTelegramBotToken ? "•••••• — blank keeps current token" : "Token from @BotFather"}
+                    className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Bot username</label>
+                  <input value={botUsername} onChange={e => setBotUsername(e.target.value)}
+                    placeholder="e.g. AcmeVroduxBot"
+                    className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-7 gap-1" disabled={registerWebhook.isPending || !data?.hasTelegramBotToken}
+                    onClick={() => registerWebhook.mutate()}>
+                    {registerWebhook.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                    Register webhook
+                  </Button>
+                  <span className="text-[11px] text-muted-foreground">Save the token first, then register so Telegram delivers messages here.</span>
+                </div>
+                {registerWebhook.data && (
+                  <p className="text-[11px] text-success break-all">Webhook registered: {registerWebhook.data}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -421,6 +467,83 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
           <Button size="sm" onClick={save} disabled={update.isPending}>
             {update.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Save settings"}
           </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Per-user Telegram link modal ────────────────────────────────────────────────
+
+function TelegramLinkModal({ onClose }: { onClose: () => void }) {
+  const { data: status, isLoading } = useTelegramStatus(true);
+  const generate = useGenerateTelegramLink();
+  const unlink = useUnlinkTelegram();
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="w-full max-w-md rounded-2xl bg-card border border-border shadow-xl"
+        initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <MessageCircle className="h-4 w-4 text-primary" /> Connect Telegram
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {isLoading ? (
+            <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : !status?.botConfigured ? (
+            <p className="text-sm text-muted-foreground">
+              Telegram isn't set up for your company yet. Ask an administrator to configure the Telegram bot in AI Settings.
+            </p>
+          ) : status.linked ? (
+            <div className="space-y-3">
+              <p className="text-sm">
+                ✅ Connected{status.telegramUsername ? <> as <span className="font-medium">@{status.telegramUsername}</span></> : null}. You can chat with the assistant from Telegram — it respects your role and only sees your company's data.
+              </p>
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={unlink.isPending}
+                onClick={() => unlink.mutate()}>
+                {unlink.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                Disconnect
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Link your personal Telegram to chat with the assistant from Telegram. It will act as you — your permissions, your company only.
+              </p>
+              {status.deepLink ? (
+                <>
+                  <a href={status.deepLink} target="_blank" rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+                    <ExternalLink className="h-3.5 w-3.5" /> Open in Telegram
+                  </a>
+                  <p className="text-[11px] text-muted-foreground">
+                    Then press <span className="font-medium">Start</span> in Telegram. (Link code: <code>{status.code}</code>)
+                  </p>
+                </>
+              ) : (
+                <Button size="sm" className="gap-1.5" disabled={generate.isPending}
+                  onClick={() => generate.mutate()}>
+                  {generate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+                  Generate link
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end p-4 border-t border-border">
+          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
       </motion.div>
     </motion.div>

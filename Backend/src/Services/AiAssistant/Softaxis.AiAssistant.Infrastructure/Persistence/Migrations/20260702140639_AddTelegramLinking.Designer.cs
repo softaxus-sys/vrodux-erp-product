@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Softaxis.AiAssistant.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Softaxis.AiAssistant.Infrastructure.Persistence;
 namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AiAssistantDbContext))]
-    partial class AiAssistantDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260702140639_AddTelegramLinking")]
+    partial class AddTelegramLinking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

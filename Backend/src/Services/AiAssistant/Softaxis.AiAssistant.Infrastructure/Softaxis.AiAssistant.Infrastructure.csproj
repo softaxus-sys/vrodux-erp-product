@@ -18,5 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.AiAssistant.Application\Softaxis.AiAssistant.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
+    <!-- For the internal IssueServiceTokenCommand — lets a Telegram message run as the linked user. -->
+    <ProjectReference Include="..\..\Identity\Softaxis.Identity.Application\Softaxis.Identity.Application.csproj" />
   </ItemGroup>
 </Project>

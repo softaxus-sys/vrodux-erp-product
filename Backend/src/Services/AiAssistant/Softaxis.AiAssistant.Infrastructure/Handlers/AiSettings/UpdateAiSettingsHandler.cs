@@ -32,10 +32,19 @@ internal sealed class UpdateAiSettingsHandler(AiAssistantDbContext db, ISecretPr
         else if (!string.IsNullOrWhiteSpace(cmd.ApiKey))
             settings.SetProtectedApiKey(protector.Protect(cmd.ApiKey.Trim()));
 
+        // Telegram bot config
+        if (cmd.ClearTelegramBot)
+            settings.ClearTelegramBot();
+        else if (!string.IsNullOrWhiteSpace(cmd.TelegramBotToken) || cmd.TelegramBotUsername is not null)
+            settings.ConfigureTelegramBot(
+                string.IsNullOrWhiteSpace(cmd.TelegramBotToken) ? null : protector.Protect(cmd.TelegramBotToken.Trim()),
+                cmd.TelegramBotUsername);
+
         await db.SaveChangesAsync(ct);
 
         return new AiSettingsDto(
             settings.Provider.ToString(), settings.Model, settings.Enabled, settings.Tier,
-            settings.VoiceEnabled, settings.TelegramEnabled, settings.HasApiKey);
+            settings.VoiceEnabled, settings.TelegramEnabled, settings.HasApiKey,
+            settings.TelegramBotUsername, settings.HasTelegramBotToken, settings.TelegramInboundKey);
     }
 }

@@ -43,11 +43,21 @@ public sealed class TenantAiSettings
     public bool VoiceEnabled    { get; private set; }
     public bool TelegramEnabled { get; private set; }
 
+    // ── Telegram bot (per-tenant bot; users link their own accounts to it) ────
+    /// <summary>The tenant's Telegram bot token, encrypted at rest. Never returned to the client.</summary>
+    public string? ProtectedTelegramBotToken { get; private set; }
+    /// <summary>The bot's @username (for building t.me deep links).</summary>
+    public string? TelegramBotUsername { get; private set; }
+    /// <summary>Random key embedded in the inbound webhook URL, so Telegram updates resolve to this tenant.</summary>
+    public string? TelegramInboundKey { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
     /// <summary>True when a key has been stored (used to tell the UI a key is set without exposing it).</summary>
     public bool HasApiKey => !string.IsNullOrEmpty(ProtectedApiKey);
+
+    public bool HasTelegramBotToken => !string.IsNullOrEmpty(ProtectedTelegramBotToken);
 
     public void Configure(AiProvider provider, string? model, string tier, bool enabled,
                           bool voiceEnabled, bool telegramEnabled)
@@ -68,4 +78,24 @@ public sealed class TenantAiSettings
     }
 
     public void ClearApiKey() => ProtectedApiKey = null;
+
+    /// <summary>Configure the Telegram bot. Pass a null token to leave the stored token unchanged.</summary>
+    public void ConfigureTelegramBot(string? protectedBotToken, string? botUsername)
+    {
+        if (protectedBotToken is not null)
+            ProtectedTelegramBotToken = protectedBotToken;
+        if (botUsername is not null)
+            TelegramBotUsername = string.IsNullOrWhiteSpace(botUsername) ? null : botUsername.Trim().TrimStart('@');
+
+        // Ensure an inbound key exists once a bot is configured.
+        if (HasTelegramBotToken && string.IsNullOrEmpty(TelegramInboundKey))
+            TelegramInboundKey = Guid.NewGuid().ToString("N");
+    }
+
+    public void ClearTelegramBot()
+    {
+        ProtectedTelegramBotToken = null;
+        TelegramBotUsername = null;
+        // Keep the inbound key stable so an already-registered webhook URL keeps resolving.
+    }
 }

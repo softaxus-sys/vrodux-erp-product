@@ -16,6 +16,9 @@ export interface AiSettingsDto {
   telegramEnabled: boolean;
   /** True when an API key is stored. The key itself is never returned. */
   hasApiKey: boolean;
+  telegramBotUsername: string | null;
+  hasTelegramBotToken: boolean;
+  telegramInboundKey: string | null;
 }
 
 export interface UpdateAiSettingsPayload {
@@ -29,6 +32,18 @@ export interface UpdateAiSettingsPayload {
   apiKey?: string | null;
   /** Set true to remove the stored key. */
   clearApiKey: boolean;
+  telegramBotToken?: string | null;
+  telegramBotUsername?: string | null;
+  clearTelegramBot?: boolean;
+}
+
+/** Current user's Telegram connection state. */
+export interface TelegramLinkStatus {
+  botConfigured: boolean;
+  linked: boolean;
+  telegramUsername: string | null;
+  code: string | null;
+  deepLink: string | null;
 }
 
 export interface ChatHistoryItem {
@@ -88,4 +103,17 @@ export const aiApi = {
 
   getAgents: (): Promise<AiAgentDto[]> =>
     rawApiClient.get(`${BASE}/agents`),
+
+  // ── Telegram ──────────────────────────────────────────────────────────────
+  getTelegramStatus: (): Promise<TelegramLinkStatus> =>
+    rawApiClient.get(`${BASE}/telegram`),
+
+  generateTelegramLink: (): Promise<TelegramLinkStatus> =>
+    rawApiClient.post(`${BASE}/telegram/link`),
+
+  unlinkTelegram: (): Promise<void> =>
+    rawApiClient.post(`${BASE}/telegram/unlink`),
+
+  registerTelegramWebhook: (): Promise<string> =>
+    rawApiClient.post(`${BASE}/telegram/register-webhook`),
 };

@@ -6,6 +6,7 @@ import {
   type AiSettingsDto,
   type ConfirmActionPayload,
   type SendChatPayload,
+  type TelegramLinkStatus,
   type UpdateAiSettingsPayload,
 } from "@/lib/ai/ai.api";
 
@@ -54,5 +55,45 @@ export function useAiAgents() {
     queryKey: [QK, "agents"],
     queryFn: () => aiApi.getAgents(),
     staleTime: 5 * 60_000,
+  });
+}
+
+// ── Telegram ──────────────────────────────────────────────────────────────────
+
+export function useTelegramStatus(enabled = true) {
+  return useQuery<TelegramLinkStatus>({
+    queryKey: [QK, "telegram-status"],
+    queryFn: () => aiApi.getTelegramStatus(),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useGenerateTelegramLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => aiApi.generateTelegramLink(),
+    onSuccess: (data) => qc.setQueryData([QK, "telegram-status"], data),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUnlinkTelegram() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => aiApi.unlinkTelegram(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "telegram-status"] });
+      toast.success("Telegram disconnected.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRegisterTelegramWebhook() {
+  return useMutation({
+    mutationFn: () => aiApi.registerTelegramWebhook(),
+    onSuccess: () => toast.success("Telegram webhook registered."),
+    onError: (e: Error) => toast.error(e.message),
   });
 }
