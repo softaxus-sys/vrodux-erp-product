@@ -12,7 +12,9 @@ public sealed class RoleConfiguration : IEntityTypeConfiguration<Role>
         builder.HasKey(r => r.Id);
         builder.Property(r => r.Id).ValueGeneratedNever();
         builder.Property(r => r.Name).HasMaxLength(100).IsRequired();
-        builder.HasIndex(r => r.Name).IsUnique();
+        // Role names are unique PER TENANT (not globally). Legacy/global roles carry
+        // TenantId == null; each tenant gets its own "Administrator", "Inventory Manager", etc.
+        builder.HasIndex(r => new { r.TenantId, r.Name }).IsUnique();
         builder.Property(r => r.Description).HasMaxLength(500);
         builder.Property(r => r.CreatedBy).HasMaxLength(100).HasDefaultValue("system");
         builder.Property(r => r.UpdatedBy).HasMaxLength(100);
