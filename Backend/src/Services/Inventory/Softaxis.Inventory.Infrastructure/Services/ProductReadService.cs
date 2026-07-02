@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.Inventory.Application.Abstractions;
 using Softaxis.Inventory.Application.DTOs;
@@ -96,6 +97,11 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
 
         int offset = (page - 1) * pageSize;
 
+        // Tenant scope — raw SQL bypasses EF's global query filter, so we replicate it:
+        // bypass=1 (super-admin / unresolved) returns all rows; otherwise only this tenant's.
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
         // EF Core 8+ SqlQuery<T> with FormattableString: each {expr} becomes
         // a parameterised SQL value — safe from injection.
         var rows = await db.Database
@@ -131,7 +137,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                         p.CreatedAt
                     FROM  [pos].[products]          p
                     INNER JOIN [pos].[product_categories] c ON c.Id = p.CategoryId
-                    WHERE p.IsDeleted = 0
+                    WHERE p.IsDeleted = 0 AND ({bypass} = 1 OR p.TenantId = {tenant})
 
                     UNION ALL
 
@@ -167,7 +173,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                     INNER JOIN [inventory].[product_categories] c ON c.Id = p.CategoryId
                     LEFT  JOIN [inventory].[brands]             b ON b.Id = p.BrandId
                     LEFT  JOIN [inventory].[units_of_measure]   u ON u.Id = p.UnitOfMeasureId
-                    WHERE p.IsDeleted = 0
+                    WHERE p.IsDeleted = 0 AND ({bypass} = 1 OR p.TenantId = {tenant})
                 ),
                 Filtered AS (
                     SELECT *, COUNT(*) OVER () AS TotalCount
@@ -221,6 +227,9 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
 
     public async Task<ProductDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
         var row = await db.Database
             .SqlQuery<DetailRow>($"""
                 SELECT TOP 1
@@ -244,7 +253,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                     p.UpdatedAt
                 FROM  [pos].[products]          p
                 INNER JOIN [pos].[product_categories] c ON c.Id = p.CategoryId
-                WHERE p.IsDeleted = 0 AND p.Id = {id}
+                WHERE p.IsDeleted = 0 AND p.Id = {id} AND ({bypass} = 1 OR p.TenantId = {tenant})
 
                 UNION ALL
 
@@ -271,7 +280,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                 INNER JOIN [inventory].[product_categories] c ON c.Id = p.CategoryId
                 LEFT  JOIN [inventory].[brands]             b ON b.Id = p.BrandId
                 LEFT  JOIN [inventory].[units_of_measure]   u ON u.Id = p.UnitOfMeasureId
-                WHERE p.IsDeleted = 0 AND p.Id = {id}
+                WHERE p.IsDeleted = 0 AND p.Id = {id} AND ({bypass} = 1 OR p.TenantId = {tenant})
                 """)
             .FirstOrDefaultAsync(ct);
 
@@ -292,6 +301,9 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
 
     public async Task<ProductDto?> GetByBarcodeAsync(string barcode, CancellationToken ct = default)
     {
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
         var row = await db.Database
             .SqlQuery<DetailRow>($"""
                 SELECT TOP 1
@@ -314,7 +326,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                     p.ImageUrl, p.CreatedAt, p.UpdatedAt
                 FROM  [pos].[products]          p
                 INNER JOIN [pos].[product_categories] c ON c.Id = p.CategoryId
-                WHERE p.IsDeleted = 0 AND p.Barcode = {barcode}
+                WHERE p.IsDeleted = 0 AND p.Barcode = {barcode} AND ({bypass} = 1 OR p.TenantId = {tenant})
 
                 UNION ALL
 
@@ -340,7 +352,7 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
                 INNER JOIN [inventory].[product_categories] c ON c.Id = p.CategoryId
                 LEFT  JOIN [inventory].[brands]             b ON b.Id = p.BrandId
                 LEFT  JOIN [inventory].[units_of_measure]   u ON u.Id = p.UnitOfMeasureId
-                WHERE p.IsDeleted = 0 AND p.Barcode = {barcode}
+                WHERE p.IsDeleted = 0 AND p.Barcode = {barcode} AND ({bypass} = 1 OR p.TenantId = {tenant})
                 """)
             .FirstOrDefaultAsync(ct);
 

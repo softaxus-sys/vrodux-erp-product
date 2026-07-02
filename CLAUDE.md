@@ -1367,6 +1367,50 @@ role to every tenant. This makes roles fully tenant-owned + seeds a per-module r
 
 ---
 
+## Module 6b — Tenant Isolation Sweep (raw-SQL cross-tenant leak audit — all modules)
+
+**Goal: 100% no cross-tenant data mixing on every page/form of every module.** Systematic audit of the whole
+backend for tenant-isolation gaps.
+
+### Baseline (already correct)
+- **All 13 business-service DbContexts** (CRM, Sales, Purchase, Finance, HR, Inventory, POS, ProjectManagement,
+  RealEstate, Recipe, Restaurant, Hospitality, Construction) call `TenantIsolation.ApplyTenantId(...)` — a shadow
+  `TenantId` column + **global query filter** (`BypassFilter || TenantId == ambient`), with the ambient tenant
+  set per request by `TenantAmbientMiddleware` (after `UseAuthentication`) and stamped on insert. So **every
+  normal EF/LINQ query across every module is already tenant-scoped** (controllers that inject `DbContext`
+  directly still hit the filtered DbSets).
+- **Identity** is the exception by design: users are explicitly tenant-scoped in handlers; roles were the one
+  real leak — fixed in Module 6a.
+
+### Gaps found & fixed — RAW SQL only (bypasses EF's global filter)
+Grep confirmed the *only* request-path bypasses were raw SQL (`SqlQuery`/`ExecuteSql*`) and cross-schema reads;
+`IgnoreQueryFilters()` appears only in startup seed/backfill, never in request handlers. Fixed each by
+replicating the EF filter inline — `AND ({bypass} = 1 OR TenantId = {tenant})` where
+`bypass = TenantAmbient.BypassFilter ? 1 : 0` and `tenant = TenantAmbient.TenantId ?? Guid.Empty` (matches the
+global filter exactly: super-admin/unresolved → all rows; otherwise this tenant only; NULL-tenant rows excluded):
+- **`Inventory/.../Services/ProductReadService.cs`** — the product list + GetById + GetByBarcode UNION both
+  `[pos].[products]` and `[inventory].[products]` and previously filtered only `IsDeleted = 0`. Added the tenant
+  clause to **all 6** product SELECTs (this was a real leak — the Inventory product grid showed every tenant's
+  products).
+- **`Inventory/.../Repositories/StockMovementRepository.cs`** — `AdjustPosProductStockAsync` (cross-schema
+  `UPDATE [pos].[products] … WHERE Id=@id`) got a tenant guard so a guessed id can't touch another tenant's row.
+- **`POS/.../Services/CrossSchemaProductService.cs`** — `GetByIdForSaleAsync` (pos+inventory product lookup) now
+  tenant-filtered; the `@wh` default-warehouse subquery in `DeductStockAsync`/`RestoreStockAsync`
+  (`SELECT TOP 1 … FROM [inventory].[warehouses]`) was picking **any** tenant's warehouse — now scoped.
+- **`Restaurant/.../Controllers/OrdersController.cs`** — raw INSERT/UPDATE in `RecordPayment` audited and left
+  as-is: the order is first loaded via the tenant-filtered `db.Orders` (`FirstOrDefaultAsync(x => x.Id == id)`),
+  so the subsequent writes act on an already-validated tenant-owned id. Not a leak.
+
+### Notes
+- Frontend needs no isolation changes — it only calls tenant-scoped APIs; scoping is enforced server-side.
+- Raw-SQL string edits can't be compile-checked for SQL correctness — **verify the Inventory product list + POS
+  sale flow on a backup/staging after republish + restart** (needs the on-prem redeploy like the other pending modules).
+
+### Build Status
+- **Inventory.API + POS.API + full ApiGateway:** 0 errors ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched
