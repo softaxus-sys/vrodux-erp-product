@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrency } from "@/hooks/use-currency";
+import { useLeads, useDeals } from "@/hooks/crm/use-crm";
 import { cn, formatCurrency } from "@/lib/utils";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
@@ -95,21 +96,6 @@ const TOP_PRODUCTS = [
   { name: "Product Delta",   revenue: 72_000  },
   { name: "Product Epsilon", revenue: 61_000  },
 ];
-
-// ─ CRM ─
-const LEAD_STAGES = [
-  { name: "New",       value: 35 },
-  { name: "Contacted", value: 25 },
-  { name: "Qualified", value: 20 },
-  { name: "Proposal",  value: 12 },
-  { name: "Won",       value: 8  },
-];
-
-const CRM_MONTHLY = MONTHS.map((m, i) => ({
-  month:      m,
-  newLeads:   45 + Math.round(Math.sin(i * 0.9) * 12) + i,
-  converted:  18 + Math.round(Math.sin(i * 0.7) * 6)  + i,
-}));
 
 // ─ Inventory ─
 const STOCK_BY_CAT = [
@@ -556,13 +542,49 @@ function SalesCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function CrmCharts() {
+  const { data: leads = [] } = useLeads();
+  const { data: deals = [] } = useDeals();
+
+  // ── Real monthly acquisition/conversion (this calendar year, up to current month) ──
+  const crmMonthly = React.useMemo(() => {
+    const year = new Date().getFullYear();
+    const buckets = MONTHS.map((m) => ({ month: m, newLeads: 0, converted: 0 }));
+    for (const l of leads) {
+      const d = l.createdDate ? new Date(l.createdDate) : null;
+      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year) continue;
+      const idx = d.getMonth();
+      if (idx > MONTH_IDX) continue;
+      buckets[idx].newLeads += 1;
+      if (l.status === "converted") buckets[idx].converted += 1;
+    }
+    return buckets;
+  }, [leads]);
+
+  // ── Real lead-stage (status) distribution ──
+  const leadStages = React.useMemo(() => {
+    const order: { key: string; name: string }[] = [
+      { key: "new", name: "New" }, { key: "contacted", name: "Contacted" },
+      { key: "qualified", name: "Qualified" }, { key: "converted", name: "Converted" },
+      { key: "lost", name: "Lost" },
+    ];
+    return order
+      .map(o => ({ name: o.name, value: leads.filter(l => l.status === o.key).length }))
+      .filter(s => s.value > 0);
+  }, [leads]);
+
+  const totalPipeline = React.useMemo(
+    () => deals.filter(d => d.stage !== "won" && d.stage !== "lost").reduce((s, d) => s + (d.value ?? 0), 0),
+    [deals],
+  );
+  const hasStages = leadStages.length > 0;
+
   return (
     <ChartSection delay={0.2}>
       <SectionHeader
         icon={TrendingUp}
         title="CRM Overview"
         color={P.pink}
-        description="Lead pipeline & conversion trends"
+        description={`${leads.length} leads · ${deals.length} deals · ${fmt(totalPipeline)} open pipeline`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -570,11 +592,11 @@ function CrmCharts() {
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Lead Acquisition & Conversion</CardTitle>
-            <CardDescription className="text-xs">Monthly new leads vs converted</CardDescription>
+            <CardDescription className="text-xs">Monthly new leads vs converted · {new Date().getFullYear()}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={CRM_MONTHLY} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <AreaChart data={crmMonthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradNewL" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor={P.pink} stopOpacity={0.2} />
@@ -601,29 +623,41 @@ function CrmCharts() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Lead Stage Distribution</CardTitle>
-            <CardDescription className="text-xs">Current pipeline breakdown</CardDescription>
+            <CardDescription className="text-xs">Leads by current status</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie
-                    data={LEAD_STAGES}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                    startAngle={90} endAngle={-270}
-                  >
-                    {LEAD_STAGES.map((_, i) => (
-                      <Cell key={i} fill={[P.pink, P.violet, P.blue, P.amber, P.green][i % 5]} stroke="transparent" />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <DonutLegend data={LEAD_STAGES} colors={[P.pink, P.violet, P.blue, P.amber, P.green]} />
+            {hasStages ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={leadStages}
+                        cx="50%" cy="50%"
+                        innerRadius={42} outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {leadStages.map((_, i) => (
+                          <Cell key={i} fill={[P.pink, P.violet, P.blue, P.green, P.red][i % 5]} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend
+                  data={leadStages}
+                  colors={[P.pink, P.violet, P.blue, P.green, P.red]}
+                  total={leadStages.reduce((s, d) => s + d.value, 0)}
+                />
+              </>
+            ) : (
+              <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
+                No leads yet.
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
