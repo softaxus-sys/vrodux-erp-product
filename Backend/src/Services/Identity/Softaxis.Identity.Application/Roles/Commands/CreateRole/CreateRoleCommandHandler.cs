@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Repositories;
 
@@ -8,15 +9,20 @@ namespace Softaxis.Identity.Application.Roles.Commands.CreateRole;
 public sealed class CreateRoleCommandHandler(
     IRoleRepository       roleRepo,
     IPermissionRepository permissionRepo,
+    ICurrentUser          currentUser,
+    ITenantContext        tenantContext,
     IUnitOfWork           uow)
     : ICommandHandler<CreateRoleCommand, RoleDto>
 {
     public async Task<Result<RoleDto>> Handle(CreateRoleCommand cmd, CancellationToken ct)
     {
-        if (await roleRepo.NameExistsAsync(cmd.Name, null, ct))
+        // New roles are owned by the caller's tenant (super-admin creates a global role).
+        Guid? tenantId = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
+
+        if (await roleRepo.NameExistsAsync(cmd.Name, null, tenantId, ct))
             return Result.Failure<RoleDto>(Error.Custom("Role.Name.Taken", $"A role named '{cmd.Name}' already exists."));
 
-        var result = Domain.Entities.Role.Create(cmd.Name, cmd.Description);
+        var result = Domain.Entities.Role.Create(cmd.Name, cmd.Description, isSystem: false, tenantId: tenantId);
         if (result.IsFailure) return Result.Failure<RoleDto>(result.Error);
 
         var role  = result.Value;

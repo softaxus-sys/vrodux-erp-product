@@ -26,6 +26,7 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import type { CreateAccountRequest } from "@/lib/finance/finance.api";
+import { Can } from "@/components/auth/can";
 import { toast } from "sonner";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1068,10 +1069,12 @@ export function AccountingView() {
           <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowManageTypes(true)}>
             <ListTree className="h-4 w-4" /> Manage Types
           </Button>
-          <Button size="sm" className="gap-2"
-            onClick={() => { setEditAccount(null); setShowForm(true); }}>
-            <Plus className="h-4 w-4" /> New Account
-          </Button>
+          <Can permission="finance.accounting.create">
+            <Button size="sm" className="gap-2"
+              onClick={() => { setEditAccount(null); setShowForm(true); }}>
+              <Plus className="h-4 w-4" /> New Account
+            </Button>
+          </Can>
         </div>
       </div>
 

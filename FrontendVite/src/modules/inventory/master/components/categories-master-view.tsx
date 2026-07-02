@@ -11,6 +11,7 @@ import {
 } from "@/hooks/inventory/use-inventory-categories";
 import type { ProductCategoryDto } from "@/lib/inventory/types";
 import { ClientPagination, useClientPagination } from "@/components/ui/client-pagination";
+import { Can } from "@/components/auth/can";
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
 
@@ -166,9 +167,11 @@ export function CategoriesMasterView() {
             <p className="text-xs text-muted-foreground">Hierarchical product classification</p>
           </div>
         </div>
-        <Button size="sm" onClick={handleCreate}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New Category
-        </Button>
+        <Can permission="inventory.stock.create">
+          <Button size="sm" onClick={handleCreate}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Category
+          </Button>
+        </Can>
       </div>
 
       {/* Search */}

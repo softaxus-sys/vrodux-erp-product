@@ -13,6 +13,7 @@ import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
 import { useConvertLead, useSetLeadStatus, useDeleteLead } from "@/hooks/crm/use-crm";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
+import { Can } from "@/components/auth/can";
 
 type Tab = "overview" | "activity";
 
@@ -59,6 +60,8 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
   const convert = useConvertLead();
   const setStatus = useSetLeadStatus();
   const del = useDeleteLead();
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
 
   if (!lead) return null;
   const leadId = lead.id;
@@ -211,11 +214,37 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                   {convert.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}Convert to Deal
                 </Button>
               )}
-              <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:bg-destructive/5 ml-auto" disabled={busy}
-                onClick={() => { if (confirm(`Delete lead "${lead.fullName}"?`)) del.mutate(leadId, { onSuccess: onClose }); }}>
-                <Trash2 className="h-3.5 w-3.5" />Delete
-              </Button>
+              <Can permission="crm.leads.delete">
+                <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:bg-destructive/5 ml-auto" disabled={busy}
+                  onClick={() => setConfirmDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" />Delete
+                </Button>
+              </Can>
             </div>
+
+            {/* Delete confirmation */}
+            <AnimatePresence>
+              {confirmDelete && (
+                <>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-black/40 z-[60]" onClick={() => setConfirmDelete(false)} />
+                  <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+                    className="absolute inset-x-6 top-1/3 z-[61] rounded-xl border border-border bg-background p-5 shadow-2xl">
+                    <p className="font-semibold text-sm">Delete lead?</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This will permanently delete <span className="font-medium text-foreground">{lead.fullName}</span>. This cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={del.isPending}>Cancel</Button>
+                      <Button size="sm" className="bg-destructive hover:bg-destructive/90 gap-1.5" disabled={del.isPending}
+                        onClick={() => del.mutate(leadId, { onSuccess: onClose })}>
+                        {del.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}Delete
+                      </Button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </motion.div>
         </>
       )}

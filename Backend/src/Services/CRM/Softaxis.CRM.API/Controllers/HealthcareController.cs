@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.Healthcare.Commands;
 using Softaxis.CRM.Application.Healthcare.Queries;
@@ -14,7 +15,9 @@ namespace Softaxis.CRM.API.Controllers;
 [ApiController][Route("api/healthcare")][Authorize]
 public sealed class HealthcareController(ISender sender) : CrmControllerBase
 {
+    // Cross-feature overview — gate on the pack's primary sub-feature view.
     [HttpGet("summary")]
+    [RequirePermission("healthcare.patients.view")]
     public async Task<IActionResult> Summary(CancellationToken ct)
     {
         var result = await sender.Send(new GetHealthcareSummaryQuery(), ct);
@@ -23,6 +26,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
 
     // ── Patients ──────────────────────────────────────────────────────────────
     [HttpGet("patients")]
+    [RequirePermission("healthcare.patients.view")]
     public async Task<IActionResult> GetPatients(CancellationToken ct)
     {
         var result = await sender.Send(new GetPatientsQuery(), ct);
@@ -30,6 +34,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("patients")]
+    [RequirePermission("healthcare.patients.create")]
     public async Task<IActionResult> CreatePatient([FromBody] CreatePatientCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -37,6 +42,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("patients/{id:guid}")]
+    [RequirePermission("healthcare.patients.edit")]
     public async Task<IActionResult> UpdatePatient(Guid id, [FromBody] UpdatePatientRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdatePatientCommand(id, req.FullName, req.Gender, req.DateOfBirth,
@@ -45,6 +51,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("patients/{id:guid}")]
+    [RequirePermission("healthcare.patients.delete")]
     public async Task<IActionResult> DeletePatient(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeletePatientCommand(id), ct);
@@ -53,6 +60,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
 
     // ── Appointments ──────────────────────────────────────────────────────────
     [HttpGet("appointments")]
+    [RequirePermission("healthcare.appointments.view")]
     public async Task<IActionResult> GetAppointments([FromQuery] Guid? patientId, CancellationToken ct)
     {
         var result = await sender.Send(new GetAppointmentsQuery(patientId), ct);
@@ -60,6 +68,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("appointments")]
+    [RequirePermission("healthcare.appointments.create")]
     public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -67,6 +76,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("appointments/{id:guid}/status")]
+    [RequirePermission("healthcare.appointments.edit")]
     public async Task<IActionResult> ApptStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateAppointmentStatusCommand(id, r.Status), ct);
@@ -74,6 +84,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("appointments/{id:guid}")]
+    [RequirePermission("healthcare.appointments.delete")]
     public async Task<IActionResult> DeleteAppointment(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteAppointmentCommand(id), ct);
@@ -82,6 +93,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
 
     // ── Treatment Plans ───────────────────────────────────────────────────────
     [HttpGet("treatment-plans")]
+    [RequirePermission("healthcare.treatment-plans.view")]
     public async Task<IActionResult> GetPlans([FromQuery] Guid? patientId, CancellationToken ct)
     {
         var result = await sender.Send(new GetTreatmentPlansQuery(patientId), ct);
@@ -89,6 +101,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("treatment-plans")]
+    [RequirePermission("healthcare.treatment-plans.create")]
     public async Task<IActionResult> CreatePlan([FromBody] CreateTreatmentPlanCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -96,6 +109,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("treatment-plans/{id:guid}/status")]
+    [RequirePermission("healthcare.treatment-plans.edit")]
     public async Task<IActionResult> PlanStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateTreatmentPlanStatusCommand(id, r.Status), ct);
@@ -103,6 +117,7 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("treatment-plans/{id:guid}")]
+    [RequirePermission("healthcare.treatment-plans.delete")]
     public async Task<IActionResult> DeletePlan(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteTreatmentPlanCommand(id), ct);

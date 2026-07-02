@@ -102,6 +102,20 @@ export function useRemoveRole() {
   });
 }
 
+export function useUpdateUserPermissions(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (overrides: { permissionId: string; isGranted: boolean }[]) =>
+      usersApi.updatePermissions(userId, overrides),
+    onSuccess: (data) => {
+      qc.setQueryData(userKeys.detail(userId), data);
+      qc.invalidateQueries({ queryKey: userKeys.lists() });
+      toast.success("Permissions saved.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useChangePassword(userId: string) {
   return useMutation({
     mutationFn: ({

@@ -1083,6 +1083,349 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("76517e22-f5b9-67e7-41de-abffd24b49ad"),
+                            Action = "view",
+                            Description = "View b2b proposals",
+                            ModuleId = "b2b.proposals"
+                        },
+                        new
+                        {
+                            Id = new Guid("cd8fea8c-268b-caa7-8259-9035227bf54d"),
+                            Action = "create",
+                            Description = "Create b2b proposals",
+                            ModuleId = "b2b.proposals"
+                        },
+                        new
+                        {
+                            Id = new Guid("345e6645-b72c-e13f-bd6f-15abe08c679e"),
+                            Action = "edit",
+                            Description = "Edit b2b proposals",
+                            ModuleId = "b2b.proposals"
+                        },
+                        new
+                        {
+                            Id = new Guid("82fbfcb3-2ae3-ce8c-af57-cd142c735701"),
+                            Action = "delete",
+                            Description = "Delete b2b proposals",
+                            ModuleId = "b2b.proposals"
+                        },
+                        new
+                        {
+                            Id = new Guid("1cc3f793-f290-9369-df8f-c03270ac85a3"),
+                            Action = "view",
+                            Description = "View b2b contracts",
+                            ModuleId = "b2b.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("f11c37db-40bc-61b7-c531-24d648812db6"),
+                            Action = "create",
+                            Description = "Create b2b contracts",
+                            ModuleId = "b2b.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("b009b9dc-8746-01c1-40d1-5ca2f954d7bd"),
+                            Action = "edit",
+                            Description = "Edit b2b contracts",
+                            ModuleId = "b2b.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("b0ee5e57-dac8-a765-87d2-edd5f4f6481b"),
+                            Action = "delete",
+                            Description = "Delete b2b contracts",
+                            ModuleId = "b2b.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("c1b6820b-9408-e550-2b2e-6789c47bd1a0"),
+                            Action = "view",
+                            Description = "View b2b tickets",
+                            ModuleId = "b2b.tickets"
+                        },
+                        new
+                        {
+                            Id = new Guid("af74d799-ca8f-9b82-57c7-df5b94ecd063"),
+                            Action = "create",
+                            Description = "Create b2b tickets",
+                            ModuleId = "b2b.tickets"
+                        },
+                        new
+                        {
+                            Id = new Guid("7e49773d-6947-101f-7cb6-135ff2cab75e"),
+                            Action = "edit",
+                            Description = "Edit b2b tickets",
+                            ModuleId = "b2b.tickets"
+                        },
+                        new
+                        {
+                            Id = new Guid("01f2ed53-6a2f-3b9f-8a27-b61648686f57"),
+                            Action = "delete",
+                            Description = "Delete b2b tickets",
+                            ModuleId = "b2b.tickets"
+                        },
+                        new
+                        {
+                            Id = new Guid("1a32c6a2-9d02-4c51-6a45-dc906389e773"),
+                            Action = "view",
+                            Description = "View education admissions",
+                            ModuleId = "education.admissions"
+                        },
+                        new
+                        {
+                            Id = new Guid("ba2be52a-ba9f-13c6-2a7c-b09441a5f6cf"),
+                            Action = "create",
+                            Description = "Create education admissions",
+                            ModuleId = "education.admissions"
+                        },
+                        new
+                        {
+                            Id = new Guid("c3ca1038-4631-b8e4-743e-5d63940c4c70"),
+                            Action = "edit",
+                            Description = "Edit education admissions",
+                            ModuleId = "education.admissions"
+                        },
+                        new
+                        {
+                            Id = new Guid("4cac82c9-5675-ae47-a0bb-dab393dca150"),
+                            Action = "delete",
+                            Description = "Delete education admissions",
+                            ModuleId = "education.admissions"
+                        },
+                        new
+                        {
+                            Id = new Guid("3ee5af4d-c26e-658d-8935-8407bdb9e815"),
+                            Action = "view",
+                            Description = "View education students",
+                            ModuleId = "education.students"
+                        },
+                        new
+                        {
+                            Id = new Guid("e67e72f4-5a2d-0e4e-471c-13ce26fba1df"),
+                            Action = "create",
+                            Description = "Create education students",
+                            ModuleId = "education.students"
+                        },
+                        new
+                        {
+                            Id = new Guid("7c8c925e-1427-c922-ed11-88dc56391e8a"),
+                            Action = "edit",
+                            Description = "Edit education students",
+                            ModuleId = "education.students"
+                        },
+                        new
+                        {
+                            Id = new Guid("69d73d3e-af83-f607-d8d1-ba5c935d4864"),
+                            Action = "delete",
+                            Description = "Delete education students",
+                            ModuleId = "education.students"
+                        },
+                        new
+                        {
+                            Id = new Guid("289de8ac-78b7-411c-2ca8-6541ae32a8a4"),
+                            Action = "view",
+                            Description = "View education enrollments",
+                            ModuleId = "education.enrollments"
+                        },
+                        new
+                        {
+                            Id = new Guid("85cb3e5f-c7df-4607-f558-3981848a2748"),
+                            Action = "create",
+                            Description = "Create education enrollments",
+                            ModuleId = "education.enrollments"
+                        },
+                        new
+                        {
+                            Id = new Guid("420b69d4-a819-588e-317c-74ca4d02d0ba"),
+                            Action = "edit",
+                            Description = "Edit education enrollments",
+                            ModuleId = "education.enrollments"
+                        },
+                        new
+                        {
+                            Id = new Guid("77ca7840-5b48-3b8d-7f4a-595f5214974e"),
+                            Action = "delete",
+                            Description = "Delete education enrollments",
+                            ModuleId = "education.enrollments"
+                        },
+                        new
+                        {
+                            Id = new Guid("2090757d-45db-1fbe-bc3a-83c50ee9662f"),
+                            Action = "view",
+                            Description = "View healthcare patients",
+                            ModuleId = "healthcare.patients"
+                        },
+                        new
+                        {
+                            Id = new Guid("16d7cebb-6902-1d79-f5e9-ad5eb43bcb95"),
+                            Action = "create",
+                            Description = "Create healthcare patients",
+                            ModuleId = "healthcare.patients"
+                        },
+                        new
+                        {
+                            Id = new Guid("2866290d-8400-f9cc-0a1c-251bcc8f6fd5"),
+                            Action = "edit",
+                            Description = "Edit healthcare patients",
+                            ModuleId = "healthcare.patients"
+                        },
+                        new
+                        {
+                            Id = new Guid("a6a658cd-eeb6-98e1-09ff-a82dfefb04de"),
+                            Action = "delete",
+                            Description = "Delete healthcare patients",
+                            ModuleId = "healthcare.patients"
+                        },
+                        new
+                        {
+                            Id = new Guid("f474d967-58fc-ead5-3699-bee06110d903"),
+                            Action = "view",
+                            Description = "View healthcare appointments",
+                            ModuleId = "healthcare.appointments"
+                        },
+                        new
+                        {
+                            Id = new Guid("9f99eb15-57dc-e6ab-8a60-f0f298a1b394"),
+                            Action = "create",
+                            Description = "Create healthcare appointments",
+                            ModuleId = "healthcare.appointments"
+                        },
+                        new
+                        {
+                            Id = new Guid("1fc6f62a-0d1c-8cbd-0ae5-986f8b45c118"),
+                            Action = "edit",
+                            Description = "Edit healthcare appointments",
+                            ModuleId = "healthcare.appointments"
+                        },
+                        new
+                        {
+                            Id = new Guid("768e6fa3-db8e-416a-5e5d-e44f07dfadc7"),
+                            Action = "delete",
+                            Description = "Delete healthcare appointments",
+                            ModuleId = "healthcare.appointments"
+                        },
+                        new
+                        {
+                            Id = new Guid("c91240aa-e5f6-2844-1aa5-0088643f36e1"),
+                            Action = "view",
+                            Description = "View healthcare treatment-plans",
+                            ModuleId = "healthcare.treatment-plans"
+                        },
+                        new
+                        {
+                            Id = new Guid("9d668e67-5e3e-9e63-ea96-7fc35164baaa"),
+                            Action = "create",
+                            Description = "Create healthcare treatment-plans",
+                            ModuleId = "healthcare.treatment-plans"
+                        },
+                        new
+                        {
+                            Id = new Guid("2a2e789b-f072-4274-d0be-ed0b491406ba"),
+                            Action = "edit",
+                            Description = "Edit healthcare treatment-plans",
+                            ModuleId = "healthcare.treatment-plans"
+                        },
+                        new
+                        {
+                            Id = new Guid("48df5252-3d62-031d-d8ac-b6f96eb8eb40"),
+                            Action = "delete",
+                            Description = "Delete healthcare treatment-plans",
+                            ModuleId = "healthcare.treatment-plans"
+                        },
+                        new
+                        {
+                            Id = new Guid("95017077-d87e-810a-0fef-65543a270cb7"),
+                            Action = "view",
+                            Description = "View insurance policies",
+                            ModuleId = "insurance.policies"
+                        },
+                        new
+                        {
+                            Id = new Guid("ff6e49ff-a8bd-f63b-10b9-f3c6b96d55d2"),
+                            Action = "create",
+                            Description = "Create insurance policies",
+                            ModuleId = "insurance.policies"
+                        },
+                        new
+                        {
+                            Id = new Guid("3fa39b76-5403-ea27-2d6c-9061e5889f6f"),
+                            Action = "edit",
+                            Description = "Edit insurance policies",
+                            ModuleId = "insurance.policies"
+                        },
+                        new
+                        {
+                            Id = new Guid("0d0decde-1413-1cd1-5b0e-a10491ee5cab"),
+                            Action = "delete",
+                            Description = "Delete insurance policies",
+                            ModuleId = "insurance.policies"
+                        },
+                        new
+                        {
+                            Id = new Guid("fc74e937-55f8-8a18-c1b1-86b55253bfd1"),
+                            Action = "view",
+                            Description = "View insurance renewals",
+                            ModuleId = "insurance.renewals"
+                        },
+                        new
+                        {
+                            Id = new Guid("9f42f5cf-6c96-fed9-9dc5-c9af99cb9abf"),
+                            Action = "create",
+                            Description = "Create insurance renewals",
+                            ModuleId = "insurance.renewals"
+                        },
+                        new
+                        {
+                            Id = new Guid("45ca67de-e1ff-22c1-0a1e-5b7aaa049ee5"),
+                            Action = "edit",
+                            Description = "Edit insurance renewals",
+                            ModuleId = "insurance.renewals"
+                        },
+                        new
+                        {
+                            Id = new Guid("00971e21-8960-0523-74d6-fd4e9aa5a84b"),
+                            Action = "delete",
+                            Description = "Delete insurance renewals",
+                            ModuleId = "insurance.renewals"
+                        },
+                        new
+                        {
+                            Id = new Guid("e1b65c21-e086-4504-9ff2-d809c225b9af"),
+                            Action = "view",
+                            Description = "View insurance claims",
+                            ModuleId = "insurance.claims"
+                        },
+                        new
+                        {
+                            Id = new Guid("2fd73645-e204-fd4c-34fb-d406faf0b826"),
+                            Action = "create",
+                            Description = "Create insurance claims",
+                            ModuleId = "insurance.claims"
+                        },
+                        new
+                        {
+                            Id = new Guid("04573603-c8ca-44a4-47c2-03c9bb676671"),
+                            Action = "edit",
+                            Description = "Edit insurance claims",
+                            ModuleId = "insurance.claims"
+                        },
+                        new
+                        {
+                            Id = new Guid("cfd82763-84c2-e2e5-0993-0256897dc906"),
+                            Action = "delete",
+                            Description = "Delete insurance claims",
+                            ModuleId = "insurance.claims"
+                        },
+                        new
+                        {
+                            Id = new Guid("2c6b2c24-28a7-40ae-efb7-1969e8bd2f25"),
+                            Action = "approve",
+                            Description = "Approve insurance claims",
+                            ModuleId = "insurance.claims"
+                        },
+                        new
+                        {
                             Id = new Guid("09dc5980-a3bd-e464-035f-5f2905d0aa5f"),
                             Action = "view",
                             Description = "View sales quotations",
@@ -1648,6 +1991,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -1814,6 +2160,12 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(254)")
                         .HasColumnName("email");
 
+                    b.Property<DateTime?>("EmailVerificationTokenExpiry")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EmailVerificationTokenHash")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("EmailVerified")
                         .HasColumnType("bit");
 
@@ -1892,6 +2244,34 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("users", "identity");
                 });
 
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserPermission", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PermissionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AssignedBy")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("system");
+
+                    b.Property<bool>("IsGranted")
+                        .HasColumnType("bit");
+
+                    b.HasKey("UserId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("user_permissions", "identity");
+                });
+
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserRole", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -1965,6 +2345,25 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserPermission", b =>
+                {
+                    b.HasOne("Softaxis.Identity.Domain.Entities.Permission", "Permission")
+                        .WithMany()
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Softaxis.Identity.Domain.Entities.User", "User")
+                        .WithMany("UserPermissions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserRole", b =>
                 {
                     b.HasOne("Softaxis.Identity.Domain.Entities.Role", "Role")
@@ -1993,6 +2392,8 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.User", b =>
                 {
+                    b.Navigation("UserPermissions");
+
                     b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618

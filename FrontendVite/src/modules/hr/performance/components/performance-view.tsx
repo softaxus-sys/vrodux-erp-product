@@ -20,6 +20,7 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddReviewForm } from "./add-review-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   pending:     { label: "Pending",     color: "text-muted-foreground", bg: "bg-muted",             icon: Clock },
@@ -463,7 +464,7 @@ export function PerformanceView() {
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Review</Button>
+          <Can permission="hr.performance.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Review</Button></Can>
         </div>
       </div>
 

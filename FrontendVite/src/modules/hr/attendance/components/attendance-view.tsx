@@ -16,6 +16,7 @@ import {
   useMarkAttendance, useUpdateAttendance,
   useEmployees,
 } from "@/hooks/hr/use-hr";
+import { Can } from "@/components/auth/can";
 import { toast } from "sonner";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
@@ -440,9 +441,11 @@ export function AttendanceView() {
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setMarkOpen(true)}>
-            <CalendarDays className="h-4 w-4" />Mark Attendance
-          </Button>
+          <Can permission="hr.attendance.create">
+            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setMarkOpen(true)}>
+              <CalendarDays className="h-4 w-4" />Mark Attendance
+            </Button>
+          </Can>
         </div>
       </div>
 

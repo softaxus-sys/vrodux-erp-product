@@ -13,7 +13,7 @@ public sealed class RegisterTrialCommandHandler(
     ITrialChallengeService challengeService,
     ITenantRepository      tenantRepo,
     IUserRepository        userRepo,
-    IRoleRepository        roleRepo,
+    ITenantRoleProvisioner roleProvisioner,
     IAuditLogRepository    auditRepo,
     IPasswordHasher        passwordHasher,
     IUnitOfWork            uow,
@@ -85,9 +85,10 @@ public sealed class RegisterTrialCommandHandler(
         user.VerifyEmail();       // trial accounts are pre-verified
         user.SetTenant(tenant.Id);
 
-        var adminRole = await roleRepo.GetByNameAsync("Administrator", ct);
-        if (adminRole is not null)
-            user.AssignRole(adminRole.Id);
+        // Provision this tenant's own role set (Administrator + per-module Managers) and
+        // make the trial user its Administrator.
+        var adminRole = await roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules, ct);
+        user.AssignRole(adminRole.Id);
 
         userRepo.Add(user);
 

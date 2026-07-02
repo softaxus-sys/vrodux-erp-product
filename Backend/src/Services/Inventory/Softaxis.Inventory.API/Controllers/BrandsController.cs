@@ -6,10 +6,14 @@ using Softaxis.Inventory.Application.Brands.Commands.DeleteBrand;
 using Softaxis.Inventory.Application.Brands.Commands.UpdateBrand;
 using Softaxis.Inventory.Application.Brands.Queries.GetBrandById;
 using Softaxis.Inventory.Application.Brands.Queries.GetBrands;
+using Softaxis.Inventory.API.Authorization;
 
 namespace Softaxis.Inventory.API.Controllers;
 
-/// <summary>Product brands — master data managed by admins.</summary>
+/// <summary>
+/// Product brands — master data. GET reads feed the product-create form's brand dropdown, so they stay
+/// authenticated-only; writes are gated on inventory.stock.* (no dedicated brands permission key).
+/// </summary>
 [Authorize]
 [Tags("Brands")]
 [Route("api/inventory/brands")]
@@ -30,18 +34,21 @@ public sealed class BrandsController(ISender sender) : BaseApiController(sender)
 
     // ── POST /api/inventory/brands ────────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("inventory.stock.create")]
     public async Task<IActionResult> Create([FromBody] CreateBrandRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new CreateBrandCommand(req.Name, req.Code, req.Description, req.LogoUrl), ct), 201);
 
     // ── PUT /api/inventory/brands/{id} ────────────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("inventory.stock.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBrandRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new UpdateBrandCommand(id, req.Name, req.Code, req.Description, req.LogoUrl, req.IsActive), ct));
 
     // ── DELETE /api/inventory/brands/{id} ─────────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("inventory.stock.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new DeleteBrandCommand(id), ct));
 }

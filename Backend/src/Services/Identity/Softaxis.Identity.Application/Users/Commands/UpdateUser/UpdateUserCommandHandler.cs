@@ -24,9 +24,6 @@ public sealed class UpdateUserCommandHandler(
         userRepo.Update(user);
         await uow.SaveChangesAsync(ct);
 
-        return Result.Success(new UserDto(
-            user.Id, user.Email.Value, user.Username, user.FirstName, user.LastName,
-            user.FullName, user.Status.ToString(), user.EmailVerified,
-            user.AvatarUrl, user.PhoneNumber, user.LastLoginAt, user.CreatedAt, []));
+        return Result.Success(UserDtoMapper.ToDto(user));
     }
 }

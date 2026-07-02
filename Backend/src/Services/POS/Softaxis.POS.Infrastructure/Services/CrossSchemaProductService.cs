@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Infrastructure.Persistence;
 
@@ -33,6 +34,10 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
 
     public async Task<ProductSaleView?> GetByIdForSaleAsync(Guid id, CancellationToken ct = default)
     {
+        // Raw SQL bypasses EF's global tenant filter — replicate it explicitly.
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
         var row = await db.Database
             .SqlQuery<ProductRow>($"""
                 SELECT TOP 1
@@ -40,7 +45,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
                     StockQuantity, ReorderLevel, IsActive, TrackInventory,
                     'pos' AS [Schema]
                 FROM [pos].[products]
-                WHERE IsDeleted = 0 AND Id = {id}
+                WHERE IsDeleted = 0 AND Id = {id} AND ({bypass} = 1 OR TenantId = {tenant})
 
                 UNION ALL
 
@@ -49,7 +54,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
                     StockQuantity, ReorderLevel, IsActive, TrackInventory,
                     'inventory' AS [Schema]
                 FROM [inventory].[products]
-                WHERE IsDeleted = 0 AND Id = {id}
+                WHERE IsDeleted = 0 AND Id = {id} AND ({bypass} = 1 OR TenantId = {tenant})
                 """)
             .FirstOrDefaultAsync(ct);
 
@@ -75,6 +80,8 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
         var newQty    = product.StockQuantity - quantity;
         var movedAt   = DateTime.UtcNow;
         var movementId = Guid.NewGuid();
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
 
         if (product.Schema == "pos")
         {
@@ -104,7 +111,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
             await db.Database.ExecuteSqlAsync($"""
                 DECLARE @wh UNIQUEIDENTIFIER = (
                     SELECT TOP 1 Id FROM [inventory].[warehouses]
-                    WHERE IsDeleted = 0
+                    WHERE IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})
                     ORDER BY CASE WHEN IsDefault = 1 THEN 0 ELSE 1 END, CreatedAt);
 
                 UPDATE [inventory].[products]
@@ -148,6 +155,8 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
         var movedAt    = DateTime.UtcNow;
         var movementId = Guid.NewGuid();
         var reference  = $"REFUND:{transactionNumber}";
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
 
         if (product.Schema == "pos")
         {
@@ -174,7 +183,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
             await db.Database.ExecuteSqlAsync($"""
                 DECLARE @wh UNIQUEIDENTIFIER = (
                     SELECT TOP 1 Id FROM [inventory].[warehouses]
-                    WHERE IsDeleted = 0
+                    WHERE IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})
                     ORDER BY CASE WHEN IsDefault = 1 THEN 0 ELSE 1 END, CreatedAt);
 
                 UPDATE [inventory].[products]

@@ -835,6 +835,582 @@ tenant guid. `TenantIsolation`'s global query filter is `TenantId == ambientTena
 
 ---
 
+## Module 5h — Identity: User-Based Permission Overrides (Grant + Deny)
+
+**Added per-user permission overrides on top of the existing role-based system.** Previously a user's
+permissions came *only* from their roles. Now each user can have explicit **grants** (extra permissions beyond
+their roles) and **denies** (remove a role-granted permission for just that user). Industry-standard model
+(AWS IAM / Odoo): **effective = (rolePerms ∪ userGrants) − userDenies**, with **Deny winning**.
+
+### Why it's low-risk — the single chokepoint
+`PermissionRepository.GetPermissionKeysForUserAsync(userId)` is the ONE method that produces the permission
+keys embedded in the JWT (used by both `LoginCommandHandler` and `RefreshTokenCommandHandler`). Applying the
+effective formula there means the JWT `permission` claims, the frontend `hasRawPermission`, and any backend
+`[RequirePermission]` check all respect overrides automatically — no enforcement code changed.
+
+### Backend (Identity service)
+- New entity `Domain/Entities/UserPermission.cs` — `(UserId, PermissionId, IsGranted)`; IsGranted=false = deny.
+- `User.cs` — `_userPermissions` collection + `SetPermissionOverrides(IEnumerable<(Guid,bool)>, assignedBy)`
+  (mirrors `_userRoles`).
+- `JoinEntityConfigurations.cs` — `UserPermissionConfiguration` (table `user_permissions`, PK `{UserId,PermissionId}`,
+  cascade FKs to User + Permission). `IdentityDbContext` — `DbSet<UserPermission> UserPermissions`.
+- **Chokepoint** `PermissionRepository.GetPermissionKeysForUserAsync` rewritten to `(role ∪ grants) − denies`.
+- `UserRepository.BaseQuery` — added `.Include(u => u.UserPermissions).ThenInclude(up => up.Permission)`.
+- `UserDto` — new `IReadOnlyList<PermissionOverrideDto> PermissionOverrides` (`PermissionOverrideDto(PermissionId,Key,IsGranted)`).
+- **New shared mapper** `Application/Common/UserDtoMapper.ToDto(User)` — single source of truth for User→UserDto
+  (roles + overrides). All 5 construction sites now use it: Login, RefreshToken, GetUserById, UpdateUser, CreateUser.
+  (CreateUser reloads via `GetByIdAsync` after save so Role navigation is populated; Register passes `[], []`.)
+- New CQRS `Users/Commands/UpdateUserPermissions/*` + endpoint `PUT /api/users/{id}/permissions`
+  body `{ overrides: [{ permissionId, isGranted }] }`. Empty list clears all overrides. Behind `settings.users.edit`
+  (same surface as role assignment — no new permission key).
+- Migration `AddUserPermissions` (applied; `identity.user_permissions` table confirmed).
+
+### Frontend
+- `lib/identity/types.ts` — `PermissionOverrideDto` + `permissionOverrides` on `UserDto`.
+- `lib/identity/users.api.ts` — `updatePermissions(userId, overrides)`. `hooks/identity/use-users.ts` — `useUpdateUserPermissions`.
+- **`lib/identity/permission-matrix.ts`** (NEW) — extracted shared matrix helpers (`ACTION_ORDER`, `ACTION_LABELS`,
+  `MODULE_GROUPS`, `GROUP_ORDER`, `groupPermissions`, `moduleLabel`, `buildPermActionMap`); `roles-permissions-view.tsx`
+  now imports them (deduped).
+- **`modules/settings/users/components/user-permissions-tab.tsx`** (NEW) — tri-state matrix editor. Cell states:
+  inherited-from-role (faded check), **granted** (green check), **denied** (red ✕), off (empty). Click cycles:
+  role-granted ⇄ deny; not-granted ⇄ off/grant. "Save overrides" sends only non-inherited cells;
+  "Reset to role defaults" clears all. Amber dot marks any non-inherited cell.
+- `users-view.tsx` — `UserDrawer` gained a **Profile | Permissions** tab switcher; panel widens to `max-w-3xl`
+  on the Permissions tab to fit the matrix.
+- `store/auth.store.ts` — `extractRawPermissions(dto)` now applies overrides (`(role∪grants)−denies`, deny last)
+  so the logged-in user's own `hasRawPermission` matches the backend JWT.
+- **`components/auth/can.tsx`** (NEW) — `<Can permission="x.y.z">…</Can>` + `useCan(key)` gating helper
+  (wraps `hasRawPermission`). Applied as the **reference** to the Create User (`settings.users.create`) and
+  New Role (`settings.roles.create`) buttons.
+
+### Scope boundaries (confirmed follow-ups, NOT done here)
+- Backend `[RequirePermission]` enforcement still only in ProjectManagement — rollout to the other 14 services
+  is separate mechanical follow-up. The override chokepoint already makes those checks correct once added.
+- Exhaustive per-button `<Can>`/`hasRawPermission` gating across all modules is follow-up; only the reference
+  buttons are gated so far.
+
+### ⚠️ Deploy note (on-prem / self-contained service)
+The **VroduxERP Windows Service runs the published self-contained exe** (`Deploy/server/output/`), so backend
+changes do NOT take effect until you **republish + restart the service** (`Deploy/server/publish.bat`, then
+stop/start the service from an elevated shell). The `AddUserPermissions` migration is already applied to
+`SoftaxisErpDb` and runs automatically on startup via `MigrateAndSeedAsync` for fresh deployments. End-to-end
+verified by running the new build on port 5099 against the same DB (grant/deny/reset all confirmed at JWT level).
+
+### Build / Verification Status
+- **Backend (Identity.API + full ApiGateway):** 0 errors ✅
+- **Frontend `tsc --noEmit`:** 0 errors ✅
+- **E2E (port 5099, same DB):** no-role user + grant `hr.payroll.approve` → claim appears; Administrator-role
+  user + deny `finance.expenses.delete` → claim removed (deny beats role); `GET /users/{id}` returns the
+  override; reset restores defaults; no-override user unchanged (regression). ✅
+
+---
+
+## Module 5l — Identity: Email Verification for Admin-Created Users
+
+**Admin-created users (`POST /api/users`) must now verify their email before they can log in.** Previously
+`CreateUserCommandHandler` called `user.VerifyEmail()` to pre-verify — that line is removed; the user stays in
+`PendingVerification` until they click an emailed link. `LoginCommandHandler` blocks unverified accounts with a
+clear message. **Only** the admin-create path is gated — the trial/onboarding and super-admin tenant-create
+paths still pre-verify (see below), so signup and tenant provisioning are unaffected.
+
+### Token model — reuses the password-reset pattern exactly
+Single-use, hashed-at-rest, 48h expiry. `IJwtTokenService.GenerateRefreshTokenRaw()` makes the raw token
+(base64, 64 random bytes); `HashToken()` (SHA-256 → base64, **deterministic** so lookup-by-hash works) stores
+only the hash. Raw token goes in the email link; the DB never sees it.
+
+### Backend (Identity service)
+- `Domain/Entities/User.cs` — new `EmailVerificationTokenHash` / `EmailVerificationTokenExpiry` (nullable,
+  mapped by convention — no `UserConfiguration` change, same as the reset-token columns).
+  - `SetEmailVerificationToken(hash, expiry)` — issue token.
+  - `VerifyEmailWithToken(hash)` — validates hash + non-expired; on success sets `EmailVerified = true`,
+    `Status = Active`, clears the token; returns `false` otherwise.
+- `Abstractions/IEmailService.cs` + `Infrastructure/Services/SmtpEmailService.cs` —
+  `SendEmailVerificationAsync(toEmail, toName, verificationToken)`. Builds
+  `{FrontendUrl}/auth/verify-email?token=…&email=…` (both URL-encoded). **Dev fallback:** if SMTP host/username
+  unconfigured, logs the link (`LogWarning`) instead of sending — link still usable locally. Same MailKit
+  connect/auth/send/disconnect as the reset email (465 → SslOnConnect, else StartTls).
+- `Users/Commands/CreateUser/CreateUserCommandHandler.cs` — injects `IJwtTokenService` + `IEmailService`;
+  removed the `user.VerifyEmail()` pre-verify; issues a 48h token before `Add`, and after `SaveChanges` sends
+  the email **best-effort** (`try/catch` — SMTP failure never fails user creation; admin can resend).
+- `Auth/Commands/VerifyEmail/` (NEW) — `VerifyEmailCommand(Email, Token)` + handler. Idempotent (already-verified
+  → `Success`); bad/expired → `Error.Custom("Auth.VerifyEmail.Invalid", "Invalid or expired verification link.")`.
+- `Auth/Commands/ResendVerification/` (NEW) — `ResendVerificationCommand(Email)` + handler. **Enumeration-safe:**
+  returns `Success` whether or not the account exists / is already verified; only actually re-issues + sends when
+  a matching unverified user is found.
+- `API/Controllers/AuthController.cs` — `POST /api/auth/verify-email` (`[AllowAnonymous]`) and
+  `POST /api/auth/resend-verification` (`[AllowAnonymous]` + `[EnableRateLimiting("forgot_password")]` — reuses
+  the existing 5-req/IP/300s sliding-window policy). Request records `VerifyEmailRequest`/`ResendVerificationRequest`.
+- `Auth/Commands/Login/LoginCommandHandler.cs` — after the password check passes, `if (!user.EmailVerified)`
+  → `Fail(…, "Please verify your email address before logging in. Check your inbox for the verification link.")`.
+- Migration `AddEmailVerificationToken` (Identity) — adds the two columns; auto-applies via `MigrateAndSeedAsync`.
+
+### Paths that stay pre-verified (login NOT blocked) — verified in code
+- `Trial/Commands/RegisterTrial/RegisterTrialCommandHandler.cs` — `user.VerifyEmail()` (trial accounts).
+- `TenantsAdmin/Commands/CreateTenant/CreateTenantCommandHandler.cs` — `adminUser.VerifyEmail()`.
+- The plain self-serve `Auth/Commands/Register` endpoint creates users unverified and sends **no** email — but
+  `authApi.register` is **not called anywhere in the frontend** (onboarding uses `registerTrial`), so it's a
+  dead endpoint, not a live regression. Left as-is (out of scope).
+
+### Frontend
+- `lib/identity/auth.api.ts` — `verifyEmail(email, token)` → `POST /verify-email`; `resendVerification(email)`
+  → `POST /resend-verification` (both anonymous `post()` helper).
+- `pages/auth/verify-email.tsx` (NEW) — mirrors `reset-password.tsx` theme (DARK/LIGHT palettes, top bar,
+  motion card). Auto-verifies on mount from `?token=&email=` (guarded by a `useRef` so it fires once under
+  StrictMode). Three states: verifying (spinner) / success (green, "Go to login") / error (red, `errorMsg` from
+  the API, plus a "Resend verification link" button when an email is present).
+- `App.tsx` — lazy `VerifyEmailPage` + route `/auth/verify-email` (public, alongside reset-password).
+- `pages/auth/login.tsx` — when the login error message contains "verify your email", the error toast gets an
+  8s **"Resend link"** action calling `authApi.resendVerification(data.email)` (success/failure toast). Other
+  errors unchanged.
+
+### Unrelated small fix in same working tree
+- `modules/settings/general/components/general-settings-view.tsx` — company name/legalName now fall back to the
+  **current tenant's** name (`useAuthStore.getState().tenant?.name`) instead of the hardcoded Softaxis sample,
+  so a fresh tenant admin sees their own company.
+
+### Build / Verification Status
+- **Identity.API build:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · Migration created (auto-applies on startup).
+- **Pending:** end-to-end run — admin creates a user → verification email/logged link → `/auth/verify-email`
+  activates → login succeeds; unverified login blocked + resend works. (Backend service must be republished +
+  restarted to pick up the change per the on-prem deploy note.)
+
+---
+
+## Module 5i — Finance: Full Module Audit & Authorization Hardening
+
+**First module of the systematic "audit + fix every module" program.** Audited Finance across 4 dimensions:
+security/authorization, functional/dead-UI bugs, feature completeness, and architecture/tech-debt.
+
+### Security / Authorization (was the big gap — now closed)
+Finance had `[Authorize]` on every controller but **zero per-permission enforcement**. Added:
+- **`Softaxis.Finance.API/Authorization/RequirePermissionAttribute.cs`** — copy of the ProjectManagement pattern
+  (`IAuthorizationFilter`; reads JWT `permission` claims; super-admin bypass via `is_super_admin`; 403 `{Code,Description}`).
+- `[RequirePermission("finance.<key>.<action>")]` on **all 21 controllers**, mapped to the already-seeded
+  `finance.*` keys (no migration needed → Administrator/super-admin keep working, non-admins need explicit grants):
+  - `finance.invoicing.*` → Invoices, Customers, Receivables, ReceiptVouchers, RecurringInvoices
+  - `finance.expenses.*` → Expenses, Suppliers, Payables, PaymentVouchers, PurchaseBills
+  - `finance.accounting.*` → Accounts, AccountTypes (writes), ExchangeRates (writes), FiscalPeriods (close/reopen)
+  - `finance.journals.*` → Journals, JournalEntries · `finance.gl.view` → GeneralLedger (class-level)
+  - `finance.budgeting.*` → Budgets · `finance.banking.*` → Banking · `finance.tax.*` → Tax
+- **Intentionally left open** (`[Authorize]` only): `LookupsController` + the GET reads on AccountTypes/ExchangeRates/
+  FiscalPeriods — these feed dropdowns across Finance forms; gating their reads would break forms for users who
+  can e.g. create invoices but lack `accounting.view`. Gate writes, leave shared reference reads open.
+- Where a controller exposes an action with no matching seeded key (budget delete, journal delete), gated on the
+  nearest key (`edit`) with a code comment — avoids blocking admins without a migration.
+- **Frontend `<Can>` gating** added to every primary create button across the Finance views (Invoicing, Expenses,
+  Budgeting, Banking ×2, Journals, Tax, Recurring, Accounting).
+- **Verified live** (gateway on :5099, same DB): a user granted only `finance.invoicing.view` → invoice list 200,
+  invoice create/delete 403, expenses 403, GL 403, open lookups 200. Exactly as designed.
+
+### Functional / dead-UI bugs
+- Scanned all Finance views: **no** dead `onClick`, **no** `window.confirm`/`alert`, **no** TODO/console — prior QA was thorough.
+- **Bug found & fixed:** 5 mutation hooks in `hooks/finance/use-finance.ts` (`useSendInvoice`, `useMarkInvoicePaid`,
+  `useCancelInvoice`, `useDeleteInvoice`, `useCreateExpense`) had **no `onError` and no success toast** — they
+  silently swallowed failures (now especially relevant since the new enforcement can return 403). Added
+  `onError: toast.error` + success toasts to all 5, matching every other hook in the file.
+- **Endpoint audit:** every `finance.api.ts` path verified against the backend routes — all correct, including the
+  journals read/write split (`GET /journals`, writes → `/journal-entries`). No 404 mismatches.
+
+### Completeness / Tech-debt
+- Finance is already clean CQRS (`ISender`, no inline `DbContext`/DTOs) — **no tech-debt migration needed**.
+- Minor noted gap (not a bug, left as-is): the budgets API client exposes create + status-change but not
+  `updateBudget`/`deleteBudget`.
+
+### Build / Verification Status
+- **Finance.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **Live 403 enforcement:** verified ✅
+
+---
+
+## Module 5j — HR: Full Module Audit & Authorization Hardening
+
+**Second module of the audit program** (after Finance 5i). Same 4-dimension pass.
+
+### Doc correction
+CLAUDE.md's HR sections previously implied `PerformanceController`/`RecruitmentController` are **NOT
+IMPLEMENTED** and that HR controllers inject `DbContext` (tech debt). **Both are stale** — all 8 HR controllers
+are clean CQRS (`ISender` + `HrControllerBase`), and Performance/Recruitment are fully implemented.
+
+### Security / Authorization (the gap — now closed)
+Every HR controller had `[Authorize]` but **zero per-permission enforcement**. Added:
+- **`Softaxis.HR.API/Authorization/RequirePermissionAttribute.cs`** (copy of the Finance/PM pattern).
+- `[RequirePermission("hr.<key>.<action>")]` on all action controllers → seeded `hr.*` keys:
+  - `hr.employees.*` → Employees · `hr.attendance.*` → Attendance · `hr.leaves.*` → Leaves
+  - `hr.payroll.*` → Payroll · `hr.performance.*` → Performance · `hr.recruitment.*` → Recruitment
+- **Payroll** has no seeded `edit`/`delete` → workflow transitions (process/pay/reject/reopen), slip edits, and
+  run delete gate on `hr.payroll.approve`; slip email on `hr.payroll.print`. **Leaves/Attendance/Performance**
+  have no `delete` key → deletes gate on `edit`. (Same "nearest seeded key" rule as Finance — no migration, admins unaffected.)
+- **Intentionally left open:**
+  - `CareersController` — it's `[AllowAnonymous]` (public careers portal, tenant resolved from URL slug). Must stay anonymous.
+  - `GET /api/hr/employees/all` — the lightweight dropdown feed consumed by Leave/Payroll/Attendance forms;
+    gating it would break those forms for users who can create leaves/payroll but lack `hr.employees.view`.
+  - `DepartmentsController` GET reads (feed the employee-form department dropdown) — writes gated on `hr.employees.*`.
+- **Frontend `<Can>` gating** on all 6 primary create buttons: Add Employee, Mark Attendance, Apply Leave,
+  Run Payroll, New Review, Post Job.
+- **Verified live** (:5099): a user with only `hr.employees.view` → employees list 200 + `/employees/all` 200,
+  but employee create 403, payroll list/pay 403, leaves 403.
+
+### Functional / dead-UI + Completeness + Tech-debt
+- HR views scanned: **no** dead `onClick`, **no** `window.confirm`/`alert`, **no** TODO/console.
+- `hooks/hr/use-hr.ts`: **all 31 mutation hooks already have `onError` + success toasts** — nothing to fix (cleaner than Finance was).
+- HR is already clean CQRS — no tech-debt migration.
+
+### Build / Verification Status
+- **HR.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **Live 403 enforcement:** verified ✅
+
+---
+
+## Module 5k — Inventory: Full Module Audit & Authorization Hardening
+
+**Third module of the audit program** (after Finance 5i, HR 5j). Same profile: clean CQRS, `[Authorize]` but
+zero per-permission enforcement.
+
+### Security / Authorization
+- **`Softaxis.Inventory.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern).
+- `[RequirePermission("inventory.<key>.<action>")]` on all 10 controllers → seeded `inventory.*` keys:
+  - `inventory.stock.*` → Products, ProductStock (view), InventoryReports (view), **and the master-data write
+    actions** on Brands/Categories/UnitsOfMeasure.
+  - `inventory.warehouses.*` → Warehouses · `inventory.movements.*` → StockMovements
+  - `inventory.transfers.*` → StockTransfers (submit→create as the requester action; approve & receive→approve).
+- **Intentionally left open** (`[Authorize]` only): the **GET reads** on Brands/Categories/UnitsOfMeasure —
+  they feed the product-create form's brand/category/UoM dropdowns, so gating them would break the form for
+  users who can create products but lack the read. Writes on those three gate on `inventory.stock.*` (no
+  dedicated master-data permission keys).
+- **Frontend `<Can>` gating** on all 7 primary create buttons: Add Product, Add Warehouse, Record Adjustment,
+  New Transfer, New Brand, New Category, New Unit.
+- **Verified live** (:5099): a user with only `inventory.stock.view` → products list 200 + brands dropdown 200,
+  but product create 403, warehouses/transfers 403, stock-movement create 403.
+
+### Functional / dead-UI + Completeness + Tech-debt
+- Inventory views scanned: **no** dead `onClick`, **no** `window.confirm`/`alert`, **no** TODO/console (prior QA
+  Module 5 already replaced the native `confirm()`s).
+- All inventory mutation hooks already have `onError` — nothing to fix.
+- Already clean CQRS — no tech-debt migration.
+
+### Build / Verification Status
+- **Inventory.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **Live 403 enforcement:** verified ✅
+
+---
+
+## Module 5m — CRM: Full Module Audit & Authorization Hardening
+
+**Fourth module of the audit program** (after Finance 5i, HR 5j, Inventory 5k). CRM is clean CQRS (all
+controllers `ISender` + `CrmControllerBase`, no `DbContext`, no tech debt) but had `[Authorize]` with **zero
+per-permission enforcement**.
+
+### Security / Authorization
+- **`Softaxis.CRM.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern). **Gotcha:**
+  the CRM API project has **no implicit `Microsoft.AspNetCore.Http` using** (unlike Finance), so the attribute
+  needs an explicit `using Microsoft.AspNetCore.Http;` or `StatusCodes` fails to compile (CS0103).
+- `[RequirePermission("crm.<key>.<action>")]` on the **6 core CRM controllers** → seeded `crm.*` keys
+  (`crm.leads`, `crm.pipeline`, `crm.customers` — each view/create/edit + leads/customers also delete/export):
+  - `LeadsController` → `crm.leads.*` (view/create/edit/delete; Convert → edit; status/score patches → edit).
+  - `PipelineController` (route `api/crm/deals`) → `crm.pipeline.*` (**no `pipeline.delete` key** → delete gates
+    on the nearest key `crm.pipeline.edit`, with a code comment; same "nearest seeded key" rule as Finance/HR).
+  - `CrmCustomersController` → `crm.customers.*`.
+  - `ContactsController` (customer-scoped, `?customerId=`) → `crm.customers.*`.
+  - `ActivitiesController` → `crm.leads.*` — **no dedicated `crm.activities` permission group exists**;
+    activities are the follow-up/task layer over leads & deals, so gated on the nearest key (`crm.leads`) with a
+    class-level comment. A future migration could add `crm.activities` if finer control is needed.
+  - `CrmDashboardController` → class-level `crm.leads.view` (read-only CRM overview).
+- **Deliberately NOT gated in this pass — the 4 industry-vertical controllers** `B2BController` (`api/b2b`),
+  `EducationController` (`api/education`), `HealthcareController` (`api/healthcare`), `InsuranceController`
+  (`api/insurance`). They live in the CRM **assembly** but are effectively **separate modules** (13–15 endpoints
+  each, own frontend API clients under `lib/{b2b,education,healthcare,insurance}/`) with **NO seeded permission
+  keys at all**. Gating them on a made-up key would 403 everyone (no role grants it); gating on `crm.*` keys is
+  semantically wrong. Correct fix = seed their own permission groups (Identity migration) + audit each as its
+  own module — a larger scoped effort, flagged as **follow-up**, left `[Authorize]`-only for now (no worse than
+  before). Same "don't compound; flag it" rule from the architecture section.
+- **Frontend `<Can>` gating** on the 3 primary create buttons (Add Lead / Add Deal / Add Customer) and on the
+  destructive **Delete** buttons in all 3 drawers (`crm.leads.delete` / `crm.pipeline.edit` / `crm.customers.delete`).
+
+### Functional / dead-UI bugs (found & fixed)
+- **3 native `confirm()` calls** — the project rule (never use `window.confirm`) was violated in
+  `lead-drawer.tsx`, `deal-drawer.tsx`, `customer-drawer.tsx` (delete actions). Replaced each with a
+  state-based (`confirmDelete`) in-drawer confirmation modal (Framer Motion overlay, `absolute inset-0 z-[60]`,
+  resets on drawer close), matching the pattern used in Inventory/Finance.
+- No dead `onClick`, no `alert`, no `TODO`/`console` elsewhere in CRM.
+- `hooks/crm/use-crm.ts`: both mutation factories already have `onError: toast.error` + success toasts — nothing to fix.
+
+### Completeness / Tech-debt
+- Core CRM is already clean CQRS — no tech-debt migration. (Minor pre-existing style deviation: Leads/Pipeline/
+  Customers/Contacts controllers define their `Update*Request` records **inline** rather than in `Dtos/` — left
+  as-is, not compounded.)
+
+### Build / Verification Status
+- **CRM.API build:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** live 403 spot-check (grant only `crm.leads.view` → leads list 200, lead create/delete 403,
+  pipeline/customers 403) once the service is republished + restarted.
+
+---
+
+## Module 5n — CRM Industry Verticals: New Permission Groups + Authorization
+
+**Follow-up to Module 5m's flagged item.** The 4 industry-vertical controllers in the CRM assembly (B2B,
+Education, Healthcare, Insurance — routes `api/b2b`, `api/education`, `api/healthcare`, `api/insurance`) had
+**no seeded permission keys**, so 5m left them `[Authorize]`-only. This module seeds their own permission
+groups and applies per-permission enforcement — bringing them to parity with the audited modules.
+
+### New permission groups seeded — 12 groups (3 sub-features × 4 verticals) = 49 permissions
+`Backend/.../Identity/Softaxis.Identity.Application/Seed/PermissionSeedData.cs` — added to `ModuleActions`:
+```csharp
+// B2B (Proposals → Contracts → Support Tickets)
+["b2b.proposals"]/["b2b.contracts"]/["b2b.tickets"]        = view/create/edit/delete
+// Education (Admissions → Students → Enrollments)
+["education.admissions"]/["education.students"]/["education.enrollments"] = view/create/edit/delete
+// Healthcare (Patients → Appointments → Treatment Plans)
+["healthcare.patients"]/["healthcare.appointments"]/["healthcare.treatment-plans"] = view/create/edit/delete
+// Insurance (Policies → Renewals → Claims)
+["insurance.policies"]/["insurance.renewals"]              = view/create/edit/delete
+["insurance.claims"]                                       = view/create/edit/delete/approve
+```
+**How seeding works** (same as PM Module 5f): `PermissionSeedData.GetPermissions()` → `HasData` in
+`IdentityDbContext.OnModelCreating` → `dotnet ef migrations add` **auto-generates the `InsertData`** for the new
+rows (deterministic MD5-derived GUIDs). Migration `AddCrmVerticalPermissions` applied. On startup,
+`SyncAdministratorPermissionsAsync` (runs every boot, idempotent) diffs all seeded permission ids against each
+system `Administrator` role and adds the 49 new keys automatically — so existing tenants' admins gain them with
+no manual step. Non-admin users need explicit grants.
+
+### Backend enforcement
+`[RequirePermission("<vertical>.<feature>.<action>")]` on **every action** across `B2BController`,
+`EducationController`, `HealthcareController`, `InsuranceController` (reusing the CRM `RequirePermissionAttribute`
+from 5m — these controllers live in `Softaxis.CRM.API`). Mapping: GET → `.view`, POST create → `.create`,
+PATCH status / POST enroll/renew/resolve/complete/payment → `.edit`, POST claim approve → `insurance.claims.approve`,
+DELETE → `.delete`. Each controller's `GET /summary` is a cross-feature overview → gated on the pack's **primary**
+sub-feature view (`b2b.proposals.view` / `education.admissions.view` / `healthcare.patients.view` /
+`insurance.policies.view`).
+
+### Frontend
+- **`lib/identity/permission-matrix.ts`** — added `b2b`/`education`/`healthcare`/`insurance` to `MODULE_GROUPS`
+  (labels "B2B"/"Education"/"Healthcare"/"Insurance") and to `GROUP_ORDER` (after CRM). The matrix groups by
+  `moduleId.split(".")[0]`, so each vertical renders as its own group with its 3 sub-features as rows — no other
+  matrix changes needed. Both the role editor and the per-user override editor pick this up automatically.
+- **`<Can>` gating** in all 4 vertical views (`{vertical}-view.tsx`). Each view has 3 tabs, each with an inline
+  `AddBar` (create) + a table with row quick-actions. **Two gating styles** (both fine):
+  - `b2b-view.tsx` — the `AddBar` create is wrapped externally with `<Can permission="b2b.<feature>.create">`.
+  - `education`/`healthcare`/`insurance` — the local `AddBar` component got an optional `perm?: string` prop that
+    wraps its collapsed trigger button in `<Can permission={perm}>` internally (backward-compatible: no `perm`
+    still renders). Usages pass `perm="<vertical>.<feature>.create"`.
+  - Row **Delete** buttons in every tab wrapped with `<Can permission="<vertical>.<feature>.delete">`.
+- **Audit (dead-UI / hooks):** clean — no `window.confirm`/`alert`/`TODO`/`console`; each vertical's hook file
+  routes every mutation through a shared `useM` factory that already has `onError: toast.error` + success toasts.
+  (Row deletes fire `del.mutate(id)` directly without a confirm modal — not a `window.confirm` violation, and
+  consistent with these dense inline-table views; left as-is.)
+
+### Scope notes / follow-ups (not done here)
+- Enforcement gates **actions**, not tab visibility — a user lacking a sub-feature's `.view` still sees the tab,
+  but its list query 403s (React Query surfaces the toast). Per-tab view gating is a nice-to-have, not done.
+- Status-change quick-actions (`.edit`) are enforced on the backend but **not** hidden on the frontend (only
+  create + delete are `<Can>`-gated) — mirrors the create+delete gating depth used in the CRM 5m pass.
+
+### Build / Verification Status
+- **CRM.API + Identity.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- Migration `AddCrmVerticalPermissions` created (auto-applies + admin-syncs on startup).
+- **Pending:** republish + restart, then live spot-check (grant only `b2b.proposals.view` → proposals 200,
+  proposal create/delete 403, contracts/tickets 403; new groups visible in the roles matrix).
+
+---
+
+## Module 5o — Sales: Full Module Audit & Authorization Hardening
+
+**Fifth module of the audit program** (after Finance 5i, HR 5j, Inventory 5k, CRM 5m/5n). Sales had
+`[Authorize]` with **zero per-permission enforcement**, and — unlike the earlier clean-CQRS modules — 4 of its 5
+controllers are **tech debt** (inject `SalesDbContext` directly + define DTOs inline). Only `DeliveryChallans`
+(Module 5e) is clean CQRS.
+
+### Security / Authorization
+- **`Softaxis.Sales.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern; includes the
+  explicit `using Microsoft.AspNetCore.Http;` — Sales API has no implicit Http using, same gotcha as CRM 5m).
+- `[RequirePermission("sales.<key>.<action>")]` on **all 5 controllers** → seeded `sales.*` keys
+  (`sales.quotations`, `sales.orders`, `sales.returns`):
+  - `SalesQuotationsController` → `sales.quotations.*` (view/create/edit/delete; **Convert-to-order** → edit,
+    with comment — mirrors CRM lead-convert → leads.edit).
+  - `SalesOrdersController` → `sales.orders.*` (**no `sales.orders.delete` key** → delete + UpdateStatus gate on
+    the nearest key `sales.orders.edit`, commented).
+  - `SalesReturnsController` → `sales.returns.*` (**no edit/delete key** → both Approve and **Reject** gate on
+    `sales.returns.approve`, commented).
+  - `DeliveryChallansController` → `sales.orders.*` (challans are order fulfillment, no dedicated key; GETs →
+    orders.view, Create → orders.edit as a fulfillment action, commented).
+  - `CustomersController` (`api/sales/customers`) — **GET reads left open** (`[Authorize]` only): they feed the
+    customer dropdown in the quotation/order/return forms; gating would break those forms for users who can
+    create orders but lack a customer read. Writes gate on `sales.orders.*` (no `sales.customers` key).
+- **Frontend `<Can>` gating**: create buttons (New Order / New Quotation / New Return), the order-row Confirm +
+  Delivery-Challan actions (`sales.orders.edit`), and drawer actions — order delete (`sales.orders.edit`),
+  quotation Convert (`sales.quotations.edit`) + delete (`sales.quotations.delete`), return Approve/Reject
+  (`sales.returns.approve`).
+
+### Functional / dead-UI bug found & fixed — Return Approve/Reject was never wired
+`return-drawer.tsx`'s **"Approve Return" / "Reject"** buttons had **no `onClick`** — pure dead UI, even though
+the backend has `POST /api/sales/returns/{id}/approve` + `/reject`. `returns.api.ts` had no `approve`/`reject`
+methods and `use-returns.ts` had no hooks. **Fixed:** added `returnsApi.approve/reject(id, by)`,
+`useApproveReturn`/`useRejectReturn` (invalidate list + summary, toast), and wired both buttons (pass the
+approver name from `useAuthStore(s => s.user?.name)`, loading spinners, close on success, `<Can>`-gated).
+- Other decorative footer buttons with no handler and **no matching backend endpoint** — quotation "Send to
+  Customer" / "Re-issue" / "Duplicate", return "Process Refund" — left as-is (no backend to call; same call as
+  the recruitment placeholder). Flagged, not wired.
+- `hooks/sales/*`: all other mutation hooks already have `onError` + success toasts. No `window.confirm`/`alert`
+  anywhere in Sales views (drawers already use state-based `confirmDelete`).
+
+### Tech debt (flagged, NOT migrated — would need user sign-off)
+`CustomersController`, `SalesOrdersController`, `SalesQuotationsController`, `SalesReturnsController` inject
+`SalesDbContext` and define DTOs inline — violating the mandatory CQRS rule. Authorization was added without
+compounding the debt (attributes are independent of the controller internals). Migrating these 4 to
+`ISender` + `SalesControllerBase` + `Application/Commands|Queries|Dtos` is a separate, larger refactor
+(one feature at a time, per the architecture rule) — left for a dedicated pass. Minor pre-existing note:
+`SalesReturns.GetById` (and the other GetByIds) don't filter soft-deleted rows — low-impact, not fixed here.
+
+### Build / Verification Status
+- **Sales.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** republish + restart, then live spot-check (grant only `sales.orders.view` → orders list 200,
+  order create/status/delete 403, quotations/returns 403, customer dropdown still loads).
+
+---
+
+## Module 5p — Purchase: Full Module Audit & Authorization Hardening
+
+**Sixth module of the audit program** (after Finance 5i, HR 5j, Inventory 5k, CRM 5m/5n, Sales 5o). Same profile
+as Sales: `[Authorize]` with zero per-permission enforcement, and mixed CQRS/tech-debt — `GoodsReceiptNotes` +
+`PurchaseReturns` are clean CQRS (Modules 5b/5c), while `Vendors`, `PurchaseOrders`, `Approvals` inject
+`PurchaseDbContext` directly (tech debt).
+
+### Security / Authorization
+- **`Softaxis.Purchase.API/Authorization/RequirePermissionAttribute.cs`** (copy of the shared pattern; explicit
+  `using Microsoft.AspNetCore.Http;`).
+- `[RequirePermission("purchase.<key>.<action>")]` on **all 5 controllers** → seeded `purchase.*` keys
+  (`purchase.vendors`, `purchase.orders`, `purchase.approvals`):
+  - `VendorsController` → `purchase.vendors.*` (view/create/edit/delete). **Vendor GET reads ARE gated** on
+    `purchase.vendors.view` — unlike Sales customers (which had no key and were left open), vendors is a
+    first-class resource with its own permission group + list page, so gating reads is the intended RBAC.
+    Roles that create POs should also include `purchase.vendors.view` for the PO-form vendor dropdown.
+  - `PurchaseOrdersController` → `purchase.orders.*` (**no `purchase.orders.delete` key** → delete + status
+    gate on `purchase.orders.edit`).
+  - `ApprovalsController` → `purchase.approvals.*` (view for reads; Approve/Reject → `purchase.approvals.approve`;
+    **Create** — submitting a requisition, no `approvals.create` key — → `purchase.orders.create`, commented).
+  - `GoodsReceiptNotesController` → `purchase.orders.*` (receiving drives PO status; GETs → orders.view, Create
+    → orders.edit) and `PurchaseReturnsController` → `purchase.orders.*` (post-PO operation; GETs → orders.view,
+    Create → orders.edit). No dedicated keys — nearest-key rule, commented (mirrors Sales delivery challans).
+- **Frontend `<Can>` gating**: Add Vendor (`purchase.vendors.create`), New PO (`purchase.orders.create`), the
+  PO-row Send/Receive/Return actions (`purchase.orders.edit`), and the approval Approve/Reject (below).
+
+### Functional / dead-UI bug found & fixed — Approval Approve/Reject was never wired
+The entire Purchase-approvals **mutation frontend was unbuilt**: `approvals.api.ts` had only get/summary/getById,
+`use-approvals.ts` only the two queries, and the `approval-drawer.tsx` **Approve / Reject** buttons had **no
+`onClick`** — despite the backend having `POST /approvals/{id}/approve` + `/reject`. **Fixed:** added
+`approvalsApi.approve(id, by)` / `reject(id, by, reason)`, `useApproveApproval` / `useRejectApproval` hooks
+(invalidate list + summary, toast), and wired the drawer — Approve fires directly; **Reject** opens an inline
+reason `<Input>` + "Confirm Reject" (state-based, matches the project pattern), both `<Can
+permission="purchase.approvals.approve">`-gated, approver name from `useAuthStore(s => s.user?.name)`.
+
+### Known feature gaps flagged (NOT built — need whole new forms / missing backend, out of audit scope)
+- **approvals-view "New Request" button** — no `onClick`; the create-requisition flow was never built (no form,
+  no `useCreateApproval`) even though `POST /api/purchase/approvals` exists. Left as-is; spawned as a follow-up
+  task. Same for the approval-drawer **"Create PO"** button — no backend convert-to-PO endpoint exists.
+- No `window.confirm`/`alert`/`TODO`/`console` anywhere in Purchase views; other mutation hooks already have
+  `onError` + toasts.
+
+### Tech debt (flagged, NOT migrated)
+`Vendors`, `PurchaseOrders`, `Approvals` controllers inject `PurchaseDbContext` + inline DTOs — same CQRS
+migration follow-up noted for Sales (5o). Authorization added without compounding the debt.
+
+### Build / Verification Status
+- **Purchase.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** republish + restart, then live spot-check (grant only `purchase.orders.view` → PO list 200,
+  PO create/status 403, vendors list 403, approvals approve 403).
+
+---
+
+## Module 6a — Identity: Per-Tenant Roles (🔴 cross-tenant role leak fix + per-module seeding)
+
+**Critical multi-tenancy fix.** `Role` had **no `TenantId`** and role queries had **no tenant scope**, so
+every tenant saw and shared every other tenant's roles (a tenant admin saw other tenants' custom roles in
+Settings → Roles). Both `RegisterTrial` and `CreateTenant` also assigned **one shared global "Administrator"**
+role to every tenant. This makes roles fully tenant-owned + seeds a per-module role set per tenant.
+
+> Note: CRM/other operational entities ARE correctly tenant-isolated in source (shadow `TenantId` + global
+> query filter via `TenantIsolation`, ambient tenant set by `TenantAmbientMiddleware` after `UseAuthentication`).
+> Roles were the gap because the Identity `Role` entity opted out of that mechanism. If a tenant user *also*
+> sees other tenants' **leads**, that means the **deployed build predates CRM tenant isolation** → republish + restart.
+
+### Backend (Identity)
+- `Domain/Entities/Role.cs` — added `Guid? TenantId` (null = legacy/global, hidden from all tenant lists;
+  non-null = tenant-owned) + `SetTenant(...)`; `Create(..., Guid? tenantId = null)`.
+- `IRoleRepository` / `RoleRepository` — `GetPagedAsync(..., Guid? tenantScope)` filters `TenantId == scope`;
+  `GetByNameAsync(name, Guid? tenantId)` + `NameExistsAsync(..., Guid? tenantScope)` are tenant-aware.
+- **All 5 role handlers** now inject `ICurrentUser` + `ITenantContext` and compute
+  `tenantScope = IsSuperAdmin ? null : TenantId`:
+  - `GetRoles` scopes the list; `GetRoleById`/`UpdateRole`/`DeleteRole`/`UpdateRolePermissions` return
+    `NotFound` if `role.TenantId != tenantScope` (no cross-tenant read/write; NotFound not Forbidden to avoid
+    leaking existence). `CreateRole` stamps `TenantId` from the caller's tenant; name-uniqueness is per-tenant.
+- **`ITenantRoleProvisioner` / `TenantRoleProvisioner`** (NEW) — creates a tenant's **Administrator** (all
+  permissions, `IsSystem=true`) + **one "{Module} Manager" role per enabled module** (CRM/Sales/Purchase/
+  Finance/HR/Inventory/POS/Project/B2B/Education/Healthcare/Insurance — from `tenant.ResolvedModules`; Settings
+  excluded, admin-only). Adds roles to the current UoW, returns the Administrator.
+- `RegisterTrial` + `CreateTenant` — replaced the shared `GetByNameAsync("Administrator")` with
+  `roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules)` and assign the returned Administrator.
+- **`BackfillTenantRolesAsync`** (startup, idempotent, **non-destructive**) — for each existing tenant: ensure
+  it owns an Administrator + module Managers; **re-point** users still holding the legacy global Administrator
+  onto their tenant's own Administrator (`AssignRole` new, then `RemoveRole` global). Never removes access (both
+  admins carry the full permission set) and **never deletes** legacy roles — once queries are tenant-scoped they
+  just stop appearing in any tenant's list. Runs after `SyncAdministratorPermissionsAsync` in `MigrateAndSeedAsync`.
+- Migration `AddRoleTenantId` (adds `roles.TenantId`, nullable).
+
+### ⚠️ Deploy (critical — auth-sensitive)
+- Requires **republish + restart** (`Deploy/server/publish.bat` → elevated `Start-Service VroduxERP`). The
+  `AddRoleTenantId` migration + the backfill auto-run on startup via `MigrateAndSeedAsync`.
+- **Back up `SoftaxisErpDb` before the restart** — the backfill re-points user↔role assignments and stamps
+  role tenancy. It's designed to preserve all access, but this is auth data.
+- Not runtime-tested by the author (no deployable env). Verify on a backup/staging first: each tenant admin
+  logs in → Settings → Roles shows ONLY their own Administrator + per-module Managers; no other tenant's roles;
+  existing admins retain full access.
+
+### Build Status
+- **Identity.API + full ApiGateway:** 0 errors ✅ · migration created.
+
+---
+
+## Module 6b — Tenant Isolation Sweep (raw-SQL cross-tenant leak audit — all modules)
+
+**Goal: 100% no cross-tenant data mixing on every page/form of every module.** Systematic audit of the whole
+backend for tenant-isolation gaps.
+
+### Baseline (already correct)
+- **All 13 business-service DbContexts** (CRM, Sales, Purchase, Finance, HR, Inventory, POS, ProjectManagement,
+  RealEstate, Recipe, Restaurant, Hospitality, Construction) call `TenantIsolation.ApplyTenantId(...)` — a shadow
+  `TenantId` column + **global query filter** (`BypassFilter || TenantId == ambient`), with the ambient tenant
+  set per request by `TenantAmbientMiddleware` (after `UseAuthentication`) and stamped on insert. So **every
+  normal EF/LINQ query across every module is already tenant-scoped** (controllers that inject `DbContext`
+  directly still hit the filtered DbSets).
+- **Identity** is the exception by design: users are explicitly tenant-scoped in handlers; roles were the one
+  real leak — fixed in Module 6a.
+
+### Gaps found & fixed — RAW SQL only (bypasses EF's global filter)
+Grep confirmed the *only* request-path bypasses were raw SQL (`SqlQuery`/`ExecuteSql*`) and cross-schema reads;
+`IgnoreQueryFilters()` appears only in startup seed/backfill, never in request handlers. Fixed each by
+replicating the EF filter inline — `AND ({bypass} = 1 OR TenantId = {tenant})` where
+`bypass = TenantAmbient.BypassFilter ? 1 : 0` and `tenant = TenantAmbient.TenantId ?? Guid.Empty` (matches the
+global filter exactly: super-admin/unresolved → all rows; otherwise this tenant only; NULL-tenant rows excluded):
+- **`Inventory/.../Services/ProductReadService.cs`** — the product list + GetById + GetByBarcode UNION both
+  `[pos].[products]` and `[inventory].[products]` and previously filtered only `IsDeleted = 0`. Added the tenant
+  clause to **all 6** product SELECTs (this was a real leak — the Inventory product grid showed every tenant's
+  products).
+- **`Inventory/.../Repositories/StockMovementRepository.cs`** — `AdjustPosProductStockAsync` (cross-schema
+  `UPDATE [pos].[products] … WHERE Id=@id`) got a tenant guard so a guessed id can't touch another tenant's row.
+- **`POS/.../Services/CrossSchemaProductService.cs`** — `GetByIdForSaleAsync` (pos+inventory product lookup) now
+  tenant-filtered; the `@wh` default-warehouse subquery in `DeductStockAsync`/`RestoreStockAsync`
+  (`SELECT TOP 1 … FROM [inventory].[warehouses]`) was picking **any** tenant's warehouse — now scoped.
+- **`Restaurant/.../Controllers/OrdersController.cs`** — raw INSERT/UPDATE in `RecordPayment` audited and left
+  as-is: the order is first loaded via the tenant-filtered `db.Orders` (`FirstOrDefaultAsync(x => x.Id == id)`),
+  so the subsequent writes act on an already-validated tenant-owned id. Not a leak.
+
+### Notes
+- Frontend needs no isolation changes — it only calls tenant-scoped APIs; scoping is enforced server-side.
+- Raw-SQL string edits can't be compile-checked for SQL correctness — **verify the Inventory product list + POS
+  sale flow on a backup/staging after republish + restart** (needs the on-prem redeploy like the other pending modules).
+
+### Build Status
+- **Inventory.API + POS.API + full ApiGateway:** 0 errors ✅
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched

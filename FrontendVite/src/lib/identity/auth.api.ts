@@ -81,4 +81,12 @@ export const authApi = {
   /** Complete password reset using the token from the email link. */
   resetPassword: (email: string, token: string, newPassword: string): Promise<void> =>
     post("/reset-password", { email, token, newPassword }),
+
+  /** Verify an email address using the token from the verification email (anonymous). */
+  verifyEmail: (email: string, token: string): Promise<void> =>
+    post("/verify-email", { email, token }),
+
+  /** Re-send the verification link for an unverified account (anonymous). Always resolves — never reveals if account exists. */
+  resendVerification: (email: string): Promise<void> =>
+    post("/resend-verification", { email }),
 };

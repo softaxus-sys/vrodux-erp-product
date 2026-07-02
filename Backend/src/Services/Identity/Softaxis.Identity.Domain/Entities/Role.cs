@@ -14,11 +14,12 @@ public sealed class Role : AuditableEntity<Guid>
 
     private Role() { }
 
-    private Role(Guid id, string name, string description, bool isSystem) : base(id)
+    private Role(Guid id, string name, string description, bool isSystem, Guid? tenantId) : base(id)
     {
         Name        = name;
         Description = description;
         IsSystem    = isSystem;
+        TenantId    = tenantId;
         CreatedAt   = DateTime.UtcNow;
     }
 
@@ -26,10 +27,16 @@ public sealed class Role : AuditableEntity<Guid>
     public string Description { get; private set; } = string.Empty;
     public bool   IsSystem    { get; private set; }
 
+    /// <summary>
+    /// Owning tenant. Non-null = a tenant-specific role (only that tenant sees/uses it).
+    /// Null = a legacy/global role (pre-multitenancy) — hidden from all tenant role lists.
+    /// </summary>
+    public Guid?  TenantId    { get; private set; }
+
     public IReadOnlyCollection<RolePermission> RolePermissions => _rolePermissions.AsReadOnly();
     public IReadOnlyCollection<UserRole>       UserRoles       => _userRoles.AsReadOnly();
 
-    public static Result<Role> Create(string name, string description, bool isSystem = false)
+    public static Result<Role> Create(string name, string description, bool isSystem = false, Guid? tenantId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             return Result.Failure<Role>(Error.Custom("Role.Name.Empty", "Role name is required."));
@@ -37,8 +44,11 @@ public sealed class Role : AuditableEntity<Guid>
         if (name.Length > 100)
             return Result.Failure<Role>(Error.Custom("Role.Name.TooLong", "Role name cannot exceed 100 characters."));
 
-        return Result.Success(new Role(Guid.NewGuid(), name.Trim(), description.Trim(), isSystem));
+        return Result.Success(new Role(Guid.NewGuid(), name.Trim(), description.Trim(), isSystem, tenantId));
     }
+
+    /// <summary>Assign (or clear) the owning tenant. Used by provisioning/backfill.</summary>
+    public void SetTenant(Guid? tenantId) => TenantId = tenantId;
 
     public Result Update(string name, string description)
     {

@@ -217,11 +217,29 @@ export default function LoginPage() {
     } catch (err) {
       // ApiError = server responded with an error envelope → show its message.
       // Anything else (TypeError: Failed to fetch, etc.) = couldn't reach server.
-      toast.error(
-        err instanceof ApiError
-          ? (err.message || "Invalid email or password.")
-          : "Unable to reach server. Please try again."
-      );
+      if (!(err instanceof ApiError)) {
+        toast.error("Unable to reach server. Please try again.");
+        return;
+      }
+
+      const msg = err.message || "Invalid email or password.";
+      // Unverified account → offer a one-click resend of the verification link.
+      if (msg.toLowerCase().includes("verify your email")) {
+        toast.error(msg, {
+          duration: 8000,
+          action: {
+            label: "Resend link",
+            onClick: () => {
+              authApi.resendVerification(data.email)
+                .then(() => toast.success("Verification email sent. Please check your inbox."))
+                .catch(() => toast.error("Could not send the verification email."));
+            },
+          },
+        });
+        return;
+      }
+
+      toast.error(msg);
     }
   };
 

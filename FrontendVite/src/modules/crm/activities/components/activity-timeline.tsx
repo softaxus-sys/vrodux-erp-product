@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   useActivities, useCreateActivity, useCompleteActivity, useReopenActivity, useDeleteActivity,
 } from "@/hooks/crm/use-crm";
+import { useAuthStore } from "@/store/auth.store";
 import type { ActivityType } from "@/lib/crm/crm.api";
 
 const TYPES: { value: ActivityType; label: string; icon: typeof Phone }[] = [
@@ -31,6 +32,8 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
   const reopen = useReopenActivity();
   const del = useDeleteActivity();
 
+  const currentUserName = useAuthStore(s => s.user?.name) ?? "";
+
   const [type, setType] = React.useState<ActivityType>("note");
   const [subject, setSubject] = React.useState("");
   const [dueDate, setDueDate] = React.useState("");
@@ -39,10 +42,13 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
 
   const add = () => {
     if (!subject.trim()) return;
+    // Backend requires AssignedTo — use the lead/deal's assignee, else fall back to the
+    // current user so logging an activity on an unassigned record never 422s.
+    const owner = (assignedTo?.trim() || currentUserName || "Unassigned");
     create.mutate({
       type, subject: subject.trim(), description: null,
       relatedToType, relatedToId, relatedToName,
-      dueDate: needsDue && dueDate ? dueDate : null, assignedTo,
+      dueDate: needsDue && dueDate ? dueDate : null, assignedTo: owner,
     }, { onSuccess: () => { setSubject(""); setDueDate(""); } });
   };
 

@@ -13,7 +13,14 @@ public sealed record UserDto(
     string?  PhoneNumber,
     DateTime? LastLoginAt,
     DateTime CreatedAt,
-    IReadOnlyList<RoleDto> Roles
+    IReadOnlyList<RoleDto> Roles,
+    IReadOnlyList<PermissionOverrideDto> PermissionOverrides
+);
+
+public sealed record PermissionOverrideDto(
+    Guid   PermissionId,
+    string Key,
+    bool   IsGranted
 );
 
 public sealed record UserSummaryDto(

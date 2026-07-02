@@ -65,4 +65,6 @@ export const approvalsApi = {
   getAll:     (): Promise<PurchaseApprovalDto[]>   => rawApiClient(`${BASE}/approvals`),
   getSummary: (): Promise<ApprovalsSummaryDto>     => rawApiClient(`${BASE}/approvals/summary`),
   getById:    (id: string): Promise<PurchaseApprovalDto> => rawApiClient(`${BASE}/approvals/${id}`),
+  approve:    (id: string, by: string): Promise<void> => rawApiClient.post(`${BASE}/approvals/${id}/approve`, { by }),
+  reject:     (id: string, by: string, reason: string): Promise<void> => rawApiClient.post(`${BASE}/approvals/${id}/reject`, { by, reason }),
 };

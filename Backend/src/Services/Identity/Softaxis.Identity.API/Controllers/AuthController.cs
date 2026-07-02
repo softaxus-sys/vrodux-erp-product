@@ -9,6 +9,8 @@ using Softaxis.Identity.Application.Auth.Commands.RefreshToken;
 using Softaxis.Identity.Application.Auth.Commands.Register;
 using Softaxis.Identity.Application.Auth.Commands.ResetPassword;
 using Softaxis.Identity.Application.Auth.Commands.RevokeToken;
+using Softaxis.Identity.Application.Auth.Commands.VerifyEmail;
+using Softaxis.Identity.Application.Auth.Commands.ResendVerification;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
 using Softaxis.Identity.Application.Users.Commands.UpdateUser;
@@ -83,6 +85,19 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
         return HandleResult(result);
     }
 
+    /// <summary>Verify an email address using the token from the verification email.</summary>
+    [HttpPost("verify-email")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new VerifyEmailCommand(req.Email, req.Token), ct));
+
+    /// <summary>Re-send the verification link for an unverified account.</summary>
+    [HttpPost("resend-verification")]
+    [AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("forgot_password")]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new ResendVerificationCommand(req.Email), ct));
+
     // ── /me ───────────────────────────────────────────────────────────────────
 
     /// <summary>Get the current authenticated user's profile.</summary>
@@ -145,3 +160,6 @@ public sealed record ResetPasswordRequest(
     string Email,
     string Token,
     string NewPassword);
+
+public sealed record VerifyEmailRequest(string Email, string Token);
+public sealed record ResendVerificationRequest(string Email);

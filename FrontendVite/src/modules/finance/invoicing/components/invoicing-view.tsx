@@ -9,6 +9,7 @@ import { useInvoices, useInvoiceSummary, useDeleteInvoice, useSendInvoice } from
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
+import { Can } from "@/components/auth/can";
 import { toast } from "sonner";
 
 export function InvoicingView() {
@@ -94,9 +95,11 @@ export function InvoicingView() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
-          <Button size="sm" className="gap-2" onClick={handleCreate}>
-            <Plus className="h-4 w-4" /> New Invoice
-          </Button>
+          <Can permission="finance.invoicing.create">
+            <Button size="sm" className="gap-2" onClick={handleCreate}>
+              <Plus className="h-4 w-4" /> New Invoice
+            </Button>
+          </Can>
         </div>
       </div>
 

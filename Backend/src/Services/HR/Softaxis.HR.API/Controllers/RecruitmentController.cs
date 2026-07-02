@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Recruitment.Commands;
 using Softaxis.HR.Application.Recruitment.Queries;
@@ -13,6 +14,7 @@ namespace Softaxis.HR.API.Controllers;
 public sealed class RecruitmentController(ISender sender, IWebHostEnvironment env) : HrControllerBase
 {
     [HttpGet("jobs")]
+    [RequirePermission("hr.recruitment.view")]
     public async Task<IActionResult> GetJobs(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -21,10 +23,12 @@ public sealed class RecruitmentController(ISender sender, IWebHostEnvironment en
         OkOrError(await sender.Send(new GetJobPostingsQuery(page, pageSize, status), ct));
 
     [HttpGet("jobs/{id:guid}")]
+    [RequirePermission("hr.recruitment.view")]
     public async Task<IActionResult> GetJobById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetJobPostingByIdQuery(id), ct));
 
     [HttpPost("jobs")]
+    [RequirePermission("hr.recruitment.create")]
     public async Task<IActionResult> CreateJob([FromBody] CreateJobPostingCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -33,6 +37,7 @@ public sealed class RecruitmentController(ISender sender, IWebHostEnvironment en
     }
 
     [HttpPut("jobs/{id:guid}")]
+    [RequirePermission("hr.recruitment.edit")]
     public async Task<IActionResult> UpdateJob(Guid id, [FromBody] UpdateJobPostingRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(
             new UpdateJobPostingCommand(id, req.Title, req.Department, req.Branch, req.Type, req.ExperienceLevel,
@@ -40,18 +45,22 @@ public sealed class RecruitmentController(ISender sender, IWebHostEnvironment en
                 req.Description, req.Requirements, req.Responsibilities, req.Status), ct));
 
     [HttpPost("jobs/{id:guid}/publish")]
+    [RequirePermission("hr.recruitment.edit")]
     public async Task<IActionResult> PublishJob(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new PublishJobCommand(id), ct));
 
     [HttpPost("jobs/{id:guid}/status")]
+    [RequirePermission("hr.recruitment.edit")]
     public async Task<IActionResult> SetJobStatus(Guid id, [FromBody] UpdateJobStatusRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new SetJobStatusCommand(id, req.Status), ct));
 
     [HttpDelete("jobs/{id:guid}")]
+    [RequirePermission("hr.recruitment.delete")]
     public async Task<IActionResult> DeleteJob(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteJobCommand(id), ct));
 
     [HttpGet("applicants")]
+    [RequirePermission("hr.recruitment.view")]
     public async Task<IActionResult> GetApplicants(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -61,10 +70,12 @@ public sealed class RecruitmentController(ISender sender, IWebHostEnvironment en
         OkOrError(await sender.Send(new GetApplicantsQuery(page, pageSize, jobId, stage), ct));
 
     [HttpGet("applicants/{id:guid}")]
+    [RequirePermission("hr.recruitment.view")]
     public async Task<IActionResult> GetApplicantById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetApplicantByIdQuery(id), ct));
 
     [HttpGet("applicants/{id:guid}/resume")]
+    [RequirePermission("hr.recruitment.view")]
     public async Task<IActionResult> GetApplicantResume(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetApplicantResumeQuery(id), ct);
@@ -83,6 +94,7 @@ public sealed class RecruitmentController(ISender sender, IWebHostEnvironment en
     }
 
     [HttpPost("applicants")]
+    [RequirePermission("hr.recruitment.create")]
     public async Task<IActionResult> CreateApplicant([FromBody] CreateApplicantCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -91,14 +103,17 @@ public sealed class RecruitmentController(ISender sender, IWebHostEnvironment en
     }
 
     [HttpPut("applicants/{id:guid}/stage")]
+    [RequirePermission("hr.recruitment.edit")]
     public async Task<IActionResult> UpdateApplicantStage(Guid id, [FromBody] UpdateApplicantStageRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new UpdateApplicantStageCommand(id, req.Stage), ct));
 
     [HttpDelete("applicants/{id:guid}")]
+    [RequirePermission("hr.recruitment.delete")]
     public async Task<IActionResult> DeleteApplicant(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteApplicantCommand(id), ct));
 
     [HttpGet("summary")]
+    [RequirePermission("hr.recruitment.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct) =>
         OkOrError(await sender.Send(new GetRecruitmentSummaryQuery(), ct));
 

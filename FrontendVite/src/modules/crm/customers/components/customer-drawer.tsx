@@ -6,7 +6,7 @@ import {
   PhoneCall, Users, FileText, MessageSquare, Edit,
   ChevronRight, CheckCircle2, Clock, XCircle, Award
 } from "lucide-react";
-import { Trash2, Pencil } from "lucide-react";
+import { Trash2, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
@@ -14,6 +14,7 @@ import type { CustomerDto as Customer } from "@/lib/crm/crm.api";
 import { useDeleteCustomer } from "@/hooks/crm/use-crm";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
 import { ContactsPanel } from "./contacts-panel";
+import { Can } from "@/components/auth/can";
 
 type Tab = "overview" | "contacts" | "deals" | "activity";
 
@@ -63,6 +64,8 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
   const [tab, setTab] = React.useState<Tab>("overview");
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
   const del = useDeleteCustomer();
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
 
   if (!customer) return null;
   const tier = TIER_CONFIG[customer.tier];
@@ -236,11 +239,37 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex items-center gap-2">
               <Button size="sm" className="gap-1.5 h-9" onClick={() => setTab("activity")}><MessageSquare className="h-3.5 w-3.5" />Log Activity</Button>
-              <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:bg-destructive/5 ml-auto" disabled={del.isPending}
-                onClick={() => { if (confirm(`Delete customer "${customer.name}"?`)) del.mutate(customer.id, { onSuccess: onClose }); }}>
-                <Trash2 className="h-3.5 w-3.5" />Delete
-              </Button>
+              <Can permission="crm.customers.delete">
+                <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:bg-destructive/5 ml-auto" disabled={del.isPending}
+                  onClick={() => setConfirmDelete(true)}>
+                  <Trash2 className="h-3.5 w-3.5" />Delete
+                </Button>
+              </Can>
             </div>
+
+            {/* Delete confirmation */}
+            <AnimatePresence>
+              {confirmDelete && (
+                <>
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-black/40 z-[60]" onClick={() => setConfirmDelete(false)} />
+                  <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+                    className="absolute inset-x-6 top-1/3 z-[61] rounded-xl border border-border bg-background p-5 shadow-2xl">
+                    <p className="font-semibold text-sm">Delete customer?</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      This will permanently delete <span className="font-medium text-foreground">{customer.name}</span>. This cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)} disabled={del.isPending}>Cancel</Button>
+                      <Button size="sm" className="bg-destructive hover:bg-destructive/90 gap-1.5" disabled={del.isPending}
+                        onClick={() => del.mutate(customer.id, { onSuccess: onClose })}>
+                        {del.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}Delete
+                      </Button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </motion.div>
         </>
       )}

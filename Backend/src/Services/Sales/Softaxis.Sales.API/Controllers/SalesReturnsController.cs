@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Sales.API.Authorization;
 using Softaxis.Sales.Domain.Entities;
 using Softaxis.Sales.Infrastructure.Persistence;
 
@@ -19,6 +20,7 @@ public sealed class SalesReturnsController(SalesDbContext db) : ControllerBase
         DateTime CreatedAt, DateTime? UpdatedAt);
 
     [HttpGet("summary")]
+    [RequirePermission("sales.returns.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var all = await db.SalesReturns.AsNoTracking().Where(x => !x.IsDeleted)
@@ -32,6 +34,7 @@ public sealed class SalesReturnsController(SalesDbContext db) : ControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("sales.returns.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var items = await db.SalesReturns.AsNoTracking().Include(x => x.Items)
@@ -40,6 +43,7 @@ public sealed class SalesReturnsController(SalesDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("sales.returns.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var r = await db.SalesReturns.AsNoTracking().Include(x => x.Items)
@@ -48,6 +52,7 @@ public sealed class SalesReturnsController(SalesDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("sales.returns.create")]
     public async Task<IActionResult> Create([FromBody] CreateReturnRequest req, CancellationToken ct)
     {
         var r = new SalesReturn(req.OrderId, req.OrderNumber, req.CustomerId, req.CustomerName, req.Reason, req.ReasonDetail);
@@ -58,6 +63,7 @@ public sealed class SalesReturnsController(SalesDbContext db) : ControllerBase
     }
 
     [HttpPost("{id:guid}/approve")]
+    [RequirePermission("sales.returns.approve")]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ActionRequest req, CancellationToken ct)
     {
         var r = await db.SalesReturns.FindAsync([id], ct);
@@ -67,7 +73,9 @@ public sealed class SalesReturnsController(SalesDbContext db) : ControllerBase
         return NoContent();
     }
 
+    // No sales.returns.reject/edit key — reject is the approval workflow's counterpart, gate on approve.
     [HttpPost("{id:guid}/reject")]
+    [RequirePermission("sales.returns.approve")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] ActionRequest req, CancellationToken ct)
     {
         var r = await db.SalesReturns.FindAsync([id], ct);

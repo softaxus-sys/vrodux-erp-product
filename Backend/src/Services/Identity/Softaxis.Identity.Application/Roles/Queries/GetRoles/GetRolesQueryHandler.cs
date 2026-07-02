@@ -1,17 +1,23 @@
 ﻿using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Application.Roles.Queries.GetRoles;
 
-public sealed class GetRolesQueryHandler(IRoleRepository roleRepo)
+public sealed class GetRolesQueryHandler(
+    IRoleRepository roleRepo,
+    ICurrentUser    currentUser,
+    ITenantContext  tenantContext)
     : IQueryHandler<GetRolesQuery, PagedResult<RoleSummaryDto>>
 {
     public async Task<Result<PagedResult<RoleSummaryDto>>> Handle(GetRolesQuery query, CancellationToken ct)
     {
-        var paged = await roleRepo.GetPagedAsync(query.Page, query.PageSize, query.Search, ct);
+        // Tenants only ever see their own roles; super-admins see all.
+        Guid? tenantScope = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
+        var paged = await roleRepo.GetPagedAsync(query.Page, query.PageSize, query.Search, tenantScope, ct);
         var dtos  = paged.Items
             .Select(r => new RoleSummaryDto(
                 r.Id, r.Name, r.Description, r.IsSystem, r.UserRoles.Count,

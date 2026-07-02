@@ -28,6 +28,7 @@ import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddJobPostingForm } from "./add-job-posting-form";
 import { AddApplicantForm } from "./add-applicant-form";
+import { Can } from "@/components/auth/can";
 
 const JOB_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   open:     { label: "Open",     color: "text-success",          bg: "bg-success/10" },
@@ -303,7 +304,7 @@ export function RecruitmentView() {
             </Button>
           )}
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Post Job</Button>
+          <Can permission="hr.recruitment.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Post Job</Button></Can>
         </div>
       </div>
 

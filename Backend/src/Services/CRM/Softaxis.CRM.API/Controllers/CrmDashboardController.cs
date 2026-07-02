@@ -1,12 +1,15 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.Dashboard.Queries;
 
 namespace Softaxis.CRM.API.Controllers;
 
+// Read-only CRM overview — requires the primary CRM view permission.
 [ApiController][Route("api/crm/dashboard")][Authorize]
+[RequirePermission("crm.leads.view")]
 public sealed class CrmDashboardController(ISender sender) : CrmControllerBase
 {
     [HttpGet]

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Inventory.API.Authorization;
 using Softaxis.Inventory.Application.StockMovements.Commands.CreateStockMovement;
 using Softaxis.Inventory.Application.StockMovements.Queries.GetStockMovements;
 
@@ -14,6 +15,7 @@ public sealed class StockMovementsController(ISender sender) : BaseApiController
 {
     // ── GET /api/inventory/stock-movements ───────────────────────────────────
     [HttpGet]
+    [RequirePermission("inventory.movements.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int      page         = 1,
         [FromQuery] int      pageSize     = 20,
@@ -28,6 +30,7 @@ public sealed class StockMovementsController(ISender sender) : BaseApiController
 
     // ── POST /api/inventory/stock-movements ──────────────────────────────────
     [HttpPost]
+    [RequirePermission("inventory.movements.create")]
     public async Task<IActionResult> Create([FromBody] CreateMovementRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new CreateStockMovementCommand(

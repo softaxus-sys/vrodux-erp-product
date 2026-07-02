@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.Deals.Commands;
 using Softaxis.CRM.Application.Deals.Queries;
@@ -11,6 +12,7 @@ namespace Softaxis.CRM.API.Controllers;
 public sealed class PipelineController(ISender sender) : CrmControllerBase
 {
     [HttpGet("summary")]
+    [RequirePermission("crm.pipeline.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetDealsSummaryQuery(), ct);
@@ -18,6 +20,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet]
+    [RequirePermission("crm.pipeline.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await sender.Send(new GetDealsQuery(), ct);
@@ -25,6 +28,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("crm.pipeline.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetDealByIdQuery(id), ct);
@@ -32,6 +36,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("crm.pipeline.create")]
     public async Task<IActionResult> Create([FromBody] CreateDealCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -39,6 +44,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("crm.pipeline.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDealRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateDealCommand(id, req.Title, req.Company, req.Value, req.Stage,
@@ -48,13 +54,16 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("{id:guid}/stage")]
+    [RequirePermission("crm.pipeline.edit")]
     public async Task<IActionResult> MoveStage(Guid id, [FromBody] StageReq req, CancellationToken ct)
     {
         var result = await sender.Send(new MoveDealStageCommand(id, req.Stage, req.Probability), ct);
         return NoContentOrError(result);
     }
 
+    // No crm.pipeline.delete key seeded — gate delete on the nearest key (edit).
     [HttpDelete("{id:guid}")]
+    [RequirePermission("crm.pipeline.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteDealCommand(id), ct);

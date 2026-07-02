@@ -11,6 +11,7 @@ import {
   useCreatePlan, useSetPlanStatus, useDeletePlan,
 } from "@/hooks/healthcare/use-healthcare";
 import type { PatientDto } from "@/lib/healthcare/healthcare.api";
+import { Can } from "@/components/auth/can";
 
 type Tab = "patients" | "appointments" | "treatments";
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
@@ -65,9 +66,9 @@ export function HealthcareView() {
   );
 }
 
-function AddBar({ open, setOpen, label, children, onSave, saving, canSave }:
-  { open: boolean; setOpen: (v: boolean) => void; label: string; children: React.ReactNode; onSave: () => void; saving: boolean; canSave: boolean }) {
-  if (!open) return <Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{label}</Button>;
+function AddBar({ open, setOpen, label, children, onSave, saving, canSave, perm }:
+  { open: boolean; setOpen: (v: boolean) => void; label: string; children: React.ReactNode; onSave: () => void; saving: boolean; canSave: boolean; perm?: string }) {
+  if (!open) return <Can permission={perm}><Button size="sm" className="gap-1.5" onClick={() => setOpen(true)}><Plus className="h-4 w-4" />{label}</Button></Can>;
   return (
     <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex flex-wrap items-center gap-2">
       {children}
@@ -107,7 +108,7 @@ function PatientsTab() {
     { onSuccess: () => { setOpen(false); setName(""); setPhone(""); setDoctor(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="Register Patient" onSave={save} saving={create.isPending} canSave={!!name.trim()}>
+      <AddBar perm="healthcare.patients.create" open={open} setOpen={setOpen} label="Register Patient" onSave={save} saving={create.isPending} canSave={!!name.trim()}>
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" className="h-9 w-44 text-sm" />
         <select value={gender} onChange={e => setGender(e.target.value)} className="h-9 px-2 rounded-lg border border-border bg-background text-sm"><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select>
         <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone" className="h-9 w-36 text-sm" />
@@ -122,7 +123,7 @@ function PatientsTab() {
             <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.phone || "—"}</td>
             <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.assignedDoctor || "—"}</td>
             <td className="px-4 py-2.5"><span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", badge(p.status))}>{p.status}</span></td>
-            <td className="px-4 py-2.5 text-right"><button title="Delete" onClick={() => del.mutate(p.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></td>
+            <td className="px-4 py-2.5 text-right"><Can permission="healthcare.patients.delete"><button title="Delete" onClick={() => del.mutate(p.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can></td>
           </tr>
         ))}
       </Table>
@@ -139,7 +140,7 @@ function AppointmentsTab({ patients }: { patients: PatientDto[] }) {
     { onSuccess: () => { setOpen(false); setPid(""); setPname(""); setDoctor(""); setReason(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="Book Appointment" onSave={save} saving={create.isPending} canSave={!!pid && !!doctor.trim()}>
+      <AddBar perm="healthcare.appointments.create" open={open} setOpen={setOpen} label="Book Appointment" onSave={save} saving={create.isPending} canSave={!!pid && !!doctor.trim()}>
         <PatientSelect value={pid} onChange={(id, n) => { setPid(id); setPname(n); }} patients={patients} />
         <Input value={doctor} onChange={e => setDoctor(e.target.value)} placeholder="Doctor" className="h-9 w-36 text-sm" />
         <Input type="date" value={when} onChange={e => setWhen(e.target.value)} className="h-9 w-40 text-sm" />
@@ -155,7 +156,7 @@ function AppointmentsTab({ patients }: { patients: PatientDto[] }) {
             <td className="px-4 py-2.5"><span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", badge(a.status))}>{a.status.replace("_", " ")}</span></td>
             <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
               {a.status === "scheduled" && <button title="Mark completed" onClick={() => setStatus.mutate({ id: a.id, status: "completed" })} className="p-1.5 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>}
-              <button title="Delete" onClick={() => del.mutate(a.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              <Can permission="healthcare.appointments.delete"><button title="Delete" onClick={() => del.mutate(a.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
             </div></td>
           </tr>
         ))}
@@ -173,7 +174,7 @@ function TreatmentsTab({ patients }: { patients: PatientDto[] }) {
     { onSuccess: () => { setOpen(false); setPid(""); setPname(""); setDx(""); setPlan(""); setDoctor(""); } });
   return (
     <div className="space-y-3">
-      <AddBar open={open} setOpen={setOpen} label="New Treatment Plan" onSave={save} saving={create.isPending} canSave={!!pid && !!dx.trim() && !!plan.trim()}>
+      <AddBar perm="healthcare.treatment-plans.create" open={open} setOpen={setOpen} label="New Treatment Plan" onSave={save} saving={create.isPending} canSave={!!pid && !!dx.trim() && !!plan.trim()}>
         <PatientSelect value={pid} onChange={(id, n) => { setPid(id); setPname(n); }} patients={patients} />
         <Input value={dx} onChange={e => setDx(e.target.value)} placeholder="Diagnosis" className="h-9 w-44 text-sm" />
         <Input value={plan} onChange={e => setPlan(e.target.value)} placeholder="Plan" className="h-9 w-52 text-sm" />
@@ -189,7 +190,7 @@ function TreatmentsTab({ patients }: { patients: PatientDto[] }) {
             <td className="px-4 py-2.5"><span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize", badge(t.status))}>{t.status.replace("_", " ")}</span></td>
             <td className="px-4 py-2.5 text-right"><div className="flex items-center justify-end gap-1">
               {t.status === "active" && <button title="Mark completed" onClick={() => setStatus.mutate({ id: t.id, status: "completed" })} className="p-1.5 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>}
-              <button title="Delete" onClick={() => del.mutate(t.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              <Can permission="healthcare.treatment-plans.delete"><button title="Delete" onClick={() => del.mutate(t.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button></Can>
             </div></td>
           </tr>
         ))}

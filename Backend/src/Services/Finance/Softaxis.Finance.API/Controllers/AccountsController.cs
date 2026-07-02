@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Accounts.Commands;
 using Softaxis.Finance.Application.Accounts.Queries;
@@ -15,11 +16,13 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
 
     /// <summary>GET /api/finance/accounts/summary</summary>
     [HttpGet("summary")]
+    [RequirePermission("finance.accounting.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct) =>
         OkOrError(await sender.Send(new GetAccountsSummaryQuery(), ct));
 
     /// <summary>GET /api/finance/accounts?search=&accountType=asset&isActive=true</summary>
     [HttpGet]
+    [RequirePermission("finance.accounting.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search      = null,
         [FromQuery] string? accountType = null,
@@ -29,6 +32,7 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
 
     /// <summary>GET /api/finance/accounts/{id}</summary>
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.accounting.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetAccountByIdQuery(id), ct));
 
@@ -36,6 +40,7 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
 
     /// <summary>POST /api/finance/accounts</summary>
     [HttpPost]
+    [RequirePermission("finance.accounting.create")]
     public async Task<IActionResult> Create(
         [FromBody] CreateAccountCommand cmd, CancellationToken ct)
     {
@@ -46,6 +51,7 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
 
     /// <summary>PUT /api/finance/accounts/{id}</summary>
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.accounting.edit")]
     public async Task<IActionResult> Update(
         Guid id,
         [FromBody] UpdateAccountRequest req,
@@ -56,6 +62,7 @@ public sealed class AccountsController(ISender sender) : FinanceControllerBase
 
     /// <summary>DELETE /api/finance/accounts/{id}</summary>
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.accounting.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteAccountCommand(id), ct));
 

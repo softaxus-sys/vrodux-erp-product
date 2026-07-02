@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
+import { useUsers } from "@/hooks/identity/use-users";
 import type { LeadDto } from "@/lib/crm/crm.api";
 
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -22,6 +23,11 @@ interface AddLeadFormProps {
 
 export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const isEdit = !!editing;
+  // Real tenant users this lead can be assigned to. The Identity /users endpoint is
+  // tenant-scoped server-side (non-super-admins only get their own tenant's users);
+  // here we further limit to active accounts so you can't assign to a disabled user.
+  const { data: usersPage } = useUsers({ pageSize: 200 });
+  const assignableUsers = (usersPage?.items ?? []).filter(u => u.status?.toLowerCase() === "active");
   const [firstName, setFirstName]     = React.useState("");
   const [lastName, setLastName]       = React.useState("");
   const [email, setEmail]             = React.useState("");
@@ -188,7 +194,16 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned To</label>
-                    <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Sales rep name…" className="h-9 text-sm" />
+                    <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
+                      className="h-9 w-full px-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      <option value="">Unassigned</option>
+                      {assignableUsers.map(u => <option key={u.id} value={u.fullName}>{u.fullName}</option>)}
+                      {/* Keep a stale assignee visible when editing even if they're no longer listed */}
+                      {assignedTo && !assignableUsers.some(u => u.fullName === assignedTo) && (
+                        <option value={assignedTo}>{assignedTo}</option>
+                      )}
+                    </select>
+                    <p className="text-[11px] text-muted-foreground">The chosen user sees this lead under “Assigned to me” on the Leads page.</p>
                   </div>
                 </div>
               </div>

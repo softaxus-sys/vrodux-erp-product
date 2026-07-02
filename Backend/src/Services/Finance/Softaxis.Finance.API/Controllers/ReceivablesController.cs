@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.Reports.Queries;
 
@@ -9,6 +10,7 @@ namespace Softaxis.Finance.API.Controllers;
 [ApiController]
 [Route("api/finance/ar")]
 [Authorize]
+[RequirePermission("finance.invoicing.view")]
 public sealed class ReceivablesController(ISender sender) : FinanceControllerBase
 {
     [HttpGet("aging")]

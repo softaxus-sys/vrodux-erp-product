@@ -1,16 +1,20 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.Activities.Commands;
 using Softaxis.CRM.Application.Activities.Queries;
 
 namespace Softaxis.CRM.API.Controllers;
 
+// Activities are the follow-up/task layer over leads & deals; there is no dedicated
+// crm.activities permission group seeded, so we gate on the nearest key (crm.leads).
 [ApiController][Route("api/crm/activities")][Authorize]
 public sealed class ActivitiesController(ISender sender) : CrmControllerBase
 {
     [HttpGet]
+    [RequirePermission("crm.leads.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? relatedToType, [FromQuery] Guid? relatedToId,
         [FromQuery] bool? completed, [FromQuery] string? type, CancellationToken ct)
@@ -20,6 +24,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet("summary")]
+    [RequirePermission("crm.leads.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetActivitiesSummaryQuery(), ct);
@@ -27,6 +32,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost]
+    [RequirePermission("crm.leads.create")]
     public async Task<IActionResult> Create([FromBody] CreateActivityCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -34,6 +40,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateActivityRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateActivityCommand(id, req.Type, req.Subject, req.Description, req.DueDate, req.AssignedTo), ct);
@@ -41,6 +48,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("{id:guid}/complete")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new CompleteActivityCommand(id), ct);
@@ -48,6 +56,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("{id:guid}/reopen")]
+    [RequirePermission("crm.leads.edit")]
     public async Task<IActionResult> Reopen(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new ReopenActivityCommand(id), ct);
@@ -55,6 +64,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("crm.leads.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteActivityCommand(id), ct);

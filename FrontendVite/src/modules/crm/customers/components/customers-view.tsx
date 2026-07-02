@@ -16,6 +16,7 @@ import { useCustomers, useCustomersSummary } from "@/hooks/crm/use-crm";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
+import { Can } from "@/components/auth/can";
 
 type ViewMode = "list" | "grid";
 
@@ -172,7 +173,9 @@ export function CustomersView() {
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingCustomer(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Customer</Button>
+          <Can permission="crm.customers.create">
+            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingCustomer(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Customer</Button>
+          </Can>
         </div>
       </div>
 

@@ -127,14 +127,19 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   }
 }
 
-/** Extract raw backend permission keys (e.g. "pos.transactions.void") from UserDto. */
+/**
+ * Extract the *effective* raw backend permission keys (e.g. "pos.transactions.void") from a UserDto.
+ * Effective = (role permissions ∪ user grants) − user denies. Deny always wins, mirroring the backend
+ * `PermissionRepository.GetPermissionKeysForUserAsync` so the store stays consistent with the JWT.
+ */
 export function extractRawPermissions(dto: UserDto): string[] {
   const keys = new Set<string>();
   for (const role of dto.roles) {
-    for (const perm of role.permissions) {
-      keys.add(perm.key);
-    }
+    for (const perm of role.permissions) keys.add(perm.key);
   }
+  const overrides = dto.permissionOverrides ?? [];
+  for (const o of overrides) if (o.isGranted) keys.add(o.key);   // grants add
+  for (const o of overrides) if (!o.isGranted) keys.delete(o.key); // denies remove (last — wins)
   return [...keys];
 }
 

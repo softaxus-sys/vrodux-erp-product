@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.Inventory.Domain.Entities;
 using Softaxis.Inventory.Domain.Repositories;
@@ -40,8 +41,11 @@ public sealed class StockMovementRepository(InventoryDbContext db) : IStockMovem
 
     public async Task<bool> AdjustPosProductStockAsync(Guid productId, decimal delta, CancellationToken ct = default)
     {
+        // Raw SQL bypasses the EF tenant filter — guard the cross-schema update by tenant.
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
         var rows = await db.Database.ExecuteSqlInterpolatedAsync(
-            $"UPDATE [pos].[products] SET StockQuantity = StockQuantity + {delta} WHERE Id = {productId} AND IsDeleted = 0",
+            $"UPDATE [pos].[products] SET StockQuantity = StockQuantity + {delta} WHERE Id = {productId} AND IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})",
             ct);
         return rows > 0;
     }

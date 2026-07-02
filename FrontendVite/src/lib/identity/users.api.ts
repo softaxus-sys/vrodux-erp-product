@@ -56,6 +56,13 @@ export const usersApi = {
   removeRole: (userId: string, roleId: string): Promise<void> =>
     apiClient.delete<void>(`${BASE}/${userId}/roles/${roleId}`),
 
+  /** Replace all per-user permission overrides (grants + denies). Empty list clears them. */
+  updatePermissions: (
+    userId: string,
+    overrides: { permissionId: string; isGranted: boolean }[]
+  ): Promise<UserDto> =>
+    apiClient.put<UserDto>(`${BASE}/${userId}/permissions`, { overrides }),
+
   changePassword: (
     userId: string,
     currentPassword: string,

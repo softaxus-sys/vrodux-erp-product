@@ -44,6 +44,7 @@ public static class InfrastructureExtensions
         services.AddSingleton<ITrialChallengeService,  TrialChallengeService>();
         services.AddScoped<ILicenseService,            LicenseService>();
         services.AddScoped<IEmailService,              SmtpEmailService>();
+        services.AddScoped<ITenantRoleProvisioner,     TenantRoleProvisioner>();
 
         // ── Tenant context (scoped — reset per request) ───────────────────────
         services.AddScoped<TenantContextService>();
@@ -91,6 +92,63 @@ public static class InfrastructureExtensions
         await SeedSuperAdminAsync(db, passwordHasher);   // always runs — idempotent
         await SeedPOSRolesAsync(db, passwordHasher);
         await SyncAdministratorPermissionsAsync(db);     // always runs — idempotent
+        await BackfillTenantRolesAsync(scope.ServiceProvider, db); // per-tenant roles + re-point admins
+    }
+
+    /// <summary>
+    /// Gives every existing tenant its own role set (Administrator + per-module Managers) and
+    /// re-points users who still hold the legacy GLOBAL Administrator onto their tenant's own
+    /// Administrator. Idempotent + non-destructive: it never removes a user's access (the new
+    /// Administrator carries the same full permission set) and never deletes legacy roles —
+    /// those simply stop appearing in any tenant's list once role queries are tenant-scoped.
+    /// </summary>
+    private static async Task BackfillTenantRolesAsync(IServiceProvider sp, IdentityDbContext db)
+    {
+        var tenants = await db.Set<Identity.Domain.Entities.Tenant>().ToListAsync();
+        if (tenants.Count == 0) return;
+
+        var provisioner = sp.GetRequiredService<ITenantRoleProvisioner>();
+
+        // Legacy global Administrator role(s): TenantId == null (pre-per-tenant).
+        var globalAdminIds = await db.Set<Identity.Domain.Entities.Role>()
+            .Where(r => r.TenantId == null && r.Name == "Administrator")
+            .Select(r => r.Id)
+            .ToListAsync();
+        var globalAdminSet = globalAdminIds.ToHashSet();
+
+        var changed = false;
+        foreach (var tenant in tenants)
+        {
+            // 1) Ensure this tenant owns an Administrator (and per-module Managers).
+            var tenantAdmin = await db.Set<Identity.Domain.Entities.Role>()
+                .FirstOrDefaultAsync(r => r.TenantId == tenant.Id && r.Name == "Administrator");
+            if (tenantAdmin is null)
+            {
+                IReadOnlyList<string> modules;
+                try { modules = tenant.ResolvedModules; } catch { modules = []; }
+                tenantAdmin = await provisioner.ProvisionAsync(tenant.Id, modules);
+                changed = true;
+            }
+
+            // 2) Re-point this tenant's users off any legacy global Administrator onto their own.
+            if (globalAdminSet.Count > 0)
+            {
+                var users = await db.Users
+                    .Include(u => u.UserRoles)
+                    .Where(u => u.TenantId == tenant.Id)
+                    .ToListAsync();
+
+                foreach (var u in users)
+                {
+                    if (!u.UserRoles.Any(ur => globalAdminSet.Contains(ur.RoleId))) continue;
+                    u.AssignRole(tenantAdmin.Id);
+                    foreach (var gid in globalAdminIds) u.RemoveRole(gid);
+                    changed = true;
+                }
+            }
+        }
+
+        if (changed) await db.SaveChangesAsync();
     }
 
     /// <summary>

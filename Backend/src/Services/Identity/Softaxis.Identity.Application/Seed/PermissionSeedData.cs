@@ -48,6 +48,26 @@ public static class PermissionSeedData
         ["crm.pipeline"]         = ["view","create","edit","export"],
         ["crm.customers"]        = ["view","create","edit","delete","export"],
 
+        // CRM industry packs — B2B (Proposals → Contracts → Support Tickets)
+        ["b2b.proposals"]        = ["view","create","edit","delete"],
+        ["b2b.contracts"]        = ["view","create","edit","delete"],
+        ["b2b.tickets"]          = ["view","create","edit","delete"],
+
+        // CRM industry packs — Education (Admissions → Students → Enrollments)
+        ["education.admissions"] = ["view","create","edit","delete"],
+        ["education.students"]   = ["view","create","edit","delete"],
+        ["education.enrollments"]= ["view","create","edit","delete"],
+
+        // CRM industry packs — Healthcare (Patients → Appointments → Treatment Plans)
+        ["healthcare.patients"]         = ["view","create","edit","delete"],
+        ["healthcare.appointments"]     = ["view","create","edit","delete"],
+        ["healthcare.treatment-plans"]  = ["view","create","edit","delete"],
+
+        // CRM industry packs — Insurance (Policies → Renewals → Claims)
+        ["insurance.policies"]   = ["view","create","edit","delete"],
+        ["insurance.renewals"]   = ["view","create","edit","delete"],
+        ["insurance.claims"]     = ["view","create","edit","delete","approve"],
+
         // Sales
         ["sales.quotations"]     = ["view","create","edit","delete","approve","export","print"],
         ["sales.orders"]         = ["view","create","edit","approve","export","print"],

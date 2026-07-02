@@ -13,6 +13,8 @@ import {
 } from "@/hooks/identity/use-users";
 import { useRoles } from "@/hooks/identity/use-roles";
 import type { UserSummaryDto, UserDto } from "@/lib/identity/types";
+import { UserPermissionsTab } from "./user-permissions-tab";
+import { Can } from "@/components/auth/can";
 
 // ── Local role/status config ──────────────────────────────────────────────────
 
@@ -119,6 +121,7 @@ function UserDrawer({
   onDelete: (user: UserDto) => void;
 }) {
   const { data: user, isLoading } = useUser(userId);
+  const [tab, setTab] = React.useState<"profile" | "permissions">("profile");
 
   return (
     <>
@@ -128,18 +131,46 @@ function UserDrawer({
         className="fixed inset-0 bg-black/40 z-40"
         onClick={onClose}
       />
-      {/* Panel */}
+      {/* Panel — widens for the permission matrix */}
       <motion.div
         initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-        className="fixed right-0 top-0 h-full w-full max-w-md bg-background border-l border-border z-50 flex flex-col"
+        className={cn(
+          "fixed right-0 top-0 h-full w-full bg-background border-l border-border z-50 flex flex-col transition-[max-width] duration-300",
+          tab === "permissions" ? "max-w-3xl" : "max-w-md",
+        )}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-semibold">User Profile</h2>
+          <div className="flex items-center gap-1">
+            {(["profile", "permissions"] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors",
+                  tab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/40",
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
 
+        {tab === "permissions" ? (
+          isLoading ? (
+            <div className="flex items-center justify-center flex-1">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : user ? (
+            <UserPermissionsTab user={user} />
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-16">User not found.</p>
+          )
+        ) : (
+        <>
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
@@ -244,6 +275,8 @@ function UserDrawer({
             </Button>
           )}
         </div>
+        </>
+        )}
       </motion.div>
     </>
   );
@@ -535,9 +568,11 @@ export function UsersView() {
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
           </Button>
-          <Button className="gap-2" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" />Create User
-          </Button>
+          <Can permission="settings.users.create">
+            <Button className="gap-2" onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4" />Create User
+            </Button>
+          </Can>
         </div>
       </div>
 

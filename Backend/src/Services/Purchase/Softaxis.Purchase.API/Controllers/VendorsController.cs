@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.Purchase.API.Authorization;
 using Softaxis.Purchase.Domain.Entities;
 using Softaxis.Purchase.Infrastructure.Persistence;
 
@@ -57,6 +58,7 @@ public sealed class VendorsController(PurchaseDbContext db) : ControllerBase
 
     // ── GET /api/purchase/vendors ─────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("purchase.vendors.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page     = 1,
         [FromQuery] int     pageSize = 20,
@@ -99,6 +101,7 @@ public sealed class VendorsController(PurchaseDbContext db) : ControllerBase
 
     // ── GET /api/purchase/vendors/{id} ───────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("purchase.vendors.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var v = await db.Vendors
@@ -117,6 +120,7 @@ public sealed class VendorsController(PurchaseDbContext db) : ControllerBase
 
     // ── POST /api/purchase/vendors ────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("purchase.vendors.create")]
     public async Task<IActionResult> Create([FromBody] UpsertVendorRequest req, CancellationToken ct)
     {
         var vendor = new Vendor(req.Name, req.Code, req.Category, req.ContactPerson,
@@ -140,6 +144,7 @@ public sealed class VendorsController(PurchaseDbContext db) : ControllerBase
 
     // ── PUT /api/purchase/vendors/{id} ───────────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("purchase.vendors.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertVendorRequest req, CancellationToken ct)
     {
         var vendor = await db.Vendors.FindAsync([id], ct);
@@ -155,6 +160,7 @@ public sealed class VendorsController(PurchaseDbContext db) : ControllerBase
 
     // ── DELETE /api/purchase/vendors/{id} ────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("purchase.vendors.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var vendor = await db.Vendors.FindAsync([id], ct);

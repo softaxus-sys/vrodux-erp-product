@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
 using Softaxis.CRM.Application.B2B.Commands;
 using Softaxis.CRM.Application.B2B.Queries;
@@ -14,7 +15,9 @@ namespace Softaxis.CRM.API.Controllers;
 [ApiController][Route("api/b2b")][Authorize]
 public sealed class B2BController(ISender sender) : CrmControllerBase
 {
+    // Cross-feature overview — gate on the pack's primary sub-feature view.
     [HttpGet("summary")]
+    [RequirePermission("b2b.proposals.view")]
     public async Task<IActionResult> Summary(CancellationToken ct)
     {
         var result = await sender.Send(new GetB2BSummaryQuery(), ct);
@@ -23,6 +26,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
 
     // ── Proposals ─────────────────────────────────────────────────────────────
     [HttpGet("proposals")]
+    [RequirePermission("b2b.proposals.view")]
     public async Task<IActionResult> GetProposals(CancellationToken ct)
     {
         var result = await sender.Send(new GetProposalsQuery(), ct);
@@ -30,6 +34,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("proposals")]
+    [RequirePermission("b2b.proposals.create")]
     public async Task<IActionResult> CreateProposal([FromBody] CreateProposalCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -37,6 +42,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("proposals/{id:guid}/status")]
+    [RequirePermission("b2b.proposals.edit")]
     public async Task<IActionResult> ProposalStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateProposalStatusCommand(id, r.Status), ct);
@@ -44,6 +50,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("proposals/{id:guid}")]
+    [RequirePermission("b2b.proposals.delete")]
     public async Task<IActionResult> DeleteProposal(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteProposalCommand(id), ct);
@@ -52,6 +59,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
 
     // ── Service Contracts ─────────────────────────────────────────────────────
     [HttpGet("contracts")]
+    [RequirePermission("b2b.contracts.view")]
     public async Task<IActionResult> GetContracts(CancellationToken ct)
     {
         var result = await sender.Send(new GetContractsQuery(), ct);
@@ -59,6 +67,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("contracts")]
+    [RequirePermission("b2b.contracts.create")]
     public async Task<IActionResult> CreateContract([FromBody] CreateContractCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -66,6 +75,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("contracts/{id:guid}/status")]
+    [RequirePermission("b2b.contracts.edit")]
     public async Task<IActionResult> ContractStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateContractStatusCommand(id, r.Status), ct);
@@ -73,6 +83,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("contracts/{id:guid}")]
+    [RequirePermission("b2b.contracts.delete")]
     public async Task<IActionResult> DeleteContract(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteContractCommand(id), ct);
@@ -81,6 +92,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
 
     // ── Support Tickets ───────────────────────────────────────────────────────
     [HttpGet("tickets")]
+    [RequirePermission("b2b.tickets.view")]
     public async Task<IActionResult> GetTickets(CancellationToken ct)
     {
         var result = await sender.Send(new GetTicketsQuery(), ct);
@@ -88,6 +100,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("tickets")]
+    [RequirePermission("b2b.tickets.create")]
     public async Task<IActionResult> CreateTicket([FromBody] CreateTicketCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -95,6 +108,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("tickets/{id:guid}/resolve")]
+    [RequirePermission("b2b.tickets.edit")]
     public async Task<IActionResult> Resolve(Guid id, [FromBody] ResolveReq r, CancellationToken ct)
     {
         var result = await sender.Send(new ResolveTicketCommand(id, r.Resolution), ct);
@@ -102,6 +116,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("tickets/{id:guid}/status")]
+    [RequirePermission("b2b.tickets.edit")]
     public async Task<IActionResult> TicketStatus(Guid id, [FromBody] StatusReq r, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateTicketStatusCommand(id, r.Status), ct);
@@ -109,6 +124,7 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("tickets/{id:guid}")]
+    [RequirePermission("b2b.tickets.delete")]
     public async Task<IActionResult> DeleteTicket(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteTicketCommand(id), ct);

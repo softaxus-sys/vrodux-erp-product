@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.PurchaseBills.Commands;
 using Softaxis.Finance.Application.PurchaseBills.Dtos;
@@ -14,6 +15,7 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class PurchaseBillsController(ISender sender) : FinanceControllerBase
 {
     [HttpGet("summary")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetPurchaseBillsSummaryQuery(), ct);
@@ -21,6 +23,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
     }
 
     [HttpGet]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page        = 1,
         [FromQuery] int     pageSize    = 20,
@@ -35,6 +38,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("finance.expenses.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetPurchaseBillByIdQuery(id), ct);
@@ -42,6 +46,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
     }
 
     [HttpPost]
+    [RequirePermission("finance.expenses.create")]
     public async Task<IActionResult> Create([FromBody] CreatePurchaseBillCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -54,6 +59,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
         IReadOnlyList<PurchaseBillItemRequest> Items);
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePurchaseBillRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdatePurchaseBillCommand(id, req.BillDate, req.DueDate,
@@ -62,6 +68,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
     }
 
     [HttpPost("{id:guid}/approve")]
+    [RequirePermission("finance.expenses.approve")]
     public async Task<IActionResult> Approve(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new ApprovePurchaseBillCommand(id), ct);
@@ -69,6 +76,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
     }
 
     [HttpPost("{id:guid}/cancel")]
+    [RequirePermission("finance.expenses.edit")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new CancelPurchaseBillCommand(id), ct);
@@ -76,6 +84,7 @@ public sealed class PurchaseBillsController(ISender sender) : FinanceControllerB
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.expenses.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeletePurchaseBillCommand(id), ct);

@@ -11,6 +11,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import type { JournalEntryDto as JournalEntry, JournalStatus } from "@/lib/finance/finance.api";
 import { useJournals, useJournalsSummary, usePostJournal, useVoidJournal } from "@/hooks/finance/use-finance";
 import { AddJournalForm } from "./add-journal-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; bg: string; dot: string }> = {
   draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -156,7 +157,7 @@ export function JournalsView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Journal Entries</h1><p className="text-sm text-muted-foreground mt-0.5">Create and post manual journal entries</p></div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Journal</Button>
+        <Can permission="finance.journals.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Journal</Button></Can>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {STATS.map((s, i) => {

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.GeneralLedger.Queries;
 
@@ -9,6 +10,7 @@ namespace Softaxis.Finance.API.Controllers;
 [ApiController]
 [Route("api/finance/gl")]
 [Authorize]
+[RequirePermission("finance.gl.view")]
 public sealed class GeneralLedgerController(ISender sender) : FinanceControllerBase
 {
     [HttpGet("summary")]

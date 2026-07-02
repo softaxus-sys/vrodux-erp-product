@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Performance.Commands;
 using Softaxis.HR.Application.Performance.Queries;
@@ -11,7 +12,9 @@ namespace Softaxis.HR.API.Controllers;
 [Authorize]
 public sealed class PerformanceController(ISender sender) : HrControllerBase
 {
+    // NOTE: performance has no seeded "delete" action — deletes gate on "edit" (closest key).
     [HttpGet]
+    [RequirePermission("hr.performance.view")]
     public async Task<IActionResult> GetReviews(
         [FromQuery] int     page       = 1,
         [FromQuery] int     pageSize   = 20,
@@ -21,10 +24,12 @@ public sealed class PerformanceController(ISender sender) : HrControllerBase
         OkOrError(await sender.Send(new GetPerformanceReviewsQuery(page, pageSize, status, employeeId), ct));
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("hr.performance.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetPerformanceReviewByIdQuery(id), ct));
 
     [HttpPost]
+    [RequirePermission("hr.performance.create")]
     public async Task<IActionResult> Create([FromBody] CreatePerformanceReviewCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -33,37 +38,45 @@ public sealed class PerformanceController(ISender sender) : HrControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateReviewRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(
             new UpdatePerformanceReviewCommand(id, req.ReviewPeriod, req.ReviewType, req.DueDate, req.ReviewedBy), ct));
 
     [HttpPost("{id:guid}/start")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> Start(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new StartPerformanceReviewCommand(id), ct));
 
     [HttpPost("{id:guid}/complete")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteReviewRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(
             new CompletePerformanceReviewCommand(id, req.OverallRating, req.TechnicalRating, req.CommunicationRating,
                 req.TeamworkRating, req.LeadershipRating, req.Strengths, req.Improvements), ct));
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeletePerformanceReviewCommand(id), ct));
 
     [HttpPost("{id:guid}/goals")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> AddGoal(Guid id, [FromBody] CreateGoalRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new AddPerformanceGoalCommand(id, req.Title, req.Target, req.DueDate), ct));
 
     [HttpPut("{id:guid}/goals/{goalId:guid}")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> UpdateGoal(Guid id, Guid goalId, [FromBody] UpdateGoalRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new UpdatePerformanceGoalCommand(id, goalId, req.Progress, req.Status), ct));
 
     [HttpDelete("{id:guid}/goals/{goalId:guid}")]
+    [RequirePermission("hr.performance.edit")]
     public async Task<IActionResult> DeleteGoal(Guid id, Guid goalId, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeletePerformanceGoalCommand(id, goalId), ct));
 
     [HttpGet("summary")]
+    [RequirePermission("hr.performance.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct) =>
         OkOrError(await sender.Send(new GetPerformanceSummaryQuery(), ct));
 

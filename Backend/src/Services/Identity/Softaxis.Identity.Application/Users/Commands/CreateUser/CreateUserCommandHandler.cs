@@ -1,6 +1,7 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.Common;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Repositories;
@@ -14,6 +15,8 @@ public sealed class CreateUserCommandHandler(
     IAuditLogRepository auditRepo,
     ICurrentUser        currentUser,
     ITenantContext      tenantContext,
+    IJwtTokenService    jwtService,
+    IEmailService       emailService,
     IUnitOfWork         uow)
     : ICommandHandler<CreateUserCommand, UserDto>
 {
@@ -44,7 +47,8 @@ public sealed class CreateUserCommandHandler(
         if (result.IsFailure) return Result.Failure<UserDto>(result.Error);
 
         var user = result.Value;
-        user.VerifyEmail(); // Admin-created users are pre-verified
+        // NOTE: do NOT pre-verify. The user stays in PendingVerification until they click the
+        // verification link we email below; LoginCommandHandler blocks login until then.
 
         // Assign tenant if the caller is scoped to one
         if (!currentUser.IsSuperAdmin && tenantContext.TenantId.HasValue)
@@ -56,15 +60,20 @@ public sealed class CreateUserCommandHandler(
             if (role is not null) user.AssignRole(roleId);
         }
 
+        // Issue a single-use email-verification token (48h) and email the link.
+        var rawToken = jwtService.GenerateRefreshTokenRaw();
+        user.SetEmailVerificationToken(jwtService.HashToken(rawToken), DateTime.UtcNow.AddHours(48));
+
         userRepo.Add(user);
         auditRepo.Add(new AuditLog(currentUser.Id, "CREATE_USER", "User", user.Id.ToString(), null, null, null, null, true, currentUser.TenantId));
         await uow.SaveChangesAsync(ct);
 
-        return Result.Success(ToDto(user));
-    }
+        // Best-effort send — never fail user creation if SMTP is down (link is also logged server-side).
+        try { await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, rawToken, ct); }
+        catch { /* delivery failure is non-fatal; admin can trigger a resend */ }
 
-    private static UserDto ToDto(User u) =>
-        new(u.Id, u.Email.Value, u.Username, u.FirstName, u.LastName,
-            u.FullName, u.Status.ToString(), u.EmailVerified,
-            u.AvatarUrl, u.PhoneNumber, u.LastLoginAt, u.CreatedAt, []);
+        // Reload with full role/permission navigation so the DTO is complete.
+        var created = await userRepo.GetByIdAsync(user.Id, ct);
+        return Result.Success(UserDtoMapper.ToDto(created ?? user));
+    }
 }

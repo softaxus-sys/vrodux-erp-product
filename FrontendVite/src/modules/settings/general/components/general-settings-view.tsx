@@ -305,9 +305,14 @@ export function GeneralSettingsView() {
       const m   = data.modules       ?? {};
       const D   = DEFAULTS;
 
+      // Fall back to the CURRENT tenant's own identity (from the JWT/auth store) instead of the
+      // hardcoded Softaxis sample company, so a fresh tenant admin sees their own company name.
+      const tenant = useAuthStore.getState().tenant;
+      const tenantName = tenant?.name?.trim() || D.company.name;
+
       const newCompany: typeof DEFAULTS.company = {
-        name:           toStr(c.name,           D.company.name),
-        legalName:      toStr(c.legalName,      D.company.legalName),
+        name:           toStr(c.name,           tenantName),
+        legalName:      toStr(c.legalName,      tenantName),
         industry:       toStr(c.industry,       D.company.industry),
         website:        toStr(c.website,        D.company.website),
         companySize:    toStr(c.companySize,    D.company.companySize),

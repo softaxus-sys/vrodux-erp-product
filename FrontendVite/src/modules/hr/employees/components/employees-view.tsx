@@ -12,6 +12,7 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddEmployeeForm } from "./add-employee-form";
+import { Can } from "@/components/auth/can";
 
 type ViewMode = "table" | "grid";
 
@@ -91,9 +92,11 @@ export function EmployeesView() {
             </button>
           </div>
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
-          <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-            <UserPlus className="h-4 w-4" /> Add Employee
-          </Button>
+          <Can permission="hr.employees.create">
+            <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+              <UserPlus className="h-4 w-4" /> Add Employee
+            </Button>
+          </Can>
         </div>
       </div>
 

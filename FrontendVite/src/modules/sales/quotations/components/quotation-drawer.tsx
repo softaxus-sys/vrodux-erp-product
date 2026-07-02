@@ -10,6 +10,7 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { type SalesQuotationSummaryDto } from "@/lib/pos/types";
 import { useSalesQuotation, useConvertQuotationToOrder, useDeleteSalesQuotation } from "@/hooks/sales/use-sales-quotations";
+import { Can } from "@/components/auth/can";
 
 type Tab = "overview" | "items";
 type QuoteStatus = "draft" | "sent" | "approved" | "rejected" | "converted" | "expired";
@@ -290,17 +291,19 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                 </Button>
               )}
               {quote.status === "approved" && (
-                <Button
-                  size="sm"
-                  className="gap-1.5 h-9 bg-success hover:bg-success/90"
-                  onClick={handleConvert}
-                  disabled={convertMutation.isPending}
-                >
-                  {convertMutation.isPending
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <ArrowRight className="h-3.5 w-3.5" />}
-                  Convert to Order
-                </Button>
+                <Can permission="sales.quotations.edit">
+                  <Button
+                    size="sm"
+                    className="gap-1.5 h-9 bg-success hover:bg-success/90"
+                    onClick={handleConvert}
+                    disabled={convertMutation.isPending}
+                  >
+                    {convertMutation.isPending
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <ArrowRight className="h-3.5 w-3.5" />}
+                    Convert to Order
+                  </Button>
+                </Can>
               )}
               {quote.status === "expired" && (
                 <Button size="sm" className="gap-1.5 h-9">
@@ -311,6 +314,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                 <Copy className="h-3.5 w-3.5" />Duplicate
               </Button>
               {["draft", "sent"].includes(quote.status) && (
+                <Can permission="sales.quotations.delete">{
                 confirmDelete ? (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-destructive font-medium">Delete this quote?</span>
@@ -327,6 +331,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                     <Trash2 className="h-3.5 w-3.5" />Delete
                   </Button>
                 )
+                }</Can>
               )}
             </div>
           </motion.div>

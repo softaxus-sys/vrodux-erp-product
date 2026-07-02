@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
 using Softaxis.Finance.Application.ExchangeRates.Commands;
 using Softaxis.Finance.Application.ExchangeRates.Queries;
@@ -22,6 +23,7 @@ public sealed class ExchangeRatesController(ISender sender) : FinanceControllerB
         OkOrError(await sender.Send(new ConvertCurrencyQuery(from, to, amount, asOf), ct));
 
     [HttpPost]
+    [RequirePermission("finance.accounting.create")]
     public async Task<IActionResult> Create([FromBody] CreateExchangeRateCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -29,10 +31,12 @@ public sealed class ExchangeRatesController(ISender sender) : FinanceControllerB
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("finance.accounting.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateExchangeRateRequest req, CancellationToken ct) =>
         OkOrError(await sender.Send(new UpdateExchangeRateCommand(id, req.Rate), ct));
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("finance.accounting.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteExchangeRateCommand(id), ct));
 

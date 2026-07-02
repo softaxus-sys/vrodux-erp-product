@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Leaves.Commands;
 using Softaxis.HR.Application.Leaves.Queries;
@@ -16,6 +17,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/leaves/summary ───────────────────────────────────────
     [HttpGet("summary")]
+    [RequirePermission("hr.leaves.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetLeavesSummaryQuery(), ct);
@@ -24,6 +26,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/leaves ───────────────────────────────────────────────
     [HttpGet]
+    [RequirePermission("hr.leaves.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] int     page       = 1,
         [FromQuery] int     pageSize   = 20,
@@ -40,6 +43,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── GET /api/hr/leaves/{id} ──────────────────────────────────────────
     [HttpGet("{id:guid}")]
+    [RequirePermission("hr.leaves.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetLeaveByIdQuery(id), ct);
@@ -48,6 +52,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/leaves ──────────────────────────────────────────────
     [HttpPost]
+    [RequirePermission("hr.leaves.create")]
     public async Task<IActionResult> Create([FromBody] CreateLeaveCommand command, CancellationToken ct)
     {
         var result = await sender.Send(command, ct);
@@ -56,6 +61,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/leaves/{id}/approve ────────────────────────────────
     [HttpPost("{id:guid}/approve")]
+    [RequirePermission("hr.leaves.approve")]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveRejectRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new ApproveLeaveCommand(id, req.ApproverId, req.Notes), ct);
@@ -64,6 +70,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/leaves/{id}/reject ─────────────────────────────────
     [HttpPost("{id:guid}/reject")]
+    [RequirePermission("hr.leaves.approve")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] ApproveRejectRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new RejectLeaveCommand(id, req.ApproverId, req.Notes), ct);
@@ -72,14 +79,17 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
 
     // ── POST /api/hr/leaves/{id}/cancel ─────────────────────────────────
     [HttpPost("{id:guid}/cancel")]
+    [RequirePermission("hr.leaves.edit")]
     public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new CancelLeaveCommand(id), ct);
         return NoContentOrError(result);
     }
 
+    // NOTE: leaves has no seeded "delete" action — gate on "edit" (closest key) so admins keep working.
     // ── DELETE /api/hr/leaves/{id} ───────────────────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("hr.leaves.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteLeaveCommand(id), ct);

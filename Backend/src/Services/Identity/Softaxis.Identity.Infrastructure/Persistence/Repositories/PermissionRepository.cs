@@ -21,12 +21,24 @@ public sealed class PermissionRepository(IdentityDbContext db) : IPermissionRepo
 
     public async Task<IReadOnlyList<string>> GetPermissionKeysForUserAsync(Guid userId, CancellationToken ct = default)
     {
-        return await db.UserRoles
+        // Effective permission set = (rolePerms ∪ userGrants) − userDenies.
+        // Deny always wins, so it's applied last.
+        var rolePerms = await db.UserRoles
             .Where(ur => ur.UserId == userId)
             .SelectMany(ur => ur.Role.RolePermissions)
             .Select(rp => rp.Permission.ModuleId + "." + rp.Permission.Action)
             .Distinct()
             .ToListAsync(ct);
+
+        var overrides = await db.UserPermissions
+            .Where(up => up.UserId == userId)
+            .Select(up => new { Key = up.Permission.ModuleId + "." + up.Permission.Action, up.IsGranted })
+            .ToListAsync(ct);
+
+        var grants = overrides.Where(o => o.IsGranted).Select(o => o.Key);
+        var denies = overrides.Where(o => !o.IsGranted).Select(o => o.Key).ToHashSet();
+
+        return rolePerms.Union(grants).Where(k => !denies.Contains(k)).Distinct().ToList();
     }
 }
 

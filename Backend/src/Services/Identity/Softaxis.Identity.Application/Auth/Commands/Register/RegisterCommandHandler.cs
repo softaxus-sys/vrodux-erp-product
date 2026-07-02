@@ -40,5 +40,5 @@ public sealed class RegisterCommandHandler(
     private static UserDto ToDto(User u) =>
         new(u.Id, u.Email.Value, u.Username, u.FirstName, u.LastName,
             u.FullName, u.Status.ToString(), u.EmailVerified,
-            u.AvatarUrl, u.PhoneNumber, u.LastLoginAt, u.CreatedAt, []);
+            u.AvatarUrl, u.PhoneNumber, u.LastLoginAt, u.CreatedAt, [], []);
 }

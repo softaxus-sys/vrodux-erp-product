@@ -8,6 +8,7 @@ using Softaxis.Identity.Application.Users.Commands.CreateUser;
 using Softaxis.Identity.Application.Users.Commands.DeleteUser;
 using Softaxis.Identity.Application.Users.Commands.RemoveRole;
 using Softaxis.Identity.Application.Users.Commands.UpdateUser;
+using Softaxis.Identity.Application.Users.Commands.UpdateUserPermissions;
 using Softaxis.Identity.Application.Users.Queries.GetUserById;
 using Softaxis.Identity.Application.Users.Queries.GetUsers;
 
@@ -63,6 +64,18 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
         => HandleResult(await Sender.Send(new RemoveRoleCommand(id, roleId), ct));
 
     /// <summary>
+    /// Replace the user's per-user permission overrides (grants + denies on top of their roles).
+    /// Send an empty list to clear all overrides.
+    /// </summary>
+    [HttpPut("{id:guid}/permissions")]
+    public async Task<IActionResult> UpdatePermissions(Guid id, [FromBody] UpdateUserPermissionsRequest request, CancellationToken ct)
+        => HandleResult(await Sender.Send(
+            new UpdateUserPermissionsCommand(
+                id,
+                request.Overrides.Select(o => new PermissionOverrideInput(o.PermissionId, o.IsGranted)).ToList()),
+            ct));
+
+    /// <summary>
     /// Change the user's password (requires the user's current password — for self-service).
     /// </summary>
     [HttpPost("{id:guid}/change-password")]
@@ -82,3 +95,5 @@ public sealed record UpdateUserRequest(string FirstName, string LastName, string
 public sealed record RoleAssignRequest(Guid RoleId);
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 public sealed record AdminResetPasswordRequest(string NewPassword);
+public sealed record UpdateUserPermissionsRequest(List<PermissionOverrideRequest> Overrides);
+public sealed record PermissionOverrideRequest(Guid PermissionId, bool IsGranted);

@@ -10,6 +10,7 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { TaxPeriodDto as TaxPeriod } from "@/lib/finance/finance.api";
 import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod, useCreateTaxPeriod } from "@/hooks/finance/use-finance";
+import { Can } from "@/components/auth/can";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   open:    { label: "Open",    color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
@@ -247,7 +248,7 @@ export function TaxView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Tax & VAT</h1><p className="text-sm text-muted-foreground mt-0.5">UAE VAT returns, filing, and tax transaction tracking</p></div>
-        <Button className="gap-2 h-9" onClick={() => setNewReturnOpen(true)}><Plus className="h-4 w-4" />New Return</Button>
+        <Can permission="finance.tax.create"><Button className="gap-2 h-9" onClick={() => setNewReturnOpen(true)}><Plus className="h-4 w-4" />New Return</Button></Can>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {STATS.map((s, i) => {

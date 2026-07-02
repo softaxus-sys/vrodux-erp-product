@@ -16,6 +16,7 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { ClientPagination, useClientPagination } from "@/components/ui/client-pagination";
 import { AddTransferForm } from "./add-transfer-form";
+import { Can } from "@/components/auth/can";
 
 const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -164,7 +165,7 @@ export function TransfersView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Stock Transfers</h1><p className="text-sm text-muted-foreground mt-0.5">Move inventory between warehouses and locations</p></div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Transfer</Button>
+        <Can permission="inventory.transfers.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Transfer</Button></Can>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {STATS.map((s, i) => {

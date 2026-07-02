@@ -6,10 +6,14 @@ using Softaxis.Inventory.Application.UnitsOfMeasure.Commands.DeleteUoM;
 using Softaxis.Inventory.Application.UnitsOfMeasure.Commands.UpdateUoM;
 using Softaxis.Inventory.Application.UnitsOfMeasure.Queries.GetUoMById;
 using Softaxis.Inventory.Application.UnitsOfMeasure.Queries.GetUoMs;
+using Softaxis.Inventory.API.Authorization;
 
 namespace Softaxis.Inventory.API.Controllers;
 
-/// <summary>Units of measure — master data managed by admins.</summary>
+/// <summary>
+/// Units of measure — master data. GET reads feed the product-create form's UoM dropdown, so they stay
+/// authenticated-only; writes are gated on inventory.stock.* (no dedicated UoM permission key).
+/// </summary>
 [Authorize]
 [Tags("UnitsOfMeasure")]
 [Route("api/inventory/units-of-measure")]
@@ -30,18 +34,21 @@ public sealed class UnitsOfMeasureController(ISender sender) : BaseApiController
 
     // ── POST /api/inventory/units-of-measure ──────────────────────────────────
     [HttpPost]
+    [RequirePermission("inventory.stock.create")]
     public async Task<IActionResult> Create([FromBody] CreateUoMRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new CreateUoMCommand(req.Name, req.Symbol, req.Description), ct), 201);
 
     // ── PUT /api/inventory/units-of-measure/{id} ──────────────────────────────
     [HttpPut("{id:guid}")]
+    [RequirePermission("inventory.stock.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUoMRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(
             new UpdateUoMCommand(id, req.Name, req.Symbol, req.Description, req.IsActive), ct));
 
     // ── DELETE /api/inventory/units-of-measure/{id} ───────────────────────────
     [HttpDelete("{id:guid}")]
+    [RequirePermission("inventory.stock.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new DeleteUoMCommand(id), ct));
 }

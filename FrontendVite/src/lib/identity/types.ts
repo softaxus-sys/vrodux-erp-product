@@ -31,6 +31,13 @@ export interface RoleSummaryDto {
   modules: string[];
 }
 
+/** A per-user permission override layered on top of role permissions. */
+export interface PermissionOverrideDto {
+  permissionId: string;
+  key: string;          // e.g. "hr.payroll.approve"
+  isGranted: boolean;   // true = extra grant, false = explicit deny
+}
+
 export interface UserDto {
   id: string;
   email: string;
@@ -45,6 +52,7 @@ export interface UserDto {
   lastLoginAt: string | null;
   createdAt: string;
   roles: RoleDto[];
+  permissionOverrides: PermissionOverrideDto[];
 }
 
 export interface UserSummaryDto {

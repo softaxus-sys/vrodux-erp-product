@@ -32,3 +32,29 @@ export function useCreateReturn() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+export function useApproveReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, by }: { id: string; by: string }) => returnsApi.approve(id, by),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK] });
+      qc.invalidateQueries({ queryKey: [QK, "summary"] });
+      toast.success("Return approved.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRejectReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, by }: { id: string; by: string }) => returnsApi.reject(id, by),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK] });
+      qc.invalidateQueries({ queryKey: [QK, "summary"] });
+      toast.success("Return rejected.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}

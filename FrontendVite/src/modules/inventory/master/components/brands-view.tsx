@@ -10,6 +10,7 @@ import {
 } from "@/hooks/inventory/use-brands";
 import type { BrandDto } from "@/lib/inventory/types";
 import { ClientPagination, useClientPagination } from "@/components/ui/client-pagination";
+import { Can } from "@/components/auth/can";
 import { toast } from "sonner";
 
 // ── Dialog ────────────────────────────────────────────────────────────────────
@@ -146,9 +147,11 @@ export function BrandsView() {
             <p className="text-xs text-muted-foreground">Product brand management</p>
           </div>
         </div>
-        <Button size="sm" onClick={handleCreate}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New Brand
-        </Button>
+        <Can permission="inventory.stock.create">
+          <Button size="sm" onClick={handleCreate}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Brand
+          </Button>
+        </Can>
       </div>
 
       {/* Search */}
