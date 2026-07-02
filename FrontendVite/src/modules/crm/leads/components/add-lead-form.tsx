@@ -23,9 +23,11 @@ interface AddLeadFormProps {
 
 export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const isEdit = !!editing;
-  // Real tenant users this lead can be assigned to (from the Identity service).
+  // Real tenant users this lead can be assigned to. The Identity /users endpoint is
+  // tenant-scoped server-side (non-super-admins only get their own tenant's users);
+  // here we further limit to active accounts so you can't assign to a disabled user.
   const { data: usersPage } = useUsers({ pageSize: 200 });
-  const assignableUsers = usersPage?.items ?? [];
+  const assignableUsers = (usersPage?.items ?? []).filter(u => u.status?.toLowerCase() === "active");
   const [firstName, setFirstName]     = React.useState("");
   const [lastName, setLastName]       = React.useState("");
   const [email, setEmail]             = React.useState("");
