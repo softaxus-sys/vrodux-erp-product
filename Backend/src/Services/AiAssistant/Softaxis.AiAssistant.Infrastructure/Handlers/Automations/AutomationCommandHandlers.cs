@@ -43,7 +43,7 @@ internal sealed class CreateAutomationRuleHandler(AiAssistantDbContext db, ICurr
             cmd.Name, cmd.Description, cmd.Agent, cmd.Instruction, runAsId, runAsName, mode,
             AutomationMappings.ParseFrequency(cmd.Frequency),
             cmd.IntervalMinutes, cmd.HourUtc, cmd.MinuteUtc, cmd.DayOfWeekUtc,
-            cmd.NotifyTelegram, cmd.Enabled);
+            cmd.NotifyTelegram, cmd.Enabled, cmd.TriggerType, cmd.EventKey);
 
         db.AutomationRules.Add(rule);
         await db.SaveChangesAsync(ct);
@@ -82,7 +82,8 @@ internal sealed class UpdateAutomationRuleHandler(AiAssistantDbContext db, ICurr
         rule.Update(
             cmd.Name, cmd.Description, cmd.Agent, cmd.Instruction, runAsId, runAsName, mode,
             AutomationMappings.ParseFrequency(cmd.Frequency),
-            cmd.IntervalMinutes, cmd.HourUtc, cmd.MinuteUtc, cmd.DayOfWeekUtc, cmd.NotifyTelegram);
+            cmd.IntervalMinutes, cmd.HourUtc, cmd.MinuteUtc, cmd.DayOfWeekUtc, cmd.NotifyTelegram,
+            cmd.TriggerType, cmd.EventKey);
 
         await db.SaveChangesAsync(ct);
         return Result.Success(AutomationMappings.ToDto(rule, []));

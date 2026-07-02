@@ -27,7 +27,8 @@ public sealed class AiAutomationRunner(
     ILogger<AiAutomationRunner> logger) : IAiAutomationRunner
 {
     public async Task<AiAutomationRun> RunAsync(
-        AiAutomationRule rule, Guid tenantId, string triggeredBy, CancellationToken ct)
+        AiAutomationRule rule, Guid tenantId, string triggeredBy, CancellationToken ct,
+        string? triggerContext = null)
     {
         var prevTenant   = TenantAmbient.TenantId;
         var prevSuper    = TenantAmbient.IsSuperAdmin;
@@ -64,13 +65,16 @@ public sealed class AiAutomationRunner(
                 return run;
             }
             var autopilot = rule.Mode == "autopilot" && caps.Autopilot;
+            var instruction = string.IsNullOrWhiteSpace(triggerContext)
+                ? rule.Instruction
+                : $"{rule.Instruction}\n\n{triggerContext}";
 
             AiAssistant.Application.Chat.Dtos.AiAutonomousResult result;
             using (AiImpersonation.Use(new AiImpersonatedUser(
                 tok.UserId, tok.Username, tok.Email, tok.IsSuperAdmin,
                 tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl)))
             {
-                result = await orchestrator.RunAutonomousAsync(rule.Instruction, rule.Agent, autopilot, ct);
+                result = await orchestrator.RunAutonomousAsync(instruction, rule.Agent, autopilot, ct);
             }
 
             if (result.Status == "pending_confirmation" && result.Pending is { } p)

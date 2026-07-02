@@ -123,6 +123,15 @@ export function useAutomations(enabled = true) {
   });
 }
 
+export function useAutomationEventTypes(enabled = true) {
+  return useQuery({
+    queryKey: [QK, "automation-event-types"],
+    queryFn: () => aiApi.getAutomationEventTypes(),
+    enabled,
+    staleTime: 10 * 60_000,
+  });
+}
+
 export function useAutomation(id: string | null) {
   return useQuery<AutomationRuleDto>({
     queryKey: [QK, "automation", id],

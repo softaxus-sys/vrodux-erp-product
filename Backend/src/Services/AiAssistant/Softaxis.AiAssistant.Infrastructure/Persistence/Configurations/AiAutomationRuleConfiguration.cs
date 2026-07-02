@@ -21,6 +21,9 @@ public sealed class AiAutomationRuleConfiguration : IEntityTypeConfiguration<AiA
         builder.Property(x => x.RunAsUserName).HasMaxLength(200).IsRequired();
         builder.Property(x => x.Mode).HasMaxLength(20).IsRequired();
 
+        builder.Property(x => x.TriggerType).HasMaxLength(20).IsRequired().HasDefaultValue("schedule");
+        builder.Property(x => x.EventKey).HasMaxLength(80);
+
         builder.Property(x => x.Frequency).HasConversion<int>();
         builder.Property(x => x.IntervalMinutes);
         builder.Property(x => x.HourUtc);
@@ -41,5 +44,7 @@ public sealed class AiAutomationRuleConfiguration : IEntityTypeConfiguration<AiA
 
         // The scheduler polls on (Enabled, NextRunAt) across all tenants.
         builder.HasIndex(x => new { x.Enabled, x.NextRunAt });
+        // The event processor looks rules up by (Enabled, EventKey).
+        builder.HasIndex(x => new { x.Enabled, x.EventKey });
     }
 }

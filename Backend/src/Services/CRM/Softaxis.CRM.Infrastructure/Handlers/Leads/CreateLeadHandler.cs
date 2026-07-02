@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Softaxis.BuildingBlocks.Application.AiEvents;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Leads.Commands;
@@ -7,7 +9,7 @@ using Softaxis.CRM.Infrastructure.Persistence;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class CreateLeadHandler(CrmDbContext db) : ICommandHandler<CreateLeadCommand, LeadDto>
+internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents) : ICommandHandler<CreateLeadCommand, LeadDto>
 {
     public async Task<Result<LeadDto>> Handle(CreateLeadCommand cmd, CancellationToken ct)
     {
@@ -17,6 +19,13 @@ internal sealed class CreateLeadHandler(CrmDbContext db) : ICommandHandler<Creat
 
         db.Leads.Add(l);
         await db.SaveChangesAsync(ct);
+
+        // Fire an AI event so event-triggered automations can react (best-effort, never throws).
+        var title = $"{l.FirstName} {l.LastName}".Trim();
+        if (!string.IsNullOrWhiteSpace(l.Company)) title = string.IsNullOrWhiteSpace(title) ? l.Company : $"{title} — {l.Company}";
+        await aiEvents.PublishAsync(new AiTriggerEvent(
+            AiEventKeys.CrmLeadCreated, l.Id, $"New lead: {title}",
+            JsonSerializer.Serialize(new { l.Id, l.FirstName, l.LastName, l.Company, l.Email, l.Phone, l.Source })), ct);
 
         return Result.Success(LeadMappings.ToDto(l));
     }

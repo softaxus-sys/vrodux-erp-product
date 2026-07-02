@@ -10,5 +10,11 @@ namespace Softaxis.AiAssistant.Application.Abstractions;
 /// </summary>
 public interface IAiAutomationRunner
 {
-    Task<AiAutomationRun> RunAsync(AiAutomationRule rule, Guid tenantId, string triggeredBy, CancellationToken ct);
+    /// <param name="triggerContext">
+    /// Optional context appended to the rule's instruction (e.g. the business event that fired an event
+    /// rule), so the model knows what triggered this run.
+    /// </param>
+    Task<AiAutomationRun> RunAsync(
+        AiAutomationRule rule, Guid tenantId, string triggeredBy, CancellationToken ct,
+        string? triggerContext = null);
 }

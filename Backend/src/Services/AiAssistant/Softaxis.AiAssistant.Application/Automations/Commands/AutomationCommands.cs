@@ -22,7 +22,9 @@ public sealed record CreateAutomationRuleCommand(
     int MinuteUtc,
     int? DayOfWeekUtc,
     bool NotifyTelegram,
-    bool Enabled) : ICommand<AutomationRuleDto>;
+    bool Enabled,
+    string TriggerType = "schedule",
+    string? EventKey = null) : ICommand<AutomationRuleDto>;
 
 public sealed record UpdateAutomationRuleCommand(
     Guid Id,
@@ -38,7 +40,9 @@ public sealed record UpdateAutomationRuleCommand(
     int? HourUtc,
     int MinuteUtc,
     int? DayOfWeekUtc,
-    bool NotifyTelegram) : ICommand<AutomationRuleDto>;
+    bool NotifyTelegram,
+    string TriggerType = "schedule",
+    string? EventKey = null) : ICommand<AutomationRuleDto>;
 
 public sealed record ToggleAutomationRuleCommand(Guid Id, bool Enabled) : ICommand<AutomationRuleDto>;
 
@@ -59,6 +63,10 @@ file static class ScheduleRules
 {
     public static readonly string[] Frequencies = ["interval", "hourly", "daily", "weekly"];
     public static readonly string[] Modes       = ["autopilot", "confirm"];
+    public static readonly string[] Triggers    = ["schedule", "event"];
+
+    public static bool IsScheduled(string? trigger) => !IsEvent(trigger);
+    public static bool IsEvent(string? trigger) => string.Equals(trigger, "event", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed class CreateAutomationRuleCommandValidator : AbstractValidator<CreateAutomationRuleCommand>
@@ -71,16 +79,24 @@ public sealed class CreateAutomationRuleCommandValidator : AbstractValidator<Cre
         RuleFor(x => x.Instruction).NotEmpty().MaximumLength(4000);
         RuleFor(x => x.Mode).Must(m => ScheduleRules.Modes.Contains(m, StringComparer.OrdinalIgnoreCase))
             .WithMessage("Mode must be 'autopilot' or 'confirm'.");
-        RuleFor(x => x.Frequency).Must(f => ScheduleRules.Frequencies.Contains(f, StringComparer.OrdinalIgnoreCase))
-            .WithMessage("Frequency must be one of: interval, hourly, daily, weekly.");
-        RuleFor(x => x.MinuteUtc).InclusiveBetween(0, 59);
-        RuleFor(x => x.IntervalMinutes).GreaterThanOrEqualTo(5)
-            .When(x => string.Equals(x.Frequency, "interval", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Interval must be at least 5 minutes.");
-        RuleFor(x => x.HourUtc).InclusiveBetween(0, 23)
-            .When(x => x.HourUtc.HasValue);
-        RuleFor(x => x.DayOfWeekUtc).InclusiveBetween(0, 6)
-            .When(x => x.DayOfWeekUtc.HasValue);
+        RuleFor(x => x.TriggerType).Must(t => ScheduleRules.Triggers.Contains(t, StringComparer.OrdinalIgnoreCase))
+            .WithMessage("Trigger must be 'schedule' or 'event'.");
+        // Event triggers: a known event key is required.
+        RuleFor(x => x.EventKey).Must(AiEventCatalog.IsKnown)
+            .When(x => ScheduleRules.IsEvent(x.TriggerType))
+            .WithMessage("A valid event must be selected for event-triggered automations.");
+        // Schedule triggers: validate the schedule fields.
+        When(x => ScheduleRules.IsScheduled(x.TriggerType), () =>
+        {
+            RuleFor(x => x.Frequency).Must(f => ScheduleRules.Frequencies.Contains(f, StringComparer.OrdinalIgnoreCase))
+                .WithMessage("Frequency must be one of: interval, hourly, daily, weekly.");
+            RuleFor(x => x.MinuteUtc).InclusiveBetween(0, 59);
+            RuleFor(x => x.IntervalMinutes).GreaterThanOrEqualTo(5)
+                .When(x => string.Equals(x.Frequency, "interval", StringComparison.OrdinalIgnoreCase))
+                .WithMessage("Interval must be at least 5 minutes.");
+            RuleFor(x => x.HourUtc).InclusiveBetween(0, 23).When(x => x.HourUtc.HasValue);
+            RuleFor(x => x.DayOfWeekUtc).InclusiveBetween(0, 6).When(x => x.DayOfWeekUtc.HasValue);
+        });
     }
 }
 
@@ -95,13 +111,21 @@ public sealed class UpdateAutomationRuleCommandValidator : AbstractValidator<Upd
         RuleFor(x => x.Instruction).NotEmpty().MaximumLength(4000);
         RuleFor(x => x.Mode).Must(m => ScheduleRules.Modes.Contains(m, StringComparer.OrdinalIgnoreCase))
             .WithMessage("Mode must be 'autopilot' or 'confirm'.");
-        RuleFor(x => x.Frequency).Must(f => ScheduleRules.Frequencies.Contains(f, StringComparer.OrdinalIgnoreCase))
-            .WithMessage("Frequency must be one of: interval, hourly, daily, weekly.");
-        RuleFor(x => x.MinuteUtc).InclusiveBetween(0, 59);
-        RuleFor(x => x.IntervalMinutes).GreaterThanOrEqualTo(5)
-            .When(x => string.Equals(x.Frequency, "interval", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Interval must be at least 5 minutes.");
-        RuleFor(x => x.HourUtc).InclusiveBetween(0, 23).When(x => x.HourUtc.HasValue);
-        RuleFor(x => x.DayOfWeekUtc).InclusiveBetween(0, 6).When(x => x.DayOfWeekUtc.HasValue);
+        RuleFor(x => x.TriggerType).Must(t => ScheduleRules.Triggers.Contains(t, StringComparer.OrdinalIgnoreCase))
+            .WithMessage("Trigger must be 'schedule' or 'event'.");
+        RuleFor(x => x.EventKey).Must(AiEventCatalog.IsKnown)
+            .When(x => ScheduleRules.IsEvent(x.TriggerType))
+            .WithMessage("A valid event must be selected for event-triggered automations.");
+        When(x => ScheduleRules.IsScheduled(x.TriggerType), () =>
+        {
+            RuleFor(x => x.Frequency).Must(f => ScheduleRules.Frequencies.Contains(f, StringComparer.OrdinalIgnoreCase))
+                .WithMessage("Frequency must be one of: interval, hourly, daily, weekly.");
+            RuleFor(x => x.MinuteUtc).InclusiveBetween(0, 59);
+            RuleFor(x => x.IntervalMinutes).GreaterThanOrEqualTo(5)
+                .When(x => string.Equals(x.Frequency, "interval", StringComparison.OrdinalIgnoreCase))
+                .WithMessage("Interval must be at least 5 minutes.");
+            RuleFor(x => x.HourUtc).InclusiveBetween(0, 23).When(x => x.HourUtc.HasValue);
+            RuleFor(x => x.DayOfWeekUtc).InclusiveBetween(0, 6).When(x => x.DayOfWeekUtc.HasValue);
+        });
     }
 }

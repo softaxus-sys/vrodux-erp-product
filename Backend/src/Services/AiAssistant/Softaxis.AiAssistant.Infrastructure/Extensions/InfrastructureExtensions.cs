@@ -75,6 +75,11 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiAutomationRunner, Automation.AiAutomationRunner>();
         services.AddHostedService<Automation.AiAutomationScheduler>();
 
+        // Event triggers (M4b): the real event bus (overrides the gateway's NullAiEventBus fallback)
+        // + the background processor that drains the event inbox and fires matching event rules.
+        services.AddScoped<BuildingBlocks.Application.AiEvents.IAiEventBus, Automation.AiEventBus>();
+        services.AddHostedService<Automation.AiEventInboxProcessor>();
+
         // Telegram
         services.AddScoped<Telegram.TelegramClient>();
 

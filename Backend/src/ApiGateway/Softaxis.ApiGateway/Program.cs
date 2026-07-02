@@ -79,6 +79,10 @@ try
         builder.Configuration.GetSection("PrinterSettings"));
     builder.Services.Configure<Softaxis.POS.Application.Abstractions.DiscountSettings>(
         builder.Configuration.GetSection("DiscountSettings"));
+    // AI event bus fallback (M4b): a no-op so producers can always inject IAiEventBus. The AI Assistant
+    // service registers the real durable-inbox implementation later (last registration wins).
+    builder.Services.AddScoped<Softaxis.BuildingBlocks.Application.AiEvents.IAiEventBus,
+                               Softaxis.BuildingBlocks.Application.AiEvents.NullAiEventBus>();
     // Simple services: just DbContext registration
     builder.Services.AddInventoryInfrastructure(builder.Configuration);
     builder.Services.AddSalesInfrastructure(builder.Configuration);

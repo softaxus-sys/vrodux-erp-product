@@ -7,14 +7,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import {
-  useAutomations, useAutomation, useAiAgents, useAiCapabilities, useCreateAutomation, useUpdateAutomation,
+  useAutomations, useAutomation, useAiAgents, useAiCapabilities, useAutomationEventTypes,
+  useCreateAutomation, useUpdateAutomation,
   useToggleAutomation, useDeleteAutomation, useRunAutomationNow, useResolveAutomationRun,
 } from "@/hooks/ai/use-ai";
 import { useUsers } from "@/hooks/identity/use-users";
 import { useAuthStore } from "@/store/auth.store";
 import type {
   AutomationRuleSummaryDto, AutomationRunDto,
-  AiRuleFrequency, AiRuleMode, SaveAutomationRulePayload,
+  AiRuleFrequency, AiRuleMode, AiRuleTrigger, SaveAutomationRulePayload,
 } from "@/lib/ai/ai.api";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -132,7 +133,8 @@ function AutomationsList({ onCreate, onEdit }: { onCreate: () => void; onEdit: (
                     )}
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-                    <Clock className="h-3 w-3" /> {r.scheduleLabel}
+                    {r.triggerType === "event" ? <Zap className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+                    {r.scheduleLabel}
                     <span>·</span>
                     <span>as {r.runAsUserName}</span>
                     {r.enabled && r.nextRunAt && <><span>·</span><span>next {formatDate(r.nextRunAt)}</span></>}
@@ -264,6 +266,8 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
   const [agent, setAgent] = React.useState<string>("");
   const [instruction, setInstruction] = React.useState("");
   const [mode, setMode] = React.useState<AiRuleMode>("confirm");
+  const [triggerType, setTriggerType] = React.useState<AiRuleTrigger>("schedule");
+  const [eventKey, setEventKey] = React.useState<string>("");
   const [frequency, setFrequency] = React.useState<AiRuleFrequency>("daily");
   const [intervalMinutes, setIntervalMinutes] = React.useState(60);
   const [hourUtc, setHourUtc] = React.useState(8);
@@ -285,6 +289,8 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
     setAgent(existing.agent ?? "");
     setInstruction(existing.instruction);
     setMode(existing.mode);
+    setTriggerType(existing.triggerType);
+    setEventKey(existing.eventKey ?? "");
     setFrequency(existing.frequency);
     setIntervalMinutes(existing.intervalMinutes ?? 60);
     setHourUtc(existing.hourUtc ?? 8);
@@ -297,7 +303,8 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
   }, [existing]);
 
   const saving = create.isPending || update.isPending;
-  const valid = name.trim().length > 0 && instruction.trim().length > 0;
+  const valid = name.trim().length > 0 && instruction.trim().length > 0
+    && (triggerType !== "event" || !!eventKey);
 
   const buildPayload = (): SaveAutomationRulePayload => ({
     name: name.trim(),
@@ -307,6 +314,8 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
     runAsUserId: runAsUserId ?? meId,
     runAsUserName: runAsUserId ? runAsUserName : meName,
     mode,
+    triggerType,
+    eventKey: triggerType === "event" ? eventKey : null,
     frequency,
     intervalMinutes: frequency === "interval" ? intervalMinutes : null,
     hourUtc: frequency === "daily" || frequency === "weekly" ? hourUtc : null,
@@ -386,7 +395,42 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
         </div>
       </Field>
 
+      {/* Trigger */}
+      <Field label="Trigger">
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setTriggerType("schedule")}
+            className={cn("rounded-lg border p-2.5 text-left text-xs transition-colors",
+              triggerType === "schedule" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
+            <div className="flex items-center gap-1.5 font-medium"><Clock className="h-3.5 w-3.5" /> On a schedule</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Runs on a timer you set.</p>
+          </button>
+          <button type="button" onClick={() => setTriggerType("event")}
+            className={cn("rounded-lg border p-2.5 text-left text-xs transition-colors",
+              triggerType === "event" ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
+            <div className="flex items-center gap-1.5 font-medium"><Zap className="h-3.5 w-3.5" /> On an event</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Runs when something happens.</p>
+          </button>
+        </div>
+      </Field>
+
+      {/* Event selector */}
+      {triggerType === "event" && (
+        <Field label="Event" hint="The business event that fires this automation.">
+          <select value={eventKey} onChange={e => setEventKey(e.target.value)}
+            className="w-full h-9 rounded-lg border border-border bg-card px-2 text-sm">
+            <option value="">Select an event…</option>
+            {(eventTypes ?? []).map(ev => <option key={ev.key} value={ev.key}>{ev.label}</option>)}
+          </select>
+          {eventKey && (
+            <p className="text-[11px] text-muted-foreground">
+              {(eventTypes ?? []).find(e => e.key === eventKey)?.description}
+            </p>
+          )}
+        </Field>
+      )}
+
       {/* Schedule */}
+      {triggerType === "schedule" && (
       <Field label="Schedule">
         <div className="flex flex-wrap items-center gap-2">
           <select value={frequency} onChange={e => setFrequency(e.target.value as AiRuleFrequency)}
@@ -426,6 +470,7 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
           )}
         </div>
       </Field>
+      )}
 
       <div className="flex flex-col gap-2 pt-1">
         <label className="flex items-center gap-2 text-sm">

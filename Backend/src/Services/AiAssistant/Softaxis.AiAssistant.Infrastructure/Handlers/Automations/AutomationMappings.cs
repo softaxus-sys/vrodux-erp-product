@@ -1,5 +1,6 @@
 using System.Globalization;
 using Softaxis.AiAssistant.Application.Abstractions;
+using Softaxis.AiAssistant.Application.Automations;
 using Softaxis.AiAssistant.Application.Automations.Dtos;
 using Softaxis.AiAssistant.Domain.Entities;
 using Softaxis.AiAssistant.Domain.Enums;
@@ -29,8 +30,15 @@ internal static class AutomationMappings
         _          => AiRuleFrequency.Daily,
     };
 
+    public static string? EventLabel(string? eventKey) =>
+        eventKey is null ? null
+            : AiEventCatalog.Items.FirstOrDefault(i => i.Key == eventKey)?.Label ?? eventKey;
+
     public static string ScheduleLabel(AiAutomationRule r)
     {
+        if (r.IsEvent)
+            return $"On {EventLabel(r.EventKey) ?? r.EventKey ?? "event"}";
+
         var time = $"{(r.HourUtc ?? 0):00}:{r.MinuteUtc:00} UTC";
         return r.Frequency switch
         {
@@ -49,12 +57,14 @@ internal static class AutomationMappings
 
     public static AutomationRuleSummaryDto ToSummary(AiAutomationRule r, int pendingCount) => new(
         r.Id, r.Name, r.Agent, r.Agent is null ? null : AiAgents.Label(r.Agent), r.Mode,
+        r.TriggerType, r.EventKey, EventLabel(r.EventKey),
         FrequencyString(r.Frequency), ScheduleLabel(r), r.Enabled, r.NotifyTelegram,
         r.RunAsUserName, r.LastRunAt, r.NextRunAt, r.LastStatus, r.RunCount, pendingCount);
 
     public static AutomationRuleDto ToDto(AiAutomationRule r, IReadOnlyList<AutomationRunDto> recentRuns) => new(
         r.Id, r.Name, r.Description, r.Agent, r.Agent is null ? null : AiAgents.Label(r.Agent),
         r.Instruction, r.RunAsUserId, r.RunAsUserName, r.Mode,
+        r.TriggerType, r.EventKey, EventLabel(r.EventKey),
         FrequencyString(r.Frequency), r.IntervalMinutes, r.HourUtc, r.MinuteUtc, r.DayOfWeekUtc,
         ScheduleLabel(r), r.NotifyTelegram, r.Enabled,
         r.LastRunAt, r.NextRunAt, r.LastStatus, r.LastError, r.RunCount, recentRuns);

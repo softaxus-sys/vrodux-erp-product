@@ -33,7 +33,9 @@ public sealed class AiAutomationRule
         int minuteUtc,
         int? dayOfWeekUtc,
         bool notifyTelegram,
-        bool enabled)
+        bool enabled,
+        string triggerType = "schedule",
+        string? eventKey = null)
     {
         Id             = Guid.NewGuid();
         Name           = name.Trim();
@@ -45,6 +47,8 @@ public sealed class AiAutomationRule
         Mode           = NormalizeMode(mode);
         NotifyTelegram = notifyTelegram;
         Enabled        = enabled;
+        TriggerType    = NormalizeTrigger(triggerType);
+        EventKey       = IsEvent ? NormalizeKey(eventKey) : null;
         SetSchedule(frequency, intervalMinutes, hourUtc, minuteUtc, dayOfWeekUtc);
     }
 
@@ -64,6 +68,15 @@ public sealed class AiAutomationRule
 
     /// <summary>"autopilot" (writes run automatically) | "confirm" (writes queue for approval).</summary>
     public string  Mode          { get; private set; } = "confirm";
+
+    // ── Trigger (M4b) ─────────────────────────────────────────────────────────
+    /// <summary>"schedule" (runs on the timer) | "event" (runs when <see cref="EventKey"/> fires).</summary>
+    public string  TriggerType   { get; private set; } = "schedule";
+    /// <summary>For event triggers, the business event that fires this rule (e.g. "crm.lead.created").</summary>
+    public string? EventKey      { get; private set; }
+
+    public bool IsScheduled => TriggerType == "schedule";
+    public bool IsEvent     => TriggerType == "event";
 
     // ── Schedule ──────────────────────────────────────────────────────────────
     public AiRuleFrequency Frequency       { get; private set; }
@@ -104,7 +117,9 @@ public sealed class AiAutomationRule
         int? hourUtc,
         int minuteUtc,
         int? dayOfWeekUtc,
-        bool notifyTelegram)
+        bool notifyTelegram,
+        string triggerType = "schedule",
+        string? eventKey = null)
     {
         Name           = name.Trim();
         Description    = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
@@ -114,24 +129,26 @@ public sealed class AiAutomationRule
         RunAsUserName  = runAsUserName.Trim();
         Mode           = NormalizeMode(mode);
         NotifyTelegram = notifyTelegram;
+        TriggerType    = NormalizeTrigger(triggerType);
+        EventKey       = IsEvent ? NormalizeKey(eventKey) : null;
         SetSchedule(frequency, intervalMinutes, hourUtc, minuteUtc, dayOfWeekUtc);
     }
 
     public void SetEnabled(bool enabled)
     {
         Enabled = enabled;
-        if (enabled && NextRunAt is null)
-            NextRunAt = ComputeNextRun(DateTime.UtcNow);
+        // Event rules never carry a next-run time — the scheduler ignores them; the event inbox fires them.
+        NextRunAt = enabled && IsScheduled ? (NextRunAt ?? ComputeNextRun(DateTime.UtcNow)) : null;
     }
 
-    /// <summary>Record the outcome of a run and schedule the next one.</summary>
+    /// <summary>Record the outcome of a run and (for scheduled rules) queue the next one.</summary>
     public void RecordRun(string status, string? error, DateTime nowUtc)
     {
         LastRunAt  = nowUtc;
         LastStatus = status;
         LastError  = string.IsNullOrWhiteSpace(error) ? null : Truncate(error, 1000);
         RunCount++;
-        NextRunAt  = Enabled ? ComputeNextRun(nowUtc) : null;
+        NextRunAt  = Enabled && IsScheduled ? ComputeNextRun(nowUtc) : null;
     }
 
     public void SetSchedule(
@@ -142,7 +159,7 @@ public sealed class AiAutomationRule
         HourUtc         = frequency is AiRuleFrequency.Daily or AiRuleFrequency.Weekly ? Clamp(hourUtc ?? 0, 0, 23) : null;
         MinuteUtc       = Clamp(minuteUtc, 0, 59);
         DayOfWeekUtc    = frequency == AiRuleFrequency.Weekly ? Clamp(dayOfWeekUtc ?? 1, 0, 6) : null;
-        NextRunAt       = Enabled ? ComputeNextRun(DateTime.UtcNow) : null;
+        NextRunAt       = Enabled && IsScheduled ? ComputeNextRun(DateTime.UtcNow) : null;
     }
 
     /// <summary>Deterministic next fire time strictly after <paramref name="fromUtc"/>.</summary>
@@ -187,6 +204,12 @@ public sealed class AiAutomationRule
 
     private static string? NormalizeAgent(string? agent) =>
         string.IsNullOrWhiteSpace(agent) ? null : agent.Trim().ToLowerInvariant();
+
+    private static string NormalizeTrigger(string? trigger) =>
+        string.Equals(trigger?.Trim(), "event", StringComparison.OrdinalIgnoreCase) ? "event" : "schedule";
+
+    private static string? NormalizeKey(string? key) =>
+        string.IsNullOrWhiteSpace(key) ? null : key.Trim().ToLowerInvariant();
 
     private static int Clamp(int v, int min, int max) => v < min ? min : v > max ? max : v;
 

@@ -11,6 +11,7 @@ public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> 
     public DbSet<UserTelegramLink>  TelegramLinks  => Set<UserTelegramLink>();
     public DbSet<AiAutomationRule>  AutomationRules => Set<AiAutomationRule>();
     public DbSet<AiAutomationRun>   AutomationRuns  => Set<AiAutomationRun>();
+    public DbSet<AiEventInbox>      EventInbox      => Set<AiEventInbox>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

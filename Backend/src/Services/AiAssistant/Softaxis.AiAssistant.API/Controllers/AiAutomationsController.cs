@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.AiAssistant.API.Authorization;
 using Softaxis.AiAssistant.API.Controllers.Common;
+using Softaxis.AiAssistant.Application.Automations;
 using Softaxis.AiAssistant.Application.Automations.Commands;
 using Softaxis.AiAssistant.Application.Automations.Queries;
 
@@ -22,6 +23,11 @@ public sealed class AiAutomationsController(ISender sender) : AiAssistantControl
     [RequirePermission("settings.ai.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         OkOrError(await sender.Send(new GetAutomationRulesQuery(), ct));
+
+    /// <summary>The events an event-triggered automation can be built on (static catalog).</summary>
+    [HttpGet("event-types")]
+    [RequirePermission("settings.ai.view")]
+    public IActionResult GetEventTypes() => Ok(AiEventCatalog.Items);
 
     [HttpGet("{id:guid}")]
     [RequirePermission("settings.ai.view")]

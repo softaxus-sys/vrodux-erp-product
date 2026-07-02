@@ -104,7 +104,15 @@ export interface AiAgentDto {
 // ── Automations (M4 — scheduled autonomous rules) ──────────────────────────────
 
 export type AiRuleMode = "autopilot" | "confirm";
+export type AiRuleTrigger = "schedule" | "event";
 export type AiRuleFrequency = "interval" | "hourly" | "daily" | "weekly";
+
+/** One selectable event-trigger option (from GET /automations/event-types). */
+export interface AiEventCatalogItem {
+  key: string;
+  label: string;
+  description: string;
+}
 export type AiRunStatus =
   | "running"
   | "success"
@@ -132,6 +140,9 @@ export interface AutomationRuleSummaryDto {
   agent: string | null;
   agentLabel: string | null;
   mode: AiRuleMode;
+  triggerType: AiRuleTrigger;
+  eventKey: string | null;
+  eventLabel: string | null;
   frequency: AiRuleFrequency;
   scheduleLabel: string;
   enabled: boolean;
@@ -154,6 +165,9 @@ export interface AutomationRuleDto {
   runAsUserId: string;
   runAsUserName: string;
   mode: AiRuleMode;
+  triggerType: AiRuleTrigger;
+  eventKey: string | null;
+  eventLabel: string | null;
   frequency: AiRuleFrequency;
   intervalMinutes: number | null;
   hourUtc: number | null;
@@ -178,6 +192,8 @@ export interface SaveAutomationRulePayload {
   runAsUserId?: string | null;
   runAsUserName?: string | null;
   mode: AiRuleMode;
+  triggerType: AiRuleTrigger;
+  eventKey?: string | null;
   frequency: AiRuleFrequency;
   intervalMinutes?: number | null;
   hourUtc?: number | null;
@@ -226,6 +242,9 @@ export const aiApi = {
   // ── Automations ─────────────────────────────────────────────────────────────
   getAutomations: (): Promise<AutomationRuleSummaryDto[]> =>
     rawApiClient.get(`${BASE}/automations`),
+
+  getAutomationEventTypes: (): Promise<AiEventCatalogItem[]> =>
+    rawApiClient.get(`${BASE}/automations/event-types`),
 
   getAutomation: (id: string): Promise<AutomationRuleDto> =>
     rawApiClient.get(`${BASE}/automations/${id}`),
