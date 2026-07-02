@@ -38,22 +38,6 @@ const MONTHS_ALL = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 const MONTH_IDX  = new Date().getMonth();
 const MONTHS     = MONTHS_ALL.slice(0, MONTH_IDX + 1);
 
-// ─ Finance ─
-const FINANCE_MONTHLY = MONTHS.map((m, i) => ({
-  month:    m,
-  revenue:  820_000 + Math.round(Math.sin(i * 0.7 + 1) * 120_000) + i * 14_000,
-  expenses: 540_000 + Math.round(Math.cos(i * 0.5 + 1) * 80_000)  + i * 8_000,
-  profit:   0,
-})).map(d => ({ ...d, profit: d.revenue - d.expenses }));
-
-const EXPENSE_CATS = [
-  { name: "Payroll",     value: 45, amount: 2_025_000 },
-  { name: "Operations",  value: 20, amount: 900_000   },
-  { name: "Marketing",   value: 15, amount: 675_000   },
-  { name: "IT & Tech",   value: 12, amount: 540_000   },
-  { name: "Other",       value: 8,  amount: 360_000   },
-];
-
 // ─ HR ─
 const DEPT_HEADCOUNT = [
   { dept: "Engineering", count: 28, target: 32 },
@@ -249,10 +233,46 @@ function ChartSection({ children, delay = 0 }: { children: React.ReactNode; dela
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FinanceCharts() {
-  const totalRevenue  = FINANCE_MONTHLY.reduce((s, d) => s + d.revenue, 0);
-  const totalExpenses = FINANCE_MONTHLY.reduce((s, d) => s + d.expenses, 0);
+  const currency = useCurrency();
+  const { data: invoices = [] } = useInvoices();
+  const { data: expenses = [] } = useExpenses();
+
+  // ── Real monthly revenue (billed) vs expenses (this year, up to current month) ──
+  const financeMonthly = React.useMemo(() => {
+    const year = new Date().getFullYear();
+    const b = MONTHS.map((m) => ({ month: m, revenue: 0, expenses: 0, profit: 0 }));
+    for (const inv of invoices) {
+      const d = inv.invoiceDate ? new Date(inv.invoiceDate) : null;
+      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() > MONTH_IDX) continue;
+      b[d.getMonth()].revenue += inv.total ?? 0;
+    }
+    for (const ex of expenses) {
+      const d = ex.expenseDate ? new Date(ex.expenseDate) : null;
+      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() > MONTH_IDX) continue;
+      b[d.getMonth()].expenses += ex.amount ?? 0;
+    }
+    return b.map((x) => ({ ...x, profit: x.revenue - x.expenses }));
+  }, [invoices, expenses]);
+
+  // ── Real expense breakdown by category (top 6, rest → Other) ──
+  const expenseCats = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ex of expenses) {
+      const key = (ex.category?.trim() || "Uncategorised");
+      map.set(key, (map.get(key) ?? 0) + (ex.amount ?? 0));
+    }
+    const sorted = [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b2) => b2.value - a.value);
+    if (sorted.length <= 6) return sorted;
+    const top = sorted.slice(0, 5);
+    const other = sorted.slice(5).reduce((s, d) => s + d.value, 0);
+    return [...top, { name: "Other", value: other }];
+  }, [expenses]);
+
+  const totalRevenue  = financeMonthly.reduce((s, d) => s + d.revenue, 0);
+  const totalExpenses = financeMonthly.reduce((s, d) => s + d.expenses, 0);
   const netProfit     = totalRevenue - totalExpenses;
-  const margin        = Math.round((netProfit / totalRevenue) * 100);
+  const margin        = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
+  const hasExpenseCats = expenseCats.length > 0;
 
   return (
     <ChartSection delay={0.05}>
@@ -268,11 +288,11 @@ function FinanceCharts() {
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Revenue vs Expenses</CardTitle>
-            <CardDescription className="text-xs">Monthly trend (PKR)</CardDescription>
+            <CardDescription className="text-xs">Monthly trend · {currency}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={FINANCE_MONTHLY} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <AreaChart data={financeMonthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="gradRev" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor={P.blue}  stopOpacity={0.25} />
@@ -299,29 +319,37 @@ function FinanceCharts() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Expense Breakdown</CardTitle>
-            <CardDescription className="text-xs">By category (YTD)</CardDescription>
+            <CardDescription className="text-xs">By category · this year</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie
-                    data={EXPENSE_CATS}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                    startAngle={90} endAngle={-270}
-                  >
-                    {EXPENSE_CATS.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="transparent" />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <DonutLegend data={EXPENSE_CATS} colors={PIE_COLORS} />
+            {hasExpenseCats ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={expenseCats}
+                        cx="50%" cy="50%"
+                        innerRadius={42} outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {expenseCats.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip currency />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend data={expenseCats} colors={PIE_COLORS} total={expenseCats.reduce((s, d) => s + d.value, 0)} />
+              </>
+            ) : (
+              <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
+                No expenses recorded yet.
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -335,13 +363,13 @@ function FinanceCharts() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={FINANCE_MONTHLY} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <BarChart data={financeMonthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
               <Tooltip content={<ChartTooltip currency />} />
               <Bar dataKey="profit" name="Net Profit" radius={[4, 4, 0, 0]}>
-                {FINANCE_MONTHLY.map((d, i) => {
+                {financeMonthly.map((d, i) => {
                   const palette = [P.blue, P.green, P.violet, P.amber, P.teal];
                   return (
                     <Cell key={i} fill={d.profit >= 0 ? palette[i % palette.length] : P.red} />
