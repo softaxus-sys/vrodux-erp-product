@@ -88,7 +88,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
         var result = await sender.Send(
             new CreatePayrollRunCommand(req.Period, req.Notes, slips, CurrentUserId, CurrentUserName), ct);
-        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
+        return CreatedOrError(result, nameof(GetById), new { id = result.IsSuccess ? (object?)result.Value.Id : null });
     }
 
     // ── POST /api/hr/payroll/generate ────────────────────────────────────
@@ -98,7 +98,7 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
     {
         var result = await sender.Send(
             new GeneratePayrollRunCommand(req.Period, req.Notes, CurrentUserId, CurrentUserName), ct);
-        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
+        return CreatedOrError(result, nameof(GetById), new { id = result.IsSuccess ? (object?)result.Value.Id : null });
     }
 
     // ── POST /api/hr/payroll/{id}/reject ─────────────────────────────────

@@ -56,7 +56,7 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
     public async Task<IActionResult> Create([FromBody] CreateLeaveCommand command, CancellationToken ct)
     {
         var result = await sender.Send(command, ct);
-        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
+        return CreatedOrError(result, nameof(GetById), new { id = result.IsSuccess ? (object?)result.Value.Id : null });
     }
 
     // ── POST /api/hr/leaves/{id}/approve ────────────────────────────────

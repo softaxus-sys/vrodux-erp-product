@@ -40,7 +40,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> Create([FromBody] CreateDealCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
-        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
+        return CreatedOrError(result, nameof(GetById), new { id = result.IsSuccess ? (object?)result.Value.Id : null });
     }
 
     [HttpPut("{id:guid}")]

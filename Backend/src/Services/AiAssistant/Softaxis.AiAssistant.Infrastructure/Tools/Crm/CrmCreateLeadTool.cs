@@ -11,7 +11,7 @@ namespace Softaxis.AiAssistant.Infrastructure.Tools.Crm;
 public sealed class CrmCreateLeadTool(GatewayToolClient gateway) : IAiTool
 {
     public string Name        => "crm_create_lead";
-    public string Description  => "Create a new CRM lead. Provide at least the lead's first name; company, email, phone and source are optional. Use this when the user asks to add or create a lead.";
+    public string Description  => "Create a new CRM lead. This system REQUIRES first name, last name, company, email, and phone — all mandatory. If the user hasn't given all of them, ask for the missing ones before creating; do not invent values. Source is optional.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => false;
     public string? RequiredPermission => "crm.leads.create";
@@ -19,12 +19,12 @@ public sealed class CrmCreateLeadTool(GatewayToolClient gateway) : IAiTool
         """
         {"type":"object","properties":{
           "firstName":{"type":"string","description":"Lead's first name (required)"},
-          "lastName":{"type":"string"},
-          "company":{"type":"string"},
-          "email":{"type":"string"},
-          "phone":{"type":"string"},
-          "source":{"type":"string","description":"Where the lead came from, e.g. website, referral"}
-        },"required":["firstName"],"additionalProperties":false}
+          "lastName":{"type":"string","description":"Lead's last name (required)"},
+          "company":{"type":"string","description":"Company name (required)"},
+          "email":{"type":"string","description":"Email address (required)"},
+          "phone":{"type":"string","description":"Phone number (required)"},
+          "source":{"type":"string","description":"Where the lead came from, e.g. website, referral (optional)"}
+        },"required":["firstName","lastName","company","email","phone"],"additionalProperties":false}
         """;
 
     public Task<string> ExecuteAsync(JsonElement args, CancellationToken ct)

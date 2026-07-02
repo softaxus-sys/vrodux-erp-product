@@ -35,7 +35,7 @@ public sealed class ProjectsController(ISender sender) : ConstructionControllerB
     public async Task<IActionResult> Create([FromBody] CreateProjectCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
-        return CreatedOrError(result, nameof(GetById), new { id = result.Value?.Id });
+        return CreatedOrError(result, nameof(GetById), new { id = result.IsSuccess ? (object?)result.Value.Id : null });
     }
 
     [HttpDelete("{id:guid}")]
