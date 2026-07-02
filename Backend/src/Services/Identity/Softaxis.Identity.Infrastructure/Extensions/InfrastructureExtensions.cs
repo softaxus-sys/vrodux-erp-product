@@ -90,7 +90,16 @@ public static class InfrastructureExtensions
         await db.Database.MigrateAsync();
         await SeedAdminAsync(db, passwordHasher);
         await SeedSuperAdminAsync(db, passwordHasher);   // always runs — idempotent
-        await SeedPOSRolesAsync(db, passwordHasher);
+
+        // Demo POS roles + demo users (fixed password "Demo@123456") are single-tenant-era dev
+        // scaffolding — never seed them into a real (Production) deployment. Real tenants get their
+        // own per-tenant POS roles (Cashier/Supervisor) from TenantRoleProvisioner instead. Idempotent
+        // + a no-op on existing installs (skips when the roles already exist), so this only affects
+        // fresh Production installs.
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        if (!string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase))
+            await SeedPOSRolesAsync(db, passwordHasher);
+
         await SyncAdministratorPermissionsAsync(db);     // always runs — idempotent
         await BackfillTenantRolesAsync(scope.ServiceProvider, db); // per-tenant roles + re-point admins
     }
