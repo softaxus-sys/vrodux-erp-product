@@ -1,153 +1,132 @@
 import * as React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  Users, Shield, Clock, CheckCircle2, AlertCircle, Briefcase,
-  UserCheck, UserX, Coffee, Building2, TrendingUp, Banknote,
-  FileText, Activity, Server, Zap,
+  Users, Clock, ArrowUpRight, UserCheck, UserX, Coffee, Banknote,
+  TrendingUp, FileText, Activity, Target, DollarSign, UserPlus,
+  Briefcase, Sparkles, Plus, ShoppingCart, Package, Receipt, ArrowRight,
 } from "lucide-react";
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatNumber } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrency } from "@/hooks/use-currency";
 import { useUsers } from "@/hooks/identity/use-users";
 import { useRoles } from "@/hooks/identity/use-roles";
 import { useAuditLogs } from "@/hooks/identity/use-audit-logs";
 import {
-  useHrSummary,
-  useAttendanceSummary,
-  useLeaveSummary,
-  usePayrollSummary,
+  useHrSummary, useAttendanceSummary, useLeaveSummary, usePayrollSummary,
 } from "@/hooks/hr/use-hr";
-import { KpiGrid } from "./kpi-grid";
+import { useLeadsSummary, useCrmSummary, useCustomersSummary } from "@/hooks/crm/use-crm";
+import { useInvoiceSummary } from "@/hooks/finance/use-finance";
 import { ActivityFeed } from "./activity-feed";
 import { DashboardCharts } from "./dashboard-charts";
-import type { KpiCard, ActivityItem } from "@/types";
+import type { ActivityItem } from "@/types";
 import type { AttendanceSummaryDto, LeaveSummaryDto, PayrollSummaryDto } from "@/lib/hr/hr.api";
 
-// ── Backend service registry ───────────────────────────────────────────────────
+// ── Accent palette (maps to a soft icon chip gradient + solid accent) ──────────
 
-type ServiceStatus = "live" | "pending";
-interface BackendService {
-  name:    string;
-  modules: string[];
-  status:  ServiceStatus;
+type Accent = "blue" | "violet" | "emerald" | "amber" | "sky" | "rose";
+const ACCENTS: Record<Accent, { chip: string; text: string; ring: string; bar: string }> = {
+  blue:    { chip: "from-blue-500/15 to-blue-500/5",       text: "text-blue-600 dark:text-blue-400",       ring: "ring-blue-500/20",    bar: "bg-blue-500"    },
+  violet:  { chip: "from-violet-500/15 to-violet-500/5",   text: "text-violet-600 dark:text-violet-400",   ring: "ring-violet-500/20",  bar: "bg-violet-500"  },
+  emerald: { chip: "from-emerald-500/15 to-emerald-500/5", text: "text-emerald-600 dark:text-emerald-400", ring: "ring-emerald-500/20", bar: "bg-emerald-500" },
+  amber:   { chip: "from-amber-500/15 to-amber-500/5",     text: "text-amber-600 dark:text-amber-400",     ring: "ring-amber-500/20",   bar: "bg-amber-500"   },
+  sky:     { chip: "from-sky-500/15 to-sky-500/5",         text: "text-sky-600 dark:text-sky-400",         ring: "ring-sky-500/20",     bar: "bg-sky-500"     },
+  rose:    { chip: "from-rose-500/15 to-rose-500/5",       text: "text-rose-600 dark:text-rose-400",       ring: "ring-rose-500/20",    bar: "bg-rose-500"    },
+};
+
+interface Stat {
+  id: string;
+  label: string;
+  value: string;
+  sub?: string;
+  icon: React.ElementType;
+  accent: Accent;
 }
 
-const BACKEND_SERVICES: BackendService[] = [
-  { name: "Identity",     modules: ["Auth", "Users", "Roles", "Audit"],          status: "live"    },
-  { name: "HR",           modules: ["Employees", "Attendance", "Payroll"],        status: "live"    },
-  { name: "Finance",      modules: ["Invoicing", "Journals", "GL", "Tax"],        status: "pending" },
-  { name: "Sales",        modules: ["Orders", "Quotations", "Returns"],           status: "pending" },
-  { name: "Purchase",     modules: ["PO", "Vendors", "Approvals"],               status: "pending" },
-  { name: "Inventory",    modules: ["Stock", "Movements", "Transfers"],           status: "pending" },
-  { name: "CRM",          modules: ["Leads", "Customers", "Pipeline"],            status: "pending" },
-  { name: "POS",          modules: ["Retail", "Restaurant", "Sessions"],          status: "pending" },
-  { name: "Construction", modules: ["Projects", "Sites", "Contractors"],          status: "pending" },
-  { name: "Real Estate",  modules: ["Properties", "Units", "Tenants"],            status: "pending" },
-  { name: "Hospitality",  modules: ["Rooms", "Bookings", "Housekeeping"],         status: "pending" },
-  { name: "Dashboard",    modules: ["KPI API", "Charts API", "Reports API"],      status: "pending" },
-];
+// ── Stat card ──────────────────────────────────────────────────────────────────
 
-const LIVE_COUNT = BACKEND_SERVICES.filter(s => s.status === "live").length;
-
-// ── Skeletons ─────────────────────────────────────────────────────────────────
-
-function KpiSkeleton() {
+function StatCard({ stat, index }: { stat: Stat; index: number }) {
+  const a = ACCENTS[stat.accent];
+  const Icon = stat.icon;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <motion.div
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: index * 0.06 }}
+      className="group relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:shadow-lg"
+    >
+      <span className={cn("absolute inset-x-0 top-0 h-1", a.bar)} />
+      <div className="flex items-start justify-between">
+        <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ring-1", a.chip, a.ring)}>
+          <Icon className={cn("h-5 w-5", a.text)} />
+        </div>
+      </div>
+      <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums">{stat.value}</p>
+      {stat.sub && <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>}
+    </motion.div>
+  );
+}
+
+// ── Skeleton ────────────────────────────────────────────────────────────────────
+
+function StatSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {[...Array(4)].map((_, i) => (
-        <div key={i} className="bg-card border border-border rounded-xl p-5 animate-pulse">
-          <div className="h-3.5 w-24 bg-muted rounded mb-4" />
-          <div className="h-7 w-28 bg-muted rounded mb-1.5" />
-          <div className="h-3 w-20 bg-muted rounded" />
+        <div key={i} className="animate-pulse rounded-2xl border border-border bg-card p-5">
+          <div className="mb-4 flex items-start justify-between">
+            <div className="h-3.5 w-24 rounded bg-muted" />
+            <div className="h-10 w-10 rounded-xl bg-muted" />
+          </div>
+          <div className="h-8 w-28 rounded bg-muted" />
+          <div className="mt-2 h-3 w-20 rounded bg-muted" />
         </div>
       ))}
     </div>
   );
 }
 
-function ActivitySkeleton() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Activity</CardTitle>
-        <CardDescription>System audit trail</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-border/50">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex gap-3 p-4 animate-pulse">
-              <div className="h-8 w-8 rounded-full bg-muted shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3.5 w-48 bg-muted rounded" />
-                <div className="h-3 w-32 bg-muted rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+// ── Attendance / Payroll (HR) ───────────────────────────────────────────────────
 
-// ── Attendance Card ────────────────────────────────────────────────────────────
-
-function AttendanceCard({
-  summary,
-  leaveSummary,
-}: {
-  summary: AttendanceSummaryDto | undefined;
-  leaveSummary: LeaveSummaryDto | undefined;
-}) {
-  const total    = summary?.totalEmployees ?? 0;
-  const present  = summary?.presentToday   ?? 0;
-  const absent   = summary?.absentToday    ?? 0;
-  const late     = summary?.lateToday      ?? 0;
-  const onLeave  = summary?.onLeaveToday   ?? leaveSummary?.onLeaveToday ?? 0;
-  const pct      = total > 0 ? Math.round((present / total) * 100) : 0;
-
+function AttendanceCard({ summary, leaveSummary }: { summary?: AttendanceSummaryDto; leaveSummary?: LeaveSummaryDto }) {
+  const total = summary?.totalEmployees ?? 0;
+  const present = summary?.presentToday ?? 0;
+  const pct = total > 0 ? Math.round((present / total) * 100) : 0;
   const rows = [
-    { label: "Present",  value: present, Icon: UserCheck,  color: "text-success",     bg: "bg-success/10"     },
-    { label: "Absent",   value: absent,  Icon: UserX,      color: "text-destructive", bg: "bg-destructive/10" },
-    { label: "Late",     value: late,    Icon: Clock,      color: "text-warning",     bg: "bg-warning/10"     },
-    { label: "On Leave", value: onLeave, Icon: Coffee,     color: "text-primary",     bg: "bg-primary/10"     },
+    { label: "Present",  value: present,                       Icon: UserCheck, color: "text-success",     bg: "bg-success/10" },
+    { label: "Absent",   value: summary?.absentToday ?? 0,     Icon: UserX,     color: "text-destructive", bg: "bg-destructive/10" },
+    { label: "Late",     value: summary?.lateToday ?? 0,       Icon: Clock,     color: "text-warning",     bg: "bg-warning/10" },
+    { label: "On Leave", value: summary?.onLeaveToday ?? leaveSummary?.onLeaveToday ?? 0, Icon: Coffee, color: "text-primary", bg: "bg-primary/10" },
   ];
-
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-base">Today's Attendance</CardTitle>
-            <CardDescription>
-              {total > 0 ? `${pct}% of ${total} employees` : "Loading attendance…"}
-            </CardDescription>
+            <CardDescription>{total > 0 ? `${pct}% of ${total} employees` : "Loading attendance…"}</CardDescription>
           </div>
-          <span className={cn(
-            "text-xs font-semibold px-2.5 py-1 rounded-full",
-            pct >= 90 ? "bg-success/10 text-success" : pct >= 70 ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive",
-          )}>
+          <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold",
+            pct >= 90 ? "bg-success/10 text-success" : pct >= 70 ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive")}>
             {pct}% present
           </span>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="h-2 rounded-full bg-muted overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${pct}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="h-full rounded-full bg-success"
-          />
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, ease: "easeOut" }} className="h-full rounded-full bg-success" />
         </div>
         <div className="grid grid-cols-2 gap-2">
           {rows.map(({ label, value, Icon, color, bg }) => (
             <div key={label} className={cn("flex items-center gap-2.5 rounded-xl p-3", bg)}>
               <Icon className={cn("h-4 w-4 shrink-0", color)} />
               <div>
-                <p className={cn("text-xl font-bold leading-none", color)}>{value}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+                <p className={cn("text-xl font-bold leading-none tabular-nums", color)}>{value}</p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">{label}</p>
               </div>
             </div>
           ))}
@@ -157,33 +136,23 @@ function AttendanceCard({
   );
 }
 
-// ── Payroll Quick Card ─────────────────────────────────────────────────────────
-
-function PayrollCard({ summary }: { summary: PayrollSummaryDto | undefined }) {
+function PayrollCard({ summary, currency }: { summary?: PayrollSummaryDto; currency: string }) {
   const rows = [
-    { label: "Net Payroll",    value: formatCurrency(summary?.totalNetPayroll   ?? 0, "AED"), Icon: Banknote,   color: "text-success" },
-    { label: "Gross Payroll",  value: formatCurrency(summary?.totalGrossPayroll ?? 0, "AED"), Icon: TrendingUp,  color: "text-primary" },
-    { label: "Deductions",     value: formatCurrency(summary?.totalDeductions   ?? 0, "AED"), Icon: FileText,    color: "text-warning"  },
-    { label: "YTD Total",      value: formatCurrency(summary?.ytdTotal           ?? 0, "AED"), Icon: Activity,    color: "text-info"    },
+    { label: "Net Payroll",   value: formatCurrency(summary?.totalNetPayroll ?? 0, currency),   Icon: Banknote,   color: "text-success" },
+    { label: "Gross Payroll", value: formatCurrency(summary?.totalGrossPayroll ?? 0, currency), Icon: TrendingUp, color: "text-primary" },
+    { label: "Deductions",    value: formatCurrency(summary?.totalDeductions ?? 0, currency),   Icon: FileText,   color: "text-warning" },
+    { label: "YTD Total",     value: formatCurrency(summary?.ytdTotal ?? 0, currency),          Icon: Activity,   color: "text-info" },
   ];
-
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Payroll — {summary?.currentMonth ?? "Current Period"}</CardTitle>
-        <CardDescription>
-          {summary
-            ? `${summary.paidRuns} paid · ${summary.pendingRuns} pending`
-            : "Loading payroll data…"}
-        </CardDescription>
+        <CardDescription>{summary ? `${summary.paidRuns} paid · ${summary.pendingRuns} pending` : "Loading payroll data…"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {rows.map(({ label, value, Icon, color }) => (
-          <div key={label} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Icon className={cn("h-3.5 w-3.5", color)} />
-              {label}
-            </div>
+          <div key={label} className="flex items-center justify-between border-b border-border/30 py-1.5 last:border-0">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className={cn("h-3.5 w-3.5", color)} />{label}</div>
             <span className={cn("text-sm font-semibold", color)}>{value}</span>
           </div>
         ))}
@@ -192,309 +161,249 @@ function PayrollCard({ summary }: { summary: PayrollSummaryDto | undefined }) {
   );
 }
 
-// ── Backend Services Status ────────────────────────────────────────────────────
+// ── Quick actions ───────────────────────────────────────────────────────────────
 
-function BackendStatusGrid() {
+function QuickActions({ actions }: { actions: { label: string; to: string; icon: React.ElementType; accent: Accent }[] }) {
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base">Backend Services</CardTitle>
-            <CardDescription>
-              {LIVE_COUNT} of {BACKEND_SERVICES.length} microservices live
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-success">
-            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-            {LIVE_COUNT} live
-          </div>
-        </div>
+        <CardTitle className="text-base">Quick Actions</CardTitle>
+        <CardDescription>Jump straight into your day</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-2">
-          {BACKEND_SERVICES.map((svc) => (
-            <div
-              key={svc.name}
-              className={cn(
-                "rounded-lg border p-2.5",
-                svc.status === "live"
-                  ? "border-success/30 bg-success/5"
-                  : "border-border bg-muted/20",
-              )}
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className={cn(
-                  "h-1.5 w-1.5 rounded-full shrink-0",
-                  svc.status === "live" ? "bg-success" : "bg-muted-foreground/40",
-                )} />
-                <span className="text-xs font-semibold truncate">{svc.name}</span>
+      <CardContent className="grid grid-cols-2 gap-2.5">
+        {actions.map(({ label, to, icon: Icon, accent }) => {
+          const a = ACCENTS[accent];
+          return (
+            <Link key={to} to={to}
+              className="group flex flex-col items-start gap-2 rounded-xl border border-border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm">
+              <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br ring-1", a.chip, a.ring)}>
+                <Icon className={cn("h-4.5 w-4.5", a.text)} />
               </div>
-              <p className="text-[10px] text-muted-foreground leading-tight truncate">
-                {svc.modules.join(" · ")}
-              </p>
-            </div>
-          ))}
-        </div>
+              <span className="flex items-center gap-1 text-xs font-semibold">
+                {label}
+                <ArrowRight className="h-3 w-3 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+              </span>
+            </Link>
+          );
+        })}
       </CardContent>
     </Card>
   );
 }
 
-// ── Role Quick Info Card ───────────────────────────────────────────────────────
-
-function RoleInfoCard({ role, permissions }: { role?: string; permissions: number }) {
-  const roleLabel = (role ?? "user").replace(/_/g, " ");
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Your Access</CardTitle>
-        <CardDescription>Role & permission summary</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-          <Shield className="h-8 w-8 text-primary" />
-          <div>
-            <p className="text-sm font-semibold capitalize">{roleLabel}</p>
-            <p className="text-xs text-muted-foreground">{permissions} permission{permissions !== 1 ? "s" : ""} granted</p>
-          </div>
-        </div>
-        <div className="space-y-0 divide-y divide-border/40">
-          {[
-            { label: "Dashboard",  access: true  },
-            { label: "HR",         access: role === "hr_manager" || role === "super_admin" || role === "tenant_admin" || role === "manager" },
-            { label: "Finance",    access: role === "accountant"  || role === "super_admin" || role === "tenant_admin" || role === "manager" },
-            { label: "Settings",   access: role === "super_admin" || role === "tenant_admin" },
-          ].map(({ label, access }) => (
-            <div key={label} className="flex items-center justify-between py-2">
-              <span className="text-xs text-muted-foreground">{label}</span>
-              {access
-                ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                : <AlertCircle  className="h-3.5 w-3.5 text-muted-foreground/40" />}
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Main Dashboard View ────────────────────────────────────────────────────────
+// ── Main ─────────────────────────────────────────────────────────────────────────
 
 export function DashboardView() {
-  const { user, isRole } = useAuthStore();
+  const { user, isRole, hasModuleAccess, tenant } = useAuthStore();
+  const currency = useCurrency();
 
   const isAdmin = isRole(["super_admin", "tenant_admin"]);
-  const isHR    = isRole(["hr_manager"]) || isAdmin;
+  const canCrm = hasModuleAccess("crm");
+  const canHr = hasModuleAccess("hr") || isRole(["hr_manager"]);
+  const canFinance = hasModuleAccess("finance");
+  const canSales = hasModuleAccess("sales");
+  const canInventory = hasModuleAccess("inventory");
 
-  // ── Identity data (always available) ────────────────────────────────────────
-  const { data: usersData,  isLoading: usersLoading  } = useUsers({ pageSize: 1 });
-  const { data: rolesData                             } = useRoles();
-  const { data: auditData,  isLoading: auditLoading  } = useAuditLogs({ pageSize: 15 });
+  // Data (React Query caches; modules the tenant lacks simply resolve empty)
+  const { data: usersData, isLoading: usersLoading } = useUsers({ pageSize: 1 });
+  const { data: rolesData } = useRoles();
+  const { data: auditData, isLoading: auditLoading } = useAuditLogs({ pageSize: 15 });
+  const { data: hrSummary } = useHrSummary();
+  const { data: attSummary } = useAttendanceSummary();
+  const { data: leaveSummary } = useLeaveSummary();
+  const { data: payrollSummary } = usePayrollSummary();
+  const { data: leads } = useLeadsSummary();
+  const { data: deals } = useCrmSummary();
+  const { data: customers } = useCustomersSummary();
+  const { data: invoices } = useInvoiceSummary();
 
-  // ── HR data (available when HR service is up) ────────────────────────────────
-  const { data: hrSummary     } = useHrSummary();
-  const { data: attSummary    } = useAttendanceSummary();
-  const { data: leaveSummary  } = useLeaveSummary();
-  const { data: payrollSummary} = usePayrollSummary();
-
-  const hour     = new Date().getHours();
+  const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const firstName = user?.name?.split(" ")[0] ?? "there";
 
-  // ── Build KPI cards ──────────────────────────────────────────────────────────
-
-  const kpiCards: KpiCard[] = React.useMemo(() => {
-    if (isHR) {
-      return [
-        {
-          id:          "kpi-emp",
-          label:       "Total Employees",
-          value:       hrSummary?.totalEmployees ?? 0,
-          format:      "number",
-          color:       "primary",
-          changeLabel: hrSummary
-            ? `${hrSummary.departments} dept${hrSummary.departments !== 1 ? "s" : ""} · ${hrSummary.activeEmployees} active`
-            : undefined,
-        },
-        {
-          id:          "kpi-present",
-          label:       "Present Today",
-          value:       attSummary?.presentToday ?? 0,
-          format:      "number",
-          color:       "success",
-          changeLabel: attSummary
-            ? `${attSummary.lateToday} late · ${attSummary.absentToday} absent`
-            : undefined,
-        },
-        {
-          id:          "kpi-leave",
-          label:       "Pending Leave Requests",
-          value:       leaveSummary?.pending ?? 0,
-          format:      "number",
-          color:       "warning",
-          changeLabel: leaveSummary
-            ? `${leaveSummary.onLeaveToday} on leave today`
-            : undefined,
-        },
-        {
-          id:          "kpi-sys-users",
-          label:       isAdmin ? "System Users" : "New Hires (Month)",
-          value:       isAdmin ? (usersData?.totalCount ?? 0) : (hrSummary?.newThisMonth ?? 0),
-          format:      "number",
-          color:       "info",
-          changeLabel: isAdmin
-            ? `${rolesData?.items?.length ?? 0} roles configured`
-            : (hrSummary ? `${hrSummary.probation} on probation` : undefined),
-        },
-      ];
+  // ── Adaptive KPI set — pick the 4 most relevant for the tenant's modules ──────
+  const stats: Stat[] = React.useMemo(() => {
+    const s: Stat[] = [];
+    if (canCrm) {
+      s.push(
+        { id: "leads", label: "Total Leads", value: formatNumber(leads?.total ?? 0), sub: `${leads?.newThisWeek ?? 0} new this week`, icon: Target, accent: "blue" },
+        { id: "pipeline", label: "Pipeline Value", value: formatCurrency(deals?.totalValue ?? 0, currency), sub: `${deals?.totalDeals ?? 0} open deals`, icon: TrendingUp, accent: "violet" },
+        { id: "customers", label: "Customers", value: formatNumber(customers?.total ?? 0), sub: `${customers?.active ?? 0} active`, icon: Users, accent: "emerald" },
+        { id: "conv", label: "Conversion Rate", value: `${Math.round(leads?.conversionRate ?? 0)}%`, sub: `${leads?.converted ?? 0} leads converted`, icon: Sparkles, accent: "amber" },
+      );
     }
+    if (canFinance) {
+      s.push(
+        { id: "revenue", label: "Revenue (Paid)", value: formatCurrency(invoices?.totalPaid ?? 0, currency), sub: `${invoices?.paidCount ?? 0} invoices paid`, icon: DollarSign, accent: "emerald" },
+        { id: "outstanding", label: "Outstanding", value: formatCurrency(invoices?.totalOutstanding ?? 0, currency), sub: `${invoices?.overdueCount ?? 0} overdue`, icon: Receipt, accent: "rose" },
+      );
+    }
+    if (canHr) {
+      s.push(
+        { id: "emp", label: "Employees", value: formatNumber(hrSummary?.totalEmployees ?? 0), sub: `${hrSummary?.activeEmployees ?? 0} active`, icon: Briefcase, accent: "sky" },
+        { id: "present", label: "Present Today", value: formatNumber(attSummary?.presentToday ?? 0), sub: `${attSummary?.absentToday ?? 0} absent · ${leaveSummary?.pending ?? 0} leave requests`, icon: UserCheck, accent: "emerald" },
+      );
+    }
+    // Fallback / admin filler so there are always ≥4 tiles
+    s.push(
+      { id: "users", label: "Team Members", value: formatNumber(usersData?.totalCount ?? 0), sub: `${rolesData?.items?.length ?? 0} roles`, icon: Users, accent: "sky" },
+      { id: "perms", label: "Your Permissions", value: formatNumber(user?.permissions?.length ?? 0), sub: (user?.role ?? "").replace(/_/g, " "), icon: Sparkles, accent: "violet" },
+    );
+    return s.slice(0, 4);
+  }, [canCrm, canFinance, canHr, leads, deals, customers, invoices, hrSummary, attSummary, leaveSummary, usersData, rolesData, user, currency]);
 
-    // Generic role: show what Identity can provide
-    return [
-      {
-        id:          "kpi-users",
-        label:       "System Users",
-        value:       usersData?.totalCount ?? 0,
-        format:      "number",
-        color:       "primary",
-        changeLabel: `${rolesData?.items?.length ?? 0} roles configured`,
-      },
-      {
-        id:          "kpi-roles",
-        label:       "Active Roles",
-        value:       rolesData?.items?.length ?? 0,
-        format:      "number",
-        color:       "info",
-        changeLabel: "permission-based access",
-      },
-      {
-        id:          "kpi-perms",
-        label:       "Your Permissions",
-        value:       user?.permissions?.length ?? 0,
-        format:      "number",
-        color:       "success",
-        changeLabel: `role: ${(user?.role ?? "").replace(/_/g, " ")}`,
-      },
-      {
-        id:          "kpi-services",
-        label:       "Live Services",
-        value:       `${LIVE_COUNT}/${BACKEND_SERVICES.length}`,
-        format:      "text",
-        color:       "warning",
-        changeLabel: `${BACKEND_SERVICES.length - LIVE_COUNT} pending build`,
-      },
-    ];
-  }, [isHR, isAdmin, hrSummary, attSummary, leaveSummary, usersData, rolesData, user]);
+  // ── Quick actions by module ───────────────────────────────────────────────────
+  const actions = React.useMemo(() => {
+    const list: { label: string; to: string; icon: React.ElementType; accent: Accent }[] = [];
+    if (canCrm) list.push(
+      { label: "New Lead", to: "/crm/leads", icon: UserPlus, accent: "blue" },
+      { label: "Add Deal", to: "/crm/pipeline", icon: TrendingUp, accent: "violet" },
+      { label: "New Customer", to: "/crm/customers", icon: Users, accent: "emerald" },
+    );
+    if (canSales) list.push({ label: "New Order", to: "/sales/orders", icon: ShoppingCart, accent: "sky" });
+    if (canFinance) list.push({ label: "New Invoice", to: "/finance/invoicing", icon: Receipt, accent: "amber" });
+    if (canInventory) list.push({ label: "Add Product", to: "/inventory/products", icon: Package, accent: "rose" });
+    if (canHr) list.push({ label: "Add Employee", to: "/hr/employees", icon: Briefcase, accent: "sky" });
+    if (list.length === 0) list.push({ label: "Settings", to: "/settings/general", icon: Plus, accent: "blue" });
+    return list.slice(0, 6);
+  }, [canCrm, canSales, canFinance, canInventory, canHr]);
 
-  // ── Convert audit logs → ActivityItem[] ─────────────────────────────────────
+  const activities: ActivityItem[] = React.useMemo(() =>
+    (auditData?.items ?? []).slice(0, 12).map((log) => ({
+      id: log.id,
+      type: (log.action ?? "").toLowerCase().replace(/[\s.]+/g, "_"),
+      title: `${log.entityType ?? "System"}: ${log.action ?? "action"}`,
+      description: log.succeeded ? (log.entityId ? `Entity: ${log.entityId}` : "Completed successfully") : "Action failed",
+      user: log.userName ?? "System",
+      timestamp: log.occurredOn,
+      module: "settings" as const,
+    })), [auditData?.items]);
 
-  const activities: ActivityItem[] = React.useMemo(() => {
-    return (auditData?.items ?? []).slice(0, 12).map((log) => ({
-      id:          log.id,
-      type:        (log.action ?? "").toLowerCase().replace(/[\s.]+/g, "_"),
-      title:       `${log.entityType ?? "System"}: ${log.action ?? "action"}`,
-      description: log.succeeded
-        ? (log.entityId ? `Entity: ${log.entityId}` : "Completed successfully")
-        : "Action failed",
-      user:        log.userName ?? "System",
-      timestamp:   log.occurredOn,
-      module:      "settings" as const,
-    }));
-  }, [auditData?.items]);
-
-  const isLoading = usersLoading;
+  const dateStr = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="space-y-6">
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      {/* ── Hero ──────────────────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between"
+        className="relative overflow-hidden rounded-2xl border border-border p-6 sm:p-8 text-white"
+        style={{ background: "linear-gradient(120deg, hsl(var(--primary)) 0%, #6d28d9 55%, #4f46e5 100%)" }}
       >
-        <div>
-          <h1 className="text-2xl font-bold">
-            {greeting}, {user?.name?.split(" ")[0] ?? "there"} 👋
-          </h1>
-          <p className="text-muted-foreground mt-0.5 text-sm">
-            {isAdmin
-              ? "Enterprise overview — all modules at a glance."
-              : isHR
-                ? "HR dashboard — your workforce at a glance."
-                : "Here's what's happening in your workspace today."}
-          </p>
-        </div>
-        <div className="hidden sm:block text-right shrink-0 ml-6">
-          <p className="text-sm font-medium">
-            {new Date().toLocaleDateString("en-PK", {
-              weekday: "long", day: "numeric", month: "long", year: "numeric",
-            })}
-          </p>
-          <p className="text-xs text-muted-foreground capitalize mt-0.5">
-            {(user?.role ?? "").replace(/_/g, " ")}
-          </p>
-        </div>
-      </motion.div>
-
-      {/* ── KPI Cards ───────────────────────────────────────────────────────── */}
-      {isLoading ? <KpiSkeleton /> : <KpiGrid cards={kpiCards} />}
-
-      {/* ── Module Charts ────────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.25 }}
-      >
-        <div className="flex items-center gap-2 mb-5">
-          <div className="h-px flex-1 bg-border/50" />
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2 select-none">
-            Module Analytics
-          </span>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-        <DashboardCharts />
-      </motion.div>
-
-      {/* ── HR-specific panels (hr_manager + admins) ────────────────────────── */}
-      {isHR && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <AttendanceCard summary={attSummary} leaveSummary={leaveSummary} />
-          </div>
+        {/* decorative glows */}
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-24 right-24 h-52 w-52 rounded-full bg-white/5 blur-2xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <PayrollCard summary={payrollSummary} />
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" />
+              {tenant?.name ?? "Your workspace"}
+            </div>
+            <h1 className="text-2xl font-bold sm:text-3xl">{greeting}, {firstName}</h1>
+            <p className="mt-1 max-w-xl text-sm text-white/80">
+              {isAdmin ? "Here's a live overview of your business today."
+                : canCrm ? "Your leads, pipeline, and customers at a glance."
+                : "Here's what's happening in your workspace today."}
+            </p>
           </div>
+          <div className="shrink-0 rounded-xl bg-white/10 px-4 py-3 text-right backdrop-blur">
+            <p className="text-sm font-semibold">{dateStr}</p>
+            <p className="mt-0.5 text-xs capitalize text-white/70">{(user?.role ?? "").replace(/_/g, " ")}</p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── KPI stat cards ────────────────────────────────────────────────────── */}
+      {usersLoading ? <StatSkeleton /> : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {stats.map((stat, i) => <StatCard key={stat.id} stat={stat} index={i} />)}
         </div>
       )}
 
-      {/* ── Activity Feed + Side Panel ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ── Charts + Quick actions ────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DashboardCharts />
+        </div>
+        <QuickActions actions={actions} />
+      </div>
+
+      {/* ── HR panels ─────────────────────────────────────────────────────────── */}
+      {canHr && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2"><AttendanceCard summary={attSummary} leaveSummary={leaveSummary} /></div>
+          <PayrollCard summary={payrollSummary} currency={currency} />
+        </div>
+      )}
+
+      {/* ── Activity feed ─────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {auditLoading ? (
-            <ActivitySkeleton />
+            <Card><CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>System audit trail</CardDescription></CardHeader>
+              <CardContent className="space-y-3 p-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex animate-pulse gap-3">
+                    <div className="h-8 w-8 shrink-0 rounded-full bg-muted" />
+                    <div className="flex-1 space-y-2"><div className="h-3.5 w-48 rounded bg-muted" /><div className="h-3 w-32 rounded bg-muted" /></div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           ) : activities.length > 0 ? (
             <ActivityFeed activities={activities} />
           ) : (
             <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>System audit trail from Identity service</CardDescription>
-              </CardHeader>
-              <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                No recent audit activity found.
-              </CardContent>
+              <CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>System audit trail</CardDescription></CardHeader>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">No recent activity yet.</CardContent>
             </Card>
           )}
         </div>
 
-        <div>
-          {isAdmin
-            ? <BackendStatusGrid />
-            : <RoleInfoCard role={user?.role} permissions={user?.permissions?.length ?? 0} />}
-        </div>
+        {/* Pipeline / snapshot */}
+        <Card className="h-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{canCrm ? "Sales Pipeline" : "Snapshot"}</CardTitle>
+            <CardDescription>{canCrm ? "Deal health this period" : "Key numbers"}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {canCrm ? (
+              <>
+                <div className="rounded-xl border border-border bg-gradient-to-br from-violet-500/10 to-transparent p-4">
+                  <p className="text-xs text-muted-foreground">Open pipeline value</p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums">{formatCurrency(deals?.totalValue ?? 0, currency)}</p>
+                </div>
+                {[
+                  { label: "Won value", value: formatCurrency(deals?.wonValue ?? 0, currency), color: "text-success" },
+                  { label: "Win rate", value: `${Math.round(deals?.winRate ?? 0)}%`, color: "text-primary" },
+                  { label: "Avg deal size", value: formatCurrency(deals?.avgDealSize ?? 0, currency), color: "text-foreground" },
+                  { label: "Qualified leads", value: formatNumber(leads?.qualified ?? 0), color: "text-blue-600 dark:text-blue-400" },
+                ].map((r) => (
+                  <div key={r.label} className="flex items-center justify-between border-b border-border/30 py-1.5 last:border-0">
+                    <span className="text-xs text-muted-foreground">{r.label}</span>
+                    <span className={cn("text-sm font-semibold tabular-nums", r.color)}>{r.value}</span>
+                  </div>
+                ))}
+                <Link to="/crm/pipeline" className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5">
+                  View pipeline <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
+              </>
+            ) : (
+              [
+                { label: "Team members", value: formatNumber(usersData?.totalCount ?? 0) },
+                { label: "Roles", value: formatNumber(rolesData?.items?.length ?? 0) },
+                { label: "Your permissions", value: formatNumber(user?.permissions?.length ?? 0) },
+              ].map((r) => (
+                <div key={r.label} className="flex items-center justify-between border-b border-border/30 py-2 last:border-0">
+                  <span className="text-xs text-muted-foreground">{r.label}</span>
+                  <span className="text-sm font-semibold tabular-nums">{r.value}</span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </div>
-
     </div>
   );
 }
