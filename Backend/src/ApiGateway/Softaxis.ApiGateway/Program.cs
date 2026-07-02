@@ -21,6 +21,7 @@ using Softaxis.Hospitality.Infrastructure.Extensions;
 using Softaxis.Restaurant.Infrastructure.Extensions;
 using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
+using Softaxis.AiAssistant.Infrastructure.Extensions;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -91,6 +92,8 @@ try
     builder.Services.AddRestaurantInfrastructure(builder.Configuration);
     builder.Services.AddRecipeInfrastructure(builder.Configuration);
     builder.Services.AddProjectManagementInfrastructure(builder.Configuration);
+    // AI Assistant: DbContext, provider abstraction (Claude/Groq), orchestrator, tools
+    builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -124,6 +127,11 @@ try
         Softaxis.ProjectManagement.Application.Abstractions.ICurrentUser,
         Softaxis.ProjectManagement.API.Middleware.CurrentUserService>();
 
+    // AiAssistant.Application.Abstractions.ICurrentUser  →  AiAssistant CurrentUserService
+    builder.Services.AddScoped<
+        Softaxis.AiAssistant.Application.Abstractions.ICurrentUser,
+        Softaxis.AiAssistant.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -139,7 +147,8 @@ try
         .AddApplicationPart(typeof(Softaxis.Hospitality.API.Controllers.RoomsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Restaurant.API.Controllers.TablesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Recipe.API.Controllers.RecipesController).Assembly)
-        .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly);
+        .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly);
 
     // ── Authorization + OpenAPI ───────────────────────────────────────────────
     builder.Services.AddAuthorization();
@@ -176,6 +185,7 @@ try
         await app.Services.MigrateAndSeedRestaurantAsync();     // Restaurant POS
         await app.Services.MigrateAndSeedRecipeAsync();         // Recipe
         await app.Services.MigrateAndSeedProjectManagementAsync(); // Project Management
+        await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────

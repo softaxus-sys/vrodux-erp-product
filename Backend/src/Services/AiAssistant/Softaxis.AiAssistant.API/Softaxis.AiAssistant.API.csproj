@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"          Version="9.*" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Softaxis.AiAssistant.Infrastructure\Softaxis.AiAssistant.Infrastructure.csproj" />
+    <ProjectReference Include="..\Softaxis.AiAssistant.Application\Softaxis.AiAssistant.Application.csproj" />
+  </ItemGroup>
+</Project>

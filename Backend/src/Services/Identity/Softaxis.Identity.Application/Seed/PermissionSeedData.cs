@@ -85,6 +85,7 @@ public static class PermissionSeedData
         ["settings.branches"]    = ["view","create","edit","delete"],
         ["settings.integrations"]= ["view","edit"],
         ["settings.audit"]       = ["view","export"],
+        ["settings.ai"]          = ["view","edit"],
 
         // Project Management
         ["project-management.projects"] = ["view","create","edit","delete"],

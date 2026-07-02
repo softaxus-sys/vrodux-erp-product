@@ -46,6 +46,8 @@
     <ProjectReference Include="..\..\Services\Recipe\Softaxis.Recipe.Infrastructure\Softaxis.Recipe.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\ProjectManagement\Softaxis.ProjectManagement.API\Softaxis.ProjectManagement.API.csproj" />
     <ProjectReference Include="..\..\Services\ProjectManagement\Softaxis.ProjectManagement.Infrastructure\Softaxis.ProjectManagement.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\AiAssistant\Softaxis.AiAssistant.API\Softaxis.AiAssistant.API.csproj" />
+    <ProjectReference Include="..\..\Services\AiAssistant\Softaxis.AiAssistant.Infrastructure\Softaxis.AiAssistant.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
