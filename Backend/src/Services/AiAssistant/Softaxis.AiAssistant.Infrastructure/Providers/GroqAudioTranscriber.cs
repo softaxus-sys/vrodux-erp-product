@@ -13,16 +13,26 @@ public sealed class GroqAudioTranscriber(IHttpClientFactory httpClientFactory, I
     private const string Endpoint = "https://api.groq.com/openai/v1/audio/transcriptions";
     private const string Model    = "whisper-large-v3";
 
+    // Groq validates the upload by filename extension. Telegram voice notes arrive as ".oga",
+    // which Groq rejects even though the content is Ogg/Opus — so coerce unknown extensions to ".ogg".
+    private static readonly HashSet<string> SupportedExtensions =
+        new(StringComparer.OrdinalIgnoreCase) { ".flac", ".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".ogg", ".opus", ".wav", ".webm" };
+
     /// <summary>Returns the transcribed text, or null on failure.</summary>
     public async Task<string?> TranscribeAsync(string apiKey, byte[] audio, string fileName, CancellationToken ct)
     {
         try
         {
+            var ext = System.IO.Path.GetExtension(fileName);
+            var safeName = SupportedExtensions.Contains(ext)
+                ? fileName
+                : System.IO.Path.GetFileNameWithoutExtension(fileName) + ".ogg";
+
             using var http = httpClientFactory.CreateClient("ai");
             using var form = new MultipartFormDataContent();
             var file = new ByteArrayContent(audio);
             file.Headers.ContentType = new MediaTypeHeaderValue("audio/ogg");
-            form.Add(file, "file", fileName);
+            form.Add(file, "file", safeName);
             form.Add(new StringContent(Model), "model");
             form.Add(new StringContent("text"), "response_format");
 
