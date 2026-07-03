@@ -87,6 +87,8 @@ internal sealed class ProcessTelegramUpdateHandler(
                 return Result.Success();
             }
             var file = await telegram.DownloadFileAsync(botToken, voiceFileId, ct);
+            if (file is null)
+                logger.LogWarning("Telegram voice download failed for file_id {FileId}", voiceFileId);
             var transcript = file is null ? null : await transcriber.TranscribeAsync(apiKey, file.Value.Bytes, file.Value.FileName, ct);
             if (string.IsNullOrWhiteSpace(transcript))
             {

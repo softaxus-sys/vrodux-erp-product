@@ -257,6 +257,7 @@ function AutomationForm({ editingId, onDone }: { editingId: string | null; onDon
   const create = useCreateAutomation();
   const update = useUpdateAutomation();
   const canAutopilot = caps?.autopilot ?? false;
+  const { data: eventTypes } = useAutomationEventTypes();
 
   const meId = useAuthStore(s => s.user?.id ?? null);
   const meName = useAuthStore(s => s.user?.name ?? "Me");
