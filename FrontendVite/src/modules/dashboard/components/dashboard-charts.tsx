@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrency } from "@/hooks/use-currency";
 import { useLeads, useDeals } from "@/hooks/crm/use-crm";
+import { useInvoices, useExpenses } from "@/hooks/finance/use-finance";
 import { cn, formatCurrency } from "@/lib/utils";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
