@@ -20,8 +20,12 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(254)
             .IsRequired();
 
-        builder.HasIndex(u => u.Email).IsUnique();
-        builder.HasIndex(u => u.Username).IsUnique();
+        // Filter the unique indexes to non-deleted rows so a soft-deleted user's email/username
+        // can be reused (matches Branch/Tenant). Without the filter, EmailExistsAsync — which the
+        // global !IsDeleted query filter makes skip deleted rows — reports the email as free, then
+        // the INSERT collides with the unfiltered index → duplicate-key 500 on user re-create.
+        builder.HasIndex(u => u.Email).IsUnique().HasFilter("[IsDeleted] = 0");
+        builder.HasIndex(u => u.Username).IsUnique().HasFilter("[IsDeleted] = 0");
 
         builder.Property(u => u.Username).HasMaxLength(50).IsRequired();
         builder.Property(u => u.FirstName).HasMaxLength(100).IsRequired();

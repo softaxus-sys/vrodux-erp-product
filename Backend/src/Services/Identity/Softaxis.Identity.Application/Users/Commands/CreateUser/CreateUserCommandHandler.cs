@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
@@ -17,6 +18,7 @@ public sealed class CreateUserCommandHandler(
     ITenantContext      tenantContext,
     IJwtTokenService    jwtService,
     IEmailService       emailService,
+    ILogger<CreateUserCommandHandler> logger,
     IUnitOfWork         uow)
     : ICommandHandler<CreateUserCommand, UserDto>
 {
@@ -69,8 +71,18 @@ public sealed class CreateUserCommandHandler(
         await uow.SaveChangesAsync(ct);
 
         // Best-effort send — never fail user creation if SMTP is down (link is also logged server-side).
-        try { await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, rawToken, ct); }
-        catch { /* delivery failure is non-fatal; admin can trigger a resend */ }
+        try
+        {
+            await emailService.SendEmailVerificationAsync(user.Email.Value, user.FullName, rawToken, ct);
+            logger.LogInformation("Verification email dispatched for new user {Email} (Id {UserId}).", user.Email.Value, user.Id);
+        }
+        catch (Exception ex)
+        {
+            // Delivery failure is non-fatal (admin can resend), but it MUST be visible in logs —
+            // a silent swallow here is why undelivered verification emails go unnoticed.
+            logger.LogError(ex, "Failed to send verification email to {Email} (Id {UserId}). " +
+                "Check the Email:* / Email__* SMTP settings for this environment.", user.Email.Value, user.Id);
+        }
 
         // Reload with full role/permission navigation so the DTO is complete.
         var created = await userRepo.GetByIdAsync(user.Id, ct);
