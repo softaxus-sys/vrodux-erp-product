@@ -58,6 +58,9 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
             // Industry vertical — lets the frontend render Industry-Pack-specific UI/labels.
             if (!string.IsNullOrWhiteSpace(tenant.Industry))
                 claims.Add(new Claim("industry", tenant.Industry));
+
+            // Operating/display currency — drives formatCurrency across the app (USD default).
+            claims.Add(new Claim("currency", string.IsNullOrWhiteSpace(tenant.Currency) ? "USD" : tenant.Currency));
         }
 
         // Embed all permissions as claims — avoids DB round-trip on every request

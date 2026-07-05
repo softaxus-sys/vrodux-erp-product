@@ -59,6 +59,7 @@ public sealed class RegisterTrialCommandHandler(
             industry:       NormaliseIndustry(cmd.Industry));
 
         tenant.StartTrial(30);
+        tenant.SetCurrency(cmd.Currency);   // browser-detected 3-letter code (USD default when null)
 
         if (cmd.Modules is { Count: > 0 })
             tenant.SetEnabledModules(cmd.Modules);

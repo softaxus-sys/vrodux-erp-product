@@ -21,6 +21,17 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
         await db.Database.MigrateAsync();
+
+        // One-time repair (idempotent): payment rows written by the old raw-SQL RecordPayment
+        // landed with TenantId = NULL (raw SQL bypasses StampTenantId), so the tenant query
+        // filter hid them from their own tenant. Stamp them from the parent order.
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE p SET p.TenantId = o.TenantId
+            FROM [restaurant].[OrderPayments] p
+            JOIN [restaurant].[Orders] o ON o.Id = p.OrderId
+            WHERE p.TenantId IS NULL AND o.TenantId IS NOT NULL
+            """);
+
         await RestaurantSeedData.SeedAsync(db);
     }
 }

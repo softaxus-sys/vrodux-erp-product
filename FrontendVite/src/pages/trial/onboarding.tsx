@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand/brand-logo";
-import { COUNTRIES, INDUSTRIES, LANGUAGES, FISCAL_YEARS, getUtcOffset, type CountryMeta } from "@/lib/onboarding/geo-data";
+import { COUNTRIES, INDUSTRIES, LANGUAGES, FISCAL_YEARS, getUtcOffset, detectCountry, type CountryMeta } from "@/lib/onboarding/geo-data";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { ApiError } from "@/lib/api-client";
@@ -461,7 +461,10 @@ export default function OnboardingPage() {
   const pw=f1.watch("password");
   const onS1=f1.handleSubmit(d=>{ setS1Data(d); setStep(1); });
 
-  const f2=useForm<S2>({ resolver:zodResolver(s2Schema), defaultValues:{ orgName:"",industry:"",country:"",state:"",currency:"",language:"English",timezone:"",startDate:new Date().toISOString().split("T")[0],fiscalYear:"January - December" } });
+  // Auto-detect the user's country from the local machine (browser locale → timezone) so
+  // country/currency/timezone are pre-selected at account creation. Falls back to blank.
+  const detectedCountry=React.useMemo(()=>detectCountry(),[]);
+  const f2=useForm<S2>({ resolver:zodResolver(s2Schema), defaultValues:{ orgName:"",industry:"",country:detectedCountry?.name??"",state:"",currency:detectedCountry?.currency??"",language:"English",timezone:detectedCountry?.timezone??"",startDate:new Date().toISOString().split("T")[0],fiscalYear:"January - December" } });
   const country=f2.watch("country"); const industry=f2.watch("industry"); const tz=f2.watch("timezone");
   const meta:CountryMeta|undefined=COUNTRIES.find(c=>c.name===country);
 
@@ -512,7 +515,8 @@ export default function OnboardingPage() {
         businessType:businessType||undefined,
         fiscalYear:  s2.fiscalYear||undefined,
         language:    s2.language||undefined,
-        currency:    s2.currency||undefined,
+        // Submit the 3-letter ISO code (picker shows "PKR - Pakistani Rupee"); backend also normalises.
+        currency:    s2.currency ? s2.currency.split(/[ -]/)[0].toUpperCase() : undefined,
         timezone:    s2.timezone||undefined,
         modules:     [...allResolved],
       };

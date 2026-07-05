@@ -14,7 +14,8 @@ import { AddLeadForm } from "./add-lead-form";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
-import { useLeads, useLeadsSummary } from "@/hooks/crm/use-crm";
+import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
+import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -64,8 +65,9 @@ function ScoreBar({ score }: { score: number }) {
 /* ── Kanban card ── */
 function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; onClick: () => void }) {
   const pc = PRIORITY_CONFIG[lead.priority];
+  const currency = useCurrency();
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * 0.04 }}
       onClick={onClick}
       className="bg-background border border-border rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -76,7 +78,7 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
         <Building2 className="h-3 w-3 shrink-0" />
         <span className="truncate">{lead.company}</span>
       </div>
-      <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, lead.currency)}</p>
+      <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, currency)}</p>
       <ScoreBar score={lead.score} />
       <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/50">
         <span className="text-[10px] text-muted-foreground">{SOURCE_LABELS[lead.source]}</span>
@@ -88,46 +90,115 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
   );
 }
 
-/* ── Kanban board ── */
+/* ── Kanban board (drag to change status; drop on Converted to convert) ── */
 function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: Lead) => void }) {
-  const currency = useCurrency();
+  const setStatus = useSetLeadStatus();
+  const convert = useConvertLead();
+  const [colLeads, setColLeads] = React.useState<Lead[]>(leads);
+  const [draggedId, setDraggedId] = React.useState<string | null>(null);
+  const [dragOver, setDragOver] = React.useState<string | null>(null);
+
+  React.useEffect(() => { setColLeads(leads); }, [leads]);
+
+  const handleDrop = (status: LeadStatus) => {
+    const id = draggedId;
+    setDraggedId(null);
+    setDragOver(null);
+    if (!id) return;
+    const lead = colLeads.find(l => l.id === id);
+    if (!lead || lead.status === status) return;
+    // Converting isn't a plain status change — it spins up an account + deal.
+    if (status === "converted") {
+      setColLeads(prev => prev.map(l => l.id === id ? { ...l, status: "converted" } : l));
+      convert.mutate({ id, body: {} });
+      return;
+    }
+    setColLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+    setStatus.mutate({ id, status });
+  };
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
-      {KANBAN_COLS.map(status => {
-        const col = leads.filter(l => l.status === status);
-        const sc = STATUS_CONFIG[status];
-        const colValue = col.reduce((s, l) => s + l.estimatedValue, 0);
-        return (
-          <div key={status} className="flex flex-col flex-shrink-0 w-72">
-            {/* Column header */}
-            <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 border border-transparent", sc.bg)}>
-              <div className="flex items-center gap-2">
-                <span className={cn("text-xs font-bold uppercase tracking-wide", sc.color)}>{sc.label}</span>
-                <span className={cn("inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold", sc.color, sc.bg)}>
-                  {col.length}
-                </span>
-              </div>
-              <span className="text-[11px] font-semibold text-muted-foreground">
-                {colValue > 0 ? formatCurrency(colValue, currency) : "—"}
-              </span>
-            </div>
-            {/* Cards */}
-            <div className="flex flex-col gap-3 flex-1">
-              {col.map((lead, i) => (
-                <LeadKanbanCard key={lead.id} lead={lead} index={i} onClick={() => onLeadClick(lead)} />
-              ))}
-              {col.length === 0 && (
-                <div className="flex-1 flex items-center justify-center rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground/50 h-24">
-                  No leads
-                </div>
-              )}
-            </div>
-            <Button variant="ghost" size="sm" className="mt-2 h-8 text-xs text-muted-foreground justify-start gap-1.5 hover:text-foreground">
-              <Plus className="h-3.5 w-3.5" />Add lead
-            </Button>
+      {KANBAN_COLS.map(status => (
+        <LeadColumn
+          key={status}
+          status={status}
+          leads={colLeads.filter(l => l.status === status).sort((a, b) => b.estimatedValue - a.estimatedValue)}
+          isOver={dragOver === status}
+          draggedId={draggedId}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(status); }}
+          onDrop={e => { e.preventDefault(); handleDrop(status); }}
+          onDragLeave={() => setDragOver(null)}
+          onCardDragStart={(e, id) => { setDraggedId(id); e.dataTransfer.effectAllowed = "move"; }}
+          onCardDragEnd={() => { setDraggedId(null); setDragOver(null); }}
+          onLeadClick={onLeadClick}
+        />
+      ))}
+    </div>
+  );
+}
+
+function LeadColumn({
+  status, leads, isOver, draggedId, onDragOver, onDrop, onDragLeave,
+  onCardDragStart, onCardDragEnd, onLeadClick,
+}: {
+  status: LeadStatus;
+  leads: Lead[];
+  isOver: boolean;
+  draggedId: string | null;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onCardDragStart: (e: React.DragEvent, id: string) => void;
+  onCardDragEnd: () => void;
+  onLeadClick: (l: Lead) => void;
+}) {
+  const currency = useCurrency();
+  const sc = STATUS_CONFIG[status];
+  const { visible, hasMore, loadMore, shown, total } = useLazyList(leads, 8);
+  const colValue = leads.reduce((s, l) => s + l.estimatedValue, 0);
+
+  return (
+    <div className="flex flex-col flex-shrink-0 w-72" onDragOver={onDragOver} onDrop={onDrop} onDragLeave={onDragLeave}>
+      {/* Column header */}
+      <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 border transition-colors",
+        isOver ? "border-primary/40 bg-primary/5" : `${sc.bg} border-transparent`)}>
+        <div className="flex items-center gap-2">
+          <span className={cn("text-xs font-bold uppercase tracking-wide", sc.color)}>{sc.label}</span>
+          <span className={cn("inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold", sc.color, sc.bg)}>
+            {total}
+          </span>
+        </div>
+        <span className="text-[11px] font-semibold text-muted-foreground">
+          {colValue > 0 ? formatCurrency(colValue, currency) : "—"}
+        </span>
+      </div>
+      {/* Cards */}
+      <div className={cn("flex flex-col gap-3 flex-1 rounded-xl p-1 transition-colors min-h-[100px]",
+        isOver && "bg-primary/3 ring-1 ring-primary/20")}>
+        {visible.map((lead, i) => (
+          <div
+            key={lead.id}
+            draggable
+            onDragStart={e => onCardDragStart(e, lead.id)}
+            onDragEnd={onCardDragEnd}
+            className={cn("transition-opacity", draggedId === lead.id && "opacity-40")}
+          >
+            <LeadKanbanCard lead={lead} index={i} onClick={() => onLeadClick(lead)} />
           </div>
-        );
-      })}
+        ))}
+        {hasMore && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={loadMore}>
+            Show {total - shown} more
+          </Button>
+        )}
+        {total === 0 && (
+          <div className={cn("flex-1 flex items-center justify-center rounded-xl border-2 border-dashed text-xs text-muted-foreground/50 h-24",
+            isOver ? "border-primary/40 text-primary" : "border-border")}>
+            {isOver ? "Drop here" : "No leads"}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -178,14 +249,18 @@ export function LeadsView() {
 
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
-    return leads.filter(l => {
-      const matchSearch = !search || (l.fullName ?? "").toLowerCase().includes(q) || (l.company ?? "").toLowerCase().includes(q) || (l.email ?? "").toLowerCase().includes(q);
-      const matchStatus = statusFilter === "all" || l.status === statusFilter;
-      const matchSource = sourceFilter === "all" || l.source === sourceFilter;
-      const matchMine   = !mineOnly || l.assignedTo === currentUserName;
-      return matchSearch && matchStatus && matchSource && matchMine;
-    });
+    return leads
+      .filter(l => {
+        const matchSearch = !search || (l.fullName ?? "").toLowerCase().includes(q) || (l.company ?? "").toLowerCase().includes(q) || (l.email ?? "").toLowerCase().includes(q);
+        const matchStatus = statusFilter === "all" || l.status === statusFilter;
+        const matchSource = sourceFilter === "all" || l.source === sourceFilter;
+        const matchMine   = !mineOnly || l.assignedTo === currentUserName;
+        return matchSearch && matchStatus && matchSource && matchMine;
+      })
+      .sort((a, b) => b.estimatedValue - a.estimatedValue); // top-value leads first
   }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName]);
+
+  const listLazy = useLazyList(filtered, 25);
 
   const openDrawer = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
 
@@ -298,11 +373,11 @@ export function LeadsView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {listLazy.total === 0 ? (
                     <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No leads found.</td></tr>
-                  ) : filtered.map((lead, i) => (
+                  ) : listLazy.visible.map((lead, i) => (
                     <motion.tr key={lead.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(lead)}>
+                      transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(lead)}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 shrink-0">
@@ -319,7 +394,7 @@ export function LeadsView() {
                         <p className="text-[11px] text-muted-foreground">{lead.industry}</p>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{SOURCE_LABELS[lead.source]}</td>
-                      <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(lead.estimatedValue, lead.currency)}</td>
+                      <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(lead.estimatedValue, currency)}</td>
                       <td className="px-4 py-3 min-w-[100px]"><ScoreBar score={lead.score} /></td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                         {lead.nextFollowUp ? (
@@ -350,8 +425,13 @@ export function LeadsView() {
                 </tbody>
               </table>
             </div>
+            {listLazy.hasMore && (
+              <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
+              </div>
+            )}
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {filtered.length} of {leads.length} leads · Conversion rate: {leadsSummary?.conversionRate ?? 0}%
+              Showing {listLazy.shown} of {listLazy.total} leads · Conversion rate: {leadsSummary?.conversionRate ?? 0}%
             </div>
           </CardContent>
         </Card>

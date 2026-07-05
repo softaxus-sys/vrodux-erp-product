@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.CRM.API.Authorization;
 using Softaxis.CRM.API.Controllers.Common;
+using Softaxis.CRM.Application.Activities.Queries;
 using Softaxis.CRM.Application.Customers.Commands;
 using Softaxis.CRM.Application.Customers.Queries;
 
@@ -32,6 +33,15 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetCrmCustomerByIdQuery(id), ct);
+        return OkOrError(result);
+    }
+
+    // Rolled-up account timeline (account + its opportunities + its converted lead).
+    [HttpGet("{id:guid}/timeline")]
+    [RequirePermission("crm.customers.view")]
+    public async Task<IActionResult> GetTimeline(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetCustomerTimelineQuery(id), ct);
         return OkOrError(result);
     }
 

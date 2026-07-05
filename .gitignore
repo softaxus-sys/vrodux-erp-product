@@ -24,6 +24,8 @@ dist-ssr/
 appsettings.Development.json
 appsettings.*.Local.json
 secrets.json
+# ASP.NET Core Data Protection key ring (encrypts stored OAuth tokens/secrets) — never commit
+App_Data/
 
 # ── Deploy / build output ─────────────────────────────
 Deploy/server/output/

@@ -243,3 +243,38 @@ export function getUtcOffset(tz: string): string {
     return "+00:00";
   }
 }
+
+/**
+ * Best-effort detection of the user's country from the local machine, so account
+ * creation can pre-select the country (and, via that, currency + timezone).
+ * 1) The machine timezone, e.g. "Asia/Karachi" → Pakistan. Timezone reflects the
+ *    machine's physical location, so it beats language (which is a UI preference — a
+ *    Pakistani user on an "en-US" browser should still get PKR, not USD).
+ * 2) Fallback to an explicit region in the browser language(s), e.g. "en-PK" → "PK".
+ * Returns undefined when nothing matches a supported country (caller leaves it blank).
+ */
+export function detectCountry(): CountryMeta | undefined {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) {
+      const hit = COUNTRIES.find(c => c.timezone === tz);
+      if (hit) return hit;
+    }
+  } catch { /* Intl unavailable — fall through */ }
+
+  if (typeof navigator !== "undefined") {
+    const langs = [navigator.language, ...(navigator.languages ?? [])];
+    for (const loc of langs) {
+      if (!loc) continue;
+      let region: string | undefined;
+      try { region = new Intl.Locale(loc).region?.toUpperCase(); }
+      catch { region = loc.split("-")[1]?.toUpperCase(); }
+      if (region) {
+        const hit = COUNTRIES.find(c => c.code === region);
+        if (hit) return hit;
+      }
+    }
+  }
+
+  return undefined;
+}

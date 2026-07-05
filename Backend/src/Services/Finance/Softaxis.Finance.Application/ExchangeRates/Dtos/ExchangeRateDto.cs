@@ -15,3 +15,5 @@ public sealed record ConvertCurrencyDto(
     decimal Rate,
     decimal Amount,
     decimal ConvertedAmount);
+
+public sealed record RefreshExchangeRatesDto(int Updated, string AsOf);

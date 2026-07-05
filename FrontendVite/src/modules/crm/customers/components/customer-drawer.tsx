@@ -4,15 +4,16 @@ import {
   X, Globe, Phone, Mail, MapPin, Building2, User,
   Calendar, DollarSign, Star, TrendingUp, Tag,
   PhoneCall, Users, FileText, MessageSquare, Edit,
-  ChevronRight, CheckCircle2, Clock, XCircle, Award
+  CheckCircle2, Clock, XCircle, Award
 } from "lucide-react";
 import { Trash2, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import type { CustomerDto as Customer } from "@/lib/crm/crm.api";
-import { useDeleteCustomer } from "@/hooks/crm/use-crm";
-import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
+import { useDeleteCustomer, useDeals } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
+import { AccountTimeline } from "./account-timeline";
 import { ContactsPanel } from "./contacts-panel";
 import { Can } from "@/components/auth/can";
 
@@ -64,6 +65,8 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
   const [tab, setTab] = React.useState<Tab>("overview");
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
   const del = useDeleteCustomer();
+  const currency = useCurrency();
+  const { data: linkedDeals = [], isLoading: dealsLoading } = useDeals(customer?.id, !!customer && open);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
 
@@ -203,24 +206,34 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
               {tab === "deals" && (
                 <div className="p-6 space-y-3">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-semibold">Deals ({customer.deals.length})</h4>
-                    <Button size="sm" className="h-8 text-xs gap-1.5"><DollarSign className="h-3.5 w-3.5" />New Deal</Button>
+                    <h4 className="text-sm font-semibold">Deals ({linkedDeals.length})</h4>
                   </div>
-                  {customer.deals.map((deal, i) => {
-                    const statusColor = DEAL_STATUS_COLORS[deal.status] ?? "text-muted-foreground bg-muted";
+                  {dealsLoading ? (
+                    <div className="flex items-center justify-center py-10 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  ) : linkedDeals.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <DollarSign className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="text-sm text-muted-foreground">No opportunities linked to this account yet.</p>
+                      <p className="text-[11px] text-muted-foreground/70 mt-1">Create a deal and pick this account to link it here.</p>
+                    </div>
+                  ) : linkedDeals.map((deal, i) => {
+                    const statusColor = DEAL_STATUS_COLORS[deal.stage] ?? "text-muted-foreground bg-muted";
+                    const open = deal.stage !== "won" && deal.stage !== "lost";
                     return (
                       <motion.div key={deal.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer group">
+                        className="flex items-center justify-between p-4 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors group">
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm group-hover:text-primary transition-colors">{deal.title}</p>
+                          <p className="font-semibold text-sm group-hover:text-primary transition-colors truncate">{deal.title}</p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize", statusColor)}>{deal.status}</span>
-                            {deal.closedDate && <span className="text-[11px] text-muted-foreground">{formatDate(deal.closedDate, "medium")}</span>}
+                            <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize", statusColor)}>{deal.stage}</span>
+                            {deal.expectedCloseDate && <span className="text-[11px] text-muted-foreground">{formatDate(deal.expectedCloseDate, "medium")}</span>}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <p className="font-bold text-sm">{formatCurrency(deal.value, deal.currency)}</p>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                        <div className="text-right shrink-0">
+                          <p className="font-bold text-sm">{formatCurrency(deal.value, currency)}</p>
+                          {open && <p className="text-[11px] text-muted-foreground">weighted {formatCurrency(deal.weightedValue, currency)}</p>}
                         </div>
                       </motion.div>
                     );
@@ -231,7 +244,7 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
               {/* ACTIVITY */}
               {tab === "activity" && (
                 <div className="p-6">
-                  <ActivityTimeline relatedToType="customer" relatedToId={customer.id} relatedToName={customer.name} assignedTo={customer.accountManager} />
+                  <AccountTimeline customerId={customer.id} customerName={customer.name} accountManager={customer.accountManager} />
                 </div>
               )}
             </div>

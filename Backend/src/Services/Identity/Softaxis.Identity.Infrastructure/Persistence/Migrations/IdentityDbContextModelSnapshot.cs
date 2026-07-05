@@ -2069,6 +2069,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasDefaultValue("system");
 
+                    b.Property<string>("Currency")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 

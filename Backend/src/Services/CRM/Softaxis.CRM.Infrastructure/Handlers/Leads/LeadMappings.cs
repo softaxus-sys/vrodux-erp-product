@@ -10,5 +10,5 @@ internal static class LeadMappings
         l.Email, l.Phone, l.Country, l.City, l.Source, l.Status, l.Priority, l.Score,
         l.EstimatedValue, l.Currency, l.AssignedTo, l.CreatedDate, l.LastContactDate,
         l.NextFollowUp, l.Notes, l.ConvertedDealId, l.Tags, Array.Empty<object>(),
-        l.CreatedAt, l.UpdatedAt);
+        l.CreatedAt, l.UpdatedAt, l.ConvertedCustomerId);
 }

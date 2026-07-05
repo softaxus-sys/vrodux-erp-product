@@ -4,7 +4,8 @@ import { Calendar, User, Building2, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DealPriorityBadge } from "./deal-status-badge";
 import { formatCurrency, getInitials, cn } from "@/lib/utils";
-import type { DealDto as Deal } from "@/lib/crm/crm.api";
+import { useCurrency } from "@/hooks/use-currency";
+import { FORECAST_META, type DealDto as Deal } from "@/lib/crm/crm.api";
 
 interface Props {
   deal: Deal;
@@ -16,10 +17,13 @@ const probabilityColor = (p: number) =>
   p >= 70 ? "bg-success" : p >= 40 ? "bg-warning" : "bg-destructive";
 
 export function DealCard({ deal, index, onClick }: Props) {
+  const currency = useCurrency();
   const daysUntilClose = Math.ceil(
     (new Date(deal.expectedCloseDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
   const isOverdue = daysUntilClose < 0 && deal.stage !== "won" && deal.stage !== "lost";
+  const forecast = FORECAST_META[deal.forecastCategory] ?? FORECAST_META.pipeline;
+  const isOpen = deal.stage !== "won" && deal.stage !== "lost";
 
   return (
     <motion.div
@@ -48,10 +52,20 @@ export function DealCard({ deal, index, onClick }: Props) {
       </div>
 
       {/* Value */}
-      <div className="mb-3">
-        <p className="text-base font-bold text-foreground">
-          {formatCurrency(deal.value, deal.currency)}
-        </p>
+      <div className="mb-3 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-foreground">
+            {formatCurrency(deal.value, currency)}
+          </p>
+          {isOpen && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Weighted {formatCurrency(deal.weightedValue, currency)}
+            </p>
+          )}
+        </div>
+        <span className={cn("shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold", forecast.color, forecast.bg)}>
+          {forecast.label}
+        </span>
       </div>
 
       {/* Probability bar */}

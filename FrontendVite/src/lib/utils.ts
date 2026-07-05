@@ -11,10 +11,13 @@ export function formatCurrency(
   currency: Currency = "AED",
   locale = "en-AE"
 ): string {
+  // Guard non-finite input (undefined/null coerced to NaN, or a NaN sum) so we never
+  // render e.g. "PKRNaN" — Intl.NumberFormat.format(NaN) outputs the literal "NaN".
+  const value = Number.isFinite(amount) ? amount : 0;
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency || "AED",
-  }).format(amount);
+  }).format(value);
 }
 
 export function formatNumber(value: number, compact = false): string {

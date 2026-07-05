@@ -13,9 +13,17 @@ internal sealed class UpdateDealHandler(CrmDbContext db) : ICommandHandler<Updat
         if (d is null)
             return Result.Failure(Error.NotFoundById("Deal", cmd.Id));
 
-        d.Update(cmd.Title, cmd.Company, cmd.Value, cmd.Stage, cmd.Priority, cmd.Probability,
+        // When linked to an account, use its canonical name as the denormalized display company.
+        var company = cmd.Company;
+        if (cmd.CustomerId is Guid cid)
+        {
+            var acct = await db.Customers.FindAsync([cid], ct);
+            if (acct is not null) company = acct.Name;
+        }
+
+        d.Update(cmd.Title, company, cmd.Value, cmd.Stage, cmd.Priority, cmd.Probability,
             cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
-            cmd.NextAction, cmd.NextActionDate, cmd.Tags);
+            cmd.NextAction, cmd.NextActionDate, cmd.Tags, cmd.ForecastCategory, cmd.CustomerId);
 
         await db.SaveChangesAsync(ct);
 

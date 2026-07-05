@@ -45,6 +45,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     public string?   PrimaryColor   { get; private set; }
 
     /// <summary>
+    /// The tenant's operating/display currency (3-letter ISO code, e.g. <c>USD</c>, <c>PKR</c>).
+    /// Chosen at signup from the browser locale; USD is the exchange-rate base. Null = USD default.
+    /// </summary>
+    public string?   Currency       { get; private set; }
+
+    /// <summary>
     /// Selected industry vertical (e.g. <c>real_estate</c>, <c>construction</c>).
     /// Drives the Industry Pack activated for this tenant. Null = generic (CRM only, no pack).
     /// </summary>
@@ -133,6 +139,23 @@ public sealed class Tenant : AuditableEntity<Guid>
     public void SetIndustry(string? industry)
     {
         Industry  = industry;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Set the tenant's operating currency. Accepts a 3-letter code or a "USD - US Dollar" label
+    /// (the leading token is taken). Null/blank leaves it unset (USD default applies downstream).
+    /// </summary>
+    public void SetCurrency(string? currency)
+    {
+        var code = currency?.Trim();
+        if (!string.IsNullOrEmpty(code))
+        {
+            // Accept either "USD" or "USD - US Dollar" → take the first token, upper-cased.
+            var token = code.Split([' ', '-'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            code = token?.ToUpperInvariant();
+        }
+        Currency  = string.IsNullOrEmpty(code) ? null : code;
         UpdatedAt = DateTime.UtcNow;
     }
 

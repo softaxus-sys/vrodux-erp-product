@@ -38,7 +38,10 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     {
         modelBuilder.HasDefaultSchema("finance");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FinanceDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Finance.Domain");
+        // Currency + ExchangeRate are GLOBAL reference data (market rates are universal) — exclude them
+        // from tenant isolation so they are shared across tenants and not hidden by a NULL TenantId.
+        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Finance.Domain",
+            exclude: [typeof(Currency), typeof(ExchangeRate)]);
         base.OnModelCreating(modelBuilder);
     }
 

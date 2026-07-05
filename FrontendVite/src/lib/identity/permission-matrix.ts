@@ -56,6 +56,30 @@ export function moduleLabel(moduleId: string) {
   return parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 }
 
+/**
+ * Display label for a top-level module prefix (e.g. "pos" → "POS",
+ * "project-management" → "Project Management"). Used to show which module(s)
+ * a role is linked to. Falls back to a title-cased prefix for unknown modules.
+ */
+export function moduleGroupLabel(prefix: string) {
+  return (
+    MODULE_GROUPS[prefix.toLowerCase()] ??
+    prefix
+      .split("-")
+      .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+      .join(" ")
+  );
+}
+
+/**
+ * Modules that every role touches regardless of its domain (cross-cutting).
+ * Excluded when summarising "which module is this role for" so the chips
+ * highlight the role's actual purpose.
+ */
+export const UBIQUITOUS_MODULES = new Set([
+  "settings", "reports", "dashboard", "notifications", "file-manager", "ai-assistant",
+]);
+
 /** Build a moduleId → action → PermissionDto lookup from grouped permissions. */
 export function buildPermActionMap(byModule: Record<string, PermissionDto[]>) {
   const map: Record<string, Record<string, PermissionDto>> = {};

@@ -22,14 +22,33 @@ internal sealed class ConvertLeadHandler(CrmDbContext db) : ICommandHandler<Conv
             l.Phone, l.Email, "standard", l.AssignedTo, l.Notes ?? "");
         db.Customers.Add(customer);
 
+        // Carry the lead's person across as the account's primary contact (SFDC-style
+        // Lead → Account + Contact + Opportunity conversion). Only when there's a name.
+        Contact? contact = null;
+        if (!string.IsNullOrWhiteSpace(l.FirstName) || !string.IsNullOrWhiteSpace(l.LastName))
+        {
+            contact = new Contact(customer.Id, l.FirstName, l.LastName, l.Title,
+                l.Email, l.Phone, department: null, isPrimary: true, notes: null);
+            db.Contacts.Add(contact);
+        }
+
+        // Include the lead's person name in the auto title so the opportunity is findable
+        // by either the company or the person (pipeline search matches title + company).
+        var autoTitle = string.IsNullOrWhiteSpace(l.FullName?.Trim())
+            ? $"{l.Company} — New Opportunity"
+            : $"{l.Company} — {l.FullName}".Trim(' ', '—');
         var deal = new Deal(
-            string.IsNullOrWhiteSpace(cmd.DealTitle) ? $"{l.Company} — New Opportunity" : cmd.DealTitle!,
+            string.IsNullOrWhiteSpace(cmd.DealTitle) ? autoTitle : cmd.DealTitle!,
             l.Company, cmd.DealValue ?? l.EstimatedValue, "qualified", l.Priority,
             20, cmd.ExpectedCloseDate ?? DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-dd"),
-            l.AssignedTo, l.Source, l.Industry, l.Notes ?? "");
+            l.AssignedTo, l.Source, l.Industry, l.Notes ?? "", forecastCategory: null, customerId: customer.Id);
         db.Deals.Add(deal);
 
-        l.Convert(deal.Id.ToString());
+        // Attach the primary contact to the opportunity as the decision maker.
+        if (contact is not null)
+            db.DealContacts.Add(new DealContact(deal.Id, contact.Id, "decision_maker"));
+
+        l.Convert(deal.Id.ToString(), customer.Id);
         await db.SaveChangesAsync(ct);
 
         return Result.Success(new ConvertLeadResultDto(customer.Id, deal.Id));

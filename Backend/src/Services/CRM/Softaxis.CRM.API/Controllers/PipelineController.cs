@@ -21,9 +21,9 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
 
     [HttpGet]
     [RequirePermission("crm.pipeline.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll([FromQuery] Guid? customerId, CancellationToken ct)
     {
-        var result = await sender.Send(new GetDealsQuery(), ct);
+        var result = await sender.Send(new GetDealsQuery(customerId), ct);
         return OkOrError(result);
     }
 
@@ -49,7 +49,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     {
         var result = await sender.Send(new UpdateDealCommand(id, req.Title, req.Company, req.Value, req.Stage,
             req.Priority, req.Probability, req.ExpectedCloseDate, req.AssignedTo, req.Source, req.Industry,
-            req.Description, req.NextAction, req.NextActionDate, req.Tags), ct);
+            req.Description, req.NextAction, req.NextActionDate, req.Tags, req.ForecastCategory, req.CustomerId), ct);
         return NoContentOrError(result);
     }
 
@@ -57,7 +57,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     [RequirePermission("crm.pipeline.edit")]
     public async Task<IActionResult> MoveStage(Guid id, [FromBody] StageReq req, CancellationToken ct)
     {
-        var result = await sender.Send(new MoveDealStageCommand(id, req.Stage, req.Probability), ct);
+        var result = await sender.Send(new MoveDealStageCommand(id, req.Stage, req.Probability, req.ForecastCategory, req.LossReason), ct);
         return NoContentOrError(result);
     }
 
@@ -72,6 +72,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
 
     public sealed record UpdateDealRequest(string Title, string Company, decimal Value, string Stage, string Priority,
         int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry, string Description,
-        string? NextAction, string? NextActionDate, List<string>? Tags);
-    public sealed record StageReq(string Stage, int Probability);
+        string? NextAction, string? NextActionDate, List<string>? Tags, string? ForecastCategory = null,
+        Guid? CustomerId = null);
+    public sealed record StageReq(string Stage, int Probability, string? ForecastCategory = null, string? LossReason = null);
 }

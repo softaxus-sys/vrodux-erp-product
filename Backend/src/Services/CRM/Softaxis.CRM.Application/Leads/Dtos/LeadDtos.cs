@@ -6,7 +6,7 @@ public sealed record LeadDto(
     string Status, string Priority, int Score, decimal EstimatedValue, string Currency,
     string AssignedTo, string CreatedDate, string? LastContactDate, string? NextFollowUp,
     string? Notes, string? ConvertedDealId, IReadOnlyList<string> Tags, IReadOnlyList<object> Activities,
-    DateTime CreatedAt, DateTime? UpdatedAt);
+    DateTime CreatedAt, DateTime? UpdatedAt, Guid? ConvertedCustomerId = null);
 
 public sealed record LeadsSummaryDto(
     int Total, int NewThisWeek, int Qualified, int Contacted, int Converted,

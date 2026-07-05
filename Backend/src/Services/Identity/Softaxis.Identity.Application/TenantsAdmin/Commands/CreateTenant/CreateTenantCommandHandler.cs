@@ -28,6 +28,7 @@ public sealed class CreateTenantCommandHandler(
             return Result.Failure<TenantDto>(Error.Custom("Tenant.Slug.Taken", "A tenant with this slug already exists."));
 
         var tenant = Tenant.Create(cmd.Name, cmd.Slug, plan, deployment, cmd.ContactEmail, cmd.Country, cmd.Industry);
+        tenant.SetCurrency(cmd.Currency);   // manual on the admin path (defaults to USD when null)
 
         if (cmd.StartTrial)
             tenant.StartTrial(30);

@@ -42,6 +42,23 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
         await db.Database.MigrateAsync();
+
+        // One-time repair (idempotent): rows written by the old raw-SQL POS cross-schema
+        // sale/refund path landed with TenantId = NULL (raw SQL bypasses StampTenantId), so
+        // the tenant query filter hid them from their own tenant. Stamp from the owning product.
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE m SET m.TenantId = p.TenantId
+            FROM [inventory].[stock_movements] m
+            JOIN [inventory].[products] p ON p.Id = m.ProductId
+            WHERE m.TenantId IS NULL AND p.TenantId IS NOT NULL
+            """);
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE s SET s.TenantId = p.TenantId
+            FROM [inventory].[product_stock] s
+            JOIN [inventory].[products] p ON p.Id = s.ProductId
+            WHERE s.TenantId IS NULL AND p.TenantId IS NOT NULL
+            """);
+
         await InventorySeedData.SeedAsync(db);
     }
 }

@@ -10,6 +10,7 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
     public DbSet<Lead>        Leads      => Set<Lead>();
     public DbSet<CrmCustomer> Customers  => Set<CrmCustomer>();
     public DbSet<Deal>        Deals      => Set<Deal>();
+    public DbSet<DealContact> DealContacts => Set<DealContact>();
     public DbSet<Activity>    Activities => Set<Activity>();
     public DbSet<Contact>       Contacts       => Set<Contact>();
     public DbSet<Patient>       Patients       => Set<Patient>();

@@ -12,9 +12,10 @@ internal sealed class GetDealsSummaryHandler(CrmDbContext db) : IQueryHandler<Ge
     public async Task<Result<DealsSummaryDto>> Handle(GetDealsSummaryQuery query, CancellationToken ct)
     {
         var all = await db.Deals.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Stage, x.Value }).ToListAsync(ct);
+            .Select(x => new { x.Stage, x.Value, x.Probability, x.ForecastCategory }).ToListAsync(ct);
 
         var won = all.Where(x => x.Stage == "won").ToList();
+        var open = all.Where(x => x.Stage != "won" && x.Stage != "lost").ToList();
         var total = all.Count;
 
         return Result.Success(new DealsSummaryDto(
@@ -23,6 +24,10 @@ internal sealed class GetDealsSummaryHandler(CrmDbContext db) : IQueryHandler<Ge
             won.Sum(x => x.Value),
             all.Count(x => x.Stage == "lost"),
             total > 0 ? all.Average(x => x.Value) : 0,
-            total > 0 ? Math.Round((double)won.Count / total * 100, 1) : 0));
+            total > 0 ? Math.Round((double)won.Count / total * 100, 1) : 0,
+            open.Sum(x => x.Value),
+            open.Sum(x => Math.Round(x.Value * x.Probability / 100m, 2)),
+            open.Where(x => x.ForecastCategory == "commit").Sum(x => x.Value),
+            open.Where(x => x.ForecastCategory == "commit" || x.ForecastCategory == "best_case").Sum(x => x.Value)));
     }
 }

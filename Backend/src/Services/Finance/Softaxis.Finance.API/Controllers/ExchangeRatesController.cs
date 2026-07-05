@@ -22,6 +22,12 @@ public sealed class ExchangeRatesController(ISender sender) : FinanceControllerB
         [FromQuery] string from, [FromQuery] string to, [FromQuery] decimal amount, [FromQuery] string? asOf, CancellationToken ct) =>
         OkOrError(await sender.Send(new ConvertCurrencyQuery(from, to, amount, asOf), ct));
 
+    /// <summary>Fetch live USD-based rates from the online provider and upsert today's rows.</summary>
+    [HttpPost("refresh")]
+    [RequirePermission("finance.accounting.edit")]
+    public async Task<IActionResult> Refresh(CancellationToken ct) =>
+        OkOrError(await sender.Send(new RefreshExchangeRatesCommand(), ct));
+
     [HttpPost]
     [RequirePermission("finance.accounting.create")]
     public async Task<IActionResult> Create([FromBody] CreateExchangeRateCommand cmd, CancellationToken ct)

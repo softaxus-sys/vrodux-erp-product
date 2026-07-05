@@ -109,6 +109,7 @@ const HousekeepingPage     = React.lazy(() => import("@/pages/hospitality/housek
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 const GeneralSettingsPage  = React.lazy(() => import("@/pages/settings/general"));
+const CurrencySettingsPage = React.lazy(() => import("@/pages/settings/currency"));
 const UsersPage            = React.lazy(() => import("@/pages/settings/users"));
 const RolesPage            = React.lazy(() => import("@/pages/settings/roles"));
 const BranchesPage         = React.lazy(() => import("@/pages/settings/branches"));
@@ -375,6 +376,7 @@ export function App() {
           {/* ── Settings — admin/manager only ───────────────────────────────── */}
           <Route element={<RoleGuard roles={["super_admin", "tenant_admin", "manager"]} />}>
             <Route path="/settings/general"               element={<GeneralSettingsPage />} />
+            <Route path="/settings/currency"              element={<CurrencySettingsPage />} />
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
             <Route path="/settings/vouchers"              element={<VouchersPage />} />
             <Route path="/settings/users"                 element={<UsersPage />} />

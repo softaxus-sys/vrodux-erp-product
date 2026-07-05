@@ -91,17 +91,66 @@ public static class InfrastructureExtensions
         await SeedAdminAsync(db, passwordHasher);
         await SeedSuperAdminAsync(db, passwordHasher);   // always runs — idempotent
 
-        // Demo POS roles + demo users (fixed password "Demo@123456") are single-tenant-era dev
-        // scaffolding — never seed them into a real (Production) deployment. Real tenants get their
-        // own per-tenant POS roles (Cashier/Supervisor) from TenantRoleProvisioner instead. Idempotent
-        // + a no-op on existing installs (skips when the roles already exist), so this only affects
-        // fresh Production installs.
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-        if (!string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase))
-            await SeedPOSRolesAsync(db, passwordHasher);
+        // NOTE: the old SeedPOSRolesAsync seeded GLOBAL (tenant-less) operational roles
+        // (Cashier / Supervisor / Store Manager / Inventory Manager / POS Admin) + demo users.
+        // Those globals duplicated the per-tenant roles that TenantRoleProvisioner now creates, so
+        // they showed up as duplicate role names in the super-admin list. They are no longer seeded
+        // in ANY environment — every tenant gets its own distinct role set from the provisioner, and
+        // RemoveRedundantGlobalRolesAsync below cleans up any that a previous build already created.
 
-        await SyncAdministratorPermissionsAsync(db);     // always runs — idempotent
+        await SyncAdministratorPermissionsAsync(db);       // always runs — idempotent
         await BackfillTenantRolesAsync(scope.ServiceProvider, db); // per-tenant roles + re-point admins
+        await RemoveRedundantGlobalRolesAsync(db);         // drop legacy global duplicates (all envs)
+    }
+
+    /// <summary>
+    /// Removes legacy GLOBAL roles (TenantId == null) other than the single bootstrap Administrator.
+    /// They duplicate the per-tenant roles created by <see cref="TenantRoleProvisioner"/> and are the
+    /// source of the duplicate role names seen in the (unscoped) super-admin list. Any user still
+    /// assigned a redundant global role is first re-pointed onto their tenant's same-named role, then
+    /// the global role is deleted (its role_permissions / user_roles cascade). Idempotent + runs in
+    /// every environment so the live DB is cleaned on the next startup too.
+    /// </summary>
+    private static async Task RemoveRedundantGlobalRolesAsync(IdentityDbContext db)
+    {
+        var redundant = await db.Set<Identity.Domain.Entities.Role>()
+            .Include(r => r.RolePermissions)
+            .Include(r => r.UserRoles)
+            .Where(r => r.TenantId == null && r.Name != "Administrator")
+            .ToListAsync();
+
+        if (redundant.Count == 0) return;
+
+        // (tenantId, roleName) → roleId, for re-pointing assigned users onto their own tenant's role.
+        var tenantRoles = await db.Set<Identity.Domain.Entities.Role>()
+            .Where(r => r.TenantId != null)
+            .Select(r => new { r.Id, r.Name, r.TenantId })
+            .ToListAsync();
+
+        foreach (var role in redundant)
+        {
+            var userIds = role.UserRoles.Select(ur => ur.UserId).Distinct().ToList();
+            if (userIds.Count > 0)
+            {
+                var users = await db.Users
+                    .Include(u => u.UserRoles)
+                    .Where(u => userIds.Contains(u.Id))
+                    .ToListAsync();
+
+                foreach (var u in users)
+                {
+                    var replacement = tenantRoles.FirstOrDefault(tr =>
+                        tr.TenantId == u.TenantId &&
+                        string.Equals(tr.Name, role.Name, StringComparison.OrdinalIgnoreCase));
+                    if (replacement is not null) u.AssignRole(replacement.Id);
+                    u.RemoveRole(role.Id);
+                }
+            }
+
+            db.Set<Identity.Domain.Entities.Role>().Remove(role);
+        }
+
+        await db.SaveChangesAsync();
     }
 
     /// <summary>
@@ -198,9 +247,11 @@ public static class InfrastructureExtensions
         const string username = "superadmin";
         const string password = "SuperAdmin@2025!";
 
-        // Resolve admin role (created in SeedAdminAsync)
+        // Resolve the GLOBAL Administrator role (created in SeedAdminAsync). Must scope to
+        // TenantId == null — per-tenant Administrator roles now also exist and a super-admin
+        // must never be bootstrapped onto a specific tenant's role.
         var adminRole = db.Set<Identity.Domain.Entities.Role>()
-                          .FirstOrDefault(r => r.Name == "Administrator");
+                          .FirstOrDefault(r => r.Name == "Administrator" && r.TenantId == null);
 
         // Evaluate client-side because Email is a value-object with a converter
         var existing = db.Users.IgnoreQueryFilters()
@@ -273,134 +324,6 @@ public static class InfrastructureExtensions
         adminUser.AssignRole(adminRole.Id);
 
         db.Users.Add(adminUser);
-
-        await db.SaveChangesAsync();
-    }
-
-    /// <summary>
-    /// Seeds POS-specific roles (Cashier, Supervisor, Store Manager, Inventory Manager, POS Admin)
-    /// and one demo user per role. Safe to call on existing installs — skips if roles already exist.
-    /// </summary>
-    private static async Task SeedPOSRolesAsync(IdentityDbContext db, IPasswordHasher hasher)
-    {
-        // Skip if POS roles already seeded
-        if (db.Set<Identity.Domain.Entities.Role>().Any(r => r.Name == "Cashier")) return;
-
-        var allPerms = db.Set<Identity.Domain.Entities.Permission>().ToList();
-
-        // Helper: get IDs for a given module + actions
-        Guid[] PermsFor(string moduleId, params string[] actions) =>
-            [.. allPerms
-                .Where(p => p.ModuleId == moduleId && actions.Contains(p.Action))
-                .Select(p => p.Id)];
-
-        // ── Cashier ───────────────────────────────────────────────────────────
-        // Sell products, view history, print receipts. No voids/refunds/discounts.
-        var cashierRole = Identity.Domain.Entities.Role.Create(
-            "Cashier",
-            "Process sales at the POS terminal. View products and print receipts.",
-            isSystem: true).Value;
-        cashierRole.SetPermissions([
-            .. PermsFor("pos.sessions",     "view"),
-            .. PermsFor("pos.transactions", "view", "create", "print"),
-            .. PermsFor("pos.products",     "view"),
-        ]);
-        db.Set<Identity.Domain.Entities.Role>().Add(cashierRole);
-
-        // ── Supervisor ────────────────────────────────────────────────────────
-        // Full POS operations: open/close shifts, void/refund/discount transactions,
-        // add new products to catalogue.
-        var supervisorRole = Identity.Domain.Entities.Role.Create(
-            "Supervisor",
-            "Full POS operations — open/close shifts, void transactions, apply discounts, manage refunds.",
-            isSystem: true).Value;
-        supervisorRole.SetPermissions([
-            .. PermsFor("pos.sessions",     "view", "create", "approve"),
-            .. PermsFor("pos.transactions", "view", "create", "print", "void", "refund", "discount"),
-            .. PermsFor("pos.products",     "view", "create", "edit"),
-            .. PermsFor("pos.reports",      "view", "print"),
-        ]);
-        db.Set<Identity.Domain.Entities.Role>().Add(supervisorRole);
-
-        // ── Store Manager ─────────────────────────────────────────────────────
-        // All POS + stock management (adjust, movements, transfers). Can delete products.
-        var storeManagerRole = Identity.Domain.Entities.Role.Create(
-            "Store Manager",
-            "Full POS access plus inventory stock, movements, and transfer management.",
-            isSystem: true).Value;
-        storeManagerRole.SetPermissions([
-            .. PermsFor("pos.sessions",        "view", "create", "approve"),
-            .. PermsFor("pos.transactions",    "view", "create", "print", "void", "refund", "discount"),
-            .. PermsFor("pos.products",        "view", "create", "edit", "delete"),
-            .. PermsFor("pos.reports",         "view", "export", "print"),
-            .. PermsFor("inventory.stock",     "view", "create", "edit", "adjust"),
-            .. PermsFor("inventory.movements", "view", "create", "export"),
-            .. PermsFor("inventory.transfers", "view", "create", "approve"),
-        ]);
-        db.Set<Identity.Domain.Entities.Role>().Add(storeManagerRole);
-
-        // ── Inventory Manager ─────────────────────────────────────────────────
-        // Full stock/warehouse/movement/transfer control + product catalogue management.
-        var inventoryManagerRole = Identity.Domain.Entities.Role.Create(
-            "Inventory Manager",
-            "Full inventory control — stock, warehouses, movements, transfers, and POS product catalogue.",
-            isSystem: true).Value;
-        inventoryManagerRole.SetPermissions([
-            .. PermsFor("inventory.stock",      "view", "create", "edit", "delete", "export", "adjust"),
-            .. PermsFor("inventory.warehouses", "view", "create", "edit", "delete"),
-            .. PermsFor("inventory.movements",  "view", "create", "export", "adjust"),
-            .. PermsFor("inventory.transfers",  "view", "create", "approve", "export"),
-            .. PermsFor("pos.products",         "view", "create", "edit", "delete"),
-            .. PermsFor("pos.reports",          "view", "export"),
-        ]);
-        db.Set<Identity.Domain.Entities.Role>().Add(inventoryManagerRole);
-
-        // ── POS Admin ─────────────────────────────────────────────────────────
-        // All POS + inventory permissions + read-only settings access.
-        var posAdminRole = Identity.Domain.Entities.Role.Create(
-            "POS Admin",
-            "Full POS and inventory administration, including reports and settings visibility.",
-            isSystem: true).Value;
-        posAdminRole.SetPermissions([
-            .. allPerms
-                .Where(p => p.ModuleId.StartsWith("pos.") || p.ModuleId.StartsWith("inventory."))
-                .Select(p => p.Id),
-            .. PermsFor("settings.users",    "view"),
-            .. PermsFor("settings.roles",    "view"),
-            .. PermsFor("settings.branches", "view"),
-        ]);
-        db.Set<Identity.Domain.Entities.Role>().Add(posAdminRole);
-
-        await db.SaveChangesAsync();
-
-        // ── Demo users (one per POS role) ─────────────────────────────────────
-        const string demoPassword = "Demo@123456";
-
-        var demoUsers = new[]
-        {
-            (cashierRole.Id,          "cashier@softaxis.io",      "cashier",      "Sara",   "Khan"),
-            (supervisorRole.Id,       "supervisor@softaxis.io",   "supervisor",   "Ahmed",  "Ali"),
-            (storeManagerRole.Id,     "storemanager@softaxis.io", "storemanager", "Fatima", "Malik"),
-            (inventoryManagerRole.Id, "invmanager@softaxis.io",   "invmanager",   "Usman",  "Raza"),
-            (posAdminRole.Id,         "posadmin@softaxis.io",     "posadmin",     "Zainab", "Sheikh"),
-        };
-
-        // Email is a value-object with a string converter — evaluate client-side to extract .Value
-        var existingEmails = db.Users.IgnoreQueryFilters()
-            .AsEnumerable()
-            .Select(u => u.Email.Value)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var (roleId, email, username, first, last) in demoUsers)
-        {
-            if (existingEmails.Contains(email)) continue;
-            var result = Identity.Domain.Entities.User.Create(email, username, first, last, hasher.Hash(demoPassword));
-            if (result.IsFailure) continue;
-            var u = result.Value;
-            u.VerifyEmail();
-            u.AssignRole(roleId);
-            db.Users.Add(u);
-        }
 
         await db.SaveChangesAsync();
     }

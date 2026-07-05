@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.Restaurant.Domain.Entities;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 
@@ -192,8 +193,11 @@ public sealed class OrdersController(RestaurantDbContext db) : ControllerBase
         var status     = fullyPaid ? "paid" : o.Status;
         var now        = DateTime.UtcNow;
 
+        // Raw INSERT bypasses StampTenantId — stamp the ambient tenant explicitly, or the payment
+        // row lands with TenantId = NULL and the tenant query filter hides it from Include(Payments).
+        Guid? tenantStamp = TenantAmbient.TenantId;
         await db.Database.ExecuteSqlAsync(
-            $"INSERT INTO [restaurant].[OrderPayments] ([Id],[OrderId],[Method],[Amount],[Reference],[CreatedAt]) VALUES ({Guid.NewGuid()},{id},{method},{amount},{reference},{now})", ct);
+            $"INSERT INTO [restaurant].[OrderPayments] ([Id],[OrderId],[Method],[Amount],[Reference],[CreatedAt],[TenantId]) VALUES ({Guid.NewGuid()},{id},{method},{amount},{reference},{now},{tenantStamp})", ct);
 
         await db.Database.ExecuteSqlAsync(
             $"UPDATE [restaurant].[Orders] SET [AmountPaid]={newPaid}, [PaymentMethod]={methodLbl}, [Status]={status}, [UpdatedAt]={now} WHERE [Id]={id}", ct);

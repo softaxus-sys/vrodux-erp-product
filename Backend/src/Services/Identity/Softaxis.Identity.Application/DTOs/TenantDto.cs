@@ -12,6 +12,7 @@ public sealed record TenantDto(
     string?                 Country,
     string?                 PrimaryColor,
     string?                 Industry,
+    string?                 Currency,
     bool                    HasLicenseKey,
     DateTime?               LicenseExpiresAt,
     DateTime?               LastHeartbeatAt,
@@ -29,6 +30,7 @@ public sealed record CreateTenantRequest(
     string? ContactEmail,
     string? Country,
     string? Industry = null,
+    string? Currency = null,
     bool    StartTrial = true,
     // Optional: provision the tenant's first admin login user in the same call.
     string? AdminEmail     = null,

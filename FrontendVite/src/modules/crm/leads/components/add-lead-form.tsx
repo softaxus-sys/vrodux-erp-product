@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
 import { useUsers } from "@/hooks/identity/use-users";
 import type { LeadDto } from "@/lib/crm/crm.api";
 
@@ -13,7 +14,6 @@ const LEAD_SOURCES = ["Website", "LinkedIn", "Referral", "Cold Call", "Email Cam
 const INDUSTRIES   = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Other"];
 const LEAD_STAGES  = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation"];
 const PRIORITIES   = ["Low", "Medium", "High", "Urgent"];
-const CURRENCIES   = ["AED", "USD", "EUR", "GBP", "SAR"];
 
 interface AddLeadFormProps {
   open: boolean;
@@ -39,7 +39,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const [stage, setStage]             = React.useState("New");
   const [priority, setPriority]       = React.useState("Medium");
   const [dealValue, setDealValue]     = React.useState("");
-  const [currency, setCurrency]       = React.useState("AED");
+  const currency = useCurrency();
   const [assignedTo, setAssignedTo]   = React.useState("");
   const [expectedClose, setExpectedClose] = React.useState("");
   const [notes, setNotes]             = React.useState("");
@@ -56,7 +56,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       setPhone(editing.phone); setCompany(editing.company); setJobTitle(editing.title);
       setIndustry(editing.industry); setSource(titleCase(editing.source));
       setPriority(titleCase(editing.priority)); setDealValue(String(editing.estimatedValue || ""));
-      setCurrency(editing.currency); setAssignedTo(editing.assignedTo); setNotes(editing.notes ?? "");
+      setAssignedTo(editing.assignedTo); setNotes(editing.notes ?? "");
     }
   }, [open, editing]);
 
@@ -80,7 +80,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const reset = () => {
     setFirstName(""); setLastName(""); setEmail(""); setPhone("");
     setCompany(""); setJobTitle(""); setIndustry(""); setSource("Website");
-    setStage("New"); setPriority("Medium"); setDealValue(""); setCurrency("AED");
+    setStage("New"); setPriority("Medium"); setDealValue("");
     setAssignedTo(""); setExpectedClose(""); setNotes("");
   };
 
@@ -184,10 +184,9 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Value</label>
                     <div className="flex gap-2">
-                      <select value={currency} onChange={e => setCurrency(e.target.value)}
-                        className="h-9 px-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                        {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                      </select>
+                      <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground shrink-0">
+                        {currency}
+                      </span>
                       <Input type="number" min={0} step={1000} value={dealValue} onChange={e => setDealValue(e.target.value)}
                         placeholder="0.00" className="h-9 text-sm flex-1 text-right" />
                     </div>

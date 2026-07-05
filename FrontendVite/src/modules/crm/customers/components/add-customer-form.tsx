@@ -4,12 +4,12 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateCustomer, useUpdateCustomer } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
 import type { CustomerDto } from "@/lib/crm/crm.api";
 
 const CUSTOMER_TYPES   = ["Individual", "Company", "Government", "SME", "Enterprise"];
 const INDUSTRIES       = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Other"];
 const PAYMENT_TERMS    = ["Net 15", "Net 30", "Net 45", "Net 60", "Cash on Delivery", "Advance"];
-const CURRENCIES       = ["AED", "USD", "EUR", "GBP", "SAR"];
 
 interface AddCustomerFormProps {
   open: boolean;
@@ -29,7 +29,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   const [trn, setTrn]                   = React.useState("");
   const [paymentTerms, setPaymentTerms] = React.useState("Net 30");
   const [creditLimit, setCreditLimit]   = React.useState("");
-  const [currency, setCurrency]         = React.useState("AED");
+  const currency = useCurrency();
   const [address, setAddress]           = React.useState("");
   const [city, setCity]                 = React.useState("Dubai");
   const [country, setCountry]           = React.useState("UAE");
@@ -73,7 +73,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   const reset = () => {
     setCustomerType("Company"); setName(""); setContactPerson(""); setEmail(""); setPhone("");
     setIndustry(""); setWebsite(""); setTrn(""); setPaymentTerms("Net 30"); setCreditLimit("");
-    setCurrency("AED"); setAddress(""); setCity("Dubai"); setCountry("UAE"); setAssignedTo(""); setNotes("");
+    setAddress(""); setCity("Dubai"); setCountry("UAE"); setAssignedTo(""); setNotes("");
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
@@ -177,10 +177,9 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
-                    <select value={currency} onChange={e => setCurrency(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
+                    <div className="w-full h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground">
+                      {currency}
+                    </div>
                   </div>
                   <div className="col-span-2 space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Credit Limit ({currency})</label>

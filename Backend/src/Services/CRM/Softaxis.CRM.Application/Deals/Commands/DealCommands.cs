@@ -7,7 +7,8 @@ namespace Softaxis.CRM.Application.Deals.Commands;
 public sealed record CreateDealCommand(
     string Title, string Company, decimal Value, string Stage, string Priority,
     int Probability, string ExpectedCloseDate, string AssignedTo, string Source,
-    string Industry, string Description) : ICommand<DealDto>;
+    string Industry, string Description, string? ForecastCategory = null,
+    Guid? CustomerId = null) : ICommand<DealDto>;
 
 public sealed class CreateDealValidator : AbstractValidator<CreateDealCommand>
 {
@@ -22,7 +23,8 @@ public sealed class CreateDealValidator : AbstractValidator<CreateDealCommand>
 public sealed record UpdateDealCommand(
     Guid Id, string Title, string Company, decimal Value, string Stage, string Priority,
     int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry,
-    string Description, string? NextAction, string? NextActionDate, List<string>? Tags) : ICommand;
+    string Description, string? NextAction, string? NextActionDate, List<string>? Tags,
+    string? ForecastCategory = null, Guid? CustomerId = null) : ICommand;
 
 public sealed class UpdateDealValidator : AbstractValidator<UpdateDealCommand>
 {
@@ -34,6 +36,8 @@ public sealed class UpdateDealValidator : AbstractValidator<UpdateDealCommand>
     }
 }
 
-public sealed record MoveDealStageCommand(Guid Id, string Stage, int Probability) : ICommand;
+public sealed record MoveDealStageCommand(
+    Guid Id, string Stage, int Probability,
+    string? ForecastCategory = null, string? LossReason = null) : ICommand;
 
 public sealed record DeleteDealCommand(Guid Id) : ICommand;

@@ -13,6 +13,8 @@ import { AddCustomerForm } from "./add-customer-form";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { type CustomerDto as Customer, type CustomerStatus, type CustomerTier } from "@/lib/crm/crm.api";
 import { useCustomers, useCustomersSummary } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
+import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -65,6 +67,7 @@ function NpsStars({ score }: { score?: number }) {
 /* ── Grid card ── */
 function CustomerCard({ customer, index, onClick }: { customer: Customer; index: number; onClick: () => void }) {
   const tier = TIER_CONFIG[customer.tier];
+  const currency = useCurrency();
   return (
     <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.04 }}>
       <Card className="card-hover cursor-pointer h-full" onClick={onClick}>
@@ -87,7 +90,7 @@ function CustomerCard({ customer, index, onClick }: { customer: Customer; index:
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-muted/40 rounded-lg p-2.5 text-center">
               <p className="text-[10px] text-muted-foreground">Revenue</p>
-              <p className="text-xs font-bold">{customer.totalRevenue > 0 ? formatCurrency(customer.totalRevenue, customer.currency) : "—"}</p>
+              <p className="text-xs font-bold">{customer.totalRevenue > 0 ? formatCurrency(customer.totalRevenue, currency) : "—"}</p>
             </div>
             <div className="bg-muted/40 rounded-lg p-2.5 text-center">
               <p className="text-[10px] text-muted-foreground">Open Deals</p>
@@ -113,6 +116,7 @@ function CustomerCard({ customer, index, onClick }: { customer: Customer; index:
 
 export function CustomersView() {
   const { data: customers = [], isLoading } = useCustomers();
+  const currency = useCurrency();
 
   const exportCsv = () => {
     const csv = toCsv(customers.map(c => ({
@@ -161,6 +165,7 @@ export function CustomersView() {
     });
   }, [customers, search, statusFilter, tierFilter]);
 
+  const listLazy = useLazyList(filtered, 24);
   const openDrawer = (c: Customer) => { setSelectedCustomer(c); setDrawerOpen(true); };
 
   return (
@@ -184,7 +189,7 @@ export function CustomersView() {
         {[
           { label: "Total Accounts",  value: customersSummary?.total ?? customers.length,                                          sub: "All customers",      icon: Users,      color: "text-primary bg-primary/10" },
           { label: "Active",          value: customersSummary?.active ?? customers.filter(c=>c.status==="active").length,         sub: "Healthy accounts",   icon: Building2,  color: "text-success bg-success/10" },
-          { label: "Total Revenue",   value: formatCurrency(customersSummary?.totalRevenue ?? customers.reduce((s,c)=>s+c.totalRevenue,0), "AED"), sub: "Lifetime value", icon: DollarSign, color: "text-info bg-info/10" },
+          { label: "Total Revenue",   value: formatCurrency(customersSummary?.totalRevenue ?? customers.reduce((s,c)=>s+c.totalRevenue,0), currency), sub: "Lifetime value", icon: DollarSign, color: "text-info bg-info/10" },
           { label: "Open Deals",      value: customersSummary?.openDeals ?? customers.reduce((s,c)=>s+c.openDeals,0),            sub: "In pipeline",        icon: TrendingUp, color: "text-warning bg-warning/10" },
           { label: "Platinum",        value: customersSummary?.platinum ?? customers.filter(c=>c.tier==="platinum").length,       sub: "Top tier accounts",  icon: Award,      color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
           { label: "Avg NPS",         value: `${customersSummary?.avgNps ?? 0}/10`,                                               sub: "Satisfaction score", icon: Star,       color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
@@ -248,14 +253,22 @@ export function CustomersView() {
 
       {/* Grid view */}
       {viewMode === "grid" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((c, i) => (
-            <CustomerCard key={c.id} customer={c} index={i} onClick={() => openDrawer(c)} />
-          ))}
-          {filtered.length === 0 && (
-            <div className="col-span-full text-center py-20 text-muted-foreground text-sm">No customers found.</div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {listLazy.visible.map((c, i) => (
+              <CustomerCard key={c.id} customer={c} index={Math.min(i, 12)} onClick={() => openDrawer(c)} />
+            ))}
+            {listLazy.total === 0 && (
+              <div className="col-span-full text-center py-20 text-muted-foreground text-sm">No customers found.</div>
+            )}
+          </div>
+          {listLazy.hasMore && (
+            <div ref={listLazy.sentinelRef} className="flex flex-col items-center gap-2 py-4">
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
+              <span className="text-xs text-muted-foreground">Showing {listLazy.shown} of {listLazy.total} customers</span>
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {/* List view */}
@@ -272,11 +285,11 @@ export function CustomersView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
+                  {listLazy.total === 0 ? (
                     <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No customers found.</td></tr>
-                  ) : filtered.map((c, i) => (
+                  ) : listLazy.visible.map((c, i) => (
                     <motion.tr key={c.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(c)}>
+                      transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(c)}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
@@ -298,7 +311,7 @@ export function CustomersView() {
                         </div>
                       </td>
                       <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">
-                        {c.totalRevenue > 0 ? formatCurrency(c.totalRevenue, c.currency) : <span className="text-muted-foreground font-normal">—</span>}
+                        {c.totalRevenue > 0 ? formatCurrency(c.totalRevenue, currency) : <span className="text-muted-foreground font-normal">—</span>}
                       </td>
                       <td className="px-4 py-3 text-sm text-center">{c.openDeals}</td>
                       <td className="px-4 py-3"><TierBadge tier={c.tier} /></td>
@@ -312,8 +325,13 @@ export function CustomersView() {
                 </tbody>
               </table>
             </div>
+            {listLazy.hasMore && (
+              <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
+              </div>
+            )}
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {filtered.length} of {customers.length} customers
+              Showing {listLazy.shown} of {listLazy.total} customers
             </div>
           </CardContent>
         </Card>

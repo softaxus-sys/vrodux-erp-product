@@ -55,6 +55,17 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<POSDbContext>();
         await db.Database.MigrateAsync();
+
+        // One-time repair (idempotent): stock movements written by the old raw-SQL POS
+        // sale/refund path landed with TenantId = NULL (raw SQL bypasses StampTenantId), so
+        // the tenant query filter hid them from their own tenant. Stamp from the owning product.
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE m SET m.TenantId = p.TenantId
+            FROM [pos].[stock_movements] m
+            JOIN [pos].[products] p ON p.Id = m.ProductId
+            WHERE m.TenantId IS NULL AND p.TenantId IS NOT NULL
+            """);
+
         await POSSeedData.SeedAsync(db);
     }
 }

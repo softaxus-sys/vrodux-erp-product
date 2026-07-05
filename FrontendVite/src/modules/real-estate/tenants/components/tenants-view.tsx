@@ -86,7 +86,12 @@ export function TenantsView() {
     },
     {
       label: "Outstanding",
-      value: formatCurrency(tenantSummary?.totalOutstanding ?? tenants.reduce((s, t) => s + t.outstandingBalance, 0), currency),
+      value: formatCurrency(
+        Number.isFinite(tenantSummary?.totalOutstanding)
+          ? (tenantSummary!.totalOutstanding as number)
+          : tenants.reduce((s, t) => s + (t.outstandingBalance ?? 0), 0),
+        currency,
+      ),
       icon: AlertTriangle,
       color: "text-destructive bg-destructive/10",
     },

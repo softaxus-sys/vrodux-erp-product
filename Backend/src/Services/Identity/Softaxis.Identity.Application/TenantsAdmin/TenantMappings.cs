@@ -17,6 +17,7 @@ internal static class TenantMappings
         Country:          t.Country,
         PrimaryColor:     t.PrimaryColor,
         Industry:         t.Industry,
+        Currency:         t.Currency,
         HasLicenseKey:    t.LicenseKey is not null,
         LicenseExpiresAt: t.LicenseExpiresAt,
         LastHeartbeatAt:  t.LastHeartbeatAt,

@@ -2,8 +2,8 @@ import { motion } from "framer-motion";
 import { TrendingUp, Users, Briefcase, Target, DollarSign, CheckCircle2, ListTodo, AlertTriangle } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCrmDashboard } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
 
-const CUR = "AED";
 const STAGE_LABEL: Record<string, string> = {
   lead: "Lead", qualified: "Qualified", proposal: "Proposal", negotiation: "Negotiation", won: "Won", lost: "Lost",
 };
@@ -13,6 +13,7 @@ const FUNNEL_LABEL: Record<string, string> = {
 
 export function CrmDashboardView() {
   const { data, isLoading } = useCrmDashboard();
+  const CUR = useCurrency();
 
   if (isLoading || !data) {
     return <div className="p-12 text-center text-sm text-muted-foreground">Loading CRM dashboard…</div>;

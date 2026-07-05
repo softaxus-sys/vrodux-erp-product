@@ -9,11 +9,12 @@ import type {
 
 const QK = "crm";
 
-export function useDeals() {
+export function useDeals(customerId?: string, enabled = true) {
   return useQuery({
-    queryKey: [QK, "deals"],
-    queryFn:  crmApi.getDeals,
+    queryKey: [QK, "deals", customerId ?? "all"],
+    queryFn:  () => crmApi.getDeals(customerId),
     staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 
@@ -92,7 +93,7 @@ export function useDeal(id: string | null) {
 }
 export function useCreateDeal()   { return useCrmMutation((d: CreateDealRequest) => crmApi.createDeal(d), { msg: "Deal created." }); }
 export function useUpdateDeal()   { return useCrmMutation(({ id, data }: { id: string; data: UpdateDealRequest }) => crmApi.updateDeal(id, data), { msg: "Deal updated." }); }
-export function useMoveDealStage() { return useCrmMutation(({ id, stage, probability }: { id: string; stage: string; probability: number }) => crmApi.moveDealStage(id, stage, probability)); }
+export function useMoveDealStage() { return useCrmMutation(({ id, stage, probability, forecastCategory, lossReason }: { id: string; stage: string; probability: number; forecastCategory?: string; lossReason?: string }) => crmApi.moveDealStage(id, stage, probability, { forecastCategory, lossReason })); }
 export function useDeleteDeal()   { return useCrmMutation((id: string) => crmApi.deleteDeal(id), { msg: "Deal deleted." }); }
 
 // ── Customers ────────────────────────────────────────────────────────────────
@@ -108,6 +109,14 @@ export function useActivities(params?: { relatedToType?: string; relatedToId?: s
 }
 export function useActivitiesSummary() {
   return useQuery({ queryKey: [QK, "activities-summary"], queryFn: crmApi.getActivitiesSummary });
+}
+// Keyed under "activities" so any activity mutation (create/complete/delete) invalidates it too.
+export function useCustomerTimeline(customerId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [QK, "activities", "timeline", customerId],
+    queryFn:  () => crmApi.getCustomerTimeline(customerId!),
+    enabled:  !!customerId && enabled,
+  });
 }
 export function useCreateActivity()   { return useCrmMutation((a: CreateActivityRequest) => crmApi.createActivity(a), { msg: "Activity logged." }); }
 export function useCompleteActivity() { return useCrmMutation((id: string) => crmApi.completeActivity(id)); }
@@ -137,3 +146,20 @@ export function useCreateContact()    { return useContactMutation((c: UpsertCont
 export function useUpdateContact()    { return useContactMutation(({ id, data }: { id: string; data: UpsertContactRequest }) => crmApi.updateContact(id, data), "Contact updated."); }
 export function useSetPrimaryContact(){ return useContactMutation((id: string) => crmApi.setPrimaryContact(id)); }
 export function useDeleteContact()    { return useContactMutation((id: string) => crmApi.deleteContact(id), "Contact removed."); }
+
+// ── Deal contacts (roles on an opportunity) ──────────────────────────────────
+
+export function useDealContacts(dealId: string | null) {
+  return useQuery({ queryKey: [QK, "deal-contacts", dealId], queryFn: () => crmApi.getDealContacts(dealId!), enabled: !!dealId });
+}
+function useDealContactMutation<T>(fn: (a: T) => Promise<unknown>, msg?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: [QK, "deal-contacts"] }); if (msg) toast.success(msg); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+export function useAddDealContact()        { return useDealContactMutation(({ dealId, contactId, role }: { dealId: string; contactId: string; role: string }) => crmApi.addDealContact(dealId, { contactId, role }), "Contact linked."); }
+export function useUpdateDealContactRole() { return useDealContactMutation(({ dealId, id, role }: { dealId: string; id: string; role: string }) => crmApi.updateDealContactRole(dealId, id, role)); }
+export function useRemoveDealContact()     { return useDealContactMutation(({ dealId, id }: { dealId: string; id: string }) => crmApi.removeDealContact(dealId, id), "Contact unlinked."); }

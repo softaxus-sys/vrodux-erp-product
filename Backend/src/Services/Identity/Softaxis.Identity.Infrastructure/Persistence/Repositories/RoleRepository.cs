@@ -16,7 +16,9 @@ public sealed class RoleRepository(IdentityDbContext db) : IRoleRepository
         BaseQuery.FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public Task<Role?> GetByNameAsync(string name, Guid? tenantId = null, CancellationToken ct = default) =>
-        BaseQuery.FirstOrDefaultAsync(r => r.Name == name && r.TenantId == tenantId, ct);
+        tenantId.HasValue
+            ? BaseQuery.FirstOrDefaultAsync(r => r.Name == name && r.TenantId == tenantId.Value, ct)
+            : BaseQuery.FirstOrDefaultAsync(r => r.Name == name && r.TenantId == null, ct);
 
     public async Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) =>
         await BaseQuery.OrderBy(r => r.Name).ToListAsync(ct);
@@ -28,9 +30,14 @@ public sealed class RoleRepository(IdentityDbContext db) : IRoleRepository
             .Include(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
             .AsQueryable();
 
-        // Tenant scoping: a tenant only ever sees its own roles. Null scope (super-admin) = all.
-        if (tenantScope.HasValue)
-            query = query.Where(r => r.TenantId == tenantScope.Value);
+        // Tenant scoping: a tenant only ever sees its own roles; a super-admin (null scope) sees
+        // only the shared GLOBAL template roles (TenantId == null) — never other tenants' private
+        // roles (which is what made the same-named roles look "duplicated" in the super-admin list).
+        // Split on HasValue so the null case emits `TenantId IS NULL` rather than `= @param` (which
+        // never matches NULL rows).
+        query = tenantScope.HasValue
+            ? query.Where(r => r.TenantId == tenantScope.Value)
+            : query.Where(r => r.TenantId == null);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -47,9 +54,13 @@ public sealed class RoleRepository(IdentityDbContext db) : IRoleRepository
     }
 
     public Task<bool> NameExistsAsync(string name, Guid? excludeId = null, Guid? tenantScope = null, CancellationToken ct = default) =>
-        db.Roles.AnyAsync(r => r.Name == name
-            && (excludeId == null || r.Id != excludeId)
-            && r.TenantId == tenantScope, ct);
+        tenantScope.HasValue
+            ? db.Roles.AnyAsync(r => r.Name == name
+                && (excludeId == null || r.Id != excludeId)
+                && r.TenantId == tenantScope.Value, ct)
+            : db.Roles.AnyAsync(r => r.Name == name
+                && (excludeId == null || r.Id != excludeId)
+                && r.TenantId == null, ct);
 
     public void Add(Role role)    => db.Roles.Add(role);
     public void Update(Role role) => db.Roles.Update(role);

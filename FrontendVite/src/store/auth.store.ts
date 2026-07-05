@@ -218,6 +218,8 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
   const modulesCsv = (claims["modules"]     as string | undefined) ?? "";
 
   const plan = planRaw.toLowerCase() as Tenant["plan"];
+  // Operating/display currency from the JWT (set at signup from the browser locale); USD default.
+  const currency = ((claims["currency"] as string | undefined) ?? "USD").toUpperCase();
 
   const backendModules = modulesCsv
     ? modulesCsv.split(",").map(s => s.trim()).filter(Boolean)
@@ -235,7 +237,7 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     name,
     slug,
     industry:       "retail",
-    currency:       "PKR",
+    currency,
     country:        "Pakistan",
     timezone:       "Asia/Karachi",
     plan,
@@ -250,7 +252,7 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     settings: {
       fiscalYearStart:  7,
       vatEnabled:       false,
-      defaultCurrency:  "PKR" as any,
+      defaultCurrency:  currency as any,
       multiCurrency:    false,
       defaultLanguage:  "en",
       rtlEnabled:       false,
@@ -265,7 +267,7 @@ const DEFAULT_TENANT: Tenant = {
   name: "Vrodux",
   slug: "softaxis",
   industry: "retail",
-  currency: "PKR",
+  currency: "USD",
   country: "Pakistan",
   timezone: "Asia/Karachi",
   plan: "enterprise",

@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
 import { useConvertLead, useSetLeadStatus, useDeleteLead } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
 import { Can } from "@/components/auth/can";
 
@@ -57,6 +58,7 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
   const [tab, setTab] = React.useState<Tab>("overview");
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
 
+  const currency = useCurrency();
   const convert = useConvertLead();
   const setStatus = useSetLeadStatus();
   const del = useDeleteLead();
@@ -126,7 +128,7 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
                       <DollarSign className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
                       <p className="text-[10px] text-muted-foreground">Est. Value</p>
-                      <p className="font-bold text-sm">{formatCurrency(lead.estimatedValue, lead.currency)}</p>
+                      <p className="font-bold text-sm">{formatCurrency(lead.estimatedValue, currency)}</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
                       <Globe className="h-4 w-4 text-muted-foreground mx-auto mb-1" />

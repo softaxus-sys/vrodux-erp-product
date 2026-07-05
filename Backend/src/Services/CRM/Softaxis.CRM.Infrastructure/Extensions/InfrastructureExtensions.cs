@@ -102,6 +102,13 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         await db.Database.MigrateAsync();
-        await CrmSeedData.SeedAsync(db);
+
+        // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only — never
+        // seed it into a real (Production) deployment. It is created at startup with no tenant
+        // context, so it lands with TenantId = NULL and, on a build that predates CRM tenant
+        // isolation, leaks across every tenant's Leads/Customers/Pipeline. Gated like the POS demo seed.
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+        if (!string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase))
+            await CrmSeedData.SeedAsync(db);
     }
 }

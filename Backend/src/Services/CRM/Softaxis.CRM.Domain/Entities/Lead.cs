@@ -41,13 +41,15 @@ public sealed class Lead
     public string?   NextFollowUp    { get; private set; }
     public string?   Notes           { get; private set; }
     public string?   ConvertedDealId { get; private set; }
+    // Relational link to the account created on conversion (mirrors ConvertedDealId).
+    public Guid?     ConvertedCustomerId { get; private set; }
     public List<string> Tags         { get; private set; } = [];
     public bool      IsDeleted       { get; private set; }
     public DateTime  CreatedAt       { get; private set; }
     public DateTime? UpdatedAt       { get; private set; }
     public void UpdateStatus(string status) { Status = status; UpdatedAt = DateTime.UtcNow; }
     public void UpdateScore(int score) { Score = Math.Clamp(score, 0, 100); UpdatedAt = DateTime.UtcNow; }
-    public void Convert(string dealId) { Status = "converted"; ConvertedDealId = dealId; UpdatedAt = DateTime.UtcNow; }
+    public void Convert(string dealId, Guid? customerId = null) { Status = "converted"; ConvertedDealId = dealId; ConvertedCustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public void Update(string firstName, string lastName, string title, string company, string industry,

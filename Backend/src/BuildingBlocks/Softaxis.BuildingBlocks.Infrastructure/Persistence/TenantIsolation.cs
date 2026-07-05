@@ -34,10 +34,20 @@ public static class TenantIsolation
     /// Call at the END of OnModelCreating (after all mappings).
     /// </summary>
     public static void ApplyTenantId(ModelBuilder modelBuilder, string domainNamespacePrefix, string column = Column)
+        => ApplyTenantId(modelBuilder, domainNamespacePrefix, exclude: null, column);
+
+    /// <summary>
+    /// Namespace overload with an opt-out set: entity types in <paramref name="exclude"/> are left
+    /// out of tenant isolation (no shadow TenantId, no tenant query filter) — use for GLOBAL reference
+    /// data shared across all tenants (e.g. currency masters, market exchange rates).
+    /// </summary>
+    public static void ApplyTenantId(ModelBuilder modelBuilder, string domainNamespacePrefix, IEnumerable<Type>? exclude, string column = Column)
     {
+        var excluded = exclude is null ? null : new HashSet<Type>(exclude);
         var types = modelBuilder.Model.GetEntityTypes()
             .Where(t => !t.IsOwned() && t.FindPrimaryKey() != null
-                     && t.ClrType.Namespace?.StartsWith(domainNamespacePrefix) == true)
+                     && t.ClrType.Namespace?.StartsWith(domainNamespacePrefix) == true
+                     && (excluded is null || !excluded.Contains(t.ClrType)))
             .Select(t => t.ClrType).Distinct().ToList();
         ApplyTenantId(modelBuilder, types, column);
     }

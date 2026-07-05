@@ -82,6 +82,9 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
         var movementId = Guid.NewGuid();
         int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
         Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+        // Raw INSERTs bypass StampTenantId — stamp the ambient tenant explicitly, or the
+        // rows land with TenantId = NULL and the global filter hides them from their own tenant.
+        Guid? stamp = TenantAmbient.TenantId;
 
         if (product.Schema == "pos")
         {
@@ -90,7 +93,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
                 UPDATE [pos].[products]
                 SET    StockQuantity = {newQty},
                        UpdatedAt     = {movedAt}
-                WHERE  Id = {product.Id}
+                WHERE  Id = {product.Id} AND ({bypass} = 1 OR TenantId = {tenant})
                 """, ct);
 
             // Record in pos.stock_movements
@@ -98,10 +101,10 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
             await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO [pos].[stock_movements]
                     (Id, ProductId, AdjustmentType, Quantity, BalanceAfter,
-                     Reference, TransactionId, CreatedBy, CreatedAt, Notes)
+                     Reference, TransactionId, CreatedBy, CreatedAt, Notes, TenantId)
                 VALUES
                     ({movementId}, {product.Id}, 2, {-quantity}, {newQty},
-                     {transactionNumber}, {transactionId}, {cashierId}, {movedAt}, NULL)
+                     {transactionNumber}, {transactionId}, {cashierId}, {movedAt}, NULL, {stamp})
                 """, ct);
         }
         else
@@ -116,7 +119,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
 
                 UPDATE [inventory].[products]
                 SET    StockQuantity = {newQty}, UpdatedAt = {movedAt}
-                WHERE  Id = {product.Id};
+                WHERE  Id = {product.Id} AND ({bypass} = 1 OR TenantId = {tenant});
 
                 IF @wh IS NOT NULL
                 BEGIN
@@ -126,17 +129,17 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
                     WHERE  ProductId = {product.Id} AND WarehouseId = @wh;
 
                     IF @@ROWCOUNT = 0
-                        INSERT INTO [inventory].[product_stock] (Id, ProductId, WarehouseId, Quantity, ReorderLevel, CreatedAt)
-                        VALUES (NEWID(), {product.Id}, @wh, 0, 0, {movedAt});
+                        INSERT INTO [inventory].[product_stock] (Id, ProductId, WarehouseId, Quantity, ReorderLevel, CreatedAt, TenantId)
+                        VALUES (NEWID(), {product.Id}, @wh, 0, 0, {movedAt}, {stamp});
                 END
 
                 INSERT INTO [inventory].[stock_movements]
                     (Id, ProductId, MovementType, Quantity, UnitCost,
-                     Reference, Notes, WarehouseId, MovedAt, CreatedAt, IsDeleted)
+                     Reference, Notes, WarehouseId, MovedAt, CreatedAt, IsDeleted, TenantId)
                 VALUES
                     ({movementId}, {product.Id}, 'Sale', {-quantity}, {product.SalePrice},
                      {transactionNumber}, {$"POS sale — txn {transactionNumber}"},
-                     @wh, {movedAt}, {movedAt}, 0);
+                     @wh, {movedAt}, {movedAt}, 0, {stamp});
                 """, ct);
         }
     }
@@ -157,6 +160,8 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
         var reference  = $"REFUND:{transactionNumber}";
         int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
         Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+        // Raw INSERTs bypass StampTenantId — stamp the ambient tenant explicitly (see DeductStockAsync).
+        Guid? stamp = TenantAmbient.TenantId;
 
         if (product.Schema == "pos")
         {
@@ -164,17 +169,17 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
                 UPDATE [pos].[products]
                 SET    StockQuantity = {newQty},
                        UpdatedAt     = {movedAt}
-                WHERE  Id = {product.Id}
+                WHERE  Id = {product.Id} AND ({bypass} = 1 OR TenantId = {tenant})
                 """, ct);
 
             // AdjustmentType: Return = 3 (StockAdjustmentType enum)
             await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO [pos].[stock_movements]
                     (Id, ProductId, AdjustmentType, Quantity, BalanceAfter,
-                     Reference, TransactionId, CreatedBy, CreatedAt, Notes)
+                     Reference, TransactionId, CreatedBy, CreatedAt, Notes, TenantId)
                 VALUES
                     ({movementId}, {product.Id}, 3, {quantity}, {newQty},
-                     {reference}, {transactionId}, {cashierId}, {movedAt}, NULL)
+                     {reference}, {transactionId}, {cashierId}, {movedAt}, NULL, {stamp})
                 """, ct);
         }
         else
@@ -188,7 +193,7 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
 
                 UPDATE [inventory].[products]
                 SET    StockQuantity = {newQty}, UpdatedAt = {movedAt}
-                WHERE  Id = {product.Id};
+                WHERE  Id = {product.Id} AND ({bypass} = 1 OR TenantId = {tenant});
 
                 IF @wh IS NOT NULL
                 BEGIN
@@ -197,17 +202,17 @@ public sealed class CrossSchemaProductService(POSDbContext db) : ICrossSchemaPro
                     WHERE  ProductId = {product.Id} AND WarehouseId = @wh;
 
                     IF @@ROWCOUNT = 0
-                        INSERT INTO [inventory].[product_stock] (Id, ProductId, WarehouseId, Quantity, ReorderLevel, CreatedAt)
-                        VALUES (NEWID(), {product.Id}, @wh, {quantity}, 0, {movedAt});
+                        INSERT INTO [inventory].[product_stock] (Id, ProductId, WarehouseId, Quantity, ReorderLevel, CreatedAt, TenantId)
+                        VALUES (NEWID(), {product.Id}, @wh, {quantity}, 0, {movedAt}, {stamp});
                 END
 
                 INSERT INTO [inventory].[stock_movements]
                     (Id, ProductId, MovementType, Quantity, UnitCost,
-                     Reference, Notes, WarehouseId, MovedAt, CreatedAt, IsDeleted)
+                     Reference, Notes, WarehouseId, MovedAt, CreatedAt, IsDeleted, TenantId)
                 VALUES
                     ({movementId}, {product.Id}, 'Return', {quantity}, {product.SalePrice},
                      {reference}, {$"POS refund — txn {transactionNumber}"},
-                     @wh, {movedAt}, {movedAt}, 0);
+                     @wh, {movedAt}, {movedAt}, 0, {stamp});
                 """, ct);
         }
     }

@@ -10,9 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DealPriorityBadge } from "./deal-status-badge";
 import { formatCurrency, formatDate, getInitials, cn } from "@/lib/utils";
-import { PIPELINE_STAGES, type DealDto as Deal } from "@/lib/crm/crm.api";
-import { useDeleteDeal } from "@/hooks/crm/use-crm";
+import { UserPlus, Star } from "lucide-react";
+import { PIPELINE_STAGES, FORECAST_META, DEAL_CONTACT_ROLES, type DealDto as Deal } from "@/lib/crm/crm.api";
+import {
+  useDeleteDeal, useContacts, useDealContacts,
+  useAddDealContact, useUpdateDealContactRole, useRemoveDealContact,
+} from "@/hooks/crm/use-crm";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
+import { useCurrency } from "@/hooks/use-currency";
 import { Can } from "@/components/auth/can";
 
 interface Props {
@@ -28,6 +33,7 @@ const probabilityColor = (p: number) =>
 type Tab = "overview" | "activities" | "contact";
 
 export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<Tab>("overview");
   const del = useDeleteDeal();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -92,9 +98,13 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
                 <span className="text-xs text-muted-foreground">
                   Stage: <span className="font-semibold text-foreground">{PIPELINE_STAGES[currentStageIndex]?.label}</span>
                 </span>
-                <span className={cn("text-xs font-bold", probabilityColor(deal.probability))}>
-                  {deal.probability}% probability
-                </span>
+                <div className="flex items-center gap-2">
+                  {(() => { const f = FORECAST_META[deal.forecastCategory] ?? FORECAST_META.pipeline;
+                    return <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold", f.color, f.bg)}>{f.label}</span>; })()}
+                  <span className={cn("text-xs font-bold", probabilityColor(deal.probability))}>
+                    {deal.probability}% probability
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -121,7 +131,7 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
                     <div className="bg-muted/40 rounded-xl p-4 text-center">
                       <DollarSign className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
                       <p className="text-xs text-muted-foreground">Deal Value</p>
-                      <p className="font-bold text-sm">{formatCurrency(deal.value, deal.currency)}</p>
+                      <p className="font-bold text-sm">{formatCurrency(deal.value, currency)}</p>
                     </div>
                     <div className="bg-muted/40 rounded-xl p-4 text-center">
                       <Calendar className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
@@ -137,6 +147,14 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
                     </div>
                   </div>
 
+                  {/* Loss reason */}
+                  {deal.stage === "lost" && deal.lossReason && (
+                    <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4">
+                      <span className="text-xs font-semibold text-destructive uppercase tracking-wide">Reason lost</span>
+                      <p className="text-sm font-medium mt-1">{deal.lossReason}</p>
+                    </div>
+                  )}
+
                   {/* Description */}
                   <div>
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Description</h4>
@@ -149,11 +167,13 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
                     <div className="space-y-2.5">
                       {[
                         { label: "Priority",    value: <DealPriorityBadge priority={deal.priority} /> },
+                        { label: "Forecast",    value: (FORECAST_META[deal.forecastCategory] ?? FORECAST_META.pipeline).label },
+                        { label: "Weighted Value", value: formatCurrency(deal.weightedValue, currency) },
                         { label: "Source",      value: deal.source },
                         { label: "Industry",    value: deal.industry },
                         { label: "Assigned To", value: deal.assignedTo },
                         { label: "Created",     value: formatDate(deal.createdDate, "medium") },
-                        { label: "Currency",    value: deal.currency },
+                        { label: "Currency",    value: currency },
                       ].map(row => (
                         <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-border/40">
                           <span className="text-xs text-muted-foreground">{row.label}</span>
@@ -205,51 +225,7 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
               {/* Contact Tab */}
               {tab === "contact" && (
                 <div className="p-6 space-y-6">
-                  <div>
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">Primary Contact</h4>
-                    <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-xl mb-4">
-                      <Avatar className="h-14 w-14">
-                        <AvatarFallback className="text-base font-bold bg-primary/10 text-primary">
-                          {getInitials(deal.contact.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-bold text-base">{deal.contact.name}</p>
-                        <p className="text-sm text-muted-foreground">{deal.contact.title}</p>
-                        <p className="text-xs text-muted-foreground">{deal.company}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <a href={`mailto:${deal.contact.email}`} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors group">
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Mail className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Email</p>
-                          <p className="text-sm font-medium group-hover:text-primary transition-colors">{deal.contact.email}</p>
-                        </div>
-                      </a>
-                      <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors">
-                        <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
-                          <Phone className="h-3.5 w-3.5 text-success" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Phone</p>
-                          <p className="text-sm font-medium">{deal.contact.phone}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors">
-                        <div className="h-8 w-8 rounded-lg bg-info/10 flex items-center justify-center">
-                          <Building2 className="h-3.5 w-3.5 text-info" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Company</p>
-                          <p className="text-sm font-medium">{deal.company}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <DealContactsPanel dealId={deal.id} customerId={deal.customerId ?? null} company={deal.company} />
 
                   {/* Assigned rep */}
                   <div>
@@ -310,6 +286,117 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
         </>
       )}
     </AnimatePresence>
+  );
+}
+
+const ROLE_LABEL: Record<string, string> = Object.fromEntries(DEAL_CONTACT_ROLES.map(r => [r.value, r.label]));
+
+function DealContactsPanel({ dealId, customerId, company }: { dealId: string; customerId: string | null; company: string }) {
+  const { data: linked = [], isLoading } = useDealContacts(dealId);
+  const { data: accountContacts = [] } = useContacts(customerId);
+  const addContact    = useAddDealContact();
+  const updateRole    = useUpdateDealContactRole();
+  const removeContact = useRemoveDealContact();
+
+  const [adding, setAdding]   = React.useState(false);
+  const [pickId, setPickId]   = React.useState("");
+  const [pickRole, setPickRole] = React.useState("decision_maker");
+
+  const linkedIds = new Set(linked.map(l => l.contactId));
+  const available = accountContacts.filter(c => !linkedIds.has(c.id));
+
+  const submitAdd = () => {
+    if (!pickId) return;
+    addContact.mutate({ dealId, contactId: pickId, role: pickRole }, {
+      onSuccess: () => { setAdding(false); setPickId(""); setPickRole("decision_maker"); },
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contacts ({linked.length})</h4>
+        {customerId && (
+          <Can permission="crm.pipeline.edit">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setAdding(v => !v)} disabled={available.length === 0}>
+              <UserPlus className="h-3.5 w-3.5" />Add
+            </Button>
+          </Can>
+        )}
+      </div>
+
+      {!customerId && (
+        <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3 mb-4">
+          Link this deal to an account (edit the deal and pick a company) to attach its contacts with buying roles.
+        </p>
+      )}
+
+      {adding && customerId && (
+        <div className="rounded-xl border border-border p-3 mb-4 space-y-2">
+          {available.length === 0 ? (
+            <p className="text-xs text-muted-foreground">All of {company}'s contacts are already linked.</p>
+          ) : (
+            <>
+              <select value={pickId} onChange={e => setPickId(e.target.value)}
+                className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                <option value="">Select a contact…</option>
+                {available.map(c => <option key={c.id} value={c.id}>{c.fullName}{c.title ? ` — ${c.title}` : ""}</option>)}
+              </select>
+              <div className="flex gap-2">
+                <select value={pickRole} onChange={e => setPickRole(e.target.value)}
+                  className="flex-1 h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  {DEAL_CONTACT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+                <Button size="sm" className="h-9" onClick={submitAdd} disabled={!pickId || addContact.isPending}>
+                  {addContact.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Link"}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+      ) : linked.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <Users className="h-8 w-8 text-muted-foreground/30 mb-2" />
+          <p className="text-sm text-muted-foreground">No contacts on this opportunity yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {linked.map(c => (
+            <div key={c.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">{getInitials(c.fullName)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-sm truncate">{c.fullName}</p>
+                  {c.isPrimary && <Star className="h-3 w-3 text-amber-500 shrink-0" />}
+                </div>
+                {c.title && <p className="text-xs text-muted-foreground truncate">{c.title}</p>}
+                <div className="flex items-center gap-2 mt-0.5">
+                  {c.email && <a href={`mailto:${c.email}`} className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1"><Mail className="h-2.5 w-2.5" />{c.email}</a>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Can permission="crm.pipeline.edit" fallback={<span className="text-[11px] font-medium text-muted-foreground px-2 py-1">{ROLE_LABEL[c.role] ?? c.role}</span>}>
+                  <select value={c.role} onChange={e => updateRole.mutate({ dealId, id: c.id, role: e.target.value })}
+                    className="h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    {DEAL_CONTACT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                  <button onClick={() => removeContact.mutate({ dealId, id: c.id })} disabled={removeContact.isPending}
+                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Unlink contact">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </Can>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

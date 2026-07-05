@@ -4,10 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
+using Softaxis.Finance.Application.Abstractions;
 using Softaxis.Finance.Application.Accounts.Commands;
 using Softaxis.Finance.Infrastructure.Handlers.Accounts;
 using Softaxis.Finance.Infrastructure.Persistence;
 using Softaxis.Finance.Infrastructure.Persistence.Seed;
+using Softaxis.Finance.Infrastructure.Services;
 
 namespace Softaxis.Finance.Infrastructure.Extensions;
 
@@ -38,8 +40,14 @@ public static class InfrastructureExtensions
         // ── FluentValidation — register all validators from Application ───────
         services.AddValidatorsFromAssembly(typeof(CreateAccountCommand).Assembly);
 
+        // ── Exchange rates — online provider + daily refresh ─────────────────
+        services.Configure<ExchangeRateOptions>(configuration.GetSection(ExchangeRateOptions.Section));
+        services.AddHttpClient("exchange-rates");
+        services.AddScoped<IExchangeRateProvider, ErApiExchangeRateProvider>();
+
         // ── Background jobs ───────────────────────────────────────────────────
         services.AddHostedService<Services.RecurringInvoiceHostedService>();
+        services.AddHostedService<Services.ExchangeRateRefreshService>();
 
         return services;
     }

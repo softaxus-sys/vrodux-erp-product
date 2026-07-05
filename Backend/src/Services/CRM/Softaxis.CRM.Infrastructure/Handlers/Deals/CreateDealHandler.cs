@@ -11,8 +11,17 @@ internal sealed class CreateDealHandler(CrmDbContext db) : ICommandHandler<Creat
 {
     public async Task<Result<DealDto>> Handle(CreateDealCommand cmd, CancellationToken ct)
     {
-        var d = new Deal(cmd.Title, cmd.Company, cmd.Value, cmd.Stage, cmd.Priority,
-            cmd.Probability, cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description);
+        // When linked to an account, use its canonical name as the denormalized display company.
+        var company = cmd.Company;
+        if (cmd.CustomerId is Guid cid)
+        {
+            var acct = await db.Customers.FindAsync([cid], ct);
+            if (acct is not null) company = acct.Name;
+        }
+
+        var d = new Deal(cmd.Title, company, cmd.Value, cmd.Stage, cmd.Priority,
+            cmd.Probability, cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
+            cmd.ForecastCategory, cmd.CustomerId);
 
         db.Deals.Add(d);
         await db.SaveChangesAsync(ct);

@@ -12,6 +12,7 @@ internal sealed class GetDealsHandler(CrmDbContext db) : IQueryHandler<GetDealsQ
     public async Task<Result<IReadOnlyList<DealDto>>> Handle(GetDealsQuery query, CancellationToken ct)
     {
         var items = await db.Deals.AsNoTracking().Where(x => !x.IsDeleted)
+            .Where(x => query.CustomerId == null || x.CustomerId == query.CustomerId)
             .OrderByDescending(x => x.Value).ToListAsync(ct);
 
         return Result.Success<IReadOnlyList<DealDto>>(items.Select(DealMappings.ToDto).ToList());

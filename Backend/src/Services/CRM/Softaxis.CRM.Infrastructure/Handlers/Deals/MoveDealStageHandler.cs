@@ -13,7 +13,7 @@ internal sealed class MoveDealStageHandler(CrmDbContext db) : ICommandHandler<Mo
         if (d is null)
             return Result.Failure(Error.NotFoundById("Deal", cmd.Id));
 
-        d.MoveStage(cmd.Stage, cmd.Probability);
+        d.MoveStage(cmd.Stage, cmd.Probability, cmd.ForecastCategory, cmd.LossReason);
         await db.SaveChangesAsync(ct);
 
         return Result.Success();

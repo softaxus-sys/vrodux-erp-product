@@ -3,12 +3,14 @@ import { Plus, Filter, Search, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PipelineStats } from "./pipeline-stats";
+import { ForecastBar } from "./forecast-bar";
 import { PipelineBoard } from "./pipeline-board";
 import { DealDrawer } from "./deal-drawer";
 import { AddDealForm } from "./add-deal-form";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES, type DealDto as Deal } from "@/lib/crm/crm.api";
 import { useDeals, useCrmSummary } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -19,6 +21,7 @@ type ViewMode = "board" | "list";
 export function PipelineView() {
   const { data: deals = [], isLoading } = useDeals();
   const { data: crmSummary }            = useCrmSummary();
+  const currency = useCurrency();
   const [selectedDeal, setSelectedDeal] = React.useState<Deal | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>("board");
@@ -31,11 +34,13 @@ export function PipelineView() {
 
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
-    return deals.filter(d => {
-      const matchSearch = !search || d.title.toLowerCase().includes(q) || d.company.toLowerCase().includes(q);
-      const matchStage = stageFilter === "all" || d.stage === stageFilter;
-      return matchSearch && matchStage;
-    });
+    return deals
+      .filter(d => {
+        const matchSearch = !search || d.title.toLowerCase().includes(q) || d.company.toLowerCase().includes(q);
+        const matchStage = stageFilter === "all" || d.stage === stageFilter;
+        return matchSearch && matchStage;
+      })
+      .sort((a, b) => b.value - a.value); // top-value deals first
   }, [deals, search, stageFilter]);
 
   const handleView = (deal: Deal) => {
@@ -49,7 +54,7 @@ export function PipelineView() {
       "Company":      d.company,
       "Stage":        d.stage,
       "Value":        d.value,
-      "Currency":     d.currency,
+      "Currency":     currency,
       "Probability":  d.probability,
       "Priority":     d.priority,
       "Assigned To":  d.assignedTo,
@@ -64,7 +69,7 @@ export function PipelineView() {
     title: "Sales Pipeline",
     subtitle: `${deals.length} deals`,
     columns: ["Title","Company","Stage","Value","Currency","Probability","Assigned To","Close Date"],
-    rows: deals.map(d => [d.title, d.company, d.stage, d.value, d.currency, `${d.probability}%`, d.assignedTo, d.expectedCloseDate]),
+    rows: deals.map(d => [d.title, d.company, d.stage, d.value, currency, `${d.probability}%`, d.assignedTo, d.expectedCloseDate]),
     landscape: true,
   });
 
@@ -88,6 +93,9 @@ export function PipelineView() {
 
       {/* Stats */}
       {crmSummary && <PipelineStats summary={crmSummary} />}
+
+      {/* Forecast roll-up */}
+      {crmSummary && <ForecastBar summary={crmSummary} />}
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
@@ -166,8 +174,11 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { DealPriorityBadge } from "./deal-status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
+import { useLazyList } from "@/hooks/use-lazy-list";
 
 function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: (d: Deal) => void }) {
+  const currency = useCurrency();
+  const { visible, hasMore, loadMore, sentinelRef, shown, total } = useLazyList(deals, 25);
   const stageStyle = (stage: Deal["stage"]) => {
     const s = PIPELINE_STAGES.find(x => x.key === stage);
     return s ? `${s.color} ${s.bg} px-2 py-0.5 rounded-full text-[11px] font-semibold` : "";
@@ -188,13 +199,13 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
               </tr>
             </thead>
             <tbody>
-              {deals.length === 0 ? (
+              {visible.length === 0 ? (
                 <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">No deals found.</td></tr>
-              ) : deals.map((deal, i) => (
+              ) : visible.map((deal, i) => (
                 <motion.tr
                   key={deal.id}
                   initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }}
+                  transition={{ delay: Math.min(i, 12) * 0.03 }}
                   className="erp-table-row cursor-pointer"
                   onClick={() => onDealClick(deal)}
                 >
@@ -203,7 +214,7 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
                     <p className="text-[11px] text-muted-foreground">{deal.source}</p>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{deal.company}</td>
-                  <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(deal.value, deal.currency)}</td>
+                  <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(deal.value, currency)}</td>
                   <td className="px-4 py-3">
                     <span className={stageStyle(deal.stage)}>
                       {PIPELINE_STAGES.find(s => s.key === deal.stage)?.label}
@@ -228,8 +239,13 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
             </tbody>
           </table>
         </div>
+        {hasMore && (
+          <div ref={sentinelRef} className="flex justify-center py-4 border-t border-border">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={loadMore}>Load more</Button>
+          </div>
+        )}
         <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          Showing {deals.length} of {deals.length} deals
+          Showing {shown} of {total} deals
         </div>
       </CardContent>
     </Card>

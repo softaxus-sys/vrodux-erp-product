@@ -17,8 +17,8 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth.store";
 import type { ModuleKey } from "@/types";
 import {
-  ACTION_ORDER, ACTION_LABELS, GROUP_ORDER,
-  groupPermissions, moduleLabel,
+  ACTION_ORDER, ACTION_LABELS, GROUP_ORDER, MODULE_GROUPS,
+  groupPermissions, moduleLabel, moduleGroupLabel, UBIQUITOUS_MODULES,
 } from "@/lib/identity/permission-matrix";
 import { Can } from "@/components/auth/can";
 
@@ -149,6 +149,60 @@ function PermCell({
   );
 }
 
+// ── Module Chips (which module(s) a role is linked to) ──────────────────────────
+
+/**
+ * Renders the module(s) a role grants access to, derived from RoleSummaryDto.modules.
+ * Cross-cutting modules (settings/reports/…) are dropped so the chips reflect the
+ * role's real purpose. A role spanning most modules collapses to a single "All modules"
+ * chip (the Administrator case). `max` caps how many chips show before a "+N" overflow.
+ */
+function ModuleChips({
+  modules, isSystem, max = 3,
+}: { modules: string[]; isSystem: boolean; max?: number }) {
+  const significant = (modules ?? [])
+    .map(m => m.toLowerCase())
+    .filter(m => !UBIQUITOUS_MODULES.has(m));
+
+  // Total distinct business modules (excludes the ubiquitous cross-cutting ones).
+  const businessModuleCount = Object.keys(MODULE_GROUPS)
+    .filter(m => !UBIQUITOUS_MODULES.has(m)).length;
+
+  // Administrator / full-access roles touch (almost) everything — one summary chip.
+  if (significant.length === 0) {
+    return (
+      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-muted text-muted-foreground">
+        {isSystem ? "All modules" : "General"}
+      </span>
+    );
+  }
+  if (significant.length >= businessModuleCount) {
+    return (
+      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-primary/10 text-primary">
+        All modules
+      </span>
+    );
+  }
+
+  const shown = significant.slice(0, max);
+  const extra = significant.length - shown.length;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {shown.map(m => (
+        <span key={m}
+          className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-primary/10 text-primary">
+          {moduleGroupLabel(m)}
+        </span>
+      ))}
+      {extra > 0 && (
+        <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-muted text-muted-foreground">
+          +{extra}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── Module Row ────────────────────────────────────────────────────────────────
 
 function ModuleRow({
@@ -217,12 +271,6 @@ export function RolesPermissionsView() {
   const hasModuleAccess = useAuthStore(s => s.hasModuleAccess);
   const isSuperAdmin    = useAuthStore(s => s.user?.role === "super_admin");
 
-  // Modules every role touches regardless of domain — ignored when judging relevance.
-  const UBIQUITOUS_MODULES = React.useMemo(
-    () => new Set(["settings", "reports", "dashboard", "notifications", "file-manager", "ai-assistant"]),
-    [],
-  );
-
   // A role is relevant to this tenant when:
   //  • super-admin (sees all), or
   //  • it's the full-access Administrator, or
@@ -236,7 +284,7 @@ export function RolesPermissionsView() {
     const significant = (r.modules ?? []).filter(m => !UBIQUITOUS_MODULES.has(m.toLowerCase()));
     if (significant.length === 0) return true; // only ubiquitous → generic role
     return significant.every(m => hasModuleAccess(m as ModuleKey));
-  }, [isSuperAdmin, hasModuleAccess, UBIQUITOUS_MODULES]);
+  }, [isSuperAdmin, hasModuleAccess]);
 
   const rolesList = (rolesData?.items ?? []).filter(roleIsRelevant);
   const allPerms  = allPermsData ?? [];
@@ -460,8 +508,11 @@ export function RolesPermissionsView() {
                     {role.isSystem && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
                   </div>
                   <p className="text-[10px] text-muted-foreground">{role.userCount} user{role.userCount !== 1 ? "s" : ""}</p>
+                  <div className="mt-1">
+                    <ModuleChips modules={role.modules} isSystem={role.isSystem} />
+                  </div>
                 </div>
-                {selectedRoleId === role.id && <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+                {selectedRoleId === role.id && <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 self-start mt-1" />}
               </button>
             );
           })}
@@ -489,6 +540,14 @@ export function RolesPermissionsView() {
                     }
                   </div>
                   <p className="text-xs text-muted-foreground">{selectedRole.description || "No description"}</p>
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground/70 font-medium">Linked to:</span>
+                    <ModuleChips
+                      modules={rolesList.find(r => r.id === selectedRoleId)?.modules ?? []}
+                      isSystem={selectedRole.isSystem}
+                      max={8}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">

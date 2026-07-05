@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import {
   useActivities, useActivitiesSummary, useCompleteActivity, useReopenActivity, useDeleteActivity,
 } from "@/hooks/crm/use-crm";
+import { useLazyList } from "@/hooks/use-lazy-list";
+import { Button } from "@/components/ui/button";
 
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
 const FILTERS = [
@@ -32,6 +34,8 @@ export function ActivitiesView() {
     if (filter === "today")   return all.filter(a => !a.completed && a.dueDate === today);
     return all;
   }, [all, filter, today]);
+
+  const lazy = useLazyList(items, 30);
 
   const stats = [
     { label: "Open Tasks", value: summary?.openTasks ?? 0, icon: ListTodo, color: "text-primary", bg: "bg-primary/10" },
@@ -76,9 +80,9 @@ export function ActivitiesView() {
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
-        {items.length === 0 ? (
+        {lazy.total === 0 ? (
           <div className="text-center py-16 text-sm text-muted-foreground">Nothing here. Log activities from a lead, deal, or customer.</div>
-        ) : items.map(a => {
+        ) : lazy.visible.map(a => {
           const Icon = ICON[a.type] ?? StickyNote;
           const overdue = !a.completed && a.dueDate && a.dueDate < today;
           return (
@@ -107,6 +111,12 @@ export function ActivitiesView() {
             </div>
           );
         })}
+        {lazy.hasMore && (
+          <div ref={lazy.sentinelRef} className="flex items-center justify-center gap-3 py-3">
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={lazy.loadMore}>Load more</Button>
+            <span className="text-xs text-muted-foreground">Showing {lazy.shown} of {lazy.total}</span>
+          </div>
+        )}
       </div>
     </div>
   );

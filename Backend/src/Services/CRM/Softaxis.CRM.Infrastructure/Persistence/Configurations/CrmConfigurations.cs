@@ -30,6 +30,7 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(x => x.NextFollowUp).HasMaxLength(20);
         builder.Property(x => x.Notes).HasMaxLength(2000);
         builder.Property(x => x.ConvertedDealId).HasMaxLength(50);
+        builder.HasIndex(x => x.ConvertedCustomerId);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         builder.Property(x => x.Tags).HasConversion(
             v => string.Join(',', v),
@@ -92,6 +93,19 @@ internal sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
     }
 }
 
+internal sealed class DealContactConfiguration : IEntityTypeConfiguration<DealContact>
+{
+    public void Configure(EntityTypeBuilder<DealContact> builder)
+    {
+        builder.ToTable("deal_contacts");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Role).IsRequired().HasMaxLength(30).HasDefaultValue("other");
+        builder.HasIndex(x => x.DealId);
+        // One row per (deal, contact) — a contact can't be linked twice to the same deal.
+        builder.HasIndex(x => new { x.DealId, x.ContactId }).IsUnique();
+    }
+}
+
 internal sealed class ActivityConfiguration : IEntityTypeConfiguration<Activity>
 {
     public void Configure(EntityTypeBuilder<Activity> builder)
@@ -132,6 +146,9 @@ internal sealed class DealConfiguration : IEntityTypeConfiguration<Deal>
         builder.Property(x => x.Description).HasMaxLength(2000);
         builder.Property(x => x.NextAction).HasMaxLength(500);
         builder.Property(x => x.NextActionDate).HasMaxLength(20);
+        builder.Property(x => x.ForecastCategory).HasMaxLength(20).HasDefaultValue("pipeline");
+        builder.Property(x => x.LossReason).HasMaxLength(500);
+        builder.HasIndex(x => x.CustomerId);
         builder.Property(x => x.ContactJson).HasMaxLength(1000);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         builder.Property(x => x.Tags).HasConversion(

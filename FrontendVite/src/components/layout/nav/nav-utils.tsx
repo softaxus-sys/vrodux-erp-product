@@ -14,7 +14,7 @@ import {
   Monitor, UtensilsCrossed, ChefHat,
   Settings2, SlidersHorizontal, ShieldCheck, GitBranch, Plug, ScrollText,
   Zap, Bell, FolderTree, Tag, Ruler, Ticket, Repeat, Activity, Briefcase,
-  PanelLeft, PanelRight, PanelTop, LayoutGrid,
+  PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   Monitor, UtensilsCrossed, ChefHat,
   Settings2, SlidersHorizontal, ShieldCheck, GitBranch, Plug, ScrollText,
   Zap, Bell, FolderTree, Tag, Ruler, Ticket, Repeat, Activity, Briefcase,
-  PanelLeft, PanelRight, PanelTop, LayoutGrid,
+  PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins,
 };
 
 export function NavIcon({ name, className }: { name?: string; className?: string }) {

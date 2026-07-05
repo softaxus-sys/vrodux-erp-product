@@ -12,6 +12,7 @@ public sealed record CreateTenantCommand(
     string? ContactEmail,
     string? Country,
     string? Industry,
+    string? Currency,
     bool    StartTrial,
     string? AdminEmail,
     string? AdminUsername,

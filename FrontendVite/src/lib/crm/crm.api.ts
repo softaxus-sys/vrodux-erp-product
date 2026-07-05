@@ -6,6 +6,7 @@ const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/crm
 
 export type DealStage    = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
 export type DealPriority = "low" | "medium" | "high";
+export type ForecastCategory = "pipeline" | "best_case" | "commit" | "closed" | "omitted";
 export type ActivityType = "call" | "email" | "meeting" | "note" | "task";
 
 export type LeadStatus   = "new" | "contacted" | "qualified" | "unqualified" | "converted" | "lost";
@@ -55,6 +56,10 @@ export interface DealDto {
   activities:         DealActivity[];
   nextAction?:        string;
   nextActionDate?:    string;
+  forecastCategory:   ForecastCategory;
+  weightedValue:      number;
+  lossReason?:        string | null;
+  customerId?:        string | null;
 }
 
 export interface CrmSummaryDto {
@@ -64,7 +69,19 @@ export interface CrmSummaryDto {
   lostDeals:   number;
   avgDealSize: number;
   winRate:     number;
+  openValue:      number;
+  weightedValue:  number;
+  commitValue:    number;
+  bestCaseValue:  number;
 }
+
+export const FORECAST_META: Record<ForecastCategory, { label: string; color: string; bg: string }> = {
+  commit:    { label: "Commit",    color: "text-emerald-600", bg: "bg-emerald-100 dark:bg-emerald-900/25" },
+  best_case: { label: "Best case", color: "text-blue-600",    bg: "bg-blue-100 dark:bg-blue-900/25" },
+  pipeline:  { label: "Pipeline",  color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50" },
+  closed:    { label: "Closed",    color: "text-violet-600",  bg: "bg-violet-100 dark:bg-violet-900/25" },
+  omitted:   { label: "Omitted",   color: "text-red-600",     bg: "bg-red-100 dark:bg-red-900/25" },
+};
 
 export const PIPELINE_STAGES: { key: DealStage; label: string; color: string; bg: string }[] = [
   { key: "lead",        label: "Lead",        color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50" },
@@ -251,7 +268,7 @@ export interface UpdateLeadRequest extends CreateLeadRequest {
 export interface CreateDealRequest {
   title: string; company: string; value: number; stage: string; priority: string;
   probability: number; expectedCloseDate: string; assignedTo: string; source: string;
-  industry: string; description: string;
+  industry: string; description: string; forecastCategory?: string; customerId?: string | null;
 }
 export interface UpdateDealRequest extends CreateDealRequest {
   nextAction?: string | null; nextActionDate?: string | null; tags?: string[];
@@ -277,12 +294,12 @@ export interface CrmDashboardDto {
 
 export const crmApi = {
   // Deals
-  getDeals:      (): Promise<DealDto[]>           => rawApiClient.get(`${BASE}/deals`),
+  getDeals:      (customerId?: string): Promise<DealDto[]> => rawApiClient.get(`${BASE}/deals${customerId ? `?customerId=${customerId}` : ""}`),
   getCrmSummary: (): Promise<CrmSummaryDto>       => rawApiClient.get(`${BASE}/deals/summary`),
   getDeal:       (id: string): Promise<DealDto>   => rawApiClient.get(`${BASE}/deals/${id}`),
   createDeal:    (d: CreateDealRequest): Promise<DealDto> => rawApiClient.post(`${BASE}/deals`, d),
   updateDeal:    (id: string, d: UpdateDealRequest): Promise<void> => rawApiClient.put(`${BASE}/deals/${id}`, d),
-  moveDealStage: (id: string, stage: string, probability: number): Promise<void> => rawApiClient.patch(`${BASE}/deals/${id}/stage`, { stage, probability }),
+  moveDealStage: (id: string, stage: string, probability: number, opts?: { forecastCategory?: string; lossReason?: string }): Promise<void> => rawApiClient.patch(`${BASE}/deals/${id}/stage`, { stage, probability, ...opts }),
   deleteDeal:    (id: string): Promise<void> => rawApiClient.delete(`${BASE}/deals/${id}`),
 
   // Leads
@@ -315,6 +332,7 @@ export const crmApi = {
     return rawApiClient.get(`${BASE}/activities${s ? `?${s}` : ""}`);
   },
   getActivitiesSummary: (): Promise<ActivitiesSummaryDto> => rawApiClient.get(`${BASE}/activities/summary`),
+  getCustomerTimeline:  (customerId: string): Promise<ActivityDto[]> => rawApiClient.get(`${BASE}/customers/${customerId}/timeline`),
   createActivity:  (a: CreateActivityRequest): Promise<ActivityDto> => rawApiClient.post(`${BASE}/activities`, a),
   updateActivity:  (id: string, a: { type: string; subject: string; description?: string | null; dueDate?: string | null; assignedTo: string }): Promise<void> => rawApiClient.put(`${BASE}/activities/${id}`, a),
   completeActivity:(id: string): Promise<void> => rawApiClient.post(`${BASE}/activities/${id}/complete`),
@@ -330,6 +348,12 @@ export const crmApi = {
   updateContact:    (id: string, c: UpsertContactRequest): Promise<void> => rawApiClient.put(`${BASE}/contacts/${id}`, c),
   setPrimaryContact:(id: string): Promise<void> => rawApiClient.post(`${BASE}/contacts/${id}/primary`),
   deleteContact:    (id: string): Promise<void> => rawApiClient.delete(`${BASE}/contacts/${id}`),
+
+  // Deal ↔ Contact roles
+  getDealContacts:       (dealId: string): Promise<DealContactRoleDto[]> => rawApiClient.get(`${BASE}/deals/${dealId}/contacts`),
+  addDealContact:        (dealId: string, body: { contactId: string; role: string }): Promise<DealContactRoleDto> => rawApiClient.post(`${BASE}/deals/${dealId}/contacts`, body),
+  updateDealContactRole: (dealId: string, id: string, role: string): Promise<void> => rawApiClient.put(`${BASE}/deals/${dealId}/contacts/${id}`, { role }),
+  removeDealContact:     (dealId: string, id: string): Promise<void> => rawApiClient.delete(`${BASE}/deals/${dealId}/contacts/${id}`),
 };
 
 export interface ContactDto {
@@ -341,3 +365,16 @@ export interface UpsertContactRequest {
   customerId: string; firstName: string; lastName: string; title: string;
   email: string; phone: string; department?: string | null; isPrimary: boolean; notes?: string | null;
 }
+
+export interface DealContactRoleDto {
+  id: string; contactId: string; fullName: string; title: string; email: string;
+  phone: string; department?: string | null; isPrimary: boolean; role: string;
+}
+export const DEAL_CONTACT_ROLES: { value: string; label: string }[] = [
+  { value: "decision_maker", label: "Decision maker" },
+  { value: "champion",       label: "Champion" },
+  { value: "influencer",     label: "Influencer" },
+  { value: "user",           label: "End user" },
+  { value: "blocker",        label: "Blocker" },
+  { value: "other",          label: "Other" },
+];

@@ -1413,6 +1413,163 @@ global filter exactly: super-admin/unresolved → all rows; otherwise this tenan
 
 ---
 
+## Module 6c — Tenant Isolation: full re-verification + raw-SQL INSERT stamping
+
+**Second full-codebase isolation sweep (after 6a/6b), triggered by "make 100% sure no module sees other
+tenant data."** Re-verified the whole surface and fixed the remaining raw-SQL write gaps.
+
+### Verified clean (no changes needed)
+- **All 13 business DbContexts** call `TenantIsolation.ApplyTenantId` (shadow `TenantId` + global filter).
+- **`IgnoreQueryFilters()`** appears ONLY in startup seed/backfill code — never in request handlers.
+- **Raw-SQL reads** (Inventory `ProductReadService`, POS `CrossSchemaProductService.GetByIdForSaleAsync`,
+  POS `StockMovementRepository`) all carry the 6b tenant clause `({bypass} = 1 OR TenantId = {tenant})`.
+- **Anonymous endpoints** are all tenant-explicit: Careers handlers filter
+  `EF.Property<Guid?>(x, TenantIsolation.Column) == tenant.Id` (resolved from slug) and `ApplyToJobHandler`
+  stamps the applicant row; CRM `IngestWebhookHandler`/`IngestMetaWebhookHandler`/`MetaOAuthCallbackHandler`
+  copy `TenantId` from the integration row; `RawLeadInboxProcessor` sets `TenantAmbient.Set(tenantId, ...)`.
+- **`TenantAmbientMiddleware`** fails closed: authenticated user with no `tenant_id` claim → resolved but
+  NULL tenant → filter `TenantId == NULL` matches nothing.
+- **Identity**: users tenant-scoped via `tenantScope` in handlers; roles fixed in 6a.
+
+### Gaps found & fixed — raw-SQL INSERTs bypass `StampTenantId` → rows landed `TenantId = NULL`
+NULL-tenant rows are NOT a cross-tenant leak (no other tenant's filter matches them) but they are hidden
+from **their own tenant** too (filter is `TenantId == ambient`; `NULL == guid` is false):
+- **`POS/.../CrossSchemaProductService.cs`** — `DeductStockAsync`/`RestoreStockAsync` INSERTs into
+  `[pos].[stock_movements]`, `[inventory].[stock_movements]`, `[inventory].[product_stock]` now include a
+  `TenantId` column stamped with `TenantAmbient.TenantId` (`Guid? stamp` — mirrors `StampTenantId` exactly).
+  The `UPDATE [pos|inventory].[products]` statements also got the `({bypass} = 1 OR TenantId = {tenant})`
+  guard (defense-in-depth; ids were already validated via the tenant-guarded lookup).
+- **`Restaurant/.../OrdersController.RecordPayment`** — the raw `INSERT INTO [restaurant].[OrderPayments]`
+  now stamps `TenantId`. Without it, EF's query filter (which DOES apply to `Include(x => x.Payments)`)
+  hid every recorded payment from the tenant — breaking split-tender method labels and payment history.
+- **One-time repairs (idempotent, run every startup)** in `MigrateAndSeed{Restaurant,POS,Inventory}Async`:
+  `UPDATE ... SET TenantId = parent.TenantId ... WHERE TenantId IS NULL` — OrderPayments from Orders,
+  pos/inventory stock_movements + product_stock from their products. Fixes rows created by the old code.
+- **CRM demo seed gated out of Production** (`MigrateAndSeedCrmAsync`) — startup seed runs with no ambient
+  tenant, so demo leads/customers/deals land `TenantId = NULL`; on any deployed build predating CRM tenant
+  isolation they leaked into every tenant. Same env gate as the POS demo seed.
+- **`.gitignore`** — added `App_Data/` (the gateway's Data Protection key ring `App_Data/dp-keys/` encrypts
+  stored OAuth tokens/secrets and must never be committed).
+
+### Build Status
+- **Full ApiGateway (all services):** 0 errors ✅ (only the pre-existing NU1903 OpenApi advisory warnings)
+- **Pending:** republish + restart the on-prem service; the startup repairs then run automatically.
+  Spot-check afterwards: two tenants' POS sale → each tenant sees only its own stock movements; Restaurant
+  split payment shows all payment rows.
+
+---
+
+## Module 6d — Identity: Duplicate role cleanup + super-admin role scoping + "Linked to" module chips
+
+**Fixes the "I'm seeing duplicate roles" report.** Two independent causes, both fixed; plus a small UX
+addition so each role shows which module(s) it belongs to.
+
+### Root cause (confirmed against the live `SoftaxisErpDb`)
+- `RoleRepository.GetPagedAsync` treated a **null tenant scope (super-admin) as "all roles"**, so a
+  super-admin saw every tenant's roles pooled together — same-named roles (`Administrator ×5`, `CRM
+  Manager ×4`, `Cashier ×2`, …) looked like duplicates. A **tenant** admin was already fine (only its own
+  tenant's roles, each distinct).
+- Legacy **GLOBAL roles** (`TenantId = NULL`) — `Cashier`, `Supervisor`, `Store Manager`, `Inventory
+  Manager`, `POS Admin`, plus stray test globals (`Project Manager`, `PM Viewer Only`) — seeded by the old
+  dev-only `SeedPOSRolesAsync`. They duplicate the per-tenant roles that `TenantRoleProvisioner` (Module 6a)
+  now creates.
+
+### Fixes (Identity service)
+- **`RoleRepository`** — super-admin (null scope) now sees **only global template roles** (`TenantId ==
+  NULL`), never other tenants' private roles. `GetPagedAsync`/`GetByNameAsync`/`NameExistsAsync` split on
+  `tenantScope.HasValue` so the null case emits `TenantId IS NULL` (not `= @param`, which never matches NULL
+  — the EF null-parameter pitfall).
+- **`InfrastructureExtensions.MigrateAndSeedAsync`**:
+  - Removed the `SeedPOSRolesAsync` call **and the method** — global operational roles + demo users are no
+    longer seeded in ANY environment (they were already skipped in Production; now dev matches). Operational
+    roles come only from the per-tenant provisioner → **distinct seed data in every env**.
+  - New **`RemoveRedundantGlobalRolesAsync`** (idempotent, all envs, runs after `BackfillTenantRolesAsync`):
+    deletes every global role except the single bootstrap `Administrator`; first re-points any assigned user
+    onto their tenant's same-named role (`tenantRoles` lookup keyed by `(TenantId, Name)`), then deletes the
+    global role (role_permissions / user_roles cascade). Verified impact on live data: re-points `pmuser`
+    onto tenant "Project Manager"; dev demo users (cashier/posadmin/…) and the `pmviewer` test role just lose
+    the stale global assignment.
+  - **`SeedSuperAdminAsync`** admin-role lookup scoped to `TenantId == null` — per-tenant `Administrator`
+    roles now exist, so the super-admin must never be bootstrapped onto a specific tenant's role.
+- **Kept:** the single global `Administrator` (bootstrap for `admin@softaxis.io` / `superadmin`).
+
+### Frontend — "Linked to" module chips (Settings → Roles & Permissions)
+- `lib/identity/permission-matrix.ts` — new `moduleGroupLabel(prefix)` + shared `UBIQUITOUS_MODULES` set.
+- `roles-permissions-view.tsx` — new `ModuleChips` component driven by the existing `RoleSummaryDto.modules`
+  (module prefixes a role grants perms in; computed in `GetRolesQueryHandler`). Shown per role in the list
+  and as a "Linked to:" line in the detail header. Cross-cutting modules (settings/reports/…) are dropped;
+  a full-access role collapses to one **All modules** chip; overflow shows `+N`. Maps cleanly onto the
+  provisioned set (CRM Manager → CRM, Cashier → POS, Administrator → All modules).
+
+### Deploy note (auth-sensitive — same as Module 6a)
+Requires **republish + restart**; the cleanup then runs automatically via `MigrateAndSeedAsync`. **Back up
+`SoftaxisErpDb` first** — it deletes roles and re-points user↔role assignments. Not run against the live DB
+by the author; the read-only impact preview above was verified.
+
+### Build Status
+- **Identity.API:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+
+---
+
+## Module 6e — Currency Management (USD base, live rates, browser-default company currency)
+
+**Made currency work end-to-end.** Currency was collected at onboarding but **dropped** (RegisterTrial
+ignored it; `Tenant` had no currency column; no JWT claim; frontend `useCurrency()` returned a hardcoded
+`"PKR"`). Also `Currency`/`ExchangeRate` were accidentally tenant-scoped (the tenant filter overwrote their
+`!IsDeleted` filter → seeded rows landed `TenantId = NULL` and were invisible to tenants).
+
+### Model
+- **USD is the base currency** (rate 1.0). `ExchangeRate.Rate` = units of USD per 1 unit of the code
+  (base-per-unit); `ConvertCurrencyHandler` cross-rates via base. Company operating/display currency =
+  browser-detected at signup.
+- **Currency + ExchangeRate are now GLOBAL** (shared market reference data), not tenant-scoped.
+
+### Backend
+- `BuildingBlocks/.../TenantIsolation.cs` — new namespace overload `ApplyTenantId(mb, prefix, exclude, col)`;
+  `FinanceDbContext` excludes `[Currency, ExchangeRate]`. Migration `MakeCurrencyRatesGlobal` drops their
+  `TenantId` column+index. `CurrencyConfiguration` keeps its own (non-tenant) mapping.
+- `FinanceSeedData` — USD `IsBaseCurrency=true` (AED false), added PKR/INR; idempotent raw-SQL repair flips
+  existing DBs' base to USD and soft-deletes the old AED-based seed rates; reseeds USD-based fallback rates
+  (date `2000-01-01` so any live refresh supersedes).
+- **Online provider** (`Softaxis.Finance`): `IExchangeRateProvider` + `ErApiExchangeRateProvider`
+  (open.er-api.com `/latest/USD`, free/no-key, fail-soft), `ExchangeRateUpserter` (stores `1/unitsPerUsd`),
+  `ExchangeRateRefreshService : BackgroundService` (startup + every 24h), config section `ExchangeRates`
+  (Provider/BaseUrl/ApiKey/Enabled) in appsettings, `AddHttpClient("exchange-rates")` +
+  `Microsoft.Extensions.Http` package. `POST /api/finance/exchange-rates/refresh`
+  (`finance.accounting.edit`) → `RefreshExchangeRatesCommand`/Handler.
+- **Persist tenant currency**: `Tenant.Currency` + `SetCurrency(code|label)` (normalises "USD - US Dollar" →
+  "USD"), migration `AddTenantCurrency`; set in `RegisterTrialCommandHandler` + `CreateTenantCommandHandler`;
+  new `currency` **JWT claim**; `TenantDto.Currency` + `TenantMappings`. Self-service
+  `PUT /api/tenant-settings/currency` (`TenantSettingsController` → `UpdateTenantCurrencyCommand`, tenant from
+  JWT). Added `IdentityDbContextFactory` (design-time; Identity was the only service without one).
+
+### Frontend
+- `store/auth.store.ts` — `buildTenantFromClaims` reads the `currency` claim (USD default) instead of hardcoded
+  PKR; `DEFAULT_TENANT` → USD.
+- `pages/trial/onboarding.tsx` — submits the 3-letter code; `detectCountry()` (Module: browser detection) already
+  pre-selects country→currency.
+- `lib/finance/exchange-rates.api.ts` + `lib/finance/convert.ts` (`buildRateMap`/`convert`) +
+  `hooks/finance/use-exchange-rates.ts` (`useExchangeRates`, `useRefreshRates`, `useUpdateTenantCurrency`
+  [patches auth store live], `useCurrencyConverter`).
+- `lib/identity/tenant-settings.api.ts` + Settings page `modules/settings/currency/.../currency-settings-view.tsx`
+  (operating-currency selector, live rates table, "Refresh now", converter preview) + route `/settings/currency`
+  + nav item "Currency & Rates" (icon `Coins`).
+
+### Scope boundary
+Conversion is delivered as the shared converter/hook + the settings preview; recorded amounts are never mutated
+(the operating currency already drives `formatCurrency` app-wide). Re-wiring every screen to live-convert
+cross-currency is a follow-up.
+
+### Build / Verification Status
+- **Finance.API + Identity.API:** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · migrations
+  `AddTenantCurrency` + `MakeCurrencyRatesGlobal` created & reviewed.
+- **Pending (needs gateway rebuild+restart):** live checks — `GET /exchange-rates` (USD base=1), `POST /refresh`,
+  `GET /convert?from=USD&to=PKR&amount=100`; signup persists browser currency + `currency` claim; Settings →
+  Currency switch re-expresses via live rates. Migrations auto-apply on startup via `MigrateAndSeedFinanceAsync`
+  / `MigrateAndSeedAsync`.
+
+---
+
 ## Module 6 — Export (CSV + PDF) — All Views
 
 ### Files Touched
@@ -1731,6 +1888,208 @@ Full design + dev guide: `docs/integration-platform.md`. Lives in CRM because th
 - **Frontend:** `tsc --noEmit` 0 errors ✅
 - **Pending**: apply `AddLeadIntegrations` on next gateway startup (auto via `MigrateAndSeedCrmAsync`);
   set real `Meta:AppId`/`AppSecret` + a public HTTPS `Integrations:PublicBaseUrl` for a live Meta test.
+
+---
+
+## Module 8 — CRM Redesign (enterprise-grade, competing w/ Salesforce / Dynamics / HubSpot / NetSuite)
+
+**Program to evolve the CRM from a linear funnel into a closed-loop revenue platform.** Agreed redesign =
+omnichannel capture → 4-phase closed loop (Capture → Convert → Close → Retain, with an expansion loop back
+into Convert) on a cross-cutting platform spine (unified data / automation / intelligence / governance).
+
+**Agreed build order** (do one slice at a time, confirm scope, keep additive/low-risk):
+1. Split `Lead` / `Account` / `Contact` / `Opportunity` into proper entities + unified activity timeline (the
+   highest-leverage change — current `LeadDto` conflates person/company/deal; `Deal.Company` is free-text).
+2. Configurable pipelines (DB-backed `Pipeline`+`Stage`, replace the hardcoded `DealStage` union +
+   `PIPELINE_STAGES` const) + forecast categories + quota. ← **8a below delivered the forecast-category half.**
+3. Generalize Module 7's `LeadIngestedNotification`/`INotificationHandler` into a trigger/action workflow engine
+   (+ sequences/cadences).
+4. Lead scoring + grading rules engine (make `Lead.Score` computed, not free-form).
+5. Renewals + account health score + cases/tickets → closes the loop into Sales/Finance.
+6. AI assist over the unified timeline.
+
+### Module 8a — Sales Forecasting on opportunities (DONE — first slice, purely additive)
+Adds Salesforce-style forecasting to `Deal` without renaming anything. Two new columns, everything else derived.
+
+- **Domain** `Softaxis.CRM.Domain/Entities/Deal.cs` — new `ForecastCategory` (`pipeline|best_case|commit|closed|
+  omitted`, non-null default `"pipeline"`) + `LossReason` (`string?`). `DeriveForecastCategory(stage, prob)`
+  static default (won→closed, lost→omitted, else prob≥80→commit / ≥50→best_case / else pipeline); `Normalize()`
+  validates client overrides (unknown → null → auto-derive). Computed `WeightedValue => Value * Probability/100`.
+  `MoveStage`/`Update`/ctor take an optional `forecastCategory`; `MoveStage` also takes `lossReason` (only kept
+  when stage==lost, cleared otherwise).
+- **CQRS** — `CreateDealCommand`/`UpdateDealCommand` gained `string? ForecastCategory = null`;
+  `MoveDealStageCommand` gained `ForecastCategory` + `LossReason`. `DealDto` gained `ForecastCategory`,
+  `WeightedValue`, `LossReason`. `DealsSummaryDto` gained `OpenValue`, `WeightedValue`, `CommitValue`,
+  `BestCaseValue` (rolled up over OPEN deals only in `GetDealsSummaryHandler`). `DealMappings.ToDto` +
+  Create/Update/MoveStage handlers pass the new fields. `PipelineController` `UpdateDealRequest`/`StageReq`
+  carry the new optional fields.
+- **EF** — `DealConfiguration`: `ForecastCategory` `HasMaxLength(20).HasDefaultValue("pipeline")`, `LossReason`
+  `HasMaxLength(500)`. Migration `AddDealForecasting` (schema `crm`, `deals` table, 2 additive columns; existing
+  rows default to `pipeline`).
+- **Frontend** — `lib/crm/crm.api.ts`: `ForecastCategory` type, `FORECAST_META` (label/color/bg per category),
+  new `DealDto`/`CrmSummaryDto` fields, `CreateDealRequest.forecastCategory?`, `moveDealStage(id,stage,prob,{
+  forecastCategory?, lossReason? })`. `useMoveDealStage` hook signature widened.
+  - `pipeline/components/forecast-bar.tsx` (NEW) — Open pipeline / Weighted forecast / Best case / Commit
+    roll-up card, rendered under `PipelineStats` in `pipeline-view.tsx`.
+  - `deal-card.tsx` — forecast pill + weighted-value subline (open deals). `deal-drawer.tsx` — forecast pill in
+    stage header, Forecast + Weighted Value in Deal Details, "Reason lost" banner when lost.
+  - `pipeline-board.tsx` — dragging a card into **Lost** opens a loss-reason modal (`LOSS_REASONS` chips +
+    free text) before persisting; sends `lossReason`. Normal stage moves let the backend auto-derive forecast.
+  - `add-deal-form.tsx` — Forecast Category `<select>` (Auto/Pipeline/Best case/Commit; `bg-card`); "Auto"
+    sends `undefined` so the backend derives.
+
+### Build Status
+- **CRM.API + Infrastructure:** 0 errors, 0 warnings ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- **Pending:** apply `AddDealForecasting` on next gateway startup (auto via `MigrateAndSeedCrmAsync`); republish +
+  restart the on-prem service per the deploy note. Then spot-check: forecast bar totals, drag-to-Lost reason
+  capture, forecast pill/override on cards + form.
+
+### Module 8b — CRM: Opportunity ↔ Account relational link (redesign slice 1, Phase 1 — DONE)
+First phase of the "split Lead/Account/Contact/Opportunity into proper entities" slice. Key finding: the model
+was mostly there — `Contact` already FKs to the account (`CustomerId`), `Activity` is already polymorphic
+(`RelatedToType` lead/deal/customer + `RelatedToId` — a unified-timeline primitive), and `CrmCustomer` already
+IS the Account. The real gap was that the graph was **string-linked, not relational**: `Deal.Company` was free
+text with no FK, and `ConvertLead` created a customer + deal that weren't even linked to each other. Phase 1
+makes Opportunity↔Account relational — purely additive (nullable FK + denormalized `Company` retained), nothing
+breaks. Naming decision: keep `CrmCustomer` as the Account entity, relabel "Account" in UI only (no churny rename).
+
+- **Domain** `Deal.cs` — new `Guid? CustomerId` (null = unlinked/free-text). ctor + `Update(...)` take optional
+  `Guid? customerId = null` (added after the existing `forecastCategory` optional param).
+- **CQRS** — `CreateDealCommand`/`UpdateDealCommand` gained `Guid? CustomerId = null`; `DealDto` gained
+  `Guid? CustomerId`; `GetDealsQuery(Guid? CustomerId = null)` filters by account.
+  `CreateDealHandler`/`UpdateDealHandler`: when `CustomerId` set, look up the account (`db.Customers.FindAsync`)
+  and copy its `Name` into the denormalized `Company`. `ConvertLeadHandler` now sets
+  `customerId: customer.Id` on the deal it creates (previously the convert's customer + deal were unlinked).
+- **EF** — `DealConfiguration` `HasIndex(x => x.CustomerId)` (scalar indexed column, no navigation → avoids
+  cross-cascade config). Migration `AddDealCustomerLink` (schema `crm`, `deals` table, additive nullable column
+  + index).
+- **API** — `PipelineController` `GET /api/crm/deals?customerId=` filter; `UpdateDealRequest` carries `CustomerId`.
+- **Frontend** — `crm.api.ts`: `DealDto.customerId`, `CreateDealRequest.customerId`,
+  `getDeals(customerId?)` → `?customerId=`. `use-crm.ts`: `useDeals(customerId?, enabled=true)`.
+  - `add-deal-form.tsx` — replaced the free-text **Company** input with an **Account combobox** (searches
+    `useCustomers()`; pick → sets `customerId` + name + "Linked" pill with unlink ✕; typing unlinks and shows
+    "New account — won't be linked"). Sends `customerId` on create/update; edit prefills from `editing.customerId`.
+  - `customer-drawer.tsx` — Deals tab was **always empty** (backend `CrmCustomerMappings.ToDto` returns
+    `Array.Empty<object>()` for deals/contacts/activities). Now wired to `useDeals(customer.id, open)` → shows
+    live linked opportunities with stage badge, close date, value, and weighted value (open deals). Removed the
+    dead "New Deal" button + unused `ChevronRight` import.
+- **Build:** CRM.API 0 errors/0 warnings ✅ · Frontend `tsc --noEmit` 0 errors ✅ · migration `AddDealCustomerLink`
+  created (auto-applies via `MigrateAndSeedCrmAsync`).
+- **Pending:** republish + restart on-prem to apply the migration, then spot-check: create a deal, pick an
+  account → it appears in that account's Deals tab; convert a lead → the new deal is linked to the new account.
+- **Next (Phase 2–4):** deal contact roles (`DealContact` join, replaces `Deal.ContactJson`); account-level
+  unified timeline (`GET /customers/{id}/timeline` unioning the account's + its deals'/leads' activities);
+  Lead→Contact on convert (create a primary `Contact` from the lead's person + `Lead.ConvertedCustomerId`).
+
+### Module 8c — CRM: Opportunity contact roles (redesign slice 1, Phase 2 — DONE)
+Replaces the single free-text `Deal.ContactJson` blob with a proper many-to-many `DealContact` join so an
+opportunity can carry multiple contacts, each with a buying **role** (decision_maker / champion / influencer /
+user / blocker / other). Additive — the `ContactJson` column is left in place (unused), nothing breaks.
+
+- **Domain** `DealContact.cs` (NEW) — `(Id, DealId, ContactId, Role, CreatedAt, UpdatedAt)`, `SetRole(...)`.
+  Pure association row → **hard-deleted** on unlink (no `IsDeleted`, so the tenant global filter that would
+  overwrite a `!IsDeleted` filter is a non-issue). Follows the codebase's scalar-FK convention (indexed `DealId`
+  / `ContactId` Guids, **no** navigation properties / DB FK constraints — same as `Deal.CustomerId`,
+  `Contact.CustomerId`). Auto tenant-isolated (entity in `Softaxis.CRM.Domain` → shadow `TenantId` + filter).
+- **EF** — `DealContactConfiguration`: table `deal_contacts`, `HasIndex(DealId)` + unique `HasIndex(DealId,
+  ContactId)`. `CrmDbContext` `DbSet<DealContact> DealContacts`. Migration `AddDealContacts` (new table +
+  shadow `TenantId`).
+- **CQRS** `Application/DealContacts/*` — `DealContactDto(Id, ContactId, FullName, Title, Email, Phone,
+  Department, IsPrimary, Role)`; `GetDealContactsQuery(DealId)`; `AddDealContactCommand(DealId, ContactId, Role)`
+  (+validator), `UpdateDealContactRoleCommand(DealId, Id, Role)`, `RemoveDealContactCommand(DealId, Id)`.
+  Handlers in `Infrastructure/Handlers/DealContacts/`:
+  - `GetDealContactsHandler` — LINQ join `deal_contacts`⋈`contacts` (contacts' query filter drops soft-deleted),
+    orders primary-first; `Contact.FullName` is `Ignore`d/computed so the projection selects
+    `FirstName`/`LastName` and builds the name in memory (can't reference a computed prop in an EF projection).
+  - `AddDealContactHandler` — validates deal + contact exist; if the deal is account-linked
+    (`deal.CustomerId`), rejects a contact from a different account (`DealContact.Conflict` → 409); rejects
+    duplicates (`DealContact.Duplicate` → 409).
+  - `UpdateDealContactRoleHandler` / `RemoveDealContactHandler` — look up by `(Id, DealId)`, 404 if missing.
+- **API** `DealContactsController` route `api/crm/deals/{dealId}/contacts` — `GET` (`crm.pipeline.view`),
+  `POST {contactId, role}` / `PUT {id} {role}` / `DELETE {id}` (all `crm.pipeline.edit`).
+- **Frontend** — `crm.api.ts`: `DealContactRoleDto`, `DEAL_CONTACT_ROLES` (value/label list), + `getDealContacts`
+  / `addDealContact` / `updateDealContactRole` / `removeDealContact`. `use-crm.ts`: `useDealContacts(dealId)` +
+  `useAddDealContact` / `useUpdateDealContactRole` / `useRemoveDealContact` (own mutation helper invalidating
+  `[QK,"deal-contacts"]`).
+  - `deal-drawer.tsx` — Contact tab rewritten from the single JSON contact to a `DealContactsPanel`: lists
+    linked contacts (avatar, name, primary star, title, email) each with an inline **role `<select>`
+    (`bg-card`)** + unlink button; an "Add" flow picks an unlinked account contact (`useContacts(customerId)`)
+    + role. Unlinked deals show a hint to link an account first (contacts are account-scoped). Writes gated by
+    `<Can permission="crm.pipeline.edit">` (denied → static role label via `fallback`).
+- **Build:** CRM.API 0 errors/0 warnings ✅ · Frontend `tsc --noEmit` 0 errors ✅ · migration `AddDealContacts`
+  created (auto-applies via `MigrateAndSeedCrmAsync`).
+- **Pending:** republish + restart on-prem to apply the migration; spot-check — link a deal to an account,
+  open the deal's Contacts tab, add account contacts with roles, change a role, unlink.
+
+### Module 8d — CRM: Account timeline + Lead→Contact conversion (redesign slice 1, Phases 3 & 4 — DONE)
+Completes redesign slice 1. Phase 3 = a rolled-up account activity timeline; Phase 4 = proper SFDC-style lead
+conversion (Lead → Account **+ Contact** + Opportunity). Both additive.
+
+**Phase 4 — Lead→Contact on convert**
+- `Lead.cs` — new `Guid? ConvertedCustomerId` (mirrors the existing string `ConvertedDealId`);
+  `Convert(string dealId, Guid? customerId = null)` sets both. EF `HasIndex(ConvertedCustomerId)`.
+  Migration `AddLeadConvertedCustomer` (additive nullable column + index).
+- `ConvertLeadHandler` — now also creates the account's **primary `Contact`** from the lead's person fields
+  (when the lead has a name), links it to the new opportunity as a `DealContact` with role `decision_maker`
+  (ties Phases 2+4 together), and calls `l.Convert(deal.Id, customer.Id)`. Previously conversion created an
+  account named after the company but **discarded the actual person**.
+- `LeadDto` + `LeadMappings` carry `ConvertedCustomerId` (optional trailing field).
+
+**Phase 3 — Account-level unified timeline**
+- `GetCustomerTimelineQuery(CustomerId)` + `GetCustomerTimelineHandler` (in the Activities feature) — unions
+  `activities` where related to the **account** OR any of its **deals** (`Deal.CustomerId == id`) OR its
+  **converted leads** (`Lead.ConvertedCustomerId == id`). Sub-queries carry their own tenant + soft-delete
+  filters, so the union is tenant-scoped automatically. Reuses the existing `ActivityDto` + `ActivityMappings`
+  (no new activity infra). `GET /api/crm/customers/{id}/timeline` (`crm.customers.view`).
+- **Frontend** — `crm.api.ts` `getCustomerTimeline(id)`; `use-crm.ts` `useCustomerTimeline(id)` **keyed under
+  `[QK,"activities","timeline",id]`** so every activity mutation (create/complete/reopen/delete, which
+  invalidate `[QK,"activities"]`) refreshes it. New `account-timeline.tsx` — quick-add (logs against the
+  account) + a merged read-only list where each entry shows an **origin chip** (Account / Deal / Lead) + the
+  source record name; complete/reopen/delete reuse the activity hooks. `customer-drawer.tsx` Activity tab now
+  renders `<AccountTimeline>` instead of the customer-only `<ActivityTimeline>` — so an account's tab shows its
+  opportunities' and originating lead's activity in one stream.
+- **Build:** CRM.API 0 errors/0 warnings ✅ · Frontend `tsc --noEmit` 0 errors ✅ · migration
+  `AddLeadConvertedCustomer` created (auto-applies via `MigrateAndSeedCrmAsync`).
+- **Pending:** republish + restart on-prem; spot-check — convert a lead → new account has a primary contact +
+  the deal shows that contact as decision maker; the account's Activity tab shows deal/lead activities with
+  origin chips.
+
+**Redesign slice 1 (Lead/Account/Contact/Opportunity split) is now complete (Phases 1–4 = Modules 8b–8d).**
+Next redesign slices (see "Module 8" build order): 2 = configurable pipelines (forecast-category half already in
+8a); 3 = workflow engine; 4 = scoring/grading; 5 = renewals + health + cases; 6 = AI assist.
+
+### Module 8e — CRM Pipeline & Leads: sorting, lazy-load, leads drag-drop (UX pass)
+Frontend-only. Addresses a batch of pipeline/leads requests.
+- **New hook** `hooks/use-lazy-list.ts` — `useLazyList(items, pageSize)` → `{ visible, hasMore, loadMore,
+  sentinelRef, shown, total }`. IntersectionObserver sentinel (infinite scroll) + manual `loadMore`; resets to
+  first page when `items.length` changes (so new/filtered items are always reachable).
+- **Top-value first everywhere** — `pipeline-view` list + `leads-view` list sort by value desc; each kanban
+  column (deals + leads) sorts by value desc.
+- **Pagination / lazy-load (all CRM grids/kanban)** — via `useLazyList`: pipeline list & leads list (render 25),
+  customers list + **grid** (render 24), activities list (render 30) — each with an infinite-scroll sentinel +
+  "Load more" and a `shown / total` footer. Kanban columns (deals + leads): render 15/8, per-column "Show N more"
+  button; the column count badge shows the true total. Refactored inline board columns into `BoardColumn`
+  (pipeline-board) and `LeadColumn` (leads-view) components since the lazy hook can't run inside a `.map`.
+- **Leads kanban drag-drop (new)** — `LeadsKanban` now mirrors the deals board's HTML5 DnD: optimistic local
+  state, drag a card between `new/contacted/qualified` → `useSetLeadStatus`; **drop on `Converted` → runs
+  `useConvertLead`** (creates account + contact + deal — not a plain status change). Deals board already had DnD.
+- **"New deal not appearing in pipeline"** — by code the create/convert mutations already invalidate
+  `[crm,deals*]` so the pipeline refetches; likely the un-republished backend (see deploy note) or was masked by
+  no sorting. Deals now sort by value so a new deal lands by value; if low-value it may sit past the first 8 in
+  its column → use the column's "Show N more" (badge shows the true count). Re-verify after republish; if it
+  still doesn't show, capture the network/console on create.
+- **Currency display fix (AED everywhere)** — CRM records hardcode `Currency = "AED"` in the backend
+  entities (`Deal`/`Lead`/`CrmCustomer` ctors), and several components displayed that stored value (the deals
+  board literally hard-coded `formatCurrency(..., "AED")`). Per the Module 6e model (operating currency drives
+  `formatCurrency` app-wide; stored amounts aren't converted), all CRM display sites now use `useCurrency()`
+  instead of `record.currency` / `"AED"`: deal-card, deal-drawer (incl. the "Currency" detail row + CSV/PDF
+  export), pipeline list, pipeline board columns, leads card/list/drawer, customer-drawer deals tab,
+  customers-view (card + list + Total Revenue stat), crm-dashboard. (pipeline-stats + forecast-bar already used
+  `useCurrency`.) The add-* forms (deal/lead/customer) previously showed a hardcoded currency `<select>`
+  (`["AED","USD","EUR","GBP","SAR"]`, default AED — no PKR/tenant currency); since the backend ctors ignore the
+  input and always store "AED", these are now replaced with a **static read-only label showing `useCurrency()`**
+  (the tenant operating currency) next to the amount input.
+- **Build:** Frontend `tsc --noEmit` 0 errors ✅. (No backend changes.)
 
 ---
 

@@ -42,3 +42,6 @@ public sealed class UpdateExchangeRateValidator : AbstractValidator<UpdateExchan
 }
 
 public sealed record DeleteExchangeRateCommand(Guid Id) : ICommand;
+
+/// <summary>Fetches live USD-based rates from the online provider and upserts today's rows.</summary>
+public sealed record RefreshExchangeRatesCommand() : ICommand<RefreshExchangeRatesDto>;

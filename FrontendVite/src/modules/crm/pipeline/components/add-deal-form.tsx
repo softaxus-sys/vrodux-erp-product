@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateDeal, useUpdateDeal } from "@/hooks/crm/use-crm";
+import { useCreateDeal, useUpdateDeal, useCustomers } from "@/hooks/crm/use-crm";
+import { useCurrency } from "@/hooks/use-currency";
+import { Building2, Link2, X as XIcon } from "lucide-react";
 import type { DealDto } from "@/lib/crm/crm.api";
 
 const PIPELINE_STAGES = ["Qualified", "Proposal Sent", "Negotiation", "Contract Review", "Closed Won", "Closed Lost"];
@@ -16,8 +18,14 @@ const KEY_LABEL: Record<string, string> = {
   negotiation: "Negotiation", won: "Closed Won", lost: "Closed Lost",
 };
 const DEAL_TYPES      = ["New Business", "Upsell", "Renewal", "Cross-sell", "Partnership"];
-const CURRENCIES      = ["AED", "USD", "EUR", "GBP", "SAR"];
 const PROBABILITIES   = ["10%", "25%", "50%", "75%", "90%", "100%"];
+const FORECASTS       = [
+  { value: "auto",      label: "Auto (from stage)" },
+  { value: "pipeline",  label: "Pipeline" },
+  { value: "best_case", label: "Best case" },
+  { value: "commit",    label: "Commit" },
+];
+const MANUAL_FORECASTS = ["pipeline", "best_case", "commit"];
 
 interface AddDealFormProps {
   open: boolean;
@@ -29,28 +37,45 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   const isEdit = !!editing;
   const [dealName, setDealName]       = React.useState("");
   const [company, setCompany]         = React.useState("");
+  const [customerId, setCustomerId]   = React.useState<string | null>(null);
+  const [acctOpen, setAcctOpen]       = React.useState(false);
   const [contactName, setContactName] = React.useState("");
   const [contactEmail, setContactEmail] = React.useState("");
   const [stage, setStage]             = React.useState("Qualified");
   const [dealType, setDealType]       = React.useState("New Business");
   const [value, setValue]             = React.useState("");
-  const [currency, setCurrency]       = React.useState("AED");
   const [probability, setProbability] = React.useState("50%");
+  const currency = useCurrency();
+  const [forecast, setForecast]       = React.useState("auto");
   const [closeDate, setCloseDate]     = React.useState("");
   const [assignedTo, setAssignedTo]   = React.useState("");
   const [description, setDescription] = React.useState("");
 
   const createDeal = useCreateDeal();
   const updateDeal = useUpdateDeal();
+  const { data: accounts = [] } = useCustomers();
   const saving = createDeal.isPending || updateDeal.isPending;
   const isValid = dealName.trim() && company.trim() && value && closeDate;
 
+  const acctMatches = React.useMemo(() => {
+    const q = company.trim().toLowerCase();
+    return accounts
+      .filter(a => !q || a.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [accounts, company]);
+
+  const pickAccount = (a: { id: string; name: string }) => {
+    setCustomerId(a.id); setCompany(a.name); setAcctOpen(false);
+  };
+  const clearAccount = () => { setCustomerId(null); setCompany(""); };
+
   React.useEffect(() => {
     if (open && editing) {
-      setDealName(editing.title); setCompany(editing.company); setValue(String(editing.value || ""));
+      setDealName(editing.title); setCompany(editing.company); setCustomerId(editing.customerId ?? null); setValue(String(editing.value || ""));
       setStage(KEY_LABEL[editing.stage] ?? "Qualified"); setDealType(editing.source || "New Business");
       setProbability(`${editing.probability}%`); setCloseDate(editing.expectedCloseDate);
-      setAssignedTo(editing.assignedTo); setDescription(editing.description); setCurrency(editing.currency);
+      setForecast(MANUAL_FORECASTS.includes(editing.forecastCategory) ? editing.forecastCategory : "auto");
+      setAssignedTo(editing.assignedTo); setDescription(editing.description);
     }
   }, [open, editing]);
 
@@ -62,6 +87,8 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
       probability: parseInt(probability, 10) || 50, expectedCloseDate: closeDate,
       assignedTo: assignedTo.trim(), source: dealType, industry: editing?.industry ?? "",
       description: description.trim(),
+      forecastCategory: forecast === "auto" ? undefined : forecast,
+      customerId: customerId ?? null,
     };
     if (isEdit && editing) {
       updateDeal.mutate({ id: editing.id, data: { ...base, nextAction: editing.nextAction ?? null, nextActionDate: editing.nextActionDate ?? null, tags: editing.tags } }, { onSuccess: onClose });
@@ -71,9 +98,9 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   };
 
   const reset = () => {
-    setDealName(""); setCompany(""); setContactName(""); setContactEmail("");
-    setStage("Qualified"); setDealType("New Business"); setValue(""); setCurrency("AED");
-    setProbability("50%"); setCloseDate(""); setAssignedTo(""); setDescription("");
+    setDealName(""); setCompany(""); setCustomerId(null); setAcctOpen(false); setContactName(""); setContactEmail("");
+    setStage("Qualified"); setDealType("New Business"); setValue("");
+    setProbability("50%"); setForecast("auto"); setCloseDate(""); setAssignedTo(""); setDescription("");
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
@@ -111,9 +138,44 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Name *</label>
                   <Input value={dealName} onChange={e => setDealName(e.target.value)} placeholder="e.g. Enterprise License — TechCorp" className="h-9 text-sm" />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company *</label>
-                  <Input value={company} onChange={e => setCompany(e.target.value)} placeholder="Client company…" className="h-9 text-sm" />
+                <div className="space-y-1.5 relative">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account / Company *</label>
+                  <div className="relative">
+                    <Input
+                      value={company}
+                      onChange={e => { setCompany(e.target.value); setCustomerId(null); setAcctOpen(true); }}
+                      onFocus={() => setAcctOpen(true)}
+                      onBlur={() => setTimeout(() => setAcctOpen(false), 120)}
+                      placeholder="Search accounts or type a new one…"
+                      className={`h-9 text-sm ${customerId ? "pr-16" : ""}`}
+                    />
+                    {customerId && (
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary">
+                          <Link2 className="h-2.5 w-2.5" />Linked
+                        </span>
+                        <button type="button" onMouseDown={e => { e.preventDefault(); clearAccount(); }}
+                          className="p-0.5 rounded hover:bg-muted text-muted-foreground" aria-label="Unlink account">
+                          <XIcon className="h-3 w-3" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                  {acctOpen && acctMatches.length > 0 && (
+                    <div className="absolute z-10 left-0 right-0 mt-1 max-h-52 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+                      {acctMatches.map(a => (
+                        <button key={a.id} type="button" onMouseDown={e => { e.preventDefault(); pickAccount(a); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/50">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">{a.name}</span>
+                          {a.industry && <span className="ml-auto text-[11px] text-muted-foreground truncate">{a.industry}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!customerId && company.trim() && (
+                    <p className="text-[11px] text-muted-foreground">New account — won't be linked to an existing customer.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Type</label>
@@ -152,10 +214,9 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                 <div className="space-y-1.5 col-span-2">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Value *</label>
                   <div className="flex gap-2">
-                    <select value={currency} onChange={e => setCurrency(e.target.value)}
-                      className="h-9 px-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
+                    <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground shrink-0">
+                      {currency}
+                    </span>
                     <Input type="number" min={0} step={1000} value={value} onChange={e => setValue(e.target.value)}
                       placeholder="0.00" className="h-9 text-sm flex-1 text-right font-semibold" />
                   </div>
@@ -169,6 +230,13 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                   <select value={probability} onChange={e => setProbability(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {PROBABILITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Forecast Category</label>
+                  <select value={forecast} onChange={e => setForecast(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    {FORECASTS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">

@@ -79,16 +79,19 @@ public static class FinanceSeedData
         var existing = await db.Currencies.IgnoreQueryFilters()
             .Select(x => x.Id).ToHashSetAsync();
 
+        // USD is the system base currency (rate 1.0). Others are quoted against it.
         var currencies = new[]
         {
-            (new Guid("a2000002-0000-0000-0000-000000000001"), "AED", "UAE Dirham",       "د.إ", 2, true),
-            (new Guid("a2000002-0000-0000-0000-000000000002"), "USD", "US Dollar",        "$",   2, false),
+            (new Guid("a2000002-0000-0000-0000-000000000002"), "USD", "US Dollar",        "$",   2, true),
+            (new Guid("a2000002-0000-0000-0000-000000000001"), "AED", "UAE Dirham",       "د.إ", 2, false),
             (new Guid("a2000002-0000-0000-0000-000000000003"), "EUR", "Euro",             "€",   2, false),
             (new Guid("a2000002-0000-0000-0000-000000000004"), "GBP", "British Pound",    "£",   2, false),
             (new Guid("a2000002-0000-0000-0000-000000000005"), "SAR", "Saudi Riyal",      "ر.س", 2, false),
             (new Guid("a2000002-0000-0000-0000-000000000006"), "KWD", "Kuwaiti Dinar",    "د.ك", 3, false),
             (new Guid("a2000002-0000-0000-0000-000000000007"), "BHD", "Bahraini Dinar",   "د.ب", 3, false),
             (new Guid("a2000002-0000-0000-0000-000000000008"), "OMR", "Omani Rial",       "ر.ع.", 3, false),
+            (new Guid("a2000002-0000-0000-0000-000000000009"), "PKR", "Pakistani Rupee",  "₨",   2, false),
+            (new Guid("a2000002-0000-0000-0000-00000000000a"), "INR", "Indian Rupee",     "₹",   2, false),
         };
 
         foreach (var (id, code, name, symbol, decimalPlaces, isBase) in currencies)
@@ -98,27 +101,46 @@ public static class FinanceSeedData
             SetId(currency, id);
             db.Currencies.Add(currency);
         }
+
+        // Idempotent base-currency repair: existing DBs seeded with AED as base must switch to USD
+        // (the online rate provider is USD-based). Raw UPDATE avoids needing a setter on the entity.
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE [finance].[currencies] SET IsBaseCurrency = CASE WHEN Code = 'USD' THEN 1 ELSE 0 END " +
+            "WHERE Code IN ('USD','AED') AND NOT (Code = 'USD' AND IsBaseCurrency = 1)");
     }
 
-    // ── Exchange Rates (AED base) ────────────────────────────────────────────
+    // ── Exchange Rates (USD base — offline fallback; the refresh service overwrites with live rates) ──
 
     private static async Task SeedExchangeRatesAsync(FinanceDbContext db)
     {
+        // Retire the old AED-based seed rows (GUIDs a3…0001-0007) so they can never win the
+        // "latest rate on or before date" lookup once the base is USD. Idempotent (no-op once done).
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE [finance].[exchange_rates] SET IsDeleted = 1 " +
+            "WHERE Id IN (" +
+            "'a3000003-0000-0000-0000-000000000001','a3000003-0000-0000-0000-000000000002'," +
+            "'a3000003-0000-0000-0000-000000000003','a3000003-0000-0000-0000-000000000004'," +
+            "'a3000003-0000-0000-0000-000000000005','a3000003-0000-0000-0000-000000000006'," +
+            "'a3000003-0000-0000-0000-000000000007') AND IsDeleted = 0");
+
         var existing = await db.ExchangeRates.IgnoreQueryFilters()
             .Select(x => x.Id).ToHashSetAsync();
 
-        const string rateDate = "2026-06-01";
+        // Fixed old date so any online-refreshed (today) row always supersedes this fallback.
+        const string rateDate = "2000-01-01";
 
-        // (id, currencyCode, rate) — AED per 1 unit of currencyCode
+        // (id, currencyCode, rate) — units of USD per 1 unit of currencyCode (USD base = 1.0, no row).
         var rates = new[]
         {
-            (new Guid("a3000003-0000-0000-0000-000000000001"), "USD", 3.6725m),
-            (new Guid("a3000003-0000-0000-0000-000000000002"), "EUR", 4.0000m),
-            (new Guid("a3000003-0000-0000-0000-000000000003"), "GBP", 4.6500m),
-            (new Guid("a3000003-0000-0000-0000-000000000004"), "SAR", 0.9788m),
-            (new Guid("a3000003-0000-0000-0000-000000000005"), "KWD", 12.0000m),
-            (new Guid("a3000003-0000-0000-0000-000000000006"), "BHD", 9.7400m),
-            (new Guid("a3000003-0000-0000-0000-000000000007"), "OMR", 9.5500m),
+            (new Guid("a3000003-0000-0000-0000-000000001001"), "AED", 0.272300m),
+            (new Guid("a3000003-0000-0000-0000-000000001002"), "EUR", 1.080000m),
+            (new Guid("a3000003-0000-0000-0000-000000001003"), "GBP", 1.270000m),
+            (new Guid("a3000003-0000-0000-0000-000000001004"), "SAR", 0.266600m),
+            (new Guid("a3000003-0000-0000-0000-000000001005"), "KWD", 3.260000m),
+            (new Guid("a3000003-0000-0000-0000-000000001006"), "BHD", 2.650000m),
+            (new Guid("a3000003-0000-0000-0000-000000001007"), "OMR", 2.600000m),
+            (new Guid("a3000003-0000-0000-0000-000000001008"), "PKR", 0.003580m),
+            (new Guid("a3000003-0000-0000-0000-000000001009"), "INR", 0.012000m),
         };
 
         foreach (var (id, code, rate) in rates)
