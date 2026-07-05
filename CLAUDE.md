@@ -1343,7 +1343,9 @@ role to every tenant. This makes roles fully tenant-owned + seeds a per-module r
 - **`ITenantRoleProvisioner` / `TenantRoleProvisioner`** (NEW) — creates a tenant's **Administrator** (all
   permissions, `IsSystem=true`) + **one "{Module} Manager" role per enabled module** (CRM/Sales/Purchase/
   Finance/HR/Inventory/POS/Project/B2B/Education/Healthcare/Insurance — from `tenant.ResolvedModules`; Settings
-  excluded, admin-only). Adds roles to the current UoW, returns the Administrator.
+  excluded, admin-only). Adds roles to the current UoW, returns the Administrator. **POS-enabled tenants also
+  get operational tiers Cashier + Supervisor** (per-tenant copies of what `SeedPOSRolesAsync` used to seed
+  globally/shared; the global POS roles remain but are now hidden from tenant lists by the tenant scoping).
 - `RegisterTrial` + `CreateTenant` — replaced the shared `GetByNameAsync("Administrator")` with
   `roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules)` and assign the returned Administrator.
 - **`BackfillTenantRolesAsync`** (startup, idempotent, **non-destructive**) — for each existing tenant: ensure
