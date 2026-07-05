@@ -17,6 +17,7 @@ import { useSpeechToText, speak, cancelSpeech, speechSynthesisSupported } from "
 import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
 import { AutomationsModal } from "./automations-modal";
+import { VoiceAgentModal } from "./voice-agent-modal";
 
 interface Message {
   id: string;
@@ -86,6 +87,7 @@ export function AIAssistantView() {
   const [input, setInput] = React.useState("");
   const [showSettings, setShowSettings] = React.useState(false);
   const [showAutomations, setShowAutomations] = React.useState(false);
+  const [showVoiceAgent, setShowVoiceAgent] = React.useState(false);
   const [showTelegram, setShowTelegram] = React.useState(false);
   const [agent, setAgent] = React.useState<string | null>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
@@ -203,6 +205,11 @@ export function AIAssistantView() {
           {canManageAi && (
             <Button variant="ghost" size="sm" onClick={() => setShowAutomations(true)} className="gap-1.5 text-muted-foreground h-8">
               <Bot className="h-3.5 w-3.5" />Automations
+            </Button>
+          )}
+          {canManageAi && (
+            <Button variant="ghost" size="sm" onClick={() => setShowVoiceAgent(true)} className="gap-1.5 text-muted-foreground h-8">
+              <Mic className="h-3.5 w-3.5" />Voice Agent
             </Button>
           )}
           {canManageAi && (
@@ -371,6 +378,7 @@ export function AIAssistantView() {
         {showSettings && <AiSettingsModal onClose={() => setShowSettings(false)} />}
         {showTelegram && <TelegramLinkModal onClose={() => setShowTelegram(false)} />}
         {showAutomations && <AutomationsModal onClose={() => setShowAutomations(false)} />}
+        {showVoiceAgent && <VoiceAgentModal onClose={() => setShowVoiceAgent(false)} />}
       </AnimatePresence>
     </div>
   );

@@ -64,13 +64,14 @@ public sealed class AiEventInboxProcessor(
             var tenantId = row.TenantId!.Value;
 
             using var scope = scopeFactory.CreateScope();
-            var db     = scope.ServiceProvider.GetRequiredService<AiAssistantDbContext>();
-            var runner = scope.ServiceProvider.GetRequiredService<IAiAutomationRunner>();
+            var db      = scope.ServiceProvider.GetRequiredService<AiAssistantDbContext>();
+            var runner  = scope.ServiceProvider.GetRequiredService<IAiAutomationRunner>();
+            var voice   = scope.ServiceProvider.GetRequiredService<Voice.VoiceCallScheduler>();
 
             TenantAmbient.Set(tenantId, isSuperAdmin: false, isResolved: true);
             try
             {
-                await ProcessRowAsync(db, runner, row.Id, tenantId, ct);
+                await ProcessRowAsync(db, runner, voice, row.Id, tenantId, ct);
             }
             catch (Exception ex)
             {
@@ -86,13 +87,25 @@ public sealed class AiEventInboxProcessor(
     }
 
     private async Task ProcessRowAsync(
-        AiAssistantDbContext db, IAiAutomationRunner runner, Guid rowId, Guid tenantId, CancellationToken ct)
+        AiAssistantDbContext db, IAiAutomationRunner runner, Voice.VoiceCallScheduler voice,
+        Guid rowId, Guid tenantId, CancellationToken ct)
     {
         var evt = await db.EventInbox.FirstOrDefaultAsync(x => x.Id == rowId, ct);
         if (evt is null) return;
 
         evt.MarkProcessing();
         await db.SaveChangesAsync(ct);
+
+        // Voice agent (M1): a new lead may also schedule an outbound AI call. Best-effort — the
+        // scheduler dedupes per lead, so an inbox retry can't double-book a call.
+        try
+        {
+            await voice.TryScheduleForEventAsync(evt, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Voice: scheduling for event {Event} failed.", evt.Id);
+        }
 
         var rules = await db.AutomationRules
             .Where(r => r.Enabled && r.TriggerType == "event" && r.EventKey == evt.EventKey)

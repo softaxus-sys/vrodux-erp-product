@@ -12,6 +12,9 @@ public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> 
     public DbSet<AiAutomationRule>  AutomationRules => Set<AiAutomationRule>();
     public DbSet<AiAutomationRun>   AutomationRuns  => Set<AiAutomationRun>();
     public DbSet<AiEventInbox>      EventInbox      => Set<AiEventInbox>();
+    public DbSet<TenantVoiceSettings> VoiceSettings => Set<TenantVoiceSettings>();
+    public DbSet<ScheduledCall>     ScheduledCalls  => Set<ScheduledCall>();
+    public DbSet<CallAttempt>       CallAttempts    => Set<CallAttempt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

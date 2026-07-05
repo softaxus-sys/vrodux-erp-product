@@ -9,9 +9,12 @@ import {
   type AutomationRuleSummaryDto,
   type ConfirmActionPayload,
   type SaveAutomationRulePayload,
+  type ScheduledCallDto,
   type SendChatPayload,
   type TelegramLinkStatus,
   type UpdateAiSettingsPayload,
+  type UpdateVoiceSettingsPayload,
+  type VoiceSettingsDto,
 } from "@/lib/ai/ai.api";
 
 const QK = "ai";
@@ -109,6 +112,42 @@ export function useRegisterTelegramWebhook() {
     mutationFn: () => aiApi.registerTelegramWebhook(),
     onSuccess: () => toast.success("Telegram webhook registered."),
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Voice agent ────────────────────────────────────────────────────────────────
+
+/** Tenant voice-agent settings (admin). */
+export function useVoiceSettings(enabled = true) {
+  return useQuery<VoiceSettingsDto>({
+    queryKey: [QK, "voice-settings"],
+    queryFn: () => aiApi.getVoiceSettings(),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateVoiceSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: UpdateVoiceSettingsPayload) => aiApi.updateVoiceSettings(payload),
+    onSuccess: (data) => {
+      qc.setQueryData([QK, "voice-settings"], data);
+      qc.invalidateQueries({ queryKey: [QK, "voice-settings"] });
+      toast.success("Voice agent settings saved.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Recent outbound AI calls, newest first. Short staleTime — statuses move while calls run. */
+export function useVoiceCalls(enabled = true) {
+  return useQuery<ScheduledCallDto[]>({
+    queryKey: [QK, "voice-calls"],
+    queryFn: () => aiApi.getVoiceCalls(),
+    enabled,
+    staleTime: 15_000,
+    refetchInterval: enabled ? 30_000 : false,
   });
 }
 

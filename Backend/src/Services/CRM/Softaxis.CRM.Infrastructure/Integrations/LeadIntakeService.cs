@@ -2,6 +2,7 @@ using System.Text.Json;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Softaxis.BuildingBlocks.Application.AiEvents;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
@@ -20,6 +21,7 @@ namespace Softaxis.CRM.Infrastructure.Integrations;
 public sealed class LeadIntakeService(
     CrmDbContext db,
     IMediator mediator,
+    IAiEventBus aiEvents,
     ILogger<LeadIntakeService> logger) : ILeadIntakeService
 {
     public async Task<IntakeResult> IngestAsync(CanonicalLead lead, Guid tenantId, Integration? integration, CancellationToken ct)
@@ -84,6 +86,17 @@ public sealed class LeadIntakeService(
         // Automations subscribe to this (task / email / outbound webhook / workflow).
         await mediator.Publish(new LeadIngestedNotification(
             tenantId, newLead.Id, integration?.Id, source, newLead.FullName, email, phone, assignedTo), ct);
+
+        // Fire the AI event too (best-effort, never throws). Tenant-explicit overload: webhook
+        // requests are anonymous, so the ambient-tenant overload would silently skip the event —
+        // event-triggered AI automations and the voice agent must also fire for integration leads.
+        await aiEvents.PublishAsync(new AiTriggerEvent(
+            AiEventKeys.CrmLeadCreated, newLead.Id, $"New lead: {newLead.FullName}",
+            JsonSerializer.Serialize(new
+            {
+                newLead.Id, newLead.FirstName, newLead.LastName, newLead.Company,
+                newLead.Email, newLead.Phone, newLead.Country, newLead.City, newLead.Source,
+            })), tenantId, ct);
 
         logger.LogInformation("Intake: created lead {Lead} for tenant {Tenant} via {Source}.", newLead.Id, tenantId, source);
         return IntakeResult.Created(newLead.Id);

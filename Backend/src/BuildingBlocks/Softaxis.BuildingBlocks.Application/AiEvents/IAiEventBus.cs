@@ -9,10 +9,18 @@ public interface IAiEventBus
 {
     /// <summary>Best-effort: record the event for AI automations. Never throws into the caller's path.</summary>
     Task PublishAsync(AiTriggerEvent evt, CancellationToken ct = default);
+
+    /// <summary>
+    /// Tenant-explicit variant for producers running outside an authenticated request (anonymous
+    /// webhooks, background workers) where the ambient tenant is unresolved and the default overload
+    /// would silently skip the event.
+    /// </summary>
+    Task PublishAsync(AiTriggerEvent evt, Guid tenantId, CancellationToken ct = default);
 }
 
 /// <summary>Default no-op bus, used when the AI Assistant service isn't wired in.</summary>
 public sealed class NullAiEventBus : IAiEventBus
 {
     public Task PublishAsync(AiTriggerEvent evt, CancellationToken ct = default) => Task.CompletedTask;
+    public Task PublishAsync(AiTriggerEvent evt, Guid tenantId, CancellationToken ct = default) => Task.CompletedTask;
 }

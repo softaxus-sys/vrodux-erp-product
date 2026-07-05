@@ -204,6 +204,78 @@ export interface SaveAutomationRulePayload {
   enabled?: boolean;
 }
 
+// ── Voice agent (outbound AI calls via BYO Vapi) ───────────────────────────────
+
+export type VoiceLanguage = "en" | "ur" | "ar";
+
+export type ScheduledCallStatus =
+  | "pending"
+  | "dialing"
+  | "in_progress"
+  | "completed"
+  | "no_answer"
+  | "failed"
+  | "canceled";
+
+export interface VoiceSettingsDto {
+  enabled: boolean;
+  /** True when a Vapi key is stored. The key itself is never returned. */
+  hasVapiApiKey: boolean;
+  vapiPhoneNumberId: string | null;
+  /** A persistent Vapi dashboard assistant to use instead of the generated per-call one. */
+  vapiAssistantId: string | null;
+  runAsUserId: string;
+  callDelayMinutes: number;
+  maxAttempts: number;
+  /** 0 = unlimited. */
+  monthlyMinutesCap: number;
+  minutesUsedThisMonth: number;
+  defaultLanguage: VoiceLanguage;
+  agentName: string | null;
+  companyName: string | null;
+  companyDescription: string | null;
+  industry: string | null;
+  knowledge: string | null;
+}
+
+export interface UpdateVoiceSettingsPayload {
+  enabled: boolean;
+  /** New plaintext key; omit/null to leave the stored key unchanged. */
+  vapiApiKey?: string | null;
+  clearVapiApiKey: boolean;
+  vapiPhoneNumberId?: string | null;
+  vapiAssistantId?: string | null;
+  runAsUserId: string;
+  callDelayMinutes: number;
+  maxAttempts: number;
+  monthlyMinutesCap: number;
+  defaultLanguage: VoiceLanguage;
+  agentName?: string | null;
+  companyName?: string | null;
+  companyDescription?: string | null;
+  industry?: string | null;
+  knowledge?: string | null;
+}
+
+export interface ScheduledCallDto {
+  id: string;
+  leadId: string;
+  leadName: string;
+  phone: string;
+  language: VoiceLanguage;
+  status: ScheduledCallStatus;
+  attemptCount: number;
+  dueAt: string;
+  endedReason: string | null;
+  durationSeconds: number;
+  recordingUrl: string | null;
+  summary: string | null;
+  transcriptText: string | null;
+  error: string | null;
+  leadUpdated: boolean;
+  createdAt: string;
+}
+
 // ── API ───────────────────────────────────────────────────────────────────────
 
 export const aiApi = {
@@ -238,6 +310,16 @@ export const aiApi = {
 
   registerTelegramWebhook: (): Promise<string> =>
     rawApiClient.post(`${BASE}/telegram/register-webhook`),
+
+  // ── Voice agent ─────────────────────────────────────────────────────────────
+  getVoiceSettings: (): Promise<VoiceSettingsDto> =>
+    rawApiClient.get(`${BASE}/voice/settings`),
+
+  updateVoiceSettings: (payload: UpdateVoiceSettingsPayload): Promise<VoiceSettingsDto> =>
+    rawApiClient.put(`${BASE}/voice/settings`, payload),
+
+  getVoiceCalls: (take = 50): Promise<ScheduledCallDto[]> =>
+    rawApiClient.get(`${BASE}/voice/calls?take=${take}`),
 
   // ── Automations ─────────────────────────────────────────────────────────────
   getAutomations: (): Promise<AutomationRuleSummaryDto[]> =>

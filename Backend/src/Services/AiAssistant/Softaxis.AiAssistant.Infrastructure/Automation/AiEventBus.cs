@@ -4,6 +4,7 @@ using Softaxis.AiAssistant.Domain.Entities;
 using Softaxis.AiAssistant.Infrastructure.Persistence;
 using Softaxis.BuildingBlocks.Application.AiEvents;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 
 namespace Softaxis.AiAssistant.Infrastructure.Automation;
 
@@ -18,19 +19,27 @@ namespace Softaxis.AiAssistant.Infrastructure.Automation;
 /// </summary>
 public sealed class AiEventBus(AiAssistantDbContext db, ILogger<AiEventBus> logger) : IAiEventBus
 {
-    public async Task PublishAsync(AiTriggerEvent evt, CancellationToken ct = default)
+    public Task PublishAsync(AiTriggerEvent evt, CancellationToken ct = default)
+    {
+        // Need a resolved tenant to scope the row; skip anonymous/unresolved contexts.
+        if (!TenantAmbient.IsResolved || TenantAmbient.TenantId is not { } tenantId)
+            return Task.CompletedTask;
+        return PublishAsync(evt, tenantId, ct);
+    }
+
+    public async Task PublishAsync(AiTriggerEvent evt, Guid tenantId, CancellationToken ct = default)
     {
         try
         {
             // Don't record events caused by the AI's own autonomous actions (prevents trigger loops).
             if (AiImpersonation.Current is not null) return;
-
-            // Need a resolved tenant to scope the row; skip anonymous/unresolved contexts.
-            if (!TenantAmbient.IsResolved || TenantAmbient.TenantId is null) return;
             if (string.IsNullOrWhiteSpace(evt.EventKey)) return;
 
             var row = new AiEventInbox(evt.EventKey, evt.EntityId, evt.Title, evt.PayloadJson);
             db.EventInbox.Add(row);
+            // Stamp the tenant explicitly — SaveChanges' ambient auto-stamp is a no-op when the
+            // producer runs outside an authenticated request (webhook intake, background workers).
+            db.Entry(row).Property(TenantIsolation.Column).CurrentValue = tenantId;
             await db.SaveChangesAsync(ct);
         }
         catch (Exception ex)

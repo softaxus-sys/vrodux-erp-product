@@ -85,6 +85,11 @@ public static class InfrastructureExtensions
         services.AddScoped<Telegram.TelegramClient>();
         services.AddScoped<Providers.GroqAudioTranscriber>();   // voice-note transcription (Groq Whisper)
 
+        // Outbound voice agent (Vapi BYO): lead events → scheduled calls → background dialer.
+        services.AddScoped<Voice.VapiClient>();
+        services.AddScoped<Voice.VoiceCallScheduler>();
+        services.AddHostedService<Voice.VoiceCallWorker>();
+
         return services;
     }
 
