@@ -37,6 +37,8 @@ export interface User {
   name: string;
   avatar?: string;
   role: UserRole;
+  /** Actual backend role display name (e.g. "Administrator", "CRM Manager") — shown in the UI. */
+  roleName?: string;
   tenantId: ID;
   branchIds: ID[];
   permissions: Permission[];

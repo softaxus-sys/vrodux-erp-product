@@ -247,7 +247,7 @@ export function DashboardView() {
     // Fallback / admin filler so there are always ≥4 tiles
     s.push(
       { id: "users", label: "Team Members", value: formatNumber(usersData?.totalCount ?? 0), sub: `${rolesData?.items?.length ?? 0} roles`, icon: Users, accent: "sky" },
-      { id: "perms", label: "Your Permissions", value: formatNumber(user?.permissions?.length ?? 0), sub: (user?.role ?? "").replace(/_/g, " "), icon: Sparkles, accent: "violet" },
+      { id: "perms", label: "Your Permissions", value: formatNumber(user?.permissions?.length ?? 0), sub: user?.roleName ?? (user?.role ?? "").replace(/_/g, " "), icon: Sparkles, accent: "violet" },
     );
     return s.slice(0, 4);
   }, [canCrm, canFinance, canHr, leads, deals, customers, invoices, hrSummary, attSummary, leaveSummary, usersData, rolesData, user, currency]);
@@ -309,7 +309,7 @@ export function DashboardView() {
           </div>
           <div className="shrink-0 rounded-xl bg-white/10 px-4 py-3 text-right backdrop-blur">
             <p className="text-sm font-semibold">{dateStr}</p>
-            <p className="mt-0.5 text-xs capitalize text-white/70">{(user?.role ?? "").replace(/_/g, " ")}</p>
+            <p className="mt-0.5 text-xs capitalize text-white/70">{user?.roleName ?? (user?.role ?? "").replace(/_/g, " ")}</p>
           </div>
         </div>
       </motion.div>

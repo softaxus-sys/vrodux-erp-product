@@ -158,7 +158,7 @@ export function Topbar() {
               <div className="hidden md:flex flex-col items-start text-left">
                 <span className="text-xs font-semibold leading-tight text-foreground">{user?.name}</span>
                 <span className="text-[10px] text-muted-foreground capitalize leading-tight">
-                  {user?.role?.replace(/_/g, " ")}
+                  {user?.roleName ?? user?.role?.replace(/_/g, " ")}
                 </span>
               </div>
               <ChevronDown className="h-3 w-3 text-muted-foreground/50 ml-0.5 group-hover:text-muted-foreground transition-colors" />

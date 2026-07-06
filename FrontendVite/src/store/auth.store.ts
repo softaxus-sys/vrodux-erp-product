@@ -94,6 +94,8 @@ export function mapUserDto(dto: UserDto): User {
     name: dto.fullName,
     avatar: dto.avatarUrl ?? undefined,
     role: primaryRole ? toUserRole(primaryRole.name) : "custom",
+    roleName: primaryRole?.name,
+
     tenantId: "softaxis-erp",          // single-tenant for now
     branchIds: [],
     permissions: allPermissions,
@@ -361,7 +363,7 @@ export const useAuthStore = create<AuthState>()(
 
         const mappedUser = mapUserDto(userDto);
         const user: User = isSuperAdmin
-          ? { ...mappedUser, role: 'super_admin' as UserRole }
+          ? { ...mappedUser, role: 'super_admin' as UserRole, roleName: mappedUser.roleName ?? 'Super Admin' }
           : mappedUser;
 
         // Build tenant from live JWT claims when tenant context is present,
