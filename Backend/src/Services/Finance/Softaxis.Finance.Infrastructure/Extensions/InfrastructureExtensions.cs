@@ -58,10 +58,24 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
         await db.Database.MigrateAsync();
-        // Reference data (currencies, FX, account types, chart of accounts, tax periods) always
-        // seeds; demo business records only when Seeding:DemoData is enabled (local dev only).
-        var includeDemo = DemoSeedGate.DemoEnabled(scope.ServiceProvider);
-        await FinanceSeedData.SeedAsync(db, includeDemo);
-        await FinanceBankingTaxSeed.SeedAsync(db, includeDemo);
+        // Demo-tenant mode: run the FULL seed (reference + demo business) under the demo tenant's
+        // ambient context, so the chart of accounts, FX, and demo records are all stamped with the
+        // demo tenant id (intended for a fresh/dedicated demo database — never the production DB).
+        if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
+        {
+            await DemoTenantSeeder.RunAsync(async () =>
+            {
+                await FinanceSeedData.SeedAsync(db, includeDemo: true);
+                await FinanceBankingTaxSeed.SeedAsync(db, includeDemo: true);
+            });
+        }
+        else
+        {
+            // Reference data (currencies, FX, account types, chart of accounts, tax periods) always
+            // seeds; demo business records only when Seeding:DemoData is enabled (local dev only).
+            var includeDemo = DemoSeedGate.DemoEnabled(scope.ServiceProvider);
+            await FinanceSeedData.SeedAsync(db, includeDemo);
+            await FinanceBankingTaxSeed.SeedAsync(db, includeDemo);
+        }
     }
 }

@@ -122,7 +122,9 @@ public static class InfrastructureExtensions
         // ASPNETCORE_ENVIRONMENT != "Production" gate was ineffective — prod runs as "Docker" — so
         // it seeded into real deployments. Now gated by the explicit Seeding:DemoData flag (off by
         // default; on only in local dev). Real/trial/new tenants get no demo data.
-        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+        if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
+            await DemoTenantSeeder.RunAsync(() => CrmSeedData.SeedAsync(db));
+        else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await CrmSeedData.SeedAsync(db);
     }
 }

@@ -143,7 +143,10 @@ public static class InfrastructureExtensions
             deploymentType: Identity.Domain.Enums.DeploymentType.Cloud,
             contactEmail:   "demo.admin@vrodux.com",
             country:        "United Arab Emirates",
-            industry:       null);
+            industry:       null,
+            // Fixed id shared with every business service so their demo data (stamped via
+            // DemoTenantSeeder) is scoped to this exact tenant.
+            id:             Softaxis.BuildingBlocks.Infrastructure.Seeding.DemoTenantSeeder.DemoTenantId);
         tenant.SetEnabledModules(modules);
         tenant.SetCurrency("USD");
         tenant.Activate();

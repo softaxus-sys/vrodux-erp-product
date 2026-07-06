@@ -33,7 +33,9 @@ public static class InfrastructureExtensions
             WHERE p.TenantId IS NULL AND o.TenantId IS NOT NULL
             """);
 
-        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+        if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
+            await DemoTenantSeeder.RunAsync(() => RestaurantSeedData.SeedAsync(db));
+        else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await RestaurantSeedData.SeedAsync(db);
     }
 }

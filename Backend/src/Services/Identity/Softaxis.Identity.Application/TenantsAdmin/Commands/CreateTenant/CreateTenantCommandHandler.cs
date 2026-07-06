@@ -55,11 +55,13 @@ public sealed class CreateTenantCommandHandler(
             if (await userRepo.UsernameExistsAsync(cmd.AdminUsername, ct))
                 return Result.Failure<TenantDto>(Error.Custom("User.Username.Taken", "Admin username is already taken."));
 
+            var (adminFirst, adminLast) = Common.AdminNameFallback.Resolve(
+                cmd.AdminFirstName, cmd.AdminLastName, cmd.AdminEmail);
             var userResult = User.Create(
                 cmd.AdminEmail,
                 cmd.AdminUsername,
-                string.IsNullOrWhiteSpace(cmd.AdminFirstName) ? "Tenant" : cmd.AdminFirstName!,
-                string.IsNullOrWhiteSpace(cmd.AdminLastName)  ? "Admin"  : cmd.AdminLastName!,
+                adminFirst,
+                adminLast,
                 passwordHasher.Hash(cmd.AdminPassword));
 
             if (userResult.IsFailure)

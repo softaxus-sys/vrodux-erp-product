@@ -60,7 +60,9 @@ public static class InfrastructureExtensions
             WHERE s.TenantId IS NULL AND p.TenantId IS NOT NULL
             """);
 
-        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+        if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
+            await DemoTenantSeeder.RunAsync(() => InventorySeedData.SeedAsync(db));
+        else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await InventorySeedData.SeedAsync(db);
     }
 }

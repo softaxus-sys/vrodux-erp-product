@@ -42,7 +42,9 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HospitalityDbContext>();
         await db.Database.MigrateAsync();
-        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+        if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
+            await DemoTenantSeeder.RunAsync(() => HospitalitySeedData.SeedAsync(db));
+        else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await HospitalitySeedData.SeedAsync(db);
     }
 }

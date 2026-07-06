@@ -128,9 +128,10 @@ public sealed class Tenant : AuditableEntity<Guid>
         DeploymentType deploymentType,
         string?        contactEmail = null,
         string?        country      = null,
-        string?        industry     = null)
+        string?        industry     = null,
+        Guid?          id           = null)
     {
-        var t = new Tenant(Guid.NewGuid(), name, slug.ToLowerInvariant(), plan, deploymentType, contactEmail, country);
+        var t = new Tenant(id ?? Guid.NewGuid(), name, slug.ToLowerInvariant(), plan, deploymentType, contactEmail, country);
         t.Industry = industry;
         return t;
     }

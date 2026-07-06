@@ -69,8 +69,11 @@ public sealed class RegisterTrialCommandHandler(
         // ── 4. Create admin user ──────────────────────────────────────────────
 
         var nameParts = cmd.FullName?.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries) ?? [];
-        var firstName = nameParts.Length > 0 ? nameParts[0] : "Tenant";
-        var lastName  = nameParts.Length > 1 ? nameParts[1] : "Admin";
+        var (firstName, lastName) = nameParts.Length > 0
+            ? (nameParts[0], nameParts.Length > 1 ? nameParts[1] : string.Empty)
+            // No name supplied (frontend requires it, but guard the API) — derive from email
+            // instead of the "Tenant"/"Admin" placeholder so the UI never shows "Tenant Admin".
+            : Common.AdminNameFallback.Resolve(null, null, cmd.Email.Trim().ToLowerInvariant());
 
         var userResult = User.Create(
             cmd.Email.Trim().ToLowerInvariant(),
