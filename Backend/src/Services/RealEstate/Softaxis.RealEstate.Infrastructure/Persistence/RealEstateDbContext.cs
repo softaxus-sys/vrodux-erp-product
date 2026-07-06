@@ -5,7 +5,7 @@ using Softaxis.RealEstate.Infrastructure.Persistence.Configurations;
 
 namespace Softaxis.RealEstate.Infrastructure.Persistence;
 
-public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> options) : DbContext(options)
+public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     // NOTE: this service's entities already have a "TenantId" meaning the RENTER/lessee,
     // so SaaS-tenant isolation uses a distinct "OwnerTenantId" column.
@@ -25,7 +25,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         mb.HasDefaultSchema("real_estate");
         mb.ApplyConfigurationsFromAssembly(typeof(RealEstateConfigurations).Assembly);
         SalesLifecycleConfig.Apply(mb);
-        TenantIsolation.ApplyTenantId(mb, "Softaxis.RealEstate.Domain", OwnerTenant);
+        TenantIsolation.ApplyTenantId(mb, this, "Softaxis.RealEstate.Domain", OwnerTenant);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

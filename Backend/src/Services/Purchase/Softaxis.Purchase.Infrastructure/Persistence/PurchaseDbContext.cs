@@ -5,7 +5,7 @@ using Softaxis.Purchase.Domain.Entities;
 namespace Softaxis.Purchase.Infrastructure.Persistence;
 
 public sealed class PurchaseDbContext(DbContextOptions<PurchaseDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Vendor>            Vendors            => Set<Vendor>();
     public DbSet<PurchaseOrder>     PurchaseOrders     => Set<PurchaseOrder>();
@@ -21,7 +21,7 @@ public sealed class PurchaseDbContext(DbContextOptions<PurchaseDbContext> option
     {
         modelBuilder.HasDefaultSchema("purchase");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PurchaseDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Purchase.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Purchase.Domain");
         base.OnModelCreating(modelBuilder);
     }
 

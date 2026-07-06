@@ -5,7 +5,7 @@ using Softaxis.Inventory.Domain.Entities;
 namespace Softaxis.Inventory.Infrastructure.Persistence;
 
 public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Product>         Products         => Set<Product>();
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
@@ -22,7 +22,7 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     {
         modelBuilder.HasDefaultSchema("inventory");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Inventory.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Inventory.Domain");
         base.OnModelCreating(modelBuilder);
     }
 

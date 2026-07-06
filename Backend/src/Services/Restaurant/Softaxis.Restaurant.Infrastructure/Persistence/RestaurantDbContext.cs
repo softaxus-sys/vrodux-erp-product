@@ -5,7 +5,7 @@ using Softaxis.Restaurant.Infrastructure.Persistence.Configurations;
 
 namespace Softaxis.Restaurant.Infrastructure.Persistence;
 
-public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) : DbContext(options)
+public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Table> Tables => Set<Table>();
     public DbSet<MenuCategory> MenuCategories => Set<MenuCategory>();
@@ -19,7 +19,7 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     {
         mb.HasDefaultSchema("restaurant");
         mb.ApplyConfigurationsFromAssembly(typeof(RestaurantConfigurations).Assembly);
-        TenantIsolation.ApplyTenantId(mb, "Softaxis.Restaurant.Domain");
+        TenantIsolation.ApplyTenantId(mb, this, "Softaxis.Restaurant.Domain");
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

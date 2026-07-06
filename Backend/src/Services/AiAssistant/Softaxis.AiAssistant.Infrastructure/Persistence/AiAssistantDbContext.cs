@@ -5,7 +5,7 @@ using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 namespace Softaxis.AiAssistant.Infrastructure.Persistence;
 
 public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<TenantAiSettings>  AiSettings     => Set<TenantAiSettings>();
     public DbSet<UserTelegramLink>  TelegramLinks  => Set<UserTelegramLink>();
@@ -20,7 +20,7 @@ public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> 
     {
         modelBuilder.HasDefaultSchema("aiassistant");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AiAssistantDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.AiAssistant.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.AiAssistant.Domain");
         base.OnModelCreating(modelBuilder);
     }
 

@@ -5,7 +5,7 @@ using Softaxis.Finance.Domain.Entities;
 namespace Softaxis.Finance.Infrastructure.Persistence;
 
 public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Account>          Accounts         => Set<Account>();
     public DbSet<JournalEntry>     JournalEntries   => Set<JournalEntry>();
@@ -40,7 +40,7 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(FinanceDbContext).Assembly);
         // Currency + ExchangeRate are GLOBAL reference data (market rates are universal) — exclude them
         // from tenant isolation so they are shared across tenants and not hidden by a NULL TenantId.
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Finance.Domain",
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Finance.Domain",
             exclude: [typeof(Currency), typeof(ExchangeRate)]);
         base.OnModelCreating(modelBuilder);
     }

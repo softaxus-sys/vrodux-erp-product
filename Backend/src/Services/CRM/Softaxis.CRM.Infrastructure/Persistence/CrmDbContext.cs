@@ -5,7 +5,7 @@ using Softaxis.CRM.Domain.Entities.Integrations;
 
 namespace Softaxis.CRM.Infrastructure.Persistence;
 
-public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbContext(options)
+public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Lead>        Leads      => Set<Lead>();
     public DbSet<CrmCustomer> Customers  => Set<CrmCustomer>();
@@ -51,7 +51,7 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
             .Select(t => t.ClrType)
             .Distinct()
             .ToList();
-        TenantIsolation.ApplyTenantId(modelBuilder, tenantOwned);
+        TenantIsolation.ApplyTenantId(modelBuilder, this, tenantOwned);
 
         base.OnModelCreating(modelBuilder);
     }

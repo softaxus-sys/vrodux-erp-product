@@ -5,7 +5,7 @@ using Softaxis.Hospitality.Infrastructure.Persistence.Configurations;
 
 namespace Softaxis.Hospitality.Infrastructure.Persistence;
 
-public sealed class HospitalityDbContext(DbContextOptions<HospitalityDbContext> options) : DbContext(options)
+public sealed class HospitalityDbContext(DbContextOptions<HospitalityDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Booking> Bookings => Set<Booking>();
@@ -15,7 +15,7 @@ public sealed class HospitalityDbContext(DbContextOptions<HospitalityDbContext> 
     {
         mb.HasDefaultSchema("hospitality");
         mb.ApplyConfigurationsFromAssembly(typeof(HospitalityConfigurations).Assembly);
-        TenantIsolation.ApplyTenantId(mb, "Softaxis.Hospitality.Domain");
+        TenantIsolation.ApplyTenantId(mb, this, "Softaxis.Hospitality.Domain");
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

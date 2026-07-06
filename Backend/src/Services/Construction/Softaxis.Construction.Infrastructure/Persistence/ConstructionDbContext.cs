@@ -5,7 +5,7 @@ using Softaxis.Construction.Infrastructure.Persistence.Configurations;
 
 namespace Softaxis.Construction.Infrastructure.Persistence;
 
-public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext> options) : DbContext(options)
+public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Project>       Projects     => Set<Project>();
     public DbSet<ProjectPhase>  ProjectPhases => Set<ProjectPhase>();
@@ -22,7 +22,7 @@ public sealed class ConstructionDbContext(DbContextOptions<ConstructionDbContext
         modelBuilder.HasDefaultSchema("construction");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ConstructionDbContext).Assembly);
         BiddingLifecycleConfig.Apply(modelBuilder);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Construction.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Construction.Domain");
         base.OnModelCreating(modelBuilder);
     }
 

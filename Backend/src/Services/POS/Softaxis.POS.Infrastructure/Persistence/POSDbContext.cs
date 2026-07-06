@@ -6,7 +6,7 @@ using Softaxis.POS.Domain.Entities;
 namespace Softaxis.POS.Infrastructure.Persistence;
 
 public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediator mediator)
-    : BaseDbContext(options, mediator)
+    : BaseDbContext(options, mediator), ITenantAmbientContext
 {
     public DbSet<Product>         Products         => Set<Product>();
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
@@ -45,7 +45,7 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
             .Where(t => !t.IsOwned() && t.FindPrimaryKey() != null
                      && t.ClrType.Namespace?.StartsWith("Softaxis.POS.Domain") == true)
             .Select(t => t.ClrType).Distinct().ToList();
-        TenantIsolation.ApplyTenantId(modelBuilder, tenantOwned);
+        TenantIsolation.ApplyTenantId(modelBuilder, this, tenantOwned);
 
         base.OnModelCreating(modelBuilder);
     }

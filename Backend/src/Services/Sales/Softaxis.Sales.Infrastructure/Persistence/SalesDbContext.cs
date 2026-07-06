@@ -5,7 +5,7 @@ using Softaxis.Sales.Domain.Entities;
 namespace Softaxis.Sales.Infrastructure.Persistence;
 
 public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Customer>          Customers          => Set<Customer>();
     public DbSet<SalesOrder>        SalesOrders        => Set<SalesOrder>();
@@ -21,7 +21,7 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options)
     {
         modelBuilder.HasDefaultSchema("sales");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SalesDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.Sales.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Sales.Domain");
         base.OnModelCreating(modelBuilder);
     }
 

@@ -5,7 +5,7 @@ using Softaxis.HR.Domain.Entities;
 namespace Softaxis.HR.Infrastructure.Persistence;
 
 public sealed class HrDbContext(DbContextOptions<HrDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Department>   Departments   => Set<Department>();
     public DbSet<Employee>     Employees     => Set<Employee>();
@@ -25,7 +25,7 @@ public sealed class HrDbContext(DbContextOptions<HrDbContext> options)
     {
         modelBuilder.HasDefaultSchema("hr");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HrDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.HR.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.HR.Domain");
 
         modelBuilder.Entity<TenantLookup>(b =>
         {

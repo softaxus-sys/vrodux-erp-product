@@ -5,7 +5,7 @@ using Softaxis.Recipe.Infrastructure.Persistence.Configurations;
 
 namespace Softaxis.Recipe.Infrastructure.Persistence;
 
-public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options) : DbContext(options)
+public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Recipe.Domain.Entities.Recipe> Recipes => Set<Recipe.Domain.Entities.Recipe>();
     public DbSet<RecipeIngredient> RecipeIngredients => Set<RecipeIngredient>();
@@ -14,7 +14,7 @@ public sealed class RecipeDbContext(DbContextOptions<RecipeDbContext> options) :
     {
         mb.HasDefaultSchema("recipe");
         mb.ApplyConfigurationsFromAssembly(typeof(RecipeConfigurations).Assembly);
-        TenantIsolation.ApplyTenantId(mb, "Softaxis.Recipe.Domain");
+        TenantIsolation.ApplyTenantId(mb, this, "Softaxis.Recipe.Domain");
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

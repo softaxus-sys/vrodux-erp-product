@@ -5,7 +5,7 @@ using Softaxis.ProjectManagement.Domain.Entities;
 namespace Softaxis.ProjectManagement.Infrastructure.Persistence;
 
 public sealed class ProjectManagementDbContext(DbContextOptions<ProjectManagementDbContext> options)
-    : DbContext(options)
+    : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Project>      Projects     => Set<Project>();
     public DbSet<BoardColumn>  BoardColumns => Set<BoardColumn>();
@@ -20,7 +20,7 @@ public sealed class ProjectManagementDbContext(DbContextOptions<ProjectManagemen
     {
         modelBuilder.HasDefaultSchema("projectmanagement");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ProjectManagementDbContext).Assembly);
-        TenantIsolation.ApplyTenantId(modelBuilder, "Softaxis.ProjectManagement.Domain");
+        TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.ProjectManagement.Domain");
         base.OnModelCreating(modelBuilder);
     }
 
