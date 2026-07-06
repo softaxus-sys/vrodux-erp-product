@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -189,15 +190,20 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
 
   const busy = importLeads.isPending || progress !== null;
 
-  return (
-    <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 z-50" onClick={busy ? undefined : onClose} />
+  // Portaled to <body> so a transformed ancestor (the sidebar layout) can't trap this
+  // fixed overlay — otherwise it centers within the offset content area (appears bottom-right).
+  return createPortal(
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
+      onClick={busy ? undefined : onClose}
+    >
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96, y: 12 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl bg-background border border-border rounded-xl z-50 flex flex-col max-h-[88vh]"
+        className="w-full max-w-2xl bg-background border border-border rounded-xl shadow-xl flex flex-col max-h-[88vh] overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-border">
+        <div className="shrink-0 flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-teal-600/10 text-teal-600 flex items-center justify-center">
               <FileSpreadsheet className="h-5 w-5" />
@@ -211,7 +217,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
             className="text-muted-foreground hover:text-foreground disabled:opacity-40"><X className="h-5 w-5" /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 min-h-0 overflow-y-auto p-5">
           {stage === "upload" && (
             <div
               onDragOver={(e) => e.preventDefault()}
@@ -300,7 +306,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <div className="p-4 border-t border-border flex items-center justify-between gap-2">
+        <div className="shrink-0 p-4 border-t border-border flex items-center justify-between gap-2">
           {stage === "map" ? (
             <>
               <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setStage("upload"); setResult(null); }}>Back</Button>
@@ -319,7 +325,8 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </motion.div>
-    </>
+    </motion.div>,
+    document.body,
   );
 }
 
