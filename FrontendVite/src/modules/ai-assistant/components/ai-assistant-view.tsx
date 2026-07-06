@@ -432,6 +432,8 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
 
   const [provider, setProvider] = React.useState<AiProvider>("Claude");
   const [model, setModel] = React.useState("");
+  // True when the model is a free-text value not in the provider's suggested list.
+  const [customModel, setCustomModel] = React.useState(false);
   const [tier, setTier] = React.useState<AiTier>("starter");
   const [enabled, setEnabled] = React.useState(false);
   const [voiceEnabled, setVoiceEnabled] = React.useState(false);
@@ -443,7 +445,10 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
   React.useEffect(() => {
     if (!data) return;
     setProvider(data.provider);
-    setModel(data.model ?? "");
+    const loadedModel = data.model ?? "";
+    setModel(loadedModel);
+    const list = data.provider === "Claude" ? CLAUDE_MODELS : GROQ_MODELS;
+    setCustomModel(!!loadedModel && !list.includes(loadedModel));
     setTier(data.tier);
     setEnabled(data.enabled);
     setVoiceEnabled(data.voiceEnabled);
@@ -473,6 +478,7 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
   };
 
   const selectedHint = PROVIDERS.find(p => p.value === provider)?.hint;
+  const models = provider === "Claude" ? CLAUDE_MODELS : GROQ_MODELS;
 
   return (
     <motion.div
@@ -505,22 +511,40 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
             {/* Provider */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Provider</label>
-              <select value={provider} onChange={e => setProvider(e.target.value as AiProvider)}
+              <select value={provider} onChange={e => {
+                const p = e.target.value as AiProvider;
+                setProvider(p);
+                // Re-evaluate custom mode against the new provider's suggested models.
+                const list = p === "Claude" ? CLAUDE_MODELS : GROQ_MODELS;
+                setCustomModel(!!model && !list.includes(model));
+              }}
                 className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
                 {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
               {selectedHint && <p className="text-[11px] text-muted-foreground">{selectedHint}</p>}
             </div>
 
-            {/* Model — dropdown of suggestions per provider, but still free-text */}
+            {/* Model — native select of suggested models per provider, with a "Custom…"
+                escape hatch for free-text (provider catalogs change). A native <datalist>
+                here was unreliable — it wouldn't open once the value matched an option. */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Model</label>
-              <input list="ai-model-options" value={model} onChange={e => setModel(e.target.value)}
-                placeholder={provider === "Claude" ? "claude-opus-4-8" : "openai/gpt-oss-120b"}
-                className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
-              <datalist id="ai-model-options">
-                {(provider === "Claude" ? CLAUDE_MODELS : GROQ_MODELS).map(m => <option key={m} value={m} />)}
-              </datalist>
+              <select value={customModel ? "__custom__" : model}
+                onChange={e => {
+                  const v = e.target.value;
+                  if (v === "__custom__") { setCustomModel(true); }
+                  else { setCustomModel(false); setModel(v); }
+                }}
+                className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
+                <option value="" disabled>Select a model…</option>
+                {models.map(m => <option key={m} value={m}>{m}</option>)}
+                <option value="__custom__">Custom model…</option>
+              </select>
+              {customModel && (
+                <input value={model} onChange={e => setModel(e.target.value)} autoFocus
+                  placeholder={provider === "Claude" ? "claude-opus-4-8" : "openai/gpt-oss-120b"}
+                  className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+              )}
               <p className="text-[11px] text-muted-foreground">
                 {provider === "Claude"
                   ? "Pick a Claude model your key supports."
