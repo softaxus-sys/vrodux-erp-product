@@ -33,7 +33,12 @@ public sealed class GenericInboundProvider(string key, ProviderDescriptor descri
     private static readonly string[] AddressKeys   = ["address", "street", "address1", "address_line_1"];
     private static readonly string[] CityKeys      = ["city", "town"];
     private static readonly string[] CountryKeys   = ["country", "country_name"];
-    private static readonly string[] NotesKeys     = ["notes", "message", "comments", "comment", "enquiry", "inquiry"];
+    private static readonly string[] NotesKeys     = ["notes", "comments", "comment", "enquiry", "inquiry"];
+    private static readonly string[] WhatsAppKeys     = ["whatsapp", "whatsapp_number", "whatsappnumber", "wa", "wa_number"];
+    private static readonly string[] InterestedInKeys = ["interested_in", "interestedin", "interest", "interests", "looking_for", "product_interest", "service_interest"];
+    private static readonly string[] BudgetKeys       = ["budget", "budget_range", "your_budget", "price_range", "estimated_budget"];
+    private static readonly string[] MessageKeys      = ["message", "your_message", "custom_message", "additional_info", "details"];
+    private static readonly string[] FormNameKeys     = ["form_name", "formname", "form"];
 
     public IReadOnlyList<CanonicalLead> Normalize(string rawPayload, Integration integration)
     {
@@ -95,6 +100,11 @@ public sealed class GenericInboundProvider(string key, ProviderDescriptor descri
             City      = Pick(fields, CityKeys),
             Country   = Pick(fields, CountryKeys),
             Notes     = Pick(fields, NotesKeys),
+            WhatsApp     = Pick(fields, WhatsAppKeys),
+            InterestedIn = Pick(fields, InterestedInKeys),
+            Budget       = Pick(fields, BudgetKeys),
+            Message      = Pick(fields, MessageKeys),
+            FormName     = Pick(fields, FormNameKeys),
             ExternalLeadId = Pick(fields, ["lead_id", "id", "external_id", "externalid"]),
             UtmSource   = Pick(fields, ["utm_source"]),
             UtmMedium   = Pick(fields, ["utm_medium"]),

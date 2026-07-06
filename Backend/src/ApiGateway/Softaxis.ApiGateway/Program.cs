@@ -160,13 +160,23 @@ try
 
     // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>
+    {
         opts.AddPolicy("AllowFrontend", p => p
             .WithOrigins(
                 builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
                 ?? ["http://localhost:3000"])
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials()));
+            .AllowCredentials());
+
+        // Public inbound lead endpoints (webhooks / hosted form / website snippet) must be
+        // callable from any origin — a tenant embeds them on their own website. Anonymous +
+        // unguessable-key protected, so any-origin is safe (no credentials).
+        opts.AddPolicy("PublicWebhook", p => p
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+    });
 
     // ─────────────────────────────────────────────────────────────────────────
     var app = builder.Build();

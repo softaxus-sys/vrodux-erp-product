@@ -2218,6 +2218,64 @@ read these off `lead.*`; this module makes the backend actually store + return t
 
 ---
 
+## Module 11 — CRM Integrations: per-provider Setup Guides + hosted lead form (make the inbound integrations actually usable)
+
+**Problem:** every inbound integration (Website Forms, Custom API, Google Forms/Sheets, Calendly, Zapier/Make)
+connected fine but the config drawer's "Inbound URL" tab was a **dead end** — a bare URL + secret with **zero
+setup instructions**, identical for every provider. Users had no idea how to wire each source to it (Calendly
+needs a webhook subscription, Google needs an Apps Script, a website needs a form, etc.). This adds real,
+provider-specific instructions **and** a genuinely new zero-code option: a Vrodux-hosted lead form.
+
+### Backend (CRM + gateway + nginx)
+- **`WebhooksController.Form` (NEW)** — `GET /api/webhooks/{inboundKey}/form` returns a self-contained, styled,
+  theme-aware HTML lead form (First/Last/Email/Phone/WhatsApp/Company/Interested-in/Budget/Message) that
+  `fetch`-POSTs JSON straight to the same integration's inbound URL (same-origin → no CORS issue) and shows a
+  success state. Sets `Content-Security-Policy: frame-ancestors *` and removes `X-Frame-Options` so it can be
+  embedded as an `<iframe>` on any customer site. Stamps `source=website`, `form_name`.
+- **`GenericInboundProvider`** — now also maps the Module 10 requirement fields (`WhatsApp`, `InterestedIn`,
+  `Budget`, `Message`, `FormName`) via synonym lists, and **removed `"message"` from `NotesKeys`** (it now maps
+  to `Message`, not `Notes`, so it shows under Requirements — not duplicated). So **all** inbound sources
+  (hosted form / custom API / Sheets / Forms) populate the lead's Requirements panel, not just raw Form Responses.
+- **CORS — `PublicWebhook` policy (NEW, gateway `Program.cs`)** — `AllowAnyOrigin/Header/Method` (no
+  credentials). Applied to `WebhooksController` via `[EnableCors("PublicWebhook")]` (needs
+  `Microsoft.AspNetCore.Cors`). The global `AllowFrontend` policy is origin-restricted, which would block
+  browser-based cross-origin posting (the advanced website snippet.js path) — this policy lets any tenant
+  website POST leads. Safe: anonymous + unguessable-key protected, no cookies.
+- **nginx (`nginx/conf.d/vrodux.conf`)** — the server block sets `X-Frame-Options: SAMEORIGIN always`, which
+  `location /api/` inherits (no own `add_header`), so it would block the iframe. Added a **regex location**
+  `~ ^/api/webhooks/[^/]+/form$` that re-adds the other security headers **minus X-Frame-Options** + CSP
+  `frame-ancestors *` (a location with its own `add_header` doesn't inherit the server ones; regex beats the
+  `/api/` prefix). Only the edge nginx (`vrodux-nginx`, mounts `./nginx/conf.d`) matters — the web container's
+  nginx never sees `/api`. **On the Windows-service (non-nginx) deploy the app-level CSP/no-X-Frame-Options
+  already covers it.** No CORS/nginx change needed for server-to-server sources (Apps Script `UrlFetchApp`,
+  Calendly, Zapier/Make, curl) — only the two **browser** paths (iframe framing, snippet.js cross-origin).
+
+### Frontend (`integrations-view.tsx`)
+- New **"Setup Guide" tab** in the configure drawer (shown for all inbound providers) → `ProviderSetup`
+  component that switches on `providerKey`, with reusable `CodeBlock` (multi-line copy), `Steps`, `SetupSection`
+  helpers:
+  - **Website Forms** — Easy/Advanced toggle. **Easy** = copy-paste `<iframe src="{url}/form">` + "Preview the
+    form" link. **Advanced** = drop-in `snippet.js` (add `data-vrodux-lead` to any form) *and* a direct
+    `curl`/JSON POST example + accepted-fields list.
+  - **Google Sheets / Google Forms** — a one-time **Apps Script** (pre-filled with the inbound URL) + copy
+    button + step-by-step trigger setup (`On form submit` / `onFormSubmit`).
+  - **Calendly** — instructions-only: get a Calendly PAT → find org URI (`curl .../users/me`) → create the
+    `invitee.created` webhook subscription pointing at the inbound URL (curl). Notes the paid-plan requirement.
+  - **Custom API / Zapier / Make / generic** — inbound URL + `curl` example + accepted fields + Zapier/Make
+    step list + optional **HMAC signing** docs (`X-Vrodux-Signature: sha256=<hex>`).
+  - **CSV/Excel** — unchanged; its card opens the Leads importer (`/crm/leads?import=1`), which already guides upload→map→import.
+
+### Build / Verification Status
+- **CRM.API + full ApiGateway:** 0 errors ✅ (pre-existing NU1903/Smtp warnings only) · **Frontend `tsc
+  --noEmit`:** 0 errors ✅ · **`vite build`:** ✅
+- **Pending:** republish/redeploy (Docker: rebuild images + `docker exec vrodux-nginx nginx -s reload` runs in
+  the deploy pipeline). **Verify after deploy:** (1) the `<iframe src=.../form>` renders embedded on an external
+  site (X-Frame-Options gone for that path); (2) a submission creates a lead with Requirements populated;
+  (3) the advanced snippet.js posts cross-origin (PublicWebhook CORS). Server-to-server (Apps Script, Calendly)
+  needs no such checks.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

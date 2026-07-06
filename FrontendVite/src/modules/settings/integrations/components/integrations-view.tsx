@@ -294,7 +294,7 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
 
 // ── Configure drawer ─────────────────────────────────────────────────────────
 
-type Tab = "overview" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors";
+type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors";
 
 function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
   integrationId: string; canEdit: boolean; onClose: () => void; onManageMeta: (id: string) => void;
@@ -310,6 +310,7 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
 
   const tabs: { id: Tab; label: string; icon: React.ElementType; show: boolean }[] = [
     { id: "overview", label: "Overview",     icon: ShieldCheck,       show: true },
+    { id: "setup",    label: "Setup Guide",  icon: Plug,              show: isInbound },
     { id: "inbound",  label: "Inbound URL",  icon: KeyRound,          show: isInbound },
     { id: "mapping",  label: "Field Mapping",icon: SlidersHorizontal, show: true },
     { id: "dedupe",   label: "Duplicates",   icon: ShieldCheck,       show: true },
@@ -367,6 +368,7 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
 
             <div className="flex-1 overflow-y-auto p-5">
               {tab === "overview" && <OverviewTab integration={integration} isMeta={isMeta} onManageMeta={() => onManageMeta(integration.id)} />}
+              {tab === "setup"    && <ProviderSetup integration={integration} />}
               {tab === "inbound"  && <InboundTab integration={integration} canEdit={canEdit} />}
               {tab === "mapping"  && <MappingTab integration={integration} canEdit={canEdit} />}
               {tab === "dedupe"   && <DedupeTab integration={integration} canEdit={canEdit} />}
@@ -493,6 +495,251 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
           {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ── Setup Guide (per-provider instructions) ──────────────────────────────────
+
+function CodeBlock({ code, lang }: { code: string; lang?: string }) {
+  const [copied, setCopied] = React.useState(false);
+  return (
+    <div className="relative group">
+      {lang && <span className="absolute top-2 left-3 text-[10px] uppercase tracking-wide text-muted-foreground/70">{lang}</span>}
+      <pre className={cn("bg-muted rounded-lg p-3 pr-11 text-xs overflow-x-auto font-mono leading-relaxed", lang && "pt-6")}>
+        <code>{code}</code>
+      </pre>
+      <button
+        onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+        className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 border border-border hover:bg-background"
+        title="Copy"
+      >
+        {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  );
+}
+
+function Steps({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ol className="space-y-2">
+      {items.map((it, i) => (
+        <li key={i} className="flex gap-2.5 text-sm">
+          <span className="shrink-0 h-5 w-5 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center mt-0.5">{i + 1}</span>
+          <span className="text-muted-foreground leading-relaxed [&_code]:text-foreground [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px]">{it}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function SetupSection({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <h4 className="text-sm font-semibold">{title}</h4>
+        {desc && <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const ACCEPTED_FIELDS =
+  "first_name, last_name, name, email, phone, whatsapp, company, title, city, country, interested_in, budget, message, campaign";
+
+function ProviderSetup({ integration }: { integration: any }) {
+  const url: string = integration.inboundUrl ?? "";
+  const key: string = integration.providerKey;
+  const [webMode, setWebMode] = React.useState<"easy" | "advanced">("easy");
+
+  const curlExample =
+`curl -X POST "${url}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "email": "jane@acme.com",
+    "phone": "+971500000000",
+    "company": "Acme Inc",
+    "interested_in": "Enterprise plan",
+    "budget": "50k-100k",
+    "message": "Please get in touch"
+  }'`;
+
+  // ── Website Forms ──────────────────────────────────────────────────────────
+  if (key === "website") {
+    const iframe = `<iframe\n  src="${url}/form"\n  style="width:100%;max-width:480px;height:660px;border:0"\n  title="Contact form" loading="lazy"></iframe>`;
+    const exampleForm =
+`<form data-vrodux-lead>
+  <input name="first_name" placeholder="First name" required />
+  <input name="email" type="email" placeholder="Email" required />
+  <input name="phone" placeholder="Phone" />
+  <input name="interested_in" placeholder="Interested in" />
+  <textarea name="message" placeholder="Message"></textarea>
+  <button type="submit">Send</button>
+</form>`;
+    return (
+      <div className="space-y-5">
+        <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+          {(["easy", "advanced"] as const).map(m => (
+            <button key={m} onClick={() => setWebMode(m)}
+              className={cn("px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors",
+                webMode === m ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              {m === "easy" ? "Easy — Hosted form" : "Advanced — Your own form"}
+            </button>
+          ))}
+        </div>
+
+        {webMode === "easy" ? (
+          <SetupSection title="Embed the ready-made form" desc="Zero coding — paste this iframe on any page. Submissions appear in CRM → Leads automatically.">
+            <CodeBlock code={iframe} lang="html" />
+            <a href={`${url}/form`} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+              <UploadCloud className="h-3.5 w-3.5" /> Preview the form
+            </a>
+            <Steps items={[
+              <>Copy the iframe above.</>,
+              <>Paste it into your website's HTML where you want the form to appear.</>,
+              <>Every submission is captured as a lead under your account — with dedupe &amp; routing applied.</>,
+            ]} />
+          </SetupSection>
+        ) : (
+          <SetupSection title="Use your own form" desc="Two ways to send your existing/custom form to Vrodux.">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-foreground">Option A — Drop-in script (no backend)</p>
+              <CodeBlock code={`<script src="${url}/snippet.js"></script>`} lang="html" />
+              <p className="text-xs text-muted-foreground">Add the script once, then put <code className="text-foreground bg-muted px-1 rounded">data-vrodux-lead</code> on any form:</p>
+              <CodeBlock code={exampleForm} lang="html" />
+            </div>
+            <div className="space-y-2 pt-2">
+              <p className="text-xs font-semibold text-foreground">Option B — POST directly from your backend</p>
+              <CodeBlock code={curlExample} lang="bash" />
+              <p className="text-xs text-muted-foreground">Accepted fields: <code className="text-foreground bg-muted px-1 rounded text-[11px]">{ACCEPTED_FIELDS}</code></p>
+            </div>
+          </SetupSection>
+        )}
+      </div>
+    );
+  }
+
+  // ── Google Sheets ──────────────────────────────────────────────────────────
+  if (key === "google-sheets") {
+    const script =
+`const VRODUX_ENDPOINT = "${url}";
+
+// Runs on each new row (link an Apps Script trigger — see steps below).
+function vroduxSendRow(e) {
+  const sheet   = e.range.getSheet();
+  const row     = e.range.getRow();
+  const lastCol = sheet.getLastColumn();
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const values  = sheet.getRange(row, 1, 1, lastCol).getValues()[0];
+  const payload = {};
+  headers.forEach((h, i) => { if (h) payload[String(h).trim()] = values[i]; });
+  UrlFetchApp.fetch(VRODUX_ENDPOINT, {
+    method: "post", contentType: "application/json",
+    payload: JSON.stringify(payload), muteHttpExceptions: true
+  });
+}`;
+    return (
+      <SetupSection title="Turn new spreadsheet rows into leads" desc="A one-time Apps Script posts each new row to Vrodux. Your header row names become the lead fields.">
+        <CodeBlock code={script} lang="apps script" />
+        <Steps items={[
+          <>Open your Google Sheet → <code>Extensions</code> → <code>Apps Script</code>.</>,
+          <>Delete any sample code, paste the script above, and <code>Save</code>.</>,
+          <>Click <code>Triggers</code> (clock icon) → <code>Add Trigger</code>.</>,
+          <>Choose function <code>vroduxSendRow</code>, event source <code>From spreadsheet</code>, event type <code>On form submit</code> (or <code>On edit</code> for manual rows), then <code>Save</code> and authorize.</>,
+          <>Make sure row 1 has headers like <code>name</code>, <code>email</code>, <code>phone</code>, <code>company</code>, <code>interested_in</code>, <code>budget</code>, <code>message</code>.</>,
+        ]} />
+      </SetupSection>
+    );
+  }
+
+  // ── Google Forms ───────────────────────────────────────────────────────────
+  if (key === "google-forms") {
+    const script =
+`const VRODUX_ENDPOINT = "${url}";
+
+// Runs on every form submission (link an onFormSubmit trigger — see steps below).
+function vroduxOnFormSubmit(e) {
+  const payload = {};
+  for (const q in e.namedValues) { payload[q] = e.namedValues[q].join(", "); }
+  UrlFetchApp.fetch(VRODUX_ENDPOINT, {
+    method: "post", contentType: "application/json",
+    payload: JSON.stringify(payload), muteHttpExceptions: true
+  });
+}`;
+    return (
+      <SetupSection title="Send Google Forms responses to CRM" desc="A one-time Apps Script posts each response to Vrodux. Name your form questions to match the CRM fields.">
+        <CodeBlock code={script} lang="apps script" />
+        <Steps items={[
+          <>Open your Google Form → <code>⋮</code> menu → <code>Apps Script</code> (or Extensions → Apps Script).</>,
+          <>Paste the script above and <code>Save</code>.</>,
+          <>Click <code>Triggers</code> → <code>Add Trigger</code> → function <code>vroduxOnFormSubmit</code>, event type <code>On form submit</code>. Save &amp; authorize.</>,
+          <>Tip: name your questions <code>Email</code>, <code>Phone</code>, <code>Company</code>, <code>Interested in</code>, <code>Budget</code>, <code>Message</code> so they map automatically. Unrecognized questions are still saved under the lead's Form Responses.</>,
+        ]} />
+      </SetupSection>
+    );
+  }
+
+  // ── Calendly ───────────────────────────────────────────────────────────────
+  if (key === "calendly") {
+    const orgCurl = `curl -s "https://api.calendly.com/users/me" \\\n  -H "Authorization: Bearer <YOUR_CALENDLY_TOKEN>"`;
+    const subCurl =
+`curl -X POST "https://api.calendly.com/webhook_subscriptions" \\
+  -H "Authorization: Bearer <YOUR_CALENDLY_TOKEN>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "url": "${url}",
+    "events": ["invitee.created"],
+    "organization": "https://api.calendly.com/organizations/XXXX",
+    "scope": "organization"
+  }'`;
+    return (
+      <SetupSection title="Create a Calendly webhook" desc="Calendly delivers new bookings to your inbound URL. Webhooks require a Calendly paid plan / API access.">
+        <Steps items={[
+          <>In Calendly, go to <code>Integrations &amp; apps</code> → <code>API &amp; webhooks</code> → generate a <b>Personal Access Token</b>.</>,
+          <>Find your organization URI (copy <code>current_organization</code> from the response):</>,
+        ]} />
+        <CodeBlock code={orgCurl} lang="bash" />
+        <Steps items={[
+          <>Create the webhook subscription pointing at your inbound URL (replace the token &amp; organization):</>,
+        ]} />
+        <CodeBlock code={subCurl} lang="bash" />
+        <Steps items={[
+          <>Done — each new Calendly booking (<code>invitee.created</code>) now creates a CRM lead. The invitee's name, email and any questions are captured.</>,
+        ]} />
+      </SetupSection>
+    );
+  }
+
+  // ── Custom API / Zapier / Make / generic webhook ───────────────────────────
+  return (
+    <div className="space-y-5">
+      <SetupSection title="Push leads to your inbound URL" desc="Any tool or backend that can POST JSON can send leads here. Possession of the URL is the secret — keep it private.">
+        <CopyField label="Inbound URL" value={url || "—"} />
+        <CodeBlock code={curlExample} lang="bash" />
+        <p className="text-xs text-muted-foreground">Accepted fields: <code className="text-foreground bg-muted px-1 rounded text-[11px]">{ACCEPTED_FIELDS}</code>. Extra fields are saved under the lead's Form Responses.</p>
+      </SetupSection>
+
+      {(key === "zapier" || key === "make") && (
+        <SetupSection title={`Connect from ${key === "zapier" ? "Zapier" : "Make.com"}`}>
+          <Steps items={[
+            <>Add a <code>Webhooks</code> action → <code>POST</code>.</>,
+            <>Set the URL to the inbound URL above and payload type <code>JSON</code>.</>,
+            <>Map your trigger's fields to the accepted field names, then turn the {key === "zapier" ? "Zap" : "scenario"} on.</>,
+          ]} />
+        </SetupSection>
+      )}
+
+      <SetupSection title="Optional — sign your requests (HMAC)" desc="For extra security, sign the raw request body so Vrodux can verify it came from you.">
+        <Steps items={[
+          <>Reveal your <b>signing secret</b> in the <code>Inbound URL</code> tab.</>,
+          <>Compute <code>HMAC-SHA256(rawBody, secret)</code> as lowercase hex.</>,
+          <>Send it in the header <code>X-Vrodux-Signature: sha256=&lt;hex&gt;</code>. Unsigned requests are still accepted unless you require signing.</>,
+        ]} />
+      </SetupSection>
     </div>
   );
 }
