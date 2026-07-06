@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.Finance.Application.Abstractions;
@@ -57,7 +58,10 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
         await db.Database.MigrateAsync();
-        await FinanceSeedData.SeedAsync(db);
-        await FinanceBankingTaxSeed.SeedAsync(db);
+        // Reference data (currencies, FX, account types, chart of accounts, tax periods) always
+        // seeds; demo business records only when Seeding:DemoData is enabled (local dev only).
+        var includeDemo = DemoSeedGate.DemoEnabled(scope.ServiceProvider);
+        await FinanceSeedData.SeedAsync(db, includeDemo);
+        await FinanceBankingTaxSeed.SeedAsync(db, includeDemo);
     }
 }

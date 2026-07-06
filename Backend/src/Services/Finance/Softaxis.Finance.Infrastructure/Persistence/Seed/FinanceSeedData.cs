@@ -13,8 +13,11 @@ public static class FinanceSeedData
     // A stable "finance manager" GUID used as approverId for expenses
     private static readonly Guid FinanceManagerId = new("f1000001-0000-0000-0000-000000000001");
 
-    public static async Task SeedAsync(FinanceDbContext db)
+    public static async Task SeedAsync(FinanceDbContext db, bool includeDemo = true)
     {
+        // ── Reference / essential data — always seeded (idempotent, fixed GUIDs). ──
+        // Currencies + exchange rates are global reference; account types + the chart of
+        // accounts are the accounting backbone.
         await SeedAccountTypesAsync(db);
         await SeedCurrenciesAsync(db);
         await db.SaveChangesAsync();
@@ -22,6 +25,10 @@ public static class FinanceSeedData
         await db.SaveChangesAsync();
         await SeedAccountsAsync(db);
         await db.SaveChangesAsync();
+
+        // ── Demo business records — only when demo seeding is enabled. ──
+        if (!includeDemo) return;
+
         await SeedCustomersAsync(db);
         await SeedSuppliersAsync(db);
         await db.SaveChangesAsync();

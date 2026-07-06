@@ -10,9 +10,12 @@ public static class FinanceBankingTaxSeed
     private static readonly Guid BankSavings = new("c1000001-0000-0000-0000-000000000002");
     private static readonly Guid BankPetty   = new("c1000001-0000-0000-0000-000000000003");
 
-    public static async Task SeedAsync(FinanceDbContext db)
+    public static async Task SeedAsync(FinanceDbContext db, bool includeDemo = true)
     {
-        await SeedBankAccountsAsync(db);
+        // Tax periods are reference calendar data (kept). Demo bank accounts + transactions
+        // are sample data, seeded only when demo seeding is enabled.
+        if (includeDemo)
+            await SeedBankAccountsAsync(db);
         await SeedTaxPeriodsAsync(db);
         await db.SaveChangesAsync();
     }

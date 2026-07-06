@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.Purchase.Application.GoodsReceiptNotes.Commands;
@@ -44,6 +45,7 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PurchaseDbContext>();
         await db.Database.MigrateAsync();
-        await PurchaseSeedData.SeedAsync(db);
+        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+            await PurchaseSeedData.SeedAsync(db);
     }
 }

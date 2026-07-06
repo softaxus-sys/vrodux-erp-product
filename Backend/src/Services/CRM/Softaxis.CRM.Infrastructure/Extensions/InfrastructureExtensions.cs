@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.CRM.Application;
@@ -117,12 +118,11 @@ public static class InfrastructureExtensions
         var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         await db.Database.MigrateAsync();
 
-        // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only — never
-        // seed it into a real (Production) deployment. It is created at startup with no tenant
-        // context, so it lands with TenantId = NULL and, on a build that predates CRM tenant
-        // isolation, leaks across every tenant's Leads/Customers/Pipeline. Gated like the POS demo seed.
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
-        if (!string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase))
+        // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only. The old
+        // ASPNETCORE_ENVIRONMENT != "Production" gate was ineffective — prod runs as "Docker" — so
+        // it seeded into real deployments. Now gated by the explicit Seeding:DemoData flag (off by
+        // default; on only in local dev). Real/trial/new tenants get no demo data.
+        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await CrmSeedData.SeedAsync(db);
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.Inventory.Application.Abstractions;
 using Softaxis.Inventory.Domain.Repositories;
@@ -59,6 +60,7 @@ public static class InfrastructureExtensions
             WHERE s.TenantId IS NULL AND p.TenantId IS NOT NULL
             """);
 
-        await InventorySeedData.SeedAsync(db);
+        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+            await InventorySeedData.SeedAsync(db);
     }
 }

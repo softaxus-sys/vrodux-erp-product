@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.HR.Application;
@@ -44,6 +45,7 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HrDbContext>();
         await db.Database.MigrateAsync();
-        await HrSeedData.SeedAsync(db);
+        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+            await HrSeedData.SeedAsync(db);
     }
 }

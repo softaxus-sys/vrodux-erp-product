@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 using Softaxis.Restaurant.Infrastructure.Persistence.Seed;
@@ -32,6 +33,7 @@ public static class InfrastructureExtensions
             WHERE p.TenantId IS NULL AND o.TenantId IS NOT NULL
             """);
 
-        await RestaurantSeedData.SeedAsync(db);
+        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+            await RestaurantSeedData.SeedAsync(db);
     }
 }

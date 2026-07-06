@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.Recipe.Infrastructure.Persistence;
 using Softaxis.Recipe.Infrastructure.Persistence.Seed;
@@ -21,6 +22,7 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RecipeDbContext>();
         await db.Database.MigrateAsync();
-        await RecipeSeedData.SeedAsync(db);
+        if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
+            await RecipeSeedData.SeedAsync(db);
     }
 }
