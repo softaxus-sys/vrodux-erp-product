@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Domain.Repositories;
@@ -101,6 +102,91 @@ public static class InfrastructureExtensions
         await SyncAdministratorPermissionsAsync(db);       // always runs — idempotent
         await BackfillTenantRolesAsync(scope.ServiceProvider, db); // per-tenant roles + re-point admins
         await RemoveRedundantGlobalRolesAsync(db);         // drop legacy global duplicates (all envs)
+        await SeedDemoTenantAsync(scope.ServiceProvider, db);      // opt-in demo tenant (Seeding:DemoTenant)
+    }
+
+    /// <summary>
+    /// Provisions a dedicated "Vrodux Demo" tenant (all modules) with default roles and a set of
+    /// demo login users — for sales pitches / client demos. Opt-in via <c>Seeding:DemoTenant=true</c>
+    /// and fully idempotent (skips once the demo tenant exists). Creates only NEW records — never
+    /// touches any existing tenant's data. Business/sample data for the demo tenant is provisioned
+    /// separately (the global seeders use fixed GUIDs and cannot be safely re-run per tenant).
+    /// </summary>
+    private static async Task SeedDemoTenantAsync(IServiceProvider sp, IdentityDbContext db)
+    {
+        var cfg = sp.GetService<IConfiguration>();
+        if (!bool.TryParse(cfg?["Seeding:DemoTenant"], out var enabled) || !enabled) return;
+
+        const string slug = "vrodux-demo";
+        if (await db.Set<Identity.Domain.Entities.Tenant>().IgnoreQueryFilters().AnyAsync(t => t.Slug == slug))
+            return; // already provisioned
+
+        var logger          = sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?.CreateLogger("DemoTenantSeed");
+        var tenantRepo      = sp.GetRequiredService<ITenantRepository>();
+        var userRepo        = sp.GetRequiredService<IUserRepository>();
+        var roleProvisioner = sp.GetRequiredService<ITenantRoleProvisioner>();
+        var hasher          = sp.GetRequiredService<IPasswordHasher>();
+        var uow             = sp.GetRequiredService<IUnitOfWork>();
+
+        // Enable every module so the demo can show the whole product.
+        string[] modules =
+        [
+            "crm", "sales", "purchase", "finance", "hr", "inventory", "pos",
+            "project-management", "b2b", "education", "healthcare", "insurance",
+            "reports", "settings",
+        ];
+
+        var tenant = Identity.Domain.Entities.Tenant.Create(
+            name:           "Vrodux Demo",
+            slug:           slug,
+            plan:           Identity.Domain.Enums.PlanType.Enterprise,
+            deploymentType: Identity.Domain.Enums.DeploymentType.Cloud,
+            contactEmail:   "demo.admin@vrodux.com",
+            country:        "United Arab Emirates",
+            industry:       null);
+        tenant.SetEnabledModules(modules);
+        tenant.SetCurrency("USD");
+        tenant.Activate();
+        tenantRepo.Add(tenant);
+
+        // Administrator + one Manager role per module, then persist so we can look them up.
+        var adminRole = await roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules);
+        await uow.SaveChangesAsync();
+
+        var tenantRoles = await db.Set<Identity.Domain.Entities.Role>()
+            .IgnoreQueryFilters().Where(r => r.TenantId == tenant.Id).ToListAsync();
+
+        const string demoPassword = "VroduxDemo@2026";
+        var demoUsers = new[]
+        {
+            (Email: "demo.admin@vrodux.com",   Username: "demo.admin",   First: "Demo",   Last: "Admin",   Role: "Administrator"),
+            (Email: "demo.sales@vrodux.com",   Username: "demo.sales",   First: "Sam",    Last: "Sales",   Role: "Sales Manager"),
+            (Email: "demo.finance@vrodux.com", Username: "demo.finance", First: "Fatima", Last: "Finance", Role: "Finance Manager"),
+            (Email: "demo.hr@vrodux.com",      Username: "demo.hr",      First: "Hina",   Last: "HR",      Role: "HR Manager"),
+        };
+
+        foreach (var u in demoUsers)
+        {
+            if (await userRepo.EmailExistsAsync(u.Email) || await userRepo.UsernameExistsAsync(u.Username))
+                continue;
+
+            var res = Identity.Domain.Entities.User.Create(u.Email, u.Username, u.First, u.Last, hasher.Hash(demoPassword));
+            if (res.IsFailure) continue;
+
+            var user = res.Value;
+            user.VerifyEmail();
+            user.SetTenant(tenant.Id);
+            var role = tenantRoles.FirstOrDefault(r => r.Name == u.Role) ?? adminRole;
+            user.AssignRole(role.Id);
+            userRepo.Add(user);
+        }
+
+        await uow.SaveChangesAsync();
+
+        logger?.LogWarning("──────── DEMO TENANT PROVISIONED (Vrodux Demo) ────────");
+        foreach (var u in demoUsers)
+            logger?.LogWarning("  {Role,-16} {Email}  /  {Password}", u.Role, u.Email, demoPassword);
+        logger?.LogWarning("───────────────────────────────────────────────────────");
     }
 
     /// <summary>
