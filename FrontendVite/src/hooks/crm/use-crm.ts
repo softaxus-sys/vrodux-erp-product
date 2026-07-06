@@ -4,7 +4,7 @@ import { crmApi } from "@/lib/crm/crm.api";
 import type {
   CreateLeadRequest, UpdateLeadRequest, CreateDealRequest, UpdateDealRequest,
   CreateCustomerRequest, UpdateCustomerRequest, CreateActivityRequest,
-  UpsertContactRequest,
+  UpsertContactRequest, ImportLeadInput,
 } from "@/lib/crm/crm.api";
 
 const QK = "crm";
@@ -85,6 +85,8 @@ export function useSetLeadStatus() { return useCrmMutation(({ id, status }: { id
 export function useSetLeadScore()  { return useCrmMutation(({ id, score }: { id: string; score: number }) => crmApi.setLeadScore(id, score)); }
 export function useConvertLead()   { return useCrmMutation(({ id, body }: { id: string; body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string } }) => crmApi.convertLead(id, body), { msg: "Lead converted to customer + deal." }); }
 export function useDeleteLead()    { return useCrmMutation((id: string) => crmApi.deleteLead(id), { msg: "Lead deleted." }); }
+/** Bulk import — no default success toast (the caller shows a created/dup/failed summary). */
+export function useImportLeads()   { return useCrmMutation((leads: ImportLeadInput[]) => crmApi.importLeads(leads), { invalidate: ["leads", "leads-summary", "dashboard"] }); }
 
 // ── Deals ────────────────────────────────────────────────────────────────────
 

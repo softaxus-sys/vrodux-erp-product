@@ -11,8 +11,10 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db) : IQueryHandler<Ge
 {
     public async Task<Result<CrmDashboardDto>> Handle(GetCrmDashboardQuery query, CancellationToken ct)
     {
-        var leads = await db.Leads.AsNoTracking().Select(l => new { l.Status, l.Source, l.EstimatedValue }).ToListAsync(ct);
-        var deals = await db.Deals.AsNoTracking().Select(d => new { d.Stage, d.Value }).ToListAsync(ct);
+        // Exclude soft-deleted rows so the dashboard counts match the Leads/Deals list + summary
+        // (the tenant global filter overwrites any !IsDeleted entity filter, so filter manually).
+        var leads = await db.Leads.AsNoTracking().Where(l => !l.IsDeleted).Select(l => new { l.Status, l.Source, l.EstimatedValue }).ToListAsync(ct);
+        var deals = await db.Deals.AsNoTracking().Where(d => !d.IsDeleted).Select(d => new { d.Stage, d.Value }).ToListAsync(ct);
 
         string[] leadStages = ["new", "contacted", "qualified", "converted"];
         var funnel = leadStages.Select(s => new LeadFunnelStageDto(s, leads.Count(l => l.Status == s))).ToList();
@@ -31,7 +33,7 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db) : IQueryHandler<Ge
         var totalClosed = won.Count + lost;
 
         var todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        var openActs = await db.Activities.AsNoTracking().Where(a => !a.Completed).Select(a => a.DueDate).ToListAsync(ct);
+        var openActs = await db.Activities.AsNoTracking().Where(a => !a.IsDeleted && !a.Completed).Select(a => a.DueDate).ToListAsync(ct);
 
         return Result.Success(new CrmDashboardDto(
             funnel, bySource, pipeline,

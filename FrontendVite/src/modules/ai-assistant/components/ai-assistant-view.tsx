@@ -374,11 +374,15 @@ export function AIAssistantView() {
         AI responses are based on your ERP data. Always verify critical decisions.
       </p>
 
+      {/* Each child needs a stable, unique key: AnimatePresence otherwise keys them by
+          filtered position, so every open modal collides on key ".0". That collision can
+          leave a prior modal's fixed inset-0 backdrop stuck mounted, which then sits over
+          the new modal and swallows clicks (e.g. the Settings dropdowns appear frozen). */}
       <AnimatePresence>
-        {showSettings && <AiSettingsModal onClose={() => setShowSettings(false)} />}
-        {showTelegram && <TelegramLinkModal onClose={() => setShowTelegram(false)} />}
-        {showAutomations && <AutomationsModal onClose={() => setShowAutomations(false)} />}
-        {showVoiceAgent && <VoiceAgentModal onClose={() => setShowVoiceAgent(false)} />}
+        {showSettings && <AiSettingsModal key="ai-settings" onClose={() => setShowSettings(false)} />}
+        {showTelegram && <TelegramLinkModal key="ai-telegram" onClose={() => setShowTelegram(false)} />}
+        {showAutomations && <AutomationsModal key="ai-automations" onClose={() => setShowAutomations(false)} />}
+        {showVoiceAgent && <VoiceAgentModal key="ai-voice-agent" onClose={() => setShowVoiceAgent(false)} />}
       </AnimatePresence>
     </div>
   );

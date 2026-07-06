@@ -19,4 +19,14 @@ public sealed class InternalLeadsController(ISender sender) : CrmControllerBase
     [HttpPost]
     public async Task<IActionResult> Ingest([FromBody] IngestLeadInput lead, CancellationToken ct) =>
         OkOrError(await sender.Send(new IngestLeadCommand(lead), ct));
+
+    /// <summary>
+    /// Bulk import — the Leads-page Excel/CSV importer and the CSV Import card post many rows
+    /// here at once. Each row funnels through the same intake pipeline (dedupe / routing apply).
+    /// </summary>
+    [HttpPost("import")]
+    public async Task<IActionResult> Import([FromBody] ImportLeadsRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new ImportLeadsCommand(req.Leads ?? []), ct));
+
+    public sealed record ImportLeadsRequest(IReadOnlyList<IngestLeadInput> Leads);
 }

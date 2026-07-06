@@ -2093,6 +2093,72 @@ Frontend-only. Addresses a batch of pipeline/leads requests.
 
 ---
 
+## Module 9 — CRM: Bulk Lead Import (Excel/CSV) + Calendly / Google Forms / Google Sheets providers
+
+**Extends Module 7's integration framework** — turns four catalog "Coming soon" stubs into real lead sources and
+adds a client-side Excel/CSV importer. Everything funnels through the **same shared intake pipeline**
+(`ILeadIntakeService.IngestAsync` → field mapping → dedupe → routing → `LeadIngestedNotification`) as every
+other source, so imports honour duplicate rules + assignment. **No new entities / no migration** — purely
+additive at the code level (providers + DI + one command/handler + one endpoint + a dashboard query-filter fix).
+
+### Backend (CRM service)
+- **Bulk import CQRS** `Application/LeadIntake/Commands/ImportLeadsCommand.cs` — `ImportLeadsCommand(IReadOnlyList<IngestLeadInput> Leads)`
+  → `ImportLeadsResult(Created, Duplicates, Failed, IReadOnlyList<ImportRowError>)`; validator caps a request at
+  `MaxRows = 5000` (importer chunks larger files). Reuses the existing `IngestLeadInput` record from `IngestLeadCommand.cs`.
+- `Infrastructure/Handlers/Integrations/ImportLeadsHandler.cs` — loops each row through `intake.IngestAsync(lead,
+  tenantId, integration: null, ct)`; a bad row never aborts the batch (counted `Failed` with its zero-based index);
+  returned error detail capped at 100 rows. Tenant from `TenantAmbient.TenantId` (fails with `Integration.NoTenant` if unresolved).
+- `API/Controllers/InternalLeadsController.cs` — new `POST /api/internal/leads/import` (`ImportLeadsRequest` body).
+- **`CalendlyLeadProvider`** (`Infrastructure/Integrations/Providers/`) — `ILeadProvider` + `IWebhookLeadProvider`.
+  Understands the Calendly v2 shape (invitee under `payload`), acts only on `invitee.created`, mines
+  `questions_and_answers` for a phone number, captures the `scheduled_event` name + `tracking` UTM params.
+  Signature: verifies `Calendly-Webhook-Signature` (`t=…,v1=<hmac>` over `"<t>.<rawBody>"`) **only when** the tenant
+  stored a signing secret — unsigned/keyless requests still accepted on the strength of the unguessable inbound key.
+- **`ManualImportProvider(key, displayName, description)`** — a catalog-only card (`ProviderCategory.Import` +
+  `ProviderCapabilities.ManualImport`); `Normalize` is never called (no inbound payload — the browser posts rows to
+  the bulk endpoint). Registered as the `csv` card.
+- `Infrastructure/Extensions/InfrastructureExtensions.cs` — registered `CalendlyLeadProvider`, two
+  `GenericInboundProvider` instances (`google-forms` / `google-sheets` — tenant pastes a one-time Apps Script that
+  POSTs each response/row as flat JSON to the inbound URL; no Google OAuth app needed), and the `csv`
+  `ManualImportProvider`. **Removed** the matching `AddStub` calls for `calendly`, `google-forms`, `google-sheets`, `csv`.
+- `Handlers/Dashboard/GetCrmDashboardHandler.cs` — **bug fix** (adjacent): the dashboard counted soft-deleted rows
+  (the tenant global filter overwrites any entity `!IsDeleted` filter). Added manual `.Where(!IsDeleted)` to the
+  Leads, Deals, and Activities queries so dashboard counts match the list + summary views.
+
+### Frontend
+- `package.json` — added `xlsx` (SheetJS); **lazy-imported** (`await import("xlsx")`) so it code-splits into its own
+  chunk, never bloating the main bundle (only loaded when a user imports an `.xlsx`).
+- `lib/crm/crm.api.ts` — `ImportLeadInput` / `ImportRowError` / `ImportLeadsResult` types, `IMPORT_TARGET_FIELDS`
+  const + `ImportTargetField`; `crmApi.importLeads(leads)` → `POST {API_ROOT}/api/internal/leads/import` (new
+  `INTERNAL` base — the import goes through the internal intake endpoint, **not** `/api/crm`).
+- `hooks/crm/use-crm.ts` — `useImportLeads()` (invalidates `leads` / `leads-summary` / `dashboard`; no default toast —
+  the modal shows its own created/dup/failed summary). `useCrmMutation` helper already supported an `invalidate` override.
+- `modules/crm/leads/components/import-leads-modal.tsx` (NEW) — 3-stage modal (upload → map → result):
+  - **Parse**: RFC-4180-ish CSV parser (quoted fields, embedded commas/newlines) for `.csv`/`.txt`; SheetJS for Excel.
+  - **Map**: auto-detects each header to a CRM field via a `FIELD_SYNONYMS` table (mirrors the backend
+    `GenericInboundProvider` synonyms — exact match wins, then fuzzy contains); per-column `<select>` (`bg-card`,
+    already-used fields disabled), amber guard requiring at least one identity field (email/phone/fullName/firstName),
+    live "N importable" count (skips rows with no identity value so they don't count as failed).
+  - **Import**: chunks the payload at 2000 rows/request, sums the per-chunk tallies, shows a progress label.
+  - **Result**: Created / Duplicates skipped / Failed tiles + first-100 problem rows (row index shown +2 for header + 1-based).
+- `modules/crm/leads/components/leads-view.tsx` — new outline **Import** button (`<Can permission="crm.leads.create">`)
+  opens the modal. Also reads `?import=1` (via `useSearchParams`) to auto-open the importer, then strips the param.
+- `modules/settings/integrations/components/integrations-view.tsx` — the CSV / Excel card has **no inbound
+  connection** (manual file upload), so its `handleConnect` short-circuits on the `manualImport` capability and
+  navigates to `/crm/leads?import=1` instead of creating an integration + opening the (meaningless) inbound-URL
+  drawer. Its button reads **"Import leads"** (UploadCloud) rather than "Connect". Calendly / Google Forms /
+  Google Sheets / Custom API are all `Webhook|InboundKey` providers, so they reuse the existing generic
+  inbound-key connect flow (inbound URL + secret + snippet) with zero integrations-view changes.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Full ApiGateway:** 0 errors ✅ (only pre-existing NU1903 OpenApi advisories)
+- **Frontend `tsc --noEmit`:** 0 errors ✅ · **`vite build`:** ✅ (`xlsx` split into its own lazy 429 kB chunk)
+- **No migration** — additive code only; the new providers appear as real (not "Coming soon") cards on next restart.
+- **Pending:** republish + restart on-prem per the deploy note; then spot-check — import a CSV/Excel of leads
+  (auto-mapping + dedupe), and connect Calendly / Google Forms via their inbound URLs.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

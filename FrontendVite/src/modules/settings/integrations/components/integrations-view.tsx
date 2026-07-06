@@ -1,8 +1,9 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check,
-  KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug,
+  KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ const HEALTH_DOT: Record<string, string> = {
 // ── Main view ────────────────────────────────────────────────────────────────
 
 export function IntegrationsView() {
+  const navigate = useNavigate();
   const { hasRawPermission } = useAuthStore();
   const canEdit = hasRawPermission("settings.integrations.edit");
 
@@ -98,6 +100,12 @@ export function IntegrationsView() {
 
   async function handleConnect(item: ProviderCatalogItem) {
     if (!canEdit) return;
+    // Manual import (CSV / Excel) has no inbound connection — the file is parsed in the
+    // browser and posted to the bulk endpoint. Send the user to the Leads importer.
+    if (item.capabilities.includes("manualImport")) {
+      navigate("/crm/leads?import=1");
+      return;
+    }
     setConnecting(item.key);
     try {
       const integration = item.integrationId
@@ -268,6 +276,10 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
         ) : item.connected ? (
           <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={onConfigure}>
             <SlidersHorizontal className="h-3.5 w-3.5" /> Configure
+          </Button>
+        ) : item.capabilities.includes("manualImport") ? (
+          <Button size="sm" className="flex-1 gap-1.5" disabled={!canEdit} onClick={onConnect}>
+            <UploadCloud className="h-3.5 w-3.5" /> Import leads
           </Button>
         ) : (
           <Button size="sm" className="flex-1 gap-1.5" disabled={!canEdit || connecting} onClick={onConnect}>

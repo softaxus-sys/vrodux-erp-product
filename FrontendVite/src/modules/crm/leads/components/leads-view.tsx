@@ -1,9 +1,10 @@
 ﻿import * as React from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
-  Building2, Calendar, Globe, ArrowRight
+  Building2, Calendar, Globe, ArrowRight, UploadCloud
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LeadDrawer } from "./lead-drawer";
 import { AddLeadForm } from "./add-lead-form";
+import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
@@ -242,10 +244,21 @@ export function LeadsView() {
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [showImport, setShowImport] = React.useState(false);
   const [editingLead, setEditingLead] = React.useState<Lead | null>(null);
 
   const openEdit = (l: Lead) => { setDrawerOpen(false); setEditingLead(l); setShowAddForm(true); };
   const closeForm = () => { setShowAddForm(false); setEditingLead(null); };
+
+  // Deep-link from the Integrations "CSV / Excel Import" card (/crm/leads?import=1).
+  const [searchParams, setSearchParams] = useSearchParams();
+  React.useEffect(() => {
+    if (searchParams.get("import") === "1") {
+      setShowImport(true);
+      searchParams.delete("import");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
@@ -285,6 +298,9 @@ export function LeadsView() {
             <Users className="h-4 w-4" />Assigned to me
           </Button>
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
+          <Can permission="crm.leads.create">
+            <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setShowImport(true)}><UploadCloud className="h-4 w-4" />Import</Button>
+          </Can>
           <Can permission="crm.leads.create">
             <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Lead</Button>
           </Can>
@@ -439,6 +455,7 @@ export function LeadsView() {
 
       <LeadDrawer lead={selectedLead} open={drawerOpen} onClose={() => setDrawerOpen(false)} onEdit={openEdit} />
       <AddLeadForm open={showAddForm} onClose={closeForm} editing={editingLead} />
+      <ImportLeadsModal open={showImport} onClose={() => setShowImport(false)} />
     </div>
   );
 }

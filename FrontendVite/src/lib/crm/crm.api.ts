@@ -1,6 +1,9 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/crm`;
+const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+const BASE = `${API_ROOT}/api/crm`;
+// Bulk import funnels through the shared internal intake pipeline (dedupe + routing), not /api/crm.
+const INTERNAL = `${API_ROOT}/api/internal`;
 
 // ── Shared ─────────────────────────────────────────────────────────────────
 
@@ -265,6 +268,28 @@ export interface CreateLeadRequest {
 export interface UpdateLeadRequest extends CreateLeadRequest {
   score: number; nextFollowUp?: string | null; tags?: string[];
 }
+
+// ── Bulk import (Excel / CSV) ────────────────────────────────────────────────
+/** One canonical lead row for bulk import. All fields optional; at least one of
+ *  email / phone / fullName / firstName is required per row (enforced server-side). */
+export interface ImportLeadInput {
+  firstName?: string | null; lastName?: string | null; fullName?: string | null;
+  email?: string | null; phone?: string | null; company?: string | null; title?: string | null;
+  industry?: string | null; address?: string | null; city?: string | null; country?: string | null;
+  notes?: string | null; source?: string | null; campaign?: string | null;
+  /** Any extra columns, kept raw so integration field-mappings can promote them. */
+  fields?: Record<string, string | null> | null;
+}
+export interface ImportRowError { row: number; message: string; }
+export interface ImportLeadsResult {
+  created: number; duplicates: number; failed: number; errors: ImportRowError[];
+}
+/** CRM lead fields an import column can map onto. */
+export const IMPORT_TARGET_FIELDS = [
+  "firstName", "lastName", "fullName", "email", "phone", "company",
+  "title", "industry", "address", "city", "country", "notes",
+] as const;
+export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 export interface CreateDealRequest {
   title: string; company: string; value: number; stage: string; priority: string;
   probability: number; expectedCloseDate: string; assignedTo: string; source: string;
@@ -312,6 +337,7 @@ export const crmApi = {
   setLeadScore:   (id: string, score: number): Promise<void> => rawApiClient.patch(`${BASE}/leads/${id}/score`, { score }),
   convertLead:    (id: string, body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string }): Promise<{ customerId: string; dealId: string }> => rawApiClient.post(`${BASE}/leads/${id}/convert`, body),
   deleteLead:     (id: string): Promise<void> => rawApiClient.delete(`${BASE}/leads/${id}`),
+  importLeads:    (leads: ImportLeadInput[]): Promise<ImportLeadsResult> => rawApiClient.post(`${INTERNAL}/leads/import`, { leads }),
 
   // Customers
   getCustomers:         (): Promise<CustomerDto[]>        => rawApiClient.get(`${BASE}/customers`),

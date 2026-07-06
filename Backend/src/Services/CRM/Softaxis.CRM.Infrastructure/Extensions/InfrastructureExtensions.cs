@@ -72,20 +72,34 @@ public static class InfrastructureExtensions
         services.AddSingleton<MetaGraphClient>();
         services.AddSingleton<ILeadProvider, MetaLeadProvider>();
 
+        // ── Calendly — inbound webhook (invitee.created → lead) ───────────────
+        services.AddSingleton<ILeadProvider, CalendlyLeadProvider>();
+
+        // ── Google Forms / Google Sheets — inbound webhook via Apps Script ────
+        // A one-time Apps Script the tenant pastes into their Form/Sheet POSTs each new
+        // response/row (as flat JSON) to the integration's inbound URL. GenericInboundProvider's
+        // field auto-detection maps name/email/phone/etc. — no Google OAuth app required.
+        services.AddSingleton<ILeadProvider>(_ => new GenericInboundProvider("google-forms", new(
+            "google-forms", "Google Forms", ProviderCategory.Forms,
+            "Sync responses from your Google Forms into CRM via a one-time Apps Script.", inbound)));
+        services.AddSingleton<ILeadProvider>(_ => new GenericInboundProvider("google-sheets", new(
+            "google-sheets", "Google Sheets", ProviderCategory.Forms,
+            "Turn new spreadsheet rows into CRM leads via a one-time Apps Script.", inbound)));
+
+        // ── CSV / Excel — manual file upload (parsed client-side → bulk endpoint) ──
+        services.AddSingleton<ILeadProvider>(_ => new ManualImportProvider(
+            "csv", "CSV / Excel Import", "Bulk-import leads from a CSV or Excel file."));
+
         // ── Planned providers (catalog "Coming soon" cards) ───────────────────
         // Each becomes real by replacing its stub with a concrete provider — no other change.
         const ProviderCapabilities oauthPoll = ProviderCapabilities.OAuth | ProviderCapabilities.PollSync;
         AddStub(services, "google-ads",      "Google Ads Lead Forms", ProviderCategory.SocialAds,  "Capture leads from Google Ads lead form extensions.", oauthPoll);
-        AddStub(services, "google-forms",    "Google Forms",          ProviderCategory.Forms,      "Sync responses from your Google Forms into CRM.", oauthPoll);
-        AddStub(services, "google-sheets",   "Google Sheets",         ProviderCategory.Forms,      "Turn new spreadsheet rows into CRM leads.", oauthPoll);
         AddStub(services, "linkedin",        "LinkedIn Lead Gen Forms",ProviderCategory.SocialAds, "Import leads from LinkedIn Lead Gen Forms.", oauthPoll);
         AddStub(services, "tiktok",          "TikTok Lead Generation",ProviderCategory.SocialAds,  "Capture leads from TikTok instant forms.", oauthPoll);
         AddStub(services, "whatsapp",        "WhatsApp Business",     ProviderCategory.Messaging,  "Receive enquiries from WhatsApp Business.", ProviderCapabilities.Webhook);
         AddStub(services, "microsoft-forms", "Microsoft Forms",       ProviderCategory.Forms,      "Sync responses from Microsoft Forms.", oauthPoll);
-        AddStub(services, "calendly",        "Calendly",              ProviderCategory.Forms,      "Create leads from new Calendly bookings.", ProviderCapabilities.Webhook);
         AddStub(services, "jotform",         "Jotform",               ProviderCategory.Forms,      "Capture Jotform submissions as leads.", ProviderCapabilities.Webhook);
         AddStub(services, "typeform",        "Typeform",              ProviderCategory.Forms,      "Capture Typeform responses as leads.", ProviderCapabilities.Webhook);
-        AddStub(services, "csv",             "CSV Import",            ProviderCategory.Import,      "Bulk-import leads from a CSV file.", ProviderCapabilities.ManualImport);
 
         // ── Background processing (inbox drain + retry) ───────────────────────
         services.AddHostedService<RawLeadInboxProcessor>();
