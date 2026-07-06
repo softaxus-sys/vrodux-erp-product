@@ -61,7 +61,12 @@ public static class TenantIsolation
             entity.HasIndex(column);
 
             // e => TenantAmbient.BypassFilter
-            //      || EF.Property<Guid?>(e, column) == TenantAmbient.TenantId
+            //      || (TenantAmbient.TenantId != null && EF.Property<Guid?>(e, column) == TenantAmbient.TenantId)
+            //
+            // The `ambient != null` guard is critical: a resolved-but-tenant-less non-super user
+            // (ambient TenantId == null) must match NOTHING. Without it, `row.TenantId == null` would
+            // let such a context see every legacy/demo row that was inserted with TenantId = NULL —
+            // a cross-tenant leak. NULL-tenant rows are now visible ONLY to super-admins (via bypass).
             var e = Expression.Parameter(clr, "e");
 
             var bypass   = Expression.Property(null, BypassProp);
@@ -70,7 +75,9 @@ public static class TenantIsolation
                 typeof(EF), nameof(EF.Property), [typeof(Guid?)],
                 e, Expression.Constant(column));
 
-            var body = Expression.OrElse(bypass, Expression.Equal(rowValue, ambient));
+            var ambientHasValue = Expression.NotEqual(ambient, Expression.Constant(null, typeof(Guid?)));
+            var matches = Expression.AndAlso(ambientHasValue, Expression.Equal(rowValue, ambient));
+            var body = Expression.OrElse(bypass, matches);
             entity.HasQueryFilter(Expression.Lambda(body, e));
         }
     }
