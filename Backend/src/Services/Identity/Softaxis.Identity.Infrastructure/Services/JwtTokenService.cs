@@ -25,11 +25,16 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
     public DateTime AccessTokenExpiry  => DateTime.UtcNow.AddMinutes(_settings.AccessTokenMinutes);
     public DateTime RefreshTokenExpiry => DateTime.UtcNow.AddDays(_settings.RefreshTokenDays);
 
-    public string GenerateAccessToken(User user, IEnumerable<string> permissionKeys, Tenant? tenant = null)
+    public string GenerateAccessToken(User user, IEnumerable<string> permissionKeys, Tenant? tenant = null, Guid? impersonatedBy = null)
     {
         var key     = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
         var creds   = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var expiry  = AccessTokenExpiry;
+
+        // When a super-admin is impersonating a tenant, the token is scoped to that tenant:
+        // is_super_admin is forced FALSE so the DB tenant filter scopes to the tenant (rather than
+        // bypassing), while `impersonated_by` records who is acting for audit/UI.
+        var isSuperAdmin = impersonatedBy is null && user.IsSuperAdmin;
 
         var claims = new List<Claim>
         {
@@ -40,8 +45,11 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
             new("firstName",    user.FirstName),
             new("lastName",     user.LastName),
             new("status",       user.Status.ToString()),
-            new("is_super_admin", user.IsSuperAdmin.ToString().ToLowerInvariant()),
+            new("is_super_admin", isSuperAdmin.ToString().ToLowerInvariant()),
         };
+
+        if (impersonatedBy is not null)
+            claims.Add(new Claim("impersonated_by", impersonatedBy.Value.ToString()));
 
         // Tenant context claims (null for super-admin)
         if (tenant is not null)

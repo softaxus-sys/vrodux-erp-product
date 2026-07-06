@@ -215,29 +215,36 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarNavItemProps) {
 
 export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   const { hasModuleAccess, user, tenant } = useAuthStore();
+  const impersonation = useAuthStore((s) => s.impersonation);
+
+  // A platform super-admin who is NOT impersonating a tenant sees ONLY the super-admin
+  // console (Tenant Management) — never operational modules with pooled cross-tenant data.
+  // To see a tenant's records they "Open" that tenant (impersonation), which flips their
+  // role to tenant_admin so normal per-tenant module access applies.
+  const superAdminMode = user?.role === "super_admin" && !impersonation;
 
   // Filter navigation based on the current user's module access.
   // Items with no `module` field are always shown (they are child items
   // whose visibility is governed by their parent).
   // Groups with no visible items are hidden entirely.
   const visibleConfig = React.useMemo((): NavGroup[] => {
+    const itemVisible = (mod?: string) =>
+      superAdminMode ? mod === "super-admin" : (!mod || hasModuleAccess(mod as ModuleKey));
     return navigationConfig
       .map((group) => ({
         ...group,
         items: group.items
           // filter parent nav items by their module
-          .filter((item) => !item.module || hasModuleAccess(item.module as ModuleKey))
+          .filter((item) => itemVisible(item.module))
           .map((item) => ({
             ...item,
             // filter children that carry their own module requirement
-            children: item.children?.filter(
-              (child) => !child.module || hasModuleAccess(child.module as ModuleKey)
-            ),
+            children: item.children?.filter((child) => itemVisible(child.module)),
           })),
       }))
       .filter((group) => group.items.length > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, tenant]);
+  }, [user, tenant, impersonation]);
 
   return (
     <TooltipProvider delayDuration={0}>

@@ -1,15 +1,17 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 import {
   Building2, Plus, Search, Users, Server, Cloud,
   ShieldCheck, AlertTriangle, ChevronRight, RefreshCw,
   Loader2, MoreVertical, Key, Link, Trash2, Ban,
-  CheckCircle, Clock, X, Edit, Copy, ExternalLink,
+  CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth.store";
 import {
   tenantsAdminApi,
   type TenantDto,
@@ -79,7 +81,9 @@ function StatCard({ label, value, sub, icon: Icon, iconBg }: {
 
 // ── Tenant card ───────────────────────────────────────────────────────────────
 
-function TenantCard({ tenant, onClick }: { tenant: TenantDto; onClick: () => void }) {
+function TenantCard({ tenant, onClick, onEnter, entering }: {
+  tenant: TenantDto; onClick: () => void; onEnter: () => void; entering: boolean;
+}) {
   const limits = PLAN_LIMITS[tenant.plan];
   const userPct = limits.maxUsers > 0
     ? Math.min(100, Math.round((0 / limits.maxUsers) * 100))
@@ -155,6 +159,20 @@ function TenantCard({ tenant, onClick }: { tenant: TenantDto; onClick: () => voi
           {tenant.contactEmail}
         </p>
       )}
+
+      {/* Open tenant (impersonate) — view this tenant's actual records, scoped */}
+      <Button
+        size="sm"
+        variant="outline"
+        className="w-full mt-3"
+        disabled={entering}
+        onClick={(e) => { e.stopPropagation(); onEnter(); }}
+      >
+        {entering
+          ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+          : <LogIn className="h-3.5 w-3.5 mr-1.5" />}
+        Open tenant
+      </Button>
     </motion.div>
   );
 }
@@ -169,6 +187,24 @@ export function SuperAdminView() {
   const [filterPlan, setFilterPlan]     = React.useState<PlanType | "All">("All");
 
   const navigate = useNavigate();
+  const enterImpersonation = useAuthStore((s) => s.enterImpersonation);
+  const [entering, setEntering] = React.useState<string | null>(null);
+
+  const handleEnter = React.useCallback(async (t: TenantDto) => {
+    try {
+      setEntering(t.id);
+      const res = await tenantsAdminApi.impersonate(t.id);
+      enterImpersonation(res.accessToken, {
+        tenantId: res.tenantId, tenantName: res.tenantName, tenantSlug: res.tenantSlug,
+      });
+      toast.success(`Now viewing ${res.tenantName}`);
+      navigate("/dashboard");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not open tenant.");
+    } finally {
+      setEntering(null);
+    }
+  }, [enterImpersonation, navigate]);
 
   const load = React.useCallback(async () => {
     try {
@@ -314,6 +350,8 @@ export function SuperAdminView() {
                   key={t.id}
                   tenant={t}
                   onClick={() => navigate(`/super-admin/tenants/${t.id}`)}
+                  onEnter={() => handleEnter(t)}
+                  entering={entering === t.id}
                 />
               ))}
             </AnimatePresence>

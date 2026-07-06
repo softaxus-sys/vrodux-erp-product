@@ -146,7 +146,18 @@ export const tenantsAdminApi = {
 
   delete: (id: string): Promise<void> =>
     apiClient.delete(`${BASE}/${id}`),
+
+  /** Super-admin: get a tenant-scoped token to view/operate the app AS this tenant. */
+  impersonate: (id: string): Promise<ImpersonationResult> =>
+    apiClient.post(`${BASE}/${id}/impersonate`),
 };
+
+export interface ImpersonationResult {
+  accessToken: string;
+  tenantId:    string;
+  tenantName:  string;
+  tenantSlug:  string;
+}
 
 export const licenseApi = {
   validate: (licenseKey: string): Promise<unknown> =>

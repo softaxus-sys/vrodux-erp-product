@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.ActivateTenant;
+using Softaxis.Identity.Application.TenantsAdmin.Commands.ImpersonateTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.ChangeTenantPlan;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.CreateTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.DeleteTenant;
@@ -69,6 +71,17 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     [HttpPatch("{id:guid}/suspend")]
     public async Task<IActionResult> Suspend(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new SuspendTenantCommand(id), ct));
+
+    // POST /api/admin/tenants/{id}/impersonate
+    // Issues a tenant-scoped token so the super-admin can view/operate the app AS this tenant.
+    [HttpPost("{id:guid}/impersonate")]
+    public async Task<IActionResult> Impersonate(Guid id, CancellationToken ct)
+    {
+        var superAdminId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!Guid.TryParse(superAdminId, out var uid))
+            return Unauthorized();
+        return HandleResult(await Sender.Send(new ImpersonateTenantCommand(id, uid), ct));
+    }
 
     // POST /api/admin/tenants/{id}/license
     [HttpPost("{id:guid}/license")]

@@ -143,10 +143,32 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Home path per role: a platform super-admin (not impersonating a tenant) lands on the
+ * super-admin console (tenant list), NOT the operational dashboard (which would pool
+ * cross-tenant data). Everyone else lands on /dashboard.
+ */
+function useHomePath() {
+  return useAuthStore((s) =>
+    s.user?.role === "super_admin" && !s.impersonation ? "/super-admin" : "/dashboard");
+}
+
+function HomeRedirect() {
+  return <Navigate to={useHomePath()} replace />;
+}
+
 function GuestGuard({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  const home = useHomePath();
+  if (isAuthenticated) return <Navigate to={home} replace />;
   return <>{children}</>;
+}
+
+/** /dashboard for a pure super-admin redirects to the super-admin console. */
+function DashboardRoute() {
+  const superAdmin = useAuthStore((s) => s.user?.role === "super_admin" && !s.impersonation);
+  if (superAdmin) return <Navigate to="/super-admin" replace />;
+  return <DashboardPage />;
 }
 
 /**
@@ -185,8 +207,8 @@ export function App() {
     <React.Suspense fallback={<PageLoader />}>
       <ServerSettingsPrompt />
       <Routes>
-        {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Root redirect (role-aware: super-admin → console, others → dashboard) */}
+        <Route path="/" element={<HomeRedirect />} />
 
         {/* Auth */}
         <Route
@@ -218,7 +240,7 @@ export function App() {
           }
         >
           {/* ── Always accessible ───────────────────────────────────────────── */}
-          <Route path="/dashboard"    element={<DashboardPage />} />
+          <Route path="/dashboard"    element={<DashboardRoute />} />
           <Route path="/profile"      element={<ProfilePage />} />
           {/* Appearance is in topbar for all users, no module gate needed */}
           <Route path="/settings/appearance" element={<AppearancePage />} />

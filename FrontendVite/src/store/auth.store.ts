@@ -310,6 +310,14 @@ interface AuthState {
    */
   rawPermissions: string[];
 
+  /** Set while a super-admin is viewing the app AS a tenant (impersonation). null = not impersonating. */
+  impersonation: { tenantId: string; tenantName: string; tenantSlug: string } | null;
+  /** The super-admin's own session, saved so exitImpersonation() can restore it. */
+  superSession: {
+    token: string | null; refreshToken: string | null;
+    user: User | null; tenant: Tenant | null; rawPermissions: string[];
+  } | null;
+
   // Actions
   setUser: (user: User) => void;
   setTenant: (tenant: Tenant) => void;
@@ -318,6 +326,11 @@ interface AuthState {
 
   /** Called after a successful Identity.API /login response. */
   loginFromApi: (accessToken: string, refreshToken: string, userDto: UserDto) => void;
+
+  /** Super-admin enters a tenant: swap to the tenant-scoped token, saving the super session. */
+  enterImpersonation: (accessToken: string, info: { tenantId: string; tenantName: string; tenantSlug: string }) => void;
+  /** Restore the super-admin session. */
+  exitImpersonation: () => void;
 
   /** Legacy / mock login (kept for fallback/testing). */
   login: (user: User, tenant: Tenant, token: string) => void;
@@ -349,6 +362,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       rawPermissions: [],
+      impersonation: null,
+      superSession: null,
 
       setUser:         (user)         => set({ user }),
       setTenant:       (tenant)       => set({ tenant }),
@@ -385,6 +400,51 @@ export const useAuthStore = create<AuthState>()(
       login: (user, tenant, token) =>
         set({ user, tenant, token, refreshToken: null, isAuthenticated: true }),
 
+      enterImpersonation: (accessToken, info) => {
+        const s = get();
+        const claims = decodeJwtPayload(accessToken);
+        const tenant = buildTenantFromClaims(claims);
+        // Permission keys live in the token's `permission` claims (string or string[]).
+        const permClaim = claims["permission"];
+        const rawPermissions = Array.isArray(permClaim)
+          ? (permClaim as string[])
+          : permClaim ? [String(permClaim)] : [];
+        // Keep the super-admin's identity, but act as a tenant admin so hasModuleAccess is scoped
+        // to THIS tenant's enabled modules (a super_admin role would unlock every module).
+        const impersUser: User | null = s.user
+          ? { ...s.user, role: "tenant_admin" as UserRole, roleName: "Administrator" }
+          : s.user;
+        set({
+          superSession: {
+            token: s.token, refreshToken: s.refreshToken,
+            user: s.user, tenant: s.tenant, rawPermissions: s.rawPermissions,
+          },
+          token: accessToken,
+          refreshToken: null,           // don't auto-refresh into a super token; exit on expiry
+          user: impersUser,
+          tenant,
+          rawPermissions,
+          impersonation: info,
+        });
+        // Drop any super-admin (pooled) query cache so the tenant view starts clean.
+        queryClient.clear();
+      },
+
+      exitImpersonation: () => {
+        const s = get();
+        if (!s.superSession) return;
+        set({
+          token:          s.superSession.token,
+          refreshToken:   s.superSession.refreshToken,
+          user:           s.superSession.user,
+          tenant:         s.superSession.tenant,
+          rawPermissions: s.superSession.rawPermissions,
+          impersonation:  null,
+          superSession:   null,
+        });
+        queryClient.clear();
+      },
+
       logout: async () => {
         const { refreshToken, token } = get();
         // Best-effort revoke — never block the UI on failure
@@ -398,6 +458,8 @@ export const useAuthStore = create<AuthState>()(
           refreshToken:    null,
           isAuthenticated: false,
           rawPermissions:  [],
+          impersonation:   null,
+          superSession:    null,
         });
         // Wipe ALL React Query cache so the next user never sees stale data
         // from the previous session (e.g. POS active sessions, permissions).
@@ -430,8 +492,11 @@ export const useAuthStore = create<AuthState>()(
         const { tenant, user } = get();
         if (!user) return false;
 
-        // ── 1. Platform super-admin: unrestricted (manages all tenants) ─────────
-        if (user.role === "super_admin") return true;
+        // ── 1. Platform super-admin: ONLY the super-admin console — no operational modules.
+        //       They manage tenants and must "Open" a tenant (impersonation) to view its data,
+        //       which flips the role to tenant_admin so this branch no longer applies. Prevents
+        //       pooled cross-tenant data and lets ModuleGuard bounce operational routes. ─────────
+        if (user.role === "super_admin") return (module as string) === "super-admin";
 
         if (!tenant) return false;
 
@@ -495,6 +560,8 @@ export const useAuthStore = create<AuthState>()(
         refreshToken:    state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         rawPermissions:  state.rawPermissions,
+        impersonation:   state.impersonation,
+        superSession:    state.superSession,
       }),
     }
   )

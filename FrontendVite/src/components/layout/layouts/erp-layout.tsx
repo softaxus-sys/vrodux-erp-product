@@ -6,6 +6,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { NotificationPanel } from "@/components/layout/notification-panel";
 import { AiAssistantPanel } from "@/components/layout/ai-assistant-panel";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { SidebarLeftLayout }  from "./sidebar-left-layout";
 import { SidebarRightLayout } from "./sidebar-right-layout";
 import { TopNavLayout }       from "./top-nav-layout";
@@ -26,6 +27,7 @@ function PageContent() {
 
   return (
     <>
+      <ImpersonationBanner />
       <Topbar />
       {isPOS ? (
         <main className="flex-1 overflow-hidden flex flex-col min-h-0">
