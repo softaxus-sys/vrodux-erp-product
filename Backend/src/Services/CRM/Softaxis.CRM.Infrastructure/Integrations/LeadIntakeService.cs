@@ -69,6 +69,22 @@ public sealed class LeadIntakeService(
             assignedTo:     assignedTo,
             notes:          Clean(lead.Notes));
 
+        // Requirements captured from the lead-gen form (or promoted via field mappings).
+        newLead.SetRequirements(Clean(lead.WhatsApp), Clean(lead.InterestedIn), Clean(lead.Budget), Clean(lead.Message));
+
+        // Marketing / attribution — denormalized onto the lead for the drawer's Marketing panel.
+        var platform = Clean(lead.Platform)
+                    ?? (string.Equals(source, "integration", StringComparison.OrdinalIgnoreCase) ? null : Clean(source));
+        newLead.SetMarketing(
+            platform:            platform,
+            formName:            Clean(lead.FormName),
+            isOrganic:           lead.IsOrganic,
+            campaign:            Clean(lead.Campaign) ?? Clean(lead.UtmCampaign),
+            adName:              Clean(lead.AdName),
+            adSetName:           Clean(lead.AdSetName),
+            platformCreatedTime: Clean(lead.PlatformCreatedTime),
+            customFields:        BuildCustomFields(lead.RawFields));
+
         // Stamp tenant explicitly — webhook requests are anonymous, so the ambient tenant
         // is unresolved and SaveChanges' auto-stamp is a no-op.
         StampTenant(newLead, tenantId);
@@ -127,6 +143,12 @@ public sealed class LeadIntakeService(
                 case CanonicalLeadFields.City:      lead.City      ??= value; break;
                 case CanonicalLeadFields.Country:   lead.Country   ??= value; break;
                 case CanonicalLeadFields.Notes:     lead.Notes     ??= value; break;
+                case CanonicalLeadFields.WhatsApp:     lead.WhatsApp     ??= value; break;
+                case CanonicalLeadFields.InterestedIn: lead.InterestedIn ??= value; break;
+                case CanonicalLeadFields.Budget:       lead.Budget       ??= value; break;
+                case CanonicalLeadFields.Message:      lead.Message      ??= value; break;
+                case CanonicalLeadFields.Campaign:     lead.Campaign     ??= value; break;
+                case CanonicalLeadFields.FormName:     lead.FormName     ??= value; break;
             }
         }
     }
@@ -196,6 +218,41 @@ public sealed class LeadIntakeService(
         db.Entry(entity).Property(TenantIsolation.Column).CurrentValue = tenantId;
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>
+    /// Raw source fields that were NOT promoted to a standard lead field become the lead's
+    /// "Form Responses" (survey Q&amp;A / custom questions). Known contact/attribution keys are
+    /// filtered out so the catch-all doesn't just repeat name/email/phone.
+    /// </summary>
+    private static Dictionary<string, string>? BuildCustomFields(IReadOnlyDictionary<string, string?> raw)
+    {
+        if (raw.Count == 0) return null;
+        var extra = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (k, v) in raw)
+        {
+            if (string.IsNullOrWhiteSpace(k) || string.IsNullOrWhiteSpace(v)) continue;
+            if (KnownRawKeys.Contains(Normalize(k))) continue;
+            extra[k] = v.Trim();
+        }
+        return extra.Count > 0 ? extra : null;
+    }
+
+    private static string Normalize(string s)
+    {
+        Span<char> buf = stackalloc char[s.Length];
+        var n = 0;
+        foreach (var c in s)
+            if (char.IsLetterOrDigit(c)) buf[n++] = char.ToLowerInvariant(c);
+        return new string(buf[..n]);
+    }
+
+    private static readonly HashSet<string> KnownRawKeys = new(StringComparer.Ordinal)
+    {
+        "firstname", "lastname", "fullname", "name", "email", "emailaddress", "phone", "phonenumber",
+        "mobile", "company", "companyname", "jobtitle", "title", "industry", "address", "streetaddress",
+        "city", "country", "notes", "whatsapp", "whatsappnumber", "interestedin", "budget", "message",
+        "campaign", "campaignname", "formname", "form",
+    };
 
     private static DedupeRules ParseDedupe(string? json)
     {

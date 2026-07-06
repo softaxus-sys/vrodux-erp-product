@@ -49,7 +49,8 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     {
         var result = await sender.Send(new UpdateLeadCommand(id, req.FirstName, req.LastName, req.Title,
             req.Company, req.Industry, req.Email, req.Phone, req.Country, req.City, req.Source, req.Priority,
-            req.EstimatedValue, req.AssignedTo, req.Score, req.NextFollowUp, req.Notes, req.Tags), ct);
+            req.EstimatedValue, req.AssignedTo, req.Score, req.NextFollowUp, req.Notes, req.Tags,
+            req.WhatsApp, req.InterestedIn, req.Budget, req.Message), ct);
         return NoContentOrError(result);
     }
 
@@ -89,7 +90,8 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
 
     public sealed record UpdateLeadRequest(string FirstName, string LastName, string Title, string Company, string Industry,
         string Email, string Phone, string Country, string City, string Source, string Priority,
-        decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes, List<string>? Tags);
+        decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes, List<string>? Tags,
+        string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null);
     public sealed record StatusReq(string Status);
     public sealed record ScoreReq(int Score);
     public sealed record ConvertReq(string? DealTitle, decimal? DealValue, string? ExpectedCloseDate);

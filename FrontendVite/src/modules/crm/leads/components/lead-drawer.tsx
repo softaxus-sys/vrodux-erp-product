@@ -163,6 +163,80 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                     </div>
                   </div>
 
+                  {/* Requirements — captured from the lead-gen form */}
+                  {(lead.whatsApp || lead.interestedIn || lead.budget || lead.message) && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Requirements</h4>
+                      <div className="space-y-0 bg-muted/30 rounded-xl p-4">
+                        {[
+                          { icon: PhoneCall,       label: "WhatsApp",      value: lead.whatsApp
+                              ? <a href={`https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">{lead.whatsApp}</a>
+                              : null },
+                          { icon: Star,            label: "Interested In",  value: lead.interestedIn },
+                          { icon: DollarSign,      label: "Budget",         value: lead.budget },
+                        ].filter(r => r.value).map(row => (
+                          <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+                            <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="flex-1 flex justify-between gap-4 min-w-0">
+                              <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
+                              <span className="text-sm font-medium text-right truncate">{row.value}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {lead.message && (
+                          <div className="flex items-start gap-3 py-2.5">
+                            <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="min-w-0">
+                              <span className="text-xs text-muted-foreground">Message</span>
+                              <p className="text-sm mt-0.5 leading-relaxed whitespace-pre-wrap">{lead.message}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Marketing / attribution — where the lead came from */}
+                  {(lead.platform || lead.campaign || lead.formName || lead.adName || lead.adSetName || lead.isOrganic != null || lead.platformCreatedTime) && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Marketing & Attribution</h4>
+                      <div className="space-y-0 bg-muted/30 rounded-xl p-4">
+                        {[
+                          { icon: Globe,      label: "Platform",     value: lead.platform ? <span className="capitalize">{lead.platform}</span> : null },
+                          { icon: TrendingUp, label: "Campaign",     value: lead.campaign },
+                          { icon: FileText,   label: "Form",         value: lead.formName },
+                          { icon: FileText,   label: "Ad",           value: lead.adName },
+                          { icon: FileText,   label: "Ad Set",       value: lead.adSetName },
+                          { icon: TrendingUp, label: "Traffic Type", value: lead.isOrganic == null ? null : (lead.isOrganic ? "Organic" : "Paid") },
+                          { icon: Calendar,   label: "Submitted",    value: lead.platformCreatedTime ? formatDate(lead.platformCreatedTime, "medium") : null },
+                        ].filter(r => r.value).map(row => (
+                          <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+                            <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="flex-1 flex justify-between gap-4 min-w-0">
+                              <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
+                              <span className="text-sm font-medium text-right truncate">{row.value}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Form responses — survey Q&A / custom questions (catch-all) */}
+                  {lead.customFields && Object.keys(lead.customFields).length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Form Responses</h4>
+                      <div className="space-y-0 bg-muted/30 rounded-xl p-4">
+                        {Object.entries(lead.customFields).map(([q, a]) => (
+                          <div key={q} className="py-2.5 border-b border-border/40 last:border-0">
+                            <p className="text-xs text-muted-foreground capitalize">{q.replace(/[_-]/g, " ")}</p>
+                            <p className="text-sm font-medium mt-0.5 leading-relaxed whitespace-pre-wrap">{a}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Notes */}
                   {lead.notes && (
                     <div>

@@ -16,20 +16,28 @@ const FIELD_SYNONYMS: Record<ImportTargetField, string[]> = {
   lastName:  ["lastname", "last", "lname", "familyname", "surname"],
   fullName:  ["fullname", "name", "contactname", "leadname"],
   email:     ["email", "emailaddress", "mail", "e mail"],
-  phone:     ["phone", "phonenumber", "mobile", "tel", "telephone", "contactnumber", "cell", "whatsapp"],
+  phone:     ["phone", "phonenumber", "mobile", "tel", "telephone", "contactnumber", "cell"],
   company:   ["company", "companyname", "organization", "organisation", "business", "account"],
   title:     ["title", "jobtitle", "designation", "position", "role"],
   industry:  ["industry", "sector", "vertical"],
   address:   ["address", "street", "addressline1", "address1"],
   city:      ["city", "town"],
   country:   ["country", "countryname", "nation"],
-  notes:     ["notes", "message", "comments", "comment", "enquiry", "inquiry", "remarks", "description"],
+  notes:     ["notes", "comment", "remarks", "description"],
+  whatsApp:     ["whatsapp", "whatsappnumber", "whatsappno", "wanumber", "whatsappphone"],
+  interestedIn: ["interestedin", "interest", "interest in", "productinterest", "serviceinterest", "lookingfor"],
+  budget:       ["budget", "budgetrange", "pricerange", "estimatedbudget", "yourbudget"],
+  message:      ["message", "yourmessage", "custommessage", "comments", "enquiry", "inquiry", "additionalinfo", "details"],
+  campaign:     ["campaign", "campaignname", "adcampaign"],
+  formName:     ["formname", "form", "formtitle", "leadform"],
 };
 
 const TARGET_LABEL: Record<ImportTargetField, string> = {
   firstName: "First name", lastName: "Last name", fullName: "Full name", email: "Email",
   phone: "Phone", company: "Company", title: "Job title", industry: "Industry",
   address: "Address", city: "City", country: "Country", notes: "Notes",
+  whatsApp: "WhatsApp", interestedIn: "Interested in", budget: "Budget",
+  message: "Message", campaign: "Campaign", formName: "Form name",
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");

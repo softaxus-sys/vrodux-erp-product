@@ -22,14 +22,26 @@ public sealed class CanonicalLead
     public string? Country   { get; set; }
     public string? Notes     { get; set; }
 
+    // ── Requirements (lead-gen form questions) ────────────────────────────────
+    public string? WhatsApp     { get; set; }
+    public string? InterestedIn { get; set; }
+    public string? Budget       { get; set; }
+    public string? Message      { get; set; }
+
     // ── Attribution / provenance ──────────────────────────────────────────────
     public string? ExternalLeadId { get; set; }
+    public string? Platform   { get; set; }   // meta / facebook / instagram / google …
+    public string? FormName   { get; set; }
+    public bool?   IsOrganic  { get; set; }
     public string? Campaign   { get; set; }
     public string? CampaignId { get; set; }
     public string? AdSetId    { get; set; }
+    public string? AdSetName  { get; set; }
     public string? AdId       { get; set; }
+    public string? AdName     { get; set; }
     public string? PageId     { get; set; }
     public string? FormId     { get; set; }
+    public string? PlatformCreatedTime { get; set; }
     public string? UtmSource   { get; set; }
     public string? UtmMedium   { get; set; }
     public string? UtmCampaign { get; set; }
@@ -58,9 +70,16 @@ public static class CanonicalLeadFields
     public const string City      = "city";
     public const string Country   = "country";
     public const string Notes     = "notes";
+    public const string WhatsApp     = "whatsApp";
+    public const string InterestedIn = "interestedIn";
+    public const string Budget       = "budget";
+    public const string Message      = "message";
+    public const string Campaign     = "campaign";
+    public const string FormName     = "formName";
 
     public static readonly IReadOnlyList<string> All =
     [
-        FirstName, LastName, FullName, Email, Phone, Company, Title, Industry, Address, City, Country, Notes
+        FirstName, LastName, FullName, Email, Phone, Company, Title, Industry, Address, City, Country, Notes,
+        WhatsApp, InterestedIn, Budget, Message, Campaign, FormName
     ];
 }

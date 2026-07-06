@@ -5,7 +5,8 @@ public sealed class Lead
     private Lead() { }
     public Lead(string firstName, string lastName, string title, string company, string industry,
         string email, string phone, string country, string city, string source, string priority,
-        decimal estimatedValue, string assignedTo, string? notes)
+        decimal estimatedValue, string assignedTo, string? notes,
+        string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null)
     {
         Id             = Guid.NewGuid();
         FirstName      = firstName.Trim(); LastName = lastName.Trim();
@@ -16,8 +17,12 @@ public sealed class Lead
         Currency       = "AED"; AssignedTo = assignedTo.Trim();
         CreatedDate    = DateTime.UtcNow.ToString("yyyy-MM-dd");
         Notes          = notes?.Trim(); Tags = [];
+        WhatsApp       = Trim(whatsApp); InterestedIn = Trim(interestedIn);
+        Budget         = Trim(budget);  Message = Trim(message);
         CreatedAt      = DateTime.UtcNow;
     }
+
+    private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
     public Guid      Id              { get; private set; }
     public string    FirstName       { get; private set; } = string.Empty;
     public string    LastName        { get; private set; } = string.Empty;
@@ -43,6 +48,24 @@ public sealed class Lead
     public string?   ConvertedDealId { get; private set; }
     // Relational link to the account created on conversion (mirrors ConvertedDealId).
     public Guid?     ConvertedCustomerId { get; private set; }
+
+    // ── Requirements (from a lead-gen form or entered manually) ──────────────
+    public string?   WhatsApp        { get; private set; }
+    public string?   InterestedIn    { get; private set; }
+    public string?   Budget          { get; private set; }
+    public string?   Message         { get; private set; }
+
+    // ── Marketing / attribution (denormalized from the capturing source) ─────
+    public string?   Platform            { get; private set; }
+    public string?   FormName            { get; private set; }
+    public bool?     IsOrganic           { get; private set; }
+    public string?   Campaign            { get; private set; }
+    public string?   AdName              { get; private set; }
+    public string?   AdSetName           { get; private set; }
+    public string?   PlatformCreatedTime { get; private set; }
+    /// <summary>Extra captured form fields (survey Q&amp;A / custom questions) as question → answer.</summary>
+    public Dictionary<string, string>? CustomFields { get; private set; }
+
     public List<string> Tags         { get; private set; } = [];
     public bool      IsDeleted       { get; private set; }
     public DateTime  CreatedAt       { get; private set; }
@@ -54,7 +77,8 @@ public sealed class Lead
 
     public void Update(string firstName, string lastName, string title, string company, string industry,
         string email, string phone, string country, string city, string source, string priority,
-        decimal estimatedValue, string assignedTo, int score, string? nextFollowUp, string? notes, List<string>? tags)
+        decimal estimatedValue, string assignedTo, int score, string? nextFollowUp, string? notes, List<string>? tags,
+        string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null)
     {
         FirstName = firstName.Trim(); LastName = lastName.Trim();
         Title = title.Trim(); Company = company.Trim(); Industry = industry.Trim();
@@ -62,7 +86,26 @@ public sealed class Lead
         Country = country; City = city; Source = source; Priority = priority;
         EstimatedValue = estimatedValue; AssignedTo = assignedTo.Trim();
         Score = Math.Clamp(score, 0, 100); NextFollowUp = nextFollowUp; Notes = notes?.Trim();
+        WhatsApp = Trim(whatsApp); InterestedIn = Trim(interestedIn);
+        Budget = Trim(budget); Message = Trim(message);
         if (tags is not null) Tags = tags;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Populate the denormalized marketing/attribution fields captured from a lead source.</summary>
+    public void SetMarketing(string? platform, string? formName, bool? isOrganic, string? campaign,
+        string? adName, string? adSetName, string? platformCreatedTime, Dictionary<string, string>? customFields)
+    {
+        Platform = Trim(platform); FormName = Trim(formName); IsOrganic = isOrganic;
+        Campaign = Trim(campaign); AdName = Trim(adName); AdSetName = Trim(adSetName);
+        PlatformCreatedTime = Trim(platformCreatedTime);
+        CustomFields = customFields is { Count: > 0 } ? customFields : null;
+    }
+
+    /// <summary>Set the lead-gen requirement fields (used by the intake pipeline).</summary>
+    public void SetRequirements(string? whatsApp, string? interestedIn, string? budget, string? message)
+    {
+        WhatsApp = Trim(whatsApp); InterestedIn = Trim(interestedIn);
+        Budget = Trim(budget); Message = Trim(message);
     }
 }

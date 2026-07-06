@@ -132,6 +132,20 @@ export interface LeadDto {
   tags:             string[];
   activities:       LeadActivity[];
   convertedDealId?: string;
+  // ── Lead-gen / marketing capture (from Meta / Google / webhooks / forms) ──
+  platform?:            string | null;   // meta / facebook / instagram / google / whatsapp …
+  formName?:            string | null;
+  isOrganic?:           boolean | null;
+  campaign?:            string | null;
+  adName?:              string | null;
+  adSetName?:           string | null;
+  whatsApp?:            string | null;
+  interestedIn?:        string | null;
+  budget?:              string | null;
+  message?:             string | null;   // the lead's own message / enquiry
+  platformCreatedTime?: string | null;
+  /** Extra captured fields (survey Q&A / custom questions) as question → answer. */
+  customFields?:        Record<string, string> | null;
 }
 
 export interface LeadsSummaryDto {
@@ -264,6 +278,7 @@ export interface CreateLeadRequest {
   firstName: string; lastName: string; title: string; company: string; industry: string;
   email: string; phone: string; country: string; city: string; source: string; priority: string;
   estimatedValue: number; assignedTo: string; notes?: string | null;
+  whatsApp?: string | null; interestedIn?: string | null; budget?: string | null; message?: string | null;
 }
 export interface UpdateLeadRequest extends CreateLeadRequest {
   score: number; nextFollowUp?: string | null; tags?: string[];
@@ -277,6 +292,8 @@ export interface ImportLeadInput {
   email?: string | null; phone?: string | null; company?: string | null; title?: string | null;
   industry?: string | null; address?: string | null; city?: string | null; country?: string | null;
   notes?: string | null; source?: string | null; campaign?: string | null;
+  whatsApp?: string | null; interestedIn?: string | null; budget?: string | null;
+  message?: string | null; formName?: string | null;
   /** Any extra columns, kept raw so integration field-mappings can promote them. */
   fields?: Record<string, string | null> | null;
 }
@@ -288,6 +305,7 @@ export interface ImportLeadsResult {
 export const IMPORT_TARGET_FIELDS = [
   "firstName", "lastName", "fullName", "email", "phone", "company",
   "title", "industry", "address", "city", "country", "notes",
+  "whatsApp", "interestedIn", "budget", "message", "campaign", "formName",
 ] as const;
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 export interface CreateDealRequest {

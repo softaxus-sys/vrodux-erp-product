@@ -27,6 +27,8 @@ internal sealed class IngestLeadHandler(ILeadIntakeService intake)
             Email = input.Email, Phone = input.Phone, Company = input.Company, Title = input.Title,
             Industry = input.Industry, Address = input.Address, City = input.City, Country = input.Country,
             Notes = input.Notes, Campaign = input.Campaign, UtmSource = input.Source,
+            WhatsApp = input.WhatsApp, InterestedIn = input.InterestedIn, Budget = input.Budget,
+            Message = input.Message, FormName = input.FormName,
         };
         if (input.Fields is not null)
             foreach (var (k, v) in input.Fields) lead.RawFields[k] = v;

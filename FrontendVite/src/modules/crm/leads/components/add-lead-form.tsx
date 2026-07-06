@@ -43,6 +43,10 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const [assignedTo, setAssignedTo]   = React.useState("");
   const [expectedClose, setExpectedClose] = React.useState("");
   const [notes, setNotes]             = React.useState("");
+  const [whatsApp, setWhatsApp]       = React.useState("");
+  const [interestedIn, setInterestedIn] = React.useState("");
+  const [budget, setBudget]           = React.useState("");
+  const [message, setMessage]         = React.useState("");
 
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
@@ -57,6 +61,8 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       setIndustry(editing.industry); setSource(titleCase(editing.source));
       setPriority(titleCase(editing.priority)); setDealValue(String(editing.estimatedValue || ""));
       setAssignedTo(editing.assignedTo); setNotes(editing.notes ?? "");
+      setWhatsApp(editing.whatsApp ?? ""); setInterestedIn(editing.interestedIn ?? "");
+      setBudget(editing.budget ?? ""); setMessage(editing.message ?? "");
     }
   }, [open, editing]);
 
@@ -69,6 +75,8 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       source: source.toLowerCase().replace(/\s+/g, "_"),
       priority: priority.toLowerCase(), estimatedValue: parseFloat(dealValue) || 0,
       assignedTo: assignedTo.trim(), notes: notes.trim() || null,
+      whatsApp: whatsApp.trim() || null, interestedIn: interestedIn.trim() || null,
+      budget: budget.trim() || null, message: message.trim() || null,
     };
     if (isEdit && editing) {
       updateLead.mutate({ id: editing.id, data: { ...base, score: editing.score, nextFollowUp: editing.nextFollowUp ?? null, tags: editing.tags } }, { onSuccess: onClose });
@@ -82,6 +90,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
     setCompany(""); setJobTitle(""); setIndustry(""); setSource("Website");
     setStage("New"); setPriority("Medium"); setDealValue("");
     setAssignedTo(""); setExpectedClose(""); setNotes("");
+    setWhatsApp(""); setInterestedIn(""); setBudget(""); setMessage("");
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
@@ -203,6 +212,32 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                       )}
                     </select>
                     <p className="text-[11px] text-muted-foreground">The chosen user sees this lead under “Assigned to me” on the Leads page.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Requirements — captured from lead-gen forms, editable here */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Requirements</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">WhatsApp</label>
+                    <Input value={whatsApp} onChange={e => setWhatsApp(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget</label>
+                    <Input value={budget} onChange={e => setBudget(e.target.value)} placeholder="e.g. 50k–100k" className="h-9 text-sm" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interested In</label>
+                    <Input value={interestedIn} onChange={e => setInterestedIn(e.target.value)} placeholder="Product / service of interest…" className="h-9 text-sm" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Message from Lead</label>
+                    <textarea value={message} onChange={e => setMessage(e.target.value)}
+                      placeholder="The lead's own message / enquiry…" rows={2}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+                    />
                   </div>
                 </div>
               </div>

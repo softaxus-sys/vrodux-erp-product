@@ -7,7 +7,9 @@ namespace Softaxis.CRM.Application.Leads.Commands;
 public sealed record CreateLeadCommand(
     string FirstName, string LastName, string Title, string Company, string Industry,
     string Email, string Phone, string Country, string City, string Source, string Priority,
-    decimal EstimatedValue, string AssignedTo, string? Notes) : ICommand<LeadDto>;
+    decimal EstimatedValue, string AssignedTo, string? Notes,
+    string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null)
+    : ICommand<LeadDto>;
 
 public sealed class CreateLeadValidator : AbstractValidator<CreateLeadCommand>
 {
@@ -25,7 +27,9 @@ public sealed record UpdateLeadCommand(
     Guid Id, string FirstName, string LastName, string Title, string Company, string Industry,
     string Email, string Phone, string Country, string City, string Source, string Priority,
     decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes,
-    List<string>? Tags) : ICommand;
+    List<string>? Tags,
+    string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null)
+    : ICommand;
 
 public sealed class UpdateLeadValidator : AbstractValidator<UpdateLeadCommand>
 {

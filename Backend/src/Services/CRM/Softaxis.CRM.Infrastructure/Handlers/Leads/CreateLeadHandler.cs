@@ -15,7 +15,8 @@ internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents) :
     {
         var l = new Lead(cmd.FirstName, cmd.LastName, cmd.Title, cmd.Company, cmd.Industry,
             cmd.Email, cmd.Phone, cmd.Country, cmd.City, cmd.Source, cmd.Priority,
-            cmd.EstimatedValue, cmd.AssignedTo, cmd.Notes);
+            cmd.EstimatedValue, cmd.AssignedTo, cmd.Notes,
+            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message);
 
         db.Leads.Add(l);
         await db.SaveChangesAsync(ct);

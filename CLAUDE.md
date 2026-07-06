@@ -2159,6 +2159,65 @@ additive at the code level (providers + DI + one command/handler + one endpoint 
 
 ---
 
+## Module 10 — CRM: Lead-gen capture fields (requirements + marketing attribution + form responses)
+
+**Denormalized lead-gen / marketing fields directly onto `Lead`** so the lead drawer can show what a
+lead actually asked for and where it came from. Previously attribution lived only in the separate
+`LeadSource` provenance row (campaign/ad/utm ids), and there was **no storage at all** for the lead's
+own requirements (WhatsApp / budget / interest / message) or survey Q&A. The frontend drawer already
+read these off `lead.*`; this module makes the backend actually store + return them. **Purely additive**
+(12 nullable columns; `LeadSource` retained unchanged).
+
+### New `Lead` fields (all nullable)
+- **Requirements** — `WhatsApp`, `InterestedIn`, `Budget`, `Message` (also editable in the Add/Edit Lead form).
+- **Marketing / attribution** — `Platform` (meta/facebook/instagram/google…), `FormName`, `IsOrganic` (bool?),
+  `Campaign`, `AdName`, `AdSetName`, `PlatformCreatedTime` (string, formatted client-side).
+- **`CustomFields`** — `Dictionary<string,string>?` stored as **JSON** (EF `HasConversion`), rendered as the
+  drawer's "Form Responses" catch-all (survey Q&A / custom questions).
+
+### Backend (CRM service)
+- `Domain/Entities/Lead.cs` — new properties; ctor + `Update(...)` gained the 4 requirement params (optional,
+  trailing); new `SetRequirements(...)` + `SetMarketing(...)` methods (used by the intake pipeline). Private
+  `Trim(...)` helper normalizes blanks → null.
+- `Persistence/Configurations/CrmConfigurations.cs` (`LeadConfiguration`) — column lengths + the `CustomFields`
+  JSON `HasConversion` (mirrors the existing `Tags` conversion pattern).
+- `Leads/Dtos/LeadDto` — 12 new trailing optional record params; `LeadMappings.ToDto` passes them.
+  Read handlers already materialize-then-map (`Select(ToDto)` / `FirstOrDefault` + `ToDto`), so the JSON
+  conversion round-trips fine.
+- `Leads/Commands` — `CreateLeadCommand` + `UpdateLeadCommand` gained `WhatsApp/InterestedIn/Budget/Message`
+  (optional). `CreateLeadHandler`/`UpdateLeadHandler` pass them through. `LeadsController.Create` binds the
+  command directly (auto-binds new fields); `Update` uses `UpdateLeadRequest` — extended + threaded through.
+- **Intake pipeline** (the shared funnel for Meta/webhooks/import/manual):
+  - `CanonicalLead` gained the requirement + marketing fields; `CanonicalLeadFields` added
+    `whatsApp/interestedIn/budget/message/campaign/formName` targets so tenant `FieldMapping`s can promote them.
+  - `IngestLeadInput` (`POST /api/internal/leads` + `/import`) gained `WhatsApp/InterestedIn/Budget/Message/FormName`
+    (matches the frontend `ImportLeadInput`); `IngestLeadHandler` + `ImportLeadsHandler` map them onto `CanonicalLead`.
+  - `LeadIntakeService.IngestAsync` — after creating the `Lead`, calls `SetRequirements(...)` + `SetMarketing(...)`;
+    `Platform` falls back to the source (unless generic "integration"); `Campaign` falls back to `UtmCampaign`.
+    New `BuildCustomFields(RawFields)` stashes any **un-promoted** raw source fields as the lead's Form Responses
+    (a `KnownRawKeys` stop-list filters out name/email/phone/etc. so the catch-all doesn't just repeat contact info).
+  - `MetaLeadProvider.MapLead` now fills `Platform`, `AdName`, `AdSetName`, `FormName`, `IsOrganic`,
+    `PlatformCreatedTime`, and promotes `whatsapp`/`message`/`budget`/`interested_in` field_data questions.
+- Migration `AddLeadMarketingFields` — 12 additive nullable columns on `crm.leads` (auto-applies via `MigrateAndSeedCrmAsync`).
+
+### Frontend (was already in the working tree — this module made the backend match it)
+- `lib/crm/crm.api.ts` — `LeadDto` + `CreateLeadRequest`/`UpdateLeadRequest` + `ImportLeadInput` + `IMPORT_TARGET_FIELDS`
+  extended with the new fields.
+- `add-lead-form.tsx` — new "Requirements" section (WhatsApp / Budget / Interested In / Message) on create + edit.
+- `lead-drawer.tsx` — "Requirements", "Marketing & Attribution", and "Form Responses" panels (each renders only
+  when it has data; WhatsApp links to `wa.me`).
+- `import-leads-modal.tsx` — `FIELD_SYNONYMS`/`TARGET_LABEL` split `whatsApp`/`message`/`budget`/`interestedIn`/
+  `campaign`/`formName` out of the generic phone/notes buckets for auto-mapping.
+
+### Build / Verification Status
+- **CRM.API build:** 0 errors, 0 warnings ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅ · **`vite build`:** ✅
+- Migration `AddLeadMarketingFields` created (auto-applies on startup).
+- **Pending:** republish + restart on-prem per the deploy note; then spot-check — create/edit a lead with
+  WhatsApp/budget/interest/message → drawer shows them; import a CSV mapping those columns; a Meta lead shows
+  Platform/Campaign/Form + Form Responses.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

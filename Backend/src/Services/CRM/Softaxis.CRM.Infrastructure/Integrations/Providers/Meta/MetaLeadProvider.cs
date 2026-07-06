@@ -139,15 +139,25 @@ public sealed class MetaLeadProvider(
 
     private static CanonicalLead MapLead(JsonElement lead, string? pageId)
     {
+        var isOrganic = lead.TryGetProperty("is_organic", out var org) && org.ValueKind == JsonValueKind.True
+            ? true
+            : lead.TryGetProperty("is_organic", out var org2) && org2.ValueKind == JsonValueKind.False ? false : (bool?)null;
+
         var lc = new CanonicalLead
         {
             ExternalLeadId = Str(lead, "id"),
+            Platform   = Str(lead, "platform") ?? "facebook",
             CampaignId = Str(lead, "campaign_id"),
             Campaign   = Str(lead, "campaign_name"),
             AdSetId    = Str(lead, "adset_id"),
+            AdSetName  = Str(lead, "adset_name"),
             AdId       = Str(lead, "ad_id"),
+            AdName     = Str(lead, "ad_name"),
             FormId     = Str(lead, "form_id"),
+            FormName   = Str(lead, "form_name"),
+            IsOrganic  = isOrganic,
             PageId     = pageId,
+            PlatformCreatedTime = Str(lead, "created_time"),
             UtmSource  = "meta",
             UtmMedium  = Str(lead, "platform") ?? "facebook",
             RawJson    = lead.GetRawText().Length > 8000 ? lead.GetRawText()[..8000] : lead.GetRawText(),
@@ -175,6 +185,10 @@ public sealed class MetaLeadProvider(
                     case "city":                              lc.City      ??= value; break;
                     case "country":                           lc.Country   ??= value; break;
                     case "street_address": case "address":    lc.Address   ??= value; break;
+                    case "whatsapp": case "whatsapp_number":   lc.WhatsApp     ??= value; break;
+                    case "message": case "your_message":       lc.Message      ??= value; break;
+                    case "budget": case "your_budget":         lc.Budget       ??= value; break;
+                    case "interested_in": case "interest":     lc.InterestedIn ??= value; break;
                 }
             }
         }

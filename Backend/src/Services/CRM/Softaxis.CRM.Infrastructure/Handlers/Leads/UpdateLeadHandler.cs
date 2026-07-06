@@ -15,7 +15,8 @@ internal sealed class UpdateLeadHandler(CrmDbContext db) : ICommandHandler<Updat
 
         l.Update(cmd.FirstName, cmd.LastName, cmd.Title, cmd.Company, cmd.Industry,
             cmd.Email, cmd.Phone, cmd.Country, cmd.City, cmd.Source, cmd.Priority,
-            cmd.EstimatedValue, cmd.AssignedTo, cmd.Score, cmd.NextFollowUp, cmd.Notes, cmd.Tags);
+            cmd.EstimatedValue, cmd.AssignedTo, cmd.Score, cmd.NextFollowUp, cmd.Notes, cmd.Tags,
+            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message);
 
         await db.SaveChangesAsync(ct);
 

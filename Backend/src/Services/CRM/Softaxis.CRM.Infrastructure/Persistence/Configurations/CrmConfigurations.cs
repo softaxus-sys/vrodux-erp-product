@@ -32,6 +32,21 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(x => x.ConvertedDealId).HasMaxLength(50);
         builder.HasIndex(x => x.ConvertedCustomerId);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        // Requirements (lead-gen form / manual entry)
+        builder.Property(x => x.WhatsApp).HasMaxLength(50);
+        builder.Property(x => x.InterestedIn).HasMaxLength(500);
+        builder.Property(x => x.Budget).HasMaxLength(100);
+        builder.Property(x => x.Message).HasMaxLength(4000);
+        // Marketing / attribution
+        builder.Property(x => x.Platform).HasMaxLength(50);
+        builder.Property(x => x.FormName).HasMaxLength(200);
+        builder.Property(x => x.Campaign).HasMaxLength(200);
+        builder.Property(x => x.AdName).HasMaxLength(200);
+        builder.Property(x => x.AdSetName).HasMaxLength(200);
+        builder.Property(x => x.PlatformCreatedTime).HasMaxLength(40);
+        builder.Property(x => x.CustomFields).HasConversion(
+            v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
+            v => string.IsNullOrEmpty(v) ? null : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null));
         builder.Property(x => x.Tags).HasConversion(
             v => string.Join(',', v),
             v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
