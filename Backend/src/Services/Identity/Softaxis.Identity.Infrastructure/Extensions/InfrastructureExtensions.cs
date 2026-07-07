@@ -42,6 +42,8 @@ public static class InfrastructureExtensions
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.AddSingleton<IJwtTokenService,       JwtTokenService>();
         services.AddSingleton<IPasswordHasher,         BcryptPasswordHasher>();
+        services.AddSingleton<ITotpService,            TotpService>();
+        services.AddSingleton<ITotpSecretProtector,    TotpSecretProtector>();
         services.AddSingleton<ITrialChallengeService,  TrialChallengeService>();
         services.AddScoped<ILicenseService,            LicenseService>();
         services.AddScoped<IEmailService,              SmtpEmailService>();
@@ -87,10 +89,11 @@ public static class InfrastructureExtensions
         using var scope = services.CreateScope();
         var db             = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var configuration  = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
         await db.Database.MigrateAsync();
-        await SeedAdminAsync(db, passwordHasher);
-        await SeedSuperAdminAsync(db, passwordHasher);   // always runs — idempotent
+        await SeedAdminAsync(db);
+        await SeedSuperAdminAsync(db, passwordHasher, configuration);   // config-driven — no-op unless SuperAdmin creds are set
 
         // NOTE: the old SeedPOSRolesAsync seeded GLOBAL (tenant-less) operational roles
         // (Cashier / Supervisor / Store Manager / Inventory Manager / POS Admin) + demo users.
@@ -326,15 +329,26 @@ public static class InfrastructureExtensions
     }
 
     /// <summary>
-    /// Ensures superadmin@softaxis.io exists and has IsSuperAdmin = true.
-    /// Runs every startup — fully idempotent. Creates the user if absent,
-    /// patches IsSuperAdmin if the row exists but the flag is not set yet.
+    /// Provisions the platform super-admin FROM CONFIGURATION — no credentials are hardcoded.
+    /// Reads SuperAdmin:Email / SuperAdmin:Username / SuperAdmin:Password (env vars
+    /// SuperAdmin__Email / SuperAdmin__Password, etc). If email or password is not configured,
+    /// this is a complete no-op — it neither creates nor modifies any user, so an existing
+    /// super admin in the DB is left exactly as-is and is NEVER overwritten on deploy/restart.
+    /// When the configured user already exists, only the IsSuperAdmin flag is ensured; the
+    /// password is never reset.
     /// </summary>
-    private static async Task SeedSuperAdminAsync(IdentityDbContext db, IPasswordHasher hasher)
+    private static async Task SeedSuperAdminAsync(IdentityDbContext db, IPasswordHasher hasher, IConfiguration cfg)
     {
-        const string email    = "softaxus@gmail.com";
-        const string username = "superadmin";
-        const string password = "SuperAdmin@2025!";
+        var email    = cfg["SuperAdmin:Email"]?.Trim();
+        var username = cfg["SuperAdmin:Username"]?.Trim();
+        var password = cfg["SuperAdmin:Password"];
+
+        // No seed credentials configured → do nothing. Existing super admins are untouched.
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            return;
+
+        if (string.IsNullOrWhiteSpace(username))
+            username = email;
 
         // Resolve the GLOBAL Administrator role (created in SeedAdminAsync). Must scope to
         // TenantId == null — per-tenant Administrator roles now also exist and a super-admin
@@ -376,15 +390,19 @@ public static class InfrastructureExtensions
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedAdminAsync(IdentityDbContext db, IPasswordHasher hasher)
+    private static async Task SeedAdminAsync(IdentityDbContext db)
     {
-        // Skip if any user already exists
+        // Only bootstrap on a fresh DB.
         if (db.Users.Any()) return;
 
-        var allPermissions    = db.Set<Identity.Domain.Entities.Permission>().ToList();
-        var allPermissionIds  = allPermissions.Select(p => p.Id).ToList();
+        // Ensure the GLOBAL Administrator role exists (assigned to the configured super-admin by
+        // SeedSuperAdminAsync). No hardcoded bootstrap user is created any more — the super admin is
+        // provisioned from configuration (SuperAdmin:Email / SuperAdmin:Password), never from source.
+        if (db.Set<Identity.Domain.Entities.Role>().Any(r => r.Name == "Administrator" && r.TenantId == null))
+            return;
 
-        // ── Create Administrator role ─────────────────────────────────────────
+        var allPermissionIds = db.Set<Identity.Domain.Entities.Permission>().Select(p => p.Id).ToList();
+
         var adminRole = Identity.Domain.Entities.Role.Create(
             "Administrator",
             "Full system access — all modules and operations.",
@@ -392,27 +410,6 @@ public static class InfrastructureExtensions
 
         adminRole.SetPermissions(allPermissionIds);
         db.Set<Identity.Domain.Entities.Role>().Add(adminRole);
-
-        // ── Create default admin user ─────────────────────────────────────────
-        const string adminEmail    = "admin@softaxis.io";
-        const string adminUsername = "admin";
-        const string adminPassword = "Admin@123456";
-
-        var adminUserResult = Identity.Domain.Entities.User.Create(
-            adminEmail,
-            adminUsername,
-            "Admin",
-            "User",
-            hasher.Hash(adminPassword));
-
-        if (adminUserResult.IsFailure) return;
-
-        var adminUser = adminUserResult.Value;
-        adminUser.VerifyEmail();      // sets Status = Active + EmailVerified = true
-        adminUser.MakeSuperAdmin();   // marks as super-admin, clears TenantId
-        adminUser.AssignRole(adminRole.Id);
-
-        db.Users.Add(adminUser);
 
         await db.SaveChangesAsync();
     }

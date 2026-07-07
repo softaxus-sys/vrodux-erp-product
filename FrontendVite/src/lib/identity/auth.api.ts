@@ -1,7 +1,12 @@
-import type { AuthTokenDto, UserDto } from "./types";
+import type {
+  AuthTokenDto, UserDto,
+  TwoFactorStatusDto, TwoFactorSetupDto, TwoFactorEnableResultDto,
+} from "./types";
 import { ApiError, apiClient, type BackendResponse } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/auth`;
+const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+const BASE = `${API_ROOT}/api/auth`;
+const TFA_BASE = `${API_ROOT}/api/account/2fa`;
 
 // ── Raw fetch helpers (no auth store dependency — used before login) ──────────
 
@@ -32,6 +37,10 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const authApi = {
   login: (email: string, password: string): Promise<AuthTokenDto> =>
     post("/login", { email, password }),
+
+  /** Step 2 of a 2FA login — submit the authenticator (or backup) code with the MFA token. */
+  verifyTwoFactor: (mfaToken: string, code: string): Promise<AuthTokenDto> =>
+    post("/verify-2fa", { mfaToken, code }),
 
   refresh: (token: string): Promise<AuthTokenDto> =>
     post("/refresh", { token }),
@@ -89,4 +98,23 @@ export const authApi = {
   /** Re-send the verification link for an unverified account (anonymous). Always resolves — never reveals if account exists. */
   resendVerification: (email: string): Promise<void> =>
     post("/resend-verification", { email }),
+};
+
+// ── Two-factor authentication (self-service, requires auth) ─────────────────────
+
+export const twoFactorApi = {
+  status: (): Promise<TwoFactorStatusDto> =>
+    apiClient.get(`${TFA_BASE}/status`),
+
+  /** Begin enrollment — returns secret + QR to scan. */
+  setup: (): Promise<TwoFactorSetupDto> =>
+    apiClient.post(`${TFA_BASE}/setup`, {}),
+
+  /** Confirm enrollment with a current code — returns one-time backup codes. */
+  enable: (code: string): Promise<TwoFactorEnableResultDto> =>
+    apiClient.post(`${TFA_BASE}/enable`, { code }),
+
+  /** Turn off 2FA — requires a current authenticator or backup code. */
+  disable: (code: string): Promise<void> =>
+    apiClient.post(`${TFA_BASE}/disable`, { code }),
 };

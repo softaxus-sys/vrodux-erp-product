@@ -2276,6 +2276,177 @@ provider-specific instructions **and** a genuinely new zero-code option: a Vrodu
 
 ---
 
+## Module 12 — Identity: Super-admin hardening (de-hardcode seed creds + remove login demo block)
+
+**Removed all hardcoded super-admin credentials from source and cleaned up stray super admins.** The Identity
+service shipped two hardcoded super admins seeded on startup — a real backdoor sitting in the repo.
+
+### Root cause
+`Softaxis.Identity.Infrastructure/Extensions/InfrastructureExtensions.cs` had two seeders:
+- `SeedAdminAsync` (runs only on an **empty** DB, `if (db.Users.Any()) return;`) created `admin@softaxis.io` /
+  `Admin@123456`, flagged `MakeSuperAdmin()`, alongside the global `Administrator` role.
+- `SeedSuperAdminAsync` (runs **every** startup) created `softaxus@gmail.com` / `superadmin` / `SuperAdmin@2025!`,
+  flagged super-admin. On an existing row it only re-asserted the `IsSuperAdmin` flag (never reset the password).
+
+### Changes (backend — `InfrastructureExtensions.cs`)
+- **`SeedSuperAdminAsync` is now config-driven** — reads `SuperAdmin:Email` / `SuperAdmin:Username` /
+  `SuperAdmin:Password` (env: `SuperAdmin__Email`, `SuperAdmin__Password`, …). **If email or password is unset,
+  it is a complete no-op** — never creates or modifies any user, so an existing super admin is left exactly as-is
+  and is never overwritten on deploy/restart. When the configured user already exists, only the `IsSuperAdmin`
+  flag is ensured; the password is **never** reset. No credentials remain in source.
+- **`SeedAdminAsync` no longer creates the hardcoded `admin@softaxis.io` super admin** — it now only ensures the
+  global `Administrator` role exists (still empty-DB-gated). Signature dropped the unused `IPasswordHasher`.
+- ⚠️ **Fresh-deploy implication:** with no hardcoded fallback, a brand-new empty DB deployed **without**
+  `SuperAdmin__Email` / `SuperAdmin__Password` env vars will have **no super admin login at all** (by design — no
+  backdoor). Set those env vars on the Identity container for any fresh deployment. Existing populated DBs are
+  unaffected (both seeders no-op).
+
+### Production data cleanup (run on the live SQL Server container, not committed)
+- Super-admin password rotated directly in the DB with a BCrypt(workFactor 12) hash (`$2b$`), via
+  `docker exec vrodux-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P … -C -d SoftaxisErpDb`.
+  **Two gotchas:** (1) DML on `[identity].[users]` requires `SET QUOTED_IDENTIFIER ON;` (filtered unique indexes
+  on email/username); (2) the `$` in the bcrypt hash must be shielded from bash (heredoc file or single quotes),
+  or the shell mangles it — verify stored `LEN(PasswordHash)=60` and `LEFT(…,4)='$2b$'`.
+- Deleted the redundant `admin@softaxis.io` super admin:
+  `DELETE FROM [identity].[users] WHERE [IsSuperAdmin]=1 AND LOWER([email]) <> '<kept-email>';` — FKs from
+  `user_roles` / `user_permissions` / `refresh_tokens` are all `ON DELETE CASCADE`, `audit_logs` has no user FK,
+  so the hard delete is self-cleaning. (Also needs `SET QUOTED_IDENTIFIER ON;`.)
+
+### Frontend — login page demo block removed
+`FrontendVite/src/pages/auth/login.tsx` — deleted the "Demo credentials" card (which displayed
+`admin@softaxis.io` / `Admin@123456`) and its `fillDemo()` handler. `setValue` is still used by the remember
+checkbox, so no dead imports.
+
+### Deploy note & build status
+- Backend change → **rebuild the Identity image + restart** (the running container keeps the old hardcoded
+  seeder until then). No migration (behavioral change only).
+- **Identity.Infrastructure:** 0 errors / 0 warnings ✅ · **Identity.API:** 0 errors ✅ · **`vite build`:** ✅
+  (the deployed bundle). Note: `npm run build` (`tsc -b`) surfaces ~9 **pre-existing** strict-mode type errors in
+  unrelated files (POS / purchase / master-data / super-admin / project-management) — not introduced here; the
+  repo's usual `tsc --noEmit` checks the references-root config that emits nothing, which is why they went
+  unnoticed. `vite build` (esbuild, no typecheck) is what produces the deploy artifact and it passes.
+
+---
+
+## Module 13 — Dashboard: replace hardcoded mock charts with real per-tenant data + credential audit
+
+**The main dashboard (`/dashboard`) showed fabricated numbers.** `modules/dashboard/components/dashboard-charts.tsx`
+had **11 hardcoded mock arrays** driving 6 of its 8 chart sections — so every tenant (e.g. "4B Properties")
+saw invented department headcounts, sales pipelines, stock levels, POS hourly sales, purchase trends, and room
+occupancy regardless of whether any records existed. Only **FinanceCharts** and **CrmCharts** were real (wired
+to `useInvoices`/`useExpenses` and `useLeads`/`useDeals`) — which is why the CRM lead count (117) was accurate
+while everything else was dummy. `dashboard-view.tsx` (KPI stat cards + pipeline snapshot) was already real.
+
+### Fix — every chart now derives from live records, with honest empty states
+Deleted all mock arrays (`DEPT_HEADCOUNT`, `WEEKLY_ATT`, `LEAVE_TYPES`, `SALES_PIPELINE`, `TOP_PRODUCTS`,
+`STOCK_BY_CAT`, `INVENTORY_VAL`, `POS_HOURLY`, `PAYMENT_METHODS`, `PURCHASE_MONTHLY`, `TOP_VENDORS`, `ROOM_OCC`,
+`BOOKING_TYPES`). Added `titleCase()` + an `EmptyChart` helper — **when there are no records a chart shows
+"No X yet" instead of fabricated data** (never invented numbers). Each section computes client-side from the
+same list hooks the module pages use:
+- **HrCharts** — `useEmployees` (headcount by department, top 8), `useLeaveRequests` (leave-type donut),
+  `useAttendance` (current-week Mon–Sun present/absent/late, bucketed by `date`). Dropped the fake "target" bar.
+- **SalesCharts** — `useSalesOrders({pageSize:500})`: monthly order value (by `createdAt`, current year) +
+  order-status donut. (Replaced the old "Top Products", which needs order-line items not in the summary DTO.)
+- **InventoryCharts** — `useInventoryProducts({pageSize:1000})`: stock in/low/out per category (via
+  `stockQuantity`/`reorderLevel`/`isLowStock`) + valuation-at-cost donut (`stockQuantity*costPrice`).
+- **PosCharts** — `useTransactions({pageSize:500})`: today's hourly sales (by `completedAt`, excluding
+  voided/refunded) + payment-method split (`primaryPaymentMethod`).
+- **PurchaseCharts** — `usePurchaseOrders({pageSize:500})`: monthly PO count+amount + top-5 vendors by spend.
+- **HospitalityCharts** — `useRooms` (rooms by status) + `useBookings` (bookings by status). Replaced the fake
+  weekly-occupancy / booking-channel mocks.
+- Currency labels switched from hardcoded "PKR" to `useCurrency()` (per Module 6e).
+
+**Caveat (documented, acceptable):** aggregation is client-side over a large single page (`pageSize` 500–1000),
+not a dedicated summary endpoint — a dashboard-overview approximation for very large tenants. Charts still only
+render for modules the tenant has (`hasModuleAccess`); a missing per-module `.view` permission → list query
+403s → the chart falls back to its empty state (honest, not fabricated).
+
+**Latent type fix in the same file:** the finance hooks' `select: toItems(data)` erases to `unknown[]`, so
+rechecking the file surfaced pre-existing `inv`/`ex` `unknown` errors in the untouched FinanceCharts — fixed by
+typing the arrays `as InvoiceDto[] / ExpenseDto[]`. (`dashboard-view.tsx` still has **pre-existing** unrelated
+`tsc` errors — `PayrollSummaryDto`/`InvoiceSummaryDto`/`HrSummaryDto` field drift — not touched here; those KPI
+cards already `?? 0`-fallback at runtime.)
+
+### Credential audit (repo-wide) — clean
+- All service `appsettings.json` JWT secrets are the placeholder `__SET_JWT_SECRET_VIA_ENV_OR_DEV_SETTINGS__`;
+  `ApiKey` empty. `docker-compose.prod.yml` / `.stage.yml` use only `${ENV_VAR}` references. `.env` / `.env.*`
+  gitignored; `.env.example` has only `CHANGE_ME_*` placeholders. Module 12 already removed the hardcoded
+  super-admin/admin seed creds.
+- **One minor item flagged (not changed):** `docker-compose.prod.yml` has
+  `SEQ_FIRSTRUN_ADMINPASSWORD: "${SEQ_ADMIN_PASSWORD:-Vrodux2026!}"` — a hardcoded fallback for the internal Seq
+  log UI (bound to `127.0.0.1` only). Low risk; consider dropping the default so it requires the env var.
+
+### Build Status
+- **`dashboard-charts.tsx` `tsc`:** 0 errors ✅ · **`vite build` (deploy bundle):** ✅ · frontend-only (no backend/API change).
+
+---
+
+## Module 14 — Identity: Two-Factor Authentication (TOTP + backup codes)
+
+**Added TOTP-based 2FA (Google Authenticator / Authy / 1Password / Microsoft Authenticator) as opt-in,
+self-service, per-user.** Any authenticated user can enable it; primarily for the super admin. Not email-OTP —
+chosen for reliability (no email-deliverability dependency), offline, and multi-user by design.
+
+### Login flow — two-phase, stateless challenge
+`LoginCommandHandler`: after the password + email-verified checks, if `user.TwoFactorEnabled` it does **not**
+issue tokens — it returns `AuthTokenDto { MfaRequired = true, MfaToken = <short-lived JWT>, User = null }`.
+`AuthTokenDto.User` is now nullable; two new optional fields `MfaRequired`/`MfaToken`. Step 2 =
+`POST /api/auth/verify-2fa { mfaToken, code }` → `VerifyTwoFactorCommandHandler` validates the token, verifies
+the authenticator code **or** a one-time backup code, then issues the real access/refresh tokens (mirrors the
+login success path: perm keys, refresh token, audit `LOGIN`, `RecordLoginSuccess`). Invalid code →
+`RecordLoginFailure()` (so the existing 5-strike lockout applies to the 2FA step too).
+
+### 🔐 Critical: the MFA token must NOT be usable as an access token
+The step-1 token is signed with the same key/issuer, so it is issued with a **distinct audience**
+(`"vrodux:mfa-pending"`, JwtTokenService). The main JWT bearer auth requires `_settings.Audience`, so it
+**rejects** the MFA token on every `[Authorize]` endpoint — the token can only be spent at `/auth/verify-2fa`.
+`ValidateMfaToken` also requires an `mfa_pending=true` claim. Without the distinct audience this would be a 2FA
+bypass. `JwtSecurityTokenHandler` remaps `sub`→`ClaimTypes.NameIdentifier`, so `ValidateMfaToken` reads both.
+
+### Backend (Identity)
+- `Domain/Entities/User.cs` — `TwoFactorEnabled`, `TwoFactorSecret` (encrypted at rest), `TwoFactorBackupCodes`
+  (newline-joined SHA-256 hashes) + methods `SetTwoFactorSecret` (pending, not enabled), `EnableTwoFactor`,
+  `DisableTwoFactor`, `ConsumeBackupCode`, `BackupCodesRemaining`. `UserConfiguration` maps lengths + default.
+  Migration `AddTwoFactorAuth` (3 additive columns; auto-applies via `MigrateAndSeedAsync`).
+- **`TotpService`** (`Infrastructure/Services`) — self-contained **RFC 6238** (HMAC-SHA1, 6 digits, 30 s, ±1
+  window) + RFC 4648 Base32 + QR via **QRCoder** `PngByteQRCode` → data-URI (no frontend QR lib, no
+  System.Drawing). **Algorithm verified against the RFC 6238 test vectors** (287082 / 081804) before shipping.
+- **`TotpSecretProtector`** — AES-256-GCM; key = `SHA256("vrodux::totp-secret::" + Jwt:Secret)`. Deterministic →
+  ciphertext survives restarts/redeploys with no separate key store. ⚠️ **Rotating `Jwt:Secret` invalidates all
+  stored TOTP secrets** (users must re-enroll) — same blast radius as refresh tokens.
+- CQRS (handlers-in-Application, per Identity's convention): `Auth/Commands/VerifyTwoFactor`,
+  `Users/Commands/{SetupTwoFactor,EnableTwoFactor,DisableTwoFactor}`, `Users/Queries/GetTwoFactorStatus`;
+  DTOs `TwoFactorSetupDto/EnableResultDto/StatusDto`; shared `Common/BackupCodeHasher` (normalize→SHA-256).
+  `IJwtTokenService` gained `GenerateMfaToken`/`ValidateMfaToken`. DI: `ITotpService`, `ITotpSecretProtector`.
+- **`TwoFactorController`** `api/account/2fa` (`[Authorize]`, acts on current user): `GET status`,
+  `POST setup` (→ secret+otpauth+QR), `POST enable {code}` (→ 10 one-time backup codes, shown once),
+  `POST disable {code}` (requires a current authenticator or backup code). `verify-2fa` added to `AuthController`.
+
+### Frontend
+- `lib/identity/types.ts` — `AuthTokenDto.user` nullable + `mfaRequired`/`mfaToken`; TwoFactor DTOs.
+  `lib/identity/auth.api.ts` — `verifyTwoFactor()` + `twoFactorApi` (status/setup/enable/disable via authed `apiClient`).
+  `hooks/identity/use-2fa.ts` — status query + setup/enable/disable mutations.
+- `pages/auth/login.tsx` — when `mfaRequired`, the card swaps to a **code-entry step** (6-digit input +
+  "Back to sign in") → `verifyTwoFactor` → `loginFromApi`. (Uses the same `D` palette.)
+- `modules/settings/security/components/two-factor-card.tsx` — full enroll flow: QR + manual key → confirm code
+  → **backup codes** (copy / download .txt) ; enabled state shows codes-remaining + Disable (code-gated).
+  `pages/settings/security.tsx` + route `/settings/security` (RoleGuard super_admin/tenant_admin/manager) + nav
+  item "Security (2FA)". Also surfaced as a **"Security (2FA)"** button in the super-admin console header.
+
+### Lockout / recovery (break-glass)
+Backup codes cover a lost device. If a user is fully locked out (no device + no codes), a super admin resets via
+SQL: `UPDATE [identity].[users] SET TwoFactorEnabled = 0, TwoFactorSecret = NULL, TwoFactorBackupCodes = NULL
+WHERE email = '…';` (needs `SET QUOTED_IDENTIFIER ON;` — filtered indexes on the users table).
+
+### Build / Verification Status
+- **Identity.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc` + `vite build`:** 0 errors ✅ ·
+  migration `AddTwoFactorAuth` created (auto-applies on startup) · TOTP core unit-verified vs RFC 6238.
+- **Pending (needs republish + restart per the on-prem deploy note):** end-to-end — enable 2FA in Settings →
+  Security, scan into Google Authenticator, confirm; log out; log in → code step → success; backup-code login;
+  disable. Scope note: 2FA is behind the settings RoleGuard (super_admin/tenant_admin/manager), not every user.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

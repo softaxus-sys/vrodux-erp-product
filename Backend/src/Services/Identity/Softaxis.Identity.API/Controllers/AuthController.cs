@@ -10,6 +10,7 @@ using Softaxis.Identity.Application.Auth.Commands.Register;
 using Softaxis.Identity.Application.Auth.Commands.ResetPassword;
 using Softaxis.Identity.Application.Auth.Commands.RevokeToken;
 using Softaxis.Identity.Application.Auth.Commands.VerifyEmail;
+using Softaxis.Identity.Application.Auth.Commands.VerifyTwoFactor;
 using Softaxis.Identity.Application.Auth.Commands.ResendVerification;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
@@ -45,6 +46,17 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
         var command = new LoginCommand(request.Email, request.Password, HttpContext.Connection.RemoteIpAddress?.ToString());
         var result  = await Sender.Send(command, ct);
         return HandleResult(result);
+    }
+
+    /// <summary>Complete a 2FA login: submit the authenticator (or backup) code with the MFA token from /login.</summary>
+    [HttpPost("verify-2fa")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(ApiResponse<AuthTokenDto>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<AuthTokenDto>), 400)]
+    public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorRequest request, CancellationToken ct)
+    {
+        var command = new VerifyTwoFactorCommand(request.MfaToken, request.Code, HttpContext.Connection.RemoteIpAddress?.ToString());
+        return HandleResult(await Sender.Send(command, ct));
     }
 
     /// <summary>Refresh an expired access token using a valid refresh token.</summary>
@@ -163,3 +175,4 @@ public sealed record ResetPasswordRequest(
 
 public sealed record VerifyEmailRequest(string Email, string Token);
 public sealed record ResendVerificationRequest(string Email);
+public sealed record VerifyTwoFactorRequest(string MfaToken, string Code);

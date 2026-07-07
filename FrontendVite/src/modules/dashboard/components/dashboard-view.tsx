@@ -137,17 +137,19 @@ function AttendanceCard({ summary, leaveSummary }: { summary?: AttendanceSummary
 }
 
 function PayrollCard({ summary, currency }: { summary?: PayrollSummaryDto; currency: string }) {
+  const monthLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const rows = [
-    { label: "Net Payroll",   value: formatCurrency(summary?.totalNetPayroll ?? 0, currency),   Icon: Banknote,   color: "text-success" },
-    { label: "Gross Payroll", value: formatCurrency(summary?.totalGrossPayroll ?? 0, currency), Icon: TrendingUp, color: "text-primary" },
-    { label: "Deductions",    value: formatCurrency(summary?.totalDeductions ?? 0, currency),   Icon: FileText,   color: "text-warning" },
-    { label: "YTD Total",     value: formatCurrency(summary?.ytdTotal ?? 0, currency),          Icon: Activity,   color: "text-info" },
+    { label: "Net Payroll (This Month)", value: formatCurrency(summary?.thisMonth?.totalNetSalary ?? 0, currency), Icon: Banknote,   color: "text-success" },
+    { label: "Employees Paid",           value: formatNumber(summary?.thisMonth?.employeeCount ?? 0),               Icon: TrendingUp, color: "text-primary" },
+    { label: "Paid Runs",                value: formatNumber(summary?.allTime?.paid ?? 0),                          Icon: FileText,   color: "text-info" },
+    { label: "Total Runs",               value: formatNumber(summary?.allTime?.total ?? 0),                         Icon: Activity,   color: "text-warning" },
   ];
+  const pending = (summary?.allTime?.draft ?? 0) + (summary?.allTime?.processed ?? 0);
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Payroll — {summary?.currentMonth ?? "Current Period"}</CardTitle>
-        <CardDescription>{summary ? `${summary.paidRuns} paid · ${summary.pendingRuns} pending` : "Loading payroll data…"}</CardDescription>
+        <CardTitle className="text-base">Payroll — {monthLabel}</CardTitle>
+        <CardDescription>{summary ? `${summary.allTime.paid} paid · ${pending} pending` : "Loading payroll data…"}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {rows.map(({ label, value, Icon, color }) => (
@@ -234,13 +236,13 @@ export function DashboardView() {
     }
     if (canFinance) {
       s.push(
-        { id: "revenue", label: "Revenue (Paid)", value: formatCurrency(invoices?.totalPaid ?? 0, currency), sub: `${invoices?.paidCount ?? 0} invoices paid`, icon: DollarSign, accent: "emerald" },
-        { id: "outstanding", label: "Outstanding", value: formatCurrency(invoices?.totalOutstanding ?? 0, currency), sub: `${invoices?.overdueCount ?? 0} overdue`, icon: Receipt, accent: "rose" },
+        { id: "revenue", label: "Revenue (Paid)", value: formatCurrency(invoices?.totalPaid ?? 0, currency), sub: `of ${formatCurrency(invoices?.totalAmount ?? 0, currency)} billed`, icon: DollarSign, accent: "emerald" },
+        { id: "outstanding", label: "Outstanding", value: formatCurrency(invoices?.totalOutstanding ?? 0, currency), sub: `${formatCurrency(invoices?.totalOverdue ?? 0, currency)} overdue`, icon: Receipt, accent: "rose" },
       );
     }
     if (canHr) {
       s.push(
-        { id: "emp", label: "Employees", value: formatNumber(hrSummary?.totalEmployees ?? 0), sub: `${hrSummary?.activeEmployees ?? 0} active`, icon: Briefcase, accent: "sky" },
+        { id: "emp", label: "Employees", value: formatNumber(hrSummary?.total ?? 0), sub: `${hrSummary?.active ?? 0} active`, icon: Briefcase, accent: "sky" },
         { id: "present", label: "Present Today", value: formatNumber(attSummary?.presentToday ?? 0), sub: `${attSummary?.absentToday ?? 0} absent · ${leaveSummary?.pending ?? 0} leave requests`, icon: UserCheck, accent: "emerald" },
       );
     }

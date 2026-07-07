@@ -66,6 +66,13 @@ public sealed class User : AuditableEntity<Guid>
     public string?     EmailVerificationTokenHash   { get; private set; }
     public DateTime?   EmailVerificationTokenExpiry { get; private set; }
 
+    // ── Two-factor authentication (TOTP / authenticator app) ──────────────────
+    public bool        TwoFactorEnabled { get; private set; }
+    /// <summary>Encrypted-at-rest TOTP shared secret. Set while pending setup and while enabled.</summary>
+    public string?     TwoFactorSecret  { get; private set; }
+    /// <summary>Newline-joined SHA-256 hashes of the remaining one-time backup codes.</summary>
+    public string?     TwoFactorBackupCodes { get; private set; }
+
     public string FullName => $"{FirstName} {LastName}".Trim();
 
     // Navigation
@@ -215,6 +222,52 @@ public sealed class User : AuditableEntity<Guid>
         UpdatedAt                    = DateTime.UtcNow;
         return true;
     }
+
+    // ── Two-factor authentication ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Store a freshly generated (already-encrypted) TOTP secret pending the user's confirmation.
+    /// Does NOT enable 2FA — the user must confirm a code first via <see cref="EnableTwoFactor"/>.
+    /// </summary>
+    public void SetTwoFactorSecret(string encryptedSecret)
+    {
+        TwoFactorSecret  = encryptedSecret;
+        TwoFactorEnabled = false;
+        UpdatedAt        = DateTime.UtcNow;
+    }
+
+    /// <summary>Activate 2FA after the user confirms a code. Stores the hashed one-time backup codes.</summary>
+    public void EnableTwoFactor(IEnumerable<string> backupCodeHashes)
+    {
+        if (string.IsNullOrWhiteSpace(TwoFactorSecret)) return;   // no pending secret — no-op
+        TwoFactorEnabled     = true;
+        TwoFactorBackupCodes = string.Join('\n', backupCodeHashes);
+        UpdatedAt            = DateTime.UtcNow;
+    }
+
+    public void DisableTwoFactor()
+    {
+        TwoFactorEnabled     = false;
+        TwoFactorSecret      = null;
+        TwoFactorBackupCodes = null;
+        UpdatedAt            = DateTime.UtcNow;
+    }
+
+    /// <summary>Consume a one-time backup code by its hash. Returns true (and removes it) if present.</summary>
+    public bool ConsumeBackupCode(string codeHash)
+    {
+        if (string.IsNullOrEmpty(TwoFactorBackupCodes)) return false;
+        var codes = TwoFactorBackupCodes.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (!codes.Remove(codeHash)) return false;
+        TwoFactorBackupCodes = codes.Count > 0 ? string.Join('\n', codes) : null;
+        UpdatedAt = DateTime.UtcNow;
+        return true;
+    }
+
+    public int BackupCodesRemaining =>
+        string.IsNullOrEmpty(TwoFactorBackupCodes)
+            ? 0
+            : TwoFactorBackupCodes.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
 
     public bool IsLocked =>
         Status == UserStatus.Locked || (LockedUntil.HasValue && LockedUntil > DateTime.UtcNow);

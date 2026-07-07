@@ -80,5 +80,9 @@ public sealed record AuthTokenDto(
     string   AccessToken,
     string   RefreshToken,
     DateTime AccessTokenExpiry,
-    UserDto  User
+    UserDto? User,
+    // Set when the account has 2FA enabled: no real tokens are issued yet — the client must call
+    // /auth/verify-2fa with MfaToken + the authenticator code to complete login.
+    bool     MfaRequired = false,
+    string?  MfaToken    = null
 );

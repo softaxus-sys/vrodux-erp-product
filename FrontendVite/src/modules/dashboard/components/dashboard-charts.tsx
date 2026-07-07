@@ -14,7 +14,14 @@ import { useAuthStore } from "@/store/auth.store";
 import { useCurrency } from "@/hooks/use-currency";
 import { useLeads, useDeals } from "@/hooks/crm/use-crm";
 import { useInvoices, useExpenses } from "@/hooks/finance/use-finance";
-import { cn, formatCurrency } from "@/lib/utils";
+import type { InvoiceDto, ExpenseDto } from "@/lib/finance/finance.api";
+import { useEmployees, useLeaveRequests, useAttendance } from "@/hooks/hr/use-hr";
+import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
+import { useSalesOrders } from "@/hooks/sales/use-sales-orders";
+import { usePurchaseOrders } from "@/hooks/purchase/use-purchase-orders";
+import { useTransactions } from "@/hooks/pos/use-transactions";
+import { useRooms, useBookings } from "@/hooks/hospitality/use-hospitality";
+import { formatCurrency } from "@/lib/utils";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
 
@@ -39,110 +46,29 @@ const MONTHS_ALL = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 const MONTH_IDX  = new Date().getMonth();
 const MONTHS     = MONTHS_ALL.slice(0, MONTH_IDX + 1);
 
-// ─ HR ─
-const DEPT_HEADCOUNT = [
-  { dept: "Engineering", count: 28, target: 32 },
-  { dept: "Sales",       count: 22, target: 25 },
-  { dept: "Finance",     count: 14, target: 15 },
-  { dept: "HR",          count: 10, target: 12 },
-  { dept: "Operations",  count: 18, target: 20 },
-  { dept: "Support",     count: 16, target: 18 },
-];
-
-const WEEKLY_ATT = [
-  { day: "Mon", present: 92, absent: 6, late: 5  },
-  { day: "Tue", present: 88, absent: 9, late: 7  },
-  { day: "Wed", present: 95, absent: 4, late: 3  },
-  { day: "Thu", present: 91, absent: 7, late: 6  },
-  { day: "Fri", present: 86, absent: 11, late: 8 },
-  { day: "Sat", present: 62, absent: 15, late: 4 },
-];
-
-const LEAVE_TYPES = [
-  { name: "Annual",    value: 45 },
-  { name: "Sick",      value: 28 },
-  { name: "Maternity", value: 12 },
-  { name: "Unpaid",    value: 8  },
-  { name: "Other",     value: 7  },
-];
-
-// ─ Sales ─
-const SALES_PIPELINE = MONTHS.map((m, i) => ({
-  month:     m,
-  leads:     120 + Math.round(Math.sin(i * 0.8 + 0.5) * 30) + i * 4,
-  qualified: 70  + Math.round(Math.sin(i * 0.6 + 0.3) * 20) + i * 3,
-  closed:    35  + Math.round(Math.sin(i * 0.4 + 0.2) * 15) + i * 2,
-}));
-
-const TOP_PRODUCTS = [
-  { name: "Product Alpha",   revenue: 124_000 },
-  { name: "Product Beta",    revenue: 98_000  },
-  { name: "Product Gamma",   revenue: 87_000  },
-  { name: "Product Delta",   revenue: 72_000  },
-  { name: "Product Epsilon", revenue: 61_000  },
-];
-
-// ─ Inventory ─
-const STOCK_BY_CAT = [
-  { category: "Electronics", inStock: 450, lowStock: 23, outOfStock: 5  },
-  { category: "Furniture",   inStock: 180, lowStock: 12, outOfStock: 2  },
-  { category: "Clothing",    inStock: 830, lowStock: 45, outOfStock: 8  },
-  { category: "Food & Bev",  inStock: 620, lowStock: 34, outOfStock: 11 },
-  { category: "Stationery",  inStock: 290, lowStock: 18, outOfStock: 3  },
-];
-
-const INVENTORY_VAL = [
-  { name: "Electronics", value: 4_500_000 },
-  { name: "Furniture",   value: 1_800_000 },
-  { name: "Clothing",    value: 2_300_000 },
-  { name: "Food & Bev",  value: 890_000   },
-  { name: "Other",       value: 650_000   },
-];
-
-// ─ POS ─
-const POS_HOURLY = [
-  { hour: "08:00", sales: 3_200,  txn: 12 },
-  { hour: "09:00", sales: 5_800,  txn: 21 },
-  { hour: "10:00", sales: 7_400,  txn: 28 },
-  { hour: "11:00", sales: 9_100,  txn: 34 },
-  { hour: "12:00", sales: 12_300, txn: 46 },
-  { hour: "13:00", sales: 11_200, txn: 42 },
-  { hour: "14:00", sales: 8_600,  txn: 33 },
-  { hour: "15:00", sales: 7_800,  txn: 30 },
-  { hour: "16:00", sales: 9_400,  txn: 36 },
-  { hour: "17:00", sales: 10_500, txn: 40 },
-  { hour: "18:00", sales: 8_200,  txn: 31 },
-  { hour: "19:00", sales: 5_600,  txn: 21 },
-];
-
-const PAYMENT_METHODS = [
-  { name: "Card",       value: 42 },
-  { name: "Cash",       value: 35 },
-  { name: "Mobile Pay", value: 18 },
-  { name: "Credit",     value: 5  },
-];
-
-// ─ Purchase ─
-const PURCHASE_MONTHLY = MONTHS.map((m, i) => ({
-  month: m,
-  orders:  22 + Math.round(Math.sin(i * 0.6) * 6) + i,
-  amount:  450_000 + Math.round(Math.cos(i * 0.4) * 80_000) + i * 10_000,
-}));
-
-const TOP_VENDORS = [
-  { vendor: "Alpha Supplies",  amount: 850_000 },
-  { vendor: "Beta Corp",       amount: 620_000 },
-  { vendor: "Gamma Trading",   amount: 480_000 },
-  { vendor: "Delta Imports",   amount: 320_000 },
-  { vendor: "Epsilon Ltd",     amount: 210_000 },
-];
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function fmt(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000)     return `${(n / 1_000).toFixed(0)}K`;
   return n.toString();
+}
+
+/** "checked_in" / "half-day" → "Checked In" / "Half Day" */
+function titleCase(s: string) {
+  return (s || "").replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+}
+
+/** Empty-state placeholder so charts show "no records" instead of fabricated data. */
+function EmptyChart({ label, height = 180 }: { label: string; height?: number }) {
+  return (
+    <div
+      style={{ height }}
+      className="flex items-center justify-center text-center text-xs text-muted-foreground"
+    >
+      {label}
+    </div>
+  );
 }
 
 // ── Custom Tooltip ─────────────────────────────────────────────────────────────
@@ -235,8 +161,8 @@ function ChartSection({ children, delay = 0 }: { children: React.ReactNode; dela
 
 function FinanceCharts() {
   const currency = useCurrency();
-  const { data: invoices = [] } = useInvoices();
-  const { data: expenses = [] } = useExpenses();
+  const invoices = (useInvoices().data ?? []) as InvoiceDto[];
+  const expenses = (useExpenses().data ?? []) as ExpenseDto[];
 
   // ── Real monthly revenue (billed) vs expenses (this year, up to current month) ──
   const financeMonthly = React.useMemo(() => {
@@ -390,34 +316,90 @@ function FinanceCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function HrCharts() {
+  const { data: employees = [] } = useEmployees();
+  const { data: leaves = [] }    = useLeaveRequests();
+  const { data: attendance = [] } = useAttendance();
+
+  // Real headcount grouped by department (top 8)
+  const deptHeadcount = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of employees) {
+      const key = e.department?.trim() || "Unassigned";
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()]
+      .map(([dept, count]) => ({ dept, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+  }, [employees]);
+
+  // Real leave-type distribution
+  const leaveTypes = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const l of leaves) {
+      const key = titleCase(l.leaveType || "other");
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [leaves]);
+
+  // Real attendance for the current week (Mon–Sun)
+  const weeklyAtt = React.useMemo(() => {
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return { day, key: d.toISOString().slice(0, 10), present: 0, absent: 0, late: 0 };
+    });
+    const byKey = new Map(days.map((d) => [d.key, d]));
+    for (const a of attendance) {
+      const bucket = byKey.get((a.date ?? "").slice(0, 10));
+      if (!bucket) continue;
+      if (a.status === "late") bucket.late += 1;
+      else if (a.status === "absent") bucket.absent += 1;
+      else if (a.status === "present" || a.status === "remote" || a.status === "half_day") bucket.present += 1;
+    }
+    return days.map((d) => ({ day: d.day, present: d.present, absent: d.absent, late: d.late }));
+  }, [attendance]);
+
+  const leaveColors = [P.teal, P.amber, P.pink, P.orange, P.violet, P.blue, P.green];
+  const hasDept   = deptHeadcount.length > 0;
+  const hasLeaves = leaveTypes.length > 0;
+  const hasAtt    = weeklyAtt.some((d) => d.present + d.absent + d.late > 0);
+
   return (
     <ChartSection delay={0.1}>
       <SectionHeader
         icon={Users}
         title="HR Overview"
         color={P.teal}
-        description="Workforce, attendance & leave distribution"
+        description={`${employees.length} employees · ${leaves.length} leave requests`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
-        {/* Department headcount — grouped bar */}
+        {/* Department headcount — bar */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Department Headcount</CardTitle>
-            <CardDescription className="text-xs">Actual vs target headcount</CardDescription>
+            <CardDescription className="text-xs">Employees per department</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={DEPT_HEADCOUNT} layout="vertical" margin={{ top: 4, right: 8, left: 60, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis dataKey="dept" type="category" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={58} />
-                <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="count"  name="Current" fill={P.teal}  radius={[0, 4, 4, 0]} barSize={10} />
-                <Bar dataKey="target" name="Target"  fill={P.teal} fillOpacity={0.25} radius={[0, 4, 4, 0]} barSize={10} />
-              </BarChart>
-            </ResponsiveContainer>
+            {hasDept ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={deptHeadcount} layout="vertical" margin={{ top: 4, right: 8, left: 60, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="dept" type="category" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={58} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Employees" fill={P.teal} radius={[0, 4, 4, 0]} barSize={12} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart label="No employees yet." height={220} />
+            )}
           </CardContent>
         </Card>
 
@@ -425,29 +407,35 @@ function HrCharts() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Leave Types</CardTitle>
-            <CardDescription className="text-xs">Active leave distribution</CardDescription>
+            <CardDescription className="text-xs">Requests by leave type</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie
-                    data={LEAVE_TYPES}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                    startAngle={90} endAngle={-270}
-                  >
-                    {LEAVE_TYPES.map((_, i) => (
-                      <Cell key={i} fill={[P.teal, P.amber, P.pink, P.orange, P.violet][i % 5]} stroke="transparent" />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <DonutLegend data={LEAVE_TYPES} colors={[P.teal, P.amber, P.pink, P.orange, P.violet]} />
+            {hasLeaves ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={leaveTypes}
+                        cx="50%" cy="50%"
+                        innerRadius={42} outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {leaveTypes.map((_, i) => (
+                          <Cell key={i} fill={leaveColors[i % leaveColors.length]} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend data={leaveTypes} colors={leaveColors} total={leaveTypes.reduce((s, d) => s + d.value, 0)} />
+              </>
+            ) : (
+              <EmptyChart label="No leave requests yet." />
+            )}
           </CardContent>
         </Card>
 
@@ -460,18 +448,22 @@ function HrCharts() {
           <CardDescription className="text-xs">Present / Absent / Late breakdown this week</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={WEEKLY_ATT} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
-              <Tooltip content={<ChartTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="present" name="Present" stackId="a" fill={P.green}  radius={[0, 0, 0, 0]} />
-              <Bar dataKey="absent"  name="Absent"  stackId="a" fill={P.red}    radius={[0, 0, 0, 0]} />
-              <Bar dataKey="late"    name="Late"    stackId="a" fill={P.amber}  radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {hasAtt ? (
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={weeklyAtt} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
+                <Tooltip content={<ChartTooltip />} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="present" name="Present" stackId="a" fill={P.green}  radius={[0, 0, 0, 0]} />
+                <Bar dataKey="absent"  name="Absent"  stackId="a" fill={P.red}    radius={[0, 0, 0, 0]} />
+                <Bar dataKey="late"    name="Late"    stackId="a" fill={P.amber}  radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart label="No attendance recorded this week." height={150} />
+          )}
         </CardContent>
       </Card>
     </ChartSection>
@@ -483,82 +475,109 @@ function HrCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SalesCharts() {
+  const currency = useCurrency();
+  const { data } = useSalesOrders({ pageSize: 500 });
+  const orders = data?.items ?? [];
+
+  // Real monthly order value (this calendar year, up to current month)
+  const monthly = React.useMemo(() => {
+    const year = new Date().getFullYear();
+    const b = MONTHS.map((m) => ({ month: m, value: 0, orders: 0 }));
+    for (const o of orders) {
+      const d = o.createdAt ? new Date(o.createdAt) : null;
+      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() > MONTH_IDX) continue;
+      b[d.getMonth()].value += o.total ?? 0;
+      b[d.getMonth()].orders += 1;
+    }
+    return b;
+  }, [orders]);
+
+  // Real order-status distribution
+  const statusDist = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of orders) {
+      const key = titleCase(o.status || "unknown");
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [orders]);
+
+  const totalValue = monthly.reduce((s, d) => s + d.value, 0);
+  const statusColors = [P.violet, P.blue, P.teal, P.green, P.amber, P.red, P.pink];
+  const hasOrders = orders.length > 0;
+
   return (
     <ChartSection delay={0.15}>
       <SectionHeader
         icon={ShoppingCart}
         title="Sales Overview"
         color={P.violet}
-        description="Pipeline, top products & monthly trends"
+        description={`${orders.length} orders · ${fmt(totalValue)} this year`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
-        {/* Sales pipeline — area */}
+        {/* Monthly sales — area */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Sales Pipeline</CardTitle>
-            <CardDescription className="text-xs">Leads → Qualified → Closed</CardDescription>
+            <CardTitle className="text-sm font-semibold">Monthly Sales</CardTitle>
+            <CardDescription className="text-xs">Order value by month · {currency}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={SALES_PIPELINE} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gradLeads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={P.violet} stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={P.violet} stopOpacity={0}   />
-                  </linearGradient>
-                  <linearGradient id="gradQual" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={P.blue}   stopOpacity={0.2} />
-                    <stop offset="95%" stopColor={P.blue}   stopOpacity={0}   />
-                  </linearGradient>
-                  <linearGradient id="gradClosed" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={P.green}  stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={P.green}  stopOpacity={0}    />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="leads"     name="Leads"     stroke={P.violet} fill="url(#gradLeads)"  strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                <Area type="monotone" dataKey="qualified" name="Qualified" stroke={P.blue}   fill="url(#gradQual)"   strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                <Area type="monotone" dataKey="closed"    name="Closed"   stroke={P.green}  fill="url(#gradClosed)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hasOrders ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradSalesVal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={P.violet} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={P.violet} stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
+                  <Tooltip content={<ChartTooltip currency />} />
+                  <Area type="monotone" dataKey="value" name="Order Value" stroke={P.violet} fill="url(#gradSalesVal)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart label="No sales orders yet." height={220} />
+            )}
           </CardContent>
         </Card>
 
-        {/* Top products — horizontal bar */}
+        {/* Order status — donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Top Products</CardTitle>
-            <CardDescription className="text-xs">By revenue (PKR)</CardDescription>
+            <CardTitle className="text-sm font-semibold">Order Status</CardTitle>
+            <CardDescription className="text-xs">Orders by current status</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 mt-1">
-              {TOP_PRODUCTS.map((p, i) => {
-                const max = TOP_PRODUCTS[0].revenue;
-                const pct = Math.round((p.revenue / max) * 100);
-                return (
-                  <div key={p.name}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground truncate max-w-[120px]">{p.name}</span>
-                      <span className="font-semibold">{fmt(p.revenue)}</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.1, ease: "easeOut" }}
-                        className="h-full rounded-full"
-                        style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {hasOrders ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={statusDist}
+                        cx="50%" cy="50%"
+                        innerRadius={42} outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {statusDist.map((_, i) => (
+                          <Cell key={i} fill={statusColors[i % statusColors.length]} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend data={statusDist} colors={statusColors} total={statusDist.reduce((s, d) => s + d.value, 0)} />
+              </>
+            ) : (
+              <EmptyChart label="No sales orders yet." />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -699,13 +718,54 @@ function CrmCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function InventoryCharts() {
+  const currency = useCurrency();
+  const { data } = useInventoryProducts({ pageSize: 1000 });
+  const products = data?.items ?? [];
+
+  // Real stock-level classification grouped by category (top 6)
+  const stockByCat = React.useMemo(() => {
+    const map = new Map<string, { category: string; inStock: number; lowStock: number; outOfStock: number }>();
+    for (const p of products) {
+      const key = p.categoryName?.trim() || "Uncategorised";
+      const row = map.get(key) ?? { category: key, inStock: 0, lowStock: 0, outOfStock: 0 };
+      if ((p.stockQuantity ?? 0) <= 0) row.outOfStock += 1;
+      else if (p.isLowStock || (p.reorderLevel > 0 && p.stockQuantity <= p.reorderLevel)) row.lowStock += 1;
+      else row.inStock += 1;
+      map.set(key, row);
+    }
+    return [...map.values()]
+      .sort((a, b) => (b.inStock + b.lowStock + b.outOfStock) - (a.inStock + a.lowStock + a.outOfStock))
+      .slice(0, 6);
+  }, [products]);
+
+  // Real inventory valuation at cost, grouped by category (top 5 + Other)
+  const valuation = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const p of products) {
+      const key = p.categoryName?.trim() || "Uncategorised";
+      map.set(key, (map.get(key) ?? 0) + (p.stockQuantity ?? 0) * (p.costPrice ?? 0));
+    }
+    const sorted = [...map.entries()]
+      .map(([name, value]) => ({ name, value }))
+      .filter((x) => x.value > 0)
+      .sort((a, b) => b.value - a.value);
+    if (sorted.length <= 5) return sorted;
+    const top = sorted.slice(0, 4);
+    const other = sorted.slice(4).reduce((s, d) => s + d.value, 0);
+    return [...top, { name: "Other", value: other }];
+  }, [products]);
+
+  const valColors = [P.orange, P.blue, P.teal, P.green, P.violet];
+  const hasStock = stockByCat.length > 0;
+  const hasVal   = valuation.length > 0;
+
   return (
     <ChartSection delay={0.25}>
       <SectionHeader
         icon={Package}
         title="Inventory Overview"
         color={P.orange}
-        description="Stock levels, valuation & alerts"
+        description={`${products.length} products tracked`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -716,18 +776,22 @@ function InventoryCharts() {
             <CardDescription className="text-xs">In stock · Low stock · Out of stock</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={STOCK_BY_CAT} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
-                <XAxis dataKey="category" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={32} />
-                <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="inStock"    name="In Stock"     fill={P.green}  radius={[4, 4, 0, 0]} />
-                <Bar dataKey="lowStock"   name="Low Stock"    fill={P.amber}  radius={[4, 4, 0, 0]} />
-                <Bar dataKey="outOfStock" name="Out of Stock" fill={P.red}    radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {hasStock ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={stockByCat} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                  <XAxis dataKey="category" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={32} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="inStock"    name="In Stock"     fill={P.green}  radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="lowStock"   name="Low Stock"    fill={P.amber}  radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="outOfStock" name="Out of Stock" fill={P.red}    radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart label="No products yet." height={220} />
+            )}
           </CardContent>
         </Card>
 
@@ -735,33 +799,39 @@ function InventoryCharts() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Inventory Valuation</CardTitle>
-            <CardDescription className="text-xs">By category (PKR)</CardDescription>
+            <CardDescription className="text-xs">At cost · by category · {currency}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie
-                    data={INVENTORY_VAL}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                    startAngle={90} endAngle={-270}
-                  >
-                    {INVENTORY_VAL.map((_, i) => (
-                      <Cell key={i} fill={[P.orange, P.blue, P.teal, P.green, P.violet][i % 5]} stroke="transparent" />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip currency />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <DonutLegend
-              data={INVENTORY_VAL.map(d => ({ name: d.name, value: d.value }))}
-              colors={[P.orange, P.blue, P.teal, P.green, P.violet]}
-              total={INVENTORY_VAL.reduce((s, d) => s + d.value, 0)}
-            />
+            {hasVal ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={valuation}
+                        cx="50%" cy="50%"
+                        innerRadius={42} outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {valuation.map((_, i) => (
+                          <Cell key={i} fill={valColors[i % valColors.length]} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip currency />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend
+                  data={valuation}
+                  colors={valColors}
+                  total={valuation.reduce((s, d) => s + d.value, 0)}
+                />
+              </>
+            ) : (
+              <EmptyChart label="No stock valuation yet." />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -775,8 +845,50 @@ function InventoryCharts() {
 
 function PosCharts() {
   const currency = useCurrency();
-  const totalSales = POS_HOURLY.reduce((s, d) => s + d.sales, 0);
-  const totalTxn   = POS_HOURLY.reduce((s, d) => s + d.txn, 0);
+  const { data } = useTransactions({ pageSize: 500 });
+  const txns = data?.items ?? [];
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Today's completed sales (exclude voided/refunded)
+  const todays = React.useMemo(
+    () => txns.filter((t) =>
+      (t.completedAt ?? "").slice(0, 10) === today &&
+      t.status !== "voided" && t.status !== "refunded"),
+    [txns, today],
+  );
+
+  // Real hourly sales for today
+  const hourly = React.useMemo(() => {
+    const map = new Map<number, { sales: number; txn: number }>();
+    for (const t of todays) {
+      const d = new Date(t.completedAt);
+      if (isNaN(d.getTime())) continue;
+      const h = d.getHours();
+      const row = map.get(h) ?? { sales: 0, txn: 0 };
+      row.sales += t.totalAmount ?? 0;
+      row.txn += 1;
+      map.set(h, row);
+    }
+    return [...map.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([h, v]) => ({ hour: `${String(h).padStart(2, "0")}:00`, ...v }));
+  }, [todays]);
+
+  // Real payment-method split (all transactions)
+  const methods = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const t of txns) {
+      const key = titleCase(t.primaryPaymentMethod || "Other");
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [txns]);
+
+  const totalSales = todays.reduce((s, t) => s + (t.totalAmount ?? 0), 0);
+  const methodColors = [P.sky, P.green, P.violet, P.amber, P.pink, P.teal];
+  const hasHourly = hourly.length > 0;
+  const hasMethods = methods.length > 0;
 
   return (
     <ChartSection delay={0.3}>
@@ -784,7 +896,7 @@ function PosCharts() {
         icon={CreditCard}
         title="POS Overview"
         color={P.sky}
-        description={`Today · ${totalTxn} transactions · ${formatCurrency(totalSales, currency)} sales`}
+        description={`Today · ${todays.length} transactions · ${formatCurrency(totalSales, currency)} sales`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -792,24 +904,28 @@ function PosCharts() {
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Hourly Sales (Today)</CardTitle>
-            <CardDescription className="text-xs">Sales amount by hour</CardDescription>
+            <CardDescription className="text-xs">Sales amount by hour · {currency}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={POS_HOURLY} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={P.sky} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={P.sky} stopOpacity={0}   />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                <XAxis dataKey="hour" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={38} />
-                <Tooltip content={<ChartTooltip currency />} />
-                <Area type="monotone" dataKey="sales" name="Sales" stroke={P.sky} fill="url(#gradPos)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hasHourly ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={hourly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradPos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={P.sky} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={P.sky} stopOpacity={0}   />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                  <XAxis dataKey="hour" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={38} />
+                  <Tooltip content={<ChartTooltip currency />} />
+                  <Area type="monotone" dataKey="sales" name="Sales" stroke={P.sky} fill="url(#gradPos)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart label="No sales recorded today." height={220} />
+            )}
           </CardContent>
         </Card>
 
@@ -820,26 +936,32 @@ function PosCharts() {
             <CardDescription className="text-xs">Transaction split by method</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie
-                    data={PAYMENT_METHODS}
-                    cx="50%" cy="50%"
-                    innerRadius={42} outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                    startAngle={90} endAngle={-270}
-                  >
-                    {PAYMENT_METHODS.map((_, i) => (
-                      <Cell key={i} fill={[P.sky, P.green, P.violet, P.amber][i % 4]} stroke="transparent" />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <DonutLegend data={PAYMENT_METHODS} colors={[P.sky, P.green, P.violet, P.amber]} />
+            {hasMethods ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie
+                        data={methods}
+                        cx="50%" cy="50%"
+                        innerRadius={42} outerRadius={65}
+                        paddingAngle={3}
+                        dataKey="value"
+                        startAngle={90} endAngle={-270}
+                      >
+                        {methods.map((_, i) => (
+                          <Cell key={i} fill={methodColors[i % methodColors.length]} stroke="transparent" />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend data={methods} colors={methodColors} total={methods.reduce((s, d) => s + d.value, 0)} />
+              </>
+            ) : (
+              <EmptyChart label="No transactions yet." />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -852,13 +974,47 @@ function PosCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PurchaseCharts() {
+  const currency = useCurrency();
+  const { data } = usePurchaseOrders({ pageSize: 500 });
+  const orders = data?.items ?? [];
+
+  // Real monthly PO count + amount (this calendar year, up to current month)
+  const monthly = React.useMemo(() => {
+    const year = new Date().getFullYear();
+    const b = MONTHS.map((m) => ({ month: m, orders: 0, amount: 0 }));
+    for (const o of orders) {
+      const d = o.createdAt ? new Date(o.createdAt) : null;
+      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() > MONTH_IDX) continue;
+      b[d.getMonth()].orders += 1;
+      b[d.getMonth()].amount += o.total ?? 0;
+    }
+    return b;
+  }, [orders]);
+
+  // Real top vendors by spend (top 5)
+  const topVendors = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const o of orders) {
+      const key = o.vendorName?.trim() || "Unknown";
+      map.set(key, (map.get(key) ?? 0) + (o.total ?? 0));
+    }
+    return [...map.entries()]
+      .map(([vendor, amount]) => ({ vendor, amount }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+  }, [orders]);
+
+  const hasOrders  = orders.length > 0;
+  const hasVendors = topVendors.length > 0 && topVendors[0].amount > 0;
+  const vendorColors = [P.lime, P.green, P.teal, P.blue, P.violet];
+
   return (
     <ChartSection delay={0.35}>
       <SectionHeader
         icon={Truck}
         title="Purchase Overview"
         color={P.lime}
-        description="Vendor spend & purchase order trends"
+        description={`${orders.length} purchase orders`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -866,21 +1022,25 @@ function PurchaseCharts() {
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Monthly Purchase Orders</CardTitle>
-            <CardDescription className="text-xs">Order count & total amount trend</CardDescription>
+            <CardDescription className="text-xs">Order count & total amount · {currency}</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={PURCHASE_MONTHLY} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis yAxisId="left"  tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip content={<ChartTooltip currency />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar yAxisId="left"  dataKey="amount" name="Amount (PKR)" fill={P.lime}   fillOpacity={0.85} radius={[4, 4, 0, 0]} />
-                <Bar yAxisId="right" dataKey="orders" name="Orders"       fill={P.violet} fillOpacity={0.7}  radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {hasOrders ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={monthly} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left"  tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
+                  <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip content={<ChartTooltip currency />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar yAxisId="left"  dataKey="amount" name={`Amount (${currency})`} fill={P.lime}   fillOpacity={0.85} radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="orders" name="Orders"                 fill={P.violet} fillOpacity={0.7}  radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart label="No purchase orders yet." height={220} />
+            )}
           </CardContent>
         </Card>
 
@@ -888,32 +1048,36 @@ function PurchaseCharts() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Top Vendors</CardTitle>
-            <CardDescription className="text-xs">By purchase amount (PKR)</CardDescription>
+            <CardDescription className="text-xs">By purchase amount · {currency}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 mt-1">
-              {TOP_VENDORS.map((v, i) => {
-                const max = TOP_VENDORS[0].amount;
-                const pct = Math.round((v.amount / max) * 100);
-                return (
-                  <div key={v.vendor}>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground truncate max-w-[120px]">{v.vendor}</span>
-                      <span className="font-semibold">{fmt(v.amount)}</span>
+            {hasVendors ? (
+              <div className="space-y-3 mt-1">
+                {topVendors.map((v, i) => {
+                  const max = topVendors[0].amount || 1;
+                  const pct = Math.round((v.amount / max) * 100);
+                  return (
+                    <div key={v.vendor}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground truncate max-w-[120px]">{v.vendor}</span>
+                        <span className="font-semibold">{fmt(v.amount)}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, delay: i * 0.1, ease: "easeOut" }}
+                          className="h-full rounded-full"
+                          style={{ background: vendorColors[i % vendorColors.length] }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${pct}%` }}
-                        transition={{ duration: 0.8, delay: i * 0.1, ease: "easeOut" }}
-                        className="h-full rounded-full"
-                        style={{ background: [P.lime, P.green, P.teal, P.blue, P.violet][i % 5] }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyChart label="No vendor spend yet." />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -925,69 +1089,82 @@ function PurchaseCharts() {
 // INDUSTRY CHARTS (Hospitality / Real-Estate / Construction)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ROOM_OCC = [
-  { day: "Mon", occupied: 78, available: 22 },
-  { day: "Tue", occupied: 82, available: 18 },
-  { day: "Wed", occupied: 91, available: 9  },
-  { day: "Thu", occupied: 87, available: 13 },
-  { day: "Fri", occupied: 96, available: 4  },
-  { day: "Sat", occupied: 99, available: 1  },
-  { day: "Sun", occupied: 94, available: 6  },
-];
-
-const BOOKING_TYPES = [
-  { name: "Direct",   value: 40 },
-  { name: "Online",   value: 35 },
-  { name: "Agency",   value: 15 },
-  { name: "Walk-in",  value: 10 },
-];
-
 function HospitalityCharts() {
+  const { data: rooms = [] }    = useRooms();
+  const { data: bookings = [] } = useBookings();
+
+  // Real room-status distribution
+  const roomStatus = React.useMemo(() => {
+    const order = ["available", "occupied", "reserved", "cleaning", "maintenance"];
+    const map = new Map<string, number>();
+    for (const r of rooms) map.set(r.status, (map.get(r.status) ?? 0) + 1);
+    return order.filter((s) => map.has(s)).map((s) => ({ status: titleCase(s), count: map.get(s)! }));
+  }, [rooms]);
+
+  // Real booking-status distribution
+  const bookingStatus = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const b of bookings) map.set(b.status, (map.get(b.status) ?? 0) + 1);
+    return [...map.entries()].map(([k, value]) => ({ name: titleCase(k), value })).sort((a, b) => b.value - a.value);
+  }, [bookings]);
+
+  const bookingColors = [P.teal, P.sky, P.violet, P.amber, P.red];
+  const hasRooms    = roomStatus.length > 0;
+  const hasBookings = bookingStatus.length > 0;
+
   return (
     <ChartSection delay={0.4}>
       <SectionHeader
         icon={Building2}
         title="Hospitality Overview"
         color={P.teal}
-        description="Room occupancy & booking channels"
+        description={`${rooms.length} rooms · ${bookings.length} bookings`}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Room Occupancy (This Week)</CardTitle>
-            <CardDescription className="text-xs">Occupied vs available rooms</CardDescription>
+            <CardTitle className="text-sm font-semibold">Rooms by Status</CardTitle>
+            <CardDescription className="text-xs">Current room availability</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={ROOM_OCC} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip content={<ChartTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="occupied"  name="Occupied"  fill={P.teal}  radius={[0, 0, 0, 0]} stackId="a" />
-                <Bar dataKey="available" name="Available" fill={P.teal} fillOpacity={0.2} radius={[4, 4, 0, 0]} stackId="a" />
-              </BarChart>
-            </ResponsiveContainer>
+            {hasRooms ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={roomStatus} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} vertical={false} />
+                  <XAxis dataKey="status" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Rooms" fill={P.teal} radius={[4, 4, 0, 0]} barSize={28} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyChart label="No rooms yet." height={220} />
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Booking Channels</CardTitle>
-            <CardDescription className="text-xs">Reservation source split</CardDescription>
+            <CardTitle className="text-sm font-semibold">Bookings by Status</CardTitle>
+            <CardDescription className="text-xs">Reservation status split</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-center">
-              <ResponsiveContainer width="100%" height={140}>
-                <PieChart>
-                  <Pie data={BOOKING_TYPES} cx="50%" cy="50%" innerRadius={42} outerRadius={65} paddingAngle={3} dataKey="value" startAngle={90} endAngle={-270}>
-                    {BOOKING_TYPES.map((_, i) => <Cell key={i} fill={[P.teal, P.sky, P.violet, P.amber][i]} stroke="transparent" />)}
-                  </Pie>
-                  <Tooltip content={<ChartTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <DonutLegend data={BOOKING_TYPES} colors={[P.teal, P.sky, P.violet, P.amber]} />
+            {hasBookings ? (
+              <>
+                <div className="flex justify-center">
+                  <ResponsiveContainer width="100%" height={140}>
+                    <PieChart>
+                      <Pie data={bookingStatus} cx="50%" cy="50%" innerRadius={42} outerRadius={65} paddingAngle={3} dataKey="value" startAngle={90} endAngle={-270}>
+                        {bookingStatus.map((_, i) => <Cell key={i} fill={bookingColors[i % bookingColors.length]} stroke="transparent" />)}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <DonutLegend data={bookingStatus} colors={bookingColors} total={bookingStatus.reduce((s, d) => s + d.value, 0)} />
+              </>
+            ) : (
+              <EmptyChart label="No bookings yet." />
+            )}
           </CardContent>
         </Card>
       </div>

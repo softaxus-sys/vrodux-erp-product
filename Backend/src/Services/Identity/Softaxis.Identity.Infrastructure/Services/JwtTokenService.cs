@@ -90,4 +90,62 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
 
     public string HashToken(string rawToken) =>
         Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(rawToken)));
+
+    // ── Two-factor (MFA) pending token ─────────────────────────────────────────
+
+    // Distinct audience so the main JWT bearer auth (which requires _settings.Audience) REJECTS this
+    // token — it can only be used against /auth/verify-2fa, never as an access token. This is what
+    // prevents the post-password / pre-2FA token from bypassing 2FA on [Authorize] endpoints.
+    private const string MfaAudience = "vrodux:mfa-pending";
+
+    public string GenerateMfaToken(Guid userId)
+    {
+        var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer:             _settings.Issuer,
+            audience:           MfaAudience,
+            claims: new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()),
+                new Claim("mfa_pending", "true"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            },
+            expires:            DateTime.UtcNow.AddMinutes(5),
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public Guid? ValidateMfaToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var principal = handler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuer           = true,
+                ValidIssuer              = _settings.Issuer,
+                ValidateAudience         = true,
+                ValidAudience            = MfaAudience,
+                ValidateLifetime         = true,
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret)),
+                ClockSkew                = TimeSpan.FromSeconds(30),
+            }, out _);
+
+            if (principal.FindFirst("mfa_pending")?.Value != "true") return null;
+
+            // JwtSecurityTokenHandler remaps "sub" → ClaimTypes.NameIdentifier by default.
+            var sub = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                      ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(sub, out var id) ? id : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }

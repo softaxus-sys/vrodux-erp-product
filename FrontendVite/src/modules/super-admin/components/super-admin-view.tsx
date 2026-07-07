@@ -256,6 +256,10 @@ export function SuperAdminView() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/settings/security")}>
+              <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
+              Security (2FA)
+            </Button>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
               Refresh

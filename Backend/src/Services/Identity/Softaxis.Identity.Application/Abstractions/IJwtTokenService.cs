@@ -10,4 +10,14 @@ public interface IJwtTokenService
     string HashToken(string rawToken);
     DateTime AccessTokenExpiry { get; }
     DateTime RefreshTokenExpiry { get; }
+
+    /// <summary>
+    /// Short-lived (5 min) signed token issued after a correct password when the account has 2FA
+    /// enabled. It only authorizes a follow-up call to verify the authenticator code — it grants no
+    /// access on its own.
+    /// </summary>
+    string GenerateMfaToken(Guid userId);
+
+    /// <summary>Validate an MFA-pending token; returns the user id if valid + unexpired, else null.</summary>
+    Guid? ValidateMfaToken(string token);
 }

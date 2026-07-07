@@ -41,6 +41,11 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.TenantId).IsRequired(false);
         builder.Property(u => u.IsSuperAdmin).HasDefaultValue(false);
 
+        // Two-factor authentication (TOTP). Secret is stored encrypted at rest.
+        builder.Property(u => u.TwoFactorEnabled).HasDefaultValue(false);
+        builder.Property(u => u.TwoFactorSecret).HasMaxLength(400);
+        builder.Property(u => u.TwoFactorBackupCodes).HasMaxLength(2000);
+
         // Optional FK to tenant — super-admin users have TenantId = null
         builder.HasOne<Tenant>()
                .WithMany()

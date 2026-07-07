@@ -42,6 +42,15 @@ public sealed class LoginCommandHandler(
             return Fail(user.Id, cmd, false,
                 "Please verify your email address before logging in. Check your inbox for the verification link.");
 
+        // Two-factor enabled → password is correct but we do NOT issue tokens yet. Return a short-lived
+        // MFA challenge; the client completes login via /auth/verify-2fa with the authenticator code.
+        if (user.TwoFactorEnabled)
+        {
+            var mfaToken = jwtService.GenerateMfaToken(user.Id);
+            return Result.Success(new AuthTokenDto(string.Empty, string.Empty, DateTime.UtcNow, null,
+                MfaRequired: true, MfaToken: mfaToken));
+        }
+
         // Successful login
         user.RecordLoginSuccess();
 

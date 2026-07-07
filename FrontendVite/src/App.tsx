@@ -111,6 +111,7 @@ const HousekeepingPage     = React.lazy(() => import("@/pages/hospitality/housek
 const GeneralSettingsPage  = React.lazy(() => import("@/pages/settings/general"));
 const CurrencySettingsPage = React.lazy(() => import("@/pages/settings/currency"));
 const UsersPage            = React.lazy(() => import("@/pages/settings/users"));
+const SecurityPage         = React.lazy(() => import("@/pages/settings/security"));
 const RolesPage            = React.lazy(() => import("@/pages/settings/roles"));
 const BranchesPage         = React.lazy(() => import("@/pages/settings/branches"));
 const IntegrationsPage     = React.lazy(() => import("@/pages/settings/integrations"));
@@ -402,6 +403,7 @@ export function App() {
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
             <Route path="/settings/vouchers"              element={<VouchersPage />} />
             <Route path="/settings/users"                 element={<UsersPage />} />
+            <Route path="/settings/security"              element={<SecurityPage />} />
             <Route path="/settings/roles"                 element={<RolesPage />} />
             <Route path="/settings/branches"              element={<BranchesPage />} />
             <Route path="/settings/integrations"          element={<IntegrationsPage />} />

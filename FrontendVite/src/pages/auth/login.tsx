@@ -203,16 +203,21 @@ export default function LoginPage() {
     defaultValues: { email: "", password: "", remember: false },
   });
 
-  const fillDemo = () => {
-    setValue("email",    "admin@softaxis.io", { shouldValidate: true });
-    setValue("password", "Admin@123456",      { shouldValidate: true });
-  };
+  const [mfaToken, setMfaToken]   = React.useState<string | null>(null);
+  const [mfaCode, setMfaCode]     = React.useState("");
+  const [verifying, setVerifying] = React.useState(false);
 
   const onSubmit = async (data: Form) => {
     try {
       const res = await authApi.login(data.email, data.password);
-      loginFromApi(res.accessToken, res.refreshToken, res.user);
-      toast.success(`Welcome back, ${res.user.firstName}!`);
+      // Account has 2FA enabled → switch to the code-entry step instead of signing in.
+      if (res.mfaRequired && res.mfaToken) {
+        setMfaToken(res.mfaToken);
+        setMfaCode("");
+        return;
+      }
+      loginFromApi(res.accessToken, res.refreshToken, res.user!);
+      toast.success(`Welcome back, ${res.user!.firstName}!`);
       navigate("/dashboard", { replace: true });
     } catch (err) {
       // ApiError = server responded with an error envelope → show its message.
@@ -240,6 +245,21 @@ export default function LoginPage() {
       }
 
       toast.error(msg);
+    }
+  };
+
+  const onVerify2fa = async () => {
+    if (!mfaToken) return;
+    setVerifying(true);
+    try {
+      const res = await authApi.verifyTwoFactor(mfaToken, mfaCode.trim());
+      loginFromApi(res.accessToken, res.refreshToken, res.user!);
+      toast.success(`Welcome back, ${res.user!.firstName}!`);
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not verify the code. Please try again.");
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -442,6 +462,52 @@ export default function LoginPage() {
               <BrandLogo height={34} subtitle="Enterprise Platform" plate />
             </div>
 
+            {mfaToken ? (
+            <div className="space-y-5">
+              <div className="mb-1">
+                <div className="mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: D.accentGlow }}>
+                  <ShieldCheck className="h-5 w-5" style={{ color: D.accent }} />
+                </div>
+                <h2 className="text-[1.6rem] font-bold tracking-tight" style={{ color: D.white }}>
+                  Two-factor authentication
+                </h2>
+                <p className="text-[13px] mt-1" style={{ color: D.muted }}>
+                  Enter the 6-digit code from your authenticator app — or a backup code.
+                </p>
+              </div>
+              <form onSubmit={(e) => { e.preventDefault(); onVerify2fa(); }} className="space-y-5">
+                <input
+                  autoFocus
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value)}
+                  inputMode="text"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  className="w-full h-12 rounded-lg px-4 text-center text-lg font-semibold tracking-[0.35em] outline-none border"
+                  style={{ background: D.inputBg, borderColor: D.inputBorder, color: D.white }}
+                />
+                <motion.button
+                  type="submit"
+                  disabled={verifying || mfaCode.trim().length < 6}
+                  whileHover={{ scale: 1.015 }}
+                  whileTap={{ scale: 0.985 }}
+                  className="w-full h-12 rounded-lg flex items-center justify-center gap-2 text-[13px] font-bold tracking-wide transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: D.accent, color: "#fff", boxShadow: `0 4px 20px ${D.accentGlow}` }}
+                >
+                  {verifying ? (<><Loader2 className="h-4 w-4 animate-spin" />Verifying…</>) : (<>Verify &amp; sign in<ArrowRight className="h-4 w-4" /></>)}
+                </motion.button>
+                <button
+                  type="button"
+                  onClick={() => { setMfaToken(null); setMfaCode(""); }}
+                  className="w-full text-center text-[12px] hover:underline"
+                  style={{ color: D.muted }}
+                >
+                  ← Back to sign in
+                </button>
+              </form>
+            </div>
+            ) : (
+            <>
             {/* Heading */}
             <div className="mb-7">
               <h2 className="text-[1.6rem] font-bold tracking-tight" style={{ color: D.white }}>
@@ -609,40 +675,8 @@ export default function LoginPage() {
                 Start free trial →
               </Link>
             </p>
-
-            {/* Demo credentials */}
-            <div
-              className="mt-5 rounded-lg border px-4 py-3 flex items-center justify-between"
-              style={{ background: D.card, borderColor: D.border }}
-            >
-              <div className="min-w-0">
-                <p
-                  className="text-[10px] font-bold uppercase tracking-widest mb-0.5"
-                  style={{ color: D.muted + "60" }}
-                >
-                  Demo
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="text-[11px] truncate" style={{ color: D.muted }}>
-                    admin@softaxis.io
-                  </code>
-                  <span style={{ color: D.border }}>·</span>
-                  <code className="text-[11px] shrink-0" style={{ color: D.muted }}>
-                    Admin@123456
-                  </code>
-                </div>
-              </div>
-              <motion.button
-                type="button"
-                onClick={fillDemo}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="shrink-0 ml-3 text-[11px] font-bold hover:underline transition-colors"
-                style={{ color: D.accent }}
-              >
-                Fill ↗
-              </motion.button>
-            </div>
+            </>
+            )}
             </div>
           </motion.div>
         </div>

@@ -70,7 +70,27 @@ export interface AuthTokenDto {
   accessToken: string;
   refreshToken: string;
   accessTokenExpiry: string;
-  user: UserDto;
+  user: UserDto | null;
+  /** When true, the account has 2FA enabled — no tokens issued yet; call verify-2fa with mfaToken. */
+  mfaRequired?: boolean;
+  mfaToken?: string | null;
+}
+
+// ── Two-factor authentication ─────────────────────────────────────────────────
+
+export interface TwoFactorStatusDto {
+  enabled: boolean;
+  backupCodesRemaining: number;
+}
+
+export interface TwoFactorSetupDto {
+  secret: string;
+  otpAuthUri: string;
+  qrCodeDataUri: string;
+}
+
+export interface TwoFactorEnableResultDto {
+  backupCodes: string[];
 }
 
 export interface AuditLogDto {
