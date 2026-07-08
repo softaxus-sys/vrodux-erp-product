@@ -2567,6 +2567,47 @@ account manager's lead-export — the provider accepts any of those.
 
 ---
 
+## Module 17 — Identity: Tenant-owner activation email (super-admin create-tenant) + country dropdown
+
+**Fixed "no email is sent to the tenant owner on creation."** `CreateTenantCommandHandler` was by design
+sending **no email at all** — it required the super admin to type the owner's email + username + **password**,
+created the owner **pre-verified** (`VerifyEmail()`), and never injected `IEmailService`. The owner was expected
+to get credentials out of band. Now the owner receives an **activation email** to set their own password and log
+in (industry-standard invite flow).
+
+### Backend (Identity)
+- **`IEmailService.SendTenantInviteEmailAsync(toEmail, toName, tenantName, setPasswordToken?, ct)`** +
+  `SmtpEmailService` impl. When `setPasswordToken` is set → invite wording + link to
+  `{FrontendUrl}/auth/reset-password?token=…&email=…` (**reuses the existing reset-password page/flow** — no new
+  page/token type); otherwise → "your account is ready" login notice. Same SMTP config
+  (`Email:SmtpHost/SmtpUsername/SmtpPassword/FromAddress/FromName` + `FrontendUrl`) and dev-fallback (logs the
+  link when SMTP unset) as the reset/verification emails.
+- **`CreateTenantCommandHandler`** — injects `IJwtTokenService` + `IEmailService`. **Admin password is now
+  optional** (email + username still required). When blank = **invite mode**: seeds an unguessable placeholder
+  password, pre-verifies the account (so login works once they set a password — `ResetPassword` does NOT verify
+  email, hence the pre-verify stays), issues a single-use **password-reset token (7-day expiry)** via
+  `SetPasswordResetToken`, and after commit sends the activation email **best-effort** (try/catch — SMTP failure
+  never fails tenant creation). When a password IS provided, behaviour is unchanged except a "ready to log in"
+  welcome email is sent. No migration (reuses existing reset-token columns).
+
+### Frontend (`create-tenant-page.tsx`)
+- Admin **Password field is now optional** — label "(optional)", placeholder "Leave blank to email an activation
+  link", live helper text; validation requires only email+username (password ≥8 only *if* provided).
+- **Country is now a dropdown** (was free-text) — reuses `COUNTRIES` from `lib/onboarding/geo-data.ts` (stores the
+  country name, matching the prior free-text value).
+
+### Notes
+- Trial/onboarding path unchanged (self-serve — user sets their own password during onboarding).
+- **Requires SMTP configured in prod** for the email to actually deliver (confirmed configured). If a send fails,
+  the super admin can resend an activation link via the normal forgot-password flow.
+
+### Build / Verification Status
+- **Identity.Infrastructure + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit` + `vite build`:** 0 errors ✅
+- **Pending (needs republish + restart):** create a tenant with a blank admin password → owner receives the
+  activation email → set-password link activates + logs in; create with a password → "ready" welcome email.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

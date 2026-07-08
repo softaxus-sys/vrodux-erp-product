@@ -15,6 +15,7 @@ import {
 } from "@/lib/admin/tenants.api";
 import { ModuleSelector, PLAN_DEFAULTS, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
+import { COUNTRIES } from "@/lib/onboarding/geo-data";
 
 const PLANS: { value: PlanType; label: string; desc: string; color: string }[] = [
   { value: "Starter",    label: "Starter",    color: "text-gray-600",   desc: "3 users · 1 warehouse · PKR 9,500/mo"    },
@@ -101,8 +102,12 @@ export function CreateTenantPage() {
       setError("Company name and slug are required.");
       return;
     }
-    if (wantAdmin && (!adminEmail.trim() || !adminUsername.trim() || adminPassword.length < 8)) {
-      setError("To create the tenant admin: email, username, and a password of at least 8 characters are required.");
+    if (wantAdmin && (!adminEmail.trim() || !adminUsername.trim())) {
+      setError("To create the tenant admin, email and username are required. Leave the password blank to email the owner an activation link.");
+      return;
+    }
+    if (wantAdmin && adminPassword && adminPassword.length < 8) {
+      setError("If you set a password, it must be at least 8 characters. Leave it blank to send an activation link instead.");
       return;
     }
 
@@ -259,8 +264,13 @@ export function CreateTenantPage() {
                   <Input value={adminUsername} onChange={e => setAdminUsername(e.target.value)} placeholder="acme-admin" className="h-10" />
                 </div>
                 <div className="sm:col-span-2 space-y-1">
-                  <label className="text-xs font-medium text-foreground">Password{wantAdmin && " *"}</label>
-                  <Input value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Min. 8 characters" type="password" className="h-10" />
+                  <label className="text-xs font-medium text-foreground">Password <span className="text-muted-foreground font-normal">(optional)</span></label>
+                  <Input value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Leave blank to email an activation link" type="password" className="h-10" />
+                  <p className="text-[11px] text-muted-foreground">
+                    {adminPassword
+                      ? "The owner logs in with this password (you'll need to share it)."
+                      : "Recommended — leave blank and the owner gets an email to set their own password and activate."}
+                  </p>
                 </div>
               </div>
             </Section>
@@ -273,7 +283,11 @@ export function CreateTenantPage() {
                 </div>
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-foreground">Country</label>
-                  <Input value={country} onChange={e => setCountry(e.target.value)} placeholder="Pakistan" className="h-10" />
+                  <select value={country} onChange={e => setCountry(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <option value="">Select a country…</option>
+                    {COUNTRIES.map(c => <option key={c.code} value={c.name}>{c.name}</option>)}
+                  </select>
                 </div>
               </div>
             </Section>
