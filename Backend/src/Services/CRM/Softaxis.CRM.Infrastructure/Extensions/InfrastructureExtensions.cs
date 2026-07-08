@@ -79,6 +79,11 @@ public static class InfrastructureExtensions
         // ── Calendly — inbound webhook (invitee.created → lead) ───────────────
         services.AddSingleton<ILeadProvider, CalendlyLeadProvider>();
 
+        // ── Property Finder — real-estate portal listing enquiries (inbound webhook) ──
+        // Buyer/tenant enquiries (email/call/WhatsApp) POSTed to the inbound URL become leads,
+        // with the property, reference, price, offering type and message attached.
+        services.AddSingleton<ILeadProvider, PropertyFinderLeadProvider>();
+
         // ── Google Forms / Google Sheets — inbound webhook via Apps Script ────
         // A one-time Apps Script the tenant pastes into their Form/Sheet POSTs each new
         // response/row (as flat JSON) to the integration's inbound URL. GenericInboundProvider's

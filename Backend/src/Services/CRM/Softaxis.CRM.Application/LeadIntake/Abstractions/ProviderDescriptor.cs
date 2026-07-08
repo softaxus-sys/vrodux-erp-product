@@ -35,6 +35,7 @@ public static class ProviderCategory
     public const string Automation  = "Automation";
     public const string Messaging   = "Messaging";
     public const string Website     = "Website";
+    public const string RealEstate  = "Property Portals";
     public const string Import      = "Import";
     public const string Custom      = "Custom";
 }

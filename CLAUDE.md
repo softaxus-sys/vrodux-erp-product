@@ -2518,6 +2518,55 @@ it via the UI. Wiring routing to resolve a real user id is a separate task.
 
 ---
 
+## Module 16 — CRM: Property Finder lead integration (real-estate portal enquiries → CRM leads)
+
+**New lead source in the Module 7 integration platform** — Property Finder listing enquiries (email / call /
+WhatsApp / SMS) sync into the CRM as leads with the property context attached. Built as a plug-in provider =
+**one class + one DI line + one frontend setup guide**, zero CRM/pipeline changes, no migration (the catalog is
+derived from registered `ILeadProvider`s). Mirrors the Calendly provider (Module 9) since Property Finder nests
+the person under `client`/`contact` and the listing under `property`/`listing` — a shape the generic JSON
+provider can't read.
+
+### Backend (CRM service)
+- **`PropertyFinderLeadProvider`** (`Infrastructure/Integrations/Providers/`) — `ILeadProvider` +
+  `IWebhookLeadProvider`, key `"property-finder"`, category **`ProviderCategory.RealEstate` = "Property Portals"**
+  (new constant), capabilities `Webhook | InboundKey | ApiKey`. `Normalize` handles a single object, a bare
+  array, or `{leads:[…]}`; reads the enquirer from nested `client/contact/customer/lead/user` (or flat root) and
+  the listing from `property/listing`. Maps → `CanonicalLead`: name/email/phone/WhatsApp (WhatsApp enquiries use
+  the contact number), enquiry `message` → **Message**, property title + reference → **Interested In**, price +
+  offering type → **Budget**, location → **City**, `Platform="property_finder"`, `FormName="Property Finder — {type}
+  enquiry"`, `ExternalLeadId` (drives dedupe), a readable **Notes** summary, and every listing detail (reference,
+  type, offering, price, location, beds/baths, size, url, agent) stashed in `RawFields` → shows under the lead's
+  **Form Responses** and is field-mappable. Optional HMAC-SHA256 verify over the raw body via
+  `X-PropertyFinder-Signature`/`X-Signature`/`X-Vrodux-Signature` (`sha256=<hex>`); unsigned accepted on the
+  unguessable inbound key (same posture as Calendly).
+- Registered in `InfrastructureExtensions.AddCrmInfrastructure` (`AddSingleton<ILeadProvider, PropertyFinderLeadProvider>()`),
+  right after Calendly. Everything funnels through the existing `ILeadIntakeService.IngestAsync` (field-mapping →
+  dedupe → create → routing → `LeadIngestedNotification`), which already carries City/Requirements/Marketing/
+  customFields onto the `Lead` (Module 10). Lead `Source` = the provider key `"property-finder"`.
+
+### Frontend (`integrations-view.tsx`)
+- `LOGO["property-finder"] = {label:"PF", color:"bg-rose-600"}`. The **"Property Portals"** category chip appears
+  automatically (categories are derived from the catalog). Connect uses the generic inbound flow (no OAuth/manual
+  import) → creates the integration with an inbound URL + secret → opens the configure drawer; `isInbound` (keys
+  off `inboundUrl`) lights up the **Setup Guide** + **Inbound URL** tabs.
+- New **`property-finder` case in `ProviderSetup`** — inbound URL, step-by-step portal wiring, the exact JSON
+  payload Vrodux understands (nested client + property), a `curl` test, and optional HMAC signing docs.
+
+### Scope note
+Covers **lead/enquiry sync** (what the user asked for). Syncing Property Finder **listings** into an
+inventory/listings module is a separate, larger scope (not CRM leads) — flagged, not built. If Property Finder's
+account has no self-serve webhook option, leads can still be forwarded to the inbound URL via Zapier/Make or their
+account manager's lead-export — the provider accepts any of those.
+
+### Build / Verification Status
+- **CRM.Infrastructure + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit` + `vite build`:** 0 errors ✅
+- No migration. **Pending (needs republish + restart):** the "Property Finder" card appears in Settings →
+  Integrations under "Property Portals"; connect → POST the sample payload to the inbound URL → a lead appears
+  with property title as Interested In, price as Budget, message + Form Responses populated.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

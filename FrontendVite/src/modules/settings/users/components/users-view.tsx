@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
 import {
   useUsers, useUser, useCreateUser, useUpdateUser, useDeleteUser,
+  useAssignRole, useRemoveRole,
 } from "@/hooks/identity/use-users";
 import { useRoles } from "@/hooks/identity/use-roles";
 import type { UserSummaryDto, UserDto } from "@/lib/identity/types";
@@ -412,6 +413,66 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
 // ── Edit User Modal ───────────────────────────────────────────────────────────
 
+// ── Role manager — add / remove a user's roles (live) ──────────────────────────
+function RoleManager({ userId }: { userId: string }) {
+  // Fetch fresh detail so the list reflects assign/remove immediately (both invalidate this query).
+  const { data: user } = useUser(userId);
+  const { data: rolesData } = useRoles({ pageSize: 100 });
+  const assignRole = useAssignRole();
+  const removeRole = useRemoveRole();
+  const [addRoleId, setAddRoleId] = React.useState("");
+
+  const roles = user?.roles ?? [];
+  const assignedIds = new Set(roles.map(r => r.id));
+  const available = (rolesData?.items ?? []).filter(r => !assignedIds.has(r.id));
+  const busy = assignRole.isPending || removeRole.isPending;
+
+  const add = () => {
+    if (!addRoleId) return;
+    assignRole.mutate({ userId, roleId: addRoleId }, { onSuccess: () => setAddRoleId("") });
+  };
+
+  return (
+    <div className="space-y-2 pt-1 border-t border-border">
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roles</label>
+      <div className="space-y-1.5">
+        {roles.map(role => (
+          <div key={role.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20">
+            <div className="flex items-center gap-2 min-w-0">
+              <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="text-sm font-medium truncate">{role.name}</span>
+              {role.isSystem && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium text-muted-foreground shrink-0">SYSTEM</span>
+              )}
+            </div>
+            <button type="button" title="Remove role" disabled={busy}
+              onClick={() => removeRole.mutate({ userId, roleId: role.id })}
+              className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        {roles.length === 0 && (
+          <p className="text-xs text-muted-foreground">No roles assigned — add one below.</p>
+        )}
+      </div>
+      <div className="flex gap-2 pt-1">
+        <select value={addRoleId} onChange={e => setAddRoleId(e.target.value)} disabled={busy || available.length === 0}
+          className="flex-1 h-9 px-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50">
+          <option value="">{available.length ? "Add a role…" : "All roles assigned"}</option>
+          {available.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
+        <Button type="button" size="sm" className="h-9 gap-1.5" onClick={add} disabled={!addRoleId || busy}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}Add
+        </Button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Changes apply immediately. To switch a user's role, add the new one and remove the old.
+      </p>
+    </div>
+  );
+}
+
 function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }) {
   const updateUser = useUpdateUser(user.id);
   const [form, setForm] = React.useState({
@@ -452,7 +513,7 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
             {/* Email (read-only) */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
               <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -488,6 +549,11 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
                 className="h-9 text-sm"
               />
             </div>
+
+            {/* Role management — add/remove the user's roles (settings.users.edit only) */}
+            <Can permission="settings.users.edit">
+              <RoleManager userId={user.id} />
+            </Can>
 
             <div className="pt-2 flex gap-2">
               <Button

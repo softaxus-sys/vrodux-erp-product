@@ -83,6 +83,7 @@ export function useAssignRole() {
       usersApi.assignRole(userId, roleId),
     onSuccess: (_data, { userId }) => {
       qc.invalidateQueries({ queryKey: userKeys.detail(userId) });
+      qc.invalidateQueries({ queryKey: userKeys.lists() });
       toast.success("Role assigned.");
     },
     onError: (err: Error) => toast.error(err.message),
@@ -96,6 +97,7 @@ export function useRemoveRole() {
       usersApi.removeRole(userId, roleId),
     onSuccess: (_data, { userId }) => {
       qc.invalidateQueries({ queryKey: userKeys.detail(userId) });
+      qc.invalidateQueries({ queryKey: userKeys.lists() });
       toast.success("Role removed.");
     },
     onError: (err: Error) => toast.error(err.message),

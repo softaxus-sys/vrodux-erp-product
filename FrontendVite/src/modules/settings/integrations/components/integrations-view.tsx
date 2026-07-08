@@ -38,6 +38,7 @@ const LOGO: Record<string, { label: string; color: string }> = {
   calendly:           { label: "C",  color: "bg-blue-500" },
   jotform:            { label: "J",  color: "bg-orange-500" },
   typeform:           { label: "T",  color: "bg-gray-800" },
+  "property-finder":  { label: "PF", color: "bg-rose-600" },
 };
 const logoFor = (key: string) => LOGO[key] ?? { label: key.slice(0, 2).toUpperCase(), color: "bg-primary" };
 
@@ -680,6 +681,73 @@ function vroduxOnFormSubmit(e) {
           <>Tip: name your questions <code>Email</code>, <code>Phone</code>, <code>Company</code>, <code>Interested in</code>, <code>Budget</code>, <code>Message</code> so they map automatically. Unrecognized questions are still saved under the lead's Form Responses.</>,
         ]} />
       </SetupSection>
+    );
+  }
+
+  // ── Property Finder ────────────────────────────────────────────────────────
+  if (key === "property-finder") {
+    const pfPayload =
+`{
+  "type": "email",
+  "lead_id": "PF-000123",
+  "client": {
+    "name": "Ahmed Ali",
+    "email": "ahmed@example.com",
+    "phone": "+971501234567"
+  },
+  "message": "Is this apartment still available? I'd like a viewing.",
+  "property": {
+    "reference": "MARINA-2BR-1024",
+    "title": "2 Bedroom Apartment, Dubai Marina",
+    "type": "Apartment",
+    "offering_type": "rent",
+    "price": "120000",
+    "location": "Dubai Marina, Dubai",
+    "bedrooms": "2",
+    "bathrooms": "2",
+    "url": "https://www.propertyfinder.ae/en/plp/..."
+  }
+}`;
+    const pfCurl =
+`curl -X POST "${url}" \\
+  -H "Content-Type: application/json" \\
+  -d '${pfPayload.replace(/\n/g, "\n  ")}'`;
+    return (
+      <div className="space-y-5">
+        <SetupSection title="Connect Property Finder leads"
+          desc="Every buyer/tenant enquiry on your Property Finder listings — email, call, WhatsApp or SMS — is created as a CRM lead, with the property, price and message attached.">
+          <CopyField label="Your inbound URL" value={url || "—"} />
+          <Steps items={[
+            <>In your Property Finder <b>agent / broker portal</b>, open <code>Settings</code> → <code>Integrations</code> (or <code>Leads</code> → <code>CRM / API</code>). If you use a lead-management partner, this is where a webhook / CRM endpoint is configured.</>,
+            <>Add a <b>webhook / lead-forwarding</b> destination and paste the inbound URL above as the target. Choose <code>JSON</code> as the format if asked.</>,
+            <>Save. Send a test enquiry from one of your live listings — it should appear under <b>CRM → Leads</b> within a few seconds, with dedupe &amp; routing applied.</>,
+          ]} />
+          <p className="text-xs text-muted-foreground">
+            Property Finder's lead delivery is enabled per account — if you don't see a webhook / API option,
+            ask your Property Finder account manager to enable <b>lead export / CRM integration</b>, or forward
+            leads via an automation tool (Zapier / Make) to the URL above.
+          </p>
+        </SetupSection>
+
+        <SetupSection title="Payload Vrodux understands"
+          desc="Property Finder (or your automation) should POST JSON like this. The enquirer can be nested under client/contact; the listing under property/listing. Unknown fields are still saved under the lead's Form Responses.">
+          <CodeBlock code={pfPayload} lang="json" />
+          <p className="text-xs text-muted-foreground">
+            Mapped automatically: <code className="text-foreground bg-muted px-1 rounded text-[11px]">name · email · phone · message → the lead; property title + reference → Interested In; price + offering → Budget; location → City</code>.
+          </p>
+        </SetupSection>
+
+        <SetupSection title="Test it from a terminal" desc="Fire a sample enquiry at your inbound URL to confirm the connection.">
+          <CodeBlock code={pfCurl} lang="bash" />
+        </SetupSection>
+
+        <SetupSection title="Optional — verify signatures (HMAC)" desc="If Property Finder (or your middleware) signs the request body, store the signing secret in the Inbound URL tab and Vrodux will verify it.">
+          <Steps items={[
+            <>Reveal / set your <b>signing secret</b> in the <code>Inbound URL</code> tab.</>,
+            <>Sign the raw body with <code>HMAC-SHA256</code> (lowercase hex) and send it as <code>X-PropertyFinder-Signature: sha256=&lt;hex&gt;</code> (or <code>X-Signature</code>). Unsigned requests are still accepted on the strength of the unguessable inbound URL.</>,
+          ]} />
+        </SetupSection>
+      </div>
     );
   }
 
