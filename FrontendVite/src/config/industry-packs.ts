@@ -130,6 +130,21 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
       { key: "support", label: "Support & Renewals" },
     ],
   },
+  {
+    industry: "visa_services",
+    moduleKey: "visa",
+    label: "Visa Services",
+    description: "UAE visa consultancy — cases, applicants, document checklists, government submission & tracking.",
+    icon: "Stamp",
+    crmFlow: "Lead → Case Intake → Documents → Submission → Tracking → Outcome → Renewal",
+    entities: ["Visa Cases", "Applicants", "Visa Types", "Document Checklists", "Government Submissions", "Renewals"],
+    features: [
+      { key: "documents", label: "Document Checklists" },
+      { key: "submission", label: "Government Submission" },
+      { key: "tracking", label: "Status Tracking" },
+      { key: "renewals", label: "Renewals & Alerts" },
+    ],
+  },
 ];
 
 /** Industries offered in the Create-Tenant picker (value + label). */

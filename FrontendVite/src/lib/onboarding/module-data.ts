@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap,
+  TrendingUp, HeartPulse, GraduationCap, Stamp,
 } from "lucide-react";
 
 // ── Module definitions ────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education";
+  | "healthcare" | "education" | "visa";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -180,6 +180,18 @@ export const MODULES: ModuleDef[] = [
     iconColor: "text-indigo-500",
     requires: [],
     recommends: ["finance", "hr"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "visa",
+    label: "Visa Services",
+    description: "UAE visa cases, applicants, documents & tracking",
+    icon: Stamp,
+    color: "bg-sky-500/10",
+    iconColor: "text-sky-500",
+    requires: [],
+    recommends: ["crm", "finance"],
     triggersBusinessType: false,
     category: "industry",
   },

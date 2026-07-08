@@ -134,7 +134,8 @@ export type ModuleKey =
   | "education"
   | "insurance"
   | "b2b"
-  | "project-management";
+  | "project-management"
+  | "visa";
 
 export type Industry =
   | "real-estate"

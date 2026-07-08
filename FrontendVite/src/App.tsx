@@ -102,6 +102,13 @@ const ProjectBoardPage      = React.lazy(() => import("@/pages/project-managemen
 const ProjectBacklogPage    = React.lazy(() => import("@/pages/project-management/backlog"));
 const ProjectIssuesPage     = React.lazy(() => import("@/pages/project-management/issues"));
 
+// ── Visa Services ────────────────────────────────────────────────────────────
+const VisaDashboardPage     = React.lazy(() => import("@/pages/visa/dashboard"));
+const VisaCasesPage         = React.lazy(() => import("@/pages/visa/cases"));
+const VisaRenewalsPage      = React.lazy(() => import("@/pages/visa/renewals"));
+const VisaTypesPage         = React.lazy(() => import("@/pages/visa/types"));
+const VisaChannelsPage      = React.lazy(() => import("@/pages/visa/channels"));
+
 // ── Hospitality ───────────────────────────────────────────────────────────────
 const BookingsPage         = React.lazy(() => import("@/pages/hospitality/bookings"));
 const RoomsPage            = React.lazy(() => import("@/pages/hospitality/rooms"));
@@ -377,6 +384,15 @@ export function App() {
             <Route path="/project-management/:projectId/board"   element={<ProjectBoardPage />} />
             <Route path="/project-management/:projectId/backlog" element={<ProjectBacklogPage />} />
             <Route path="/project-management/:projectId/issues"  element={<ProjectIssuesPage />} />
+          </Route>
+
+          {/* ── Visa Services ───────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="visa" />}>
+            <Route path="/visa/dashboard" element={<VisaDashboardPage />} />
+            <Route path="/visa/cases" element={<VisaCasesPage />} />
+            <Route path="/visa/renewals" element={<VisaRenewalsPage />} />
+            <Route path="/visa/types" element={<VisaTypesPage />} />
+            <Route path="/visa/channels" element={<VisaChannelsPage />} />
           </Route>
 
           {/* ── Hospitality ─────────────────────────────────────────────────── */}

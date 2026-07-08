@@ -4,7 +4,7 @@ import {
   X, Mail, Phone, Globe, MapPin, Building2, User,
   Calendar, DollarSign, Tag, PhoneCall, Users,
   FileText, MessageSquare, Edit, ArrowRight,
-  CheckCircle2, TrendingUp, Star
+  CheckCircle2, TrendingUp, Star, Stamp,
 } from "lucide-react";
 import { Trash2, Loader2, Pencil, UserCog, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
 import { Can } from "@/components/auth/can";
+import { NewCaseWizard } from "@/modules/visa/cases/components/new-case-wizard";
 
 type Tab = "overview" | "activity";
 
@@ -124,7 +125,8 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
   const assign = useAssignLead();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [showReassign, setShowReassign] = React.useState(false);
-  React.useEffect(() => { if (!open) { setConfirmDelete(false); setShowReassign(false); } }, [open]);
+  const [showVisa, setShowVisa] = React.useState(false);
+  React.useEffect(() => { if (!open) { setConfirmDelete(false); setShowReassign(false); setShowVisa(false); } }, [open]);
 
   // Role + ownership gating: full-edit roles can act on any lead; assigned-edit roles only on their own.
   const hasRaw = useAuthStore(s => s.hasRawPermission);
@@ -143,6 +145,7 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
   const pc = PRIORITY_CONFIG[lead.priority];
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <>
@@ -395,6 +398,11 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                   {convert.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}Convert to Deal
                 </Button>
               )}
+              <Can permission="visa.cases.create">
+                <Button size="sm" variant="outline" className="gap-1.5 h-9" disabled={busy} onClick={() => setShowVisa(true)}>
+                  <Stamp className="h-3.5 w-3.5" />Visa Case
+                </Button>
+              </Can>
               <Can permission="crm.leads.delete">
                 <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:bg-destructive/5 ml-auto" disabled={busy}
                   onClick={() => setConfirmDelete(true)}>
@@ -435,6 +443,18 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
         </>
       )}
     </AnimatePresence>
+
+    {/* Create a UAE visa case seeded from this lead */}
+    <NewCaseWizard
+      open={showVisa}
+      onClose={() => setShowVisa(false)}
+      prefill={{
+        customerName: lead.company,
+        assignedTo: lead.assignedTo,
+        applicant: { firstName: lead.firstName, lastName: lead.lastName },
+      }}
+    />
+    </>
   );
 }
 

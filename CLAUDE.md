@@ -2444,6 +2444,168 @@ WHERE email = '…';` (needs `SET QUOTED_IDENTIFIER ON;` — filtered indexes on
 - **Pending (needs republish + restart per the on-prem deploy note):** end-to-end — enable 2FA in Settings →
   Security, scan into Google Authenticator, confirm; log out; log in → code step → success; backup-code login;
   disable. Scope note: 2FA is behind the settings RoleGuard (super_admin/tenant_admin/manager), not every user.
+## Module 15 — Visa Services (UAE visa consultancy) — Phase 1: Case management core
+
+**New microservice `Softaxis.VisaServices`** (schema `visa`) — visa consultancy case management: intake →
+document checklist → manual government submission → tracking → outcome. Architecture is
+**adapter/channel-provider with manual fallback** (UAE has no open visa-submission APIs; GDRFA/ICP/MOHRE
+adapters land in Phase 4 as partnerships are onboarded — same plug-in model as the CRM lead providers).
+Phases: 1 case core (THIS) · 2 Finance/CRM wiring · 3 renewals+alerts · 4 govt channel adapters (UAE PASS
+first) · 5 client self-service portal.
+
+### Backend (clean CQRS per the reference pattern)
+- **Projects**: `Softaxis.VisaServices.{Domain,Application,Infrastructure,API}` — added to `Softaxis.ERP.slnx`,
+  referenced by the gateway csproj, registered in gateway `Program.cs` (`AddVisaServicesInfrastructure`,
+  `AddApplicationPart(VisaCasesController)`, `MigrateAndSeedVisaServicesAsync`), `VisaDb` connstring in gateway
+  appsettings (⚠️ deployed envs configure connstrings via env — add `ConnectionStrings__VisaDb` there).
+- **Domain**: `VisaCase` (aggregate; auto `VC-{yyyyMMdd}-{6CHAR}`; static `Transitions` status machine:
+  draft→docs_pending→docs_complete→submitted→in_review→approved→issued→closed, with rfi_required loop,
+  rejected→rework, cancelled; `ChangeStatus` returns false on illegal move → 400 `VisaCase.InvalidTransition`),
+  `Applicant` (person + passport; `Relationship` primary/spouse/child/…), `VisaType` (**GLOBAL** reference data,
+  excluded from tenant isolation like Currency — `TenantIsolation.ApplyTenantId(..., exclude: [typeof(VisaType)])`;
+  `RequiredDocuments` `'|'`-joined conversion; idempotent code-seed keyed on `Code` — 9 UAE types: employment
+  new/renewal/cancellation, family, visit 30/60, golden 10yr, freelance, student), `CaseDocument` (checklist row,
+  pending→received→verified/rejected/expired; per-applicant), `CaseStatusEvent` (append-only timeline).
+- **CQRS** `Application/VisaCases/*`: `CreateVisaCaseCommand` (embedded `ApplicantInput[]`; copies the visa
+  type's document template per applicant; auto-SLA from `ProcessingDays`; logs created + auto docs_pending
+  events), `ChangeCaseStatusCommand` (optional `GovtReference` on submit / `RejectionReason` on reject),
+  `AssignCaseCommand`, `UpdateCaseDocumentCommand` (**auto-advances docs_pending→docs_complete when the last
+  doc is verified**), `AddCaseDocumentCommand`, `AddCaseNoteCommand`, `DeleteVisaCaseCommand`;
+  queries GetVisaCases(status?, customerId?) / GetVisaCaseById (applicants+docs+timeline) /
+  GetVisaCasesSummary / GetVisaTypes. Handlers in `Infrastructure/Handlers/VisaCases/`.
+- **API**: `VisaCasesController` `api/visa/cases` (summary/list/byId/create/status/assign/documents/notes/delete,
+  `[RequirePermission("visa.cases.*")]`), `VisaTypesController` `api/visa/types` (open reads — feed the wizard
+  dropdown). `VisaControllerBase` maps `.InvalidTransition`/`.InvalidStatus` → 400. Standalone `Program.cs` +
+  appsettings for design-time/EF.
+- **Migrations**: `InitialVisaServices` (5 tables under `Persistence/Migrations`; visa_types has NO TenantId).
+  Identity: seeded `visa.cases` view/create/edit/delete (`AddVisaPermissions` migration; admins auto-gain via
+  `SyncAdministratorPermissionsAsync`); `TenantRoleProvisioner` `["visa"]="Visa Manager"`.
+
+### Frontend
+- `types/global.ts` `ModuleKey` + "visa"; `auth.store.ts` `backendModulesToFrontend` case "visa" (+crm) and the
+  old-token fallback list; onboarding `module-data.ts` new "Visa Services" industry-pack module (Stamp icon);
+  `permission-matrix.ts` MODULE_GROUPS/GROUP_ORDER "Visa Services"; nav group "Visa Services" → `/visa/cases`
+  (icon `Stamp`, added to nav-utils iconMap); App route in `ModuleGuard module="visa"`.
+- `lib/visa/visa.api.ts` — types + `CASE_STATUS_META`, `CASE_BOARD_COLUMNS`, `CASE_TRANSITIONS` (mirrors the
+  backend machine so the UI only offers legal moves) + `visaApi`. `hooks/visa/use-visa.ts` — queries + mutations
+  (invalidate `[visa]`, toasts).
+- `modules/visa/cases/components/`: `visa-cases-view.tsx` (6 stat cards, search + status pills, board/list
+  toggle, `useLazyList` everywhere, SLA-urgency sort + overdue chips; board DnD **validates transitions
+  client-side** and toasts on illegal drops), `case-drawer.tsx` (tabs Overview/Applicants/Documents/Timeline;
+  per-doc status `<select bg-card>` + add-requirement; note quick-add; footer renders ONLY the legal next
+  transitions; submit captures govt reference, reject captures reason — inline modals), `new-case-wizard.tsx`
+  (2-step: type+details with fee prefill from the type → applicants with add-dependent rows; submit shows
+  total fees). Page `pages/visa/cases.tsx`.
+
+### Build / Verification Status
+- **Full ApiGateway (incl. new service):** 0 errors ✅ · **Frontend `tsc --noEmit`:** 0 errors ✅
+- Migrations `InitialVisaServices` + `AddVisaPermissions` created (auto-apply on startup).
+- **Pending:** republish + restart on-prem (and add `ConnectionStrings__VisaDb` to the deployed env config);
+  then E2E: onboard/enable "visa" module → New Case wizard (type → applicants → checklist auto-generated) →
+  move through the board → submit w/ reference → verify docs auto-advance + timeline.
+
+### Phase 2 — Finance auto-invoice + CRM wiring (DONE)
+Cross-service integration done via **frontend orchestration** (Finance/CRM/Visa are separate services + schemas;
+per the "no new Finance code" design the frontend calls the existing Finance invoice API and links the result
+back onto the case). Only backend change is a link column on `VisaCase`.
+
+- **Backend (additive):** `VisaCase.InvoiceId` (Guid?) + `InvoiceNumber` (string?) + `LinkInvoice(...)`;
+  `LinkCaseInvoiceCommand` + handler (+logs an "invoice" `CaseStatusEvent`); `PATCH /api/visa/cases/{id}/invoice`
+  (`visa.cases.edit`). Both DTOs (`VisaCaseSummaryDto`/`VisaCaseDetailDto`) + mappings + `GetVisaCasesHandler`
+  projection carry the two fields. Migration `AddVisaCaseInvoiceLink` (2 additive columns).
+- **Finance auto-invoice (frontend):** `hooks/visa/use-visa.ts` — `buildCaseInvoiceRequest(caseDetail)` (service
+  fee + govt fee line items, taxRate 0, notes ref the case #) + `useGenerateCaseInvoice()` which calls
+  `financeApi.createInvoice(...)` then `visaApi.linkInvoice(caseId, {invoiceId, invoiceNumber})` and invalidates
+  both `[visa]` + `[finance,invoices]`. New-case wizard: a "Create a draft invoice in Finance" checkbox (only
+  shown when `useCan("finance.invoicing.create")`, default on) → best-effort generates the invoice after case
+  create (never blocks case creation). Case drawer Overview → **Billing** section: shows the linked invoice
+  (`<Link to="/finance/invoicing">`) or a `<Can permission="finance.invoicing.create">` "Generate draft invoice"
+  button. `visaApi.linkInvoice` + `invoiceId`/`invoiceNumber` on the DTOs.
+- **CRM account link:** the new-case wizard's client field is now an **account combobox** (searches
+  `useCustomers()` → sets `customerId` + name, "Linked" pill; free-text = unlinked). `CreateVisaCaseRequest`
+  already carried `customerId`; now populated. `useCreateVisaCase` rewritten as a typed `useMutation` so the
+  wizard's `onSuccess(created)` is a `VisaCaseDetailDto` (feeds the invoice generator).
+- **CRM lead → visa case:** `NewCaseWizard` gained an optional `prefill` prop (`CaseWizardPrefill`:
+  customerName/customerId/assignedTo/applicant). `lead-drawer.tsx` — a `<Can permission="visa.cases.create">`
+  **"Visa Case"** footer button opens the wizard seeded from the lead (company → client, person → primary
+  applicant). (Wizard rendered as a sibling of the drawer's AnimatePresence so it isn't clipped.)
+- **CRM account → visa cases:** `visaApi.getCases({status?, customerId?})` (was status-only) +
+  `useCustomerVisaCases(customerId, enabled)`. `customer-drawer.tsx` Overview shows a **Visa Cases** section
+  (case type, number, status badge, total fees), gated by `useCan("visa.cases.view")` so non-visa tenants /
+  unauthorized users make no call. No import cycle — CRM drawers import the visa *wizard*, which imports leaf
+  hooks/APIs only.
+- **Build:** Full ApiGateway 0 errors ✅ · Frontend `tsc --noEmit` 0 errors ✅ · migration
+  `AddVisaCaseInvoiceLink` created.
+- **Pending:** republish + restart; then E2E — create a case with an account + invoice checkbox → draft invoice
+  appears in Finance and links in the case Billing section; convert a lead → "Visa Case" prefilled; a linked
+  account's drawer lists its visa cases.
+
+### Additional surfaces — Dashboard, Renewals, Visa Types (multi-page module)
+Turned the single Visa Cases page into a 4-page module (nav restructured to a collapsible **Visa Services**
+group with children: Dashboard / Cases / Renewals / Visa Types). All read-only queries — **no migration**.
+- **Backend** (new read handlers in `Handlers/VisaCases/`, reuse `VisaCasesController`):
+  - `GetVisaDashboardQuery` → `VisaDashboardDto` (totals, open/overdue/due-this-week, open fees, expiring
+    passports-90d / documents-30d, byStatus / byType counts, revenueByType, PRO workload). `GET /api/visa/cases/dashboard`.
+  - `GetVisaRenewalsQuery(withinDays=90)` → `RenewalItemDto[]` — unions **passport expiries** (from Applicants)
+    + **document expiries** (CaseDocuments with an ExpiryDate) within the horizon, overdue-first (string
+    `yyyy-MM-dd` compares; `DaysLeft` parsed via `DateTime.TryParseExact`). `GET /api/visa/cases/renewals?withinDays=`.
+    Both gated `visa.cases.view`. (No visa-expiry field yet → renewals = passports + documents; a dedicated
+    issued-visa expiry is a Phase-3 follow-up.)
+  - Reuses existing `GET /api/visa/types` for the catalogue page.
+- **Frontend**: `visaApi.getDashboard/getRenewals` + `useVisaDashboard/useVisaRenewals`.
+  - `modules/visa/dashboard/…/visa-dashboard-view.tsx` — 6 stat cards + bar breakdowns (by status/type/revenue)
+    + PRO workload + expiry banner.
+  - `modules/visa/renewals/…/visa-renewals-view.tsx` — horizon toggle (30/60/90/180d), urgency chips
+    (overdue/≤14/≤30), `useLazyList` table, row → `CaseDrawer`.
+  - `modules/visa/types/…/visa-types-view.tsx` — catalogue cards (category/channel/fees/processing days,
+    expandable required-document checklist), search + category filter. **Read-only** — per-tenant editing needs
+    `VisaType` to become tenant-scoped (currently GLOBAL like Currency); flagged as a follow-up.
+  - Pages `pages/visa/{dashboard,renewals,types}.tsx` + `App.tsx` routes in `ModuleGuard module="visa"`;
+    nav-utils iconMap gained `CalendarClock`.
+- **Build:** Full ApiGateway 0 errors ✅ · Frontend `tsc --noEmit` 0 errors ✅ · no migration.
+- **Pending:** republish + restart.
+
+### Follow-ups — issued-visa expiry, editable Visa Types, government channels (DONE)
+Three requested enhancements, built in order.
+
+**A. Issued-visa expiry tracking** — `VisaCase.VisaExpiryDate` (nullable `yyyy-MM-dd`, migration
+`AddVisaCaseExpiry`); `ChangeCaseStatusCommand` gained `VisaExpiryDate`; the case-drawer "Issue visa" transition
+now opens a date prompt (mirrors the submit/reject inline modals). Renewals handler adds a **"visa"** kind
+(issued visas nearing expiry, most-urgent first); dashboard adds `ExpiringVisas90`. Detail DTO carries
+`VisaExpiryDate`; drawer Overview shows a "Visa Expiry" row.
+
+**B. Editable Visa Types (tenant-scoped)** — `VisaType` moved from GLOBAL to **tenant-owned**: removed from the
+`exclude` list in `VisaDbContext` (now gets the shadow `TenantId` + filter), `Code` index changed unique→non-unique
+(unique per tenant now), migration `MakeVisaTypesTenantScoped`. The default UAE catalogue moved to
+`Persistence/Seed/VisaTypeCatalogue.BuildDefaults()` and is **lazy-seeded per tenant** on first `GetVisaTypes`
+(TenantId stamped on save); the startup global seed is replaced by a one-time cleanup that deletes legacy
+NULL-tenant rows. ⚠️ **Gotcha fixed:** `TenantIsolation.ApplyTenantId` *replaces* an entity's query filter, so
+the config `HasQueryFilter(!IsDeleted)` on `VisaCase` and `HasQueryFilter(IsActive)` on `VisaType` were being
+overwritten — every case/type read handler now filters `!IsDeleted` / `IsActive` **manually** (same pattern as
+CRM). CRUD: `Create/Update/DeleteVisaTypeCommand` (+handlers in `Handlers/VisaTypes/`), `VisaTypesController`
+POST/PUT/DELETE gated `visa.cases.edit` (delete = soft `SetActive(false)`; Code auto-derived as a slug). Frontend:
+`visa-type-form.tsx` drawer (fees, processing days, document-checklist editor) + New/Edit/Delete on the Visa Types
+page (gated).
+
+**C. Government channels (Phase 4 foundation)** — `ChannelAccount` (per-tenant channel credentials; secret
+**encrypted at rest** via `IVisaSecretProtector` = Data-Protection impl, mirrors CRM's `DataProtectionSecretProtector`;
+needed `Microsoft.AspNetCore.DataProtection.Abstractions` in the infra csproj) + `GovtSubmission` (per-case
+government transactions: entry_permit/status_change/emirates_id/stamping/…). Migration `AddVisaChannels`. The
+plug-in extension point is the declarative `ChannelCatalogue` (manual=active, uaepass=beta, gdrfa/icp/mohre=coming_soon,
+each with capabilities + a setup guide) — a live adapter plugs in by reading `ChannelAccount` + writing
+`GovtSubmission` (no empty runtime-provider stubs). CQRS: `GetChannelsQuery` (catalogue ⋈ tenant connection),
+Connect/Disconnect, `GetCaseSubmissionsQuery`, Create/UpdateSubmission; `ChannelsController` (`api/visa/channels`
++ `api/visa/cases/{id}/submissions`). Frontend: `visa-channels-view.tsx` settings page (channel cards + connect
+drawer w/ encrypted secret + setup guides) as a 5th Visa nav item `/visa/channels`; case drawer gained a
+**Submissions** tab (record government transactions + per-row status). Real API adapters (UAE PASS first) await
+partnership credentials — manual works today.
+
+- **Build:** Visa API 0 errors ✅ · Frontend `tsc --noEmit` 0 errors ✅ · migrations `AddVisaCaseExpiry`,
+  `MakeVisaTypesTenantScoped`, `AddVisaChannels` created.
+- **Pending:** republish + restart (the running gateway currently holds the build DLLs — a full gateway build
+  needs it stopped, which the republish does). Then: issue a case → set visa expiry → it appears on Renewals;
+  edit/create a visa type; connect a channel + record a submission on a case. **Phase 5** (client self-service
+  portal) is the remaining visa phase.
 
 ---
 

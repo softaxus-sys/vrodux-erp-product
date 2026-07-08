@@ -1934,6 +1934,34 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "delete",
                             Description = "Delete project-management issues",
                             ModuleId = "project-management.issues"
+                        },
+                        new
+                        {
+                            Id = new Guid("28bc23f0-b0af-4648-39b8-49213bcfd5ac"),
+                            Action = "view",
+                            Description = "View visa cases",
+                            ModuleId = "visa.cases"
+                        },
+                        new
+                        {
+                            Id = new Guid("1e980908-a979-13af-3c41-59aa7186d2c9"),
+                            Action = "create",
+                            Description = "Create visa cases",
+                            ModuleId = "visa.cases"
+                        },
+                        new
+                        {
+                            Id = new Guid("eeec71e0-3f6a-c3e2-ca26-01f6339c3669"),
+                            Action = "edit",
+                            Description = "Edit visa cases",
+                            ModuleId = "visa.cases"
+                        },
+                        new
+                        {
+                            Id = new Guid("55365c3b-ff8d-f382-156b-1c435df7a6ea"),
+                            Action = "delete",
+                            Description = "Delete visa cases",
+                            ModuleId = "visa.cases"
                         });
                 });
 

@@ -4,7 +4,7 @@ import {
   X, Globe, Phone, Mail, MapPin, Building2, User,
   Calendar, DollarSign, Star, TrendingUp, Tag,
   PhoneCall, Users, FileText, MessageSquare, Edit,
-  CheckCircle2, Clock, XCircle, Award
+  CheckCircle2, Clock, XCircle, Award, Stamp
 } from "lucide-react";
 import { Trash2, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,9 @@ import { useDeleteCustomer, useDeals } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 import { AccountTimeline } from "./account-timeline";
 import { ContactsPanel } from "./contacts-panel";
-import { Can } from "@/components/auth/can";
+import { Can, useCan } from "@/components/auth/can";
+import { useCustomerVisaCases } from "@/hooks/visa/use-visa";
+import { CASE_STATUS_META } from "@/lib/visa/visa.api";
 
 type Tab = "overview" | "contacts" | "deals" | "activity";
 
@@ -67,6 +69,8 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
   const del = useDeleteCustomer();
   const currency = useCurrency();
   const { data: linkedDeals = [], isLoading: dealsLoading } = useDeals(customer?.id, !!customer && open);
+  const canViewVisa = useCan("visa.cases.view");
+  const { data: visaCases = [] } = useCustomerVisaCases(customer?.id ?? null, canViewVisa && open);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
 
@@ -189,6 +193,30 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
                             <Tag className="h-2.5 w-2.5" />{tag}
                           </span>
                         ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Visa cases linked to this account */}
+                  {canViewVisa && visaCases.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                        <Stamp className="h-3.5 w-3.5" />Visa Cases ({visaCases.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {visaCases.map(vc => {
+                          const m = CASE_STATUS_META[vc.status];
+                          return (
+                            <div key={vc.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{vc.visaTypeName}</p>
+                                <p className="text-[11px] text-muted-foreground font-mono">{vc.caseNumber}</p>
+                              </div>
+                              {m && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0", m.color, m.bg)}>{m.label}</span>}
+                              <p className="font-semibold text-sm shrink-0">{formatCurrency(vc.serviceFee + vc.govtFee, currency)}</p>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

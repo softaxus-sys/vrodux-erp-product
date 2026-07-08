@@ -22,6 +22,7 @@ using Softaxis.Restaurant.Infrastructure.Extensions;
 using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
+using Softaxis.VisaServices.Infrastructure.Extensions;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -98,6 +99,7 @@ try
     builder.Services.AddProjectManagementInfrastructure(builder.Configuration);
     // AI Assistant: DbContext, provider abstraction (Claude/Groq), orchestrator, tools
     builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
+    builder.Services.AddVisaServicesInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -157,7 +159,8 @@ try
         .AddApplicationPart(typeof(Softaxis.Restaurant.API.Controllers.TablesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Recipe.API.Controllers.RecipesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
-        .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly);
+        .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly);
 
     // ── Authorization + OpenAPI ───────────────────────────────────────────────
     builder.Services.AddAuthorization();
@@ -205,6 +208,7 @@ try
         await app.Services.MigrateAndSeedRecipeAsync();         // Recipe
         await app.Services.MigrateAndSeedProjectManagementAsync(); // Project Management
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
+        await app.Services.MigrateAndSeedVisaServicesAsync();       // Visa Services
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
@@ -236,7 +240,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);

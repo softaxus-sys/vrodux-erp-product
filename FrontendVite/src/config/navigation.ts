@@ -57,6 +57,26 @@ export const navigationConfig: NavGroup[] = [
     ],
   },
   {
+    id: "visa-group",
+    label: "Visa Services",
+    items: [
+      {
+        id: "visa",
+        label: "Visa Services",
+        labelAr: "خدمات التأشيرات",
+        icon: "Stamp",
+        module: "visa",
+        children: [
+          { id: "visa-dashboard", label: "Dashboard", labelAr: "لوحة التحكم", href: "/visa/dashboard", icon: "BarChart3" },
+          { id: "visa-cases",     label: "Cases",      labelAr: "المعاملات",   href: "/visa/cases",     icon: "Stamp" },
+          { id: "visa-renewals",  label: "Renewals",   labelAr: "التجديدات",   href: "/visa/renewals",  icon: "CalendarClock" },
+          { id: "visa-types",     label: "Visa Types", labelAr: "أنواع التأشيرات", href: "/visa/types", icon: "ListChecks" },
+          { id: "visa-channels",  label: "Channels",   labelAr: "قنوات الحكومة", href: "/visa/channels", icon: "Plug" },
+        ],
+      },
+    ],
+  },
+  {
     id: "finance",
     label: "Finance",
     items: [

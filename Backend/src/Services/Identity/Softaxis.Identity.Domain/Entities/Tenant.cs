@@ -84,6 +84,7 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["education"]   = "education",
         ["insurance"]   = "insurance",
         ["b2b_services"]= "b2b",
+        ["visa_services"]= "visa",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>

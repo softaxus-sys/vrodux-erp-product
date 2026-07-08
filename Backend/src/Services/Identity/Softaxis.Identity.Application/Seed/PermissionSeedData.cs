@@ -96,6 +96,9 @@ public static class PermissionSeedData
         ["project-management.labels"]   = ["view","create","edit","delete"],
         ["project-management.sprints"]  = ["view","create","edit","delete"],
         ["project-management.issues"]   = ["view","create","edit","delete"],
+
+        // Visa Services (UAE visa consultancy — cases, applicants, documents)
+        ["visa.cases"] = ["view","create","edit","delete"],
     };
 
     public static IReadOnlyList<Permission> GetPermissions()

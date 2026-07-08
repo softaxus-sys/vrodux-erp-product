@@ -202,6 +202,7 @@ function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
       case "education":   keys.add("education");   keys.add("crm"); break;
       case "insurance":   keys.add("insurance");   keys.add("crm"); break;
       case "b2b":         keys.add("b2b");         keys.add("crm"); break;
+      case "visa":        keys.add("visa");        keys.add("crm"); break;
       // no default — unknown module codes are silently skipped
     }
   }
@@ -232,7 +233,7 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     // No modules claim in JWT (old token) — fall back to enterprise for super-admin
     : (["dashboard", "pos", "inventory", "finance", "hr", "crm",
         "sales", "purchase", "reports", "settings", "users",
-        "notifications", "file-manager", "project-management"] as ModuleKey[]);
+        "notifications", "file-manager", "project-management", "visa"] as ModuleKey[]);
 
   return {
     id:             (claims["tenant_id"] as string | undefined) ?? "unknown",
