@@ -7,7 +7,7 @@ public sealed class Lead
         string email, string phone, string country, string city, string source, string priority,
         decimal estimatedValue, string assignedTo, string? notes,
         string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null,
-        Guid? assignedToUserId = null)
+        Guid? assignedToUserId = null, string? purchaseTimeframe = null)
     {
         Id             = Guid.NewGuid();
         FirstName      = firstName.Trim(); LastName = lastName.Trim();
@@ -20,6 +20,7 @@ public sealed class Lead
         Notes          = notes?.Trim(); Tags = [];
         WhatsApp       = Trim(whatsApp); InterestedIn = Trim(interestedIn);
         Budget         = Trim(budget);  Message = Trim(message);
+        PurchaseTimeframe = Trim(purchaseTimeframe);
         CreatedAt      = DateTime.UtcNow;
     }
 
@@ -59,6 +60,9 @@ public sealed class Lead
     public string?   InterestedIn    { get; private set; }
     public string?   Budget          { get; private set; }
     public string?   Message         { get; private set; }
+    /// <summary>Free-text "when are you planning to buy/invest?" answer — drives the purchase-urgency
+    /// score via <see cref="PurchaseUrgency"/>. Null when not captured.</summary>
+    public string?   PurchaseTimeframe { get; private set; }
 
     // ── Marketing / attribution (denormalized from the capturing source) ─────
     public string?   Platform            { get; private set; }
@@ -77,6 +81,33 @@ public sealed class Lead
     public DateTime? UpdatedAt       { get; private set; }
     public void UpdateStatus(string status) { Status = status; UpdatedAt = DateTime.UtcNow; }
     public void UpdateScore(int score) { Score = Math.Clamp(score, 0, 100); UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Recompute the automatic rule-based score from this lead's own signals plus its
+    /// engagement (number of activities logged). The score is <b>computed, not free-form</b> — this
+    /// overwrites any previous value. Called on create, edit, intake, and when activity is logged.
+    /// See <see cref="LeadScoring"/> for the weighting.</summary>
+    public void RecalculateScore(int activityCount = 0)
+    {
+        Score = LeadScoring.Calculate(
+            Email, Phone, WhatsApp,
+            Budget, InterestedIn, Message,
+            Source, Priority, EstimatedValue,
+            activityCount, PurchaseTimeframe);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>When no explicit value was entered (EstimatedValue &lt;= 0), estimate it from the
+    /// free-text <see cref="Budget"/> so inbound leads (Meta/import) still get a pipeline value.
+    /// A manually entered value always wins (this is a no-op when EstimatedValue &gt; 0).</summary>
+    public void DeriveEstimatedValueFromBudget()
+    {
+        if (EstimatedValue > 0) return;
+        if (BudgetParser.Parse(Budget) is { } v && v > 0)
+        {
+            EstimatedValue = v;
+            UpdatedAt = DateTime.UtcNow;
+        }
+    }
     public void Convert(string dealId, Guid? customerId = null) { Status = "converted"; ConvertedDealId = dealId; ConvertedCustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
@@ -93,7 +124,7 @@ public sealed class Lead
         string email, string phone, string country, string city, string source, string priority,
         decimal estimatedValue, string assignedTo, int score, string? nextFollowUp, string? notes, List<string>? tags,
         string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null,
-        Guid? assignedToUserId = null)
+        Guid? assignedToUserId = null, string? purchaseTimeframe = null)
     {
         FirstName = firstName.Trim(); LastName = lastName.Trim();
         Title = title.Trim(); Company = company.Trim(); Industry = industry.Trim();
@@ -103,6 +134,7 @@ public sealed class Lead
         Score = Math.Clamp(score, 0, 100); NextFollowUp = nextFollowUp; Notes = notes?.Trim();
         WhatsApp = Trim(whatsApp); InterestedIn = Trim(interestedIn);
         Budget = Trim(budget); Message = Trim(message);
+        PurchaseTimeframe = Trim(purchaseTimeframe);
         if (tags is not null) Tags = tags;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -118,9 +150,11 @@ public sealed class Lead
     }
 
     /// <summary>Set the lead-gen requirement fields (used by the intake pipeline).</summary>
-    public void SetRequirements(string? whatsApp, string? interestedIn, string? budget, string? message)
+    public void SetRequirements(string? whatsApp, string? interestedIn, string? budget, string? message,
+        string? purchaseTimeframe = null)
     {
         WhatsApp = Trim(whatsApp); InterestedIn = Trim(interestedIn);
         Budget = Trim(budget); Message = Trim(message);
+        PurchaseTimeframe = Trim(purchaseTimeframe);
     }
 }

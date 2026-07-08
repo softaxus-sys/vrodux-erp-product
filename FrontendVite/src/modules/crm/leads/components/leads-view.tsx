@@ -15,7 +15,7 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { sourceLabel, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -406,7 +406,15 @@ export function LeadsView() {
                             <AvatarFallback className="text-[11px] font-bold bg-primary/10 text-primary">{getInitials(lead.fullName)}</AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="font-medium text-sm">{lead.fullName}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-sm">{lead.fullName}</p>
+                              {lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" && URGENCY_META[lead.purchaseUrgency] && (
+                                <span className={cn("shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold",
+                                  URGENCY_META[lead.purchaseUrgency].color, URGENCY_META[lead.purchaseUrgency].bg)}>
+                                  {URGENCY_META[lead.purchaseUrgency].label}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[11px] text-muted-foreground">{lead.title}</p>
                           </div>
                         </div>

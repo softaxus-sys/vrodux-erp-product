@@ -2608,6 +2608,92 @@ in (industry-standard invite flow).
 
 ---
 
+## Module 18 — CRM: Automatic rule-based lead scoring (make `Lead.Score` computed, not free-form)
+
+**Roadmap slice 4 (see Module 8 build order).** `Lead.Score` (int 0–100) was a real column with a working
+`PATCH /leads/{id}/score` endpoint + `ScoreBar`/Hot·Warm·Cold display, but **nothing ever produced a value** —
+`CreateLeadCommand` had no score field, the intake pipeline never set it, there was no auto-scoring logic, and
+the only UI writer (`useSetLeadScore`) was dead (never called; the edit form has no score input and just
+re-sent the existing value). So every lead showed **0**. This makes the score automatic + computed.
+
+### Scoring model — `Softaxis.CRM.Domain/Entities/LeadScoring.cs` (NEW, pure/deterministic)
+`LeadScoring.Calculate(email, phone, whatsApp, budget, interestedIn, message, source, priority,
+estimatedValue, activityCount)` → 0–100 (summed then clamped):
+- Contactability (reachability) — max 25: email 10 · phone 8 · whatsapp 7
+- Buying intent — max 30: budget 12 · interested-in 10 · message 8
+- Source quality — max 20: referral/partner 20 · website/property-finder/walk_in 15 · trade_show 14 ·
+  linkedin/social/email_campaign/google_ads/meta/facebook/instagram/whatsapp 12 · cold_call 5 · unknown 8
+- Deal size (estimated value) — max 10 (tiered ≥100k/≥50k/≥10k/>0)
+- Priority (manual rep signal) — max 10: high 10 · medium 5 · low 0
+- Engagement — max 15: 5 per logged activity
+UI banding unchanged: ≥70 Hot · ≥40 Warm · <40 Cold.
+
+### `Lead.RecalculateScore(int activityCount = 0)` (Lead.cs) — overwrites Score (computed, not free-form)
+
+### Wired at every producer
+- `CreateLeadHandler` — `l.RecalculateScore(0)` before save.
+- `LeadIntakeService.IngestAsync` — `newLead.RecalculateScore(0)` after SetRequirements/SetMarketing (all
+  integration sources: Meta/import/webhooks/Property Finder/etc.).
+- `UpdateLeadHandler` — recomputes from the edited signals + current activity count (ignores the incoming
+  `cmd.Score`; score is now computed). Added `using Microsoft.EntityFrameworkCore;`.
+- `CreateActivityHandler` — when the activity is `relatedToType == "lead"`, recomputes that lead's score with
+  `priorCount + 1` (engagement bump), single SaveChanges. Added the EF using.
+
+### Idempotent startup backfill — `RecomputeZeroScoreLeadsAsync` (InfrastructureExtensions, in `MigrateAndSeedCrmAsync`)
+Existing leads all sit at Score = 0 (predate scoring). Recomputes **only** `Score == 0` rows (never clobbers a
+computed score; no-op once all scored) across all tenants (`IgnoreQueryFilters()`, no ambient tenant at
+startup), activity counts via one grouped query. **Best-effort `try/catch` — never crash-loops startup** (per
+the deploy-runs-startup-seeding risk).
+
+### Notes / scope
+- The manual `PATCH /leads/{id}/score` endpoint + `useSetLeadScore` hook are left in place but are now moot
+  (edit/activity recompute overrides them) — a future "manual override" toggle could reuse them.
+- No migration (uses the existing `Score` column). No frontend change — the score already displays; it will
+  simply be non-zero now.
+- **Build:** CRM.API 0 errors / 0 warnings ✅. **Pending (republish + restart):** backfill runs on startup;
+  spot-check — create a lead (email+phone, website, medium → ~38; +budget/interest → higher), a referral with
+  budget/high priority → Hot; log an activity → score rises; a Meta/import lead shows a non-zero score.
+
+### Module 18b — CRM: Purchase-timeframe urgency signal + auto-derived lead value
+
+Extends Module 18 with two signals users asked for: **when** the lead plans to buy (urgency) and a **numeric
+value** for leads that arrive without one (Meta/import).
+
+- **`PurchaseUrgency` (Domain, NEW)** — `Classify(text)` maps a free-text "when are you planning to buy/invest?"
+  answer to a ranked bucket via **dynamic keyword + number matching** (not a fixed enum): `immediate` /
+  `1_month` / `1_3_months` / `3_6_months` / `6_plus` / `unknown`. Handles "ASAP", "within 30 days", "1-3
+  months", "6+ months" (open-ended `+`/"more than" bumps ≥6 to `6_plus`), "just researching", "next year", etc.
+  `Score(text)` → max **25** (immediate 25 · 1mo 20 · 1-3mo 13 · 3-6mo 7 · 6+/researching 3). New phrasings =
+  add a keyword.
+- **`BudgetParser` (Domain, NEW)** — `Parse(text)` turns a free-text budget ("50k–100k", "AED 500,000", "1.5M",
+  "5 lakh", "2 crore", ">500k") into a decimal; **ranges → midpoint** (approved). Currency-agnostic (strips
+  symbols, no FX — Module 6e model).
+- **`Lead`** — new nullable `PurchaseTimeframe` column (raw text). `RecalculateScore` now takes the timeframe;
+  new `DeriveEstimatedValueFromBudget()` fills `EstimatedValue` from the budget **only when it's 0** (a
+  manually-entered value always wins — approved). `SetRequirements`/ctor/`Update` carry the timeframe.
+  Migration `AddLeadPurchaseTimeframe` (1 column).
+- **`LeadScoring` rebalanced** to fit urgency (max 100): urgency 25 · contactability 20 · buying-intent 20 ·
+  deal-value 15 · source 12 · priority 8 · engagement 10.
+- **Capture** — `CanonicalLead.Timeframe` + `CanonicalLeadFields.Timeframe`; `GenericInboundProvider`
+  `TimeframeKeys`, Meta `field_data` timeframe cases, intake `KnownRawKeys` (so it doesn't double-show under
+  Form Responses); `IngestLeadInput.Timeframe` (so `/internal/leads` + bulk import map it). Intake now calls
+  `DeriveEstimatedValueFromBudget()` then `RecalculateScore(0)`. Create/Update handlers pass the timeframe +
+  derive value before scoring.
+- **Backfill broadened** — `RecomputeLeadValueAndScoreAsync` (was `RecomputeZeroScoreLeadsAsync`) targets
+  `Score == 0` **or** `(EstimatedValue == 0 && Budget set)`, derives value + rescores; still idempotent,
+  best-effort, all-tenants.
+- **Frontend** — `crm.api.ts` `PurchaseUrgency` type + `URGENCY_META` (badge colors) + `TIMEFRAME_OPTIONS`;
+  `LeadDto.purchaseTimeframe`/`purchaseUrgency`; Create/Update/Import requests carry timeframe; import modal
+  synonyms + label. Add/Edit form gets a **"Planning to buy" dropdown** (standard buckets — approved). Urgency
+  **badge** shown in the lead list (next to name) + drawer Requirements ("Planning to buy" row). Also fixed the
+  drawer's `SOURCE_LABELS[lead.source]` → `sourceLabel()` (same empty-source fix as the list).
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅ · migration
+  `AddLeadPurchaseTimeframe` created (auto-applies + backfill on startup). **Pending (republish + restart):**
+  a Meta/import lead with a budget shows a non-zero Est. Value + urgency badge; a lead answering "immediately"
+  scores Hot.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

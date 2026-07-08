@@ -189,6 +189,9 @@ public sealed class MetaLeadProvider(
                     case "message": case "your_message":       lc.Message      ??= value; break;
                     case "budget": case "your_budget":         lc.Budget       ??= value; break;
                     case "interested_in": case "interest":     lc.InterestedIn ??= value; break;
+                    case "timeframe": case "timeline": case "when_to_buy": case "when_looking_to_buy":
+                    case "purchase_timeline": case "buying_timeline": case "when_planning_to_invest":
+                    case "move_in": case "urgency":            lc.Timeframe    ??= value; break;
                 }
             }
         }

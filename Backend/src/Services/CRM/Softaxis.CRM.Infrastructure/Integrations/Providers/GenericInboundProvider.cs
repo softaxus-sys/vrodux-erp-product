@@ -38,6 +38,7 @@ public sealed class GenericInboundProvider(string key, ProviderDescriptor descri
     private static readonly string[] InterestedInKeys = ["interested_in", "interestedin", "interest", "interests", "looking_for", "product_interest", "service_interest"];
     private static readonly string[] BudgetKeys       = ["budget", "budget_range", "your_budget", "price_range", "estimated_budget"];
     private static readonly string[] MessageKeys      = ["message", "your_message", "custom_message", "additional_info", "details"];
+    private static readonly string[] TimeframeKeys    = ["timeframe", "time_frame", "timeline", "when_to_buy", "when_looking_to_buy", "purchase_timeline", "buying_timeline", "when_planning_to_buy", "when_planning_to_invest", "when_are_you_planning_to_buy", "move_in", "move_in_date", "urgency", "purchase_timeframe"];
     private static readonly string[] FormNameKeys     = ["form_name", "formname", "form"];
 
     public IReadOnlyList<CanonicalLead> Normalize(string rawPayload, Integration integration)
@@ -104,6 +105,7 @@ public sealed class GenericInboundProvider(string key, ProviderDescriptor descri
             InterestedIn = Pick(fields, InterestedInKeys),
             Budget       = Pick(fields, BudgetKeys),
             Message      = Pick(fields, MessageKeys),
+            Timeframe    = Pick(fields, TimeframeKeys),
             FormName     = Pick(fields, FormNameKeys),
             ExternalLeadId = Pick(fields, ["lead_id", "id", "external_id", "externalid"]),
             UtmSource   = Pick(fields, ["utm_source"]),

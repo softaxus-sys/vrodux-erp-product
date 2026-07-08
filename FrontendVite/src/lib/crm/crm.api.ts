@@ -148,7 +148,28 @@ export interface LeadDto {
   platformCreatedTime?: string | null;
   /** Extra captured fields (survey Q&A / custom questions) as question → answer. */
   customFields?:        Record<string, string> | null;
+  /** Free-text "when planning to buy/invest" answer. */
+  purchaseTimeframe?:   string | null;
+  /** Classified urgency bucket key derived from purchaseTimeframe (see URGENCY_META). */
+  purchaseUrgency?:     PurchaseUrgency | null;
 }
+
+export type PurchaseUrgency = "immediate" | "1_month" | "1_3_months" | "3_6_months" | "6_plus" | "unknown";
+
+/** UI metadata per urgency bucket (label + colors). `unknown` renders no badge. */
+export const URGENCY_META: Record<Exclude<PurchaseUrgency, "unknown">, { label: string; color: string; bg: string }> = {
+  immediate:   { label: "Immediate",      color: "text-destructive",  bg: "bg-destructive/10" },
+  "1_month":   { label: "Within 1 month", color: "text-warning",      bg: "bg-warning/10" },
+  "1_3_months":{ label: "1–3 months",     color: "text-amber-600",    bg: "bg-amber-100 dark:bg-amber-900/20" },
+  "3_6_months":{ label: "3–6 months",     color: "text-blue-600",     bg: "bg-blue-50 dark:bg-blue-900/20" },
+  "6_plus":    { label: "6+ months",      color: "text-muted-foreground", bg: "bg-muted" },
+};
+
+/** Standard purchase-timeframe options for the manual Add/Edit Lead form (stored as the raw
+ *  text — the backend classifier maps it to an urgency bucket, same as inbound free text). */
+export const TIMEFRAME_OPTIONS = [
+  "Immediately", "Within 1 month", "1-3 months", "3-6 months", "6+ months",
+] as const;
 
 export interface LeadsSummaryDto {
   total:               number;
@@ -296,6 +317,7 @@ export interface CreateLeadRequest {
   email: string; phone: string; country: string; city: string; source: string; priority: string;
   estimatedValue: number; assignedTo: string; notes?: string | null;
   whatsApp?: string | null; interestedIn?: string | null; budget?: string | null; message?: string | null;
+  purchaseTimeframe?: string | null;
   /** Identity user id of the owner picked in the assignee dropdown. */
   assignedToUserId?: string | null;
 }
@@ -325,7 +347,7 @@ export interface ImportLeadInput {
   industry?: string | null; address?: string | null; city?: string | null; country?: string | null;
   notes?: string | null; source?: string | null; campaign?: string | null;
   whatsApp?: string | null; interestedIn?: string | null; budget?: string | null;
-  message?: string | null; formName?: string | null;
+  message?: string | null; formName?: string | null; timeframe?: string | null;
   /** Any extra columns, kept raw so integration field-mappings can promote them. */
   fields?: Record<string, string | null> | null;
 }
@@ -337,7 +359,7 @@ export interface ImportLeadsResult {
 export const IMPORT_TARGET_FIELDS = [
   "firstName", "lastName", "fullName", "email", "phone", "company",
   "title", "industry", "address", "city", "country", "notes",
-  "whatsApp", "interestedIn", "budget", "message", "campaign", "formName",
+  "whatsApp", "interestedIn", "budget", "message", "timeframe", "campaign", "formName",
 ] as const;
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 export interface CreateDealRequest {

@@ -28,6 +28,7 @@ const FIELD_SYNONYMS: Record<ImportTargetField, string[]> = {
   interestedIn: ["interestedin", "interest", "interest in", "productinterest", "serviceinterest", "lookingfor"],
   budget:       ["budget", "budgetrange", "pricerange", "estimatedbudget", "yourbudget"],
   message:      ["message", "yourmessage", "custommessage", "comments", "enquiry", "inquiry", "additionalinfo", "details"],
+  timeframe:    ["timeframe", "timeline", "whentobuy", "whenlookingtobuy", "purchasetimeline", "buyingtimeline", "whenplanningtoinvest", "movein", "urgency"],
   campaign:     ["campaign", "campaignname", "adcampaign"],
   formName:     ["formname", "form", "formtitle", "leadform"],
 };
@@ -37,7 +38,7 @@ const TARGET_LABEL: Record<ImportTargetField, string> = {
   phone: "Phone", company: "Company", title: "Job title", industry: "Industry",
   address: "Address", city: "City", country: "Country", notes: "Notes",
   whatsApp: "WhatsApp", interestedIn: "Interested in", budget: "Budget",
-  message: "Message", campaign: "Campaign", formName: "Form name",
+  message: "Message", timeframe: "Purchase timeframe", campaign: "Campaign", formName: "Form name",
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");

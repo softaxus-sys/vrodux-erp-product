@@ -126,6 +126,9 @@ public static class InfrastructureExtensions
         var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         await db.Database.MigrateAsync();
 
+        // Backfill value + score for leads created before automatic scoring/value existed.
+        await RecomputeLeadValueAndScoreAsync(db);
+
         // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only. The old
         // ASPNETCORE_ENVIRONMENT != "Production" gate was ineffective — prod runs as "Docker" — so
         // it seeded into real deployments. Now gated by the explicit Seeding:DemoData flag (off by
@@ -134,5 +137,44 @@ public static class InfrastructureExtensions
             await DemoTenantSeeder.RunAsync(() => CrmSeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await CrmSeedData.SeedAsync(db);
+    }
+
+    /// <summary>
+    /// Idempotent backfill for leads created before automatic scoring/value derivation existed:
+    /// derive a pipeline value from the free-text budget when none is set, and recompute the score.
+    /// Targets leads still at Score = 0, or with a budget but no value (so a budgeted lead gets a
+    /// value even if it was scored under an earlier weighting). Never clobbers an explicitly entered
+    /// value (DeriveEstimatedValueFromBudget is a no-op when value &gt; 0). Runs across all tenants
+    /// (no ambient tenant at startup) and is best-effort — a failure must never crash-loop startup.
+    /// </summary>
+    private static async Task RecomputeLeadValueAndScoreAsync(CrmDbContext db)
+    {
+        try
+        {
+            var leads = await db.Leads.IgnoreQueryFilters()
+                .Where(l => !l.IsDeleted &&
+                    (l.Score == 0 || (l.EstimatedValue == 0m && l.Budget != null && l.Budget != "")))
+                .ToListAsync();
+            if (leads.Count == 0) return;
+
+            // Activity counts per lead in one grouped query.
+            var counts = await db.Activities.IgnoreQueryFilters()
+                .Where(a => !a.IsDeleted && a.RelatedToType == "lead")
+                .GroupBy(a => a.RelatedToId)
+                .Select(g => new { LeadId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.LeadId, x => x.Count);
+
+            foreach (var lead in leads)
+            {
+                lead.DeriveEstimatedValueFromBudget();
+                lead.RecalculateScore(counts.TryGetValue(lead.Id, out var c) ? c : 0);
+            }
+
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // Best-effort backfill — never block startup on it.
+        }
     }
 }
