@@ -88,25 +88,41 @@ public sealed class Lead
     /// See <see cref="LeadScoring"/> for the weighting.</summary>
     public void RecalculateScore(int activityCount = 0)
     {
-        Score = LeadScoring.Calculate(
+        var newScore = LeadScoring.Calculate(
             Email, Phone, WhatsApp,
             Budget, InterestedIn, Message,
             Source, Priority, EstimatedValue,
             activityCount, PurchaseTimeframe);
+        if (newScore == Score) return; // idempotent — don't churn UpdatedAt when nothing changed
+        Score = newScore;
         UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>When no explicit value was entered (EstimatedValue &lt;= 0), estimate it from the
     /// free-text <see cref="Budget"/> so inbound leads (Meta/import) still get a pipeline value.
-    /// A manually entered value always wins (this is a no-op when EstimatedValue &gt; 0).</summary>
-    public void DeriveEstimatedValueFromBudget()
+    /// A manually entered value normally wins; pass <paramref name="overrideExisting"/> to force a
+    /// re-derive (used by the startup repair for bad legacy values).</summary>
+    public void DeriveEstimatedValueFromBudget(bool overrideExisting = false)
     {
-        if (EstimatedValue > 0) return;
-        if (BudgetParser.Parse(Budget) is { } v && v > 0)
+        if (!overrideExisting && EstimatedValue > 0) return;
+        if (BudgetParser.Parse(Budget) is { } v && v > 0 && v != EstimatedValue)
         {
             EstimatedValue = v;
             UpdatedAt = DateTime.UtcNow;
         }
+    }
+
+    /// <summary>Additively promote requirement fields recovered from a lead's captured
+    /// <see cref="CustomFields"/> (Form Responses). Only fills a field that is currently empty —
+    /// never overwrites data already promoted at capture time.</summary>
+    public void RecoverRequirements(string? whatsApp, string? interestedIn, string? budget,
+        string? message, string? purchaseTimeframe)
+    {
+        WhatsApp          ??= Trim(whatsApp);
+        InterestedIn      ??= Trim(interestedIn);
+        Budget            ??= Trim(budget);
+        Message           ??= Trim(message);
+        PurchaseTimeframe ??= Trim(purchaseTimeframe);
     }
     public void Convert(string dealId, Guid? customerId = null) { Status = "converted"; ConvertedDealId = dealId; ConvertedCustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }

@@ -126,8 +126,9 @@ public static class InfrastructureExtensions
         var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         await db.Database.MigrateAsync();
 
-        // Backfill value + score for leads created before automatic scoring/value existed.
-        await RecomputeLeadValueAndScoreAsync(db);
+        // Backfill value + score for existing leads — can be heavy on a large lead table, so run it in
+        // the background (own scope) rather than blocking startup readiness / the deploy health check.
+        _ = Task.Run(() => RecomputeLeadValueAndScoreInBackgroundAsync(services));
 
         // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only. The old
         // ASPNETCORE_ENVIRONMENT != "Production" gate was ineffective — prod runs as "Docker" — so
@@ -139,21 +140,66 @@ public static class InfrastructureExtensions
             await CrmSeedData.SeedAsync(db);
     }
 
+    // Requirement fields that may have been captured under a custom source field name and landed in
+    // the lead's CustomFields (Form Responses) instead of being promoted. Keyed by normalized synonym.
+    private static readonly (string Target, string[] Keys)[] RequirementSynonyms =
+    [
+        ("budget",       ["budget", "budgetrange", "yourbudget", "pricerange", "estimatedbudget", "price", "investment", "investmentamount"]),
+        ("timeframe",    ["timeframe", "timeline", "whentobuy", "whenlookingtobuy", "whenplanningtobuy", "purchasetimeline", "buyingtimeline", "whenplanningtoinvest", "movein", "movindate", "urgency", "whenareyouplanningtobuy"]),
+        ("interestedin", ["interestedin", "interest", "interests", "lookingfor", "productinterest", "serviceinterest", "propertytype", "unittype"]),
+        ("whatsapp",     ["whatsapp", "whatsappnumber", "wanumber", "whatsappno"]),
+        ("message",      ["message", "yourmessage", "custommessage", "enquiry", "inquiry", "additionalinfo", "details", "comments"]),
+    ];
+
+    private static string NormalizeKey(string s)
+    {
+        Span<char> buf = stackalloc char[s.Length];
+        var n = 0;
+        foreach (var c in s) if (char.IsLetterOrDigit(c)) buf[n++] = char.ToLowerInvariant(c);
+        return new string(buf[..n]);
+    }
+
+    private static string? PickFromCustomFields(IReadOnlyDictionary<string, string>? custom, string[] keys)
+    {
+        if (custom is null || custom.Count == 0) return null;
+        foreach (var (k, v) in custom)
+            if (!string.IsNullOrWhiteSpace(v) && keys.Contains(NormalizeKey(k)))
+                return v;
+        return null;
+    }
+
     /// <summary>
-    /// Idempotent backfill for leads created before automatic scoring/value derivation existed:
-    /// derive a pipeline value from the free-text budget when none is set, and recompute the score.
-    /// Targets leads still at Score = 0, or with a budget but no value (so a budgeted lead gets a
-    /// value even if it was scored under an earlier weighting). Never clobbers an explicitly entered
-    /// value (DeriveEstimatedValueFromBudget is a no-op when value &gt; 0). Runs across all tenants
-    /// (no ambient tenant at startup) and is best-effort — a failure must never crash-loop startup.
+    /// Idempotent backfill / repair for leads created before (or captured without) proper field
+    /// mapping. For each affected lead it (1) recovers budget/timeframe/interest/whatsapp/message
+    /// that landed in CustomFields under a custom field name, (2) derives the pipeline value from the
+    /// budget — forcing a re-derive when the existing value is a bad tiny legacy value (&lt; 1000, the
+    /// "50" bug), and (3) recomputes the score. Targets Score = 0 or EstimatedValue &lt; 1000 leads,
+    /// so already-healthy leads are untouched; writes are minimal thanks to the idempotent setters.
+    /// Runs across all tenants (no ambient tenant at startup) and is best-effort — a failure must
+    /// never crash-loop startup.
     /// </summary>
+    /// <summary>Runs the value/score backfill on a fresh scope off the startup path (fire-and-forget).
+    /// Fully guarded so an unobserved background failure can never surface.</summary>
+    private static async Task RecomputeLeadValueAndScoreInBackgroundAsync(IServiceProvider services)
+    {
+        try
+        {
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+            await RecomputeLeadValueAndScoreAsync(db);
+        }
+        catch
+        {
+            // Best-effort background repair — swallow everything.
+        }
+    }
+
     private static async Task RecomputeLeadValueAndScoreAsync(CrmDbContext db)
     {
         try
         {
             var leads = await db.Leads.IgnoreQueryFilters()
-                .Where(l => !l.IsDeleted &&
-                    (l.Score == 0 || (l.EstimatedValue == 0m && l.Budget != null && l.Budget != "")))
+                .Where(l => !l.IsDeleted && (l.Score == 0 || l.EstimatedValue < 1000m))
                 .ToListAsync();
             if (leads.Count == 0) return;
 
@@ -166,7 +212,16 @@ public static class InfrastructureExtensions
 
             foreach (var lead in leads)
             {
-                lead.DeriveEstimatedValueFromBudget();
+                // Recover requirement fields that were captured but never promoted (custom field names).
+                lead.RecoverRequirements(
+                    whatsApp:          PickFromCustomFields(lead.CustomFields, RequirementSynonyms[3].Keys),
+                    interestedIn:      PickFromCustomFields(lead.CustomFields, RequirementSynonyms[2].Keys),
+                    budget:            PickFromCustomFields(lead.CustomFields, RequirementSynonyms[0].Keys),
+                    message:           PickFromCustomFields(lead.CustomFields, RequirementSynonyms[4].Keys),
+                    purchaseTimeframe: PickFromCustomFields(lead.CustomFields, RequirementSynonyms[1].Keys));
+
+                // Re-derive value, forcing over a bad tiny legacy value (< 1000).
+                lead.DeriveEstimatedValueFromBudget(overrideExisting: lead.EstimatedValue < 1000m);
                 lead.RecalculateScore(counts.TryGetValue(lead.Id, out var c) ? c : 0);
             }
 

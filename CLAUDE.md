@@ -2692,6 +2692,30 @@ value** for leads that arrive without one (Meta/import).
   a Meta/import lead with a budget shows a non-zero Est. Value + urgency badge; a lead answering "immediately"
   scores Hot.
 
+### Module 18c — CRM: fixes to field-mapping coverage, budget value, and score for inbound (Meta/IG/FB) leads
+Follow-up fixing three linked issues reported on real Meta/Instagram/Facebook leads (value showing "50" or 0,
+scores too low):
+- **Root cause — field-mapping dropdown was missing most targets.** `MappingTab` in `integrations-view.tsx`
+  hardcoded only 12 basic target fields, so users couldn't map Meta lead-form questions (which use custom field
+  names) to `budget`/`timeframe`/`interestedIn`/`whatsApp`/`message`/`campaign`/`formName`. Those never got
+  captured → no value derived (0) + missing urgency/intent/value score. **Fix:** `TARGET_FIELDS` now lists the
+  full `CanonicalLeadFields` set with friendly labels (e.g. "Budget (→ lead value)", "Purchase timeframe (→
+  urgency)"). Backend `ApplyFieldMappings` already supported all of them — only the UI list was short.
+- **"50" value bug — `BudgetParser`.** A bare "50" (shorthand for 50k in these markets) parsed to literally 50.
+  **Fix:** when a budget has no unit suffix and no thousands separator and the result is < 1000, treat it as
+  thousands (`"50"`→50,000, `"75-100"`→75,000). Suffixed/separated values ("50k", "50,000", "1.5M") unchanged.
+- **Existing leads repaired.** The startup backfill (`RecomputeLeadValueAndScoreAsync`) now also (1) recovers
+  budget/timeframe/interest/whatsapp/message that landed in `CustomFields` (Form Responses) under a custom name
+  — via `Lead.RecoverRequirements(...)` + a normalized synonym table, (2) force-re-derives value over bad tiny
+  legacy values (`DeriveEstimatedValueFromBudget(overrideExisting: value < 1000)`), and (3) rescopes to
+  `Score == 0 || EstimatedValue < 1000`. `RecalculateScore` is now idempotent (skips the `UpdatedAt` bump when
+  the score is unchanged) so re-runs don't churn rows.
+- **Backfill moved off the startup path.** All `MigrateAndSeed*Async` run **awaited before `app.RunAsync()`**, so
+  a heavy CRM lead backfill would delay `/health` and could trip the deploy's 5-min health window → rollback.
+  The value/score repair now runs **fire-and-forget on its own DI scope** (`Task.Run(... InBackgroundAsync)`,
+  fully try/catch-guarded); the migration + seed stay synchronous.
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
+
 ---
 
 ## Build Status
