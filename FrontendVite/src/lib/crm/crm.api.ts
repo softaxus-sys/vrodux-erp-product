@@ -173,6 +173,21 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
   walk_in:        "Walk-in",
 };
 
+/**
+ * Human label for a lead source. `source` is typed as `LeadSource` but at runtime
+ * it can be any provider key (e.g. "meta", "import", "property-finder", "facebook")
+ * coming from the integration platform — those aren't in SOURCE_LABELS and would
+ * render as an empty `<option>`. Fall back to a humanized version of the raw key.
+ */
+export function sourceLabel(source: string | null | undefined): string {
+  if (!source) return "—";
+  const known = (SOURCE_LABELS as Record<string, string>)[source];
+  if (known) return known;
+  return source
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // ── Customers ───────────────────────────────────────────────────────────────
 
 export interface CustomerContact {

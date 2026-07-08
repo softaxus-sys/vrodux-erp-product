@@ -15,7 +15,7 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
+import { sourceLabel, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -83,7 +83,7 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
       <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, currency)}</p>
       <ScoreBar score={lead.score} />
       <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/50">
-        <span className="text-[10px] text-muted-foreground">{SOURCE_LABELS[lead.source]}</span>
+        <span className="text-[10px] text-muted-foreground">{sourceLabel(lead.source)}</span>
         <Avatar className="h-5 w-5">
           <AvatarFallback className="text-[8px] font-bold bg-primary/10 text-primary">{getInitials(lead.assignedTo)}</AvatarFallback>
         </Avatar>
@@ -264,7 +264,15 @@ export function LeadsView() {
     const q = search.toLowerCase();
     return leads
       .filter(l => {
-        const matchSearch = !search || (l.fullName ?? "").toLowerCase().includes(q) || (l.company ?? "").toLowerCase().includes(q) || (l.email ?? "").toLowerCase().includes(q);
+        const matchSearch = !search || [
+          l.fullName,
+          l.company,
+          l.email,
+          l.phone,
+          l.whatsApp,
+          l.source,
+          sourceLabel(l.source),
+        ].some(v => (v ?? "").toString().toLowerCase().includes(q));
         const matchStatus = statusFilter === "all" || l.status === statusFilter;
         const matchSource = sourceFilter === "all" || l.source === sourceFilter;
         const matchMine   = !mineOnly || l.assignedTo === currentUserName;
@@ -335,25 +343,23 @@ export function LeadsView() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap flex-1">
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder="Search name, email, phone, source..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
-          {/* Status pills */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {["all","new","contacted","qualified","converted","unqualified","lost"].map(s => (
-              <button key={s} onClick={() => setStatusFilter(s)}
-                className={cn("px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors",
-                  statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                {s === "all" ? "All" : STATUS_CONFIG[s as LeadStatus]?.label ?? s}
-              </button>
+          {/* Status filter */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="all">All Statuses</option>
+            {(["new","contacted","qualified","converted","unqualified","lost"] as LeadStatus[]).map(s => (
+              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
             ))}
-          </div>
+          </select>
           {/* Source filter */}
           <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="all">All Sources</option>
-            {uniqueSources.map(s => <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
+            {uniqueSources.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
           </select>
         </div>
 
@@ -383,14 +389,14 @@ export function LeadsView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Lead","Company","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
+                    {["Lead","Phone","Company","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {listLazy.total === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No leads found.</td></tr>
+                    <tr><td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">No leads found.</td></tr>
                   ) : listLazy.visible.map((lead, i) => (
                     <motion.tr key={lead.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(lead)}>
@@ -405,11 +411,17 @@ export function LeadsView() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {lead.phone ? (
+                          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+                            className="text-sm text-foreground hover:text-primary hover:underline">{lead.phone}</a>
+                        ) : <span className="text-sm text-muted-foreground">—</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <p className="text-sm">{lead.company}</p>
                         <p className="text-[11px] text-muted-foreground">{lead.industry}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{SOURCE_LABELS[lead.source]}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{sourceLabel(lead.source)}</td>
                       <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(lead.estimatedValue, currency)}</td>
                       <td className="px-4 py-3 min-w-[100px]"><ScoreBar score={lead.score} /></td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
