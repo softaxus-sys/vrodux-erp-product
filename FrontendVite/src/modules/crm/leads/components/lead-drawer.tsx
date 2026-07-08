@@ -6,13 +6,15 @@ import {
   FileText, MessageSquare, Edit, ArrowRight,
   CheckCircle2, TrendingUp, Star
 } from "lucide-react";
-import { Trash2, Loader2, Pencil } from "lucide-react";
+import { Trash2, Loader2, Pencil, UserCog, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
-import { useConvertLead, useSetLeadStatus, useDeleteLead } from "@/hooks/crm/use-crm";
+import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments } from "@/hooks/crm/use-crm";
+import { useUsers } from "@/hooks/identity/use-users";
 import { useCurrency } from "@/hooks/use-currency";
+import { useAuthStore } from "@/store/auth.store";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
 import { Can } from "@/components/auth/can";
 
@@ -52,6 +54,63 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
+// ── Reassign panel ──────────────────────────────────────────────────────────
+function ReassignPanel({
+  lead, onClose,
+}: { lead: Lead; onClose: () => void }) {
+  const assign = useAssignLead();
+  const { data: usersPage } = useUsers({ pageSize: 200 });
+  const users = (usersPage?.items ?? []).filter(u => u.status?.toLowerCase() === "active");
+  const [toUserId, setToUserId] = React.useState(lead.assignedToUserId ?? "");
+  const [note, setNote] = React.useState("");
+
+  const submit = () => {
+    const toName = users.find(u => u.id === toUserId)?.fullName ?? "";
+    assign.mutate(
+      { id: lead.id, toUserId: toUserId || null, toUserName: toName, note: note.trim() || null },
+      { onSuccess: onClose }
+    );
+  };
+
+  return (
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 z-[60]" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+        className="absolute inset-x-6 top-1/4 z-[61] rounded-xl border border-border bg-background p-5 shadow-2xl space-y-3">
+        <div className="flex items-center gap-2">
+          <UserCog className="h-4 w-4 text-primary" />
+          <p className="font-semibold text-sm">Reassign lead</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Hand this lead to another team member. They'll see it under “Assigned to me” and can act on it;
+          the change is recorded in the lead's history.
+        </p>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assign to</label>
+          <select value={toUserId} onChange={e => setToUserId(e.target.value)}
+            className="h-9 w-full px-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+            <option value="">Unassigned</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Note (optional)</label>
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2}
+            placeholder="e.g. Contacted — please arrange a site visit"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+        </div>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={assign.isPending}>Cancel</Button>
+          <Button size="sm" className="gap-1.5" onClick={submit} disabled={assign.isPending}>
+            {assign.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserCog className="h-3.5 w-3.5" />}Reassign
+          </Button>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
 interface Props { lead: Lead | null; open: boolean; onClose: () => void; onEdit?: (lead: Lead) => void; }
 
 export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
@@ -62,12 +121,24 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
   const convert = useConvertLead();
   const setStatus = useSetLeadStatus();
   const del = useDeleteLead();
+  const assign = useAssignLead();
   const [confirmDelete, setConfirmDelete] = React.useState(false);
-  React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
+  const [showReassign, setShowReassign] = React.useState(false);
+  React.useEffect(() => { if (!open) { setConfirmDelete(false); setShowReassign(false); } }, [open]);
+
+  // Role + ownership gating: full-edit roles can act on any lead; assigned-edit roles only on their own.
+  const hasRaw = useAuthStore(s => s.hasRawPermission);
+  const myUserId = useAuthStore(s => s.user?.id);
+  const canEditAll = hasRaw("crm.leads.edit");
+  const canEditAssigned = hasRaw("crm.leads-assigned.edit");
+  const isMine = !!lead?.assignedToUserId && lead.assignedToUserId === myUserId;
+  const canEditThis = canEditAll || (canEditAssigned && isMine);
+
+  const assignments = useLeadAssignments(open && lead ? lead.id : null);
 
   if (!lead) return null;
   const leadId = lead.id;
-  const busy = convert.isPending || setStatus.isPending || del.isPending;
+  const busy = convert.isPending || setStatus.isPending || del.isPending || assign.isPending;
   const sc = STATUS_CONFIG[lead.status];
   const pc = PRIORITY_CONFIG[lead.priority];
 
@@ -98,7 +169,14 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => onEdit?.(lead)}><Pencil className="h-3.5 w-3.5" />Edit</Button>
+                {canEditThis && (
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowReassign(true)} disabled={busy}>
+                    <UserCog className="h-3.5 w-3.5" />Reassign
+                  </Button>
+                )}
+                {canEditThis && (
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => onEdit?.(lead)}><Pencil className="h-3.5 w-3.5" />Edit</Button>
+                )}
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
               </div>
             </div>
@@ -259,6 +337,29 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                     </div>
                   )}
 
+                  {/* Assignment history — the lead's pipeline handoff trail */}
+                  {(assignments.data?.length ?? 0) > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                        <History className="h-3.5 w-3.5" />Assignment History
+                      </h4>
+                      <div className="space-y-2">
+                        {assignments.data!.map(a => (
+                          <div key={a.id} className="bg-muted/30 rounded-xl p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium truncate">
+                                {a.fromUserName ? `${a.fromUserName} → ` : ""}{a.toUserName || "Unassigned"}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground shrink-0">{formatDate(a.createdAt, "medium")}</span>
+                            </div>
+                            {a.assignedByName && <p className="text-xs text-muted-foreground mt-0.5">by {a.assignedByName}</p>}
+                            {a.note && <p className="text-xs mt-1 leading-relaxed">{a.note}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Converted badge */}
                   {lead.status === "converted" && (
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
@@ -279,12 +380,16 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
 
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex items-center gap-2">
-              <select value={lead.status} disabled={busy}
-                onChange={e => setStatus.mutate({ id: leadId, status: e.target.value })}
-                className="h-9 rounded-lg border border-border bg-background px-2.5 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-primary/30">
-                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              {lead.status !== "converted" && lead.status !== "lost" && lead.status !== "unqualified" && (
+              {canEditThis ? (
+                <select value={lead.status} disabled={busy}
+                  onChange={e => setStatus.mutate({ id: leadId, status: e.target.value })}
+                  className="h-9 rounded-lg border border-border bg-background px-2.5 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : (
+                <span className={cn("inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+              )}
+              {canEditThis && lead.status !== "converted" && lead.status !== "lost" && lead.status !== "unqualified" && (
                 <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={busy}
                   onClick={() => convert.mutate({ id: leadId, body: {} }, { onSuccess: onClose })}>
                   {convert.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}Convert to Deal
@@ -320,6 +425,11 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                   </motion.div>
                 </>
               )}
+            </AnimatePresence>
+
+            {/* Reassign panel */}
+            <AnimatePresence>
+              {showReassign && <ReassignPanel lead={lead} onClose={() => setShowReassign(false)} />}
             </AnimatePresence>
           </motion.div>
         </>

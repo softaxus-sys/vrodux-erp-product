@@ -12,10 +12,17 @@ public sealed record LeadDto(
     // Marketing / attribution
     string? Platform = null, string? FormName = null, bool? IsOrganic = null, string? Campaign = null,
     string? AdName = null, string? AdSetName = null, string? PlatformCreatedTime = null,
-    IReadOnlyDictionary<string, string>? CustomFields = null);
+    IReadOnlyDictionary<string, string>? CustomFields = null,
+    // Identity user id of the current owner (drives "my assigned leads" scoping on the client).
+    Guid? AssignedToUserId = null);
 
 public sealed record LeadsSummaryDto(
     int Total, int NewThisWeek, int Qualified, int Contacted, int Converted,
     double ConversionRate, decimal TotalEstimatedValue);
 
 public sealed record ConvertLeadResultDto(Guid CustomerId, Guid DealId);
+
+/// <summary>One handoff in a lead's assignment history (newest first when listed).</summary>
+public sealed record LeadAssignmentDto(
+    Guid Id, Guid? FromUserId, string? FromUserName, Guid? ToUserId, string ToUserName,
+    Guid? AssignedByUserId, string? AssignedByName, string? Note, DateTime CreatedAt);

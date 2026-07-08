@@ -136,6 +136,11 @@ try
         Softaxis.AiAssistant.Application.Abstractions.ICurrentUser,
         Softaxis.AiAssistant.API.Middleware.CurrentUserService>();
 
+    // CRM.Application.Abstractions.ICurrentUser  →  CRM CurrentUserService (lead access scoping)
+    builder.Services.AddScoped<
+        Softaxis.CRM.Application.Abstractions.ICurrentUser,
+        Softaxis.CRM.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)

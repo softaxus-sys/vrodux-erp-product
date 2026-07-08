@@ -2,6 +2,7 @@ using System.Text.Json;
 using Softaxis.BuildingBlocks.Application.AiEvents;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Application.Leads.Dtos;
 using Softaxis.CRM.Domain.Entities;
@@ -9,16 +10,22 @@ using Softaxis.CRM.Infrastructure.Persistence;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents) : ICommandHandler<CreateLeadCommand, LeadDto>
+internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser) : ICommandHandler<CreateLeadCommand, LeadDto>
 {
     public async Task<Result<LeadDto>> Handle(CreateLeadCommand cmd, CancellationToken ct)
     {
         var l = new Lead(cmd.FirstName, cmd.LastName, cmd.Title, cmd.Company, cmd.Industry,
             cmd.Email, cmd.Phone, cmd.Country, cmd.City, cmd.Source, cmd.Priority,
             cmd.EstimatedValue, cmd.AssignedTo, cmd.Notes,
-            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message);
+            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId);
 
         db.Leads.Add(l);
+
+        // Seed the handoff history with the initial assignment when an owner is set.
+        if (cmd.AssignedToUserId is { } toId)
+            db.LeadAssignments.Add(new LeadAssignment(l.Id, null, null, toId, cmd.AssignedTo,
+                currentUser.Id, currentUser.Username, "Initial assignment"));
+
         await db.SaveChangesAsync(ct);
 
         // Fire an AI event so event-triggered automations can react (best-effort, never throws).

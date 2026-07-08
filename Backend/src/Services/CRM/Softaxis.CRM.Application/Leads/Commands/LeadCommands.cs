@@ -8,7 +8,8 @@ public sealed record CreateLeadCommand(
     string FirstName, string LastName, string Title, string Company, string Industry,
     string Email, string Phone, string Country, string City, string Source, string Priority,
     decimal EstimatedValue, string AssignedTo, string? Notes,
-    string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null)
+    string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
+    Guid? AssignedToUserId = null)
     : ICommand<LeadDto>;
 
 public sealed class CreateLeadValidator : AbstractValidator<CreateLeadCommand>
@@ -28,7 +29,8 @@ public sealed record UpdateLeadCommand(
     string Email, string Phone, string Country, string City, string Source, string Priority,
     decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes,
     List<string>? Tags,
-    string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null)
+    string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
+    Guid? AssignedToUserId = null)
     : ICommand;
 
 public sealed class UpdateLeadValidator : AbstractValidator<UpdateLeadCommand>
@@ -42,6 +44,10 @@ public sealed class UpdateLeadValidator : AbstractValidator<UpdateLeadCommand>
 }
 
 public sealed record UpdateLeadStatusCommand(Guid Id, string Status) : ICommand;
+
+/// <summary>Assign or reassign a lead to a user (or clear the owner when ToUserId is null),
+/// recording a handoff row in the lead's assignment history.</summary>
+public sealed record AssignLeadCommand(Guid Id, Guid? ToUserId, string ToUserName, string? Note) : ICommand;
 
 public sealed record UpdateLeadScoreCommand(Guid Id, int Score) : ICommand;
 

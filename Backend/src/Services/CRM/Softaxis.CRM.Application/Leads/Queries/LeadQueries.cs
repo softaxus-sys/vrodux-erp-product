@@ -8,3 +8,5 @@ public sealed record GetLeadsQuery : IQuery<IReadOnlyList<LeadDto>>;
 public sealed record GetLeadByIdQuery(Guid Id) : IQuery<LeadDto>;
 
 public sealed record GetLeadsSummaryQuery : IQuery<LeadsSummaryDto>;
+
+public sealed record GetLeadAssignmentsQuery(Guid LeadId) : IQuery<IReadOnlyList<LeadAssignmentDto>>;

@@ -11,8 +11,14 @@ namespace Softaxis.CRM.API.Controllers;
 [ApiController][Route("api/crm/leads")][Authorize]
 public sealed class LeadsController(ISender sender) : CrmControllerBase
 {
+    // Reads are open to both full-view roles and assigned-only roles; the handlers scope the rows.
+    private const string ViewAny = "crm.leads.view";
+    private const string ViewAssigned = "crm.leads-assigned.view";
+    private const string EditAny = "crm.leads.edit";
+    private const string EditAssigned = "crm.leads-assigned.edit";
+
     [HttpGet("summary")]
-    [RequirePermission("crm.leads.view")]
+    [RequireAnyPermission(ViewAny, ViewAssigned)]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetLeadsSummaryQuery(), ct);
@@ -20,7 +26,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet]
-    [RequirePermission("crm.leads.view")]
+    [RequireAnyPermission(ViewAny, ViewAssigned)]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await sender.Send(new GetLeadsQuery(), ct);
@@ -28,10 +34,19 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [RequirePermission("crm.leads.view")]
+    [RequireAnyPermission(ViewAny, ViewAssigned)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetLeadByIdQuery(id), ct);
+        return OkOrError(result);
+    }
+
+    /// <summary>The lead's assignment/handoff history (pipeline trail), newest first.</summary>
+    [HttpGet("{id:guid}/assignments")]
+    [RequireAnyPermission(ViewAny, ViewAssigned)]
+    public async Task<IActionResult> GetAssignments(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetLeadAssignmentsQuery(id), ct);
         return OkOrError(result);
     }
 
@@ -43,19 +58,21 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
         return CreatedOrError(result, nameof(GetById), new { id = result.IsSuccess ? (object?)result.Value.Id : null });
     }
 
+    // Writes are open to full-edit roles and assigned-edit roles; the handlers enforce that an
+    // assigned-only user may act only on a lead they currently own.
     [HttpPut("{id:guid}")]
-    [RequirePermission("crm.leads.edit")]
+    [RequireAnyPermission(EditAny, EditAssigned)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateLeadRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateLeadCommand(id, req.FirstName, req.LastName, req.Title,
             req.Company, req.Industry, req.Email, req.Phone, req.Country, req.City, req.Source, req.Priority,
             req.EstimatedValue, req.AssignedTo, req.Score, req.NextFollowUp, req.Notes, req.Tags,
-            req.WhatsApp, req.InterestedIn, req.Budget, req.Message), ct);
+            req.WhatsApp, req.InterestedIn, req.Budget, req.Message, req.AssignedToUserId), ct);
         return NoContentOrError(result);
     }
 
     [HttpPatch("{id:guid}/status")]
-    [RequirePermission("crm.leads.edit")]
+    [RequireAnyPermission(EditAny, EditAssigned)]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] StatusReq req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateLeadStatusCommand(id, req.Status), ct);
@@ -63,17 +80,26 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     }
 
     [HttpPatch("{id:guid}/score")]
-    [RequirePermission("crm.leads.edit")]
+    [RequireAnyPermission(EditAny, EditAssigned)]
     public async Task<IActionResult> UpdateScore(Guid id, [FromBody] ScoreReq req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateLeadScoreCommand(id, req.Score), ct);
         return NoContentOrError(result);
     }
 
+    /// <summary>Assign or reassign the lead to a user, recording a handoff in the lead's history.</summary>
+    [HttpPost("{id:guid}/assign")]
+    [RequireAnyPermission(EditAny, EditAssigned)]
+    public async Task<IActionResult> Assign(Guid id, [FromBody] AssignReq req, CancellationToken ct)
+    {
+        var result = await sender.Send(new AssignLeadCommand(id, req.ToUserId, req.ToUserName, req.Note), ct);
+        return NoContentOrError(result);
+    }
+
     /// <summary>Convert a lead into a customer + an open deal, then mark the lead converted.</summary>
-    // Convert mutates the lead and spawns a customer + deal — gate on lead edit.
+    // Convert mutates the lead and spawns a customer + deal — gate on lead edit (full or assigned-owner).
     [HttpPost("{id:guid}/convert")]
-    [RequirePermission("crm.leads.edit")]
+    [RequireAnyPermission(EditAny, EditAssigned)]
     public async Task<IActionResult> Convert(Guid id, [FromBody] ConvertReq req, CancellationToken ct)
     {
         var result = await sender.Send(new ConvertLeadCommand(id, req.DealTitle, req.DealValue, req.ExpectedCloseDate), ct);
@@ -91,8 +117,10 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     public sealed record UpdateLeadRequest(string FirstName, string LastName, string Title, string Company, string Industry,
         string Email, string Phone, string Country, string City, string Source, string Priority,
         decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes, List<string>? Tags,
-        string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null);
+        string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
+        Guid? AssignedToUserId = null);
     public sealed record StatusReq(string Status);
     public sealed record ScoreReq(int Score);
+    public sealed record AssignReq(Guid? ToUserId, string ToUserName, string? Note);
     public sealed record ConvertReq(string? DealTitle, decimal? DealValue, string? ExpectedCloseDate);
 }

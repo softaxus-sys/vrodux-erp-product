@@ -25,6 +25,7 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(x => x.EstimatedValue).HasPrecision(18, 2);
         builder.Property(x => x.Currency).HasMaxLength(10);
         builder.Property(x => x.AssignedTo).HasMaxLength(200);
+        builder.HasIndex(x => x.AssignedToUserId);
         builder.Property(x => x.CreatedDate).HasMaxLength(20);
         builder.Property(x => x.LastContactDate).HasMaxLength(20);
         builder.Property(x => x.NextFollowUp).HasMaxLength(20);
@@ -52,6 +53,20 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
             v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList());
         builder.Ignore(x => x.FullName);
         builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
+
+internal sealed class LeadAssignmentConfiguration : IEntityTypeConfiguration<LeadAssignment>
+{
+    public void Configure(EntityTypeBuilder<LeadAssignment> builder)
+    {
+        builder.ToTable("lead_assignments");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.FromUserName).HasMaxLength(200);
+        builder.Property(x => x.ToUserName).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.AssignedByName).HasMaxLength(200);
+        builder.Property(x => x.Note).HasMaxLength(1000);
+        builder.HasIndex(x => x.LeadId);
     }
 }
 

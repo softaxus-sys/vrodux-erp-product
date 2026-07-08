@@ -2447,6 +2447,77 @@ WHERE email = '…';` (needs `SET QUOTED_IDENTIFIER ON;` — filtered indexes on
 
 ---
 
+## Module 15 — CRM: Role-based lead assignment & scoping (assigned-only visibility + handoff pipeline)
+
+**Makes lead visibility role-driven and adds an assignment/reassignment hierarchy.** Previously `Lead.AssignedTo`
+was free-text (a name), `GetLeadsHandler` returned **all** leads to anyone with `crm.leads.view`, and every
+leads endpoint was gated on `crm.leads.view/edit` at the controller — so there was no way to give a role
+"see only the leads assigned to me." Now: full-view roles see everything (admins included); a restricted role
+(e.g. "Sales Executive") granted only the new assigned-only keys sees just its own leads, can act on them, and
+can hand them onward — with every handoff recorded.
+
+### Permission model — new `crm.leads-assigned` module (2 keys, no new matrix columns)
+`PermissionSeedData.cs` — added `["crm.leads-assigned"] = ["view","edit"]` (reuses the existing view/edit matrix
+columns, renders as its own "Leads (Assigned only)" row under CRM). Migration `AddCrmAssignedLeadPermissions`
+(Identity) inserts the 2 rows; `SyncAdministratorPermissionsAsync` auto-grants them to every Administrator on
+startup. Tiers: **full** = `crm.leads.view`/`crm.leads.edit` (all leads); **assigned-only** =
+`crm.leads-assigned.view`/`crm.leads-assigned.edit` (only leads where `AssignedToUserId == me`; `edit` also
+covers reassigning your own lead). `moduleLabel` override in `permission-matrix.ts` gives the friendly label.
+
+### Backend (CRM service)
+- **`Lead`** — new `Guid? AssignedToUserId` (drives scoping; legacy free-text `AssignedTo` kept for display) +
+  `AssignTo(userId, name)`. ctor + `Update(...)` gained an optional trailing `assignedToUserId`. New
+  **`LeadAssignment`** append-only entity (`lead_assignments` table) = one handoff row (from→to user, by whom,
+  note, timestamp) — the pipeline trail. Both auto tenant-isolated (CRM namespace). Migration `AddLeadAssignments`.
+- **`ICurrentUser`** (`Application/Abstractions`, first use in CRM) + `CurrentUserService`
+  (`Softaxis.CRM.API/Middleware`, registered in the gateway `Program.cs` alongside the other services' — CRM.API
+  needed a `<FrameworkReference Include="Microsoft.AspNetCore.App" />` + explicit `using Microsoft.AspNetCore.Http;`
+  since it's a plain `Microsoft.NET.Sdk`, not `.Web`). **`ILeadAccessGuard`** (`Infrastructure/Services`,
+  registered in `AddCrmInfrastructure`) centralizes all scoping: `ScopeReadable(IQueryable<Lead>)`, `CanRead`,
+  `CanEdit`, `CanManageActivityAsync(relatedToType, relatedToId)`, `ScopeActivities(IQueryable<Activity>)`.
+- **Handlers**: `GetLeads` scopes the list; `GetLeadById`/`GetLeadAssignments` return `NotFound` for a lead the
+  user can't read (don't leak existence); `UpdateLead`/`UpdateLeadStatus`/`UpdateLeadScore`/`ConvertLead` reject
+  with `NotFound` unless `CanEdit`; `CreateLead` sets the owner + seeds the history with the initial assignment;
+  new **`AssignLeadHandler`** (reassign + history row, `CanEdit`-gated) + **`GetLeadAssignmentsHandler`**.
+  Activity handlers (`Create/Update/Complete/Reopen`) enforce `CanManageActivityAsync` so an assigned-only user
+  can only log/manage activities on a lead they own; `GetActivities` uses `ScopeActivities` (assigned-only users
+  see only their own leads' activities; full-view users unchanged — preserves the old `crm.leads.view` rule).
+- **New `RequireAnyPermissionAttribute`** (passes if the user holds **any** of the listed keys, super-admin
+  bypass). `LeadsController` reads → `RequireAnyPermission(view, view-assigned)`; writes (Update/status/score/
+  convert/**assign**) → `RequireAnyPermission(edit, edit-assigned)` (handler then enforces per-lead ownership);
+  create/delete unchanged (`crm.leads.create`/`.delete` — assigned-only users don't create or delete). New
+  endpoints `POST /leads/{id}/assign` + `GET /leads/{id}/assignments`. `ActivitiesController` GET/create/complete/
+  reopen/update loosened to `RequireAnyPermission(..., crm.leads-assigned.edit)`.
+
+### Frontend
+- `crm.api.ts` — `LeadDto.assignedToUserId`, `CreateLeadRequest.assignedToUserId`, `LeadAssignmentDto`,
+  `assignLead(id, {toUserId,toUserName,note})`, `getLeadAssignments(id)`. `use-crm.ts` — `useAssignLead`,
+  `useLeadAssignments`; default mutation invalidation now also refreshes `lead` + `lead-assignments`.
+- `add-lead-form.tsx` — the assignee `<select>` already listed tenant users but stored the **name only**; now it
+  stores the **user id** (`value={u.id}`) and sends `assignedToUserId` (legacy name-only leads show
+  "{name} (unlinked)" until re-picked). **This was the missing link that made backend scoping possible.**
+- `lead-drawer.tsx` — gates Edit/status/Convert on `canEditThis = crm.leads.edit || (crm.leads-assigned.edit &&
+  lead.assignedToUserId === myUserId)` (super/tenant admin always true via `hasRawPermission`); new **Reassign**
+  button → `ReassignPanel` (tenant-user picker + note → `useAssignLead`); new **Assignment History** section
+  (handoff trail via `useLeadAssignments`). `/api/users` is only `[Authorize]` (no `settings.users.view`), so the
+  pickers work for assigned-only users.
+
+### Known follow-up (not in scope)
+Integration/routing-captured leads (`LeadIntakeService` fixed/round_robin) still set only the assignee **name**,
+not `AssignedToUserId`, so an auto-routed lead won't appear for an assigned-only role until an admin (re)assigns
+it via the UI. Wiring routing to resolve a real user id is a separate task.
+
+### Build / Verification Status
+- **CRM.API + Identity.Application + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit` + `vite build`:** 0 errors ✅
+- Migrations `AddLeadAssignments` (CRM) + `AddCrmAssignedLeadPermissions` (Identity) created (auto-apply +
+  admin-sync on startup).
+- **Pending (needs republish + restart per the on-prem deploy note):** live check — create a "Sales Executive"
+  role with only `crm.leads-assigned.view`/`.edit`; that user sees only assigned leads (list + drawer), can add
+  activities / change status / reassign onward but not create/delete or see others' leads; admin sees all + the
+  handoff history; assign a lead to them and confirm it appears.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

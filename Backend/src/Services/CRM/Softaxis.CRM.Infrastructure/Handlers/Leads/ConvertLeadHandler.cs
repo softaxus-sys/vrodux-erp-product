@@ -4,15 +4,16 @@ using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Application.Leads.Dtos;
 using Softaxis.CRM.Domain.Entities;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class ConvertLeadHandler(CrmDbContext db) : ICommandHandler<ConvertLeadCommand, ConvertLeadResultDto>
+internal sealed class ConvertLeadHandler(CrmDbContext db, ILeadAccessGuard access) : ICommandHandler<ConvertLeadCommand, ConvertLeadResultDto>
 {
     public async Task<Result<ConvertLeadResultDto>> Handle(ConvertLeadCommand cmd, CancellationToken ct)
     {
         var l = await db.Leads.FindAsync([cmd.Id], ct);
-        if (l is null)
+        if (l is null || !access.CanEdit(l))
             return Result.Failure<ConvertLeadResultDto>(Error.NotFoundById("Lead", cmd.Id));
 
         if (l.Status == "converted")

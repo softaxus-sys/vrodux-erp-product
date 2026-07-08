@@ -45,6 +45,9 @@ public static class PermissionSeedData
 
         // CRM
         ["crm.leads"]            = ["view","create","edit","delete","export"],
+        // Assigned-only lead scope: a role granted these (but NOT crm.leads.view/edit) sees & works
+        // ONLY the leads assigned to that user. "edit" here also covers reassigning the user's own lead.
+        ["crm.leads-assigned"]   = ["view","edit"],
         ["crm.pipeline"]         = ["view","create","edit","export"],
         ["crm.customers"]        = ["view","create","edit","delete","export"],
 

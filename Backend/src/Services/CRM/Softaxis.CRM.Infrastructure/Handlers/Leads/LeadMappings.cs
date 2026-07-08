@@ -13,5 +13,9 @@ internal static class LeadMappings
         l.CreatedAt, l.UpdatedAt, l.ConvertedCustomerId,
         l.WhatsApp, l.InterestedIn, l.Budget, l.Message,
         l.Platform, l.FormName, l.IsOrganic, l.Campaign, l.AdName, l.AdSetName,
-        l.PlatformCreatedTime, l.CustomFields);
+        l.PlatformCreatedTime, l.CustomFields, l.AssignedToUserId);
+
+    public static LeadAssignmentDto ToDto(LeadAssignment a) => new(
+        a.Id, a.FromUserId, a.FromUserName, a.ToUserId, a.ToUserName,
+        a.AssignedByUserId, a.AssignedByName, a.Note, a.CreatedAt);
 }

@@ -65,8 +65,9 @@ function useCrmMutation<TArgs>(fn: (a: TArgs) => Promise<unknown>, opts?: { msg?
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      const keys = opts?.invalidate ?? ["leads", "leads-summary", "deals", "deals-summary",
-        "customers", "customers-summary", "activities", "activities-summary", "dashboard"];
+      const keys = opts?.invalidate ?? ["leads", "leads-summary", "lead", "lead-assignments",
+        "deals", "deals-summary", "customers", "customers-summary",
+        "activities", "activities-summary", "dashboard"];
       keys.forEach(k => qc.invalidateQueries({ queryKey: [QK, k] }));
       if (opts?.msg) toast.success(opts.msg);
     },
@@ -85,6 +86,10 @@ export function useSetLeadStatus() { return useCrmMutation(({ id, status }: { id
 export function useSetLeadScore()  { return useCrmMutation(({ id, score }: { id: string; score: number }) => crmApi.setLeadScore(id, score)); }
 export function useConvertLead()   { return useCrmMutation(({ id, body }: { id: string; body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string } }) => crmApi.convertLead(id, body), { msg: "Lead converted to customer + deal." }); }
 export function useDeleteLead()    { return useCrmMutation((id: string) => crmApi.deleteLead(id), { msg: "Lead deleted." }); }
+export function useAssignLead()    { return useCrmMutation(({ id, toUserId, toUserName, note }: { id: string; toUserId?: string | null; toUserName: string; note?: string | null }) => crmApi.assignLead(id, { toUserId, toUserName, note }), { msg: "Lead reassigned." }); }
+export function useLeadAssignments(id: string | null) {
+  return useQuery({ queryKey: [QK, "lead-assignments", id], queryFn: () => crmApi.getLeadAssignments(id!), enabled: !!id });
+}
 /** Bulk import — no default success toast (the caller shows a created/dup/failed summary). */
 export function useImportLeads()   { return useCrmMutation((leads: ImportLeadInput[]) => crmApi.importLeads(leads), { invalidate: ["leads", "leads-summary", "dashboard"] }); }
 

@@ -40,6 +40,9 @@ public static class InfrastructureExtensions
         // ── FluentValidation — register all validators from Application ───────
         services.AddValidatorsFromAssembly(typeof(AssemblyReference).Assembly);
 
+        // ── Role-based lead access scoping (full vs assigned-only) ───────────
+        services.AddScoped<Services.ILeadAccessGuard, Services.LeadAccessGuard>();
+
         // ── Integration platform (lead sources) ──────────────────────────────
         // Secret encryption over ASP.NET Core Data Protection (host calls AddDataProtection()).
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();

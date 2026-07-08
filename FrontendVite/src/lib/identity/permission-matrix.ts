@@ -49,8 +49,14 @@ export function groupPermissions(perms: PermissionDto[]) {
   return { byModule, byGroup };
 }
 
+/** Friendlier labels for module ids whose auto-derived name reads awkwardly. */
+const MODULE_LABEL_OVERRIDES: Record<string, string> = {
+  "crm.leads-assigned": "Leads (Assigned only)",
+};
+
 /** Human label for a module id, e.g. "finance.invoicing" → "Invoicing". */
 export function moduleLabel(moduleId: string) {
+  if (MODULE_LABEL_OVERRIDES[moduleId]) return MODULE_LABEL_OVERRIDES[moduleId];
   const parts = moduleId.split(".");
   if (parts.length < 2) return moduleId;
   return parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");

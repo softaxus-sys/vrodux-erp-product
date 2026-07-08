@@ -6,7 +6,8 @@ public sealed class Lead
     public Lead(string firstName, string lastName, string title, string company, string industry,
         string email, string phone, string country, string city, string source, string priority,
         decimal estimatedValue, string assignedTo, string? notes,
-        string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null)
+        string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null,
+        Guid? assignedToUserId = null)
     {
         Id             = Guid.NewGuid();
         FirstName      = firstName.Trim(); LastName = lastName.Trim();
@@ -14,7 +15,7 @@ public sealed class Lead
         Email          = email.Trim().ToLowerInvariant(); Phone = phone.Trim();
         Country        = country; City = city; Source = source; Priority = priority;
         Status         = "new"; Score = 0; EstimatedValue = estimatedValue;
-        Currency       = "AED"; AssignedTo = assignedTo.Trim();
+        Currency       = "AED"; AssignedTo = assignedTo.Trim(); AssignedToUserId = assignedToUserId;
         CreatedDate    = DateTime.UtcNow.ToString("yyyy-MM-dd");
         Notes          = notes?.Trim(); Tags = [];
         WhatsApp       = Trim(whatsApp); InterestedIn = Trim(interestedIn);
@@ -40,7 +41,11 @@ public sealed class Lead
     public int       Score           { get; private set; }
     public decimal   EstimatedValue  { get; private set; }
     public string    Currency        { get; private set; } = "AED";
+    /// <summary>Display name of the current owner (denormalized, kept for back-compat + list display).</summary>
     public string    AssignedTo      { get; private set; } = string.Empty;
+    /// <summary>Identity user id of the current owner. Drives role-based "my assigned leads" scoping.
+    /// Null = unassigned / legacy free-text-only assignment.</summary>
+    public Guid?     AssignedToUserId { get; private set; }
     public string    CreatedDate     { get; private set; } = string.Empty;
     public string?   LastContactDate { get; private set; }
     public string?   NextFollowUp    { get; private set; }
@@ -75,16 +80,26 @@ public sealed class Lead
     public void Convert(string dealId, Guid? customerId = null) { Status = "converted"; ConvertedDealId = dealId; ConvertedCustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
+    /// <summary>Reassign the lead to a user (records the current owner on the entity; handoff history is
+    /// written separately by the handler which knows the acting user).</summary>
+    public void AssignTo(Guid? userId, string name)
+    {
+        AssignedToUserId = userId;
+        AssignedTo = (name ?? string.Empty).Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Update(string firstName, string lastName, string title, string company, string industry,
         string email, string phone, string country, string city, string source, string priority,
         decimal estimatedValue, string assignedTo, int score, string? nextFollowUp, string? notes, List<string>? tags,
-        string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null)
+        string? whatsApp = null, string? interestedIn = null, string? budget = null, string? message = null,
+        Guid? assignedToUserId = null)
     {
         FirstName = firstName.Trim(); LastName = lastName.Trim();
         Title = title.Trim(); Company = company.Trim(); Industry = industry.Trim();
         Email = email.Trim().ToLowerInvariant(); Phone = phone.Trim();
         Country = country; City = city; Source = source; Priority = priority;
-        EstimatedValue = estimatedValue; AssignedTo = assignedTo.Trim();
+        EstimatedValue = estimatedValue; AssignedTo = assignedTo.Trim(); AssignedToUserId = assignedToUserId;
         Score = Math.Clamp(score, 0, 100); NextFollowUp = nextFollowUp; Notes = notes?.Trim();
         WhatsApp = Trim(whatsApp); InterestedIn = Trim(interestedIn);
         Budget = Trim(budget); Message = Trim(message);

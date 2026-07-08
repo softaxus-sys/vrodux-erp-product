@@ -4,14 +4,16 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Activities.Dtos;
 using Softaxis.CRM.Application.Activities.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Activities;
 
-internal sealed class GetActivitiesHandler(CrmDbContext db) : IQueryHandler<GetActivitiesQuery, IReadOnlyList<ActivityDto>>
+internal sealed class GetActivitiesHandler(CrmDbContext db, ILeadAccessGuard access) : IQueryHandler<GetActivitiesQuery, IReadOnlyList<ActivityDto>>
 {
     public async Task<Result<IReadOnlyList<ActivityDto>>> Handle(GetActivitiesQuery query, CancellationToken ct)
     {
-        var q = db.Activities.AsNoTracking().AsQueryable();
+        // Assigned-only users see only activities on the leads they own; full-view users see all.
+        var q = access.ScopeActivities(db.Activities.AsNoTracking());
         if (!string.IsNullOrWhiteSpace(query.RelatedToType)) q = q.Where(a => a.RelatedToType == query.RelatedToType);
         if (query.RelatedToId.HasValue)                      q = q.Where(a => a.RelatedToId == query.RelatedToId.Value);
         if (query.Completed.HasValue)                        q = q.Where(a => a.Completed == query.Completed.Value);

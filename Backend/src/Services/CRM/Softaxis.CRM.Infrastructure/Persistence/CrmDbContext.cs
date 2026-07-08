@@ -8,6 +8,7 @@ namespace Softaxis.CRM.Infrastructure.Persistence;
 public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbContext(options), ITenantAmbientContext
 {
     public DbSet<Lead>        Leads      => Set<Lead>();
+    public DbSet<LeadAssignment> LeadAssignments => Set<LeadAssignment>();
     public DbSet<CrmCustomer> Customers  => Set<CrmCustomer>();
     public DbSet<Deal>        Deals      => Set<Deal>();
     public DbSet<DealContact> DealContacts => Set<DealContact>();

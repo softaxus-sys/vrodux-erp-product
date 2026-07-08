@@ -125,6 +125,8 @@ export interface LeadDto {
   estimatedValue:   number;
   currency:         "AED" | "USD" | "SAR";
   assignedTo:       string;
+  /** Identity user id of the current owner (drives "my assigned leads" scoping). */
+  assignedToUserId?: string | null;
   createdDate:      string;
   lastContactDate?: string;
   nextFollowUp?:    string;
@@ -279,9 +281,24 @@ export interface CreateLeadRequest {
   email: string; phone: string; country: string; city: string; source: string; priority: string;
   estimatedValue: number; assignedTo: string; notes?: string | null;
   whatsApp?: string | null; interestedIn?: string | null; budget?: string | null; message?: string | null;
+  /** Identity user id of the owner picked in the assignee dropdown. */
+  assignedToUserId?: string | null;
 }
 export interface UpdateLeadRequest extends CreateLeadRequest {
   score: number; nextFollowUp?: string | null; tags?: string[];
+}
+
+/** One handoff in a lead's assignment history (newest first). */
+export interface LeadAssignmentDto {
+  id: string;
+  fromUserId?: string | null;
+  fromUserName?: string | null;
+  toUserId?: string | null;
+  toUserName: string;
+  assignedByUserId?: string | null;
+  assignedByName?: string | null;
+  note?: string | null;
+  createdAt: string;
 }
 
 // ── Bulk import (Excel / CSV) ────────────────────────────────────────────────
@@ -354,6 +371,8 @@ export const crmApi = {
   setLeadStatus:  (id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/leads/${id}/status`, { status }),
   setLeadScore:   (id: string, score: number): Promise<void> => rawApiClient.patch(`${BASE}/leads/${id}/score`, { score }),
   convertLead:    (id: string, body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string }): Promise<{ customerId: string; dealId: string }> => rawApiClient.post(`${BASE}/leads/${id}/convert`, body),
+  assignLead:     (id: string, body: { toUserId?: string | null; toUserName: string; note?: string | null }): Promise<void> => rawApiClient.post(`${BASE}/leads/${id}/assign`, body),
+  getLeadAssignments: (id: string): Promise<LeadAssignmentDto[]> => rawApiClient.get(`${BASE}/leads/${id}/assignments`),
   deleteLead:     (id: string): Promise<void> => rawApiClient.delete(`${BASE}/leads/${id}`),
   importLeads:    (leads: ImportLeadInput[]): Promise<ImportLeadsResult> => rawApiClient.post(`${INTERNAL}/leads/import`, { leads }),
 
