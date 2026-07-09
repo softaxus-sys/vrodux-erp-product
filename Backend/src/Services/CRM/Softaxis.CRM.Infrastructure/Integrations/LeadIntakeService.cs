@@ -87,8 +87,10 @@ public sealed class LeadIntakeService(
             customFields:        BuildCustomFields(lead.RawFields));
 
         // Derive a pipeline value from the free-text budget (inbound leads carry no numeric value),
-        // then run automatic rule-based scoring from the captured signals (no activity yet → 0).
+        // detect an urgency tag from the message when no explicit timeframe came through, then run
+        // automatic rule-based scoring from the captured signals (no activity yet → 0).
         newLead.DeriveEstimatedValueFromBudget();
+        newLead.DetectTimeframeFromText();
         newLead.RecalculateScore(0);
 
         // Stamp tenant explicitly — webhook requests are anonymous, so the ambient tenant

@@ -29,6 +29,7 @@ internal sealed class UpdateLeadHandler(CrmDbContext db, ILeadAccessGuard access
         // Value & score are computed, not free-form — derive value from budget when unset, then
         // recompute the score from the edited signals + engagement.
         l.DeriveEstimatedValueFromBudget();
+        l.DetectTimeframeFromText();
         var activityCount = await db.Activities
             .CountAsync(a => !a.IsDeleted && a.RelatedToType == "lead" && a.RelatedToId == l.Id, ct);
         l.RecalculateScore(activityCount);

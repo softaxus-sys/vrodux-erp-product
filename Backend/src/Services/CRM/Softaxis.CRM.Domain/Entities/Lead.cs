@@ -99,13 +99,45 @@ public sealed class Lead
     }
 
     /// <summary>When no explicit value was entered (EstimatedValue &lt;= 0), estimate it from the
-    /// free-text <see cref="Budget"/> so inbound leads (Meta/import) still get a pipeline value.
-    /// A manually entered value normally wins; pass <paramref name="overrideExisting"/> to force a
-    /// re-derive (used by the startup repair for bad legacy values).</summary>
+    /// free-text <see cref="Budget"/> — falling back to a money amount mentioned in the interest or
+    /// message — so inbound leads (Meta/import) still get a pipeline value. A manually entered value
+    /// normally wins; pass <paramref name="overrideExisting"/> to force a re-derive (startup repair).</summary>
     public void DeriveEstimatedValueFromBudget(bool overrideExisting = false)
     {
         if (!overrideExisting && EstimatedValue > 0) return;
-        if (BudgetParser.Parse(Budget) is { } v && v > 0 && v != EstimatedValue)
+        var v = BudgetParser.Parse(Budget)
+             ?? BudgetParser.ParseFromText(InterestedIn)
+             ?? BudgetParser.ParseFromText(Message);
+        if (v is > 0 && v.Value != EstimatedValue)
+        {
+            EstimatedValue = v.Value;
+            UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    /// <summary>When no explicit purchase timeframe was captured, detect one from the lead's message
+    /// or interest text ("looking to buy within 2 months", "ready ASAP") and store the normalized
+    /// label — so imported/inbound leads still get an urgency tag. No-op if a timeframe is already set
+    /// or nothing confident is found.</summary>
+    public void DetectTimeframeFromText()
+    {
+        if (!string.IsNullOrWhiteSpace(PurchaseTimeframe)) return;
+        PurchaseTimeframe = PurchaseUrgency.DetectTimeframeText(Message)
+                         ?? PurchaseUrgency.DetectTimeframeText(InterestedIn);
+    }
+
+    /// <summary>Authoritative value re-derivation for the startup repair: for a lead that has a budget,
+    /// the value should reflect the (trusted) budget or be 0 — this clears misleading legacy values
+    /// (e.g. a static 50,000 guessed from a bare "50"). Leaves budget-less leads' values untouched so a
+    /// manually entered value is preserved.</summary>
+    public void RepairEstimatedValueFromBudget()
+    {
+        if (string.IsNullOrWhiteSpace(Budget)) return;
+        var v = BudgetParser.Parse(Budget)
+             ?? BudgetParser.ParseFromText(InterestedIn)
+             ?? BudgetParser.ParseFromText(Message)
+             ?? 0m;
+        if (v != EstimatedValue)
         {
             EstimatedValue = v;
             UpdatedAt = DateTime.UtcNow;

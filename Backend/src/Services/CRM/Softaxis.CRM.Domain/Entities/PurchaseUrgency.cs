@@ -38,7 +38,7 @@ public static class PurchaseUrgency
                 "urgent", "instantly", "buy now"))
             return Immediate;
 
-        if (t.Contains("week")) return Immediate;
+        if (Regex.IsMatch(t, @"\bweeks?\b")) return Immediate; // "week"/"weeks", not "weekend"
 
         // Day-based windows.
         var day = FirstNumberBefore(t, "day");
@@ -67,13 +67,24 @@ public static class PurchaseUrgency
 
     public static int Score(string? raw) => Classify(raw) switch
     {
-        Immediate  => 25,
-        OneMonth   => 20,
-        OneToThree => 13,
+        Immediate  => 28,
+        OneMonth   => 22,
+        OneToThree => 14,
         ThreeToSix => 7,
         SixPlus    => 3,
         _          => 0,
     };
+
+    /// <summary>Detect a purchase timeframe from a longer free-text field (e.g. a lead's message) and
+    /// return a normalized label to store — used to tag imported/inbound leads that never had an
+    /// explicit timeframe field but say things like "looking to buy within 2 months" or "ASAP".
+    /// Returns null when no confident temporal cue is present.</summary>
+    public static string? DetectTimeframeText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var bucket = Classify(text);
+        return bucket == Unknown ? null : Label(bucket);
+    }
 
     /// <summary>Friendly label for a bucket key (null for unknown → no badge).</summary>
     public static string? Label(string? bucket) => bucket switch

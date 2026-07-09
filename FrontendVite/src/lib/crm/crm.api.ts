@@ -171,6 +171,27 @@ export const TIMEFRAME_OPTIONS = [
   "Immediately", "Within 1 month", "1-3 months", "3-6 months", "6+ months",
 ] as const;
 
+/** Lead temperature derived from the intent score — the at-a-glance "should I call this now?" signal. */
+export function leadHeat(score: number): { label: "Hot" | "Warm" | "Cold"; color: string; bg: string; emoji: string } {
+  if (score >= 70) return { label: "Hot",  color: "text-destructive",     bg: "bg-destructive/10",              emoji: "🔥" };
+  if (score >= 40) return { label: "Warm", color: "text-warning",         bg: "bg-warning/10",                  emoji: "🌤️" };
+  return             { label: "Cold", color: "text-blue-600",        bg: "bg-blue-50 dark:bg-blue-900/20", emoji: "❄️" };
+}
+
+/** A short human summary of what the lead wants — assembled from the captured intent fields.
+ *  Falls back to the lead's own message, then to "—". Used on cards + the drawer. */
+export function buildLeadSummary(lead: Pick<LeadDto, "interestedIn" | "budget" | "purchaseTimeframe" | "purchaseUrgency" | "message" | "company">): string {
+  const parts: string[] = [];
+  if (lead.interestedIn) parts.push(lead.interestedIn.trim());
+  if (lead.budget) parts.push(`Budget ${lead.budget.trim()}`);
+  const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? URGENCY_META[lead.purchaseUrgency]?.label : null;
+  if (urg) parts.push(urg);
+  if (parts.length) return parts.join(" · ");
+  if (lead.message) return lead.message.trim().replace(/\s+/g, " ").slice(0, 140);
+  if (lead.company) return lead.company.trim();
+  return "—";
+}
+
 export interface LeadsSummaryDto {
   total:               number;
   newThisWeek:         number;

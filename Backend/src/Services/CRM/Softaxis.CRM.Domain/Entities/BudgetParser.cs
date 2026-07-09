@@ -36,12 +36,26 @@ public static class BudgetParser
         // A range ("50k-100k") → midpoint of the smallest & largest captured magnitudes.
         var estimate = (values.Min() + values.Max()) / 2m;
 
-        // Bare small numbers with no unit suffix and no thousands separator (e.g. "50", "75-100")
-        // are shorthand for thousands in these markets — "50" means 50,000, not 50 currency units.
-        if (!sawSuffix && !sawSeparator && estimate > 0 && estimate < 1000)
-            estimate *= 1_000m;
+        // Confidence guard: a bare small number with no unit (k/m/lakh/crore) and no thousands
+        // separator — e.g. "50", "500" — is genuinely ambiguous (50? 50k? 50 lakh?). Guessing a
+        // multiplier produced misleading "static 50,000" values, so we DON'T guess: return null and
+        // let the UI show the raw budget text instead. Trust only explicit magnitudes.
+        if (!sawSuffix && !sawSeparator && estimate < 10_000m)
+            return null;
 
         return decimal.Round(estimate, 2);
+    }
+
+    /// <summary>Parse a value from a longer free-text field (e.g. the lead's message or interest),
+    /// but ONLY when it contains a money cue (currency, lakh/crore/k/m, "budget"/"price"/"invest") —
+    /// otherwise returns null, so we never mistake a phone number or year for a budget.</summary>
+    public static decimal? ParseFromText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        var t = text.ToLowerInvariant();
+        if (!Regex.IsMatch(t, @"lakh|lac|crore|\bcr\b|million|billion|\bk\b|\bm\b|pkr|rs\.?|aed|usd|dirham|rupee|\$|£|€|budget|price|invest"))
+            return null;
+        return Parse(text);
     }
 
     private static decimal Multiplier(string suffix) => suffix switch

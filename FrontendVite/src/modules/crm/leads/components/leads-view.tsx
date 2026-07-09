@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
-  Building2, Calendar, Globe, ArrowRight, UploadCloud
+  Building2, Calendar, Globe, ArrowRight, UploadCloud, Phone, Clock, Wallet, Tag
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { sourceLabel, URGENCY_META, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -36,12 +36,6 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: stri
 };
 
 const KANBAN_COLS: LeadStatus[] = ["new", "contacted", "qualified", "converted"];
-
-const PRIORITY_CONFIG = {
-  high:   { color: "text-destructive", bg: "bg-destructive/10",  label: "High" },
-  medium: { color: "text-warning",     bg: "bg-warning/10",      label: "Medium" },
-  low:    { color: "text-muted-foreground", bg: "bg-muted",      label: "Low" },
-};
 
 function StatusBadge({ status }: { status: LeadStatus }) {
   const c = STATUS_CONFIG[status];
@@ -64,27 +58,60 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-/* ── Kanban card ── */
+/* ── Kanban card — rich at-a-glance view ── */
 function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; onClick: () => void }) {
-  const pc = PRIORITY_CONFIG[lead.priority];
   const currency = useCurrency();
+  const heat = leadHeat(lead.score);
+  const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? URGENCY_META[lead.purchaseUrgency] : null;
+  const summary = buildLeadSummary(lead);
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * 0.04 }}
       onClick={onClick}
-      className="bg-background border border-border rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors line-clamp-2">{lead.fullName}</p>
-        <span className={cn("shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase", pc.color, pc.bg)}>{pc.label}</span>
+      className="bg-background border border-border rounded-xl p-3.5 cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
+      {/* Name + heat */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <p className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors line-clamp-1">{lead.fullName}</p>
+        <span className={cn("shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold", heat.color, heat.bg)}>
+          <span>{heat.emoji}</span>{heat.label} · {lead.score}
+        </span>
       </div>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-        <Building2 className="h-3 w-3 shrink-0" />
-        <span className="truncate">{lead.company}</span>
+
+      {/* Intent summary */}
+      {summary && summary !== "—" && (
+        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mb-2.5">{summary}</p>
+      )}
+
+      {/* Key details */}
+      <div className="space-y-1 mb-2.5">
+        {lead.phone && (
+          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-[11px] text-foreground hover:text-primary w-fit">
+            <Phone className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="truncate">{lead.phone}</span>
+          </a>
+        )}
+        {lead.interestedIn && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Tag className="h-3 w-3 shrink-0" /><span className="truncate">{lead.interestedIn}</span>
+          </div>
+        )}
+        {lead.budget && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Wallet className="h-3 w-3 shrink-0" /><span className="truncate">{lead.budget}</span>
+          </div>
+        )}
+        {urg && (
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-semibold", urg.color, urg.bg)}>{urg.label}</span>
+          </div>
+        )}
       </div>
-      <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, currency)}</p>
-      <ScoreBar score={lead.score} />
-      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/50">
-        <span className="text-[10px] text-muted-foreground">{sourceLabel(lead.source)}</span>
-        <Avatar className="h-5 w-5">
+
+      {/* Value + footer */}
+      {lead.estimatedValue > 0 && <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, currency)}</p>}
+      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        <span className="text-[10px] text-muted-foreground truncate">{sourceLabel(lead.source)}</span>
+        <Avatar className="h-5 w-5 shrink-0">
           <AvatarFallback className="text-[8px] font-bold bg-primary/10 text-primary">{getInitials(lead.assignedTo)}</AvatarFallback>
         </Avatar>
       </div>
@@ -125,7 +152,7 @@ function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: L
         <LeadColumn
           key={status}
           status={status}
-          leads={colLeads.filter(l => l.status === status).sort((a, b) => b.estimatedValue - a.estimatedValue)}
+          leads={colLeads.filter(l => l.status === status).sort((a, b) => (b.score - a.score) || (b.estimatedValue - a.estimatedValue))}
           isOver={dragOver === status}
           draggedId={draggedId}
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(status); }}
@@ -278,7 +305,8 @@ export function LeadsView() {
         const matchMine   = !mineOnly || l.assignedTo === currentUserName;
         return matchSearch && matchStatus && matchSource && matchMine;
       })
-      .sort((a, b) => b.estimatedValue - a.estimatedValue); // top-value leads first
+      // Hottest (highest intent score) first, then by value — contact the most intent-rich leads first.
+      .sort((a, b) => (b.score - a.score) || (b.estimatedValue - a.estimatedValue));
   }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName]);
 
   const listLazy = useLazyList(filtered, 25);
@@ -405,9 +433,14 @@ export function LeadsView() {
                           <Avatar className="h-8 w-8 shrink-0">
                             <AvatarFallback className="text-[11px] font-bold bg-primary/10 text-primary">{getInitials(lead.fullName)}</AvatarFallback>
                           </Avatar>
-                          <div>
+                          <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
-                              <p className="font-medium text-sm">{lead.fullName}</p>
+                              <p className="font-medium text-sm truncate">{lead.fullName}</p>
+                              {(() => { const h = leadHeat(lead.score); return (
+                                <span className={cn("shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold", h.color, h.bg)}>
+                                  <span>{h.emoji}</span>{h.label}
+                                </span>
+                              ); })()}
                               {lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" && URGENCY_META[lead.purchaseUrgency] && (
                                 <span className={cn("shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold",
                                   URGENCY_META[lead.purchaseUrgency].color, URGENCY_META[lead.purchaseUrgency].bg)}>
@@ -415,7 +448,7 @@ export function LeadsView() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted-foreground">{lead.title}</p>
+                            <p className="text-[11px] text-muted-foreground truncate max-w-[280px]">{lead.title || buildLeadSummary(lead)}</p>
                           </div>
                         </div>
                       </td>

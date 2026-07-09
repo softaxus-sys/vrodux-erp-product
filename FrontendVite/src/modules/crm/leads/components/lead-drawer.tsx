@@ -10,7 +10,7 @@ import { Trash2, Loader2, Pencil, UserCog, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
-import { sourceLabel, URGENCY_META, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
 import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments } from "@/hooks/crm/use-crm";
 import { useUsers } from "@/hooks/identity/use-users";
 import { useCurrency } from "@/hooks/use-currency";
@@ -196,9 +196,19 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {tab === "overview" && (
                 <>
-                  {/* Score */}
-                  <div className="bg-muted/30 rounded-xl p-4">
+                  {/* Score + heat + intent summary */}
+                  <div className="bg-muted/30 rounded-xl p-4 space-y-2.5">
+                    {(() => { const h = leadHeat(lead.score); return (
+                      <div className="flex items-center justify-between">
+                        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold", h.color, h.bg)}>
+                          <span>{h.emoji}</span>{h.label} lead
+                        </span>
+                      </div>
+                    ); })()}
                     <ScoreBar score={lead.score} />
+                    {buildLeadSummary(lead) !== "—" && (
+                      <p className="text-xs text-muted-foreground leading-snug pt-0.5">{buildLeadSummary(lead)}</p>
+                    )}
                   </div>
 
                   {/* Key metrics */}

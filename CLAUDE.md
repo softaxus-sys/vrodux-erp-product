@@ -2716,6 +2716,36 @@ scores too low):
   fully try/catch-guarded); the migration + seed stay synchronous.
 - **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
 
+### Module 18d — CRM: intent-first scoring, honest lead value, richer kanban cards + summary
+Product pass so reps can see a lead's potential at a glance and call the hottest first.
+- **Scoring rebalanced to be intent-first** (`LeadScoring`, still 0–100): purchase urgency **28** ·
+  intent keywords **12** (new — scans message/interest for "ready to buy", "cash", "urgent", "site visit",
+  "pre-approved", …) · budget stated **10** · interested-in **6** · contactability **15** · **deal value only
+  8** (down from 15 — the derived value is unreliable, so it no longer dominates) · source 8 · priority 5 ·
+  engagement 8. Intent factors alone reach ~56, so "hot" means high intent, not just complete data.
+- **Honest value derivation.** The bare-number ×1000 guess produced misleading **static 50,000** values (a
+  budget of "50" → 50,000). `BudgetParser` now **refuses to guess**: a bare number with no unit (k/m/lakh/crore)
+  and no thousands separator below 10,000 returns **null** (value stays 0; the UI shows the raw budget text).
+  Trusted magnitudes ("50k", "5 lakh", "1.5M", "500,000") parse as before. New `ParseFromText` also pulls a
+  value from the message/interest **only** when a money cue is present (never a phone/year). Startup repair uses
+  `Lead.RepairEstimatedValueFromBudget()` (authoritative for budgeted leads — clears the bad legacy 50,000s).
+- **Urgency tags for imported/inbound leads.** `PurchaseUrgency.DetectTimeframeText` + `Lead.DetectTimeframeFromText()`
+  detect a timeframe from the message/interest ("looking to buy within 2 months", "ASAP") when no explicit
+  timeframe field came through — wired into intake, create/update, and the backfill, so imported leads get an
+  urgency badge. Hardened the `week` match (`\bweeks?\b`) so "weekend" isn't read as immediate.
+- **Frontend — see the potential at a glance.** `crm.api.ts` adds `leadHeat(score)` (🔥 Hot ≥70 / 🌤️ Warm ≥40 /
+  ❄️ Cold) and `buildLeadSummary(lead)` (one-line "3BHK · Budget 5M · Immediate"). **Kanban cards** rewritten to
+  show heat chip + score, intent summary, click-to-call phone, interested-in, raw budget text, and the urgency
+  badge. **List** shows a heat chip + urgency next to the name and the summary as the subline. **Drawer** shows a
+  heat pill + summary above the score bar. **Both list and kanban now sort by intent score** (hottest first),
+  not by the unreliable value.
+- **Backfill rescopes ALL leads** (background, idempotent) to recompute under the new weights + repair values +
+  detect timeframes for existing data.
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
+- **Note on value:** budgets written as bare numbers ("50" meaning 50 lakh) are inherently ambiguous, so those
+  intentionally show value 0 with the raw "50" visible on the card, rather than a confidently-wrong number. Reps
+  can set an exact value manually; the score no longer leans on value magnitude.
+
 ---
 
 ## Build Status

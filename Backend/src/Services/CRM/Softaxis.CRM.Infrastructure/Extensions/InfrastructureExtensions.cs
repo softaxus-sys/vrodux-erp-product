@@ -198,8 +198,11 @@ public static class InfrastructureExtensions
     {
         try
         {
+            // Rescore/repair ALL leads — the scoring weights + value derivation evolve over releases, and
+            // RecalculateScore/DeriveEstimatedValueFromBudget are idempotent (they only write when the value
+            // actually changes), so re-runs on already-correct leads are no-ops. Runs in the background.
             var leads = await db.Leads.IgnoreQueryFilters()
-                .Where(l => !l.IsDeleted && (l.Score == 0 || l.EstimatedValue < 1000m))
+                .Where(l => !l.IsDeleted)
                 .ToListAsync();
             if (leads.Count == 0) return;
 
@@ -220,8 +223,11 @@ public static class InfrastructureExtensions
                     message:           PickFromCustomFields(lead.CustomFields, RequirementSynonyms[4].Keys),
                     purchaseTimeframe: PickFromCustomFields(lead.CustomFields, RequirementSynonyms[1].Keys));
 
-                // Re-derive value, forcing over a bad tiny legacy value (< 1000).
-                lead.DeriveEstimatedValueFromBudget(overrideExisting: lead.EstimatedValue < 1000m);
+                // Authoritatively repair the value from the (trusted) budget — clears misleading legacy
+                // values like a static 50,000 guessed from a bare "50"; leaves budget-less leads alone.
+                lead.RepairEstimatedValueFromBudget();
+                // Tag urgency from the message when no explicit timeframe was captured.
+                lead.DetectTimeframeFromText();
                 lead.RecalculateScore(counts.TryGetValue(lead.Id, out var c) ? c : 0);
             }
 
