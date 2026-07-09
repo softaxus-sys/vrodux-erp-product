@@ -43,15 +43,44 @@ const TARGET_LABEL: Record<ImportTargetField, string> = {
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+// Keyword classifier — mirrors the backend LeadFieldClassifier so real Meta question headers
+// ("your_budget?", "when_are_you_planning_to_buy?", "what_are_you_interested_in?", "whatsapp_number")
+// auto-map even though they aren't fixed synonyms.
+function classifyHeader(header: string): ImportTargetField | "" {
+  const n = norm(header);
+  if (!n) return "";
+  if (n.includes("whatsapp")) return "whatsApp";
+  if (n.includes("email") || n === "mail") return "email";
+  if (n.includes("firstname") || n === "fname") return "firstName";
+  if (n.includes("lastname") || n.includes("surname") || n === "lname") return "lastName";
+  if (n.includes("fullname") || n === "name" || n === "leadname" || n === "contactname") return "fullName";
+  if (n.includes("phone") || n.includes("mobile") || n.includes("contactnumber") || n.includes("cellnumber")) return "phone";
+  if (n.includes("budget") || n.includes("pricerange") || n.includes("yourprice")) return "budget";
+  if (n.includes("when") && (n.includes("buy") || n.includes("invest") || n.includes("purchas") || n.includes("plan") || n.includes("move"))) return "timeframe";
+  if (n.includes("timeframe") || n.includes("timeline") || n.includes("urgency")) return "timeframe";
+  if (n.includes("interested") || n.includes("buyingfor") || n.includes("lookingfor") || n.includes("propertytype") || n.includes("unittype") || n.includes("project")) return "interestedIn";
+  if (n.includes("company") || n.includes("organization") || n.includes("organisation") || n.includes("business")) return "company";
+  if (n.includes("jobtitle") || n.includes("designation")) return "title";
+  if (n.includes("industry") || n.includes("sector")) return "industry";
+  if (n.includes("city") || n.includes("town")) return "city";
+  if (n.includes("country")) return "country";
+  if (n.includes("formname")) return "formName";
+  if (n.includes("campaign")) return "campaign";
+  if (n.includes("message") || n.includes("ask") || n.includes("comment") || n.includes("query") || n.includes("question") || n.includes("enquiry") || n.includes("inquiry") || n.includes("details")) return "message";
+  if (n.includes("note")) return "notes";
+  return "";
+}
+
 function autoDetect(header: string): ImportTargetField | "" {
   const h = norm(header);
   if (!h) return "";
   for (const field of IMPORT_TARGET_FIELDS) {
     for (const syn of FIELD_SYNONYMS[field]) {
-      const n = norm(syn);
-      if (h === n) return field;               // exact match wins
+      if (h === norm(syn)) return field;       // exact synonym wins
     }
   }
+  const byKeyword = classifyHeader(header);     // then the keyword classifier
+  if (byKeyword) return byKeyword;
   for (const field of IMPORT_TARGET_FIELDS) {
     for (const syn of FIELD_SYNONYMS[field]) {
       const n = norm(syn);

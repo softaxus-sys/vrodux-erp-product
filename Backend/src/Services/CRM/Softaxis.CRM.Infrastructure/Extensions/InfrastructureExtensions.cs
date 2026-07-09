@@ -6,7 +6,9 @@ using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.CRM.Application;
+using Softaxis.CRM.Application.LeadIntake;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
+using Softaxis.CRM.Application.LeadIntake.Dtos;
 using Softaxis.CRM.Infrastructure.Integrations;
 using Softaxis.CRM.Infrastructure.Integrations.Providers;
 using Softaxis.CRM.Infrastructure.Integrations.Providers.Meta;
@@ -140,32 +142,26 @@ public static class InfrastructureExtensions
             await CrmSeedData.SeedAsync(db);
     }
 
-    // Requirement fields that may have been captured under a custom source field name and landed in
-    // the lead's CustomFields (Form Responses) instead of being promoted. Keyed by normalized synonym.
-    private static readonly (string Target, string[] Keys)[] RequirementSynonyms =
-    [
-        ("budget",       ["budget", "budgetrange", "yourbudget", "pricerange", "estimatedbudget", "price", "investment", "investmentamount"]),
-        ("timeframe",    ["timeframe", "timeline", "whentobuy", "whenlookingtobuy", "whenplanningtobuy", "purchasetimeline", "buyingtimeline", "whenplanningtoinvest", "movein", "movindate", "urgency", "whenareyouplanningtobuy"]),
-        ("interestedin", ["interestedin", "interest", "interests", "lookingfor", "productinterest", "serviceinterest", "propertytype", "unittype"]),
-        ("whatsapp",     ["whatsapp", "whatsappnumber", "wanumber", "whatsappno"]),
-        ("message",      ["message", "yourmessage", "custommessage", "enquiry", "inquiry", "additionalinfo", "details", "comments"]),
-    ];
-
-    private static string NormalizeKey(string s)
+    /// <summary>Recover budget/timeframe/interest/whatsapp/message that were captured under a custom
+    /// question name and landed in the lead's CustomFields (Form Responses) — using the same normalized
+    /// classifier the providers use, so "your_budget?" / "when_are_you_planning_to_invest?" are matched.</summary>
+    private static void RecoverFromCustomFields(Softaxis.CRM.Domain.Entities.Lead lead)
     {
-        Span<char> buf = stackalloc char[s.Length];
-        var n = 0;
-        foreach (var c in s) if (char.IsLetterOrDigit(c)) buf[n++] = char.ToLowerInvariant(c);
-        return new string(buf[..n]);
-    }
-
-    private static string? PickFromCustomFields(IReadOnlyDictionary<string, string>? custom, string[] keys)
-    {
-        if (custom is null || custom.Count == 0) return null;
-        foreach (var (k, v) in custom)
-            if (!string.IsNullOrWhiteSpace(v) && keys.Contains(NormalizeKey(k)))
-                return v;
-        return null;
+        if (lead.CustomFields is not { Count: > 0 } cf) return;
+        string? budget = null, timeframe = null, interest = null, whatsapp = null, message = null;
+        foreach (var (k, v) in cf)
+        {
+            if (string.IsNullOrWhiteSpace(v)) continue;
+            switch (LeadFieldClassifier.Classify(k))
+            {
+                case CanonicalLeadFields.Budget:       budget    ??= v; break;
+                case CanonicalLeadFields.Timeframe:    timeframe ??= v; break;
+                case CanonicalLeadFields.InterestedIn: interest  ??= v; break;
+                case CanonicalLeadFields.WhatsApp:     whatsapp  ??= v; break;
+                case CanonicalLeadFields.Message:      message   ??= v; break;
+            }
+        }
+        lead.RecoverRequirements(whatsapp, interest, budget, message, timeframe);
     }
 
     /// <summary>
@@ -216,12 +212,7 @@ public static class InfrastructureExtensions
             foreach (var lead in leads)
             {
                 // Recover requirement fields that were captured but never promoted (custom field names).
-                lead.RecoverRequirements(
-                    whatsApp:          PickFromCustomFields(lead.CustomFields, RequirementSynonyms[3].Keys),
-                    interestedIn:      PickFromCustomFields(lead.CustomFields, RequirementSynonyms[2].Keys),
-                    budget:            PickFromCustomFields(lead.CustomFields, RequirementSynonyms[0].Keys),
-                    message:           PickFromCustomFields(lead.CustomFields, RequirementSynonyms[4].Keys),
-                    purchaseTimeframe: PickFromCustomFields(lead.CustomFields, RequirementSynonyms[1].Keys));
+                RecoverFromCustomFields(lead);
 
                 // Authoritatively repair the value from the (trusted) budget — clears misleading legacy
                 // values like a static 50,000 guessed from a bare "50"; leaves budget-less leads alone.

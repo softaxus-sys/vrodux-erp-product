@@ -2746,6 +2746,36 @@ Product pass so reps can see a lead's potential at a glance and call the hottest
   intentionally show value 0 with the raw "50" visible on the card, rather than a confidently-wrong number. Reps
   can set an exact value manually; the score no longer leans on value magnitude.
 
+### Module 18e — CRM: robust Meta field capture (real form names), lakh/crore budget parsing, compact value, WhatsApp column
+Driven by real Meta lead-form data (Pakistan real estate). Field names arrive like `your_budget?`,
+`when_are_you_planning_to_buy?`, `what_are_you_interested_in?`, `whatsapp_number`; budget values like
+`up_to_60_lakh`, `65–70_lakh`, `50_lakh_–_1_crore`. Most leads were showing **0 PKR** because (a) the providers'
+exact-name matching missed the `?`-suffixed question names, and (b) `BudgetParser` couldn't read a `lakh` unit
+detached from its number by an underscore.
+- **`LeadFieldClassifier`** (NEW, `Application/LeadIntake`) — normalized keyword classifier: `Classify(name)`
+  → canonical field, `Apply(canonicalLead, name, value)` assigns with `??=`. Rules like `contains "budget"` →
+  budget, `contains "when" && (buy|invest|purchas|plan|move)` → timeframe, `interested|buyingfor|project` →
+  interestedIn, `whatsapp` → whatsApp, etc. Wired as a fallback into **`MetaLeadProvider`** (after its explicit
+  field_data switch) and **`GenericInboundProvider`** (over all raw fields), so custom question names are
+  captured without the tenant hand-mapping each one. Tenant field mappings (Settings → Integrations) still run
+  and win first; the classifier fills the gaps.
+- **`BudgetParser` — lakh/crore + underscores/dashes.** Normalizes `_`/`/` → space (so `up_to_60_lakh` →
+  `60 lakh`). Captures the **whole trailing word** as the unit (so "50 luxury" ≠ 50 lakh — only exact units
+  `k/m/lakh(s)/lac(s)/l/crore(s)/cr/million/billion` count). Unitless numbers in a range **inherit the largest
+  unit present**, so `65–70 lakh` → 6.75M, `2-3 crore` → 25M, `50-100k` → 75K, `50 lakh – 1 crore` → 7.5M.
+  (1 lakh = 1e5, 1 crore = 1e7.)
+- **Historical-lead recovery uses the classifier too.** The startup backfill's `RecoverFromCustomFields` now
+  classifies each Form-Responses key via `LeadFieldClassifier` (was a brittle exact-synonym list), so existing
+  leads whose budget/timeframe sat unpromoted in `CustomFields` get recovered + re-valued + rescored.
+- **Frontend:** `formatCompactValue(amount, currency)` shows value "in words" with the tenant currency
+  (`PKR 6M`, `PKR 750K`) on cards + the list Est. Value column. **Import auto-detect** gained the same
+  keyword `classifyHeader` so a Meta CSV/Excel export auto-maps `your_budget?` / `when_are_you_planning_to_buy?`
+  etc. **Leads table: removed the Company column, added a WhatsApp column** (click-to-`wa.me`).
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
+- **Known gap (not scored):** the `how_do_you_plan_to_purchase?` (cash vs financing) and site-visit questions
+  aren't canonical fields — they stay in Form Responses (visible in the drawer) and aren't factored into the
+  score yet. "invest"/"cash" still score when they appear in the interest/message text.
+
 ---
 
 ## Build Status

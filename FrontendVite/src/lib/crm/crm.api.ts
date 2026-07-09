@@ -171,6 +171,20 @@ export const TIMEFRAME_OPTIONS = [
   "Immediately", "Within 1 month", "1-3 months", "3-6 months", "6+ months",
 ] as const;
 
+/** Compact "in words" money — e.g. 6_000_000 → "PKR 6M", 750_000 → "PKR 750K", 1.2e9 → "PKR 1.2B".
+ *  Uses the tenant's operating currency code. Returns "—" for missing/zero. */
+export function formatCompactValue(amount: number | null | undefined, currency: string): string {
+  if (!amount || amount <= 0) return "—";
+  const abs = Math.abs(amount);
+  const trim = (n: number) => (Math.round(n * 10) / 10).toString();
+  let num: string;
+  if (abs >= 1e9)      num = trim(amount / 1e9) + "B";
+  else if (abs >= 1e6) num = trim(amount / 1e6) + "M";
+  else if (abs >= 1e3) num = trim(amount / 1e3) + "K";
+  else                 num = String(Math.round(amount));
+  return `${currency} ${num}`;
+}
+
 /** Lead temperature derived from the intent score — the at-a-glance "should I call this now?" signal. */
 export function leadHeat(score: number): { label: "Hot" | "Warm" | "Cold"; color: string; bg: string; emoji: string } {
   if (score >= 70) return { label: "Hot",  color: "text-destructive",     bg: "bg-destructive/10",              emoji: "🔥" };

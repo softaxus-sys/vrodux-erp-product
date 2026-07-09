@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Softaxis.CRM.Application.LeadIntake;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
 using Softaxis.CRM.Domain.Entities.Integrations;
@@ -117,7 +118,13 @@ public sealed class GenericInboundProvider(string key, ProviderDescriptor descri
             RawJson     = rawJson.Length > 8000 ? rawJson[..8000] : rawJson,
         };
 
-        foreach (var (k, v) in fields) lead.RawFields[k] = v;
+        // Fallback: capture any field the fixed synonym lists missed (custom question names like
+        // "your_budget?", "when_are_you_planning_to_buy?") via the normalized classifier.
+        foreach (var (k, v) in fields)
+        {
+            LeadFieldClassifier.Apply(lead, k, v);
+            lead.RawFields[k] = v;
+        }
         return lead;
     }
 

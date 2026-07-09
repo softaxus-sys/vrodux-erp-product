@@ -15,7 +15,7 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -108,7 +108,7 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
       </div>
 
       {/* Value + footer */}
-      {lead.estimatedValue > 0 && <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, currency)}</p>}
+      {lead.estimatedValue > 0 && <p className="font-bold text-sm mb-2">{formatCompactValue(lead.estimatedValue, currency)}</p>}
       <div className="flex items-center justify-between pt-2 border-t border-border/50">
         <span className="text-[10px] text-muted-foreground truncate">{sourceLabel(lead.source)}</span>
         <Avatar className="h-5 w-5 shrink-0">
@@ -417,7 +417,7 @@ export function LeadsView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Lead","Phone","Company","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
+                    {["Lead","Phone","WhatsApp","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -458,12 +458,15 @@ export function LeadsView() {
                             className="text-sm text-foreground hover:text-primary hover:underline">{lead.phone}</a>
                         ) : <span className="text-sm text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm">{lead.company}</p>
-                        <p className="text-[11px] text-muted-foreground">{lead.industry}</p>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {lead.whatsApp ? (
+                          <a href={`https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="text-sm text-emerald-600 hover:underline">{lead.whatsApp}</a>
+                        ) : <span className="text-sm text-muted-foreground">—</span>}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{sourceLabel(lead.source)}</td>
-                      <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(lead.estimatedValue, currency)}</td>
+                      <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCompactValue(lead.estimatedValue, currency)}</td>
                       <td className="px-4 py-3 min-w-[100px]"><ScoreBar score={lead.score} /></td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                         {lead.nextFollowUp ? (
