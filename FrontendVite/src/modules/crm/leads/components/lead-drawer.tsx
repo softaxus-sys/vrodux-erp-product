@@ -4,13 +4,13 @@ import {
   X, Mail, Phone, Globe, MapPin, Building2, User,
   Calendar, DollarSign, Tag, PhoneCall, Users,
   FileText, MessageSquare, Edit, ArrowRight,
-  CheckCircle2, TrendingUp, Star, Stamp,
+  CheckCircle2, TrendingUp, Star, Stamp, Clock,
 } from "lucide-react";
 import { Trash2, Loader2, Pencil, UserCog, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
-import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
 import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments } from "@/hooks/crm/use-crm";
 import { useUsers } from "@/hooks/identity/use-users";
 import { useCurrency } from "@/hooks/use-currency";
@@ -199,9 +199,19 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {tab === "overview" && (
                 <>
-                  {/* Score */}
-                  <div className="bg-muted/30 rounded-xl p-4">
+                  {/* Score + heat + intent summary */}
+                  <div className="bg-muted/30 rounded-xl p-4 space-y-2.5">
+                    {(() => { const h = leadHeat(lead.score); return (
+                      <div className="flex items-center justify-between">
+                        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold", h.color, h.bg)}>
+                          <span>{h.emoji}</span>{h.label} lead
+                        </span>
+                      </div>
+                    ); })()}
                     <ScoreBar score={lead.score} />
+                    {buildLeadSummary(lead) !== "—" && (
+                      <p className="text-xs text-muted-foreground leading-snug pt-0.5">{buildLeadSummary(lead)}</p>
+                    )}
                   </div>
 
                   {/* Key metrics */}
@@ -214,7 +224,7 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
                       <Globe className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
                       <p className="text-[10px] text-muted-foreground">Source</p>
-                      <p className="font-bold text-sm">{SOURCE_LABELS[lead.source]}</p>
+                      <p className="font-bold text-sm">{sourceLabel(lead.source)}</p>
                     </div>
                   </div>
 
@@ -245,10 +255,27 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                   </div>
 
                   {/* Requirements — captured from the lead-gen form */}
-                  {(lead.whatsApp || lead.interestedIn || lead.budget || lead.message) && (
+                  {(lead.whatsApp || lead.interestedIn || lead.budget || lead.message || lead.purchaseTimeframe) && (
                     <div>
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Requirements</h4>
                       <div className="space-y-0 bg-muted/30 rounded-xl p-4">
+                        {lead.purchaseTimeframe && (
+                          <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
+                            <Clock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            <div className="flex-1 flex justify-between items-center gap-4 min-w-0">
+                              <span className="text-xs text-muted-foreground shrink-0">Planning to buy</span>
+                              <span className="flex items-center gap-2 min-w-0">
+                                <span className="text-sm font-medium text-right truncate">{lead.purchaseTimeframe}</span>
+                                {lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" && URGENCY_META[lead.purchaseUrgency] && (
+                                  <span className={cn("shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                                    URGENCY_META[lead.purchaseUrgency].color, URGENCY_META[lead.purchaseUrgency].bg)}>
+                                    {URGENCY_META[lead.purchaseUrgency].label}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         {[
                           { icon: PhoneCall,       label: "WhatsApp",      value: lead.whatsApp
                               ? <a href={`https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">{lead.whatsApp}</a>

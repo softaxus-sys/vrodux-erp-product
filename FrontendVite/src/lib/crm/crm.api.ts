@@ -148,6 +148,62 @@ export interface LeadDto {
   platformCreatedTime?: string | null;
   /** Extra captured fields (survey Q&A / custom questions) as question → answer. */
   customFields?:        Record<string, string> | null;
+  /** Free-text "when planning to buy/invest" answer. */
+  purchaseTimeframe?:   string | null;
+  /** Classified urgency bucket key derived from purchaseTimeframe (see URGENCY_META). */
+  purchaseUrgency?:     PurchaseUrgency | null;
+}
+
+export type PurchaseUrgency = "immediate" | "1_month" | "1_3_months" | "3_6_months" | "6_plus" | "unknown";
+
+/** UI metadata per urgency bucket (label + colors). `unknown` renders no badge. */
+export const URGENCY_META: Record<Exclude<PurchaseUrgency, "unknown">, { label: string; color: string; bg: string }> = {
+  immediate:   { label: "Immediate",      color: "text-destructive",  bg: "bg-destructive/10" },
+  "1_month":   { label: "Within 1 month", color: "text-warning",      bg: "bg-warning/10" },
+  "1_3_months":{ label: "1–3 months",     color: "text-amber-600",    bg: "bg-amber-100 dark:bg-amber-900/20" },
+  "3_6_months":{ label: "3–6 months",     color: "text-blue-600",     bg: "bg-blue-50 dark:bg-blue-900/20" },
+  "6_plus":    { label: "6+ months",      color: "text-muted-foreground", bg: "bg-muted" },
+};
+
+/** Standard purchase-timeframe options for the manual Add/Edit Lead form (stored as the raw
+ *  text — the backend classifier maps it to an urgency bucket, same as inbound free text). */
+export const TIMEFRAME_OPTIONS = [
+  "Immediately", "Within 1 month", "1-3 months", "3-6 months", "6+ months",
+] as const;
+
+/** Compact "in words" money — e.g. 6_000_000 → "PKR 6M", 750_000 → "PKR 750K", 1.2e9 → "PKR 1.2B".
+ *  Uses the tenant's operating currency code. Returns "—" for missing/zero. */
+export function formatCompactValue(amount: number | null | undefined, currency: string): string {
+  if (!amount || amount <= 0) return "—";
+  const abs = Math.abs(amount);
+  const trim = (n: number) => (Math.round(n * 10) / 10).toString();
+  let num: string;
+  if (abs >= 1e9)      num = trim(amount / 1e9) + "B";
+  else if (abs >= 1e6) num = trim(amount / 1e6) + "M";
+  else if (abs >= 1e3) num = trim(amount / 1e3) + "K";
+  else                 num = String(Math.round(amount));
+  return `${currency} ${num}`;
+}
+
+/** Lead temperature derived from the intent score — the at-a-glance "should I call this now?" signal. */
+export function leadHeat(score: number): { label: "Hot" | "Warm" | "Cold"; color: string; bg: string; emoji: string } {
+  if (score >= 70) return { label: "Hot",  color: "text-destructive",     bg: "bg-destructive/10",              emoji: "🔥" };
+  if (score >= 40) return { label: "Warm", color: "text-warning",         bg: "bg-warning/10",                  emoji: "🌤️" };
+  return             { label: "Cold", color: "text-blue-600",        bg: "bg-blue-50 dark:bg-blue-900/20", emoji: "❄️" };
+}
+
+/** A short human summary of what the lead wants — assembled from the captured intent fields.
+ *  Falls back to the lead's own message, then to "—". Used on cards + the drawer. */
+export function buildLeadSummary(lead: Pick<LeadDto, "interestedIn" | "budget" | "purchaseTimeframe" | "purchaseUrgency" | "message" | "company">): string {
+  const parts: string[] = [];
+  if (lead.interestedIn) parts.push(lead.interestedIn.trim());
+  if (lead.budget) parts.push(`Budget ${lead.budget.trim()}`);
+  const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? URGENCY_META[lead.purchaseUrgency]?.label : null;
+  if (urg) parts.push(urg);
+  if (parts.length) return parts.join(" · ");
+  if (lead.message) return lead.message.trim().replace(/\s+/g, " ").slice(0, 140);
+  if (lead.company) return lead.company.trim();
+  return "—";
 }
 
 export interface LeadsSummaryDto {
@@ -172,6 +228,21 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
   social_media:   "Social Media",
   walk_in:        "Walk-in",
 };
+
+/**
+ * Human label for a lead source. `source` is typed as `LeadSource` but at runtime
+ * it can be any provider key (e.g. "meta", "import", "property-finder", "facebook")
+ * coming from the integration platform — those aren't in SOURCE_LABELS and would
+ * render as an empty `<option>`. Fall back to a humanized version of the raw key.
+ */
+export function sourceLabel(source: string | null | undefined): string {
+  if (!source) return "—";
+  const known = (SOURCE_LABELS as Record<string, string>)[source];
+  if (known) return known;
+  return source
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
 
 // ── Customers ───────────────────────────────────────────────────────────────
 
@@ -281,6 +352,7 @@ export interface CreateLeadRequest {
   email: string; phone: string; country: string; city: string; source: string; priority: string;
   estimatedValue: number; assignedTo: string; notes?: string | null;
   whatsApp?: string | null; interestedIn?: string | null; budget?: string | null; message?: string | null;
+  purchaseTimeframe?: string | null;
   /** Identity user id of the owner picked in the assignee dropdown. */
   assignedToUserId?: string | null;
 }
@@ -310,7 +382,7 @@ export interface ImportLeadInput {
   industry?: string | null; address?: string | null; city?: string | null; country?: string | null;
   notes?: string | null; source?: string | null; campaign?: string | null;
   whatsApp?: string | null; interestedIn?: string | null; budget?: string | null;
-  message?: string | null; formName?: string | null;
+  message?: string | null; formName?: string | null; timeframe?: string | null;
   /** Any extra columns, kept raw so integration field-mappings can promote them. */
   fields?: Record<string, string | null> | null;
 }
@@ -322,7 +394,7 @@ export interface ImportLeadsResult {
 export const IMPORT_TARGET_FIELDS = [
   "firstName", "lastName", "fullName", "email", "phone", "company",
   "title", "industry", "address", "city", "country", "notes",
-  "whatsApp", "interestedIn", "budget", "message", "campaign", "formName",
+  "whatsApp", "interestedIn", "budget", "message", "timeframe", "campaign", "formName",
 ] as const;
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 export interface CreateDealRequest {

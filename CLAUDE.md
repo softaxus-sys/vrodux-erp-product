@@ -2729,6 +2729,217 @@ account manager's lead-export — the provider accepts any of those.
 
 ---
 
+## Module 17 — Identity: Tenant-owner activation email (super-admin create-tenant) + country dropdown
+
+**Fixed "no email is sent to the tenant owner on creation."** `CreateTenantCommandHandler` was by design
+sending **no email at all** — it required the super admin to type the owner's email + username + **password**,
+created the owner **pre-verified** (`VerifyEmail()`), and never injected `IEmailService`. The owner was expected
+to get credentials out of band. Now the owner receives an **activation email** to set their own password and log
+in (industry-standard invite flow).
+
+### Backend (Identity)
+- **`IEmailService.SendTenantInviteEmailAsync(toEmail, toName, tenantName, setPasswordToken?, ct)`** +
+  `SmtpEmailService` impl. When `setPasswordToken` is set → invite wording + link to
+  `{FrontendUrl}/auth/reset-password?token=…&email=…` (**reuses the existing reset-password page/flow** — no new
+  page/token type); otherwise → "your account is ready" login notice. Same SMTP config
+  (`Email:SmtpHost/SmtpUsername/SmtpPassword/FromAddress/FromName` + `FrontendUrl`) and dev-fallback (logs the
+  link when SMTP unset) as the reset/verification emails.
+- **`CreateTenantCommandHandler`** — injects `IJwtTokenService` + `IEmailService`. **Admin password is now
+  optional** (email + username still required). When blank = **invite mode**: seeds an unguessable placeholder
+  password, pre-verifies the account (so login works once they set a password — `ResetPassword` does NOT verify
+  email, hence the pre-verify stays), issues a single-use **password-reset token (7-day expiry)** via
+  `SetPasswordResetToken`, and after commit sends the activation email **best-effort** (try/catch — SMTP failure
+  never fails tenant creation). When a password IS provided, behaviour is unchanged except a "ready to log in"
+  welcome email is sent. No migration (reuses existing reset-token columns).
+
+### Frontend (`create-tenant-page.tsx`)
+- Admin **Password field is now optional** — label "(optional)", placeholder "Leave blank to email an activation
+  link", live helper text; validation requires only email+username (password ≥8 only *if* provided).
+- **Country is now a dropdown** (was free-text) — reuses `COUNTRIES` from `lib/onboarding/geo-data.ts` (stores the
+  country name, matching the prior free-text value).
+
+### Notes
+- Trial/onboarding path unchanged (self-serve — user sets their own password during onboarding).
+- **Requires SMTP configured in prod** for the email to actually deliver (confirmed configured). If a send fails,
+  the super admin can resend an activation link via the normal forgot-password flow.
+
+### Build / Verification Status
+- **Identity.Infrastructure + full ApiGateway:** 0 errors ✅ · **Frontend `tsc --noEmit` + `vite build`:** 0 errors ✅
+- **Pending (needs republish + restart):** create a tenant with a blank admin password → owner receives the
+  activation email → set-password link activates + logs in; create with a password → "ready" welcome email.
+
+---
+
+## Module 18 — CRM: Automatic rule-based lead scoring (make `Lead.Score` computed, not free-form)
+
+**Roadmap slice 4 (see Module 8 build order).** `Lead.Score` (int 0–100) was a real column with a working
+`PATCH /leads/{id}/score` endpoint + `ScoreBar`/Hot·Warm·Cold display, but **nothing ever produced a value** —
+`CreateLeadCommand` had no score field, the intake pipeline never set it, there was no auto-scoring logic, and
+the only UI writer (`useSetLeadScore`) was dead (never called; the edit form has no score input and just
+re-sent the existing value). So every lead showed **0**. This makes the score automatic + computed.
+
+### Scoring model — `Softaxis.CRM.Domain/Entities/LeadScoring.cs` (NEW, pure/deterministic)
+`LeadScoring.Calculate(email, phone, whatsApp, budget, interestedIn, message, source, priority,
+estimatedValue, activityCount)` → 0–100 (summed then clamped):
+- Contactability (reachability) — max 25: email 10 · phone 8 · whatsapp 7
+- Buying intent — max 30: budget 12 · interested-in 10 · message 8
+- Source quality — max 20: referral/partner 20 · website/property-finder/walk_in 15 · trade_show 14 ·
+  linkedin/social/email_campaign/google_ads/meta/facebook/instagram/whatsapp 12 · cold_call 5 · unknown 8
+- Deal size (estimated value) — max 10 (tiered ≥100k/≥50k/≥10k/>0)
+- Priority (manual rep signal) — max 10: high 10 · medium 5 · low 0
+- Engagement — max 15: 5 per logged activity
+UI banding unchanged: ≥70 Hot · ≥40 Warm · <40 Cold.
+
+### `Lead.RecalculateScore(int activityCount = 0)` (Lead.cs) — overwrites Score (computed, not free-form)
+
+### Wired at every producer
+- `CreateLeadHandler` — `l.RecalculateScore(0)` before save.
+- `LeadIntakeService.IngestAsync` — `newLead.RecalculateScore(0)` after SetRequirements/SetMarketing (all
+  integration sources: Meta/import/webhooks/Property Finder/etc.).
+- `UpdateLeadHandler` — recomputes from the edited signals + current activity count (ignores the incoming
+  `cmd.Score`; score is now computed). Added `using Microsoft.EntityFrameworkCore;`.
+- `CreateActivityHandler` — when the activity is `relatedToType == "lead"`, recomputes that lead's score with
+  `priorCount + 1` (engagement bump), single SaveChanges. Added the EF using.
+
+### Idempotent startup backfill — `RecomputeZeroScoreLeadsAsync` (InfrastructureExtensions, in `MigrateAndSeedCrmAsync`)
+Existing leads all sit at Score = 0 (predate scoring). Recomputes **only** `Score == 0` rows (never clobbers a
+computed score; no-op once all scored) across all tenants (`IgnoreQueryFilters()`, no ambient tenant at
+startup), activity counts via one grouped query. **Best-effort `try/catch` — never crash-loops startup** (per
+the deploy-runs-startup-seeding risk).
+
+### Notes / scope
+- The manual `PATCH /leads/{id}/score` endpoint + `useSetLeadScore` hook are left in place but are now moot
+  (edit/activity recompute overrides them) — a future "manual override" toggle could reuse them.
+- No migration (uses the existing `Score` column). No frontend change — the score already displays; it will
+  simply be non-zero now.
+- **Build:** CRM.API 0 errors / 0 warnings ✅. **Pending (republish + restart):** backfill runs on startup;
+  spot-check — create a lead (email+phone, website, medium → ~38; +budget/interest → higher), a referral with
+  budget/high priority → Hot; log an activity → score rises; a Meta/import lead shows a non-zero score.
+
+### Module 18b — CRM: Purchase-timeframe urgency signal + auto-derived lead value
+
+Extends Module 18 with two signals users asked for: **when** the lead plans to buy (urgency) and a **numeric
+value** for leads that arrive without one (Meta/import).
+
+- **`PurchaseUrgency` (Domain, NEW)** — `Classify(text)` maps a free-text "when are you planning to buy/invest?"
+  answer to a ranked bucket via **dynamic keyword + number matching** (not a fixed enum): `immediate` /
+  `1_month` / `1_3_months` / `3_6_months` / `6_plus` / `unknown`. Handles "ASAP", "within 30 days", "1-3
+  months", "6+ months" (open-ended `+`/"more than" bumps ≥6 to `6_plus`), "just researching", "next year", etc.
+  `Score(text)` → max **25** (immediate 25 · 1mo 20 · 1-3mo 13 · 3-6mo 7 · 6+/researching 3). New phrasings =
+  add a keyword.
+- **`BudgetParser` (Domain, NEW)** — `Parse(text)` turns a free-text budget ("50k–100k", "AED 500,000", "1.5M",
+  "5 lakh", "2 crore", ">500k") into a decimal; **ranges → midpoint** (approved). Currency-agnostic (strips
+  symbols, no FX — Module 6e model).
+- **`Lead`** — new nullable `PurchaseTimeframe` column (raw text). `RecalculateScore` now takes the timeframe;
+  new `DeriveEstimatedValueFromBudget()` fills `EstimatedValue` from the budget **only when it's 0** (a
+  manually-entered value always wins — approved). `SetRequirements`/ctor/`Update` carry the timeframe.
+  Migration `AddLeadPurchaseTimeframe` (1 column).
+- **`LeadScoring` rebalanced** to fit urgency (max 100): urgency 25 · contactability 20 · buying-intent 20 ·
+  deal-value 15 · source 12 · priority 8 · engagement 10.
+- **Capture** — `CanonicalLead.Timeframe` + `CanonicalLeadFields.Timeframe`; `GenericInboundProvider`
+  `TimeframeKeys`, Meta `field_data` timeframe cases, intake `KnownRawKeys` (so it doesn't double-show under
+  Form Responses); `IngestLeadInput.Timeframe` (so `/internal/leads` + bulk import map it). Intake now calls
+  `DeriveEstimatedValueFromBudget()` then `RecalculateScore(0)`. Create/Update handlers pass the timeframe +
+  derive value before scoring.
+- **Backfill broadened** — `RecomputeLeadValueAndScoreAsync` (was `RecomputeZeroScoreLeadsAsync`) targets
+  `Score == 0` **or** `(EstimatedValue == 0 && Budget set)`, derives value + rescores; still idempotent,
+  best-effort, all-tenants.
+- **Frontend** — `crm.api.ts` `PurchaseUrgency` type + `URGENCY_META` (badge colors) + `TIMEFRAME_OPTIONS`;
+  `LeadDto.purchaseTimeframe`/`purchaseUrgency`; Create/Update/Import requests carry timeframe; import modal
+  synonyms + label. Add/Edit form gets a **"Planning to buy" dropdown** (standard buckets — approved). Urgency
+  **badge** shown in the lead list (next to name) + drawer Requirements ("Planning to buy" row). Also fixed the
+  drawer's `SOURCE_LABELS[lead.source]` → `sourceLabel()` (same empty-source fix as the list).
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅ · migration
+  `AddLeadPurchaseTimeframe` created (auto-applies + backfill on startup). **Pending (republish + restart):**
+  a Meta/import lead with a budget shows a non-zero Est. Value + urgency badge; a lead answering "immediately"
+  scores Hot.
+
+### Module 18c — CRM: fixes to field-mapping coverage, budget value, and score for inbound (Meta/IG/FB) leads
+Follow-up fixing three linked issues reported on real Meta/Instagram/Facebook leads (value showing "50" or 0,
+scores too low):
+- **Root cause — field-mapping dropdown was missing most targets.** `MappingTab` in `integrations-view.tsx`
+  hardcoded only 12 basic target fields, so users couldn't map Meta lead-form questions (which use custom field
+  names) to `budget`/`timeframe`/`interestedIn`/`whatsApp`/`message`/`campaign`/`formName`. Those never got
+  captured → no value derived (0) + missing urgency/intent/value score. **Fix:** `TARGET_FIELDS` now lists the
+  full `CanonicalLeadFields` set with friendly labels (e.g. "Budget (→ lead value)", "Purchase timeframe (→
+  urgency)"). Backend `ApplyFieldMappings` already supported all of them — only the UI list was short.
+- **"50" value bug — `BudgetParser`.** A bare "50" (shorthand for 50k in these markets) parsed to literally 50.
+  **Fix:** when a budget has no unit suffix and no thousands separator and the result is < 1000, treat it as
+  thousands (`"50"`→50,000, `"75-100"`→75,000). Suffixed/separated values ("50k", "50,000", "1.5M") unchanged.
+- **Existing leads repaired.** The startup backfill (`RecomputeLeadValueAndScoreAsync`) now also (1) recovers
+  budget/timeframe/interest/whatsapp/message that landed in `CustomFields` (Form Responses) under a custom name
+  — via `Lead.RecoverRequirements(...)` + a normalized synonym table, (2) force-re-derives value over bad tiny
+  legacy values (`DeriveEstimatedValueFromBudget(overrideExisting: value < 1000)`), and (3) rescopes to
+  `Score == 0 || EstimatedValue < 1000`. `RecalculateScore` is now idempotent (skips the `UpdatedAt` bump when
+  the score is unchanged) so re-runs don't churn rows.
+- **Backfill moved off the startup path.** All `MigrateAndSeed*Async` run **awaited before `app.RunAsync()`**, so
+  a heavy CRM lead backfill would delay `/health` and could trip the deploy's 5-min health window → rollback.
+  The value/score repair now runs **fire-and-forget on its own DI scope** (`Task.Run(... InBackgroundAsync)`,
+  fully try/catch-guarded); the migration + seed stay synchronous.
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
+
+### Module 18d — CRM: intent-first scoring, honest lead value, richer kanban cards + summary
+Product pass so reps can see a lead's potential at a glance and call the hottest first.
+- **Scoring rebalanced to be intent-first** (`LeadScoring`, still 0–100): purchase urgency **28** ·
+  intent keywords **12** (new — scans message/interest for "ready to buy", "cash", "urgent", "site visit",
+  "pre-approved", …) · budget stated **10** · interested-in **6** · contactability **15** · **deal value only
+  8** (down from 15 — the derived value is unreliable, so it no longer dominates) · source 8 · priority 5 ·
+  engagement 8. Intent factors alone reach ~56, so "hot" means high intent, not just complete data.
+- **Honest value derivation.** The bare-number ×1000 guess produced misleading **static 50,000** values (a
+  budget of "50" → 50,000). `BudgetParser` now **refuses to guess**: a bare number with no unit (k/m/lakh/crore)
+  and no thousands separator below 10,000 returns **null** (value stays 0; the UI shows the raw budget text).
+  Trusted magnitudes ("50k", "5 lakh", "1.5M", "500,000") parse as before. New `ParseFromText` also pulls a
+  value from the message/interest **only** when a money cue is present (never a phone/year). Startup repair uses
+  `Lead.RepairEstimatedValueFromBudget()` (authoritative for budgeted leads — clears the bad legacy 50,000s).
+- **Urgency tags for imported/inbound leads.** `PurchaseUrgency.DetectTimeframeText` + `Lead.DetectTimeframeFromText()`
+  detect a timeframe from the message/interest ("looking to buy within 2 months", "ASAP") when no explicit
+  timeframe field came through — wired into intake, create/update, and the backfill, so imported leads get an
+  urgency badge. Hardened the `week` match (`\bweeks?\b`) so "weekend" isn't read as immediate.
+- **Frontend — see the potential at a glance.** `crm.api.ts` adds `leadHeat(score)` (🔥 Hot ≥70 / 🌤️ Warm ≥40 /
+  ❄️ Cold) and `buildLeadSummary(lead)` (one-line "3BHK · Budget 5M · Immediate"). **Kanban cards** rewritten to
+  show heat chip + score, intent summary, click-to-call phone, interested-in, raw budget text, and the urgency
+  badge. **List** shows a heat chip + urgency next to the name and the summary as the subline. **Drawer** shows a
+  heat pill + summary above the score bar. **Both list and kanban now sort by intent score** (hottest first),
+  not by the unreliable value.
+- **Backfill rescopes ALL leads** (background, idempotent) to recompute under the new weights + repair values +
+  detect timeframes for existing data.
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
+- **Note on value:** budgets written as bare numbers ("50" meaning 50 lakh) are inherently ambiguous, so those
+  intentionally show value 0 with the raw "50" visible on the card, rather than a confidently-wrong number. Reps
+  can set an exact value manually; the score no longer leans on value magnitude.
+
+### Module 18e — CRM: robust Meta field capture (real form names), lakh/crore budget parsing, compact value, WhatsApp column
+Driven by real Meta lead-form data (Pakistan real estate). Field names arrive like `your_budget?`,
+`when_are_you_planning_to_buy?`, `what_are_you_interested_in?`, `whatsapp_number`; budget values like
+`up_to_60_lakh`, `65–70_lakh`, `50_lakh_–_1_crore`. Most leads were showing **0 PKR** because (a) the providers'
+exact-name matching missed the `?`-suffixed question names, and (b) `BudgetParser` couldn't read a `lakh` unit
+detached from its number by an underscore.
+- **`LeadFieldClassifier`** (NEW, `Application/LeadIntake`) — normalized keyword classifier: `Classify(name)`
+  → canonical field, `Apply(canonicalLead, name, value)` assigns with `??=`. Rules like `contains "budget"` →
+  budget, `contains "when" && (buy|invest|purchas|plan|move)` → timeframe, `interested|buyingfor|project` →
+  interestedIn, `whatsapp` → whatsApp, etc. Wired as a fallback into **`MetaLeadProvider`** (after its explicit
+  field_data switch) and **`GenericInboundProvider`** (over all raw fields), so custom question names are
+  captured without the tenant hand-mapping each one. Tenant field mappings (Settings → Integrations) still run
+  and win first; the classifier fills the gaps.
+- **`BudgetParser` — lakh/crore + underscores/dashes.** Normalizes `_`/`/` → space (so `up_to_60_lakh` →
+  `60 lakh`). Captures the **whole trailing word** as the unit (so "50 luxury" ≠ 50 lakh — only exact units
+  `k/m/lakh(s)/lac(s)/l/crore(s)/cr/million/billion` count). Unitless numbers in a range **inherit the largest
+  unit present**, so `65–70 lakh` → 6.75M, `2-3 crore` → 25M, `50-100k` → 75K, `50 lakh – 1 crore` → 7.5M.
+  (1 lakh = 1e5, 1 crore = 1e7.)
+- **Historical-lead recovery uses the classifier too.** The startup backfill's `RecoverFromCustomFields` now
+  classifies each Form-Responses key via `LeadFieldClassifier` (was a brittle exact-synonym list), so existing
+  leads whose budget/timeframe sat unpromoted in `CustomFields` get recovered + re-valued + rescored.
+- **Frontend:** `formatCompactValue(amount, currency)` shows value "in words" with the tenant currency
+  (`PKR 6M`, `PKR 750K`) on cards + the list Est. Value column. **Import auto-detect** gained the same
+  keyword `classifyHeader` so a Meta CSV/Excel export auto-maps `your_budget?` / `when_are_you_planning_to_buy?`
+  etc. **Leads table: removed the Company column, added a WhatsApp column** (click-to-`wa.me`).
+- **Build:** CRM.API + full ApiGateway 0 errors ✅ · Frontend `tsc` + `vite build` 0 errors ✅. No new migration.
+- **Known gap (not scored):** the `how_do_you_plan_to_purchase?` (cash vs financing) and site-visit questions
+  aren't canonical fields — they stay in Form Responses (visible in the drawer) and aren't factored into the
+  score yet. "invest"/"cash" still score when they appear in the interest/message text.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

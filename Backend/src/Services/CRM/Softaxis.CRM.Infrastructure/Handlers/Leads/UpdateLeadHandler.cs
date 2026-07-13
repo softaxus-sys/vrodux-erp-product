@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Abstractions;
@@ -23,7 +24,15 @@ internal sealed class UpdateLeadHandler(CrmDbContext db, ILeadAccessGuard access
         l.Update(cmd.FirstName, cmd.LastName, cmd.Title, cmd.Company, cmd.Industry,
             cmd.Email, cmd.Phone, cmd.Country, cmd.City, cmd.Source, cmd.Priority,
             cmd.EstimatedValue, cmd.AssignedTo, cmd.Score, cmd.NextFollowUp, cmd.Notes, cmd.Tags,
-            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId);
+            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId, cmd.PurchaseTimeframe);
+
+        // Value & score are computed, not free-form — derive value from budget when unset, then
+        // recompute the score from the edited signals + engagement.
+        l.DeriveEstimatedValueFromBudget();
+        l.DetectTimeframeFromText();
+        var activityCount = await db.Activities
+            .CountAsync(a => !a.IsDeleted && a.RelatedToType == "lead" && a.RelatedToId == l.Id, ct);
+        l.RecalculateScore(activityCount);
 
         // If the owner changed as part of this edit, record it in the handoff history.
         if (cmd.AssignedToUserId != prevUserId && cmd.AssignedToUserId is { } toId)

@@ -124,4 +124,67 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
 
         logger.LogInformation("Email verification sent to {Email}", toEmail);
     }
+
+    public async Task SendTenantInviteEmailAsync(string toEmail, string toName, string tenantName, string? setPasswordToken, CancellationToken ct = default)
+    {
+        var section     = configuration.GetSection("Email");
+        var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
+        var isInvite    = !string.IsNullOrWhiteSpace(setPasswordToken);
+        var actionUrl   = isInvite
+            ? $"{frontendUrl}/auth/reset-password?token={Uri.EscapeDataString(setPasswordToken!)}&email={Uri.EscapeDataString(toEmail)}"
+            : $"{frontendUrl}/auth/login";
+
+        var host     = section["SmtpHost"];
+        var port     = int.Parse(section["SmtpPort"] ?? "587");
+        var username = section["SmtpUsername"];
+        var password = section["SmtpPassword"];
+        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
+        var fromName = section["FromName"]    ?? "Softaxis ERP";
+
+        // Dev fallback: log to console when SMTP is not configured so the link is still usable.
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        {
+            logger.LogWarning("SMTP not configured. Tenant {Action} link for {Email}: {Url}",
+                isInvite ? "activation" : "login", toEmail, actionUrl);
+            return;
+        }
+
+        var cta  = isInvite ? "Set My Password" : "Log In";
+        var lead = isInvite
+            ? $"Your workspace <strong>{tenantName}</strong> is ready. Set your password to activate your account and log in. This link expires in <strong>7 days</strong>."
+            : $"Your workspace <strong>{tenantName}</strong> is ready. Use the credentials shared with you to log in.";
+
+        var body = $"""
+            <html><body style="font-family:sans-serif;color:#1e293b">
+              <h2>Welcome to Softaxis ERP</h2>
+              <p>Hi {toName},</p>
+              <p>{lead}</p>
+              <p style="margin:24px 0">
+                <a href="{actionUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+                  {cta}
+                </a>
+              </p>
+              <p>Or copy this link into your browser:<br/>
+                <a href="{actionUrl}" style="color:#2563eb">{actionUrl}</a>
+              </p>
+              <p style="color:#64748b;font-size:12px">If you were not expecting this, you can ignore this email.</p>
+            </body></html>
+            """;
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(fromName, fromAddr));
+        message.To.Add(new MailboxAddress(toName, toEmail));
+        message.Subject = isInvite ? $"Activate your {tenantName} workspace on Softaxis ERP" : $"Your {tenantName} workspace is ready";
+        message.Body    = new TextPart("html") { Text = body };
+
+        using var client = new SmtpClient();
+        var socketOptions = port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+
+        await client.ConnectAsync(host, port, socketOptions, ct);
+        await client.AuthenticateAsync(username, password, ct);
+        await client.SendAsync(message, ct);
+        await client.DisconnectAsync(true, ct);
+
+        logger.LogInformation("Tenant invite email sent to {Email}", toEmail);
+    }
 }

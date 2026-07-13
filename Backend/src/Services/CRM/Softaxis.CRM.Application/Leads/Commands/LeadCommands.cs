@@ -9,7 +9,7 @@ public sealed record CreateLeadCommand(
     string Email, string Phone, string Country, string City, string Source, string Priority,
     decimal EstimatedValue, string AssignedTo, string? Notes,
     string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
-    Guid? AssignedToUserId = null)
+    Guid? AssignedToUserId = null, string? PurchaseTimeframe = null)
     : ICommand<LeadDto>;
 
 public sealed class CreateLeadValidator : AbstractValidator<CreateLeadCommand>
@@ -30,7 +30,7 @@ public sealed record UpdateLeadCommand(
     decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes,
     List<string>? Tags,
     string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
-    Guid? AssignedToUserId = null)
+    Guid? AssignedToUserId = null, string? PurchaseTimeframe = null)
     : ICommand;
 
 public sealed class UpdateLeadValidator : AbstractValidator<UpdateLeadCommand>

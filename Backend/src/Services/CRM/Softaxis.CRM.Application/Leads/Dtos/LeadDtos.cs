@@ -14,7 +14,9 @@ public sealed record LeadDto(
     string? AdName = null, string? AdSetName = null, string? PlatformCreatedTime = null,
     IReadOnlyDictionary<string, string>? CustomFields = null,
     // Identity user id of the current owner (drives "my assigned leads" scoping on the client).
-    Guid? AssignedToUserId = null);
+    Guid? AssignedToUserId = null,
+    // Purchase intent: raw "when planning to buy" text + its classified urgency bucket key.
+    string? PurchaseTimeframe = null, string? PurchaseUrgency = null);
 
 public sealed record LeadsSummaryDto(
     int Total, int NewThisWeek, int Qualified, int Contacted, int Converted,

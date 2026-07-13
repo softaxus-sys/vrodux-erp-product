@@ -70,7 +70,8 @@ public sealed class LeadIntakeService(
             notes:          Clean(lead.Notes));
 
         // Requirements captured from the lead-gen form (or promoted via field mappings).
-        newLead.SetRequirements(Clean(lead.WhatsApp), Clean(lead.InterestedIn), Clean(lead.Budget), Clean(lead.Message));
+        newLead.SetRequirements(Clean(lead.WhatsApp), Clean(lead.InterestedIn), Clean(lead.Budget),
+            Clean(lead.Message), Clean(lead.Timeframe));
 
         // Marketing / attribution — denormalized onto the lead for the drawer's Marketing panel.
         var platform = Clean(lead.Platform)
@@ -84,6 +85,13 @@ public sealed class LeadIntakeService(
             adSetName:           Clean(lead.AdSetName),
             platformCreatedTime: Clean(lead.PlatformCreatedTime),
             customFields:        BuildCustomFields(lead.RawFields));
+
+        // Derive a pipeline value from the free-text budget (inbound leads carry no numeric value),
+        // detect an urgency tag from the message when no explicit timeframe came through, then run
+        // automatic rule-based scoring from the captured signals (no activity yet → 0).
+        newLead.DeriveEstimatedValueFromBudget();
+        newLead.DetectTimeframeFromText();
+        newLead.RecalculateScore(0);
 
         // Stamp tenant explicitly — webhook requests are anonymous, so the ambient tenant
         // is unresolved and SaveChanges' auto-stamp is a no-op.
@@ -147,6 +155,7 @@ public sealed class LeadIntakeService(
                 case CanonicalLeadFields.InterestedIn: lead.InterestedIn ??= value; break;
                 case CanonicalLeadFields.Budget:       lead.Budget       ??= value; break;
                 case CanonicalLeadFields.Message:      lead.Message      ??= value; break;
+                case CanonicalLeadFields.Timeframe:    lead.Timeframe    ??= value; break;
                 case CanonicalLeadFields.Campaign:     lead.Campaign     ??= value; break;
                 case CanonicalLeadFields.FormName:     lead.FormName     ??= value; break;
             }
@@ -251,6 +260,8 @@ public sealed class LeadIntakeService(
         "firstname", "lastname", "fullname", "name", "email", "emailaddress", "phone", "phonenumber",
         "mobile", "company", "companyname", "jobtitle", "title", "industry", "address", "streetaddress",
         "city", "country", "notes", "whatsapp", "whatsappnumber", "interestedin", "budget", "message",
+        "timeframe", "timeline", "whentobuy", "whenlookingtobuy", "purchasetimeline", "buyingtimeline",
+        "whenplanningtoinvest", "movein", "urgency",
         "campaign", "campaignname", "formname", "form",
     };
 

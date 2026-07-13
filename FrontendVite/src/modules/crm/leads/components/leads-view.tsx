@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import {
   Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
-  Building2, Calendar, Globe, ArrowRight, UploadCloud
+  Building2, Calendar, Globe, ArrowRight, UploadCloud, Phone, Clock, Wallet, Tag
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { SOURCE_LABELS, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -36,12 +36,6 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: stri
 };
 
 const KANBAN_COLS: LeadStatus[] = ["new", "contacted", "qualified", "converted"];
-
-const PRIORITY_CONFIG = {
-  high:   { color: "text-destructive", bg: "bg-destructive/10",  label: "High" },
-  medium: { color: "text-warning",     bg: "bg-warning/10",      label: "Medium" },
-  low:    { color: "text-muted-foreground", bg: "bg-muted",      label: "Low" },
-};
 
 function StatusBadge({ status }: { status: LeadStatus }) {
   const c = STATUS_CONFIG[status];
@@ -64,27 +58,60 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-/* ── Kanban card ── */
+/* ── Kanban card — rich at-a-glance view ── */
 function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; onClick: () => void }) {
-  const pc = PRIORITY_CONFIG[lead.priority];
   const currency = useCurrency();
+  const heat = leadHeat(lead.score);
+  const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? URGENCY_META[lead.purchaseUrgency] : null;
+  const summary = buildLeadSummary(lead);
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * 0.04 }}
       onClick={onClick}
-      className="bg-background border border-border rounded-xl p-4 cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <p className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors line-clamp-2">{lead.fullName}</p>
-        <span className={cn("shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase", pc.color, pc.bg)}>{pc.label}</span>
+      className="bg-background border border-border rounded-xl p-3.5 cursor-pointer hover:border-primary/40 hover:shadow-md transition-all group">
+      {/* Name + heat */}
+      <div className="flex items-start justify-between gap-2 mb-1.5">
+        <p className="font-semibold text-sm leading-tight group-hover:text-primary transition-colors line-clamp-1">{lead.fullName}</p>
+        <span className={cn("shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold", heat.color, heat.bg)}>
+          <span>{heat.emoji}</span>{heat.label} · {lead.score}
+        </span>
       </div>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-        <Building2 className="h-3 w-3 shrink-0" />
-        <span className="truncate">{lead.company}</span>
+
+      {/* Intent summary */}
+      {summary && summary !== "—" && (
+        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2 mb-2.5">{summary}</p>
+      )}
+
+      {/* Key details */}
+      <div className="space-y-1 mb-2.5">
+        {lead.phone && (
+          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-[11px] text-foreground hover:text-primary w-fit">
+            <Phone className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="truncate">{lead.phone}</span>
+          </a>
+        )}
+        {lead.interestedIn && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Tag className="h-3 w-3 shrink-0" /><span className="truncate">{lead.interestedIn}</span>
+          </div>
+        )}
+        {lead.budget && (
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Wallet className="h-3 w-3 shrink-0" /><span className="truncate">{lead.budget}</span>
+          </div>
+        )}
+        {urg && (
+          <div className="flex items-center gap-1.5 text-[11px]">
+            <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-semibold", urg.color, urg.bg)}>{urg.label}</span>
+          </div>
+        )}
       </div>
-      <p className="font-bold text-sm mb-2">{formatCurrency(lead.estimatedValue, currency)}</p>
-      <ScoreBar score={lead.score} />
-      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-border/50">
-        <span className="text-[10px] text-muted-foreground">{SOURCE_LABELS[lead.source]}</span>
-        <Avatar className="h-5 w-5">
+
+      {/* Value + footer */}
+      {lead.estimatedValue > 0 && <p className="font-bold text-sm mb-2">{formatCompactValue(lead.estimatedValue, currency)}</p>}
+      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        <span className="text-[10px] text-muted-foreground truncate">{sourceLabel(lead.source)}</span>
+        <Avatar className="h-5 w-5 shrink-0">
           <AvatarFallback className="text-[8px] font-bold bg-primary/10 text-primary">{getInitials(lead.assignedTo)}</AvatarFallback>
         </Avatar>
       </div>
@@ -125,7 +152,7 @@ function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: L
         <LeadColumn
           key={status}
           status={status}
-          leads={colLeads.filter(l => l.status === status).sort((a, b) => b.estimatedValue - a.estimatedValue)}
+          leads={colLeads.filter(l => l.status === status).sort((a, b) => (b.score - a.score) || (b.estimatedValue - a.estimatedValue))}
           isOver={dragOver === status}
           draggedId={draggedId}
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(status); }}
@@ -264,13 +291,22 @@ export function LeadsView() {
     const q = search.toLowerCase();
     return leads
       .filter(l => {
-        const matchSearch = !search || (l.fullName ?? "").toLowerCase().includes(q) || (l.company ?? "").toLowerCase().includes(q) || (l.email ?? "").toLowerCase().includes(q);
+        const matchSearch = !search || [
+          l.fullName,
+          l.company,
+          l.email,
+          l.phone,
+          l.whatsApp,
+          l.source,
+          sourceLabel(l.source),
+        ].some(v => (v ?? "").toString().toLowerCase().includes(q));
         const matchStatus = statusFilter === "all" || l.status === statusFilter;
         const matchSource = sourceFilter === "all" || l.source === sourceFilter;
         const matchMine   = !mineOnly || l.assignedTo === currentUserName;
         return matchSearch && matchStatus && matchSource && matchMine;
       })
-      .sort((a, b) => b.estimatedValue - a.estimatedValue); // top-value leads first
+      // Hottest (highest intent score) first, then by value — contact the most intent-rich leads first.
+      .sort((a, b) => (b.score - a.score) || (b.estimatedValue - a.estimatedValue));
   }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName]);
 
   const listLazy = useLazyList(filtered, 25);
@@ -335,25 +371,23 @@ export function LeadsView() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap flex-1">
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder="Search name, email, phone, source..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
-          {/* Status pills */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {["all","new","contacted","qualified","converted","unqualified","lost"].map(s => (
-              <button key={s} onClick={() => setStatusFilter(s)}
-                className={cn("px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors",
-                  statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                {s === "all" ? "All" : STATUS_CONFIG[s as LeadStatus]?.label ?? s}
-              </button>
+          {/* Status filter */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="all">All Statuses</option>
+            {(["new","contacted","qualified","converted","unqualified","lost"] as LeadStatus[]).map(s => (
+              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
             ))}
-          </div>
+          </select>
           {/* Source filter */}
           <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="all">All Sources</option>
-            {uniqueSources.map(s => <option key={s} value={s}>{SOURCE_LABELS[s]}</option>)}
+            {uniqueSources.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
           </select>
         </div>
 
@@ -383,14 +417,14 @@ export function LeadsView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Lead","Company","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
+                    {["Lead","Phone","WhatsApp","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {listLazy.total === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No leads found.</td></tr>
+                    <tr><td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">No leads found.</td></tr>
                   ) : listLazy.visible.map((lead, i) => (
                     <motion.tr key={lead.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(lead)}>
@@ -399,18 +433,40 @@ export function LeadsView() {
                           <Avatar className="h-8 w-8 shrink-0">
                             <AvatarFallback className="text-[11px] font-bold bg-primary/10 text-primary">{getInitials(lead.fullName)}</AvatarFallback>
                           </Avatar>
-                          <div>
-                            <p className="font-medium text-sm">{lead.fullName}</p>
-                            <p className="text-[11px] text-muted-foreground">{lead.title}</p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-sm truncate">{lead.fullName}</p>
+                              {(() => { const h = leadHeat(lead.score); return (
+                                <span className={cn("shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold", h.color, h.bg)}>
+                                  <span>{h.emoji}</span>{h.label}
+                                </span>
+                              ); })()}
+                              {lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" && URGENCY_META[lead.purchaseUrgency] && (
+                                <span className={cn("shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold",
+                                  URGENCY_META[lead.purchaseUrgency].color, URGENCY_META[lead.purchaseUrgency].bg)}>
+                                  {URGENCY_META[lead.purchaseUrgency].label}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground truncate max-w-[280px]">{lead.title || buildLeadSummary(lead)}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm">{lead.company}</p>
-                        <p className="text-[11px] text-muted-foreground">{lead.industry}</p>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {lead.phone ? (
+                          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+                            className="text-sm text-foreground hover:text-primary hover:underline">{lead.phone}</a>
+                        ) : <span className="text-sm text-muted-foreground">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{SOURCE_LABELS[lead.source]}</td>
-                      <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(lead.estimatedValue, currency)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {lead.whatsApp ? (
+                          <a href={`https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="text-sm text-emerald-600 hover:underline">{lead.whatsApp}</a>
+                        ) : <span className="text-sm text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{sourceLabel(lead.source)}</td>
+                      <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCompactValue(lead.estimatedValue, currency)}</td>
                       <td className="px-4 py-3 min-w-[100px]"><ScoreBar score={lead.score} /></td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                         {lead.nextFollowUp ? (

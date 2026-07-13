@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Activities.Commands;
@@ -20,6 +21,19 @@ internal sealed class CreateActivityHandler(CrmDbContext db, ILeadAccessGuard ac
             cmd.RelatedToType, cmd.RelatedToId, cmd.RelatedToName, cmd.DueDate, cmd.AssignedTo);
 
         db.Activities.Add(a);
+
+        // Engagement feeds the lead score — recompute when logging against a lead.
+        if (string.Equals(cmd.RelatedToType, "lead", StringComparison.OrdinalIgnoreCase))
+        {
+            var lead = await db.Leads.FirstOrDefaultAsync(x => x.Id == cmd.RelatedToId, ct);
+            if (lead is not null)
+            {
+                var priorCount = await db.Activities
+                    .CountAsync(x => !x.IsDeleted && x.RelatedToType == "lead" && x.RelatedToId == lead.Id, ct);
+                lead.RecalculateScore(priorCount + 1); // +1 for the activity just added (not yet saved)
+            }
+        }
+
         await db.SaveChangesAsync(ct);
 
         return Result.Success(ActivityMappings.ToDto(a));

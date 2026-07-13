@@ -37,7 +37,7 @@ internal sealed class ImportLeadsHandler(ILeadIntakeService intake, ILogger<Impo
                 Industry = input.Industry, Address = input.Address, City = input.City, Country = input.Country,
                 Notes = input.Notes, Campaign = input.Campaign,
                 WhatsApp = input.WhatsApp, InterestedIn = input.InterestedIn, Budget = input.Budget,
-                Message = input.Message, FormName = input.FormName,
+                Message = input.Message, FormName = input.FormName, Timeframe = input.Timeframe,
                 UtmSource = string.IsNullOrWhiteSpace(input.Source) ? "import" : input.Source,
             };
             if (input.Fields is not null)

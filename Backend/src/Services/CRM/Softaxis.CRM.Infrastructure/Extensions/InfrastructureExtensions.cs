@@ -6,7 +6,9 @@ using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.CRM.Application;
+using Softaxis.CRM.Application.LeadIntake;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
+using Softaxis.CRM.Application.LeadIntake.Dtos;
 using Softaxis.CRM.Infrastructure.Integrations;
 using Softaxis.CRM.Infrastructure.Integrations.Providers;
 using Softaxis.CRM.Infrastructure.Integrations.Providers.Meta;
@@ -126,6 +128,10 @@ public static class InfrastructureExtensions
         var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         await db.Database.MigrateAsync();
 
+        // Backfill value + score for existing leads — can be heavy on a large lead table, so run it in
+        // the background (own scope) rather than blocking startup readiness / the deploy health check.
+        _ = Task.Run(() => RecomputeLeadValueAndScoreInBackgroundAsync(services));
+
         // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only. The old
         // ASPNETCORE_ENVIRONMENT != "Production" gate was ineffective — prod runs as "Docker" — so
         // it seeded into real deployments. Now gated by the explicit Seeding:DemoData flag (off by
@@ -134,5 +140,93 @@ public static class InfrastructureExtensions
             await DemoTenantSeeder.RunAsync(() => CrmSeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await CrmSeedData.SeedAsync(db);
+    }
+
+    /// <summary>Recover budget/timeframe/interest/whatsapp/message that were captured under a custom
+    /// question name and landed in the lead's CustomFields (Form Responses) — using the same normalized
+    /// classifier the providers use, so "your_budget?" / "when_are_you_planning_to_invest?" are matched.</summary>
+    private static void RecoverFromCustomFields(Softaxis.CRM.Domain.Entities.Lead lead)
+    {
+        if (lead.CustomFields is not { Count: > 0 } cf) return;
+        string? budget = null, timeframe = null, interest = null, whatsapp = null, message = null;
+        foreach (var (k, v) in cf)
+        {
+            if (string.IsNullOrWhiteSpace(v)) continue;
+            switch (LeadFieldClassifier.Classify(k))
+            {
+                case CanonicalLeadFields.Budget:       budget    ??= v; break;
+                case CanonicalLeadFields.Timeframe:    timeframe ??= v; break;
+                case CanonicalLeadFields.InterestedIn: interest  ??= v; break;
+                case CanonicalLeadFields.WhatsApp:     whatsapp  ??= v; break;
+                case CanonicalLeadFields.Message:      message   ??= v; break;
+            }
+        }
+        lead.RecoverRequirements(whatsapp, interest, budget, message, timeframe);
+    }
+
+    /// <summary>
+    /// Idempotent backfill / repair for leads created before (or captured without) proper field
+    /// mapping. For each affected lead it (1) recovers budget/timeframe/interest/whatsapp/message
+    /// that landed in CustomFields under a custom field name, (2) derives the pipeline value from the
+    /// budget — forcing a re-derive when the existing value is a bad tiny legacy value (&lt; 1000, the
+    /// "50" bug), and (3) recomputes the score. Targets Score = 0 or EstimatedValue &lt; 1000 leads,
+    /// so already-healthy leads are untouched; writes are minimal thanks to the idempotent setters.
+    /// Runs across all tenants (no ambient tenant at startup) and is best-effort — a failure must
+    /// never crash-loop startup.
+    /// </summary>
+    /// <summary>Runs the value/score backfill on a fresh scope off the startup path (fire-and-forget).
+    /// Fully guarded so an unobserved background failure can never surface.</summary>
+    private static async Task RecomputeLeadValueAndScoreInBackgroundAsync(IServiceProvider services)
+    {
+        try
+        {
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+            await RecomputeLeadValueAndScoreAsync(db);
+        }
+        catch
+        {
+            // Best-effort background repair — swallow everything.
+        }
+    }
+
+    private static async Task RecomputeLeadValueAndScoreAsync(CrmDbContext db)
+    {
+        try
+        {
+            // Rescore/repair ALL leads — the scoring weights + value derivation evolve over releases, and
+            // RecalculateScore/DeriveEstimatedValueFromBudget are idempotent (they only write when the value
+            // actually changes), so re-runs on already-correct leads are no-ops. Runs in the background.
+            var leads = await db.Leads.IgnoreQueryFilters()
+                .Where(l => !l.IsDeleted)
+                .ToListAsync();
+            if (leads.Count == 0) return;
+
+            // Activity counts per lead in one grouped query.
+            var counts = await db.Activities.IgnoreQueryFilters()
+                .Where(a => !a.IsDeleted && a.RelatedToType == "lead")
+                .GroupBy(a => a.RelatedToId)
+                .Select(g => new { LeadId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.LeadId, x => x.Count);
+
+            foreach (var lead in leads)
+            {
+                // Recover requirement fields that were captured but never promoted (custom field names).
+                RecoverFromCustomFields(lead);
+
+                // Authoritatively repair the value from the (trusted) budget — clears misleading legacy
+                // values like a static 50,000 guessed from a bare "50"; leaves budget-less leads alone.
+                lead.RepairEstimatedValueFromBudget();
+                // Tag urgency from the message when no explicit timeframe was captured.
+                lead.DetectTimeframeFromText();
+                lead.RecalculateScore(counts.TryGetValue(lead.Id, out var c) ? c : 0);
+            }
+
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // Best-effort backfill — never block startup on it.
+        }
     }
 }

@@ -13,6 +13,8 @@ public sealed class CreateTenantCommandHandler(
     IUserRepository        userRepo,
     ITenantRoleProvisioner roleProvisioner,
     IPasswordHasher        passwordHasher,
+    IJwtTokenService       jwtService,
+    IEmailService          emailService,
     IUnitOfWork            uow)
     : ICommandHandler<CreateTenantCommand, TenantDto>
 {
@@ -39,15 +41,20 @@ public sealed class CreateTenantCommandHandler(
 
         // ── Optionally provision the tenant's first admin user ───────────────────
         var wantAdmin = !string.IsNullOrWhiteSpace(cmd.AdminEmail) ||
+                        !string.IsNullOrWhiteSpace(cmd.AdminUsername) ||
                         !string.IsNullOrWhiteSpace(cmd.AdminPassword);
+        // Captured so the welcome/activation email is sent AFTER the tenant + user are committed.
+        string? inviteEmail = null, inviteName = null, inviteToken = null;
+
         if (wantAdmin)
         {
+            // Password is optional: leave it blank and the owner sets their own via an emailed
+            // activation link (the recommended invite flow). Email + username are always required.
             if (string.IsNullOrWhiteSpace(cmd.AdminEmail) ||
-                string.IsNullOrWhiteSpace(cmd.AdminPassword) ||
                 string.IsNullOrWhiteSpace(cmd.AdminUsername))
                 return Result.Failure<TenantDto>(Error.Custom(
                     "Tenant.Admin.Invalid",
-                    "Admin email, username and password are required to create the tenant admin user."));
+                    "Admin email and username are required to create the tenant admin user."));
 
             if (await userRepo.EmailExistsAsync(cmd.AdminEmail, ct))
                 return Result.Failure<TenantDto>(Error.Custom("User.Email.Taken", "Admin email is already registered."));
@@ -57,28 +64,56 @@ public sealed class CreateTenantCommandHandler(
 
             var (adminFirst, adminLast) = Common.AdminNameFallback.Resolve(
                 cmd.AdminFirstName, cmd.AdminLastName, cmd.AdminEmail);
+
+            // Invite mode when no password is supplied: seed an unguessable placeholder the owner
+            // replaces via the activation link; otherwise use the password the super admin set.
+            var invite      = string.IsNullOrWhiteSpace(cmd.AdminPassword);
+            var rawPassword = invite ? jwtService.GenerateRefreshTokenRaw() : cmd.AdminPassword!;
+
             var userResult = User.Create(
                 cmd.AdminEmail,
                 cmd.AdminUsername,
                 adminFirst,
                 adminLast,
-                passwordHasher.Hash(cmd.AdminPassword));
+                passwordHasher.Hash(rawPassword));
 
             if (userResult.IsFailure)
                 return Result.Failure<TenantDto>(userResult.Error);
 
             var adminUser = userResult.Value;
-            adminUser.VerifyEmail();          // pre-verified
+            adminUser.VerifyEmail();          // pre-verified — the activation link only needs to set a password
             adminUser.SetTenant(tenant.Id);   // bind to the new tenant
 
             // Provision this tenant's own role set (Administrator + per-module Managers).
             var adminRole = await roleProvisioner.ProvisionAsync(tenant.Id, tenant.ResolvedModules, ct);
             adminUser.AssignRole(adminRole.Id);
 
+            if (invite)
+            {
+                // Single-use set-password token (7-day window), reusing the password-reset mechanism.
+                var raw = jwtService.GenerateRefreshTokenRaw();
+                adminUser.SetPasswordResetToken(jwtService.HashToken(raw), DateTime.UtcNow.AddDays(7));
+                inviteToken = raw;
+            }
+            inviteEmail = adminUser.Email.Value;
+            inviteName  = adminUser.FullName;
+
             userRepo.Add(adminUser);
         }
 
         await uow.SaveChangesAsync(ct);
+
+        // Best-effort welcome/activation email — SMTP failure must never fail tenant creation
+        // (the super admin can resend an activation link via forgot-password).
+        if (inviteEmail is not null)
+        {
+            try
+            {
+                await emailService.SendTenantInviteEmailAsync(
+                    inviteEmail, inviteName ?? inviteEmail, tenant.Name, inviteToken, ct);
+            }
+            catch { /* logged by the email service */ }
+        }
 
         return Result.Success(TenantMappings.ToDto(tenant));
     }

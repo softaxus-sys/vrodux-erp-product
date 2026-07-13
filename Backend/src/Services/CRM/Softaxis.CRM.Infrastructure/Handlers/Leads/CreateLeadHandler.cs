@@ -17,7 +17,13 @@ internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, I
         var l = new Lead(cmd.FirstName, cmd.LastName, cmd.Title, cmd.Company, cmd.Industry,
             cmd.Email, cmd.Phone, cmd.Country, cmd.City, cmd.Source, cmd.Priority,
             cmd.EstimatedValue, cmd.AssignedTo, cmd.Notes,
-            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId);
+            cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId, cmd.PurchaseTimeframe);
+
+        // Derive value from the budget when none was entered, detect an urgency tag from the message
+        // when no explicit timeframe was given, then score (no activity yet → 0).
+        l.DeriveEstimatedValueFromBudget();
+        l.DetectTimeframeFromText();
+        l.RecalculateScore(0);
 
         db.Leads.Add(l);
 

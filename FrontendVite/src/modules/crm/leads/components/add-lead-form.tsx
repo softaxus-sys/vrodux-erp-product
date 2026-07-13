@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 import { useUsers } from "@/hooks/identity/use-users";
-import type { LeadDto } from "@/lib/crm/crm.api";
+import { TIMEFRAME_OPTIONS, type LeadDto } from "@/lib/crm/crm.api";
 
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
@@ -48,6 +48,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const [interestedIn, setInterestedIn] = React.useState("");
   const [budget, setBudget]           = React.useState("");
   const [message, setMessage]         = React.useState("");
+  const [timeframe, setTimeframe]     = React.useState("");
 
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
@@ -64,6 +65,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       setAssignedTo(editing.assignedTo); setAssignedToUserId(editing.assignedToUserId ?? ""); setNotes(editing.notes ?? "");
       setWhatsApp(editing.whatsApp ?? ""); setInterestedIn(editing.interestedIn ?? "");
       setBudget(editing.budget ?? ""); setMessage(editing.message ?? "");
+      setTimeframe(editing.purchaseTimeframe ?? "");
     }
   }, [open, editing]);
 
@@ -78,6 +80,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null, notes: notes.trim() || null,
       whatsApp: whatsApp.trim() || null, interestedIn: interestedIn.trim() || null,
       budget: budget.trim() || null, message: message.trim() || null,
+      purchaseTimeframe: timeframe.trim() || null,
     };
     if (isEdit && editing) {
       updateLead.mutate({ id: editing.id, data: { ...base, score: editing.score, nextFollowUp: editing.nextFollowUp ?? null, tags: editing.tags } }, { onSuccess: onClose });
@@ -91,7 +94,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
     setCompany(""); setJobTitle(""); setIndustry(""); setSource("Website");
     setStage("New"); setPriority("Medium"); setDealValue("");
     setAssignedTo(""); setAssignedToUserId(""); setExpectedClose(""); setNotes("");
-    setWhatsApp(""); setInterestedIn(""); setBudget(""); setMessage("");
+    setWhatsApp(""); setInterestedIn(""); setBudget(""); setMessage(""); setTimeframe("");
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
@@ -230,6 +233,15 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget</label>
                     <Input value={budget} onChange={e => setBudget(e.target.value)} placeholder="e.g. 50k–100k" className="h-9 text-sm" />
+                  </div>
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Planning to buy</label>
+                    <select value={timeframe} onChange={e => setTimeframe(e.target.value)}
+                      className="w-full h-9 rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                      <option value="">Not specified</option>
+                      {TIMEFRAME_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                    <p className="text-[10px] text-muted-foreground">Sooner timeframe → higher lead score.</p>
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interested In</label>

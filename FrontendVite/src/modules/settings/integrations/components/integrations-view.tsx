@@ -812,8 +812,33 @@ function vroduxOnFormSubmit(e) {
   );
 }
 
+// All CRM lead fields an incoming source field can be mapped onto — must mirror the backend
+// CanonicalLeadFields (LeadIntakeService.ApplyFieldMappings). Grouped + labelled so users can map
+// Meta/Instagram/Facebook lead-form questions (budget, timeframe, interest, whatsapp, …), not just
+// the basic contact fields.
+const TARGET_FIELDS: { value: string; label: string }[] = [
+  { value: "firstName",    label: "First name" },
+  { value: "lastName",     label: "Last name" },
+  { value: "fullName",     label: "Full name" },
+  { value: "email",        label: "Email" },
+  { value: "phone",        label: "Phone" },
+  { value: "whatsApp",     label: "WhatsApp" },
+  { value: "company",      label: "Company" },
+  { value: "title",        label: "Job title" },
+  { value: "industry",     label: "Industry" },
+  { value: "address",      label: "Address" },
+  { value: "city",         label: "City" },
+  { value: "country",      label: "Country" },
+  { value: "interestedIn", label: "Interested in" },
+  { value: "budget",       label: "Budget (→ lead value)" },
+  { value: "timeframe",    label: "Purchase timeframe (→ urgency)" },
+  { value: "message",      label: "Message / enquiry" },
+  { value: "notes",        label: "Notes" },
+  { value: "campaign",     label: "Campaign" },
+  { value: "formName",     label: "Form name" },
+];
+
 function MappingTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
-  const TARGETS = ["firstName","lastName","fullName","email","phone","company","title","industry","address","city","country","notes"];
   const [rows, setRows] = React.useState<{ sourceField: string; targetField: string }[]>(
     integration.fieldMappings.map((m: any) => ({ sourceField: m.sourceField, targetField: m.targetField })),
   );
@@ -834,7 +859,7 @@ function MappingTab({ integration, canEdit }: { integration: any; canEdit: boole
             onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, targetField: e.target.value } : x))}
           >
             <option value="">— field —</option>
-            {TARGETS.map((t) => <option key={t} value={t}>{t}</option>)}
+            {TARGET_FIELDS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
           {canEdit && (
             <button className="text-muted-foreground hover:text-destructive" onClick={() => setRows((p) => p.filter((_, j) => j !== i))}>

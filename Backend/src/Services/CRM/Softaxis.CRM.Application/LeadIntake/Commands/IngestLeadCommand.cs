@@ -17,7 +17,7 @@ public sealed record IngestLeadInput(
     string? Country, string? Notes, string? Source, string? Campaign,
     Dictionary<string, string?>? Fields,
     string? WhatsApp = null, string? InterestedIn = null, string? Budget = null,
-    string? Message = null, string? FormName = null);
+    string? Message = null, string? FormName = null, string? Timeframe = null);
 
 public sealed record IngestLeadResult(string Outcome, Guid? LeadId, string? Message);
 

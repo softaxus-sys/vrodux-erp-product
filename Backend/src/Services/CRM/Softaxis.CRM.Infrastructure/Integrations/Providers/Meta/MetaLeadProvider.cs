@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Softaxis.CRM.Application.LeadIntake;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
 using Softaxis.CRM.Domain.Entities.Integrations;
@@ -189,7 +190,15 @@ public sealed class MetaLeadProvider(
                     case "message": case "your_message":       lc.Message      ??= value; break;
                     case "budget": case "your_budget":         lc.Budget       ??= value; break;
                     case "interested_in": case "interest":     lc.InterestedIn ??= value; break;
+                    case "timeframe": case "timeline": case "when_to_buy": case "when_looking_to_buy":
+                    case "purchase_timeline": case "buying_timeline": case "when_planning_to_invest":
+                    case "move_in": case "urgency":            lc.Timeframe    ??= value; break;
                 }
+
+                // Fallback: real Meta question names ("your_budget?", "when_are_you_planning_to_buy?",
+                // "what_are_you_interested_in?", "whatsapp_number") don't match the exact cases above —
+                // the normalized classifier captures them so budget/timeframe/interest aren't lost.
+                LeadFieldClassifier.Apply(lc, name, value);
             }
         }
         return lc;

@@ -27,6 +27,8 @@ public sealed class CanonicalLead
     public string? InterestedIn { get; set; }
     public string? Budget       { get; set; }
     public string? Message      { get; set; }
+    /// <summary>Free-text "when are you planning to buy/invest?" answer (drives purchase urgency).</summary>
+    public string? Timeframe    { get; set; }
 
     // ── Attribution / provenance ──────────────────────────────────────────────
     public string? ExternalLeadId { get; set; }
@@ -74,12 +76,13 @@ public static class CanonicalLeadFields
     public const string InterestedIn = "interestedIn";
     public const string Budget       = "budget";
     public const string Message      = "message";
+    public const string Timeframe    = "timeframe";
     public const string Campaign     = "campaign";
     public const string FormName     = "formName";
 
     public static readonly IReadOnlyList<string> All =
     [
         FirstName, LastName, FullName, Email, Phone, Company, Title, Industry, Address, City, Country, Notes,
-        WhatsApp, InterestedIn, Budget, Message, Campaign, FormName
+        WhatsApp, InterestedIn, Budget, Message, Timeframe, Campaign, FormName
     ];
 }

@@ -38,6 +38,7 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(x => x.InterestedIn).HasMaxLength(500);
         builder.Property(x => x.Budget).HasMaxLength(100);
         builder.Property(x => x.Message).HasMaxLength(4000);
+        builder.Property(x => x.PurchaseTimeframe).HasMaxLength(100);
         // Marketing / attribution
         builder.Property(x => x.Platform).HasMaxLength(50);
         builder.Property(x => x.FormName).HasMaxLength(200);
