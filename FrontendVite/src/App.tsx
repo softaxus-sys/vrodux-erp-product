@@ -91,10 +91,21 @@ const SitesPage            = React.lazy(() => import("@/pages/construction/sites
 const RetailPOSPage        = React.lazy(() => import("@/pages/pos/retail"));
 const RestaurantPOSPage    = React.lazy(() => import("@/pages/pos/restaurant"));
 const KitchenDisplayPage   = React.lazy(() => import("@/pages/pos/kitchen"));
+const FloorDesignerPage    = React.lazy(() => import("@/pages/pos/floor-designer"));
+const WaitlistPage         = React.lazy(() => import("@/pages/pos/waitlist"));
+const ReservationsPage     = React.lazy(() => import("@/pages/pos/reservations"));
+const KitchenConfigPage    = React.lazy(() => import("@/pages/pos/kitchen-config"));
+const MenuManagementPage   = React.lazy(() => import("@/pages/pos/menu-management"));
+const DeliveryPage         = React.lazy(() => import("@/pages/pos/delivery"));
+const RestaurantReportsPage    = React.lazy(() => import("@/pages/pos/reports"));
+const RestaurantDashboardsPage = React.lazy(() => import("@/pages/pos/dashboards"));
+const BranchAccessPage         = React.lazy(() => import("@/pages/pos/branch-access"));
+const PosCustomersPage         = React.lazy(() => import("@/pages/pos/customers"));
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
 const RecipesPage          = React.lazy(() => import("@/pages/recipe/recipes"));
 const IngredientsPage      = React.lazy(() => import("@/pages/recipe/ingredients"));
+const FoodCostPage         = React.lazy(() => import("@/pages/recipe/food-cost"));
 
 // ── Project Management ──────────────────────────────────────────────────────
 const ProjectManagementPage = React.lazy(() => import("@/pages/project-management/index"));
@@ -125,6 +136,9 @@ const IntegrationsPage     = React.lazy(() => import("@/pages/settings/integrati
 const AuditPage            = React.lazy(() => import("@/pages/settings/audit"));
 const AppearancePage       = React.lazy(() => import("@/pages/settings/appearance"));
 const PosPaymentMethodsPage = React.lazy(() => import("@/pages/settings/pos-payment-methods"));
+const PaymentGatewayPage    = React.lazy(() => import("@/pages/settings/payment-gateway"));
+const NotificationConfigPage = React.lazy(() => import("@/pages/settings/notifications"));
+const DevicesPage           = React.lazy(() => import("@/pages/settings/devices"));
 const VouchersPage          = React.lazy(() => import("@/pages/settings/vouchers"));
 
 // ── Master Data ───────────────────────────────────────────────────────────────
@@ -132,6 +146,10 @@ const MasterDataPage       = React.lazy(() => import("@/pages/master-data"));
 
 // ── Onboarding / Trial ────────────────────────────────────────────────────────
 const OnboardingPage            = React.lazy(() => import("@/pages/trial/onboarding"));
+
+// ── Restaurant public (QR ordering / delivery tracking) ──────────────────────
+const GuestOrderPage            = React.lazy(() => import("@/pages/order/guest-order"));
+const DeliveryTrackingPage      = React.lazy(() => import("@/pages/track/delivery-tracking"));
 
 // ── Careers (public) ─────────────────────────────────────────────────────────
 const CareersJobsPage           = React.lazy(() => import("@/pages/careers/jobs"));
@@ -238,6 +256,10 @@ export function App() {
         {/* Careers portal — fully public, no auth */}
         <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />
         <Route path="/careers/:tenantSlug/jobs/:jobId" element={<CareersJobDetailPage />} />
+
+        {/* Restaurant QR-table / kiosk ordering + delivery tracking — fully public, no auth */}
+        <Route path="/order/:qrCode" element={<GuestOrderPage />} />
+        <Route path="/track/:token" element={<DeliveryTrackingPage />} />
 
         {/* ERP (authenticated) — layout wraps all children */}
         <Route
@@ -368,14 +390,25 @@ export function App() {
           {/* ── POS ─────────────────────────────────────────────────────────── */}
           <Route element={<ModuleGuard module="pos" />}>
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
+            <Route path="/pos/customers"   element={<PosCustomersPage />} />
             <Route path="/pos/restaurant"  element={<RestaurantPOSPage />} />
             <Route path="/pos/kitchen"     element={<KitchenDisplayPage />} />
+            <Route path="/pos/floor-designer" element={<FloorDesignerPage />} />
+            <Route path="/pos/waitlist"        element={<WaitlistPage />} />
+            <Route path="/pos/reservations"    element={<ReservationsPage />} />
+            <Route path="/pos/kitchen-config"  element={<KitchenConfigPage />} />
+            <Route path="/pos/menu-management" element={<MenuManagementPage />} />
+            <Route path="/pos/delivery"        element={<DeliveryPage />} />
+            <Route path="/pos/reports"         element={<RestaurantReportsPage />} />
+            <Route path="/pos/dashboards"      element={<RestaurantDashboardsPage />} />
+            <Route path="/pos/branch-access"   element={<BranchAccessPage />} />
           </Route>
 
           {/* ── Recipe ──────────────────────────────────────────────────────── */}
           <Route element={<ModuleGuard module="recipe" />}>
             <Route path="/recipe/recipes"     element={<RecipesPage />} />
             <Route path="/recipe/ingredients" element={<IngredientsPage />} />
+            <Route path="/recipe/food-cost"   element={<FoodCostPage />} />
           </Route>
 
           {/* ── Project Management ──────────────────────────────────────────── */}
@@ -417,6 +450,9 @@ export function App() {
             <Route path="/settings/general"               element={<GeneralSettingsPage />} />
             <Route path="/settings/currency"              element={<CurrencySettingsPage />} />
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
+            <Route path="/settings/payment-gateway"       element={<PaymentGatewayPage />} />
+            <Route path="/settings/notifications"         element={<NotificationConfigPage />} />
+            <Route path="/settings/devices"               element={<DevicesPage />} />
             <Route path="/settings/vouchers"              element={<VouchersPage />} />
             <Route path="/settings/users"                 element={<UsersPage />} />
             <Route path="/settings/security"              element={<SecurityPage />} />

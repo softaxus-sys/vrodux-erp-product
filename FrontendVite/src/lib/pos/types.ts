@@ -175,6 +175,10 @@ export interface CustomerDto {
   isActive: boolean;
   notes: string | null;
   createdAt: string;
+  walletBalance: number;
+  creditLimit: number;
+  creditBalance: number;
+  availableCredit: number;
 }
 
 export interface CustomerSummaryDto {
@@ -184,6 +188,20 @@ export interface CustomerSummaryDto {
   email: string | null;
   loyaltyPoints: number;
   isActive: boolean;
+  walletBalance: number;
+  availableCredit: number;
+}
+
+export type WalletTransactionType = "topup" | "redeem" | "house_charge" | "house_payment";
+
+export interface CustomerWalletTransactionDto {
+  id: string;
+  customerId: string;
+  type: WalletTransactionType;
+  amount: number;
+  orderId: string | null;
+  notes: string | null;
+  createdAt: string;
 }
 
 // ── Reports ───────────────────────────────────────────────────────────────────

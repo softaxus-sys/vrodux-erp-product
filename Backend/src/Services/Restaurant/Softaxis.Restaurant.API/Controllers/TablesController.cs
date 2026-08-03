@@ -1,72 +1,84 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Softaxis.Restaurant.Infrastructure.Persistence;
+using Softaxis.Restaurant.API.Authorization;
+using Softaxis.Restaurant.API.Controllers.Common;
+using Softaxis.Restaurant.Application.Tables.Commands;
+using Softaxis.Restaurant.Application.Tables.Queries;
 
 namespace Softaxis.Restaurant.API.Controllers;
 
 [ApiController][Route("api/restaurant/tables")][Authorize]
-public sealed class TablesController(RestaurantDbContext db) : ControllerBase
+public sealed class TablesController(ISender sender) : RestaurantControllerBase
 {
+    /// <summary>GET /api/restaurant/tables/summary</summary>
     [HttpGet("summary")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct)
-    {
-        var all = await db.Tables.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.Section, x.Capacity }).ToListAsync(ct);
-        return Ok(new {
-            total = all.Count,
-            available = all.Count(x => x.Status == "available"),
-            occupied  = all.Count(x => x.Status == "occupied"),
-            reserved  = all.Count(x => x.Status == "reserved"),
-            cleaning  = all.Count(x => x.Status == "cleaning"),
-            occupancyRate = all.Count > 0
-                ? Math.Round((double)all.Count(x => x.Status == "occupied") / all.Count * 100, 1) : 0,
-            totalCovers = all.Sum(x => x.Capacity),
-        });
-    }
+    [RequirePermission("restaurant.tables.view")]
+    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetTablesSummaryQuery(), ct));
 
+    /// <summary>GET /api/restaurant/tables</summary>
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
-    {
-        var items = await db.Tables.AsNoTracking().Where(x => !x.IsDeleted)
-            .OrderBy(x => x.Section).ThenBy(x => x.TableNumber).ToListAsync(ct);
-        return Ok(items.Select(t => new {
-            t.Id, t.TableNumber, t.Section, t.Capacity, t.Status,
-            t.CurrentOrderId, t.CurrentWaiter, t.OccupiedSince,
-        }));
-    }
+    [RequirePermission("restaurant.tables.view")]
+    public async Task<IActionResult> GetAll(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetTablesQuery(), ct));
 
+    /// <summary>POST /api/restaurant/tables</summary>
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateTableReq req, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(req.TableNumber)) return BadRequest("Table number is required.");
-        if (req.Capacity <= 0) return BadRequest("Capacity must be greater than zero.");
+    [RequirePermission("restaurant.tables.create")]
+    public async Task<IActionResult> Create([FromBody] CreateTableCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
 
-        var exists = await db.Tables.AnyAsync(x => !x.IsDeleted && x.TableNumber == req.TableNumber, ct);
-        if (exists) return Conflict($"Table '{req.TableNumber}' already exists.");
+    /// <summary>PUT /api/restaurant/tables/{id}</summary>
+    [HttpPut("{id:guid}")]
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTableReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new UpdateTableCommand(id, req.TableNumber, req.Section, req.Capacity, req.DiningAreaId), ct));
 
-        var table = new Softaxis.Restaurant.Domain.Entities.Table(req.TableNumber.Trim(), req.Section, req.Capacity);
-        db.Tables.Add(table);
-        await db.SaveChangesAsync(ct);
-        return Ok(new { table.Id, table.TableNumber, table.Section, table.Capacity, table.Status });
-    }
+    /// <summary>DELETE /api/restaurant/tables/{id} — rejected if the table has an active order.</summary>
+    [HttpDelete("{id:guid}")]
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new DeleteTableCommand(id), ct));
 
+    /// <summary>PATCH /api/restaurant/tables/{id}/status</summary>
     [HttpPatch("{id:guid}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusReq req, CancellationToken ct)
-    {
-        var t = await db.Tables.FindAsync([id], ct);
-        if (t is null) return NotFound();
-        switch (req.Status)
-        {
-            case "available": t.SetAvailable(); break;
-            case "reserved":  t.Reserve(); break;
-            case "cleaning":  t.Free(); break;
-            default: return BadRequest("Invalid status");
-        }
-        await db.SaveChangesAsync(ct);
-        return Ok(new { t.Id, t.Status });
-    }
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateStatusReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new UpdateTableStatusCommand(id, req.Status), ct));
+
+    /// <summary>PATCH /api/restaurant/tables/{id}/position — one table's placement on the designer canvas.</summary>
+    [HttpPatch("{id:guid}/position")]
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> Reposition(Guid id, [FromBody] RepositionReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new RepositionTableCommand(id, req.PosX, req.PosY, req.Shape, req.Rotation), ct));
+
+    /// <summary>PUT /api/restaurant/tables/layout — batch position save from the designer canvas.</summary>
+    [HttpPut("layout")]
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> UpdateLayout([FromBody] UpdateTableLayoutCommand cmd, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(cmd, ct));
+
+    /// <summary>POST /api/restaurant/tables/{id}/merge — merges this table into another for a large party.</summary>
+    [HttpPost("{id:guid}/merge")]
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> Merge(Guid id, [FromBody] MergeReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new MergeTableCommand(id, req.TargetTableId), ct));
+
+    /// <summary>POST /api/restaurant/tables/{id}/unmerge</summary>
+    [HttpPost("{id:guid}/unmerge")]
+    [RequirePermission("restaurant.tables.edit")]
+    public async Task<IActionResult> Unmerge(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new UnmergeTableCommand(id), ct));
+
+    /// <summary>GET /api/restaurant/tables/{id}/qr-code — QR image + guest-ordering URL for this table.</summary>
+    [HttpGet("{id:guid}/qr-code")]
+    [RequirePermission("restaurant.tables.view")]
+    public async Task<IActionResult> GetQrCode(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetTableQrCodeQuery(id), ct));
 
     public record UpdateStatusReq(string Status);
-    public record CreateTableReq(string TableNumber, string Section, int Capacity);
+    public record UpdateTableReq(string TableNumber, string Section, int Capacity, Guid? DiningAreaId);
+    public record RepositionReq(double PosX, double PosY, string Shape, int Rotation);
+    public record MergeReq(Guid TargetTableId);
 }

@@ -1,76 +1,55 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Softaxis.Restaurant.Domain.Entities;
-using Softaxis.Restaurant.Infrastructure.Persistence;
+using Softaxis.Restaurant.API.Authorization;
+using Softaxis.Restaurant.API.Controllers.Common;
+using Softaxis.Restaurant.Application.Reservations.Commands;
+using Softaxis.Restaurant.Application.Reservations.Queries;
 
 namespace Softaxis.Restaurant.API.Controllers;
 
 [ApiController][Route("api/restaurant/reservations")][Authorize]
-public sealed class ReservationsController(RestaurantDbContext db) : ControllerBase
+public sealed class ReservationsController(ISender sender) : RestaurantControllerBase
 {
+    /// <summary>GET /api/restaurant/reservations/summary</summary>
     [HttpGet("summary")]
-    public async Task<IActionResult> GetSummary(CancellationToken ct)
-    {
-        var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        var all = await db.Reservations.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.ReservationDate, x.Covers }).ToListAsync(ct);
-        return Ok(new {
-            total = all.Count,
-            confirmed = all.Count(x => x.Status == "confirmed"),
-            seated    = all.Count(x => x.Status == "seated"),
-            completed = all.Count(x => x.Status == "completed"),
-            cancelled = all.Count(x => x.Status == "cancelled"),
-            noShow    = all.Count(x => x.Status == "no_show"),
-            today     = all.Count(x => x.ReservationDate == today),
-            todayCovers = all.Where(x => x.ReservationDate == today && x.Status != "cancelled").Sum(x => x.Covers),
-        });
-    }
+    [RequirePermission("restaurant.reservations.view")]
+    public async Task<IActionResult> GetSummary(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetReservationsSummaryQuery(), ct));
 
+    /// <summary>GET /api/restaurant/reservations?date=yyyy-MM-dd</summary>
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? date, CancellationToken ct)
-    {
-        var q = db.Reservations.AsNoTracking().Where(x => !x.IsDeleted);
-        if (!string.IsNullOrEmpty(date)) q = q.Where(x => x.ReservationDate == date);
-        var items = await q.OrderBy(x => x.ReservationDate).ThenBy(x => x.ReservationTime).ToListAsync(ct);
-        return Ok(items.Select(r => new {
-            r.Id, r.ReservationNumber, r.TableId, r.TableNumber,
-            r.GuestName, r.GuestPhone, r.GuestEmail, r.Covers,
-            r.ReservationDate, r.ReservationTime, r.Status, r.SpecialRequests,
-        }));
-    }
+    [RequirePermission("restaurant.reservations.view")]
+    public async Task<IActionResult> GetAll([FromQuery] string? date, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetReservationsQuery(date), ct));
 
+    /// <summary>POST /api/restaurant/reservations</summary>
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateReservationReq req, CancellationToken ct)
-    {
-        var r = new Reservation(req.GuestName, req.GuestPhone, req.GuestEmail, req.Covers,
-            req.ReservationDate, req.ReservationTime, req.SpecialRequests);
-        if (req.TableId.HasValue)
-        {
-            var table = await db.Tables.FindAsync([req.TableId.Value], ct);
-            if (table is not null) { r.AssignTable(table.Id, table.TableNumber); table.Reserve(); }
-        }
-        db.Reservations.Add(r);
-        await db.SaveChangesAsync(ct);
-        return CreatedAtAction(null, new { r.Id }, new { r.Id, r.ReservationNumber, r.Status });
-    }
+    [RequirePermission("restaurant.reservations.create")]
+    public async Task<IActionResult> Create([FromBody] CreateReservationCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
 
+    /// <summary>PATCH /api/restaurant/reservations/{id}/seat</summary>
     [HttpPatch("{id:guid}/seat")]
-    public async Task<IActionResult> Seat(Guid id, CancellationToken ct)
-    {
-        var r = await db.Reservations.FindAsync([id], ct);
-        if (r is null) return NotFound(); r.Seat(); await db.SaveChangesAsync(ct);
-        return Ok(new { r.Id, r.Status });
-    }
+    [RequirePermission("restaurant.reservations.edit")]
+    public async Task<IActionResult> Seat(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new SeatReservationCommand(id), ct));
 
+    /// <summary>PATCH /api/restaurant/reservations/{id}/cancel</summary>
     [HttpPatch("{id:guid}/cancel")]
-    public async Task<IActionResult> Cancel(Guid id, CancellationToken ct)
-    {
-        var r = await db.Reservations.FindAsync([id], ct);
-        if (r is null) return NotFound(); r.Cancel(); await db.SaveChangesAsync(ct);
-        return Ok(new { r.Id, r.Status });
-    }
+    [RequirePermission("restaurant.reservations.edit")]
+    public async Task<IActionResult> Cancel(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new CancelReservationCommand(id), ct));
 
-    public record CreateReservationReq(string GuestName, string GuestPhone, string? GuestEmail,
-        int Covers, string ReservationDate, string ReservationTime, string? SpecialRequests, Guid? TableId);
+    /// <summary>GET /api/restaurant/reservations/rules?branchId= — null if not configured yet.</summary>
+    [HttpGet("rules")]
+    [RequirePermission("restaurant.reservations.view")]
+    public async Task<IActionResult> GetRule([FromQuery] Guid? branchId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetReservationRuleQuery(branchId), ct));
+
+    /// <summary>PUT /api/restaurant/reservations/rules — create or update the branch's reservation policy.</summary>
+    [HttpPut("rules")]
+    [RequirePermission("restaurant.reservations.edit")]
+    public async Task<IActionResult> UpsertRule([FromBody] UpsertReservationRuleCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
 }

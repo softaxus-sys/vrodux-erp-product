@@ -24,6 +24,10 @@ public static class PermissionSeedData
         ["pos.transactions"]     = ["view","create","print","void","refund","discount"],
         ["pos.products"]         = ["view","create","edit","delete"],
         ["pos.reports"]          = ["view","export","print"],
+        // Wallet/house-account actions on customers — CustomersController itself has no permission
+        // gating today (pre-existing, not retrofitted here); these new endpoints only are gated.
+        ["pos.customers"]        = ["view","edit"],
+        ["pos.payment-gateway"]  = ["view","edit"],
 
         // Finance
         ["finance.accounting"]   = ["view","create","edit","delete","approve","export"],
@@ -99,6 +103,23 @@ public static class PermissionSeedData
 
         // Visa Services (UAE visa consultancy — cases, applicants, documents)
         ["visa.cases"] = ["view","create","edit","delete"],
+
+        // Restaurant POS (tables, menu, orders incl. void/discount/refund, kitchen, reservations)
+        ["restaurant.tables"]       = ["view","create","edit"],
+        ["restaurant.menu"]         = ["view","create","edit"],
+        ["restaurant.orders"]       = ["view","create","edit","void","discount","refund"],
+        ["restaurant.kitchen"]      = ["view","edit"],
+        ["restaurant.reservations"] = ["view","create","edit"],
+        // Delivery zones/drivers/delivery-order lifecycle (Epic 6)
+        ["restaurant.delivery"]     = ["view","create","edit"],
+        // Reports & role-scoped dashboards (Epic 8) — read-only, no create/edit/delete
+        ["restaurant.reports"]      = ["view"],
+        // Assigning users to branches for scoped table/order/reservation/waitlist visibility (Epic 9)
+        ["restaurant.branches"]     = ["view","edit"],
+        // SMS/WhatsApp provider credentials for digital receipts (Epic 9)
+        ["restaurant.notifications"] = ["view","edit"],
+        // Registered POS terminals/tablets — inventory/observability, not access control (Epic 9)
+        ["restaurant.devices"]      = ["view","edit"],
     };
 
     public static IReadOnlyList<Permission> GetPermissions()

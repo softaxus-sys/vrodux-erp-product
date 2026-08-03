@@ -14,5 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.Recipe.Domain\Softaxis.Recipe.Domain.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
+    <!-- Cross-service: deduct inventory stock when a recipe's portions are consumed -->
+    <ProjectReference Include="..\..\Inventory\Softaxis.Inventory.Infrastructure\Softaxis.Inventory.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,5 @@
 ﻿import { apiClient, type PagedResult } from "@/lib/api-client";
-import type { CustomerDto, CustomerSummaryDto } from "./types";
+import type { CustomerDto, CustomerSummaryDto, CustomerWalletTransactionDto } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/customers`;
 
@@ -40,4 +40,16 @@ export const customersApi = {
 
   delete: (id: string): Promise<void> =>
     apiClient.delete<void>(`${BASE}/${id}`),
+
+  getWalletTransactions: (id: string): Promise<CustomerWalletTransactionDto[]> =>
+    apiClient.get<CustomerWalletTransactionDto[]>(`${BASE}/${id}/wallet-transactions`),
+
+  topUpWallet: (id: string, amount: number, notes?: string | null): Promise<CustomerDto> =>
+    apiClient.post<CustomerDto>(`${BASE}/${id}/wallet/topup`, { amount, notes }),
+
+  setCreditLimit: (id: string, creditLimit: number): Promise<CustomerDto> =>
+    apiClient.put<CustomerDto>(`${BASE}/${id}/credit-limit`, { creditLimit }),
+
+  recordHouseAccountPayment: (id: string, amount: number, notes?: string | null): Promise<CustomerDto> =>
+    apiClient.post<CustomerDto>(`${BASE}/${id}/house-account/payment`, { amount, notes }),
 };

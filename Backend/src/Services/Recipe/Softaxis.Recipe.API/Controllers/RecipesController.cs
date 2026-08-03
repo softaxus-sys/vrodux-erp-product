@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.Inventory.Infrastructure.Persistence;
 using Softaxis.Recipe.Domain.Entities;
 using Softaxis.Recipe.Infrastructure.Persistence;
+using Softaxis.Recipe.Infrastructure.Services;
 using Softaxis.Restaurant.Infrastructure.Persistence;
 
 namespace Softaxis.Recipe.API.Controllers;
@@ -95,6 +96,30 @@ public sealed class RecipesController(
             .AnyAsync(m => m.Id == req.MenuItemId && !m.IsDeleted, ct);
         if (!menuItemExists) return BadRequest("Menu item not found in Restaurant");
 
+        // Hard-block: a recipe can't require more of a linked product than currently exists in
+        // stock — mirrors POS's Product.InsufficientStock convention (Result.Failure + 422),
+        // rather than the old behaviour of allowing it and only ever showing a "low stock" badge
+        // after the fact on the list/detail views.
+        var linkedIds = req.Ingredients
+            .Where(i => i.InventoryProductId.HasValue)
+            .Select(i => i.InventoryProductId!.Value).Distinct().ToList();
+        var productLookup = linkedIds.Count == 0 ? [] : await inventoryDb.Products.AsNoTracking()
+            .Where(p => linkedIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        foreach (var ing in req.Ingredients)
+        {
+            if (ing.InventoryProductId.HasValue &&
+                productLookup.TryGetValue(ing.InventoryProductId.Value, out var linkedProduct) &&
+                ing.Quantity > linkedProduct.StockQuantity)
+            {
+                return UnprocessableEntity(new {
+                    code = "Recipe.InsufficientStock",
+                    description = $"Insufficient stock for '{linkedProduct.Name}'. Available: {linkedProduct.StockQuantity} {linkedProduct.Unit}, requested: {ing.Quantity} {ing.Unit}.",
+                });
+            }
+        }
+
         var recipe = new Recipe.Domain.Entities.Recipe(
             req.MenuItemId, req.MenuItemName, req.Description,
             req.Servings, req.PrepTimeMinutes, req.CookTimeMinutes,
@@ -102,13 +127,12 @@ public sealed class RecipesController(
 
         foreach (var ing in req.Ingredients)
         {
-            // Try to resolve cost from inventory if product linked
+            // Resolve cost from inventory if product linked (reuse the lookup built above)
             var cost = ing.CostPerUnit;
-            if (ing.InventoryProductId.HasValue && cost == 0)
+            if (ing.InventoryProductId.HasValue && cost == 0 &&
+                productLookup.TryGetValue(ing.InventoryProductId.Value, out var costProduct))
             {
-                var prod = await inventoryDb.Products.AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == ing.InventoryProductId, ct);
-                if (prod is not null) cost = prod.CostPrice;
+                cost = costProduct.CostPrice;
             }
             recipe.Ingredients.Add(new RecipeIngredient(
                 recipe.Id, ing.InventoryProductId, ing.ProductName,
@@ -140,38 +164,59 @@ public sealed class RecipesController(
     }
 
     // ── Deduct inventory for N portions of this recipe ────────────────────────
-    // Called after an order item is marked served/paid
+    // Called after an order item is marked served/paid (also called directly by Restaurant's
+    // ServeOrderHandler/UpdateOrderItemStatusHandler — see RecipeStockService, the shared logic
+    // both this endpoint and Restaurant's in-process hook call).
     [HttpPost("{id:guid}/deduct")]
     public async Task<IActionResult> DeductInventory(Guid id, [FromBody] DeductReq req, CancellationToken ct)
     {
-        var r = await db.Recipes.AsNoTracking().Include(x => x.Ingredients)
-            .FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (r is null) return NotFound();
+        var result = await RecipeStockService.DeductAsync(db, inventoryDb, id, req.Portions, null, null, ct);
+        if (result.IsFailure)
+            return result.Error.Code.EndsWith(".NotFound") ? NotFound(result.Error) : BadRequest(result.Error);
 
-        var linkedIngredients = r.Ingredients
-            .Where(i => !i.IsDeleted && i.InventoryProductId.HasValue).ToList();
+        return Ok(new { deducted = result.Value.Deducted, portions = result.Value.Portions, recipeId = result.Value.RecipeId });
+    }
 
-        if (!linkedIngredients.Any())
-            return Ok(new { deducted = 0, message = "No inventory-linked ingredients" });
+    // ── Food cost report — recipe cost vs. actual sales, over a date range ─────
+    // Revenue is Quantity*UnitPrice (doesn't include per-line modifier price deltas — those live on
+    // OrderItem.SelectedModifiers, a computed/unmapped sum not worth joining in for a cost estimate).
+    [HttpGet("reports/food-cost")]
+    public async Task<IActionResult> FoodCostReport([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken ct)
+    {
+        var fromDate = (from ?? DateTime.UtcNow.AddDays(-30)).Date;
+        var toDate = (to ?? DateTime.UtcNow).Date.AddDays(1).AddTicks(-1);
 
-        var productIds = linkedIngredients.Select(i => i.InventoryProductId!.Value).ToList();
-        var products = await inventoryDb.Products
-            .Where(p => productIds.Contains(p.Id)).ToListAsync(ct);
+        var recipes = await db.Recipes.AsNoTracking().Include(r => r.Ingredients)
+            .Where(r => !r.IsDeleted && r.Status == "active").ToListAsync(ct);
+        if (recipes.Count == 0) return Ok(new { from = fromDate, to = toDate, items = Array.Empty<object>() });
 
-        int deducted = 0;
-        foreach (var ing in linkedIngredients)
+        var menuItemIds = recipes.Select(r => r.MenuItemId).ToList();
+
+        var soldLines = await restaurantDb.OrderItems.AsNoTracking()
+            .Where(i => !i.IsDeleted && menuItemIds.Contains(i.MenuItemId))
+            .Join(restaurantDb.Orders.AsNoTracking().Where(o => !o.IsDeleted &&
+                    (o.Status == "served" || o.Status == "paid") &&
+                    o.CreatedAt >= fromDate && o.CreatedAt <= toDate),
+                  i => i.OrderId, o => o.Id, (i, o) => new { i.MenuItemId, i.Quantity, i.UnitPrice })
+            .ToListAsync(ct);
+
+        var rows = recipes.Select(r =>
         {
-            var product = products.FirstOrDefault(p => p.Id == ing.InventoryProductId);
-            if (product is null) continue;
+            var sold = soldLines.Where(s => s.MenuItemId == r.MenuItemId).ToList();
+            var portionsSold = sold.Sum(s => s.Quantity);
+            var revenue = sold.Sum(s => s.Quantity * s.UnitPrice);
+            var foodCost = Math.Round(portionsSold * r.CostPerServing, 2);
+            decimal? marginPercent = revenue > 0 ? Math.Round((revenue - foodCost) / revenue * 100, 1) : null;
+            return new
+            {
+                recipeId = r.Id, r.MenuItemName, costPerServing = r.CostPerServing,
+                portionsSold, revenue, foodCost, marginPercent,
+            };
+        })
+        .OrderByDescending(x => x.revenue)
+        .ToList();
 
-            // qty per portion = (ingredient.Quantity / recipe.Servings) * portions
-            var deductQty = ing.Quantity / r.Servings * req.Portions;
-            product.AdjustStock(-deductQty);
-            deducted++;
-        }
-
-        await inventoryDb.SaveChangesAsync(ct);
-        return Ok(new { deducted, portions = req.Portions, recipeId = r.Id });
+        return Ok(new { from = fromDate, to = toDate, items = rows });
     }
 
     // ── Sync ingredient costs from inventory ──────────────────────────────────

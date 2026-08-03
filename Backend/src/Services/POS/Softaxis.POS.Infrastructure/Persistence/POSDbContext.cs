@@ -11,6 +11,7 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
     public DbSet<Product>         Products         => Set<Product>();
     public DbSet<ProductCategory> ProductCategories => Set<ProductCategory>();
     public DbSet<Customer>        Customers         => Set<Customer>();
+    public DbSet<CustomerWalletTransaction> CustomerWalletTransactions => Set<CustomerWalletTransaction>();
     public DbSet<POSSession>      Sessions          => Set<POSSession>();
     public DbSet<POSTransaction>  Transactions      => Set<POSTransaction>();
     public DbSet<POSLineItem>     LineItems         => Set<POSLineItem>();
@@ -18,6 +19,7 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
     public DbSet<HeldTransaction> HeldTransactions  => Set<HeldTransaction>();
     public DbSet<StockMovement>   StockMovements    => Set<StockMovement>();
     public DbSet<PaymentMethodConfig> PaymentMethodConfigs => Set<PaymentMethodConfig>();
+    public DbSet<PaymentGatewayConfig> PaymentGatewayConfigs => Set<PaymentGatewayConfig>();
     public DbSet<Currency>            Currencies           => Set<Currency>();
     public DbSet<TaxRate>             TaxRates             => Set<TaxRate>();
     public DbSet<PaymentTerm>         PaymentTerms         => Set<PaymentTerm>();

@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, ChefHat, Bell, Timer, Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  useKitchenTickets, useKitchenSummary, useMarkOrderReady, useServeOrder,
+  useKitchenTickets, useKitchenSummary, useMarkOrderReady, useServeOrder, useKitchenStations,
 } from "@/hooks/restaurant/use-restaurant";
+import { useRestaurantRealtime } from "@/hooks/restaurant/use-restaurant-realtime";
 import type { KitchenTicket } from "@/lib/restaurant/restaurant.api";
+import { Can } from "@/components/auth/can";
 
 const LATE_MINUTES = 20;
 
@@ -46,7 +48,10 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
           <div key={it.id} className="flex items-start gap-2">
             <span className="text-primary font-bold text-sm shrink-0">×{it.quantity}</span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground">{it.itemName}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {it.itemName}
+                {it.courseNumber > 1 && <span className="ml-1.5 text-[10px] font-medium text-muted-foreground">Course {it.courseNumber}</span>}
+              </p>
               {it.modifiers && <p className="text-xs text-warning italic">{it.modifiers}</p>}
             </div>
           </div>
@@ -54,15 +59,17 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
       </div>
 
       <div className="px-4 py-3 border-t border-border">
-        {!isReady ? (
-          <Button size="sm" className="w-full" disabled={busy} onClick={() => onReady(ticket.id)}>
-            <Bell className="w-3.5 h-3.5 mr-1.5" /> Mark Ready
-          </Button>
-        ) : (
-          <Button size="sm" variant="outline" className="w-full border-success text-success" disabled={busy} onClick={() => onServe(ticket.id)}>
-            <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Served
-          </Button>
-        )}
+        <Can permission="restaurant.kitchen.edit">
+          {!isReady ? (
+            <Button size="sm" className="w-full" disabled={busy} onClick={() => onReady(ticket.id)}>
+              <Bell className="w-3.5 h-3.5 mr-1.5" /> Mark Ready
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="w-full border-success text-success" disabled={busy} onClick={() => onServe(ticket.id)}>
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Served
+            </Button>
+          )}
+        </Can>
       </div>
     </motion.div>
   );
@@ -70,7 +77,10 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
 
 // ── Main view ────────────────────────────────────────────────────────────────────
 export function KitchenDisplayView() {
-  const { data: tickets = [], isLoading } = useKitchenTickets();
+  useRestaurantRealtime();
+  const { data: stations = [] } = useKitchenStations();
+  const [stationId, setStationId] = React.useState<string | undefined>(undefined);
+  const { data: tickets = [], isLoading } = useKitchenTickets(stationId);
   const { data: summary } = useKitchenSummary();
   const markReady = useMarkOrderReady();
   const serve     = useServeOrder();
@@ -117,6 +127,24 @@ export function KitchenDisplayView() {
         </div>
         {isLoading && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
       </div>
+
+      {stations.length > 0 && (
+        <div className="flex gap-1.5 overflow-x-auto px-4 py-2 border-b border-border bg-card shrink-0 scrollbar-none">
+          <button onClick={() => setStationId(undefined)}
+            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap",
+              !stationId ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>
+            All Stations
+          </button>
+          {stations.map(s => (
+            <button key={s.id} onClick={() => setStationId(s.id)}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap flex items-center gap-1.5",
+                stationId === s.id ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>
+              {s.colorTag && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.colorTag }} />}
+              {s.displayName ?? s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         <div className="h-full grid grid-cols-2 divide-x divide-border">

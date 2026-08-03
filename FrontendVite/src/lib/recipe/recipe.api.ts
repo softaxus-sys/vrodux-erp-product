@@ -68,6 +68,22 @@ export interface CreateRecipeReq {
 
 export interface DeductReq { portions: number; }
 
+export interface FoodCostRow {
+  recipeId: string;
+  menuItemName: string;
+  costPerServing: number;
+  portionsSold: number;
+  revenue: number;
+  foodCost: number;
+  marginPercent: number | null;
+}
+
+export interface FoodCostReport {
+  from: string;
+  to: string;
+  items: FoodCostRow[];
+}
+
 // ─── API ──────────────────────────────────────────────────────────────────────
 
 export const recipeApi = {
@@ -97,6 +113,14 @@ export const recipeApi = {
 
   syncCosts:     (id: string) =>
     rawApiClient.post<{ synced: number; newCostPerServing: number }>(`${BASE}/${id}/sync-costs`),
+
+  getFoodCostReport: (from?: string, to?: string): Promise<FoodCostReport> => {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return rawApiClient.get<FoodCostReport>(`${BASE}/reports/food-cost${qs ? `?${qs}` : ""}`);
+  },
 
   delete:        (id: string): Promise<void> =>
     rawApiClient.delete(`${BASE}/${id}`),

@@ -143,6 +143,17 @@ try
         Softaxis.CRM.Application.Abstractions.ICurrentUser,
         Softaxis.CRM.API.Middleware.CurrentUserService>();
 
+    // Restaurant.Application.Abstractions.ICurrentUser  →  Restaurant CurrentUserService (cashier stamping)
+    builder.Services.AddScoped<
+        Softaxis.Restaurant.Application.Abstractions.ICurrentUser,
+        Softaxis.Restaurant.API.Middleware.CurrentUserService>();
+
+    // Restaurant.Application.Abstractions.IRestaurantRealtimeNotifier  →  SignalR push (KDS/table board)
+    builder.Services.AddScoped<
+        Softaxis.Restaurant.Application.Abstractions.IRestaurantRealtimeNotifier,
+        Softaxis.Restaurant.API.Realtime.SignalRRestaurantNotifier>();
+    builder.Services.AddSignalR();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -234,6 +245,7 @@ try
     app.UseMiddleware<ModuleEnforcementMiddleware>();       // block unlicensed module routes
     app.UseAuthorization();
     app.MapControllers();
+    app.MapHub<Softaxis.Restaurant.API.Realtime.RestaurantHub>("/hubs/restaurant");
 
     app.MapGet("/health", () => Results.Ok(new
     {

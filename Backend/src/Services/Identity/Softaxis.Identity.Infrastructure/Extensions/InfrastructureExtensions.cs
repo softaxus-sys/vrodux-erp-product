@@ -71,6 +71,21 @@ public static class InfrastructureExtensions
                         Encoding.UTF8.GetBytes(jwtSettings.Secret)),
                     ClockSkew                = TimeSpan.FromSeconds(30),
                 };
+
+                // SignalR's browser client can't set an Authorization header on the WebSocket
+                // handshake — it passes the token via ?access_token= instead. Only honoured for
+                // hub paths, so REST endpoints still require a real Authorization header.
+                opts.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                            context.Token = accessToken;
+                        return Task.CompletedTask;
+                    },
+                };
             });
 
         // ── Authorization policies ────────────────────────────────────────────

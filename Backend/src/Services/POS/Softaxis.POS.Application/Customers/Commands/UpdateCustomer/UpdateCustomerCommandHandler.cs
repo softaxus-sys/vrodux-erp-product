@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Customers;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Domain.Repositories;
 
@@ -33,9 +34,6 @@ public sealed class UpdateCustomerCommandHandler(
         customerRepo.Update(customer);
         await uow.SaveChangesAsync(ct);
 
-        return Result.Success(new CustomerDto(
-            customer.Id, customer.Name, customer.Phone, customer.Email,
-            customer.Address, customer.LoyaltyPoints, customer.TotalPurchases,
-            customer.IsActive, customer.Notes, customer.CreatedAt));
+        return Result.Success(CustomerMappings.ToDto(customer));
     }
 }

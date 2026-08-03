@@ -2940,6 +2940,386 @@ detached from its number by an underscore.
 
 ---
 
+## Module 19 — Restaurant POS: Enterprise Redesign Phase 1 (CQRS/DDD migration + permissions foundation)
+
+**First phase of a full enterprise Restaurant Management Platform redesign.** Full Phase 1/2 analysis
+(current-state audit + gap analysis vs. Toast/Micros/Square/Lightspeed/Revel/Foodics) and the complete
+Phase 3–7 design (module design, DB schema, API design, frontend redesign, 5-phase roadmap, Jira backlog)
+live in **`docs/restaurant-pos-enterprise-redesign.md`**. Key finding from that analysis: `Softaxis.Restaurant`
+was a single-branch MVP — 4 anemic entities, 5 controllers injecting `RestaurantDbContext` directly (violates
+the mandatory CQRS rule above), hardcoded 5% VAT, zero `restaurant.*` permissions, and a raw-SQL payment
+workaround masking an unresolved EF concurrency bug. This module is the foundation fix — CQRS/DDD migration +
+permissions — before any of the roadmap's new features (branch/session wiring, structured modifiers,
+split-bill, etc. — Epics 2/3 in the design doc) get layered on.
+
+### CQRS/DDD migration (mirrors the Finance/`Accounts` reference implementation exactly)
+- **New `Softaxis.Restaurant.Application` project** — `Commands/Queries/Dtos` per feature
+  (`Tables`, `Menu`, `Orders`, `Kitchen`, `Reservations`), FluentValidation validators alongside their
+  commands, matching Finance's pattern (not POS's `Result<T>`/`AuditableEntity<Guid>`/domain-event style —
+  confirmed by reading `Finance.Domain.Account` that the actual "reference implementation" CLAUDE.md
+  designates uses plain entities with private setters; only the CQRS *layering* is mandatory, not that style).
+- **All 5 controllers rewritten** to `(ISender sender) : RestaurantControllerBase` — no more injected
+  `DbContext`, no more inline response DTOs (inline *request* records for route+body shapes, e.g.
+  `CreateOrderReq`, are kept — same blessed exception Finance's `AccountsController.UpdateAccountRequest` uses).
+- **`RestaurantControllerBase`** + **`RequirePermissionAttribute`** (`Softaxis.Restaurant.API`) — copied from
+  the shared Finance/Purchase/CRM pattern, including the explicit `using Microsoft.AspNetCore.Http;` gotcha
+  (Restaurant.API is a plain `Microsoft.NET.Sdk` project, not `Sdk.Web`, so `StatusCodes` doesn't resolve
+  without it).
+- **Gotcha confirmed and preserved**: `TenantIsolation.ApplyTenantId` overwrites each entity's
+  `HasQueryFilter(!IsDeleted)` (same issue documented for CRM/Visa) — the pre-migration controllers already
+  worked around this by re-applying `.Where(x => !x.IsDeleted)` on every query; every new handler does the same.
+
+### Concurrency bug fix — replaces the raw-SQL payment workaround
+`OrdersController.RecordPayment` previously bypassed EF change-tracking with `ExecuteSqlAsync` specifically to
+dodge "optimistic concurrency rowcount issues" — there was no real concurrency token, so the workaround masked
+the underlying problem rather than fixing it. Now: `Order.RowVersion` (`byte[]`, `IsRowVersion()`) is a real EF
+concurrency token (migration `AddOrderRowVersion`), and a new `ConcurrencyRetry.ExecuteAsync` helper
+(`Infrastructure/Common/`) retries the whole load-mutate-save operation up to 3× on
+`DbUpdateConcurrencyException` — applied to every Order-mutating handler (payments, item add/remove, discount,
+status transitions), not just payments, since adding a real concurrency token means *any* concurrent write to
+an `Order` row can now throw where it silently last-write-wins'd before.
+
+### Permissions — new `restaurant.*` module (previously nonexistent)
+`PermissionSeedData.cs` — `restaurant.tables`/`.menu` (view/create/edit), `restaurant.orders`
+(view/create/edit/**void**/**discount**/**refund** — mirrors `pos.transactions`'s action set),
+`restaurant.kitchen` (view/edit), `restaurant.reservations` (view/create/edit). Migration
+`AddRestaurantPermissions` (Identity) — auto-applies + admin-syncs on startup (`SyncAdministratorPermissionsAsync`
+already generic, no per-module code needed). `TenantRoleProvisioner` gained `["restaurant"] = "Restaurant Manager"`
+so restaurant-enabled tenants get a scoped manager role automatically (same pattern as every other module).
+`[RequirePermission]` applied to every action across all 5 controllers — `Cancel` (voids the whole order) gates
+on `.void`, `ApplyDiscount` gates on `.discount`, everything else on the standard view/create/edit split.
+Frontend: `permission-matrix.ts` gained the `Restaurant` module group; `<Can>` gating added to
+`restaurant-pos-view.tsx` (Add Table, Takeaway/new order, discount panel, remove-item, cancel-order, menu
+availability toggle) and `kitchen-display-view.tsx` (Mark Ready/Served).
+
+### Build / Verification Status
+- **Full backend solution (`Softaxis.ERP.slnx`, all 16+ services via the gateway):** 0 errors ✅, only the
+  pre-existing `SmtpEmailService` nullable warnings (unrelated) — confirmed via a full `dotnet build` of the
+  solution, not just the touched service.
+- **Frontend `tsc --noEmit`:** 0 errors ✅.
+- Migrations `AddOrderRowVersion` (Restaurant) + `AddRestaurantPermissions` (Identity) created — auto-apply on
+  next startup via the existing `MigrateAndSeedRestaurantAsync`/`MigrateAndSeedAsync`.
+- **Pending (needs republish + restart per the on-prem deploy note):** live spot-check — grant only
+  `restaurant.orders.view` → orders list 200, create/discount/void 403; confirm two concurrent item-adds to the
+  same order no longer silently clobber each other (one should retry-and-succeed via `ConcurrencyRetry`).
+- **Next (Epics 2/3 in the design doc, not done here):** `BranchId`/`SessionId`/`CustomerId`/`TaxRateId` wiring
+  onto `Order` (ties into POS's existing `POSSession`/`TaxRate`/`Customer` — reuse, not rebuild, per the design
+  doc's Appendix reuse map), manager-PIN approval, structured modifiers, split-bill, tips.
+
+### Module 19b — Restaurant POS: Branch + POS Session wiring on Order (Epic 2)
+
+**Second slice of the Restaurant redesign** (after Module 19's CQRS/permissions foundation). Wires `Order` to
+Identity's `Branch` and POS's `POSSession` — **reuse, not rebuild**, per the design doc's Appendix reuse map.
+Confirmed during this pass that neither concept existed anywhere in Restaurant before: `POSSession` itself has
+no branch dimension either (cashier+register scoped only), and the frontend's `branchIds` on the auth-store
+`User` is a hardcoded `[]` stub ("single-tenant for now") — so no real "current branch" selection UX exists yet
+anywhere in this app. Building that UX is out of scope here (a separate Enterprise-phase item); this module
+wires the *data path* (`Order.BranchId`, optional, informational) so it's ready when that UX exists, and fully
+wires the *session* half end-to-end since POS already has a complete, working shift mechanism (`ShiftGate`/
+`useShift()`) that Restaurant simply wasn't plugged into.
+
+- **`Order`** gains `BranchId`/`SessionId`/`CashierId` (all nullable `Guid`, scalar cross-service references,
+  no FK constraint — same convention as every other cross-service reference in this codebase). `CashierId` is
+  **never client-supplied** — resolved server-side from the JWT via a new `ICurrentUser` (Restaurant didn't
+  have one; added `Application/Abstractions/ICurrentUser.cs` + `API/Middleware/CurrentUserService.cs`,
+  registered in gateway `Program.cs` — exact mirror of the CRM/ProjectManagement pattern, including the
+  `<FrameworkReference Include="Microsoft.AspNetCore.App" />` gotcha Restaurant.API needed since it's a plain
+  `Microsoft.NET.Sdk` project, not `Sdk.Web`).
+- **`PosSessionLedger`** (`Infrastructure/Common/`) — raw cross-schema SQL against `[pos].[pos_sessions]`
+  (confirmed same physical `SoftaxisErpDb`, different schema — every service's connection string points at the
+  same database). Mirrors POS's own `CrossSchemaProductService` pattern exactly (`db.Database.SqlQuery<T>`/
+  `ExecuteSqlAsync` with the `({bypass} = 1 OR TenantId = {tenant})` guard) rather than adding a project
+  reference from Restaurant → POS, keeping the two services independently compilable. Two operations:
+  `ValidateOpenSessionAsync` (checks the session exists, belongs to this tenant, and `Status = 1` i.e. Open) and
+  `RecordSaleAsync` (mirrors `POSSession.RecordTransaction(amount, isRefund: false)` exactly — bumps
+  `TotalTransactions`/`TotalSales`/`ExpectedCash` so a restaurant sale reconciles in the same Z-report as a
+  retail POS sale; Restaurant has no refund flow yet, so this only ever records the sale direction).
+- **`CreateOrderHandler`** — if the request carries a `SessionId`, validates it's open *before* creating the
+  order (rejects a stale/closed cached session id up front); stamps `CashierId` from `ICurrentUser`.
+- **Payment handlers** (`PayOrderHandler`/`AddOrderPaymentHandler`) — **re-validate** the order's stored session
+  is *still* open before accepting a payment (a long-running dine-in bill could span a shift close), then call
+  `RecordSaleAsync` after the payment is saved. Orders with no `SessionId` (legacy orders, or a register not
+  using shift tracking) skip all of this — same behavior as before, no regression.
+- New error codes `PosSession.NotFound`/`PosSession.Conflict` — chosen specifically to match
+  `RestaurantControllerBase`'s existing suffix-based HTTP mapping (`.NotFound`→404, `.Conflict`→409); a naive
+  `Order.SessionNotOpen`-style code would have silently fallen through to the 500 default.
+- **Frontend**: `pages/pos/restaurant.tsx` now wraps `RestaurantPOSView` in `<ShiftGate>` (previously only
+  `pages/pos/retail.tsx` did — Restaurant had no shift gate at all, so orders could be created with zero cash-
+  drawer tracking regardless of an open POS session existing). `OrderDrawer` reads `sessionId` via `useShift()`
+  and passes it into `createOrder`. `RestaurantOrder`/`useCreateOrder`/`restaurantApi.createOrder` types
+  extended with `branchId`/`sessionId`/`cashierId`.
+- **Deliberately not built here**: any branch-selection UI (no such UX exists anywhere in this app yet to hook
+  into — `branchId` stays `undefined` from the frontend until that Enterprise-phase work happens), manager-PIN
+  approval, structured modifiers, split-bill, tips (all still Epic 3 / later phases per the design doc).
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors ✅ (verified after stopping a locally-running `Softaxis.ApiGateway`
+  instance that was locking build output — restarted by the user afterward, not by this session).
+- **Frontend `tsc --noEmit`:** 0 errors ✅.
+- Migration `AddOrderBranchAndSession` (Restaurant, 3 additive nullable columns + 2 indexes) — auto-applies on
+  next startup.
+- **Pending (needs republish + restart):** live spot-check — open a shift, create a dine-in order, confirm
+  `Order.SessionId`/`CashierId` populate; pay it and confirm the shift's `TotalSales`/`ExpectedCash` in the
+  Close-Shift summary include that order; close the shift, then attempt a payment against an order still tied
+  to it → expect `409 PosSession.Conflict`.
+
+### Module 19c — Restaurant POS: Discounts/Voids/Refunds audit-trail overhaul (Epic 3, Feature 3.3)
+
+**Third slice of the Restaurant redesign** (after 19's CQRS foundation, 19b's Branch/Session wiring). Replaces
+the flat, unaudited `Order.DiscountAmount` field and the silent item-delete/order-cancel with a real audit
+trail, and adds a refund capability that didn't exist at all before. Confirmed while touching `Recalculate()`
+for this: **it had a real pre-existing bug** — `SubTotal = Items.Sum(i => i.LineTotal)` summed ALL items
+including soft-deleted ones (no `!IsDeleted` filter), so removing an item from an order never actually reduced
+the total. Fixed as part of this pass since the same method needed rewriting anyway for the discount-sum change.
+
+- **Three new entities** (satellite classes in `Order.cs`, same convention as `OrderPayment`/`OrderItem`):
+  `OrderDiscount` (Type/Amount/Reason/AppliedByUserId/ApprovedByUserId + `IsVoided`/`VoidedByUserId`/
+  `VoidReason`/`VoidedAt` for when it's later removed), `OrderVoidLog` (OrderItemId nullable — null = whole-
+  order void — /Reason/VoidedByUserId), `OrderRefund` (Amount/Reason/Method/RefundedByUserId). Migration
+  `AddOrderAuditTrail` (3 tables, cascading FK to `Orders`, each with the standard shadow `TenantId`).
+- **`Order.DiscountAmount` is now a computed sum** (`Discounts.Where(!IsVoided).Sum(Amount)`), recalculated in
+  `Recalculate()` — not a settable field. `Order.ApplyDiscount(type, amount, reason, appliedByUserId,
+  approvedByUserId?)` supersedes (voids with a system reason) any previously-active discount before adding the
+  new one — preserves the existing "one active discount at a time" UX while the table itself supports stacking
+  if a future UI wants it. `Order.RemoveDiscount(reason, voidedByUserId)` voids whatever's active.
+- **Void, audited**: `Order.VoidItem(itemId, reason, voidedByUserId)` replaces the silent `item.Delete()` +
+  logs an `OrderVoidLog` row; `Order.VoidWholeOrder(reason, voidedByUserId)` replaces the bare `Cancel()` status
+  flip (kept `Cancel()` as a private primitive `VoidWholeOrder` calls internally). `RemoveOrderItemCommand` →
+  renamed `VoidOrderItemCommand`, route changed `DELETE .../items/{itemId}` → `POST .../items/{itemId}/void`
+  (a reason-bearing state-changing action reads more naturally as POST than as a DELETE-with-body, which the
+  frontend's `rawApiClient.delete` doesn't even support passing a body for). `CancelOrderCommand` → renamed
+  `VoidOrderCommand`, now requires `Reason`.
+- **New refund capability** (`Order.Refund(amount, reason, method, refundedByUserId)`) — didn't exist before.
+  Doesn't reverse `Status` away from `"paid"` (mirrors how `POSTransaction` refunds work — the sale stays
+  completed, the refund is a separately tracked cash-flow event). `POST /orders/{id}/refund`
+  (`restaurant.orders.refund` — this permission key was already seeded in Module 19, unused until now).
+  **Deliberately more lenient than payments about the tied POS session**: payments are blocked outright if the
+  session has since closed (protects the shift's Z-report from receiving late sales it didn't expect), but a
+  refund is never blocked by that — a customer complaint the next day shouldn't be impossible to refund. Instead
+  `PosSessionLedger.RecordRefundAsync`'s own SQL carries a `WHERE ... AND Status = {OpenStatus}` guard, so it
+  silently no-ops against a closed session (never retroactively amends an already-reconciled shift) while the
+  refund still succeeds on the order itself. `PosSessionLedger` also gained `RecordSaleAsync`/`RecordRefundAsync`
+  as thin wrappers over one shared `RecordTransactionAsync`, mirroring `POSSession.RecordTransaction(amount,
+  isRefund)` exactly — including that a refund does **not** decrease `ExpectedCash` in the existing POS domain
+  model (replicated faithfully here, not "fixed", since this is POS's existing behavior, not Restaurant's to change).
+- **New `ICurrentUser` (Module 19b) now actually load-bearing** — every audited mutation (apply/remove discount,
+  void item, void order, refund) injects it to stamp who did it; each handler returns `Auth.Unresolved` if the
+  JWT somehow has no resolvable user id (defensive; `[Authorize]` makes this practically unreachable).
+- **Frontend**: `restaurant.api.ts`/`use-restaurant.ts` — `voidItem`, `applyDiscount({type,amount,reason})`,
+  `removeDiscount(reason)`, `cancel(id, reason)`, `refund({amount,reason,method})`; `RestaurantOrder` gained
+  `discounts`/`voidLogs`/`refunds`. `restaurant-pos-view.tsx` — new shared `ReasonModal` (reason textarea +
+  confirm/cancel, matches this codebase's "never `window.prompt`, state-based modal" rule) used for void-item
+  and cancel-order; the existing discount panel gained one shared reason `<Input>` used for both apply and
+  remove; new `RefundModal` (amount capped at `amountPaid` + method + reason) wired to a new **Refund** button
+  shown on paid orders with `amountPaid > 0`, gated by `<Can permission="restaurant.orders.refund">`.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors, 0 warnings beyond the pre-existing `SmtpEmailService` ones ✅ (confirmed
+  the gateway process wasn't running before each build, per the file-lock issue hit in Module 19b).
+- **Frontend `tsc --noEmit`:** 0 errors ✅.
+- Migration `AddOrderAuditTrail` created (auto-applies on next startup).
+- **Pending (needs republish + restart):** live spot-check — apply a discount with a reason, confirm it shows
+  in the order's discount history; void an item and confirm the total actually drops (this is the bug-fix,
+  worth specifically re-verifying); cancel an order with a reason; refund a paid order and confirm
+  `TotalRefunds` on its (still-open) shift increases; close the shift, then refund an already-paid order tied
+  to it → order refund still succeeds, that closed shift's totals are untouched.
+- **Next (remaining Epic 3 features, not done here):** structured modifiers (replace the free-text
+  `OrderItem.Modifiers` string), split-bill (`Order.ParentOrderId`), tips (`Order.TipAmount`) + hold/recall
+  status. Manager-PIN approval (flagged in Module 19's Feature 1.3, still not built) would let a
+  `restaurant.orders.void`-lacking cashier still void/discount/refund under a supervisor's PIN instead of a
+  flat 403 — a natural next layer on top of this audit trail once built.
+
+### Module 19d — Restaurant POS: Structured modifiers (Epic 3, Feature 3.1)
+
+**Fourth slice of the Restaurant redesign.** Replaces the free-text-only "no onions, extra cheese" box with
+real, priced `ModifierGroup`/`Modifier` entities (e.g. "Size": Small/Medium/Large at +0/+2/+4) and a proper
+picker in the order-taking drawer — the free-text field is **kept** as a separate "special instructions"
+channel (both exist simultaneously in real POS systems; they serve different purposes: priced/structured
+choices vs. free-text kitchen notes).
+
+- **Four new entities**: `ModifierGroup` (Name/MinSelect/MaxSelect — MinSelect=0 means optional, >=1 makes it
+  required; no separate `IsRequired` flag, MinSelect already fully expresses it), `Modifier` (Name/PriceDelta/
+  SortOrder/IsActive, belongs to a group), `MenuItemModifierGroup` (join — which groups apply to which menu
+  item, with per-item ordering), `OrderItemModifier` (the actual selection on an order line — **snapshots**
+  Name/PriceDelta at order time so a later price change to the Modifier itself never alters a historical
+  order, same snapshot principle used for `OrderDiscount`). Migration `AddStructuredModifiers` (4 tables).
+- **`OrderItem.LineTotal` changed** to `Quantity * (UnitPrice + SelectedModifiers.Sum(PriceDelta))` — modifier
+  price deltas apply **per unit** (3× "Large Pizza" costs 3 × (base + delta), not base×3 + delta once),
+  matching standard POS behaviour.
+- **Admin CRUD** (`ModifiersController` + 2 new `MenuController` endpoints, all gated on the existing
+  `restaurant.menu.view/create/edit` keys — no new permission keys needed): `CreateModifierGroupCommand`
+  creates a group + its modifiers in one shot; `UpdateModifierGroupCommand` uses a **diff-and-replace**
+  approach (modifier entries with an `Id` are updated in place, entries without one are added, any existing
+  modifier not present in the submitted list is soft-deleted) rather than separate add/update/delete-modifier
+  commands — collapses what would've been ~6 commands into 2, and matches how an admin would actually edit a
+  modifier group (one form, save once). `AssignMenuItemModifierGroupsCommand` replaces the full assigned set
+  for a menu item (simpler than incremental add/remove for a checkbox-list UI).
+- **Order-time validation** — new shared `OrderItemFactory.BuildAsync` helper (`Infrastructure/Common/`) used
+  by both `CreateOrderHandler` and `AddOrderItemsHandler` so validation can't drift between the two entry
+  points: confirms every selected modifier belongs to a group actually assigned to that menu item, and that
+  each assigned group's MinSelect/MaxSelect is respected (e.g. "'Size' requires at least 1 selection"). All
+  three failure modes map to `Modifier.Conflict` (409) — chosen specifically to match
+  `RestaurantControllerBase`'s existing `.Conflict`-suffix → 409 mapping.
+- **Behavior change flagged**: `CreateOrderHandler`/`AddOrderItemsHandler` previously **silently skipped** a
+  line referencing a nonexistent `MenuItemId` (`if (menuItem is null) continue;`) — since `OrderItemFactory`
+  now returns a proper `Result.Failure` for that case, a bad line now fails the whole request with a clear
+  404 instead of silently creating a smaller order than what was asked for. Deliberate fix, not an accident —
+  matches this module's running theme of not letting invalid input pass through unnoticed.
+- **Menu queries extended**: `MenuItemDto` gained `ModifierGroups` (nested — reuses
+  `ModifierGroups.Dtos.ModifierGroupDto` directly rather than duplicating a parallel type). New
+  `ModifierGroupLookup.GetGroupsForItemsAsync` helper loads groups for a whole batch of menu items in 3
+  queries total, not N+1 — used by both `GetMenuHandler` and `GetMenuItemsHandler` so the order-taking picker
+  gets everything it needs from the existing menu fetch (no extra round-trip per item).
+- **Frontend**: `MenuItem` gained `modifierGroups`; `OrderItem` gained `selectedModifiers`; `OrderLineInput`
+  gained `selectedModifierIds`. New `ModifierPickerModal` in `restaurant-pos-view.tsx` — radio-style for
+  `maxSelect === 1` groups, checkboxes (capped at `maxSelect`) otherwise, required groups marked and validated
+  client-side before "Add" enables, live price preview. `addPending(item)` now opens the picker when the item
+  has any modifier groups, otherwise adds directly as before (no behaviour change for items with no
+  modifiers). `PendingLine` gained a stable `key` (previously keyed by `menuItem.id`, which broke once the
+  same item could appear twice with different modifier selections) and only merges duplicate add-clicks when
+  the modifier selections match exactly.
+- **Deliberately not built in this pass**: a dedicated "Modifier Groups" admin settings page (create/edit
+  groups, assign to menu items via a UI) — the backend CRUD is complete and usable via the API, but there's no
+  screen for it yet; same scoping call as skipping a branch-selector UI in Module 19b. Until that exists, groups
+  have to be created via direct API calls.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors, 0 warnings beyond the pre-existing `SmtpEmailService` ones ✅.
+- **Frontend `tsc --noEmit`:** 0 errors ✅.
+- Migration `AddStructuredModifiers` created (auto-applies on next startup).
+- **Pending (needs republish + restart, and an admin creating at least one group via the API to test with):**
+  live spot-check — create a modifier group (e.g. "Size": Small +0/Medium +2/Large +4, MinSelect 1 MaxSelect
+  1) via `POST /api/restaurant/modifier-groups`, assign it to a menu item via `PUT
+  /api/restaurant/menu/items/{id}/modifier-groups`, then in the order drawer confirm the picker opens, enforces
+  the required single selection, and the line total reflects the chosen delta; order two of the same item with
+  different sizes and confirm they appear as separate lines, not merged.
+
+### Module 19e — Restaurant POS: Split bills (Epic 3, Feature 3.2)
+
+**Fifth slice of the Restaurant redesign — the most structurally involved of the four Epic 3 features.**
+Before building, confirmed what already existed: the pay dialog (`restaurant-pay-dialog.tsx`) already has
+"Split Pay" (arbitrary split-tender amounts) and "Members" (divide evenly by N guests, tagged via
+`OrderPayment.Reference`) — genuine bill-splitting, just by **payment amount**, not by **item**. What's
+missing, and what Feature 3.2 actually is, is item-level splitting: "Guest 1 had the steak, Guest 2 had the
+salad" — each becoming its own independently-payable order.
+
+- **`Order.ParentOrderId`** (nullable, real self-referencing FK — unlike the cross-service scalar refs
+  elsewhere, this is same-table so a proper FK constraint applies, `DeleteBehavior.Restrict`). New `Status`
+  value `"split"`. Migration `AddOrderSplit`.
+- **`Order.CreateSplit(itemsToMove)`** — the core domain method: builds a new child `Order` copying
+  table/waiter/session/branch/cashier context, moves the given `OrderItem`s onto it (`OrderItem.ReassignToOrder`,
+  `internal`-scoped — only `Order.CreateSplit` calls it), recalculates the child. Caller calls this once per
+  split group, then `order.MarkSplit()` on the parent. `Order.MarkSplitSettled()` (→ `Status = "paid"`) fires
+  once every child is paid — safe for revenue reporting since the parent's own SubTotal/Total are exactly 0 by
+  then (all its items live on the children).
+- **`SplitOrderHandler`** validates before doing anything: not already paid/cancelled/split, not itself a split
+  child, **no payments recorded yet**, **no active discount** (both intentionally block splitting rather than
+  building pro-ration math — a clearly communicated v1 limitation, not an oversight), and every non-deleted item
+  assigned to exactly one of ≥2 groups (no orphans, no double-assignment). All failures map to `Order.Conflict`
+  (409).
+- **Guards added to existing handlers**: `PayOrderHandler`/`AddOrderPaymentHandler` reject `Status == "split"`
+  (a split parent holds no items — pay its children instead). `VoidOrderItemHandler`/`AddOrderItemsHandler`
+  extended their closed-order check to include `"split"`. **`VoidOrderHandler` had no status guard at all**
+  before this pass (a genuine gap noticed while adding the split check, from when it was built in Module 19c) —
+  fixed alongside it, so an already-paid/cancelled order can no longer be "cancelled" again.
+- **`OrderPaymentSupport.FreeTableIfFullyPaidAsync`** — the trickiest piece: when a **split child** is paid, the
+  table is only freed (and the parent marked settled) once **every sibling** is also paid — one guest settling
+  their share must never free a table other guests are still eating/paying at.
+- **`OrderDto` gained `ParentOrderId` + `Splits`** (lightweight child summaries — id/orderNumber/status/total/
+  amountPaid/outstanding) — populated only in `GetOrderByIdHandler` for parent orders (children aren't a
+  navigation on `Order`, looked up via a separate query), matching the existing "list is lean, detail is rich"
+  precedent already used for `Payments`. `OrdersSummaryDto` gained a `Split` count bucket.
+- **Bug fix caught while re-reading `OrdersController` for this feature**: `OrderLineReq` (the controller's
+  inbound request shape) never had a `SelectedModifierIds` property — Module 19d's structured-modifier
+  selections were being silently dropped by JSON model binding on every `Create`/`AddItems` call, since extra
+  JSON properties with no matching C# property are just ignored. Fixed by adding the field to `OrderLineReq`
+  and threading it through both actions. This had been broken since 19d shipped; the picker UI worked, the
+  selections just never reached the database.
+- **Frontend**: `pages/pos/restaurant.tsx`'s per-table active-order lookup (`orderByTable`) now excludes split
+  children (they share the parent's `tableId`, which would otherwise make the map ambiguous about which order
+  represents "this table"). New `SplitBillModal` — a numeric "N guests" stepper + one-tap bucket assignment per
+  item, live per-bucket subtotal preview, requires every item assigned and ≥2 buckets used. `OrderDrawer`'s
+  "order" panel renders a **split overview** instead of the normal item list when `order.status === "split"` —
+  each child's status/total/outstanding + a **Pay** button. Paying reuses the *existing* `RestaurantPayDialog`
+  unchanged: `payTarget` state generalizes what used to be a `showPay` boolean to "the main order OR a specific
+  split's child, looked up from the already-loaded `orders` list" (no extra fetch — children are just Orders
+  that `useOrders()` already returns). `handlePaid` now only closes the whole drawer when the *main* order was
+  paid; paying a split child just closes the pay dialog so the (now-updated) split overview stays visible for
+  the next guest.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors, 0 warnings beyond the pre-existing `SmtpEmailService` ones ✅.
+- **Frontend `tsc --noEmit`:** 0 errors ✅.
+- Migration `AddOrderSplit` created (auto-applies on next startup).
+- **Pending (needs republish + restart):** live spot-check — split a 4-item order into 2 guests, confirm each
+  becomes an independently-payable order and the table stays occupied; pay one split → table stays occupied,
+  parent stays `"split"`; pay the other → table frees, parent flips to `"paid"`; attempt to pay/add-items/cancel
+  the parent directly at any point → `409`. Also verify the just-fixed modifier bug: add an item with a
+  modifier selection, confirm `selectedModifiers` now actually appears on the created order (previously silently
+  empty).
+- **Next (remaining Epic 3):** tips (`Order.TipAmount`) + hold/recall status — the smallest of the four
+  features, a reasonable next slice. Partial-quantity splitting (splitting a single line's quantity across
+  guests, not just whole rows) and a dedicated "Modifier Groups" admin page remain flagged, not built.
+
+### Module 19f — Restaurant POS: Tips + Hold/Recall (Epic 3, Feature 3.4 — last of Epic 3)
+
+**Sixth and final slice of Epic 3 (Structured Ordering)** — the smallest of the four features. Adds a
+tip amount separate from the bill total, and a way to park an order aside ("held") without losing its items
+when the terminal is needed for something else before the order is ready to send/pay.
+
+- **`Order.TipAmount`** (decimal, precision 18,2, default 0) — captured separately from `Total`
+  (SubTotal+Tax-Discount) since tips aren't derived from line items and shouldn't get recalculated away by
+  `Recalculate()`. `SetTip(amount)` clamps to zero as a defensive backstop; the handler is what actually blocks
+  changing it on a closed order. New computed `Outstanding => Max(0, Total + TipAmount - AmountPaid)` (was
+  `Total - AmountPaid`) — so the amount actually due to the guest includes the tip everywhere `Outstanding` is
+  read (pay dialog, summary handlers, split-child summaries). `Pay()`'s single-method convenience path and
+  `PayOrderHandler`'s due-amount fallback both switched from `Total - AmountPaid` to `Total + TipAmount -
+  AmountPaid` so paying "the full amount" actually clears the tip too.
+- **`Order.Hold()` / `Order.Recall()`** — new `Status` value `"held"`. `Hold()` only valid from `"open"`
+  (`HoldOrderHandler` returns `Order.Conflict` 409 otherwise); `Recall()` only valid from `"held"`, returns to
+  `"open"`. Migration `AddOrderTipAndHold` (one additive `TipAmount` column — `"held"` needed no schema change,
+  it's just a new string value for the existing `Status` column).
+- **Held orders extended the existing "closed order" guards** the same way `"split"` did in Module 19e:
+  `PayOrderHandler`, `AddOrderPaymentHandler`, `VoidOrderItemHandler`, `AddOrderItemsHandler`, and
+  `SplitOrderHandler` all now reject a `"held"` order (409 `Order.Conflict`/`Order.Closed` matching each
+  handler's existing convention) — a held order must be recalled before anything else happens to it, including
+  being split.
+- **New commands/handlers**: `SetOrderTipCommand`/`SetOrderTipHandler` (`PATCH /orders/{id}/tip`),
+  `HoldOrderCommand`/`HoldOrderHandler` + `RecallOrderCommand`/`RecallOrderHandler` (`PATCH /orders/{id}/hold` /
+  `.../recall`) — all gated on the existing `restaurant.orders.edit` key (nearest-seeded-key convention, no new
+  permission). `OrderDto` gained `TipAmount`; `OrdersSummaryDto` gained `Held` (count) and `TotalTips` (sum of
+  `TipAmount` over paid orders).
+- **Frontend**: `ORDER_STATUS` map gained a `"held"` entry (amber). Footer gained a **Hold** button (pause icon,
+  shown only when `status === "open"`) and a **Recall Order** button (shown only when `status === "held"`); the
+  existing "Bill & Pay" and "Split Bill" buttons now also exclude `status === "held"` from their visibility
+  conditions (a held order shows only Recall until resumed).
+- **`RestaurantPayDialog` — Tip section + fixed a pre-existing staleness bug.** The dialog previously read
+  straight off the `order` prop, so after posting a payment the displayed Paid/Outstanding stayed stale until
+  the parent's 15s-interval query happened to refetch and hand down new props (the payment mutation itself
+  never fed back into what the dialog showed). Fixed by shadowing `order` into local `displayOrder` state
+  (`useEffect` re-syncs when the prop changes) and updating it directly from every mutation's response
+  (`post()` and the new `applyTip()` both call `setDisplayOrder(updated)`), so both payments and tips now
+  reflect immediately without waiting on a refetch. New **Tip** panel: quick 10/15/20% buttons (computed off
+  `subTotal`) + a "None" reset + a custom-amount input, shown whenever the order isn't closed (hidden once
+  paid/cancelled/split/held, but still shown read-only if a tip was already set).
+
+### Build / Verification Status
+- **Restaurant.API standalone build:** 0 errors, 0 warnings ✅. **Full backend solution:** 0 errors, 21
+  pre-existing warnings (NU1903 advisories + MSB3277 Serilog version-conflict noise, unrelated to this change) ✅.
+- **Frontend `tsc --noEmit`:** 0 errors ✅.
+- Migration `AddOrderTipAndHold` created (auto-applies on next startup).
+- **Pending (needs republish + restart):** live spot-check — set a tip via each quick-percent button and via
+  custom amount, confirm Outstanding updates immediately in the dialog; pay in full and confirm the tip is
+  included in what's collected; hold an open order, confirm Bill & Pay / Split Bill / Send to Kitchen all
+  disappear and only Recall remains; recall it and confirm normal actions return; attempt to pay/void-item/
+  add-items/split a held order via a direct API call → `409`.
+- **Epic 3 (Structured Ordering) is now fully complete** — all four features shipped: Discounts/Voids/Refunds
+  (19c), Structured Modifiers (19d), Split Bills (19e), Tips + Hold/Recall (19f). Remaining flagged-not-built
+  items across the epic: a dedicated "Modifier Groups" admin page (API-only today) and partial-quantity
+  splitting (whole-row assignment only, no splitting a single line's quantity across guests).
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

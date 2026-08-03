@@ -3,8 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, ChefHat, Clock, Users, DollarSign, Package, RefreshCw, Minus, Plus, Archive, Trash2, CheckCircle2, AlertTriangle, BookOpen, Link2, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useRecipes, useRecipeSummary, useActivateRecipe, useArchiveRecipe, useSyncCosts, useDeductRecipe, useDeleteRecipe } from "@/hooks/recipe/use-recipe";
-import type { RecipeDto, RecipeIngredientDto } from "@/lib/recipe/recipe.api";
+import { LeftDrawer } from "@/components/ui/left-drawer";
+import { useRecipes, useRecipeSummary, useActivateRecipe, useArchiveRecipe, useSyncCosts, useDeductRecipe, useDeleteRecipe, useCreateRecipe } from "@/hooks/recipe/use-recipe";
+import { useMenu } from "@/hooks/restaurant/use-restaurant";
+import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
+import type { RecipeDto, RecipeIngredientDto, IngredientReq } from "@/lib/recipe/recipe.api";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -219,14 +222,172 @@ function RecipeDetail({ recipe, onClose }: { recipe: RecipeDto; onClose: () => v
   );
 }
 
+// ─── Create Recipe modal ───────────────────────────────────────────────────────
+
+interface IngredientRowState { productId: string; productName: string; quantity: string; unit: string; costPerUnit: string }
+
+function CreateRecipeModal({ unlinkedMenuItems, onClose }: {
+  unlinkedMenuItems: { id: string; name: string }[]; onClose: () => void;
+}) {
+  const create = useCreateRecipe();
+  const { data: productsPage } = useInventoryProducts({ pageSize: 500 });
+  const products = productsPage?.items ?? [];
+
+  const [menuItemId, setMenuItemId] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [servings, setServings] = React.useState("1");
+  const [prepTimeMinutes, setPrepTimeMinutes] = React.useState("10");
+  const [cookTimeMinutes, setCookTimeMinutes] = React.useState("10");
+  const [instructions, setInstructions] = React.useState("");
+  const [rows, setRows] = React.useState<IngredientRowState[]>([
+    { productId: "", productName: "", quantity: "1", unit: "kg", costPerUnit: "0" },
+  ]);
+
+  const updateRow = (idx: number, patch: Partial<IngredientRowState>) =>
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
+
+  const pickProduct = (idx: number, productId: string) => {
+    const p = products.find(x => x.id === productId);
+    updateRow(idx, {
+      productId,
+      productName: p?.name ?? "",
+      unit: p?.unit || "unit",
+      costPerUnit: p ? String(p.costPrice) : "0",
+    });
+  };
+
+  const insufficientStock = (r: IngredientRowState) => {
+    if (!r.productId) return false;
+    const p = products.find(x => x.id === r.productId);
+    return !!p && Number(r.quantity) > p.stockQuantity;
+  };
+
+  const valid = !!menuItemId && Number(servings) > 0 &&
+    rows.length > 0 && rows.every(r => r.productName.trim() && Number(r.quantity) > 0 && !insufficientStock(r));
+
+  const handleSave = async () => {
+    const menuItem = unlinkedMenuItems.find(m => m.id === menuItemId);
+    if (!menuItem) return;
+    const ingredients: IngredientReq[] = rows.map(r => ({
+      inventoryProductId: r.productId || null,
+      productName: r.productName.trim(),
+      quantity: Number(r.quantity) || 0,
+      unit: r.unit.trim() || "unit",
+      costPerUnit: Number(r.costPerUnit) || 0,
+    }));
+    try {
+      await create.mutateAsync({
+        menuItemId, menuItemName: menuItem.name,
+        description: description.trim() || null,
+        servings: Number(servings) || 1,
+        prepTimeMinutes: Number(prepTimeMinutes) || 0,
+        cookTimeMinutes: Number(cookTimeMinutes) || 0,
+        instructions: instructions.trim() || null,
+        notes: null,
+        ingredients,
+      });
+      onClose();
+    } catch {
+      // hook's onError already toasted; keep the modal open for retry
+    }
+  };
+
+  return (
+    <LeftDrawer onClose={onClose} widthClassName="max-w-lg">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-foreground">New Recipe</p>
+        <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+      </div>
+
+      <div>
+          <label className="text-xs text-muted-foreground">Menu Item</label>
+          <select value={menuItemId} onChange={e => setMenuItemId(e.target.value)}
+            className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
+            <option value="">Select a menu item…</option>
+            {unlinkedMenuItems.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+          {unlinkedMenuItems.length === 0 && (
+            <p className="text-[11px] text-muted-foreground mt-1">Every menu item already has a recipe.</p>
+          )}
+        </div>
+
+        <div><label className="text-xs text-muted-foreground">Description (optional)</label>
+          <Input value={description} onChange={e => setDescription(e.target.value)} className="h-9 text-sm" /></div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div><label className="text-xs text-muted-foreground">Servings</label>
+            <Input type="number" min={1} value={servings} onChange={e => setServings(e.target.value)} className="h-9 text-sm" /></div>
+          <div><label className="text-xs text-muted-foreground">Prep (min)</label>
+            <Input type="number" min={0} value={prepTimeMinutes} onChange={e => setPrepTimeMinutes(e.target.value)} className="h-9 text-sm" /></div>
+          <div><label className="text-xs text-muted-foreground">Cook (min)</label>
+            <Input type="number" min={0} value={cookTimeMinutes} onChange={e => setCookTimeMinutes(e.target.value)} className="h-9 text-sm" /></div>
+        </div>
+
+        <div><label className="text-xs text-muted-foreground">Instructions (optional)</label>
+          <Input value={instructions} onChange={e => setInstructions(e.target.value)} className="h-9 text-sm" /></div>
+
+        <p className="text-xs font-semibold text-muted-foreground">
+          Ingredients — link an Inventory product so stock actually deducts when this item is served.
+        </p>
+        <div className="space-y-2">
+          {rows.map((r, i) => (
+            <div key={i} className="border border-border rounded-lg p-2 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <select value={r.productId} onChange={e => pickProduct(i, e.target.value)}
+                  className="flex-1 h-8 text-xs rounded-md border border-border bg-card px-1">
+                  <option value="">Not linked (free-text only)…</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button onClick={() => setRows(prev => prev.filter((_, x) => x !== i))} disabled={rows.length === 1}>
+                  <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive disabled:opacity-30" />
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-1.5">
+                <Input value={r.productName} onChange={e => updateRow(i, { productName: e.target.value })}
+                  placeholder="Ingredient name" className="h-8 text-xs col-span-2" disabled={!!r.productId} />
+                <Input type="number" min={0} step="0.01" value={r.quantity} onChange={e => updateRow(i, { quantity: e.target.value })}
+                  placeholder="Qty" className="h-8 text-xs" />
+                <Input value={r.unit} onChange={e => updateRow(i, { unit: e.target.value })}
+                  placeholder="Unit" className="h-8 text-xs" disabled={!!r.productId} />
+              </div>
+              {insufficientStock(r) && (
+                <p className="text-[11px] text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 shrink-0" />
+                  Only {products.find(x => x.id === r.productId)?.stockQuantity} {r.unit} in stock — reduce the quantity or restock first.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+        <Button size="sm" variant="outline"
+          onClick={() => setRows(prev => [...prev, { productId: "", productName: "", quantity: "1", unit: "kg", costPerUnit: "0" }])}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> Add Ingredient
+        </Button>
+
+        <Button className="w-full" disabled={!valid || create.isPending} onClick={handleSave}>
+          {create.isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Save Recipe
+        </Button>
+    </LeftDrawer>
+  );
+}
+
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function RecipesView() {
   const { data: recipes, isLoading } = useRecipes();
   const { data: summary } = useRecipeSummary();
+  const { data: menu = [] } = useMenu();
   const [search, setSearch]   = React.useState("");
   const [filter, setFilter]   = React.useState<"all" | "active" | "draft" | "archived">("all");
   const [selected, setSelected] = React.useState<RecipeDto | null>(null);
+  const [showCreate, setShowCreate] = React.useState(false);
+
+  const allMenuItems = React.useMemo(() => menu.flatMap(c => c.items.map(i => ({ id: i.id, name: i.name }))), [menu]);
+  const linkedMenuItemIds = React.useMemo(() => new Set((recipes ?? []).map(r => r.menuItemId)), [recipes]);
+  const unlinkedMenuItems = React.useMemo(
+    () => allMenuItems.filter(m => !linkedMenuItemIds.has(m.id)),
+    [allMenuItems, linkedMenuItemIds],
+  );
 
   const filtered = React.useMemo(() => {
     if (!recipes) return [];
@@ -249,7 +410,19 @@ export function RecipesView() {
             Manage recipes, ingredients, and production costs
           </p>
         </div>
+        <Button size="sm" onClick={() => setShowCreate(true)} disabled={unlinkedMenuItems.length === 0}>
+          <Plus className="h-4 w-4 mr-1.5" /> New Recipe
+        </Button>
       </div>
+
+      {allMenuItems.length > 0 && unlinkedMenuItems.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {unlinkedMenuItems.length} of {allMenuItems.length} menu items have no recipe linked — stock won't auto-deduct when they're served.
+          </span>
+        </div>
+      )}
 
       {/* Stats */}
       {summary && (
@@ -309,6 +482,10 @@ export function RecipesView() {
           )}
         </AnimatePresence>
       </div>
+
+      {showCreate && (
+        <CreateRecipeModal unlinkedMenuItems={unlinkedMenuItems} onClose={() => setShowCreate(false)} />
+      )}
     </div>
   );
 }

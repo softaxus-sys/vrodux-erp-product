@@ -7,6 +7,7 @@ using Softaxis.POS.Domain.Repositories;
 using Softaxis.POS.Infrastructure.Persistence;
 using Softaxis.POS.Infrastructure.Persistence.Repositories;
 using Softaxis.POS.Infrastructure.Persistence.Seed;
+using Softaxis.POS.Infrastructure.Security;
 using Softaxis.POS.Infrastructure.Services;
 
 namespace Softaxis.POS.Infrastructure.Extensions;
@@ -27,6 +28,8 @@ public static class InfrastructureExtensions
         services.AddScoped<IProductRepository,         ProductRepository>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<ICustomerRepository,        CustomerRepository>();
+        services.AddScoped<ICustomerWalletTransactionRepository, CustomerWalletTransactionRepository>();
+        services.AddScoped<IPaymentGatewayConfigRepository, PaymentGatewayConfigRepository>();
         services.AddScoped<IPOSSessionRepository,      POSSessionRepository>();
         services.AddScoped<IPOSTransactionRepository,  POSTransactionRepository>();
         services.AddScoped<IStockMovementRepository,   StockMovementRepository>();
@@ -47,6 +50,7 @@ public static class InfrastructureExtensions
         // Services
         services.AddScoped<IReportService,               ReportService>();
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
+        services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 
         return services;
     }

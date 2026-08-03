@@ -10,9 +10,20 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="MediatR" Version="12.*" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.*" />
+    <PackageReference Include="MailKit" Version="4.17.0" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.Abstractions" Version="9.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.Restaurant.Domain\Softaxis.Restaurant.Domain.csproj" />
+    <ProjectReference Include="..\Softaxis.Restaurant.Application\Softaxis.Restaurant.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
+    <!-- Cross-service: deduct recipe-linked ingredient stock when an order item is served -->
+    <ProjectReference Include="..\..\Recipe\Softaxis.Recipe.Infrastructure\Softaxis.Recipe.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Inventory\Softaxis.Inventory.Infrastructure\Softaxis.Inventory.Infrastructure.csproj" />
+    <!-- Cross-service: charge a customer's wallet/house-account when an order is paid -->
+    <ProjectReference Include="..\..\POS\Softaxis.POS.Infrastructure\Softaxis.POS.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

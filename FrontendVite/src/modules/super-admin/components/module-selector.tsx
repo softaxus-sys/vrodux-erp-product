@@ -12,31 +12,50 @@ export interface ModuleInfo {
   desc: string;
 }
 
+// Codes here MUST match the frontend `ModuleKey` union (src/types/global.ts) — that's what
+// hasModuleAccess()/the sidebar nav (config/navigation.ts) actually gate on via
+// tenant.enabledModules.includes(module). This catalog previously used stale/legacy codes
+// (e.g. "purchasing", "inventory.basic", "manufacturing") that didn't match any real ModuleKey,
+// so selecting them here never actually unlocked anything — and several real modules
+// (Restaurant, Visa, Project Management, the CRM industry verticals, Recipe…) had no chip at all.
 export const ALL_MODULES: ModuleInfo[] = [
-  { code: "pos",             label: "Point of Sale",     desc: "POS terminal, transactions, cash drawer, receipts"    },
-  { code: "inventory.basic", label: "Inventory (Basic)", desc: "Product catalogue, stock levels, reorder alerts"      },
-  { code: "inventory",       label: "Inventory (Full)",  desc: "Warehouses, transfers, adjustments, full reporting"   },
-  { code: "purchasing",      label: "Purchasing",         desc: "Purchase orders, vendor management, approvals"        },
-  { code: "reports.basic",   label: "Reports (Basic)",   desc: "Pre-built POS & stock dashboards"                     },
-  { code: "reports",         label: "Reports (Full)",    desc: "Advanced analytics, custom date ranges, exports"      },
-  { code: "settings",        label: "Settings",           desc: "App config, branches, tax rates, payment methods"     },
-  { code: "hr.basic",        label: "HR (Basic)",         desc: "Employees, attendance tracking, leave requests"       },
-  { code: "hr",              label: "HR (Full)",          desc: "Payroll, contracts, performance management"           },
-  { code: "crm.basic",       label: "CRM (Basic)",        desc: "Leads pipeline, customer management"                  },
-  { code: "crm",             label: "CRM (Full)",         desc: "Deals, forecasting, sales quotations"                 },
-  { code: "sales",           label: "Sales",              desc: "Quotations, sales orders, returns"                    },
-  { code: "finance",         label: "Finance",            desc: "Accounting, GL, invoicing, budgets, banking"          },
-  { code: "manufacturing",   label: "Manufacturing",      desc: "Production planning, construction & project tracking" },
-  { code: "api",             label: "API Access",         desc: "External API integrations & webhooks"                 },
-  { code: "custom-reports",  label: "Custom Reports",    desc: "Build and share custom report templates"              },
+  { code: "pos",                 label: "Point of Sale",       desc: "POS terminal, transactions, cash drawer, receipts"     },
+  { code: "restaurant",          label: "Restaurant POS",      desc: "Tables, kitchen display, reservations, delivery"       },
+  { code: "recipe",              label: "Recipe / Food Cost",  desc: "Recipes, ingredients, food-cost reporting"              },
+  { code: "inventory",           label: "Inventory",           desc: "Warehouses, transfers, adjustments, stock reporting"    },
+  { code: "purchase",            label: "Purchase",            desc: "Purchase orders, vendors, GRN, purchase returns"        },
+  { code: "sales",               label: "Sales",                desc: "Quotations, sales orders, delivery challans, returns"   },
+  { code: "crm",                 label: "CRM",                  desc: "Leads, pipeline, deals, customers, integrations"        },
+  { code: "finance",             label: "Finance",              desc: "Accounting, GL, invoicing, budgets, banking"            },
+  { code: "hr",                  label: "HR",                   desc: "Employees, attendance, leaves, payroll, recruitment"    },
+  { code: "reports",             label: "Reports",              desc: "Advanced analytics, custom date ranges, exports"        },
+  { code: "project-management",  label: "Project Management",  desc: "Projects, boards, sprints, issues"                      },
+  { code: "real-estate",         label: "Real Estate",          desc: "Real estate industry pack"                              },
+  { code: "construction",        label: "Construction",         desc: "Construction industry pack"                             },
+  { code: "hospitality",         label: "Hospitality",          desc: "Rooms, bookings, hospitality industry pack"             },
+  { code: "healthcare",          label: "Healthcare",           desc: "Patients, appointments, treatment plans"                },
+  { code: "education",           label: "Education",            desc: "Admissions, students, enrollments"                      },
+  { code: "insurance",           label: "Insurance",            desc: "Policies, renewals, claims"                             },
+  { code: "b2b",                 label: "B2B",                   desc: "Proposals, contracts, support tickets"                  },
+  { code: "visa",                label: "Visa Services",         desc: "Visa case management, document checklists"              },
+  { code: "settings",            label: "Settings",              desc: "App config, branches, tax rates, payment methods"       },
+  { code: "users",               label: "Users",                 desc: "User & role management"                                 },
 ];
 
-/** Plan default module codes — must match backend PlanDefinitions.cs */
+/** Plan default module codes — real ModuleKey values (src/types/global.ts). */
 export const PLAN_DEFAULTS: Record<PlanType, string[]> = {
-  Starter:    ["pos", "inventory.basic", "reports.basic", "settings"],
-  Business:   ["pos", "inventory", "purchasing", "reports", "settings", "hr.basic", "crm.basic", "sales"],
-  Enterprise: ["pos", "inventory", "purchasing", "reports", "settings", "hr", "crm", "finance", "manufacturing", "api", "custom-reports", "sales"],
+  Starter:    ["pos", "inventory", "reports", "settings"],
+  Business:   ["pos", "inventory", "purchase", "reports", "settings", "hr", "crm", "sales"],
+  Enterprise: ALL_MODULES_CODES(),
 };
+
+function ALL_MODULES_CODES(): string[] {
+  return [
+    "pos", "restaurant", "recipe", "inventory", "purchase", "sales", "crm", "finance", "hr",
+    "reports", "project-management", "real-estate", "construction", "hospitality", "healthcare",
+    "education", "insurance", "b2b", "visa", "settings", "users",
+  ];
+}
 
 /** Returns true if two module lists represent the same set. */
 export function moduleSetsEqual(a: string[], b: string[]): boolean {
@@ -47,22 +66,27 @@ export function moduleSetsEqual(a: string[], b: string[]): boolean {
 // ── Per-module colour tokens ──────────────────────────────────────────────────
 
 const CHIP_STYLE: Record<string, string> = {
-  "pos":             "bg-blue-100   border-blue-400   text-blue-800   dark:bg-blue-900/40   dark:border-blue-600   dark:text-blue-300",
-  "inventory.basic": "bg-green-100  border-green-400  text-green-800  dark:bg-green-900/40  dark:border-green-600  dark:text-green-300",
-  "inventory":       "bg-teal-100   border-teal-400   text-teal-800   dark:bg-teal-900/40   dark:border-teal-600   dark:text-teal-300",
-  "purchasing":      "bg-orange-100 border-orange-400 text-orange-800 dark:bg-orange-900/40 dark:border-orange-600 dark:text-orange-300",
-  "reports.basic":   "bg-purple-100 border-purple-400 text-purple-800 dark:bg-purple-900/40 dark:border-purple-600 dark:text-purple-300",
-  "reports":         "bg-violet-100 border-violet-400 text-violet-800 dark:bg-violet-900/40 dark:border-violet-600 dark:text-violet-300",
-  "settings":        "bg-slate-100  border-slate-400  text-slate-700  dark:bg-slate-900/40  dark:border-slate-500  dark:text-slate-300",
-  "hr.basic":        "bg-indigo-100 border-indigo-400 text-indigo-800 dark:bg-indigo-900/40 dark:border-indigo-600 dark:text-indigo-300",
-  "hr":              "bg-sky-100    border-sky-400    text-sky-800    dark:bg-sky-900/40    dark:border-sky-600    dark:text-sky-300",
-  "crm.basic":       "bg-pink-100   border-pink-400   text-pink-800   dark:bg-pink-900/40   dark:border-pink-600   dark:text-pink-300",
-  "crm":             "bg-rose-100   border-rose-400   text-rose-800   dark:bg-rose-900/40   dark:border-rose-600   dark:text-rose-300",
-  "sales":           "bg-red-100    border-red-400    text-red-800    dark:bg-red-900/40    dark:border-red-600    dark:text-red-300",
-  "finance":         "bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300",
-  "manufacturing":   "bg-amber-100  border-amber-400  text-amber-800  dark:bg-amber-900/40  dark:border-amber-600  dark:text-amber-300",
-  "api":             "bg-cyan-100   border-cyan-400   text-cyan-800   dark:bg-cyan-900/40   dark:border-cyan-600   dark:text-cyan-300",
-  "custom-reports":  "bg-fuchsia-100 border-fuchsia-400 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:border-fuchsia-600 dark:text-fuchsia-300",
+  "pos":                "bg-blue-100    border-blue-400    text-blue-800    dark:bg-blue-900/40    dark:border-blue-600    dark:text-blue-300",
+  "restaurant":         "bg-orange-100  border-orange-400  text-orange-800  dark:bg-orange-900/40  dark:border-orange-600  dark:text-orange-300",
+  "recipe":             "bg-lime-100    border-lime-400    text-lime-800    dark:bg-lime-900/40    dark:border-lime-600    dark:text-lime-300",
+  "inventory":          "bg-teal-100    border-teal-400    text-teal-800    dark:bg-teal-900/40    dark:border-teal-600    dark:text-teal-300",
+  "purchase":           "bg-amber-100   border-amber-400   text-amber-800   dark:bg-amber-900/40   dark:border-amber-600   dark:text-amber-300",
+  "sales":              "bg-red-100     border-red-400     text-red-800     dark:bg-red-900/40     dark:border-red-600     dark:text-red-300",
+  "crm":                "bg-rose-100    border-rose-400    text-rose-800    dark:bg-rose-900/40    dark:border-rose-600    dark:text-rose-300",
+  "finance":            "bg-emerald-100 border-emerald-400 text-emerald-800 dark:bg-emerald-900/40 dark:border-emerald-600 dark:text-emerald-300",
+  "hr":                 "bg-sky-100     border-sky-400     text-sky-800     dark:bg-sky-900/40     dark:border-sky-600     dark:text-sky-300",
+  "reports":            "bg-violet-100  border-violet-400  text-violet-800  dark:bg-violet-900/40  dark:border-violet-600  dark:text-violet-300",
+  "project-management": "bg-indigo-100  border-indigo-400  text-indigo-800  dark:bg-indigo-900/40  dark:border-indigo-600  dark:text-indigo-300",
+  "real-estate":        "bg-cyan-100    border-cyan-400    text-cyan-800    dark:bg-cyan-900/40    dark:border-cyan-600    dark:text-cyan-300",
+  "construction":       "bg-yellow-100  border-yellow-400  text-yellow-800  dark:bg-yellow-900/40  dark:border-yellow-600  dark:text-yellow-300",
+  "hospitality":        "bg-fuchsia-100 border-fuchsia-400 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:border-fuchsia-600 dark:text-fuchsia-300",
+  "healthcare":         "bg-pink-100    border-pink-400    text-pink-800    dark:bg-pink-900/40    dark:border-pink-600    dark:text-pink-300",
+  "education":          "bg-purple-100  border-purple-400  text-purple-800  dark:bg-purple-900/40  dark:border-purple-600  dark:text-purple-300",
+  "insurance":          "bg-blue-100    border-blue-400    text-blue-800    dark:bg-blue-900/40    dark:border-blue-600    dark:text-blue-300",
+  "b2b":                "bg-slate-100   border-slate-400   text-slate-700   dark:bg-slate-900/40   dark:border-slate-500   dark:text-slate-300",
+  "visa":               "bg-green-100   border-green-400   text-green-800   dark:bg-green-900/40   dark:border-green-600   dark:text-green-300",
+  "settings":           "bg-gray-100    border-gray-400    text-gray-700    dark:bg-gray-900/40    dark:border-gray-500    dark:text-gray-300",
+  "users":              "bg-gray-100    border-gray-400    text-gray-700    dark:bg-gray-900/40    dark:border-gray-500    dark:text-gray-300",
 };
 
 function chipStyle(code: string) {

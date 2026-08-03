@@ -516,9 +516,19 @@ export const navigationConfig: NavGroup[] = [
         children: [
           // module: "pos" → visible to all with POS access (cashier, supervisor, manager)
           { id: "retail-pos",      label: "Retail POS",      href: "/pos/retail",      icon: "ShoppingBag",     module: "pos" },
+          { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos" },
           // module: "restaurant" → only visible to users with restaurant module access
           { id: "restaurant-pos",  label: "Restaurant POS",  href: "/pos/restaurant",  icon: "UtensilsCrossed", module: "restaurant" },
           { id: "kitchen-display", label: "Kitchen Display",  href: "/pos/kitchen",     icon: "ChefHat",         module: "restaurant" },
+          { id: "floor-designer",  label: "Floor & Tables",  href: "/pos/floor-designer", icon: "LayoutGrid",   module: "restaurant" },
+          { id: "waitlist",        label: "Waitlist",        href: "/pos/waitlist",    icon: "Clock",           module: "restaurant" },
+          { id: "reservations",    label: "Reservations",    href: "/pos/reservations", icon: "CalendarClock",  module: "restaurant" },
+          { id: "menu-management", label: "Menu Management", href: "/pos/menu-management", icon: "BookOpen",    module: "restaurant" },
+          { id: "kitchen-config",  label: "Kitchen Config",  href: "/pos/kitchen-config", icon: "Printer",      module: "restaurant" },
+          { id: "delivery",        label: "Delivery",        href: "/pos/delivery",     icon: "Truck",          module: "restaurant" },
+          { id: "restaurant-reports",    label: "Reports",    href: "/pos/reports",      icon: "BarChart3",      module: "restaurant" },
+          { id: "restaurant-dashboards", label: "Dashboards", href: "/pos/dashboards",   icon: "LayoutDashboard",module: "restaurant" },
+          { id: "restaurant-branch-access", label: "Branch Access", href: "/pos/branch-access", icon: "Building2", module: "restaurant" },
         ],
       },
       {
@@ -530,6 +540,7 @@ export const navigationConfig: NavGroup[] = [
         children: [
           { id: "recipes",     label: "Recipes",     href: "/recipe/recipes",     icon: "BookOpen" },
           { id: "ingredients", label: "Ingredients", href: "/recipe/ingredients", icon: "Package"  },
+          { id: "food-cost",   label: "Food Cost",   href: "/recipe/food-cost",  icon: "Receipt" },
         ],
       },
     ],
@@ -575,6 +586,9 @@ export const navigationConfig: NavGroup[] = [
           { id: "general", label: "General", href: "/settings/general", icon: "SlidersHorizontal" },
           { id: "currency", label: "Currency & Rates", href: "/settings/currency", icon: "Coins" },
           { id: "pos-payment-methods", label: "POS Payments", href: "/settings/pos-payment-methods", icon: "CreditCard", module: "pos" },
+          { id: "payment-gateway", label: "Payment Gateway", href: "/settings/payment-gateway", icon: "Landmark", module: "pos" },
+          { id: "notifications", label: "SMS & WhatsApp", href: "/settings/notifications", icon: "Bell", module: "restaurant" },
+          { id: "devices", label: "Registered Devices", href: "/settings/devices", icon: "Monitor", module: "restaurant" },
           { id: "vouchers", label: "Vouchers & Coupons", href: "/settings/vouchers", icon: "Ticket", module: "pos" },
           { id: "users", label: "Users", href: "/settings/users", icon: "Users" },
           { id: "roles", label: "Roles & Permissions", href: "/settings/roles", icon: "ShieldCheck" },

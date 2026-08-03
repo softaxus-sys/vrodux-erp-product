@@ -18,7 +18,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("identity")
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -478,6 +478,34 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "print",
                             Description = "Print pos reports",
                             ModuleId = "pos.reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("757c5071-a516-c6bb-811e-c7cfe8f8cc9f"),
+                            Action = "view",
+                            Description = "View pos customers",
+                            ModuleId = "pos.customers"
+                        },
+                        new
+                        {
+                            Id = new Guid("602486be-64bc-5b8a-5727-3fa04c9b495a"),
+                            Action = "edit",
+                            Description = "Edit pos customers",
+                            ModuleId = "pos.customers"
+                        },
+                        new
+                        {
+                            Id = new Guid("3c512c86-e680-b7c3-5b33-ca6643841ae9"),
+                            Action = "view",
+                            Description = "View pos payment-gateway",
+                            ModuleId = "pos.payment-gateway"
+                        },
+                        new
+                        {
+                            Id = new Guid("4dfa7787-df1d-5e6a-dbe4-6af343fcc554"),
+                            Action = "edit",
+                            Description = "Edit pos payment-gateway",
+                            ModuleId = "pos.payment-gateway"
                         },
                         new
                         {
@@ -1962,6 +1990,195 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "delete",
                             Description = "Delete visa cases",
                             ModuleId = "visa.cases"
+                        },
+                        new
+                        {
+                            Id = new Guid("fa120075-a9f0-830d-d1d6-d7cb86ed4add"),
+                            Action = "view",
+                            Description = "View restaurant tables",
+                            ModuleId = "restaurant.tables"
+                        },
+                        new
+                        {
+                            Id = new Guid("e6f98464-a947-48ed-e557-f298ae071e6f"),
+                            Action = "create",
+                            Description = "Create restaurant tables",
+                            ModuleId = "restaurant.tables"
+                        },
+                        new
+                        {
+                            Id = new Guid("2417677f-efdb-cbed-d772-99a2fac2bc70"),
+                            Action = "edit",
+                            Description = "Edit restaurant tables",
+                            ModuleId = "restaurant.tables"
+                        },
+                        new
+                        {
+                            Id = new Guid("2c41cef5-69fa-143c-a112-324cbc3a5565"),
+                            Action = "view",
+                            Description = "View restaurant menu",
+                            ModuleId = "restaurant.menu"
+                        },
+                        new
+                        {
+                            Id = new Guid("5957c8ea-fa22-796d-7bbd-1ef8f7ec6bbc"),
+                            Action = "create",
+                            Description = "Create restaurant menu",
+                            ModuleId = "restaurant.menu"
+                        },
+                        new
+                        {
+                            Id = new Guid("6dd8ec78-0137-d5cd-ed4c-6392fbfa8c67"),
+                            Action = "edit",
+                            Description = "Edit restaurant menu",
+                            ModuleId = "restaurant.menu"
+                        },
+                        new
+                        {
+                            Id = new Guid("e1390ca8-7813-1142-d690-49f61daca567"),
+                            Action = "view",
+                            Description = "View restaurant orders",
+                            ModuleId = "restaurant.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("2befd0d5-688e-070e-0d54-b7da282bbeb4"),
+                            Action = "create",
+                            Description = "Create restaurant orders",
+                            ModuleId = "restaurant.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("1449b05a-d916-acb9-63db-c6843e7f522e"),
+                            Action = "edit",
+                            Description = "Edit restaurant orders",
+                            ModuleId = "restaurant.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("06195456-c1bb-c9c5-c218-9e74430c2cd3"),
+                            Action = "void",
+                            Description = "Void restaurant orders",
+                            ModuleId = "restaurant.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("5058bc29-615f-2b56-dacc-e7442f2794bd"),
+                            Action = "discount",
+                            Description = "Discount restaurant orders",
+                            ModuleId = "restaurant.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("9afec136-555a-08fd-9434-0f0d0fab0220"),
+                            Action = "refund",
+                            Description = "Refund restaurant orders",
+                            ModuleId = "restaurant.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("06f08e3c-8d57-3b43-85cf-c665489ccb68"),
+                            Action = "view",
+                            Description = "View restaurant kitchen",
+                            ModuleId = "restaurant.kitchen"
+                        },
+                        new
+                        {
+                            Id = new Guid("ce2b0111-933f-1511-dd3f-0a1d7314b787"),
+                            Action = "edit",
+                            Description = "Edit restaurant kitchen",
+                            ModuleId = "restaurant.kitchen"
+                        },
+                        new
+                        {
+                            Id = new Guid("465fc5ee-f624-2022-1000-7aa947a41bb7"),
+                            Action = "view",
+                            Description = "View restaurant reservations",
+                            ModuleId = "restaurant.reservations"
+                        },
+                        new
+                        {
+                            Id = new Guid("4a41c354-98e8-6167-52dd-12d32c86c039"),
+                            Action = "create",
+                            Description = "Create restaurant reservations",
+                            ModuleId = "restaurant.reservations"
+                        },
+                        new
+                        {
+                            Id = new Guid("d5296adb-c36a-b6cf-fe22-67d3f9abd4cc"),
+                            Action = "edit",
+                            Description = "Edit restaurant reservations",
+                            ModuleId = "restaurant.reservations"
+                        },
+                        new
+                        {
+                            Id = new Guid("5f5b5167-3a1b-c4e4-8e02-7c416823f534"),
+                            Action = "view",
+                            Description = "View restaurant delivery",
+                            ModuleId = "restaurant.delivery"
+                        },
+                        new
+                        {
+                            Id = new Guid("9f865719-bc52-0c15-2bff-50b7b45f7037"),
+                            Action = "create",
+                            Description = "Create restaurant delivery",
+                            ModuleId = "restaurant.delivery"
+                        },
+                        new
+                        {
+                            Id = new Guid("e619aaf9-4c65-0577-b8e9-69934a254216"),
+                            Action = "edit",
+                            Description = "Edit restaurant delivery",
+                            ModuleId = "restaurant.delivery"
+                        },
+                        new
+                        {
+                            Id = new Guid("23b687ae-1950-5ca8-582f-70aba9251ac6"),
+                            Action = "view",
+                            Description = "View restaurant reports",
+                            ModuleId = "restaurant.reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("ca9a8c14-ad1b-3171-0f27-0dda7273fec7"),
+                            Action = "view",
+                            Description = "View restaurant branches",
+                            ModuleId = "restaurant.branches"
+                        },
+                        new
+                        {
+                            Id = new Guid("4ba967b6-bdf1-98ed-0362-daa781710068"),
+                            Action = "edit",
+                            Description = "Edit restaurant branches",
+                            ModuleId = "restaurant.branches"
+                        },
+                        new
+                        {
+                            Id = new Guid("aa2b13ee-0893-d0ef-29dc-ebf30171b19e"),
+                            Action = "view",
+                            Description = "View restaurant notifications",
+                            ModuleId = "restaurant.notifications"
+                        },
+                        new
+                        {
+                            Id = new Guid("fcc40c3f-2eb8-34ba-8035-8bcd8553c840"),
+                            Action = "edit",
+                            Description = "Edit restaurant notifications",
+                            ModuleId = "restaurant.notifications"
+                        },
+                        new
+                        {
+                            Id = new Guid("b3bb7a1b-736a-1eea-9ada-5fde8768902a"),
+                            Action = "view",
+                            Description = "View restaurant devices",
+                            ModuleId = "restaurant.devices"
+                        },
+                        new
+                        {
+                            Id = new Guid("fd29da84-4cac-e905-7523-c6cc96bdc6a7"),
+                            Action = "edit",
+                            Description = "Edit restaurant devices",
+                            ModuleId = "restaurant.devices"
                         });
                 });
 

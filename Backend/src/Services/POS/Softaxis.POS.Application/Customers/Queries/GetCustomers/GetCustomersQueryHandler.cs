@@ -1,6 +1,7 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.POS.Application.Customers;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Domain.Repositories;
 
@@ -13,8 +14,7 @@ public sealed class GetCustomersQueryHandler(ICustomerRepository customerRepo)
     {
         var paged = await customerRepo.GetPagedAsync(query.Page, query.PageSize, query.Search, ct);
 
-        var dtos = paged.Items.Select(c => new CustomerSummaryDto(
-            c.Id, c.Name, c.Phone, c.Email, c.LoyaltyPoints, c.IsActive)).ToList();
+        var dtos = paged.Items.Select(CustomerMappings.ToSummaryDto).ToList();
 
         return Result.Success(PagedResult<CustomerSummaryDto>.Create(
             dtos, paged.TotalCount, paged.Page, paged.PageSize));

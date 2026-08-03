@@ -23,11 +23,11 @@ export const MODULE_GROUPS: Record<string, string> = {
   crm: "CRM", sales: "Sales", purchase: "Purchase", settings: "Settings",
   "project-management": "Project Management",
   b2b: "B2B", education: "Education", healthcare: "Healthcare", insurance: "Insurance",
-  visa: "Visa Services",
+  visa: "Visa Services", restaurant: "Restaurant",
 };
 
 export const GROUP_ORDER = [
-  "POS", "Inventory", "Finance", "Sales", "Purchase", "CRM",
+  "POS", "Restaurant", "Inventory", "Finance", "Sales", "Purchase", "CRM",
   "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "HR",
   "Project Management", "Settings",
 ];

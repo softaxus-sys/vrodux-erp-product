@@ -59,26 +59,31 @@
   </Folder>
   <Folder Name="/src/Services/CRM/">
     <Project Path="src/Services/CRM/Softaxis.CRM.API/Softaxis.CRM.API.csproj" />
+    <Project Path="src/Services/CRM/Softaxis.CRM.Application/Softaxis.CRM.Application.csproj" />
     <Project Path="src/Services/CRM/Softaxis.CRM.Domain/Softaxis.CRM.Domain.csproj" />
     <Project Path="src/Services/CRM/Softaxis.CRM.Infrastructure/Softaxis.CRM.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Services/Construction/">
     <Project Path="src/Services/Construction/Softaxis.Construction.API/Softaxis.Construction.API.csproj" />
+    <Project Path="src/Services/Construction/Softaxis.Construction.Application/Softaxis.Construction.Application.csproj" />
     <Project Path="src/Services/Construction/Softaxis.Construction.Domain/Softaxis.Construction.Domain.csproj" />
     <Project Path="src/Services/Construction/Softaxis.Construction.Infrastructure/Softaxis.Construction.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Services/RealEstate/">
     <Project Path="src/Services/RealEstate/Softaxis.RealEstate.API/Softaxis.RealEstate.API.csproj" />
+    <Project Path="src/Services/RealEstate/Softaxis.RealEstate.Application/Softaxis.RealEstate.Application.csproj" />
     <Project Path="src/Services/RealEstate/Softaxis.RealEstate.Domain/Softaxis.RealEstate.Domain.csproj" />
     <Project Path="src/Services/RealEstate/Softaxis.RealEstate.Infrastructure/Softaxis.RealEstate.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Services/Hospitality/">
     <Project Path="src/Services/Hospitality/Softaxis.Hospitality.API/Softaxis.Hospitality.API.csproj" />
+    <Project Path="src/Services/Hospitality/Softaxis.Hospitality.Application/Softaxis.Hospitality.Application.csproj" />
     <Project Path="src/Services/Hospitality/Softaxis.Hospitality.Domain/Softaxis.Hospitality.Domain.csproj" />
     <Project Path="src/Services/Hospitality/Softaxis.Hospitality.Infrastructure/Softaxis.Hospitality.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/Services/Restaurant/">
     <Project Path="src/Services/Restaurant/Softaxis.Restaurant.API/Softaxis.Restaurant.API.csproj" />
+    <Project Path="src/Services/Restaurant/Softaxis.Restaurant.Application/Softaxis.Restaurant.Application.csproj" />
     <Project Path="src/Services/Restaurant/Softaxis.Restaurant.Domain/Softaxis.Restaurant.Domain.csproj" />
     <Project Path="src/Services/Restaurant/Softaxis.Restaurant.Infrastructure/Softaxis.Restaurant.Infrastructure.csproj" />
   </Folder>

@@ -4,6 +4,7 @@ import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateTable } from "@/hooks/restaurant/use-restaurant";
+import { useCurrentBranch } from "@/hooks/restaurant/use-current-branch";
 
 const SECTIONS = [
   { value: "indoor",  label: "🏠 Indoor",         desc: "Main dining area" },
@@ -31,6 +32,7 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
   const [notes, setNotes]             = React.useState("");
 
   const createTable = useCreateTable();
+  const { branchId } = useCurrentBranch();
   const isValid = tableNumber.trim() && parseInt(capacity) > 0;
 
   const handleSubmit = async () => {
@@ -40,6 +42,7 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
         tableNumber: tableNumber.trim(),
         section,
         capacity: parseInt(capacity, 10) || 1,
+        branchId,
       });
       onClose();
     } catch { /* toast in hook */ }

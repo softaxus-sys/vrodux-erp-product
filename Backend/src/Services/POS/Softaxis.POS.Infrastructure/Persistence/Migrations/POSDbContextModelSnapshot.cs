@@ -18,7 +18,7 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("pos")
-                .HasAnnotation("ProductVersion", "9.0.16")
+                .HasAnnotation("ProductVersion", "9.0.18")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -433,6 +433,14 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("CreditBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CreditLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("datetime2");
 
@@ -478,6 +486,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("WalletBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -667,6 +679,48 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                             MinPurchase = 25000m,
                             Name = "Corporate"
                         });
+                });
+
+            modelBuilder.Entity("Softaxis.POS.Domain.Entities.CustomerWalletTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("customer_wallet_transactions", "pos");
                 });
 
             modelBuilder.Entity("Softaxis.POS.Domain.Entities.HeldTransaction", b =>
@@ -1017,6 +1071,68 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("pos_transactions", "pos");
+                });
+
+            modelBuilder.Entity("Softaxis.POS.Domain.Entities.PaymentGatewayConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApiKeyEncrypted")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("PublicKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("SecretKeyEncrypted")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("payment_gateway_configs", "pos");
                 });
 
             modelBuilder.Entity("Softaxis.POS.Domain.Entities.PaymentMethodConfig", b =>

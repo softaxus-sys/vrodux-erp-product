@@ -25,6 +25,7 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
         ["healthcare"]         = "Healthcare Manager",
         ["insurance"]          = "Insurance Manager",
         ["visa"]               = "Visa Manager",
+        ["restaurant"]         = "Restaurant Manager",
     };
 
     public async Task<Role> ProvisionAsync(Guid tenantId, IReadOnlyList<string> enabledModules, CancellationToken ct = default)

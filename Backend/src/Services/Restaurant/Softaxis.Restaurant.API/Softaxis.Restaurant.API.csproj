@@ -5,9 +5,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.*" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Softaxis.Restaurant.Application\Softaxis.Restaurant.Application.csproj" />
     <ProjectReference Include="..\Softaxis.Restaurant.Infrastructure\Softaxis.Restaurant.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

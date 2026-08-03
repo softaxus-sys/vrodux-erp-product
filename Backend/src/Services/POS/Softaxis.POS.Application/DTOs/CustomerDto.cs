@@ -10,7 +10,11 @@ public sealed record CustomerDto(
     decimal  TotalPurchases,
     bool     IsActive,
     string?  Notes,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    decimal  WalletBalance,
+    decimal  CreditLimit,
+    decimal  CreditBalance,
+    decimal  AvailableCredit);
 
 public sealed record CustomerSummaryDto(
     Guid    Id,
@@ -18,4 +22,15 @@ public sealed record CustomerSummaryDto(
     string? Phone,
     string? Email,
     decimal LoyaltyPoints,
-    bool    IsActive);
+    bool    IsActive,
+    decimal WalletBalance,
+    decimal AvailableCredit);
+
+public sealed record CustomerWalletTransactionDto(
+    Guid     Id,
+    Guid     CustomerId,
+    string   Type,
+    decimal  Amount,
+    Guid?    OrderId,
+    string?  Notes,
+    DateTime CreatedAt);

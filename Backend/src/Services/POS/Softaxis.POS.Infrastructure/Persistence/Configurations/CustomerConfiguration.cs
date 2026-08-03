@@ -35,6 +35,15 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.TotalPurchases)
             .HasPrecision(18, 2);
 
+        builder.Property(c => c.WalletBalance)
+            .HasPrecision(18, 2);
+
+        builder.Property(c => c.CreditLimit)
+            .HasPrecision(18, 2);
+
+        builder.Property(c => c.CreditBalance)
+            .HasPrecision(18, 2);
+
         builder.HasIndex(c => c.Phone)
             .IsUnique()
             .HasFilter("phone IS NOT NULL");
