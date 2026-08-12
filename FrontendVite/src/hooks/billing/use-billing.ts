@@ -48,6 +48,25 @@ export function useBillingPortal() {
   });
 }
 
+/**
+ * Claim the 30-day trial from the billing page — the escape hatch for a "Buy Now" signup that
+ * didn't go through with payment. A hard reload afterwards, because access is granted by the
+ * JWT's subscription_state claim: without a fresh token the app would still consider the tenant
+ * blocked and bounce them straight back here.
+ */
+export function useStartTrial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => billingApi.startTrial(),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: [QK] });
+      toast.success("Your 30-day free trial has started.");
+      window.location.href = "/dashboard";
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCancelSubscription() {
   const qc = useQueryClient();
   return useMutation({

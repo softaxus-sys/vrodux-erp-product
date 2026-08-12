@@ -139,6 +139,14 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
     /// </summary>
     private static SubscriptionResult EvaluateCloud(Domain.Entities.Tenant tenant)
     {
+        // Signed up to buy but hasn't paid — deliberately no trial. Gated to the billing page with
+        // its own code so the UI can prompt "complete your purchase" instead of telling a brand-new
+        // account that its access has ended.
+        if (tenant.Status == TenantStatus.PendingPayment)
+            return SubscriptionResult.Block(
+                "PAYMENT_REQUIRED",
+                "Complete your purchase to activate your account.");
+
         if (tenant.Status == TenantStatus.Suspended)
             return SubscriptionResult.Block(
                 "ACCOUNT_SUSPENDED",

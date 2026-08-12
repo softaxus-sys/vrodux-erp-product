@@ -48,6 +48,15 @@ public sealed class BillingController(ISender sender) : BaseApiController(sender
     public async Task<IActionResult> Portal(CancellationToken ct) =>
         HandleResult(await Sender.Send(new CreatePortalSessionCommand(), ct));
 
+    /// <summary>
+    /// Claim the 30-day free trial. Only valid for a "Buy Now" signup that never paid — the
+    /// self-rescue path for an abandoned checkout.
+    /// </summary>
+    [HttpPost("start-trial")]
+    [RequirePermission("settings.billing.edit")]
+    public async Task<IActionResult> StartTrial(CancellationToken ct) =>
+        HandleResult(await Sender.Send(new StartTrialCommand(), ct));
+
     /// <summary>Cancel. Defaults to end-of-period so the customer keeps what they've paid for.</summary>
     [HttpPost("cancel")]
     [RequirePermission("settings.billing.edit")]

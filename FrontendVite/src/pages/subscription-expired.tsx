@@ -43,6 +43,14 @@ const CODE_META: Record<
     color:  "text-orange-500",
     accent: "bg-orange-50 border-orange-200",
   },
+  // A brand-new "Buy Now" signup that hasn't paid yet. Nothing has expired or been lost, so this
+  // reads as a welcome awaiting payment rather than a failure.
+  PAYMENT_REQUIRED: {
+    title:  "Complete Your Purchase",
+    icon:   CreditCard,
+    color:  "text-blue-600",
+    accent: "bg-blue-50 border-blue-200",
+  },
 };
 
 // ── Page ──────────────────────────────────────────────────────────────────────

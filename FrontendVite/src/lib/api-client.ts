@@ -98,6 +98,8 @@ const SUBSCRIPTION_CODES = new Set([
   "LICENSE_NOT_ISSUED",
   "ACCOUNT_SUSPENDED",
   "TRIAL_EXPIRED",
+  // "Buy Now" signup that hasn't paid yet — gated to billing, same as the others.
+  "PAYMENT_REQUIRED",
 ]);
 
 function handleSubscriptionError(errorCode: string | null, message: string | null): void {

@@ -17,6 +17,8 @@ import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusine
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
 import { getPlan, amountFor, formatUsd } from "@/lib/billing/plans";
+import { authApi } from "@/lib/identity/auth.api";
+import { useAuthStore } from "@/store/auth.store";
 import { ApiError } from "@/lib/api-client";
 
 // ── Palette (identical to login.tsx) ─────────────────────────────────────────
@@ -539,8 +541,12 @@ export default function OnboardingPage() {
       };
       const result=await registerTrial(payload);
       clearSignupAttribution();
-      // "Buy Now" → remember that checkout is pending. The user must sign in first (checkout
-      // needs an authenticated tenant), so the billing page picks this up after login.
+
+      // ── "Buy Now" → take them straight to the payment form ──────────────────
+      // These accounts get NO trial (the backend puts them in PendingPayment), so parking them on
+      // a "check your email / go to login" screen would strand them with no access and no card
+      // prompt. Checkout needs an authenticated tenant, so sign them in with the credentials they
+      // just chose and hand off to billing, which auto-opens checkout.
       if(result.checkoutRequested){
         try{
           sessionStorage.setItem("vrodux.pendingCheckout", JSON.stringify({
@@ -548,7 +554,22 @@ export default function OnboardingPage() {
             billing: result.billingPeriod ?? signup.billing,
           }));
         }catch{ /* ignore */ }
+
+        try{
+          const auth=await authApi.login(payload.email, payload.password);
+          // 2FA can't be enabled on an account created seconds ago, but guard anyway.
+          if(auth.accessToken && auth.refreshToken && auth.user){
+            useAuthStore.getState().loginFromApi(auth.accessToken, auth.refreshToken, auth.user);
+            navigate("/settings/billing?checkout=1", { replace:true });
+            return;
+          }
+        }catch{
+          // Auto sign-in failed (rate limit, 2FA, anything) — fall through to the success screen,
+          // which routes them to login. The pendingCheckout marker survives, so billing still
+          // opens checkout once they're in. Never fail the signup over this.
+        }
       }
+
       setCheckoutPending(!!result.checkoutRequested);
       setDone(true);
     }catch(e){

@@ -339,6 +339,24 @@ public sealed class Tenant : AuditableEntity<Guid>
     }
 
     /// <summary>
+    /// Created through a "Buy Now" link: no trial granted, access gated until payment lands.
+    /// The tenant can still start a trial later from the billing page — see <see cref="CanStartTrial"/>.
+    /// </summary>
+    public void AwaitPayment()
+    {
+        Status      = TenantStatus.PendingPayment;
+        TrialEndsAt = null;
+        UpdatedAt   = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// True when this tenant may still claim its free trial: it signed up to buy, never paid, and
+    /// has never had a trial. Guards against looping between trial and pending-payment forever.
+    /// </summary>
+    public bool CanStartTrial =>
+        Status == TenantStatus.PendingPayment && TrialEndsAt is null;
+
+    /// <summary>
     /// Record where this signup came from (pricing-page query string). Purely informational —
     /// the plan itself is set through <see cref="Create"/>/<see cref="ChangePlan"/>.
     /// </summary>

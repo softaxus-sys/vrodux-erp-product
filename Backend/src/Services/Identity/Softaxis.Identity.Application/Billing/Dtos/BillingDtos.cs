@@ -12,6 +12,11 @@ public sealed record BillingOverviewDto(
     int?      TrialDaysRemaining,
     /// <summary>False once the trial lapses or the account is suspended — the UI shows the reactivate screen.</summary>
     bool      HasProductAccess,
+    /// <summary>
+    /// True only for a "Buy Now" signup that never paid and has never had a trial — the billing page
+    /// offers "start a 30-day trial instead" so an abandoned checkout isn't a dead account.
+    /// </summary>
+    bool      CanStartTrial,
 
     // ── Seats ──
     int       UsersInUse,

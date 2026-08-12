@@ -65,7 +65,14 @@ public sealed class RegisterTrialCommandHandler(
             country:        cmd.Country,
             industry:       NormaliseIndustry(cmd.Industry));
 
-        tenant.StartTrial(30);
+        // "Buy Now" signups do NOT get a trial — they came to purchase, so the account is gated to
+        // the billing page until payment lands. They can still claim the trial from there if they
+        // change their mind. Everything else (including a bare /trial visit) gets the 30 days.
+        var wantsToBuy = string.Equals(cmd.Intent, "buy", StringComparison.OrdinalIgnoreCase);
+
+        if (wantsToBuy) tenant.AwaitPayment();
+        else            tenant.StartTrial(30);
+
         tenant.SetCurrency(cmd.Currency);   // browser-detected 3-letter code (USD default when null)
         tenant.SetSignupAttribution(cmd.Intent, billingPeriod, cmd.UtmSource);
 
@@ -124,7 +131,7 @@ public sealed class RegisterTrialCommandHandler(
             Plan:              tenant.Plan.ToString(),
             // "Buy Now" → the UI routes to checkout after login. Activation still requires a
             // provider webhook; nothing here marks the tenant paid.
-            CheckoutRequested: string.Equals(cmd.Intent, "buy", StringComparison.OrdinalIgnoreCase),
+            CheckoutRequested: wantsToBuy,
             BillingPeriod:     billingPeriod.ToString()));
     }
 

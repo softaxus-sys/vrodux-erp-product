@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import {
   useBillingOverview, useBillingInvoices, useStartCheckout,
-  useBillingPortal, useCancelSubscription,
+  useBillingPortal, useCancelSubscription, useStartTrial,
 } from "@/hooks/billing/use-billing";
 import { formatUsd } from "@/lib/billing/plans";
 import type { PaymentProviderName, PlanOptionDto } from "@/lib/billing/billing.api";
@@ -36,9 +36,10 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 export function BillingSettingsView() {
   const { data: overview, isLoading } = useBillingOverview();
   const { data: invoices } = useBillingInvoices();
-  const checkout = useStartCheckout();
-  const portal   = useBillingPortal();
-  const cancel   = useCancelSubscription();
+  const checkout   = useStartCheckout();
+  const portal     = useBillingPortal();
+  const cancel     = useCancelSubscription();
+  const startTrial = useStartTrial();
 
   const [period, setPeriod]   = React.useState<Period>("Annual");
   const [confirmCancel, setConfirmCancel] = React.useState(false);
@@ -54,18 +55,38 @@ export function BillingSettingsView() {
     if (!provider && overview?.availableProviders?.length) setProvider(overview.availableProviders[0]);
   }, [overview?.availableProviders, provider]);
 
-  // "Buy Now" from the pricing page parks the intent here; complete it once the user has landed.
+  // ── Complete a "Buy Now" signup ────────────────────────────────────────────
+  // The user clicked Buy on the pricing page and was sent straight here after signup. Rather than
+  // making them re-pick the plan they already chose, open the provider's checkout for it directly.
+  // Guarded by a ref so React 18 StrictMode's double-effect can't fire checkout twice, and the
+  // marker is cleared before the call so a failed payment doesn't loop on every re-render.
+  const autoCheckoutFired = React.useRef(false);
   React.useEffect(() => {
+    if (autoCheckoutFired.current) return;
     if (!overview || !provider) return;
+
     let pending: { plan?: string; billing?: string } | null = null;
     try {
       const raw = sessionStorage.getItem("vrodux.pendingCheckout");
       pending = raw ? JSON.parse(raw) : null;
     } catch { /* ignore */ }
     if (!pending?.plan) return;
+
+    autoCheckoutFired.current = true;
     sessionStorage.removeItem("vrodux.pendingCheckout");
-    setPeriod(pending.billing?.toLowerCase() === "monthly" ? "Monthly" : "Annual");
-  }, [overview, provider]);
+
+    const wantedPeriod: Period = pending.billing?.toLowerCase() === "monthly" ? "Monthly" : "Annual";
+    setPeriod(wantedPeriod);
+
+    // Only auto-launch for a tier that can actually be bought self-serve, and only while the
+    // tenant still needs to pay — never re-charge someone who is already active.
+    const target = overview.plans.find(
+      p => p.id === pending!.plan!.toLowerCase() || p.name.toLowerCase() === pending!.plan!.toLowerCase(),
+    );
+    if (!target?.selfServe || overview.hasProductAccess) return;
+
+    checkout.mutate({ plan: target.name, billingPeriod: wantedPeriod, provider });
+  }, [overview, provider, checkout]);
 
   if (isLoading || !overview) {
     return (
@@ -90,8 +111,37 @@ export function BillingSettingsView() {
         </p>
       </div>
 
-      {/* Lapsed access — the reason a user is most likely on this page. Never implies data loss. */}
-      {!overview.hasProductAccess && (
+      {/* Awaiting first payment — a brand-new "Buy Now" signup. Distinct from a lapsed account:
+          nothing has "ended", they simply haven't paid yet, so the tone is welcoming. */}
+      {overview.tenantStatus === "PendingPayment" && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5 flex items-start gap-3">
+            <CreditCard className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div className="space-y-2 flex-1">
+              <p className="font-semibold">Complete your purchase to activate {overview.tenantName}</p>
+              <p className="text-sm text-muted-foreground">
+                Your workspace is ready and waiting — pick your plan below to unlock it.
+              </p>
+              {overview.canStartTrial && (
+                <div className="pt-1">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Not ready to pay? You can try Vrodux free for 30 days instead — no card required.
+                  </p>
+                  <Button variant="outline" size="sm" disabled={startTrial.isPending}
+                    onClick={() => startTrial.mutate()}>
+                    {startTrial.isPending
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Start 30-day free trial instead</>}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Lapsed access — an account that previously worked. Never implies data loss. */}
+      {!overview.hasProductAccess && overview.tenantStatus !== "PendingPayment" && (
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="p-5 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />

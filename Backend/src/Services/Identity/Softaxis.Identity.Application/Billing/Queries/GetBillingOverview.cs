@@ -68,6 +68,7 @@ public sealed class GetBillingOverviewQueryHandler(
             TrialEndsAt:        tenant.TrialEndsAt,
             TrialDaysRemaining: tenant.TrialDaysRemaining,
             HasProductAccess:   tenant.HasProductAccess,
+            CanStartTrial:      tenant.CanStartTrial,
             UsersInUse:         usersInUse,
             MaxUsers:           limits.MaxUsers,
             Subscription:       subscription is null ? null : ToDto(subscription),
