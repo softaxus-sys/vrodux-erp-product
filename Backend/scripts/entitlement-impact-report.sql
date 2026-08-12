@@ -74,23 +74,47 @@ WITH entitlement AS (
     FROM   (VALUES ('real-estate'), ('construction'), ('healthcare'),
                    ('education'), ('insurance'), ('b2b'), ('visa')) AS m([Module])
 ),
-held AS (
+raw_held AS (
     SELECT t.[Id]   AS TenantId,
            t.[Name] AS TenantName,
            t.[Plan],
            t.[Status],
            t.[Industry],
-           LOWER(LTRIM(RTRIM(j.[value]))) AS [Module]
+           LOWER(LTRIM(RTRIM(j.[value]))) AS RawModule
     FROM   [identity].[tenants] t
     CROSS APPLY OPENJSON(t.[EnabledModules]) j
     WHERE  t.[IsDeleted] = 0
       AND  t.[EnabledModules] IS NOT NULL
       AND  ISJSON(t.[EnabledModules]) = 1
+),
+held AS (
+    -- Mirror Tenant.CanonicalModuleCode. Rows provisioned under the OLD catalogue store codes in
+    -- the old vocabulary (inventory.basic, crm.basic, hr.basic, reports.basic, purchasing) which
+    -- ARE real entitlements — the frontend strips ".basic" and maps purchasing -> purchase.
+    -- Comparing raw codes against the canonical catalogue reports them all as lost, which is a
+    -- false positive; normalise first so this report reflects what a tenant actually loses.
+    SELECT TenantId, TenantName, [Plan], [Status], [Industry], RawModule,
+           CASE
+               WHEN base = 'purchasing' THEN 'purchase'
+               ELSE base
+           END AS [Module]
+    FROM (
+        SELECT TenantId, TenantName, [Plan], [Status], [Industry], RawModule,
+               CASE WHEN CHARINDEX('.', RawModule) > 0
+                    THEN LEFT(RawModule, CHARINDEX('.', RawModule) - 1)
+                    ELSE RawModule
+               END AS base
+        FROM raw_held
+    ) n
+    -- Retired codes: api / custom-reports are now PlanLimits feature flags, manufacturing was
+    -- never built. They map to no module, so losing them costs a tenant nothing.
+    WHERE base NOT IN ('api', 'custom-reports', 'manufacturing')
 )
 SELECT   h.TenantName,
          h.[Plan],
          h.[Status],
-         h.[Module] AS ModuleLost,
+         h.[Module]    AS ModuleLost,
+         h.RawModule   AS StoredAs,
          h.[Industry],
          h.TenantId
 FROM     held h

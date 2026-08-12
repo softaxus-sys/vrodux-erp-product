@@ -109,6 +109,45 @@ public sealed class Tenant : AuditableEntity<Guid>
         industry is not null && IndustryPackModule.TryGetValue(industry, out var m) ? m : null;
 
     /// <summary>
+    /// Legacy module codes that are NOT real modules and map to nothing. <c>api</c> and
+    /// <c>custom-reports</c> are now expressed as <see cref="PlanLimits.ApiAccess"/> /
+    /// <see cref="PlanLimits.CustomReports"/> feature flags, and <c>manufacturing</c> was never
+    /// built. Dropped rather than mapped.
+    /// </summary>
+    private static readonly HashSet<string> RetiredModuleCodes =
+        new(StringComparer.OrdinalIgnoreCase) { "api", "custom-reports", "manufacturing" };
+
+    /// <summary>Legacy code → canonical <c>ModuleKey</c>.</summary>
+    private static readonly Dictionary<string, string> LegacyModuleAliases =
+        new(StringComparer.OrdinalIgnoreCase) { ["purchasing"] = "purchase" };
+
+    /// <summary>
+    /// Normalise a stored module code to a canonical <c>ModuleKey</c>.
+    /// <para>
+    /// <see cref="EnabledModules"/> rows written before the plan-catalogue rewrite use the OLD
+    /// vocabulary — <c>inventory.basic</c>, <c>crm.basic</c>, <c>hr.basic</c>, <c>reports.basic</c>,
+    /// <c>purchasing</c>. Those are real entitlements to their tenants: the frontend's
+    /// <c>backendModulesToFrontend</c> already strips the <c>.basic</c> suffix and maps
+    /// <c>purchasing → purchase</c>. Without the same normalisation here, intersecting stored codes
+    /// against the canonical catalogue silently revokes Purchase, HR, CRM, Inventory and Reports
+    /// from every tenant provisioned under the old catalogue.
+    /// </para>
+    /// Returns null for codes that map to no module, so they are dropped.
+    /// </summary>
+    private static string? CanonicalModuleCode(string code)
+    {
+        var c = code?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(c)) return null;
+
+        // "inventory.basic" / "reports.basic" → base module (mirrors the frontend's split on '.')
+        var dot = c.IndexOf('.');
+        if (dot > 0) c = c[..dot];
+
+        if (RetiredModuleCodes.Contains(c)) return null;
+        return LegacyModuleAliases.TryGetValue(c, out var mapped) ? mapped : c;
+    }
+
+    /// <summary>
     /// Resolved module list — what this tenant may actually access.
     /// <para>
     /// <see cref="EnabledModules"/> (the modules picked during onboarding) narrows the set, but the
@@ -130,7 +169,10 @@ public sealed class Tenant : AuditableEntity<Guid>
 
             var list = EnabledModules is not null
                 ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(EnabledModules)!
-                    .Where(m => entitled.Contains(m, StringComparer.OrdinalIgnoreCase))
+                    .Select(CanonicalModuleCode)
+                    .Where(m => m is not null && entitled.Contains(m, StringComparer.OrdinalIgnoreCase))
+                    .Select(m => m!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList()
                 : entitled.ToList();
 
