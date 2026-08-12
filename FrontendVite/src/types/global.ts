@@ -79,6 +79,10 @@ export interface Tenant {
   status: Status;
   /** Industry vertical code from the JWT `industry` claim (e.g. "real_estate"). Drives the active Industry Pack. */
   vertical?: string;
+  /** JWT `subscription_state` claim — "trial" | "active" | "suspended" | "expired". */
+  subscriptionState?: string;
+  /** JWT `trial_days_left` claim; null when the tenant isn't on a trial. */
+  trialDaysLeft?: number | null;
   enabledModules: ModuleKey[];
   branding: TenantBranding;
   settings: TenantSettings;
@@ -103,7 +107,7 @@ export interface TenantSettings {
   rtlEnabled: boolean;
 }
 
-export type TenantPlan = "starter" | "professional" | "enterprise" | "custom";
+export type TenantPlan = "micro" | "starter" | "professional" | "enterprise" | "custom";
 
 // ─── Permissions / RBAC ──────────────────────────────────────────────────────
 

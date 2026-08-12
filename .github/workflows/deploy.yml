@@ -155,13 +155,14 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.build-images.outputs.image_tag }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          DEPLOY_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_SSH_PORT || 22 }}
-          envs: IMAGE_TAG,GITHUB_REPOSITORY
-          command_timeout: 10m
+          envs: IMAGE_TAG,GITHUB_REPOSITORY,DEPLOY_SHA
+          command_timeout: 20m
           script: |
             set -euo pipefail
 
@@ -171,24 +172,56 @@ jobs:
             DEPLOY_LOG="${APP_DIR}/logs/deploy.log"
             REPO_LOWER=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
 
-            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Starting deployment: tag=$IMAGE_TAG" | tee -a "$DEPLOY_LOG"
+            # The tag we were told to deploy. Kept separate because sourcing the
+            # server's .env below can clobber IMAGE_TAG (it defines its own).
+            DEPLOY_TAG="$IMAGE_TAG"
+
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Starting deployment: tag=$DEPLOY_TAG sha=$DEPLOY_SHA" | tee -a "$DEPLOY_LOG"
 
             # Navigate to repo
             cd "$APP_DIR/current"
 
+            # Sync the checkout to the commit being deployed. docker-compose.prod.yml,
+            # nginx config and other mounted files live here, so a stale checkout means
+            # the images update but their configuration does not.
+            if ! git rev-parse --git-dir > /dev/null 2>&1; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] FAILED — $APP_DIR/current is not a git checkout, so compose/nginx config cannot be synced from the repo" | tee -a "$DEPLOY_LOG"
+              exit 1
+            fi
+            if ! git diff --quiet; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Discarding local changes in $APP_DIR/current:" | tee -a "$DEPLOY_LOG"
+              git diff --stat | tee -a "$DEPLOY_LOG"
+            fi
+            if ! git fetch --depth=1 origin "$DEPLOY_SHA" 2>&1 | tee -a "$DEPLOY_LOG"; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] FAILED — cannot fetch $DEPLOY_SHA in $APP_DIR/current (check the checkout's git credentials)" | tee -a "$DEPLOY_LOG"
+              exit 1
+            fi
+            git checkout -f FETCH_HEAD
+            echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Checkout synced to $DEPLOY_SHA" | tee -a "$DEPLOY_LOG"
+
             # Load environment
             set -a; source "$ENV_FILE"; set +a
+            # Restore after sourcing — .env may carry a stale IMAGE_TAG.
+            IMAGE_TAG="$DEPLOY_TAG"
             export IMAGE_TAG
             export GITHUB_REPOSITORY="$REPO_LOWER"
 
             # Login to GHCR
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            if ! echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin; then
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] FAILED — GHCR login rejected (GHCR_PAT expired, missing read:packages, or not SSO-authorized)" | tee -a "$DEPLOY_LOG"
+              exit 1
+            fi
 
-            # Save current images for rollback
+            # Save current images for rollback. Record the image IDs, not the tags:
+            # a tag like ":latest" gets reused by the very deploy we may need to undo.
             PREV_API=$(docker inspect --format='{{.Config.Image}}' vrodux-api 2>/dev/null || echo "none")
             PREV_WEB=$(docker inspect --format='{{.Config.Image}}' vrodux-web 2>/dev/null || echo "none")
+            PREV_API_ID=$(docker inspect --format='{{.Image}}' vrodux-api 2>/dev/null || echo "")
+            PREV_WEB_ID=$(docker inspect --format='{{.Image}}' vrodux-web 2>/dev/null || echo "")
             echo "$PREV_API" > "${APP_DIR}/shared/.prev-api-image"
             echo "$PREV_WEB" > "${APP_DIR}/shared/.prev-web-image"
+            echo "$PREV_API_ID" > "${APP_DIR}/shared/.prev-api-image-id"
+            echo "$PREV_WEB_ID" > "${APP_DIR}/shared/.prev-web-image-id"
 
             # Pull new images
             echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Pulling images..." | tee -a "$DEPLOY_LOG"
@@ -199,32 +232,42 @@ jobs:
             docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d \
               --no-deps --force-recreate vrodux-api vrodux-web
 
-            # Wait for health check
+            # Wait for health check. The gateway runs every service's migrations and
+            # seed/backfill steps before it starts serving, so a release carrying a
+            # migration backlog can legitimately take several minutes on first boot.
             echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Waiting for health check..." | tee -a "$DEPLOY_LOG"
             HEALTHY=false
-            for i in $(seq 1 30); do
+            for i in $(seq 1 60); do
               if curl -sf --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
                 HEALTHY=true
                 break
               fi
-              echo "  Attempt $i/30..."
+              echo "  Attempt $i/60..."
               sleep 10
             done
 
             if [ "$HEALTHY" != "true" ]; then
               echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] FAILED — health check did not pass" | tee -a "$DEPLOY_LOG"
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Last 60 lines of vrodux-api:" | tee -a "$DEPLOY_LOG"
+              docker logs --tail 60 vrodux-api 2>&1 | tee -a "$DEPLOY_LOG" || true
 
-              # Automatic rollback
-              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Rolling back..." | tee -a "$DEPLOY_LOG"
-              if [ "$PREV_API" != "none" ]; then
-                PREV_TAG=$(echo "$PREV_API" | grep -oP ':\K.*' || echo 'latest')
-                export IMAGE_TAG="$PREV_TAG"
+              # Automatic rollback, by image ID so a reused tag can't point us back
+              # at the build that just failed.
+              echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Rolling back to $PREV_API ($PREV_API_ID)..." | tee -a "$DEPLOY_LOG"
+              if [ -n "$PREV_API_ID" ] && [ -n "$PREV_WEB_ID" ]; then
+                docker tag "$PREV_API_ID" "ghcr.io/${REPO_LOWER}/vrodux-api:rollback"
+                docker tag "$PREV_WEB_ID" "ghcr.io/${REPO_LOWER}/vrodux-web:rollback"
+                export IMAGE_TAG="rollback"
                 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d \
                   --no-deps --force-recreate vrodux-api vrodux-web
                 sleep 15
                 if curl -sf --max-time 5 http://localhost:8080/health > /dev/null 2>&1; then
                   echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Rollback successful" | tee -a "$DEPLOY_LOG"
+                else
+                  echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] Rollback did NOT come up healthy — site is DOWN" | tee -a "$DEPLOY_LOG"
                 fi
+              else
+                echo "$(date '+%Y-%m-%d %H:%M:%S') [DEPLOY] No previous image recorded — cannot roll back, site is DOWN" | tee -a "$DEPLOY_LOG"
               fi
               exit 1
             fi
@@ -262,5 +305,7 @@ jobs:
       - name: Notify on failure
         if: failure()
         run: |
-          echo "::error::Deployment failed! Check the deploy logs on the server."
+          echo "::error::Deployment failed. The 'Deploy via SSH' step log above contains the reason."
+          echo "On the server: tail -n 60 /opt/vrodux/logs/deploy.log"
+          echo "               docker logs --tail 200 vrodux-api"
           echo "To rollback manually: ssh into the server and run ./scripts/rollback.sh"

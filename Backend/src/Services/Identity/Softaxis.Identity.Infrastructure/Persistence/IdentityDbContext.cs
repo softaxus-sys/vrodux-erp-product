@@ -21,6 +21,11 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<AppSetting>     AppSettings     => Set<AppSetting>();
     public DbSet<Tenant>         Tenants         => Set<Tenant>();
 
+    // ── Billing ───────────────────────────────────────────────────────────────
+    public DbSet<Subscription>        Subscriptions        => Set<Subscription>();
+    public DbSet<SubscriptionInvoice> SubscriptionInvoices => Set<SubscriptionInvoice>();
+    public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema("identity");

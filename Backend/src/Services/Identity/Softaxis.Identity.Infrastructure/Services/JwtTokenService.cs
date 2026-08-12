@@ -69,6 +69,16 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
 
             // Operating/display currency — drives formatCurrency across the app (USD default).
             claims.Add(new Claim("currency", string.IsNullOrWhiteSpace(tenant.Currency) ? "USD" : tenant.Currency));
+
+            // Subscription gate. SubscriptionGuardMiddleware reads this to 402 every non-billing
+            // request from a lapsed tenant, and the frontend uses it to show the reactivate screen.
+            // Lowercase to match the frontend's string comparisons.
+            claims.Add(new Claim("subscription_state", tenant.Status.ToString().ToLowerInvariant()));
+
+            // Trial countdown, so the UI can show "N days left" without an extra call.
+            // Only meaningful while Status == Trial.
+            if (tenant.TrialDaysRemaining is { } daysLeft)
+                claims.Add(new Claim("trial_days_left", daysLeft.ToString()));
         }
 
         // Embed all permissions as claims — avoids DB round-trip on every request

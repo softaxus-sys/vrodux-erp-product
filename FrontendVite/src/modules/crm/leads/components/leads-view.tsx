@@ -4,7 +4,8 @@ import { motion } from "framer-motion";
 import {
   Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
-  Building2, Calendar, Globe, ArrowRight, UploadCloud, Phone, Clock, Wallet, Tag
+  Building2, Calendar, Globe, ArrowRight, UploadCloud, Phone, Clock, Wallet, Tag,
+  ArrowUp, ArrowDown
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,41 @@ import { Can } from "@/components/auth/can";
 import { useAuthStore } from "@/store/auth.store";
 
 type ViewMode = "list" | "kanban";
+
+type SortKey = "date" | "score" | "value";
+type SortDir = "asc" | "desc";
+
+const SORT_LABELS: Record<SortKey, string> = {
+  date:  "Date created",
+  score: "Intent score",
+  value: "Estimated value",
+};
+
+/**
+ * Comparator for the leads list and every kanban column, so both views agree.
+ * `date` is the default: newest first. Ties fall back to score then value, so the
+ * ordering stays stable when several leads share a timestamp (bulk imports do this).
+ */
+function makeLeadComparator(sortBy: SortKey, sortDir: SortDir) {
+  const dir = sortDir === "asc" ? 1 : -1;
+  return (a: Lead, b: Lead) => {
+    let diff: number;
+    switch (sortBy) {
+      case "score": diff = a.score - b.score; break;
+      case "value": diff = a.estimatedValue - b.estimatedValue; break;
+      case "date":
+      default: {
+        // Missing/invalid dates sort oldest so they never squat on top of a desc list.
+        const at = new Date(a.createdDate).getTime();
+        const bt = new Date(b.createdDate).getTime();
+        diff = (Number.isNaN(at) ? 0 : at) - (Number.isNaN(bt) ? 0 : bt);
+        break;
+      }
+    }
+    if (diff !== 0) return diff * dir;
+    return (b.score - a.score) || (b.estimatedValue - a.estimatedValue);
+  };
+}
 
 const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string; dot: string }> = {
   new:         { label: "New",         color: "text-slate-600",      bg: "bg-slate-100 dark:bg-slate-800/50",  dot: "bg-slate-400" },
@@ -148,11 +184,12 @@ function LeadsKanban({ leads, onLeadClick }: { leads: Lead[]; onLeadClick: (l: L
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
+      {/* Columns inherit the parent's sort order — filter() preserves it. */}
       {KANBAN_COLS.map(status => (
         <LeadColumn
           key={status}
           status={status}
-          leads={colLeads.filter(l => l.status === status).sort((a, b) => (b.score - a.score) || (b.estimatedValue - a.estimatedValue))}
+          leads={colLeads.filter(l => l.status === status)}
           isOver={dragOver === status}
           draggedId={draggedId}
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragOver(status); }}
@@ -268,6 +305,9 @@ export function LeadsView() {
   const [sourceFilter, setSourceFilter] = React.useState("all");
   const [mineOnly, setMineOnly] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
+  // Newest-first by default — the freshest lead is the one worth calling now.
+  const [sortBy, setSortBy] = React.useState<SortKey>("date");
+  const [sortDir, setSortDir] = React.useState<SortDir>("desc");
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
@@ -305,9 +345,8 @@ export function LeadsView() {
         const matchMine   = !mineOnly || l.assignedTo === currentUserName;
         return matchSearch && matchStatus && matchSource && matchMine;
       })
-      // Hottest (highest intent score) first, then by value — contact the most intent-rich leads first.
-      .sort((a, b) => (b.score - a.score) || (b.estimatedValue - a.estimatedValue));
-  }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName]);
+      .sort(makeLeadComparator(sortBy, sortDir));
+  }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName, sortBy, sortDir]);
 
   const listLazy = useLazyList(filtered, 25);
 
@@ -389,6 +428,30 @@ export function LeadsView() {
             <option value="all">All Sources</option>
             {uniqueSources.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
           </select>
+          {/* Sort field + direction */}
+          <select value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)}
+            aria-label="Sort leads by"
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
+              <option key={k} value={k}>Sort: {SORT_LABELS[k]}</option>
+            ))}
+          </select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5 shrink-0"
+            aria-label={sortDir === "desc" ? "Sort descending" : "Sort ascending"}
+            title={sortBy === "date"
+              ? (sortDir === "desc" ? "Newest first" : "Oldest first")
+              : (sortDir === "desc" ? "Highest first" : "Lowest first")}
+            onClick={() => setSortDir(d => (d === "desc" ? "asc" : "desc"))}>
+            {sortDir === "desc" ? <ArrowDown className="h-3.5 w-3.5" /> : <ArrowUp className="h-3.5 w-3.5" />}
+            <span className="text-xs">
+              {sortBy === "date"
+                ? (sortDir === "desc" ? "Newest" : "Oldest")
+                : (sortDir === "desc" ? "Highest" : "Lowest")}
+            </span>
+          </Button>
         </div>
 
         {/* View toggle */}

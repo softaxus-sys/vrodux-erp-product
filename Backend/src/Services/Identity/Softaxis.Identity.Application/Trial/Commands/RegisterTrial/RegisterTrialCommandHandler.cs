@@ -49,10 +49,17 @@ public sealed class RegisterTrialCommandHandler(
 
         // ── 3. Create tenant ──────────────────────────────────────────────────
 
+        // Tier requested by the pricing-page link (?plan=micro|starter|professional).
+        // Enterprise is sales-led and can never be self-provisioned, so it falls back to the
+        // entry tier; unknown/absent values do the same. The trial period itself is tracked via
+        // TenantStatus.Trial + TrialEndsAt regardless of tier.
+        var requestedPlan = ResolveSignupPlan(cmd.Plan);
+        var billingPeriod = ResolveBillingPeriod(cmd.Billing);
+
         var tenant = Tenant.Create(
             name:           cmd.OrgName.Trim(),
             slug:           slug,
-            plan:           PlanType.Starter,   // trial period tracked via TenantStatus.Trial + TrialEndsAt
+            plan:           requestedPlan,
             deploymentType: DeploymentType.Cloud,
             contactEmail:   cmd.Email.Trim().ToLowerInvariant(),
             country:        cmd.Country,
@@ -60,6 +67,7 @@ public sealed class RegisterTrialCommandHandler(
 
         tenant.StartTrial(30);
         tenant.SetCurrency(cmd.Currency);   // browser-detected 3-letter code (USD default when null)
+        tenant.SetSignupAttribution(cmd.Intent, billingPeriod, cmd.UtmSource);
 
         if (cmd.Modules is { Count: > 0 })
             tenant.SetEnabledModules(cmd.Modules);
@@ -108,12 +116,40 @@ public sealed class RegisterTrialCommandHandler(
             cmd.Modules is not null ? string.Join(',', cmd.Modules) : "default");
 
         return Result.Success(new TrialRegistrationResultDto(
-            TenantId:    tenant.Id,
-            TenantSlug:  tenant.Slug,
-            UserId:      user.Id,
-            Email:       user.Email.Value,
-            TrialEndsAt: tenant.TrialEndsAt));
+            TenantId:          tenant.Id,
+            TenantSlug:        tenant.Slug,
+            UserId:            user.Id,
+            Email:             user.Email.Value,
+            TrialEndsAt:       tenant.TrialEndsAt,
+            Plan:              tenant.Plan.ToString(),
+            // "Buy Now" → the UI routes to checkout after login. Activation still requires a
+            // provider webhook; nothing here marks the tenant paid.
+            CheckoutRequested: string.Equals(cmd.Intent, "buy", StringComparison.OrdinalIgnoreCase),
+            BillingPeriod:     billingPeriod.ToString()));
     }
+
+    /// <summary>
+    /// Map the pricing-page <c>?plan=</c> slug to a tier. Enterprise is deliberately NOT
+    /// self-serviceable — its price is negotiated, so a crafted URL must not provision it.
+    /// Anything unknown falls back to the entry tier rather than failing the signup.
+    /// </summary>
+    private static PlanType ResolveSignupPlan(string? plan)
+    {
+        if (string.IsNullOrWhiteSpace(plan)) return PlanType.Micro;
+
+        return plan.Trim().ToLowerInvariant() switch
+        {
+            "micro"        => PlanType.Micro,
+            "starter"      => PlanType.Starter,
+            "professional" => PlanType.Professional,
+            _              => PlanType.Micro,
+        };
+    }
+
+    private static BillingPeriod ResolveBillingPeriod(string? billing) =>
+        string.Equals(billing?.Trim(), "monthly", StringComparison.OrdinalIgnoreCase)
+            ? BillingPeriod.Monthly
+            : BillingPeriod.Annual;   // pricing page defaults every CTA to annual
 
     private static string GenerateSlug(string orgName) =>
         System.Text.RegularExpressions.Regex.Replace(

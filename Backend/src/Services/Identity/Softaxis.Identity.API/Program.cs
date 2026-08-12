@@ -43,7 +43,9 @@ try
     builder.Services.AddMediatR(cfg =>
     {
         cfg.RegisterServicesFromAssemblies(
-            typeof(Softaxis.Identity.Application.Auth.Commands.Login.LoginCommand).Assembly);
+            typeof(Softaxis.Identity.Application.Auth.Commands.Login.LoginCommand).Assembly,
+            // Billing webhook handlers live in Infrastructure (they need the Stripe SDK).
+            typeof(Softaxis.Identity.Infrastructure.Persistence.IdentityDbContext).Assembly);
         cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
     });

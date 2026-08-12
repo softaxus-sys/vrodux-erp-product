@@ -93,6 +93,8 @@ public static class PermissionSeedData
         ["settings.integrations"]= ["view","edit"],
         ["settings.audit"]       = ["view","export"],
         ["settings.ai"]          = ["view","edit"],
+        // Billing: "view" sees plan + invoices, "edit" can purchase, change tier or cancel.
+        ["settings.billing"]     = ["view","edit"],
 
         // Project Management
         ["project-management.projects"] = ["view","create","edit","delete"],

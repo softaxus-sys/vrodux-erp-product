@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Clock, Mail, PhoneCall, RefreshCw, ShieldOff } from "lucide-react";
+import { AlertTriangle, Clock, CreditCard, Mail, PhoneCall, RefreshCw, ShieldOff } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -105,6 +105,23 @@ export default function SubscriptionExpiredPage() {
               {error.code}
             </div>
           )}
+
+          {/* Self-serve reactivation — the whole point of blocking rather than deleting.
+              /settings/billing is exempt from subscription enforcement, so this always loads. */}
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-4 text-left">
+            <p className="text-sm font-semibold text-gray-800 mb-1">Reactivate in a minute</p>
+            <p className="text-xs text-gray-600 mb-3">
+              Your data is safe and untouched — nothing has been deleted. Choose a plan and full
+              access comes straight back.
+            </p>
+            <button
+              onClick={() => { window.location.href = "/settings/billing"; }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <CreditCard className="w-4 h-4" />
+              Choose a plan
+            </button>
+          </div>
 
           {/* Contact info */}
           <div className={`rounded-xl border p-4 mb-6 text-left space-y-2 ${meta.accent}`}>

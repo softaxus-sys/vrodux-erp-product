@@ -246,6 +246,11 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     plan,
     status:         "active",
     vertical:       (claims["industry"] as string | undefined) ?? undefined,
+    // Subscription gate + trial countdown, straight off the JWT so the UI needs no extra call.
+    subscriptionState: (claims["subscription_state"] as string | undefined) ?? undefined,
+    trialDaysLeft:     claims["trial_days_left"] !== undefined && claims["trial_days_left"] !== null
+                         ? Number(claims["trial_days_left"])
+                         : null,
     enabledModules,
     branding: {
       primaryColor: "#2563eb",

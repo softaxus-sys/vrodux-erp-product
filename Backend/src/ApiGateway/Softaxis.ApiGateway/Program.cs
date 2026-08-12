@@ -57,6 +57,9 @@ try
     {
         cfg.RegisterServicesFromAssemblies(
             typeof(Softaxis.Identity.Application.Auth.Commands.Login.LoginCommand).Assembly,
+            // Identity.Infrastructure carries the billing webhook handlers — they need the Stripe
+            // SDK, which has no business being referenced from the Application layer.
+            typeof(Softaxis.Identity.Infrastructure.Persistence.IdentityDbContext).Assembly,
             typeof(Softaxis.POS.Application.Products.Commands.CreateProduct.CreateProductCommand).Assembly,
             typeof(Softaxis.Inventory.Application.Categories.Queries.GetCategories.GetCategoriesQuery).Assembly);
         cfg.AddOpenBehavior(typeof(LoggingBehavior<,>));

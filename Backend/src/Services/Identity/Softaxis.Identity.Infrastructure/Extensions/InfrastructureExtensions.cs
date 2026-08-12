@@ -7,7 +7,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.Billing;
 using Softaxis.Identity.Domain.Repositories;
+using Softaxis.Identity.Infrastructure.Billing;
 using Softaxis.Identity.Infrastructure.Persistence;
 using Softaxis.Identity.Infrastructure.Persistence.Repositories;
 using Softaxis.Identity.Infrastructure.Services;
@@ -48,6 +50,24 @@ public static class InfrastructureExtensions
         services.AddScoped<ILicenseService,            LicenseService>();
         services.AddScoped<IEmailService,              SmtpEmailService>();
         services.AddScoped<ITenantRoleProvisioner,     TenantRoleProvisioner>();
+
+        // ── Billing ───────────────────────────────────────────────────────────
+        services.Configure<BillingOptions>(configuration.GetSection(BillingOptions.SectionName));
+        services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+
+        // Registered as a collection so handlers can pick by PaymentProvider and so the billing
+        // page only advertises processors that actually have credentials configured.
+        services.AddScoped<IBillingProvider, StripeBillingProvider>();
+        services.AddScoped<IBillingProvider, PayPalBillingProvider>();
+        services.AddHttpClient(PayPalBillingProvider.HttpClientName);
+
+        // Lets billing drop the 60s access decision SubscriptionEnforcementMiddleware caches,
+        // so a tenant that just paid stops being blocked immediately.
+        services.AddSingleton<ISubscriptionAccessCache, MemoryCacheSubscriptionAccessCache>();
+
+        // Daily trial reminders (15/7/3/1 days) + expiry. Self-throttling and fully guarded —
+        // a failure logs and retries next cycle rather than taking the host down.
+        services.AddHostedService<TrialLifecycleService>();
 
         // ── Tenant context (scoped — reset per request) ───────────────────────
         services.AddScoped<TenantContextService>();

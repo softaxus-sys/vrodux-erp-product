@@ -62,7 +62,11 @@ public sealed class TrialController(ISender sender) : BaseApiController(sender)
             req.Language,
             req.Currency,
             req.Timezone,
-            req.Modules), ct);
+            req.Modules,
+            req.Plan,
+            req.Billing,
+            req.Intent,
+            req.UtmSource), ct);
 
         return result.IsSuccess ? HandleResult(result, successCode: 201) : HandleResult(result);
     }
@@ -82,5 +86,10 @@ public sealed record TrialRegistrationRequest(
     string?        Language,
     string?        Currency,
     string?        Timezone,
-    List<string>?  Modules
+    List<string>?  Modules,
+    // Pricing-page attribution — optional so a bare signup still binds.
+    string?        Plan      = null,
+    string?        Billing   = null,
+    string?        Intent    = null,
+    string?        UtmSource = null
 );

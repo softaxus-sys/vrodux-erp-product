@@ -128,6 +128,8 @@ const HousekeepingPage     = React.lazy(() => import("@/pages/hospitality/housek
 // ── Settings ──────────────────────────────────────────────────────────────────
 const GeneralSettingsPage  = React.lazy(() => import("@/pages/settings/general"));
 const CurrencySettingsPage = React.lazy(() => import("@/pages/settings/currency"));
+const BillingSettingsPage  = React.lazy(() => import("@/pages/settings/billing"));
+const CheckoutResultPage   = React.lazy(() => import("@/pages/billing/checkout-result"));
 const UsersPage            = React.lazy(() => import("@/pages/settings/users"));
 const SecurityPage         = React.lazy(() => import("@/pages/settings/security"));
 const RolesPage            = React.lazy(() => import("@/pages/settings/roles"));
@@ -449,6 +451,10 @@ export function App() {
           <Route element={<RoleGuard roles={["super_admin", "tenant_admin", "manager"]} />}>
             <Route path="/settings/general"               element={<GeneralSettingsPage />} />
             <Route path="/settings/currency"              element={<CurrencySettingsPage />} />
+            {/* Billing is deliberately NOT behind a module guard — an expired tenant must always
+                be able to reach it to pay and restore access. */}
+            <Route path="/settings/billing"               element={<BillingSettingsPage />} />
+            <Route path="/billing/checkout/:outcome"      element={<CheckoutResultPage />} />
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
             <Route path="/settings/payment-gateway"       element={<PaymentGatewayPage />} />
             <Route path="/settings/notifications"         element={<NotificationConfigPage />} />

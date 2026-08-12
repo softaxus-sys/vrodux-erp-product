@@ -36,6 +36,12 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
         "/api/license/",     // heartbeat endpoint
         "/openapi",          // Swagger / OpenAPI spec
         "/scalar",           // Scalar API docs UI
+
+        // Billing MUST stay reachable while blocked — otherwise an expired tenant is locked out
+        // of the very endpoints needed to pay, and could never reactivate itself. Their data is
+        // untouched; only the rest of the API is gated until a subscription is paid.
+        "/api/billing/",
+        "/api/tenant-settings/",
     ];
 
     public async Task InvokeAsync(
@@ -71,7 +77,9 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
 
         // Load result from cache or evaluate fresh
         var tenantId = tenantCtx.TenantId.Value;
-        var cacheKey = $"sub_{tenantId:N}";
+        // Shared key format — billing drops this entry on payment so access resumes instantly
+        // instead of after the 60s TTL. See ISubscriptionAccessCache.
+        var cacheKey = SubscriptionCacheKeys.For(tenantId);
 
         if (!cache.TryGetValue(cacheKey, out SubscriptionResult? result) || result is null)
         {

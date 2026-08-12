@@ -15,6 +15,8 @@ import { BrandLogo } from "@/components/brand/brand-logo";
 import { COUNTRIES, INDUSTRIES, LANGUAGES, FISCAL_YEARS, getUtcOffset, detectCountry, type CountryMeta } from "@/lib/onboarding/geo-data";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
+import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
+import { getPlan, amountFor, formatUsd } from "@/lib/billing/plans";
 import { ApiError } from "@/lib/api-client";
 
 // ── Palette (identical to login.tsx) ─────────────────────────────────────────
@@ -440,6 +442,7 @@ export default function OnboardingPage() {
 
   const [step,setStep]=React.useState(0);
   const [done,setDone]=React.useState(false);
+  const [checkoutPending,setCheckoutPending]=React.useState(false);
   const [s1Data,setS1Data]=React.useState<S1|null>(null);
 
   const [selectedModules,setSelectedModules]=React.useState<Set<ModuleId>>(new Set());
@@ -449,6 +452,14 @@ export default function OnboardingPage() {
   const [businessType,setBusinessType]=React.useState<string|null>(null);
   const [bizError,setBizError]=React.useState("");
   const [submitting,setSubmitting]=React.useState(false);
+
+  // ── Pricing-page attribution ────────────────────────────────────────────────
+  // erp.vrodux.com/trial?plan=micro&billing=annual&intent=buy&utm_source=pricing
+  // Captured once on mount and stashed in sessionStorage, because this is a multi-step
+  // form: the params live only on the entry URL and would be lost on a refresh or an
+  // internal navigation before submit.
+  const signup=useSignupAttribution();
+  const selectedPlan=getPlan(signup.plan);
 
   const showBT=needsBusinessType(selectedModules);
   const totalSteps=showBT?4:3;
@@ -519,8 +530,26 @@ export default function OnboardingPage() {
         currency:    s2.currency ? s2.currency.split(/[ -]/)[0].toUpperCase() : undefined,
         timezone:    s2.timezone||undefined,
         modules:     [...allResolved],
+        // Pricing-page selection — the backend resolves the tier (and refuses to
+        // self-provision Enterprise, which is sales-led).
+        plan:        signup.plan||undefined,
+        billing:     signup.billing,
+        intent:      signup.intent||undefined,
+        utmSource:   signup.utmSource||undefined,
       };
-      await registerTrial(payload);
+      const result=await registerTrial(payload);
+      clearSignupAttribution();
+      // "Buy Now" → remember that checkout is pending. The user must sign in first (checkout
+      // needs an authenticated tenant), so the billing page picks this up after login.
+      if(result.checkoutRequested){
+        try{
+          sessionStorage.setItem("vrodux.pendingCheckout", JSON.stringify({
+            plan:    result.plan ?? signup.plan,
+            billing: result.billingPeriod ?? signup.billing,
+          }));
+        }catch{ /* ignore */ }
+      }
+      setCheckoutPending(!!result.checkoutRequested);
       setDone(true);
     }catch(e){
       if(e instanceof ApiError)setApiError({ code:e.errorCode, message:e.message });
@@ -545,9 +574,21 @@ export default function OnboardingPage() {
           {[...allResolved].map(id=>{ const m=MODULES.find(x=>x.id===id)!; const Icon=m.icon;
             return<span key={id} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border",m.color,m.iconColor)}><Icon className="h-3 w-3"/>{m.label}</span>; })}
         </div>
+        {/* "Buy Now" signups: say plainly that checkout comes after sign-in, so the jump to a
+            payment page isn't a surprise. Your 30-day trial runs either way. */}
+        {checkoutPending && selectedPlan && (
+          <p className="text-xs mb-5 px-4 py-2.5 rounded-lg border inline-block"
+            style={{ color:D.muted,borderColor:D.accent+"40",background:D.accent+"12" }}>
+            Sign in to complete checkout for the{" "}
+            <span className="font-semibold" style={{ color:D.white }}>{selectedPlan.label}</span> plan
+            {amountFor(selectedPlan,signup.billing)!==null &&
+              <> — {formatUsd(amountFor(selectedPlan,signup.billing))}/{signup.billing==="annual"?"year":"month"}</>}
+            . Your 30-day trial has already started.
+          </p>
+        )}
         <button onClick={()=>navigate("/auth/login")} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white"
           style={{ background:D.accent,boxShadow:`0 4px 20px ${D.accentGlow}` }}>
-          Go to Login <ArrowRight className="h-4 w-4"/>
+          {checkoutPending?"Sign in to complete purchase":"Go to Login"} <ArrowRight className="h-4 w-4"/>
         </button>
       </motion.div>
     </div>
@@ -610,6 +651,21 @@ export default function OnboardingPage() {
 
             {/* Right: actions */}
             <div className="flex items-center gap-3">
+              {/* Plan chosen on the pricing page — confirms the user is signing up for what they clicked */}
+              {selectedPlan && (
+                <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border"
+                  style={{ color:D.white,borderColor:D.accent+"55",background:D.accent+"18" }}
+                  title={signup.intent==="buy"
+                    ? `You'll be taken to checkout for the ${selectedPlan.label} plan after signup`
+                    : `30-day free trial on the ${selectedPlan.label} plan`}>
+                  <span style={{ color:D.accent }}>{selectedPlan.label}</span>
+                  {amountFor(selectedPlan,signup.billing)!==null && (
+                    <span style={{ color:D.muted }}>
+                      {formatUsd(amountFor(selectedPlan,signup.billing))}/{signup.billing==="annual"?"yr":"mo"}
+                    </span>
+                  )}
+                </span>
+              )}
               {/* Step counter badge */}
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border"
                 style={{ color:D.muted,borderColor:D.border,background:D.faint }}>

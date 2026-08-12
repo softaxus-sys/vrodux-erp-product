@@ -36,3 +36,9 @@ FrontendVite/release/
 npm-debug.log*
 Thumbs.db
 .DS_Store
+
+# ── Legacy Next.js frontend (removed in "completed POS Resturant Module") ──
+# The directory was deleted from git but build output (.next/, node_modules/) still sits on
+# disk for anyone who ran it before. Its own .gitignore went with it, so without this a
+# `git add -A` silently re-commits ~148 build-cache files. The live app is FrontendVite/.
+Frontend/

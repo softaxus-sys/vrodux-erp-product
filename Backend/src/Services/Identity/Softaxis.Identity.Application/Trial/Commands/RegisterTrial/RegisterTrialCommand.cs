@@ -22,7 +22,13 @@ public sealed record RegisterTrialCommand(
     string?       Language,
     string?       Currency,
     string?       Timezone,
-    List<string>? Modules) : ICommand<TrialRegistrationResultDto>;
+    List<string>? Modules,
+    // ── Pricing-page attribution (erp.vrodux.com/trial?plan=&billing=&intent=&utm_source=) ──
+    // All optional and trailing: a direct signup with no query string still works unchanged.
+    string?       Plan          = null,   // "micro" | "starter" | "professional" (enterprise = sales-led)
+    string?       Billing       = null,   // "monthly" | "annual"
+    string?       Intent        = null,   // "trial" | "buy"
+    string?       UtmSource     = null) : ICommand<TrialRegistrationResultDto>;
 
 public sealed class RegisterTrialValidator : AbstractValidator<RegisterTrialCommand>
 {

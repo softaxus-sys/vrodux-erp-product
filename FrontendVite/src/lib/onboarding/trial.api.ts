@@ -32,6 +32,12 @@ export interface TrialRegistrationRequest {
   currency?:     string;
   timezone?:     string;
   modules?:      string[];
+  // Captured from the marketing pricing page:
+  //   erp.vrodux.com/trial?plan=micro&billing=annual&intent=buy&utm_source=pricing
+  plan?:         string;
+  billing?:      string;
+  intent?:       string;
+  utmSource?:    string;
 }
 
 export interface TrialRegistrationResponse {
@@ -40,6 +46,11 @@ export interface TrialRegistrationResponse {
   userId:      string;
   email:       string;
   trialEndsAt: string | null;
+  /** Tier the tenant was actually created on (server-resolved, may differ from the requested slug). */
+  plan?:       string | null;
+  /** True when `intent=buy` — send the user to checkout rather than into the app. */
+  checkoutRequested?: boolean;
+  billingPeriod?: string | null;
 }
 
 // ── Step 1: Fetch challenge token ─────────────────────────────────────────────

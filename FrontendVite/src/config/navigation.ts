@@ -585,6 +585,7 @@ export const navigationConfig: NavGroup[] = [
         children: [
           { id: "general", label: "General", href: "/settings/general", icon: "SlidersHorizontal" },
           { id: "currency", label: "Currency & Rates", href: "/settings/currency", icon: "Coins" },
+          { id: "billing", label: "Billing & Plan", href: "/settings/billing", icon: "CreditCard" },
           { id: "pos-payment-methods", label: "POS Payments", href: "/settings/pos-payment-methods", icon: "CreditCard", module: "pos" },
           { id: "payment-gateway", label: "Payment Gateway", href: "/settings/payment-gateway", icon: "Landmark", module: "pos" },
           { id: "notifications", label: "SMS & WhatsApp", href: "/settings/notifications", icon: "Bell", module: "restaurant" },

@@ -39,6 +39,13 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.PrimaryColor).HasMaxLength(20);
         builder.Property(t => t.Industry).HasMaxLength(50);
 
+        // Pricing-page attribution captured at signup (?plan=&billing=&intent=&utm_source=).
+        builder.Property(t => t.UtmSource).HasMaxLength(200);
+        builder.Property(t => t.SignupIntent).HasMaxLength(20);
+        builder.Property(t => t.SignupBillingPeriod)
+               .HasConversion<string>()
+               .HasMaxLength(20);
+
         builder.Property(t => t.LicenseKey).HasColumnType("nvarchar(max)");
         builder.Property(t => t.ConnectionStrings).HasColumnType("nvarchar(max)");
         builder.Property(t => t.EnabledModules).HasColumnType("nvarchar(max)");

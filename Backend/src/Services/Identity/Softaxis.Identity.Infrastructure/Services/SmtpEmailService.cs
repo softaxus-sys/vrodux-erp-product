@@ -187,4 +187,119 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
 
         logger.LogInformation("Tenant invite email sent to {Email}", toEmail);
     }
+
+    public async Task SendTrialReminderAsync(
+        string toEmail, string toName, string tenantName, int daysLeft, string planLabel, CancellationToken ct = default)
+    {
+        var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
+        var billingUrl  = $"{frontendUrl}/settings/billing";
+        var expired     = daysLeft <= 0;
+
+        var subject = expired
+            ? $"Your {tenantName} trial has ended — your data is safe"
+            : daysLeft == 1
+                ? $"Your {tenantName} trial ends tomorrow"
+                : $"{daysLeft} days left in your {tenantName} trial";
+
+        // The lapsed message leads with data retention: the single thing a customer panics about.
+        var lead = expired
+            ? """
+              <p>Your free trial has ended, so access to the app is paused until you choose a plan.</p>
+              <p><strong>Nothing has been deleted.</strong> Every record, user and setting is exactly where you
+              left it, and everything comes straight back the moment you subscribe.</p>
+              """
+            : $"""
+              <p>Your free trial ends in <strong>{daysLeft} day{(daysLeft == 1 ? "" : "s")}</strong>.</p>
+              <p>Subscribe before then and you'll keep working without interruption — same data, same setup.</p>
+              """;
+
+        var body = $"""
+            <html><body style="font-family:sans-serif;color:#1e293b">
+              <h2>{(expired ? "Your trial has ended" : "Your trial is ending soon")}</h2>
+              <p>Hi {toName},</p>
+              {lead}
+              <p style="margin:24px 0">
+                <a href="{billingUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+                  {(expired ? "Reactivate my account" : "Choose a plan")}
+                </a>
+              </p>
+              <p style="color:#64748b;font-size:13px">Current plan: <strong>{planLabel}</strong>. You can change tier or
+              billing period at any time.</p>
+              <p style="color:#64748b;font-size:12px">Questions? Just reply to this email.</p>
+            </body></html>
+            """;
+
+        await SendAsync(toEmail, toName, subject, body,
+            fallbackLog: $"Trial reminder ({daysLeft}d) for {tenantName} → {billingUrl}", ct);
+    }
+
+    public async Task SendSubscriptionReceiptAsync(
+        string toEmail, string toName, string tenantName, string planLabel,
+        decimal amount, string currency, DateTime? nextRenewal, CancellationToken ct = default)
+    {
+        var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
+        var billingUrl  = $"{frontendUrl}/settings/billing";
+
+        var body = $"""
+            <html><body style="font-family:sans-serif;color:#1e293b">
+              <h2>Payment received</h2>
+              <p>Hi {toName},</p>
+              <p>Thanks — your subscription for <strong>{tenantName}</strong> is active.</p>
+              <table style="border-collapse:collapse;margin:20px 0;font-size:14px">
+                <tr><td style="padding:6px 16px 6px 0;color:#64748b">Plan</td><td style="padding:6px 0"><strong>{planLabel}</strong></td></tr>
+                <tr><td style="padding:6px 16px 6px 0;color:#64748b">Amount</td><td style="padding:6px 0"><strong>{amount:N2} {currency}</strong></td></tr>
+                {(nextRenewal.HasValue
+                    ? $"""<tr><td style="padding:6px 16px 6px 0;color:#64748b">Renews</td><td style="padding:6px 0">{nextRenewal.Value:d MMMM yyyy}</td></tr>"""
+                    : "")}
+              </table>
+              <p style="margin:24px 0">
+                <a href="{billingUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+                  View billing
+                </a>
+              </p>
+              <p style="color:#64748b;font-size:12px">Invoices are available any time from your billing page.</p>
+            </body></html>
+            """;
+
+        await SendAsync(toEmail, toName, $"Payment received — {tenantName}", body,
+            fallbackLog: $"Subscription receipt for {tenantName}: {amount:N2} {currency}", ct);
+    }
+
+    /// <summary>
+    /// Shared SMTP send. Mirrors the connect/auth/send/disconnect sequence used by the older
+    /// methods above (465 → implicit SSL, otherwise STARTTLS) and keeps the same dev fallback:
+    /// with SMTP unconfigured it logs instead of throwing, so local runs are never blocked.
+    /// </summary>
+    private async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, string fallbackLog, CancellationToken ct)
+    {
+        var section  = configuration.GetSection("Email");
+        var host     = section["SmtpHost"];
+        var port     = int.Parse(section["SmtpPort"] ?? "587");
+        var username = section["SmtpUsername"];
+        var password = section["SmtpPassword"];
+        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
+        var fromName = section["FromName"]    ?? "Softaxis ERP";
+
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        {
+            logger.LogWarning("SMTP not configured. {Fallback}", fallbackLog);
+            return;
+        }
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(fromName, fromAddr));
+        message.To.Add(new MailboxAddress(toName, toEmail));
+        message.Subject = subject;
+        message.Body    = new TextPart("html") { Text = htmlBody };
+
+        using var client = new SmtpClient();
+        var socketOptions = port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+
+        await client.ConnectAsync(host, port, socketOptions, ct);
+        await client.AuthenticateAsync(username, password, ct);
+        await client.SendAsync(message, ct);
+        await client.DisconnectAsync(true, ct);
+
+        logger.LogInformation("Email '{Subject}' sent to {Email}", subject, toEmail);
+    }
 }

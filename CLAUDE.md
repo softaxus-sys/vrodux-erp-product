@@ -3320,6 +3320,96 @@ when the terminal is needed for something else before the order is ready to send
 
 ---
 
+## Module 20 — Subscriptions & Billing (Stripe + PayPal) + public plan tiers
+
+Connects the marketing pricing page (`vrodux.com/pricing`) to a real, enforced, self-serve subscription.
+Previously the tiers existed only on the website: signup **hardcoded `PlanType.Starter`**, module access came
+from whatever the user ticked in onboarding (plan limits bypassed entirely), and there was **no payment
+integration of any kind**.
+
+### ⚠️ `Tenant.Plan` is persisted as a STRING — the legacy rename is mandatory
+`TenantConfiguration` uses `HasConversion<string>()` (nvarchar(30)), so existing rows literally hold
+`'Starter'`/`'Business'`. The new catalogue reuses the name **Starter with a different meaning** (10 seats,
+not 3). Migration `AddBillingAndRenameLegacyPlans` therefore starts with a data rewrite, mapped **by seat
+limit, not by name**, so no tenant loses capacity:
+```sql
+UPDATE [identity].[tenants] SET [Plan]='Micro'        WHERE [Plan]='Starter';   -- 3 seats → 3 seats
+UPDATE [identity].[tenants] SET [Plan]='Professional' WHERE [Plan]='Business';  -- 15 → 50
+```
+Order matters (Starter→Micro first clears the name before it's reused). Needs `SET QUOTED_IDENTIFIER ON`
+(filtered unique indexes on `tenants`). `PlanDefinitions.LegacyAliases` maps `"Business"` defensively in case
+the migration is ever partially applied.
+
+### Plan catalogue (`PlanType` / `PlanDefinitions`)
+`Micro(3) · Starter(10) · Professional(50) · Enterprise(∞)` — prices $159/$299/$849 monthly, $129/$249/$699
+annual-per-month. Professional adds `pos, restaurant, recipe, hospitality` + multi-currency/API/custom reports.
+The old module lists used **dead keys** (`inventory.basic`, `crm.basic`, `manufacturing`) that exist nowhere in
+the `ModuleKey` union — which is why plan→module entitlement had never actually worked. Enterprise is
+**never self-serviceable** (`SelfServePlans`); a crafted `?plan=enterprise` falls back to Micro.
+
+### Entitlement is now a ceiling
+`Tenant.ResolvedModules` **intersects** the onboarding picks with `Limits.Modules` (previously returned them
+verbatim). The tenant's own industry-pack module is still force-added on **every** tier — packs are sold by
+industry, not tier, so a Micro real-estate tenant keeps `real-estate`.
+**Run `Backend/scripts/entitlement-impact-report.sql` (read-only) BEFORE deploying** — it lists every tenant
+that would lose a module, plus seat-limit and expired-trial exposure.
+
+### Subscription domain (schema `identity`)
+`Subscription` (one per tenant), `SubscriptionInvoice`, `BillingWebhookEvent`. The **unique index on
+(Provider, ProviderEventId) is the idempotency ledger** — both providers retry aggressively and can redeliver
+after success; re-applying `invoice.paid` would extend a paid period twice. Our DB is the source of truth for
+*entitlement*; the provider is the source of truth for *money*.
+
+### Providers — `IBillingProvider` (Stripe, PayPal, Manual)
+- **Stripe** (`Stripe.net`): hosted Checkout + Billing Portal (no PCI surface, free card/plan/cancel UI).
+  Webhook verified with `EventUtility.ConstructEvent` over the **raw body** (`Request.EnableBuffering()` —
+  model binding breaks the signature).
+- **PayPal**: no maintained .NET SDK → typed `HttpClient` (same pattern as `MetaGraphClient`), OAuth2
+  client-credentials + REST v1 `billing/subscriptions`; webhook verified via PayPal's
+  `verify-webhook-signature` API. No hosted portal → reported as a failure so the UI uses in-app controls.
+- Both **fail closed**: no signing secret configured ⇒ every webhook rejected. Tenant is reconciled from
+  metadata/`custom_id` **we** set at checkout, never from the browser's return URL.
+- Handlers live in `Identity.Infrastructure/Handlers/Billing/` (they need the Stripe SDK, which has no place
+  in Application) — so **`Identity.Infrastructure` is now registered with MediatR** in both `Program.cs` files.
+
+### Trial lifecycle + lockout (data is NEVER deleted)
+`TrialLifecycleService : BackgroundService` — daily, 5-min startup delay (never add work to the boot path;
+the deploy health window is unforgiving), fully try/catch-guarded. Emails at **15/7/3/1 days** then on lapse,
+idempotent via `Tenant.LastTrialReminderDaysLeft`; expires lapsed trials.
+**`SubscriptionEnforcementMiddleware` already existed** and blocks Expired/Suspended/elapsed-trial tenants —
+the gap was that `/api/billing/` wasn't exempt, so a lapsed tenant was locked out of the very endpoints
+needed to pay. Now bypassed, and `subscription-expired.tsx` gained a **"Choose a plan"** CTA.
+`ISubscriptionAccessCache` drops the middleware's 60s cached decision the instant a payment lands, so paying
+restores access immediately rather than after a delay.
+
+### Signup flow
+`?plan=&billing=&intent=&utm_source=` captured by `useSignupAttribution` (sessionStorage — the params live
+only on the entry URL and the form is multi-step), shown as a plan chip in the onboarding header, and passed
+to `RegisterTrialCommand`. `intent=buy` → account created **on a trial**, then routed to checkout; only a
+provider webhook ever activates the tenant.
+
+### Frontend
+`lib/billing/{plans.ts,billing.api.ts}`, `hooks/billing/use-billing.ts`,
+`modules/settings/billing/components/billing-settings-view.tsx` (`/settings/billing`, deliberately **not**
+module-guarded), `pages/billing/checkout-result.tsx` (polls our own API — the redirect is not proof of
+payment), `components/billing/trial-banner.tsx` (JWT `trial_days_left`; only inside the final 15 days,
+undismissable at ≤3). New JWT claims: `subscription_state`, `trial_days_left`.
+
+### Gotcha fixed during build
+`User.Email` is mapped with `HasConversion` (a value converter, **not** an owned type), so
+`.Select(u => u.Email.Value)` compiles but is untranslatable and throws at query time. Project `u.Email`
+whole and read `.Value` in memory.
+
+### Build Status
+- **Full ApiGateway:** 0 errors ✅ (only the pre-existing SmtpEmailService nullable warnings)
+- **Frontend `tsc` (changed files) + `vite build`:** 0 errors ✅
+- Migrations `AddBillingAndRenameLegacyPlans` + `AddBillingPermissions` created (auto-apply on startup).
+- **Pending:** set `Billing__*` env vars (Stripe prices / PayPal plan ids / webhook secrets — see
+  `.env.example`); run the impact report; then E2E: pricing-page CTA → signup → checkout → webhook activates
+  → reminders → expiry → reactivate.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅
