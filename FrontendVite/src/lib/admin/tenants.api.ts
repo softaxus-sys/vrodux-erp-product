@@ -5,7 +5,14 @@ const LICENSE_BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type PlanType       = "Starter" | "Business" | "Enterprise";
+/**
+ * Public tiers (see backend `PlanType`). `Business` is the legacy name for what is now
+ * `Professional`, and the legacy `Starter` (3 seats) became `Micro`; both are kept so a tenant
+ * row written before the rename migration still resolves instead of crashing the console.
+ */
+export type PlanType =
+  | "Micro" | "Starter" | "Professional" | "Enterprise"
+  | "Business";   // legacy — pre-rename rows only
 export type DeploymentType = "Cloud" | "OnPremises";
 export type TenantStatus   = "Trial" | "Active" | "Suspended" | "Expired";
 
@@ -166,8 +173,33 @@ export const licenseApi = {
 
 // ── Plan metadata ─────────────────────────────────────────────────────────────
 
-export const PLAN_LIMITS: Record<PlanType, { maxUsers: number; maxWarehouses: number; label: string; color: string }> = {
-  Starter:    { maxUsers: 3,  maxWarehouses: 1,  label: "Starter",    color: "#6b7280" },
-  Business:   { maxUsers: 15, maxWarehouses: 3,  label: "Business",   color: "#3b82f6" },
-  Enterprise: { maxUsers: -1, maxWarehouses: -1, label: "Enterprise", color: "#8b5cf6" },
+export interface PlanLimitMeta {
+  maxUsers: number;        // -1 = unlimited
+  maxWarehouses: number;   // -1 = unlimited
+  label: string;
+  color: string;
+}
+
+/** Mirrors the backend `PlanDefinitions`. Keep the two in step. */
+export const PLAN_LIMITS: Record<PlanType, PlanLimitMeta> = {
+  Micro:        { maxUsers: 3,  maxWarehouses: 1,  label: "Micro",        color: "#6b7280" },
+  Starter:      { maxUsers: 10, maxWarehouses: 2,  label: "Starter",      color: "#0ea5e9" },
+  Professional: { maxUsers: 50, maxWarehouses: 10, label: "Professional", color: "#3b82f6" },
+  Enterprise:   { maxUsers: -1, maxWarehouses: -1, label: "Enterprise",   color: "#8b5cf6" },
+
+  // Legacy alias: pre-rename rows still say "Business". Mapped to Professional's limits,
+  // matching how the backend migration re-pointed them.
+  Business:     { maxUsers: 50, maxWarehouses: 10, label: "Professional", color: "#3b82f6" },
 };
+
+/**
+ * Safe lookup. Never returns undefined.
+ *
+ * A bare `PLAN_LIMITS[tenant.plan]` crashed the super-admin console the moment the backend
+ * started returning the renamed tiers — an unknown plan name must degrade to a sane row, not
+ * take the page down.
+ */
+export function planLimits(plan: string | null | undefined): PlanLimitMeta {
+  if (plan && plan in PLAN_LIMITS) return PLAN_LIMITS[plan as PlanType];
+  return { maxUsers: 0, maxWarehouses: 0, label: plan || "Unknown", color: "#6b7280" };
+}

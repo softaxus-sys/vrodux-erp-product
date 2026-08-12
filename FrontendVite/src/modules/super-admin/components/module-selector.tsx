@@ -42,11 +42,24 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "users",               label: "Users",                 desc: "User & role management"                                 },
 ];
 
-/** Plan default module codes — real ModuleKey values (src/types/global.ts). */
+/**
+ * Plan default module codes — real ModuleKey values (src/types/global.ts).
+ * Mirrors the backend `PlanDefinitions`: Micro and Starter share the core set (they differ only
+ * by seat count), Professional adds the POS / food-service family, Enterprise gets everything.
+ */
+const CORE_MODULE_CODES = [
+  "inventory", "purchase", "sales", "crm", "finance", "hr",
+  "reports", "project-management", "settings", "users",
+];
+
 export const PLAN_DEFAULTS: Record<PlanType, string[]> = {
-  Starter:    ["pos", "inventory", "reports", "settings"],
-  Business:   ["pos", "inventory", "purchase", "reports", "settings", "hr", "crm", "sales"],
-  Enterprise: ALL_MODULES_CODES(),
+  Micro:        CORE_MODULE_CODES,
+  Starter:      CORE_MODULE_CODES,
+  Professional: [...CORE_MODULE_CODES, "pos", "restaurant", "recipe", "hospitality"],
+  Enterprise:   ALL_MODULES_CODES(),
+
+  // Legacy alias — pre-rename tenant rows still report "Business".
+  Business:     [...CORE_MODULE_CODES, "pos", "restaurant", "recipe", "hospitality"],
 };
 
 function ALL_MODULES_CODES(): string[] {

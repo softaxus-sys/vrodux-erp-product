@@ -14,7 +14,7 @@ import {
   tenantsAdminApi,
   type TenantDto,
   type PlanType,
-  PLAN_LIMITS,
+  planLimits,
 } from "@/lib/admin/tenants.api";
 import { ModuleSelector, PLAN_DEFAULTS, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
@@ -34,7 +34,7 @@ function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
       setError(null);
       const resp = await tenantsAdminApi.generateLicense(tenant.id, {
         validityDays,
-        features: PLAN_LIMITS[tenant.plan].maxUsers < 0
+        features: planLimits(tenant.plan).maxUsers < 0
           ? ["pos", "inventory", "reports", "hr", "crm", "finance", "api"]
           : ["pos", "inventory", "reports"],
       });
@@ -500,7 +500,7 @@ export function TenantDetailPage() {
     );
   }
 
-  const limits        = PLAN_LIMITS[tenant.plan];
+  const limits        = planLimits(tenant.plan);
   const industryLabel = tenant.industry ? (INDUSTRY_OPTIONS.find(o => o.value === tenant.industry)?.label ?? tenant.industry) : null;
 
   const tabs = ([

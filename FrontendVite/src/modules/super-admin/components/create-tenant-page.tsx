@@ -17,10 +17,13 @@ import { ModuleSelector, PLAN_DEFAULTS, moduleSetsEqual } from "./module-selecto
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
 import { COUNTRIES } from "@/lib/onboarding/geo-data";
 
+// Public tiers and list prices — mirrors vrodux.com/pricing and the backend PlanDefinitions.
+// Annual rates shown in the description are the discounted per-month equivalents.
 const PLANS: { value: PlanType; label: string; desc: string; color: string }[] = [
-  { value: "Starter",    label: "Starter",    color: "text-gray-600",   desc: "3 users · 1 warehouse · PKR 9,500/mo"    },
-  { value: "Business",   label: "Business",   color: "text-blue-600",   desc: "15 users · 3 warehouses · PKR 24,000/mo" },
-  { value: "Enterprise", label: "Enterprise", color: "text-violet-600", desc: "Unlimited · PKR 58,000/mo"               },
+  { value: "Micro",        label: "Micro",        color: "text-gray-600",   desc: "3 users · $159/mo · $129/mo billed annually"  },
+  { value: "Starter",      label: "Starter",      color: "text-sky-600",    desc: "10 users · $299/mo · $249/mo billed annually" },
+  { value: "Professional", label: "Professional", color: "text-blue-600",   desc: "50 users · $849/mo · $699/mo billed annually · POS, Restaurant, Hospitality" },
+  { value: "Enterprise",   label: "Enterprise",   color: "text-violet-600", desc: "Unlimited users & modules · custom pricing"   },
 ];
 
 const DEPLOYMENTS: { value: DeploymentType; label: string; desc: string; icon: React.ElementType }[] = [

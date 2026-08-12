@@ -18,7 +18,7 @@ import {
   type PlanType,
   type DeploymentType,
   type TenantStatus,
-  PLAN_LIMITS,
+  planLimits,
 } from "@/lib/admin/tenants.api";
 
 // ── Status / plan config ──────────────────────────────────────────────────────
@@ -31,9 +31,12 @@ const STATUS_CONFIG: Record<TenantStatus, { label: string; color: string; bg: st
 };
 
 const PLAN_COLOR: Record<PlanType, string> = {
-  Starter:    "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  Business:   "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  Enterprise: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  Micro:        "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  Starter:      "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+  Professional: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  Enterprise:   "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300",
+  // Legacy alias — pre-rename rows still report "Business".
+  Business:     "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
 };
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -84,7 +87,7 @@ function StatCard({ label, value, sub, icon: Icon, iconBg }: {
 function TenantCard({ tenant, onClick, onEnter, entering }: {
   tenant: TenantDto; onClick: () => void; onEnter: () => void; entering: boolean;
 }) {
-  const limits = PLAN_LIMITS[tenant.plan];
+  const limits = planLimits(tenant.plan);
   const userPct = limits.maxUsers > 0
     ? Math.min(100, Math.round((0 / limits.maxUsers) * 100))
     : 0;
