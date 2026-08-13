@@ -34,7 +34,7 @@ internal sealed class HandleStripeWebhookCommandHandler(
     ISubscriptionRepository  subRepo,
     ISubscriptionAccessCache accessCache,
     IUnitOfWork              uow,
-    IOptions<BillingOptions> options,
+    IOptionsSnapshot<BillingOptions> options,
     ILogger<HandleStripeWebhookCommandHandler> logger)
     : ICommandHandler<HandleStripeWebhookCommand>
 {

@@ -161,6 +161,7 @@ const CareersJobDetailPage      = React.lazy(() => import("@/pages/careers/job-d
 const SuperAdminPage            = React.lazy(() => import("@/pages/super-admin/index"));
 const NewTenantPage             = React.lazy(() => import("@/pages/super-admin/new-tenant"));
 const TenantDetailPage          = React.lazy(() => import("@/pages/super-admin/tenant-detail"));
+const PlatformBillingPage       = React.lazy(() => import("@/pages/super-admin/billing"));
 const SubscriptionExpiredPage   = React.lazy(() => import("@/pages/subscription-expired"));
 
 // ── Guards ───────────────────────────────────────────────────────────────────
@@ -445,6 +446,8 @@ export function App() {
             <Route path="/super-admin" element={<SuperAdminPage />} />
             <Route path="/super-admin/tenants/new" element={<NewTenantPage />} />
             <Route path="/super-admin/tenants/:id" element={<TenantDetailPage />} />
+            {/* Platform payment accounts (Vrodux's own Stripe/PayPal) — not a tenant setting. */}
+            <Route path="/super-admin/billing"     element={<PlatformBillingPage />} />
           </Route>
 
           {/* ── Settings — admin/manager only ───────────────────────────────── */}

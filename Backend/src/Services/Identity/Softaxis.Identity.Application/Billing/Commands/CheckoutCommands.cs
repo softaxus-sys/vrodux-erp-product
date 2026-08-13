@@ -35,7 +35,7 @@ public sealed class CreateCheckoutSessionCommandHandler(
     ITenantRepository             tenantRepo,
     ISubscriptionRepository       subRepo,
     IEnumerable<IBillingProvider> providers,
-    IOptions<BillingOptions>      options,
+    IOptionsSnapshot<BillingOptions>      options,
     IUnitOfWork                   uow)
     : ICommandHandler<CreateCheckoutSessionCommand, CheckoutSessionDto>
 {
@@ -110,7 +110,7 @@ public sealed class CreatePortalSessionCommandHandler(
     ITenantContext                tenantCtx,
     ISubscriptionRepository       subRepo,
     IEnumerable<IBillingProvider> providers,
-    IOptions<BillingOptions>      options)
+    IOptionsSnapshot<BillingOptions>      options)
     : ICommandHandler<CreatePortalSessionCommand, CheckoutSessionDto>
 {
     public async Task<Result<CheckoutSessionDto>> Handle(CreatePortalSessionCommand cmd, CancellationToken ct)

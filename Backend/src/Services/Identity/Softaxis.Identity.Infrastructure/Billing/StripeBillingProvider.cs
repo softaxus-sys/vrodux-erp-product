@@ -20,7 +20,7 @@ namespace Softaxis.Identity.Infrastructure.Billing;
 /// </para>
 /// </summary>
 internal sealed class StripeBillingProvider(
-    IOptions<BillingOptions> options,
+    IOptionsSnapshot<BillingOptions> options,
     ILogger<StripeBillingProvider> logger) : IBillingProvider
 {
     private readonly BillingOptions _billing = options.Value;

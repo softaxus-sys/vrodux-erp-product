@@ -24,7 +24,7 @@ internal sealed class HandlePayPalWebhookCommandHandler(
     ISubscriptionAccessCache      accessCache,
     IEnumerable<IBillingProvider> providers,
     IUnitOfWork                   uow,
-    IOptions<BillingOptions>      options,
+    IOptionsSnapshot<BillingOptions>      options,
     ILogger<HandlePayPalWebhookCommandHandler> logger)
     : ICommandHandler<HandlePayPalWebhookCommand>
 {

@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.Billing;
@@ -53,6 +54,15 @@ public static class InfrastructureExtensions
 
         // ── Billing ───────────────────────────────────────────────────────────
         services.Configure<BillingOptions>(configuration.GetSection(BillingOptions.SectionName));
+
+        // Super-admin-managed half of the billing config (enabled flags, price/plan ids, sandbox,
+        // currency) overlaid on top of the environment. Registered as a post-configure so every
+        // IOptionsSnapshot<BillingOptions> consumer picks it up without opting in — secrets are
+        // untouched and still come only from env. Consumers MUST use IOptionsSnapshot, not
+        // IOptions, or they would freeze the config at first resolution.
+        services.AddScoped<IBillingSettingsStore, BillingSettingsStore>();
+        services.AddSingleton<IPostConfigureOptions<BillingOptions>, BillingOptionsDbOverlay>();
+
         services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
 
         // Registered as a collection so handlers can pick by PaymentProvider and so the billing

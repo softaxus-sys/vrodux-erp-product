@@ -25,6 +25,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<Subscription>        Subscriptions        => Set<Subscription>();
     public DbSet<SubscriptionInvoice> SubscriptionInvoices => Set<SubscriptionInvoice>();
     public DbSet<BillingWebhookEvent> BillingWebhookEvents => Set<BillingWebhookEvent>();
+    /// <summary>Single-row platform billing config (no secrets — those stay in env).</summary>
+    public DbSet<BillingSettings>     BillingSettings      => Set<BillingSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -24,7 +24,7 @@ namespace Softaxis.Identity.Infrastructure.Billing;
 /// </summary>
 internal sealed class PayPalBillingProvider(
     IHttpClientFactory httpClientFactory,
-    IOptions<BillingOptions> options,
+    IOptionsSnapshot<BillingOptions> options,
     ILogger<PayPalBillingProvider> logger) : IBillingProvider
 {
     public const string HttpClientName = "paypal-billing";

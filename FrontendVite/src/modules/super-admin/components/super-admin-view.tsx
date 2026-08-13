@@ -6,7 +6,7 @@ import {
   Building2, Plus, Search, Users, Server, Cloud,
   ShieldCheck, AlertTriangle, ChevronRight, RefreshCw,
   Loader2, MoreVertical, Key, Link, Trash2, Ban,
-  CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn,
+  CheckCircle, Clock, X, Edit, Copy, ExternalLink, LogIn, CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,6 +266,10 @@ export function SuperAdminView() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/super-admin/billing")}>
+              <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+              Billing Setup
+            </Button>
             <Button variant="outline" size="sm" onClick={() => navigate("/settings/security")}>
               <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
               Security (2FA)

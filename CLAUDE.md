@@ -3465,6 +3465,69 @@ takes effect on the next request instead of up to 60 s later.
 
 ---
 
+## Module 22 — Billing: super-admin config screen (hybrid — secrets stay in env)
+
+**Stripe/PayPal could only be configured by SSH-ing to the server and redeploying.** Module 20 shipped the
+billing code but every knob lived in `Billing__*` env vars — rotating a key, flipping sandbox→live, or pasting
+the 12 price/plan ids meant editing `/opt/vrodux/shared/.env` and restarting. Worse, the compose file never
+mapped those vars in at all (fixed in the same pass), so the deployed gateway bound an **empty**
+`BillingOptions`: both providers reported `IsConfigured == false`, and a "Buy Now" signup landed on the billing
+page with no checkout to open.
+
+### The split — and why it isn't "all of it in the UI"
+Secrets (`Stripe:SecretKey`, `PayPal:ClientId`/`ClientSecret`, both webhook signing secrets) **stay in
+environment variables**. A live payment secret in the app DB turns any DB read, injection bug or leaked backup
+into "can charge cards as us" — the operational half doesn't carry that risk. So the new
+`BillingSettings` row holds only: per-provider `Enabled`, `PayPalUseSandbox`, `Currency`, and the Stripe
+price / PayPal plan id maps. The screen reports **whether** each env secret is present so an admin can tell
+"turned off" from "turned on but missing credentials", but never reads a secret back, not even masked.
+
+A provider is usable only when **enabled AND its secret exists AND it has ≥1 id** — the same test the checkout
+path applies, so the screen can never report "ready" for something that would fail at checkout.
+
+### Backend (Identity)
+- `Domain/Entities/BillingSettings.cs` — single row on a well-known `SingletonId` (find-or-create, no "which
+  row is current?" ambiguity). Blank ids are dropped rather than stored empty. Migration `AddBillingSettings`
+  (one additive table, no data rewrite).
+- `BillingSettingsConfiguration` — id maps stored as JSON. **Gotcha:** the `HasConversion` needs an explicit
+  `ValueComparer`, or EF compares dictionaries by reference, never detects an in-place edit, and a save
+  silently does nothing.
+- **`BillingOptionsDbOverlay : IPostConfigureOptions<BillingOptions>`** — overlays the row on the env-bound
+  options. Registered as a post-configure step (not a service callers opt into) so **every** consumer — both
+  providers, the checkout handlers, the webhook handlers, anything added later — picks it up automatically;
+  a separate "config service" would be silently missed by whoever forgot to use it. Reads through
+  `IMemoryCache` (5-min backstop TTL, dropped on save) so the DB is hit at most once per TTL, and falls back
+  to env on any exception — options are built during startup paths too, before migrations have run on a fresh
+  DB, and throwing there would take down every billing request.
+- ⚠️ **All 6 consumers switched from `IOptions<BillingOptions>` to `IOptionsSnapshot`.** `IOptions` resolves
+  once per process, so it would freeze the config at first use and ignore every later save. Anything new that
+  reads `BillingOptions` must use `IOptionsSnapshot` for the same reason.
+- `GetBillingConfigQuery` / `UpdateBillingConfigCommand` + `BillingAdminController` at
+  `/api/admin/billing-config` (`SuperAdminOnly` policy). The update response is rebuilt from the freshly-saved
+  row rather than echoing the request — `options.Value` was built for the scope *before* the save, so it's
+  stale by then.
+- Stored in a dedicated `billing_settings` table, **not** `app_settings`: that table is global (no TenantId)
+  and readable by any tenant admin through `GET /api/settings`, which would leak the platform's price ids.
+
+### Frontend
+- `lib/admin/billing-config.api.ts` — DTOs + `BILLABLE_PLANS`/`BILLING_CADENCES`/`idKey` (must stay in lockstep
+  with the backend's `"Micro:Monthly"` key format). **Note the JSON casing:** `PayPal` camel-cases to
+  `payPal`, not `paypal`.
+- `modules/super-admin/components/billing-config-view.tsx` + `/super-admin/billing` route (inside the existing
+  `RoleGuard roles={["super_admin"]}`) + a **Billing Setup** button in the console header. Per-provider status
+  pill states the *specific* gap ("Disabled" / "Missing credentials" / "No price IDs"), a 3×2 id grid per
+  provider, the exact webhook URL to register, the env var names for the secrets, and a prominent warning when
+  **no** provider is usable — the state that silently breaks "Buy Now".
+
+### Build / Verification Status
+- **Full ApiGateway:** 0 errors ✅ · **Frontend `tsc` (touched files) + `vite build`:** 0 errors ✅
+- Migration `AddBillingSettings` created (auto-applies on startup).
+- **Pending:** deploy, then put the real secrets in `/opt/vrodux/shared/.env`, restart the api container, and
+  fill in the price/plan ids from Super Admin → Billing Setup. Then E2E: pricing-page "Buy Now" → signup →
+  checkout opens → webhook activates the tenant.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅
