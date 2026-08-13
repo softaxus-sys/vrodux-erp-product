@@ -43,6 +43,15 @@ public sealed class RefreshTokenCommandHandler(
             ? await tenantRepo.GetByIdAsync(user.TenantId.Value, ct)
             : null;
 
+        // Same guard as login: a tenant-bound user whose tenant has been deleted must not get a
+        // fresh token. Without this, deleting a tenant would only take effect when the current
+        // access token expired — and the refresh would then mint a tenant-less token that bypasses
+        // subscription enforcement entirely. Refusing here ends the session at the next refresh.
+        if (user.TenantId.HasValue && tenant is null)
+            return Result.Failure<AuthTokenDto>(Error.Custom(
+                "Auth.Refresh.Failed",
+                "This workspace is no longer available. Please contact your administrator."));
+
         var permKeys    = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
         var accessToken = jwtService.GenerateAccessToken(user, permKeys, tenant);
 

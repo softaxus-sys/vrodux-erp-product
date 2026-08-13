@@ -37,6 +37,8 @@ export interface TenantDto {
   /** Resolved module list: custom override if set, else plan defaults. */
   resolvedModules: string[];
   createdAt: string;
+  /** Only populated for tenants listed from the recycle bin; null on a live tenant. */
+  deletedAt?: string | null;
 }
 
 /** Pass null to reset to plan defaults. */
@@ -151,8 +153,21 @@ export const tenantsAdminApi = {
   setModules: (id: string, req: SetModulesRequest): Promise<TenantDto> =>
     apiClient.patch(`${BASE}/${id}/modules`, req),
 
+  /** Soft delete — recoverable from the recycle bin below. */
   delete: (id: string): Promise<void> =>
     apiClient.delete(`${BASE}/${id}`),
+
+  // ── Recycle bin ──────────────────────────────────────────────────────────
+  /** Soft-deleted tenants. Their data is intact; they're just hidden and blocked from login. */
+  getDeleted: (): Promise<TenantDto[]> =>
+    apiClient.get(`${BASE}/deleted`),
+
+  restore: (id: string): Promise<void> =>
+    apiClient.post(`${BASE}/${id}/restore`, {}),
+
+  /** Irreversible. Only valid for a tenant already in the recycle bin. */
+  purge: (id: string): Promise<void> =>
+    apiClient.delete(`${BASE}/${id}/purge`),
 
   /** Super-admin: get a tenant-scoped token to view/operate the app AS this tenant. */
   impersonate: (id: string): Promise<ImpersonationResult> =>

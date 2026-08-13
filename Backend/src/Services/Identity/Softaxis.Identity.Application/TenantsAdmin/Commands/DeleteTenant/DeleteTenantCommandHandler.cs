@@ -5,7 +5,10 @@ using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Application.TenantsAdmin.Commands.DeleteTenant;
 
-public sealed class DeleteTenantCommandHandler(ITenantRepository tenantRepo, IUnitOfWork uow)
+public sealed class DeleteTenantCommandHandler(
+    ITenantRepository        tenantRepo,
+    ISubscriptionAccessCache accessCache,
+    IUnitOfWork              uow)
     : ICommandHandler<DeleteTenantCommand>
 {
     public async Task<Result> Handle(DeleteTenantCommand cmd, CancellationToken ct)
@@ -16,6 +19,11 @@ public sealed class DeleteTenantCommandHandler(ITenantRepository tenantRepo, IUn
 
         tenantRepo.Remove(tenant);
         await uow.SaveChangesAsync(ct);
+
+        // SubscriptionEnforcementMiddleware caches its per-tenant decision for 60s, so without
+        // this an already-signed-in user of the deleted tenant keeps working for up to a minute.
+        // Dropping the entry makes the next request re-evaluate and block on TENANT_NOT_FOUND.
+        accessCache.Invalidate(tenant.Id);
 
         return Result.Success();
     }

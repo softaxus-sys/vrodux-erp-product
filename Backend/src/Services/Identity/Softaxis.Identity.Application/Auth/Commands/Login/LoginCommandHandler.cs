@@ -59,6 +59,17 @@ public sealed class LoginCommandHandler(
             ? await tenantRepo.GetByIdAsync(user.TenantId.Value, ct)
             : null;
 
+        // A user bound to a tenant MUST resolve to a live one. Deleting a tenant soft-deletes it
+        // (BaseDbContext turns Remove into IsDeleted = true) and the query filter then hides it —
+        // so without this check the login succeeded with tenant = null, which is strictly WORSE
+        // than blocking: the token carries no tenant_id/modules/subscription_state claims, so
+        // SubscriptionEnforcementMiddleware waves it straight through and the frontend falls back
+        // to a full module list. Deleted tenants' users would get an unrestricted-looking session.
+        // Super admins legitimately have no TenantId, hence the HasValue guard.
+        if (user.TenantId.HasValue && tenant is null)
+            return Fail(user.Id, cmd, false,
+                "This workspace is no longer available. Please contact your administrator.");
+
         // Issue tokens
         var permKeys = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
         var rawRefresh = jwtService.GenerateRefreshTokenRaw();

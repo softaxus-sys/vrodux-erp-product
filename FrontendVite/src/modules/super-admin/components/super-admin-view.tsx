@@ -20,6 +20,7 @@ import {
   type TenantStatus,
   planLimits,
 } from "@/lib/admin/tenants.api";
+import { DeletedTenantsPanel, useDeletedTenantCount } from "./deleted-tenants-panel";
 
 // ── Status / plan config ──────────────────────────────────────────────────────
 
@@ -193,6 +194,12 @@ export function SuperAdminView() {
   const enterImpersonation = useAuthStore((s) => s.enterImpersonation);
   const [entering, setEntering] = React.useState<string | null>(null);
 
+  // Recycle bin. `binVersion` bumps whenever the bin's contents could have changed (a delete
+  // here, or a restore/purge inside the panel) so the badge count refetches.
+  const [binOpen, setBinOpen]         = React.useState(false);
+  const [binVersion, setBinVersion]   = React.useState(0);
+  const deletedCount = useDeletedTenantCount(binVersion);
+
   const handleEnter = React.useCallback(async (t: TenantDto) => {
     try {
       setEntering(t.id);
@@ -262,6 +269,15 @@ export function SuperAdminView() {
             <Button variant="outline" size="sm" onClick={() => navigate("/settings/security")}>
               <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
               Security (2FA)
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setBinOpen(true)}>
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              Recycle bin
+              {deletedCount > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-muted text-[10px] font-semibold">
+                  {deletedCount}
+                </span>
+              )}
             </Button>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", loading && "animate-spin")} />
@@ -365,6 +381,13 @@ export function SuperAdminView() {
           </motion.div>
         )}
       </div>
+
+      <DeletedTenantsPanel
+        open={binOpen}
+        // Closing re-reads the count: a purge inside the panel changes it without a restore.
+        onClose={() => { setBinOpen(false); setBinVersion(v => v + 1); }}
+        onRestored={() => { load(); setBinVersion(v => v + 1); }}
+      />
     </div>
   );
 }

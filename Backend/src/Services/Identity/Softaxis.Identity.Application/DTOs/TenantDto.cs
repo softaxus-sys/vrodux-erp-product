@@ -20,7 +20,10 @@ public sealed record TenantDto(
     int                     MaxUsers,
     int                     MaxWarehouses,
     IReadOnlyList<string>   ResolvedModules,
-    DateTime                CreatedAt);
+    DateTime                CreatedAt,
+    // Only ever set for tenants read out of the recycle bin — every other query filters
+    // soft-deleted rows out, so this is null on a live tenant.
+    DateTime?               DeletedAt = null);
 
 public sealed record CreateTenantRequest(
     string  Name,

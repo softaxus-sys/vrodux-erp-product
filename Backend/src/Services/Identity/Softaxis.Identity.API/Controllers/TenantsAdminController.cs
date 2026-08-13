@@ -9,6 +9,7 @@ using Softaxis.Identity.Application.TenantsAdmin.Commands.ChangeTenantPlan;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.CreateTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.DeleteTenant;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.ExpireTenant;
+using Softaxis.Identity.Application.TenantsAdmin.Commands.RecycleBin;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.GenerateTenantLicense;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.RenewTenantSubscription;
 using Softaxis.Identity.Application.TenantsAdmin.Commands.SetTenantConnectionStrings;
@@ -120,8 +121,27 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     public async Task<IActionResult> SetIndustry(Guid id, [FromBody] SetIndustryRequest req, CancellationToken ct)
         => HandleResult(await Sender.Send(new SetTenantIndustryCommand(id, req.Industry), ct));
 
-    // DELETE /api/admin/tenants/{id}
+    // DELETE /api/admin/tenants/{id} — soft delete; recoverable from the recycle bin below.
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => HandleResult(await Sender.Send(new DeleteTenantCommand(id), ct));
+
+    // ── Recycle bin ──────────────────────────────────────────────────────────
+    // Deleting a tenant only sets IsDeleted, and the global query filter then hides it. Without
+    // these, a deleted tenant was invisible and unrecoverable — while its data sat in the DB.
+
+    // GET /api/admin/tenants/deleted
+    [HttpGet("deleted")]
+    public async Task<IActionResult> GetDeleted(CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetDeletedTenantsQuery(), ct));
+
+    // POST /api/admin/tenants/{id}/restore
+    [HttpPost("{id:guid}/restore")]
+    public async Task<IActionResult> Restore(Guid id, CancellationToken ct)
+        => HandleResult(await Sender.Send(new RestoreTenantCommand(id), ct));
+
+    // DELETE /api/admin/tenants/{id}/purge — irreversible; only valid from the recycle bin.
+    [HttpDelete("{id:guid}/purge")]
+    public async Task<IActionResult> Purge(Guid id, CancellationToken ct)
+        => HandleResult(await Sender.Send(new PurgeTenantCommand(id), ct));
 }

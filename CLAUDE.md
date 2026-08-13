@@ -3410,6 +3410,61 @@ whole and read `.Value` in memory.
 
 ---
 
+## Module 21 — Identity: Tenant recycle bin + deleted-tenant login guard
+
+**Deleting a tenant was a one-way trip into invisibility.** `DELETE /api/admin/tenants/{id}` calls
+`tenantRepo.Remove` → `BaseDbContext` converts it to `IsDeleted = true` → `TenantConfiguration`'s query filter
+hides the row. There was no list of deleted tenants, no restore, and no permanent delete — the tenant and all
+its data simply sat in the DB, unreachable.
+
+### 🔴 The security half — a deleted tenant's users could still log in with a *less* restricted token
+`LoginCommandHandler`/`RefreshTokenCommandHandler` both resolve `tenant` via `GetByIdAsync` (filtered) and then
+happily continue with `tenant = null`. That is strictly worse than blocking: the issued JWT carries no
+`tenant_id`/modules/`subscription_state` claims, so `SubscriptionEnforcementMiddleware` (which no-ops when
+`tenantCtx.TenantId` is null) waves it straight through and the frontend falls back to a full module list.
+**Fix:** both handlers now fail when `user.TenantId.HasValue && tenant is null` ("This workspace is no longer
+available…"). The `HasValue` guard is what keeps super admins (legitimately tenant-less) working. Sessions
+already in flight are covered separately: the middleware's `GetByIdAsync` returns null for a soft-deleted
+tenant → `TENANT_NOT_FOUND` block, and `DeleteTenantCommandHandler` now calls `accessCache.Invalidate` so that
+takes effect on the next request instead of up to 60 s later.
+
+### Recycle bin (CQRS, `TenantsAdmin/Commands/RecycleBin/RecycleBinCommands.cs`)
+- `GetDeletedTenantsQuery` → `GET /api/admin/tenants/deleted`; `RestoreTenantCommand` →
+  `POST .../{id}/restore` (clears `IsDeleted`/`DeletedAt`/`DeletedBy`, invalidates the access cache so its users
+  can log in again immediately); `PurgeTenantCommand` → `DELETE .../{id}/purge`.
+- **Purge is only reachable for a tenant already in the recycle bin** (`Tenant.NotDeleted` otherwise) — so
+  permanent loss always takes two deliberate actions, never one stray click.
+- Repository gained `GetDeletedAsync` / `GetByIdIncludingDeletedAsync` (both need `IgnoreQueryFilters()` — the
+  filter hides exactly the rows they exist to read) and `HardDeleteAsync`.
+- **`HardDeleteAsync` gotcha:** `users.TenantId` is a real FK with `ON DELETE RESTRICT`, so deleting the tenant
+  row alone **always** fails with an FK violation (every tenant has an admin user). It deletes, in one
+  transaction: `audit_logs` → `subscription_invoices` → `subscriptions` → `users` (cascades refresh_tokens /
+  user_roles / user_permissions) → `roles` (cascades role_permissions; legacy global `TenantId IS NULL` roles
+  untouched) → `tenants`. Raw SQL is unavoidable — `BaseDbContext` turns any `EntityState.Deleted` back into a
+  soft delete — so it commits on its own and the handler does **not** call `SaveChangesAsync`.
+- **Scope:** purge clears the tenant's *identity* records only. Business rows in the other module schemas
+  (crm/hr/finance/…) are keyed by a shadow `TenantId` with no cross-schema FK and are left in place —
+  unreachable, not deleted. Wiping those is a DBA operation. The confirm dialog says what it actually removes.
+
+### Frontend
+- `tenants.api.ts` — `getDeleted` / `restore` / `purge`; `TenantDto.deletedAt` (backend `TenantDto` gained a
+  trailing optional `DeletedAt`, populated by `TenantMappings`; null on every live tenant since every other
+  query filters soft-deleted rows out).
+- `modules/super-admin/components/deleted-tenants-panel.tsx` — slide-over listing deleted tenants (plan,
+  contact, deleted date) with Restore, plus a permanent-delete modal that **requires typing the tenant name**.
+- `super-admin-view.tsx` — header "Recycle bin" button with a count badge (`useDeletedTenantCount(binVersion)`;
+  `binVersion` bumps on restore and on panel close, since a purge changes the count without a restore).
+
+### Build / Verification Status
+- **Full ApiGateway:** 0 errors ✅ (pre-existing SmtpEmailService warnings only) · **`vite build`:** ✅
+  (`tsc -p tsconfig.app.json` errors are all pre-existing files — none in the ones touched here).
+- **No migration** — uses the existing `AuditableEntity` soft-delete columns.
+- **Pending (republish + restart):** delete a tenant → it disappears from the list, appears in the bin, its
+  users can no longer log in or refresh; restore → it returns and login works again; purge → name-confirm,
+  tenant + its users/roles/billing rows gone, no FK error.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅
