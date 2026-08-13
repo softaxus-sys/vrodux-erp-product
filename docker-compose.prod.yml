@@ -164,6 +164,36 @@ services:
       Meta__AppSecret: "${META_APP_SECRET:-}"
       Meta__VerifyToken: "${META_VERIFY_TOKEN:-vrodux-meta-verify}"
       Meta__GraphVersion: "${META_GRAPH_VERSION:-v21.0}"
+
+      # ── Billing / Subscriptions (Vrodux's OWN Stripe + PayPal accounts) ──────
+      # Platform credentials, not per-tenant. Set them in /opt/vrodux/shared/.env;
+      # each provider stays disabled (and is hidden from the billing UI) until its
+      # Enabled flag is true AND its credentials are present.
+      Billing__PublicBaseUrl: "https://${DOMAIN}"
+      Billing__Currency: "${BILLING_CURRENCY:-USD}"
+
+      Billing__Stripe__Enabled: "${STRIPE_ENABLED:-false}"
+      Billing__Stripe__SecretKey: "${STRIPE_SECRET_KEY:-}"
+      Billing__Stripe__PublishableKey: "${STRIPE_PUBLISHABLE_KEY:-}"
+      Billing__Stripe__WebhookSecret: "${STRIPE_WEBHOOK_SECRET:-}"
+      Billing__Stripe__Prices__Micro__Monthly: "${STRIPE_PRICE_MICRO_MONTHLY:-}"
+      Billing__Stripe__Prices__Micro__Annual: "${STRIPE_PRICE_MICRO_ANNUAL:-}"
+      Billing__Stripe__Prices__Starter__Monthly: "${STRIPE_PRICE_STARTER_MONTHLY:-}"
+      Billing__Stripe__Prices__Starter__Annual: "${STRIPE_PRICE_STARTER_ANNUAL:-}"
+      Billing__Stripe__Prices__Professional__Monthly: "${STRIPE_PRICE_PRO_MONTHLY:-}"
+      Billing__Stripe__Prices__Professional__Annual: "${STRIPE_PRICE_PRO_ANNUAL:-}"
+
+      Billing__PayPal__Enabled: "${PAYPAL_ENABLED:-false}"
+      Billing__PayPal__ClientId: "${PAYPAL_CLIENT_ID:-}"
+      Billing__PayPal__ClientSecret: "${PAYPAL_CLIENT_SECRET:-}"
+      Billing__PayPal__WebhookId: "${PAYPAL_WEBHOOK_ID:-}"
+      Billing__PayPal__UseSandbox: "${PAYPAL_USE_SANDBOX:-true}"
+      Billing__PayPal__Plans__Micro__Monthly: "${PAYPAL_PLAN_MICRO_MONTHLY:-}"
+      Billing__PayPal__Plans__Micro__Annual: "${PAYPAL_PLAN_MICRO_ANNUAL:-}"
+      Billing__PayPal__Plans__Starter__Monthly: "${PAYPAL_PLAN_STARTER_MONTHLY:-}"
+      Billing__PayPal__Plans__Starter__Annual: "${PAYPAL_PLAN_STARTER_ANNUAL:-}"
+      Billing__PayPal__Plans__Professional__Monthly: "${PAYPAL_PLAN_PRO_MONTHLY:-}"
+      Billing__PayPal__Plans__Professional__Annual: "${PAYPAL_PLAN_PRO_ANNUAL:-}"
     ports:
       - "127.0.0.1:8080:8080"
     networks:
