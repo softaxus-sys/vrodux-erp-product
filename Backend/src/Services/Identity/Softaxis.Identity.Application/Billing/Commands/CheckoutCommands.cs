@@ -88,8 +88,17 @@ public sealed class CreateCheckoutSessionCommandHandler(
 
         await uow.SaveChangesAsync(ct);
 
-        var successUrl = $"{cfg.PublicBaseUrl.TrimEnd('/')}/billing/checkout/success?session={{CHECKOUT_SESSION_ID}}";
-        var cancelUrl  = $"{cfg.PublicBaseUrl.TrimEnd('/')}/billing/checkout/cancelled";
+        // {CHECKOUT_SESSION_ID} is a STRIPE template token — Stripe substitutes it on redirect.
+        // PayPal treats the braces as literal URL characters and rejects the entire request with
+        // INVALID_PARAMETER_SYNTAX on /application_context/return_url, so it must only ever be
+        // appended for Stripe. PayPal adds its own subscription_id/token params on return.
+        // The result page reads the outcome from the route and polls our API, so neither provider
+        // actually needs anything in the query string.
+        var successBase = $"{cfg.PublicBaseUrl.TrimEnd('/')}/billing/checkout/success";
+        var successUrl  = providerKind == PaymentProvider.Stripe
+            ? $"{successBase}?session={{CHECKOUT_SESSION_ID}}"
+            : successBase;
+        var cancelUrl   = $"{cfg.PublicBaseUrl.TrimEnd('/')}/billing/checkout/cancelled";
 
         var url = await provider.CreateCheckoutUrlAsync(tenant, plan, period, successUrl, cancelUrl, ct);
         if (url.IsFailure)
