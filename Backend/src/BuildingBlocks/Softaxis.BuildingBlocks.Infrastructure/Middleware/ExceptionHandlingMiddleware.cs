@@ -50,7 +50,7 @@ public sealed class ExceptionHandlingMiddleware(
 
         var problem = new
         {
-            type     = $"https://erp.softaxis.com/errors/{(int)status}",
+            type     = $"https://erp.vrodux.com/errors/{(int)status}",
             title,
             status   = (int)status,
             detail,

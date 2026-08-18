@@ -136,8 +136,8 @@ export default function SubscriptionExpiredPage() {
             <p className="text-xs font-semibold text-gray-600 mb-3">Contact Vrodux Support</p>
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Mail className="w-4 h-4 flex-shrink-0" />
-              <a href="mailto:support@softaxis.com" className="hover:underline">
-                support@softaxis.com
+              <a href="mailto:hello@softaxis.ae" className="hover:underline">
+                hello@softaxis.ae
               </a>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-600">

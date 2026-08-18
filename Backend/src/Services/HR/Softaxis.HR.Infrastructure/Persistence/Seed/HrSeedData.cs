@@ -85,21 +85,21 @@ public static class HrSeedData
 
         var emps = new[]
         {
-            (EmpAhmed,   "Ahmed",   "Al-Rashidi",  "ahmed.alrashidi@softaxis.com",  "+971-50-123-4567", "Chief Executive Officer",          DeptOps,       "full-time",  45000m, "2022-01-10", (Guid?)null,     "active"),
-            (EmpFatima,  "Fatima",  "Hassan",      "fatima.hassan@softaxis.com",    "+971-50-234-5678", "HR Manager",                        DeptHR,        "full-time",  18000m, "2022-03-01", (Guid?)EmpAhmed, "active"),
-            (EmpKhalid,  "Khalid",  "Al-Mansoori", "khalid.almansoori@softaxis.com","+971-55-345-6789", "IT Director",                       DeptIT,        "full-time",  22000m, "2022-02-15", (Guid?)EmpAhmed, "active"),
-            (EmpSarah,   "Sarah",   "Mitchell",    "sarah.mitchell@softaxis.com",   "+971-52-456-7890", "Finance Manager",                   DeptFinance,   "full-time",  20000m, "2022-04-01", (Guid?)EmpAhmed, "active"),
-            (EmpOmar,    "Omar",    "Abdullah",    "omar.abdullah@softaxis.com",    "+971-56-567-8901", "Sales Manager",                     DeptSales,     "full-time",  19000m, "2022-05-15", (Guid?)EmpAhmed, "active"),
-            (EmpLaila,   "Laila",   "Nasser",      "laila.nasser@softaxis.com",     "+971-54-678-9012", "Senior Software Engineer",          DeptIT,        "full-time",  16000m, "2022-06-01", (Guid?)EmpKhalid,"active"),
-            (EmpYusuf,   "Yusuf",   "Ibrahim",     "yusuf.ibrahim@softaxis.com",    "+971-58-789-0123", "Software Engineer",                 DeptIT,        "full-time",  13000m, "2023-01-15", (Guid?)EmpKhalid,"active"),
-            (EmpNour,    "Nour",    "Saeed",       "nour.saeed@softaxis.com",       "+971-50-890-1234", "HR Specialist",                     DeptHR,        "full-time",  10000m, "2023-03-01", (Guid?)EmpFatima,"active"),
-            (EmpRashid,  "Rashid",  "Al-Farsi",    "rashid.alfarsi@softaxis.com",   "+971-55-901-2345", "Senior Accountant",                 DeptFinance,   "full-time",  13500m, "2022-09-01", (Guid?)EmpSarah, "active"),
-            (EmpMaya,    "Maya",    "Patel",       "maya.patel@softaxis.com",       "+971-52-012-3456", "Marketing Manager",                 DeptMarketing, "full-time",  17000m, "2022-07-01", (Guid?)EmpAhmed, "active"),
-            (EmpTariq,   "Tariq",   "Al-Qasimi",   "tariq.alqasimi@softaxis.com",   "+971-56-123-4568", "Sales Executive",                   DeptSales,     "full-time",  10000m, "2023-02-01", (Guid?)EmpOmar,  "active"),
-            (EmpSamira,  "Samira",  "Hamed",       "samira.hamed@softaxis.com",     "+971-54-234-5679", "Operations Coordinator",            DeptOps,       "full-time",  11000m, "2023-04-15", (Guid?)EmpAhmed, "active"),
-            (EmpHassan,  "Hassan",  "Younis",      "hassan.younis@softaxis.com",    "+971-58-345-6790", "Legal Counsel",                     DeptLegal,     "full-time",  18500m, "2022-08-01", (Guid?)EmpAhmed, "active"),
-            (EmpZara,    "Zara",    "Al-Nuaimi",   "zara.alnuaimi@softaxis.com",    "+971-50-456-7891", "QA Engineer",                       DeptIT,        "contract",   9000m,  "2023-06-01", (Guid?)EmpKhalid,"active"),
-            (EmpKarim,   "Karim",   "Benali",      "karim.benali@softaxis.com",     "+971-55-567-8902", "Digital Marketing Specialist",      DeptMarketing, "full-time",  11500m, "2023-05-01", (Guid?)EmpMaya,  "active"),
+            (EmpAhmed,   "Ahmed",   "Al-Rashidi",  "ahmed.alrashidi@softaxis.ae",  "+971-50-123-4567", "Chief Executive Officer",          DeptOps,       "full-time",  45000m, "2022-01-10", (Guid?)null,     "active"),
+            (EmpFatima,  "Fatima",  "Hassan",      "fatima.hassan@softaxis.ae",    "+971-50-234-5678", "HR Manager",                        DeptHR,        "full-time",  18000m, "2022-03-01", (Guid?)EmpAhmed, "active"),
+            (EmpKhalid,  "Khalid",  "Al-Mansoori", "khalid.almansoori@softaxis.ae","+971-55-345-6789", "IT Director",                       DeptIT,        "full-time",  22000m, "2022-02-15", (Guid?)EmpAhmed, "active"),
+            (EmpSarah,   "Sarah",   "Mitchell",    "sarah.mitchell@softaxis.ae",   "+971-52-456-7890", "Finance Manager",                   DeptFinance,   "full-time",  20000m, "2022-04-01", (Guid?)EmpAhmed, "active"),
+            (EmpOmar,    "Omar",    "Abdullah",    "omar.abdullah@softaxis.ae",    "+971-56-567-8901", "Sales Manager",                     DeptSales,     "full-time",  19000m, "2022-05-15", (Guid?)EmpAhmed, "active"),
+            (EmpLaila,   "Laila",   "Nasser",      "laila.nasser@softaxis.ae",     "+971-54-678-9012", "Senior Software Engineer",          DeptIT,        "full-time",  16000m, "2022-06-01", (Guid?)EmpKhalid,"active"),
+            (EmpYusuf,   "Yusuf",   "Ibrahim",     "yusuf.ibrahim@softaxis.ae",    "+971-58-789-0123", "Software Engineer",                 DeptIT,        "full-time",  13000m, "2023-01-15", (Guid?)EmpKhalid,"active"),
+            (EmpNour,    "Nour",    "Saeed",       "nour.saeed@softaxis.ae",       "+971-50-890-1234", "HR Specialist",                     DeptHR,        "full-time",  10000m, "2023-03-01", (Guid?)EmpFatima,"active"),
+            (EmpRashid,  "Rashid",  "Al-Farsi",    "rashid.alfarsi@softaxis.ae",   "+971-55-901-2345", "Senior Accountant",                 DeptFinance,   "full-time",  13500m, "2022-09-01", (Guid?)EmpSarah, "active"),
+            (EmpMaya,    "Maya",    "Patel",       "maya.patel@softaxis.ae",       "+971-52-012-3456", "Marketing Manager",                 DeptMarketing, "full-time",  17000m, "2022-07-01", (Guid?)EmpAhmed, "active"),
+            (EmpTariq,   "Tariq",   "Al-Qasimi",   "tariq.alqasimi@softaxis.ae",   "+971-56-123-4568", "Sales Executive",                   DeptSales,     "full-time",  10000m, "2023-02-01", (Guid?)EmpOmar,  "active"),
+            (EmpSamira,  "Samira",  "Hamed",       "samira.hamed@softaxis.ae",     "+971-54-234-5679", "Operations Coordinator",            DeptOps,       "full-time",  11000m, "2023-04-15", (Guid?)EmpAhmed, "active"),
+            (EmpHassan,  "Hassan",  "Younis",      "hassan.younis@softaxis.ae",    "+971-58-345-6790", "Legal Counsel",                     DeptLegal,     "full-time",  18500m, "2022-08-01", (Guid?)EmpAhmed, "active"),
+            (EmpZara,    "Zara",    "Al-Nuaimi",   "zara.alnuaimi@softaxis.ae",    "+971-50-456-7891", "QA Engineer",                       DeptIT,        "contract",   9000m,  "2023-06-01", (Guid?)EmpKhalid,"active"),
+            (EmpKarim,   "Karim",   "Benali",      "karim.benali@softaxis.ae",     "+971-55-567-8902", "Digital Marketing Specialist",      DeptMarketing, "full-time",  11500m, "2023-05-01", (Guid?)EmpMaya,  "active"),
         };
 
         foreach (var (id, first, last, email, phone, title, dept, empType, salary, joinDate, managerId, status) in emps)
