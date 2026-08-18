@@ -102,13 +102,35 @@ const SUBSCRIPTION_CODES = new Set([
   "PAYMENT_REQUIRED",
 ]);
 
+/**
+ * Pages whose whole purpose is to RESOLVE a subscription block. Never navigate away from
+ * these on a subscription error.
+ *
+ * The ERP shell fires non-exempt calls on every authenticated page load (ErpLayout ->
+ * useTenantBootstrap -> GET /api/app-settings/regional), and the enforcement middleware only
+ * exempts /api/auth, /api/license, /api/billing and /api/tenant-settings. Without this guard a
+ * blocked tenant bounces billing -> /subscription-expired -> billing forever and can never pay.
+ */
+const BILLING_RECOVERY_PATHS = [
+  "/subscription-expired",
+  "/settings/billing",
+  "/billing/checkout",
+];
+
 function handleSubscriptionError(errorCode: string | null, message: string | null): void {
   if (!errorCode || !SUBSCRIPTION_CODES.has(errorCode)) return;
-  // Persist for the error page to read, then hard-navigate
+  // Persist for the error page to read
   sessionStorage.setItem(
     "sub_error",
     JSON.stringify({ code: errorCode, message: message ?? "Subscription error." })
   );
+
+  const path = window.location.pathname;
+  if (BILLING_RECOVERY_PATHS.some(p => path === p || path.startsWith(p + "/") || path.startsWith(p + "?"))) {
+    // Already somewhere the user can fix this — let the individual call fail quietly.
+    return;
+  }
+
   window.location.replace("/subscription-expired");
 }
 
