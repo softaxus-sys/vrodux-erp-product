@@ -45,6 +45,11 @@ export function BillingSettingsView() {
   const [confirmCancel, setConfirmCancel] = React.useState(false);
   const [provider, setProvider] = React.useState<PaymentProviderName | null>(null);
 
+  /** Plan carried over from a "Buy Now" signup, awaiting a payment-method choice. */
+  const [pendingBuy, setPendingBuy] = React.useState<
+    { planName: string; planLabel: string; period: Period; amount: number | null } | null
+  >(null);
+
   // Pre-select the cadence and provider the tenant already chose, so the page opens on the
   // choice they've effectively already made.
   React.useEffect(() => {
@@ -56,14 +61,15 @@ export function BillingSettingsView() {
   }, [overview?.availableProviders, provider]);
 
   // ── Complete a "Buy Now" signup ────────────────────────────────────────────
-  // The user clicked Buy on the pricing page and was sent straight here after signup. Rather than
-  // making them re-pick the plan they already chose, open the provider's checkout for it directly.
-  // Guarded by a ref so React 18 StrictMode's double-effect can't fire checkout twice, and the
-  // marker is cleared before the call so a failed payment doesn't loop on every re-render.
+  // The user clicked Buy on the pricing page and was sent straight here after signup. We carry
+  // their plan over so they don't re-pick it, but we do NOT launch checkout for them: which
+  // provider to pay with is their call, and silently redirecting to whichever one happens to be
+  // first in the list takes that choice away. Staged here, confirmed by "Continue to payment".
+  // Guarded by a ref so React 18 StrictMode's double-effect can't stage it twice.
   const autoCheckoutFired = React.useRef(false);
   React.useEffect(() => {
     if (autoCheckoutFired.current) return;
-    if (!overview || !provider) return;
+    if (!overview) return;
 
     let pending: { plan?: string; billing?: string } | null = null;
     try {
@@ -85,8 +91,13 @@ export function BillingSettingsView() {
     );
     if (!target?.selfServe || overview.hasProductAccess) return;
 
-    checkout.mutate({ plan: target.name, billingPeriod: wantedPeriod, provider });
-  }, [overview, provider, checkout]);
+    setPendingBuy({
+      planName:  target.name,
+      planLabel: target.label,
+      period:    wantedPeriod,
+      amount:    cycleAmount(target, wantedPeriod),
+    });
+  }, [overview]);
 
   if (isLoading || !overview) {
     return (
@@ -245,6 +256,60 @@ export function BillingSettingsView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Carried over from a "Buy Now" signup — confirm the payment method before leaving the app. */}
+      {pendingBuy && !overview.hasProductAccess && !noProviders && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">Complete your purchase</p>
+                <p className="text-sm text-muted-foreground">
+                  {pendingBuy.planLabel} · {pendingBuy.period === "Annual" ? "billed yearly" : "billed monthly"}
+                  {pendingBuy.amount !== null && <> · {formatUsd(pendingBuy.amount)}</>}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" aria-label="Dismiss"
+                onClick={() => setPendingBuy(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium mb-2">Choose how you'd like to pay</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {overview.availableProviders.filter(p => p !== "Manual").map(p => (
+                  <button key={p} type="button" onClick={() => setProvider(p)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors",
+                      provider === p
+                        ? "border-primary bg-background shadow-sm"
+                        : "border-input hover:bg-muted/50",
+                    )}>
+                    <span className={cn(
+                      "h-4 w-4 rounded-full border flex items-center justify-center shrink-0",
+                      provider === p ? "border-primary" : "border-muted-foreground/40")}>
+                      {provider === p && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </span>
+                    <span className="text-sm font-medium">
+                      {p === "Stripe" ? "Credit or debit card" : "PayPal"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button disabled={!provider || checkout.isPending}
+              onClick={() => provider && checkout.mutate({
+                plan: pendingBuy.planName, billingPeriod: pendingBuy.period, provider,
+              })}>
+              {checkout.isPending
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Opening checkout…</>
+                : <>Continue to payment</>}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* No provider configured — tell an admin what to do rather than showing dead buttons. */}
       {noProviders && (
