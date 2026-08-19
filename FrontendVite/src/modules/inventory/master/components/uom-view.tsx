@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Search, Pencil, Trash2, Ruler, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ interface UoMDialogProps {
 }
 
 function UoMDialog({ open, onClose, editing }: UoMDialogProps) {
+  const { t } = useTranslation("inventory");
   const [name, setName]         = React.useState("");
   const [symbol, setSymbol]     = React.useState("");
   const [description, setDesc]  = React.useState("");
@@ -63,34 +65,34 @@ function UoMDialog({ open, onClose, editing }: UoMDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="text-base font-bold">{editing ? "Edit Unit" : "New Unit of Measure"}</h2>
+        <h2 className="text-base font-bold">{editing ? t("uom.editTitle") : t("uom.newTitle")}</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name *</label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Kilogram" required className="h-9 text-sm" />
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("master.name")}</label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("uom.namePlaceholder")} required className="h-9 text-sm" />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Symbol *</label>
-              <Input value={symbol} onChange={e => setSymbol(e.target.value)} placeholder="kg" required className="h-9 text-sm font-mono" />
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("uom.symbol")}</label>
+              <Input value={symbol} onChange={e => setSymbol(e.target.value)} placeholder={t("uom.symbolPlaceholder")} required className="h-9 text-sm font-mono" />
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("master.description")}</label>
             <textarea value={description} onChange={e => setDesc(e.target.value)} rows={2}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Optional description…" />
+              placeholder={t("master.optionalDescription")} />
           </div>
           {editing && (
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="rounded" />
-              <span className="text-sm">Active</span>
+              <span className="text-sm">{t("master.active")}</span>
             </label>
           )}
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>{t("master.cancel")}</Button>
             <Button type="submit" disabled={!name.trim() || !symbol.trim() || isPending}>
-              {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</> : (editing ? "Save Changes" : "Create")}
+              {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{t("master.saving")}</> : (editing ? t("master.saveChanges") : t("master.create"))}
             </Button>
           </div>
         </form>
@@ -102,6 +104,7 @@ function UoMDialog({ open, onClose, editing }: UoMDialogProps) {
 // ── Main View ─────────────────────────────────────────────────────────────────
 
 export function UoMView() {
+  const { t } = useTranslation("inventory");
   const [search, setSearch]     = React.useState("");
   const [dialogOpen, setDialog] = React.useState(false);
   const [editing, setEditing]   = React.useState<UnitOfMeasureDto | null>(null);
@@ -115,7 +118,7 @@ export function UoMView() {
   const handleCreate = () => { setEditing(null); setDialog(true); };
   const handleDelete = (u: UnitOfMeasureDto) => {
     if (u.productCount > 0) {
-      toast.error("Cannot delete a unit assigned to products.");
+      toast.error(t("uom.cannotDelete"));
       return;
     }
     setPendingDelete(u);
@@ -133,13 +136,13 @@ export function UoMView() {
         <div className="flex items-center gap-2">
           <Ruler className="w-5 h-5 text-primary" />
           <div>
-            <h1 className="text-lg font-bold">Units of Measure</h1>
-            <p className="text-xs text-muted-foreground">Measurement units for inventory items</p>
+            <h1 className="text-lg font-bold">{t("uom.title")}</h1>
+            <p className="text-xs text-muted-foreground">{t("uom.subtitle")}</p>
           </div>
         </div>
         <Can permission="inventory.stock.create">
           <Button size="sm" onClick={handleCreate}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Unit
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("uom.newUnit")}
           </Button>
         </Can>
       </div>
@@ -147,24 +150,24 @@ export function UoMView() {
       {/* Search */}
       <div className="relative w-72">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search units…" className="pl-8 h-9 text-sm" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("uom.search")} className="pl-8 h-9 text-sm" />
       </div>
 
       {/* Table */}
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       ) : uoms.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">No units found. Create the first one.</div>
+        <div className="text-center py-16 text-muted-foreground text-sm">{t("uom.empty")}</div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/30">
               <tr>
-                <th className="text-left px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">Name</th>
-                <th className="text-left px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">Symbol</th>
-                <th className="text-left px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">Description</th>
-                <th className="text-center px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">Products</th>
-                <th className="text-center px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="text-left px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">{t("uom.colName")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">{t("uom.colSymbol")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">{t("master.description")}</th>
+                <th className="text-center px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">{t("master.products")}</th>
+                <th className="text-center px-4 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wide">{t("master.status")}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -177,7 +180,7 @@ export function UoMView() {
                   <td className="px-4 py-3 text-center text-muted-foreground">{u.productCount}</td>
                   <td className="px-4 py-3 text-center">
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${u.isActive ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                      {u.isActive ? "Active" : "Inactive"}
+                      {u.isActive ? t("master.active") : t("master.inactive")}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -197,7 +200,7 @@ export function UoMView() {
         page={pg.page} totalPages={pg.totalPages} totalCount={pg.totalCount}
         hasPrev={pg.hasPrev} hasNext={pg.hasNext}
         onPrev={() => pg.setPage(p => p - 1)} onNext={() => pg.setPage(p => p + 1)}
-        label="units"
+        label={t("uom.label")}
       />
 
       <UoMDialog open={dialogOpen} onClose={() => { setDialog(false); setEditing(null); }} editing={editing} />

@@ -1,11 +1,12 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Calendar, User, Building2, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DealPriorityBadge } from "./deal-status-badge";
 import { formatCurrency, getInitials, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { FORECAST_META, type DealDto as Deal } from "@/lib/crm/crm.api";
+import { type DealDto as Deal } from "@/lib/crm/crm.api";
 
 interface Props {
   deal: Deal;
@@ -17,12 +18,12 @@ const probabilityColor = (p: number) =>
   p >= 70 ? "bg-success" : p >= 40 ? "bg-warning" : "bg-destructive";
 
 export function DealCard({ deal, index, onClick }: Props) {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const daysUntilClose = Math.ceil(
     (new Date(deal.expectedCloseDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
   );
   const isOverdue = daysUntilClose < 0 && deal.stage !== "won" && deal.stage !== "lost";
-  const forecast = FORECAST_META[deal.forecastCategory] ?? FORECAST_META.pipeline;
   const isOpen = deal.stage !== "won" && deal.stage !== "lost";
 
   return (
@@ -59,19 +60,19 @@ export function DealCard({ deal, index, onClick }: Props) {
           </p>
           {isOpen && (
             <p className="text-[10px] text-muted-foreground mt-0.5">
-              Weighted {formatCurrency(deal.weightedValue, currency)}
+              {t("pipeline.card.weighted", { value: formatCurrency(deal.weightedValue, currency) })}
             </p>
           )}
         </div>
         <span className={cn("shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold", forecast.color, forecast.bg)}>
-          {forecast.label}
+          {t(`forecast.${deal.forecastCategory ?? "pipeline"}`)}
         </span>
       </div>
 
       {/* Probability bar */}
       <div className="mb-3">
         <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-          <span>Probability</span>
+          <span>{t("pipeline.card.probability")}</span>
           <span className="font-medium">{deal.probability}%</span>
         </div>
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -90,10 +91,10 @@ export function DealCard({ deal, index, onClick }: Props) {
             <Calendar className="h-3 w-3" />
             <span>
               {isOverdue
-                ? `${Math.abs(daysUntilClose)}d overdue`
+                ? t("pipeline.card.overdue", { days: Math.abs(daysUntilClose) })
                 : daysUntilClose === 0
-                ? "Due today"
-                : `${daysUntilClose}d left`}
+                ? t("pipeline.card.dueToday")
+                : t("pipeline.card.daysLeft", { days: daysUntilClose })}
             </span>
           </div>
           <Avatar className="h-5 w-5">

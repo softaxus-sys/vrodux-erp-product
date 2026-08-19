@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Repeat, Plus, X, Play, Pause, Trash2, Zap, RefreshCw, Calendar, Loader2, Pencil,
@@ -14,16 +15,13 @@ import {
 } from "@/hooks/finance/use-finance";
 import type { RecurringInvoiceDto, RecurrenceFrequency, UpsertRecurringRequest } from "@/lib/finance/finance.api";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
-const FREQ: { value: RecurrenceFrequency; label: string }[] = [
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "quarterly", label: "Quarterly" },
-  { value: "yearly", label: "Yearly" },
-];
-const CUR = "AED";
+const FREQ_VALUES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
 export function RecurringInvoicesView() {
+  const { t } = useTranslation("finance");
+  const CUR = useCurrency();
   const { data: items = [], isLoading } = useRecurringInvoices();
   const { data: summary } = useRecurringSummary();
   const runDue = useRunDueRecurring();
@@ -34,10 +32,10 @@ export function RecurringInvoicesView() {
   const openEdit = (r: RecurringInvoiceDto) => { setEditing(r); setDrawerOpen(true); };
 
   const STATS = [
-    { label: "Templates", value: summary?.total ?? 0 },
-    { label: "Active", value: summary?.active ?? 0 },
-    { label: "Due ≤ 7 days", value: summary?.dueSoon ?? 0 },
-    { label: "Invoices Generated", value: summary?.generatedTotal ?? 0 },
+    { label: t("recurring.stat.templates"), value: summary?.total ?? 0 },
+    { label: t("recurring.stat.active"), value: summary?.active ?? 0 },
+    { label: t("recurring.stat.dueSoon"), value: summary?.dueSoon ?? 0 },
+    { label: t("recurring.stat.generated"), value: summary?.generatedTotal ?? 0 },
   ];
 
   return (
@@ -47,15 +45,15 @@ export function RecurringInvoicesView() {
         <div className="flex items-center gap-2">
           <Repeat className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Recurring Invoices</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Auto-generate invoices on a schedule — runs daily in the background</p>
+            <h1 className="text-2xl font-bold">{t("recurring.title")}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{t("recurring.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => runDue.mutate()} disabled={runDue.isPending}>
-            {runDue.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}Run due now
+            {runDue.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}{t("recurring.runDueNow")}
           </Button>
-          <Can permission="finance.invoicing.create"><Button className="gap-2 h-9" onClick={openNew}><Plus className="h-4 w-4" />New Template</Button></Can>
+          <Can permission="finance.invoicing.create"><Button className="gap-2 h-9" onClick={openNew}><Plus className="h-4 w-4" />{t("recurring.newTemplate")}</Button></Can>
         </div>
       </div>
 
@@ -73,19 +71,19 @@ export function RecurringInvoicesView() {
       {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2"><Loader2 className="h-5 w-5 animate-spin" />Loading…</div>
+          <div className="flex items-center justify-center py-16 text-muted-foreground gap-2"><Loader2 className="h-5 w-5 animate-spin" />{t("recurring.loading")}</div>
         ) : items.length === 0 ? (
-          <div className="text-center py-16 text-sm text-muted-foreground">No recurring templates yet. Create one to automate billing.</div>
+          <div className="text-center py-16 text-sm text-muted-foreground">{t("recurring.empty")}</div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground uppercase tracking-wide">
-                <th className="text-left px-4 py-3 font-semibold">Template / Customer</th>
-                <th className="text-left px-4 py-3 font-semibold">Frequency</th>
-                <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">Next Run</th>
-                <th className="text-right px-4 py-3 font-semibold">Amount</th>
-                <th className="text-center px-4 py-3 font-semibold hidden sm:table-cell">Generated</th>
-                <th className="text-center px-4 py-3 font-semibold">Status</th>
+                <th className="text-left px-4 py-3 font-semibold">{t("recurring.table.templateCustomer")}</th>
+                <th className="text-left px-4 py-3 font-semibold">{t("recurring.table.frequency")}</th>
+                <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">{t("recurring.table.nextRun")}</th>
+                <th className="text-right px-4 py-3 font-semibold">{t("recurring.table.amount")}</th>
+                <th className="text-center px-4 py-3 font-semibold hidden sm:table-cell">{t("recurring.table.generated")}</th>
+                <th className="text-center px-4 py-3 font-semibold">{t("recurring.table.status")}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -96,7 +94,7 @@ export function RecurringInvoicesView() {
                     <p className="font-semibold text-sm">{r.templateName}</p>
                     <p className="text-xs text-muted-foreground">{r.customerName}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm capitalize">{r.frequency}</td>
+                  <td className="px-4 py-3 text-sm">{t(`recurring.freq.${r.frequency}`, { defaultValue: r.frequency })}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">
                     <span className="inline-flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" />{formatDate(r.nextRunDate, "medium")}</span>
                   </td>
@@ -105,7 +103,7 @@ export function RecurringInvoicesView() {
                   <td className="px-4 py-3 text-center">
                     <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full",
                       r.isActive ? "bg-success/10 text-success" : "bg-muted text-muted-foreground")}>
-                      {r.isActive ? "Active" : "Paused"}
+                      {r.isActive ? t("recurring.active") : t("recurring.paused")}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -124,6 +122,7 @@ export function RecurringInvoicesView() {
 }
 
 function RowActions({ r, onEdit }: { r: RecurringInvoiceDto; onEdit: () => void }) {
+  const { t } = useTranslation("finance");
   const pause = usePauseRecurringInvoice();
   const resume = useResumeRecurringInvoice();
   const gen = useGenerateRecurringNow();
@@ -132,18 +131,18 @@ function RowActions({ r, onEdit }: { r: RecurringInvoiceDto; onEdit: () => void 
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   return (
     <div className="flex items-center justify-end gap-1">
-      <button title="Generate invoice now" disabled={busy} onClick={() => gen.mutate(r.id)}
+      <button title={t("recurring.rowAction.generateNow")} disabled={busy} onClick={() => gen.mutate(r.id)}
         className="p-1.5 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-50"><Zap className="h-3.5 w-3.5" /></button>
       {r.isActive ? (
-        <button title="Pause" disabled={busy} onClick={() => pause.mutate(r.id)}
+        <button title={t("recurring.rowAction.pause")} disabled={busy} onClick={() => pause.mutate(r.id)}
           className="p-1.5 rounded-lg text-warning hover:bg-warning/10 disabled:opacity-50"><Pause className="h-3.5 w-3.5" /></button>
       ) : (
-        <button title="Resume" disabled={busy} onClick={() => resume.mutate(r.id)}
+        <button title={t("recurring.rowAction.resume")} disabled={busy} onClick={() => resume.mutate(r.id)}
           className="p-1.5 rounded-lg text-success hover:bg-success/10 disabled:opacity-50"><Play className="h-3.5 w-3.5" /></button>
       )}
-      <button title="Edit" disabled={busy} onClick={onEdit}
+      <button title={t("recurring.rowAction.edit")} disabled={busy} onClick={onEdit}
         className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-50"><Pencil className="h-3.5 w-3.5" /></button>
-      <button title="Delete" disabled={busy} onClick={() => setConfirmOpen(true)}
+      <button title={t("recurring.rowAction.delete")} disabled={busy} onClick={() => setConfirmOpen(true)}
         className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" /></button>
 
       <AnimatePresence>
@@ -159,13 +158,13 @@ function RowActions({ r, onEdit }: { r: RecurringInvoiceDto; onEdit: () => void 
             >
               <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 pointer-events-auto space-y-4 text-left"
                 onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-base font-bold">Delete "{r.templateName}"?</h3>
-                <p className="text-sm text-muted-foreground">This recurring invoice template will be removed. This cannot be undone.</p>
+                <h3 className="text-base font-bold">{t("recurring.delete.title", { name: r.templateName })}</h3>
+                <p className="text-sm text-muted-foreground">{t("recurring.delete.body")}</p>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setConfirmOpen(false)}>{t("common:action.cancel")}</Button>
                   <Button variant="destructive" disabled={del.isPending}
                     onClick={() => del.mutate(r.id, { onSuccess: () => setConfirmOpen(false) })}>
-                    {del.isPending ? "Deleting…" : "Delete"}
+                    {del.isPending ? t("common:action.deleting") : t("common:action.delete")}
                   </Button>
                 </div>
               </div>
@@ -180,6 +179,8 @@ function RowActions({ r, onEdit }: { r: RecurringInvoiceDto; onEdit: () => void 
 type LineState = { id: string; description: string; quantity: number; unitPrice: number };
 
 function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: RecurringInvoiceDto | null; onClose: () => void }) {
+  const { t } = useTranslation("finance");
+  const CUR = useCurrency();
   const create = useCreateRecurringInvoice();
   const update = useUpdateRecurringInvoice();
   const isEdit = !!editing;
@@ -236,55 +237,55 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
         <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }}
           className="fixed right-0 top-0 h-full w-full max-w-2xl bg-card border-l border-border shadow-2xl z-50 flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-            <h2 className="text-base font-bold">{isEdit ? "Edit Recurring Template" : "New Recurring Template"}</h2>
+            <h2 className="text-base font-bold">{isEdit ? t("recurring.form.editTitle") : t("recurring.form.newTitle")}</h2>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="h-4 w-4" /></button>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-1.5"><Label>Template Name *</Label>
-                <Input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="e.g. Monthly retainer — ACME" /></div>
-              <div className="space-y-1.5"><Label>Customer *</Label>
-                <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Customer name" /></div>
-              <div className="space-y-1.5"><Label>Customer Email</Label>
-                <Input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="billing@customer.com" /></div>
-              <div className="space-y-1.5"><Label>Frequency</Label>
+              <div className="col-span-2 space-y-1.5"><Label>{t("recurring.form.templateName")}</Label>
+                <Input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder={t("recurring.form.templateNamePh")} /></div>
+              <div className="space-y-1.5"><Label>{t("recurring.form.customer")}</Label>
+                <Input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder={t("recurring.form.customerPh")} /></div>
+              <div className="space-y-1.5"><Label>{t("recurring.form.customerEmail")}</Label>
+                <Input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder={t("recurring.form.customerEmailPh")} /></div>
+              <div className="space-y-1.5"><Label>{t("recurring.form.frequency")}</Label>
                 <select value={frequency} onChange={e => setFrequency(e.target.value as RecurrenceFrequency)}
                   className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  {FREQ.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                  {FREQ_VALUES.map(f => <option key={f} value={f}>{t(`recurring.freq.${f}`)}</option>)}
                 </select></div>
-              <div className="space-y-1.5"><Label>Payment Terms (days)</Label>
+              <div className="space-y-1.5"><Label>{t("recurring.form.paymentTerms")}</Label>
                 <Input type="number" min={1} value={dueDays} onChange={e => setDueDays(+e.target.value)} /></div>
-              <div className="space-y-1.5"><Label>Start Date *</Label>
+              <div className="space-y-1.5"><Label>{t("recurring.form.startDate")}</Label>
                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-              <div className="space-y-1.5"><Label>End Date (optional)</Label>
+              <div className="space-y-1.5"><Label>{t("recurring.form.endDate")}</Label>
                 <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-              <div className="space-y-1.5"><Label>Tax Rate (%)</Label>
+              <div className="space-y-1.5"><Label>{t("recurring.form.taxRate")}</Label>
                 <Input type="number" min={0} max={100} step={0.01} value={taxRate} onChange={e => setTaxRate(+e.target.value)} /></div>
             </div>
 
             {/* Lines */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm font-semibold">Line Items</Label>
+                <Label className="text-sm font-semibold">{t("recurring.form.lineItems")}</Label>
                 <Button type="button" variant="outline" size="sm" className="gap-1.5 h-7 text-xs"
                   onClick={() => setLines(p => [...p, { id: String(Date.now()), description: "", quantity: 1, unitPrice: 0 }])}>
-                  <Plus className="h-3 w-3" /> Add Item
+                  <Plus className="h-3 w-3" /> {t("recurring.form.addItem")}
                 </Button>
               </div>
               <div className="border border-border rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40"><tr>
-                    <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Description</th>
-                    <th className="text-right px-2 py-2 text-xs font-semibold text-muted-foreground w-16">Qty</th>
-                    <th className="text-right px-2 py-2 text-xs font-semibold text-muted-foreground w-28">Unit Price</th>
-                    <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-24">Total</th>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("recurring.form.description")}</th>
+                    <th className="text-right px-2 py-2 text-xs font-semibold text-muted-foreground w-16">{t("recurring.form.qty")}</th>
+                    <th className="text-right px-2 py-2 text-xs font-semibold text-muted-foreground w-28">{t("recurring.form.unitPrice")}</th>
+                    <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-24">{t("recurring.form.total")}</th>
                     <th className="w-8" />
                   </tr></thead>
                   <tbody className="divide-y divide-border/50">
                     {lines.map(l => (
                       <tr key={l.id}>
-                        <td className="px-2 py-1.5"><Input value={l.description} placeholder="Item description"
+                        <td className="px-2 py-1.5"><Input value={l.description} placeholder={t("recurring.form.descriptionPh")}
                           onChange={e => setLines(p => p.map(x => x.id === l.id ? { ...x, description: e.target.value } : x))}
                           className="h-8 text-xs border-0 bg-transparent focus-visible:ring-1 px-2" /></td>
                         <td className="px-2 py-1.5"><Input type="number" min={1} value={l.quantity}
@@ -307,21 +308,21 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
 
             <div className="flex justify-end">
               <div className="w-56 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span>{formatCurrency(subtotal, CUR)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Tax ({taxRate}%)</span><span>{formatCurrency(subtotal * taxRate / 100, CUR)}</span></div>
-                <div className="flex justify-between font-bold pt-2 border-t border-border"><span>Total / invoice</span><span>{formatCurrency(total, CUR)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("recurring.form.subtotal")}</span><span>{formatCurrency(subtotal, CUR)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">{t("recurring.form.taxPct", { rate: taxRate })}</span><span>{formatCurrency(subtotal * taxRate / 100, CUR)}</span></div>
+                <div className="flex justify-between font-bold pt-2 border-t border-border"><span>{t("recurring.form.totalInvoice")}</span><span>{formatCurrency(total, CUR)}</span></div>
               </div>
             </div>
 
-            <div className="space-y-1.5"><Label>Notes</Label>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Appears on every generated invoice…"
+            <div className="space-y-1.5"><Label>{t("recurring.form.notes")}</Label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder={t("recurring.form.notesPh")}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" /></div>
           </div>
 
           <div className="px-6 py-4 border-t border-border flex justify-end gap-2 shrink-0">
-            <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+            <Button variant="outline" onClick={onClose} disabled={busy}>{t("common:action.cancel")}</Button>
             <Button onClick={submit} disabled={busy || !templateName.trim() || !customerName.trim()}>
-              {busy ? "Saving…" : isEdit ? "Save Changes" : "Create Template"}
+              {busy ? t("common:action.saving") : isEdit ? t("recurring.form.saveChanges") : t("recurring.form.createTemplate")}
             </Button>
           </div>
         </motion.div>

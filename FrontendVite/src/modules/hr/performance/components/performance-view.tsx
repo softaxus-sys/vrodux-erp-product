@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Star, TrendingUp,
@@ -22,25 +23,21 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { AddReviewForm } from "./add-review-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  pending:     { label: "Pending",     color: "text-muted-foreground", bg: "bg-muted",             icon: Clock },
-  in_progress: { label: "In Progress", color: "text-info",             bg: "bg-info/10",           icon: TrendingUp },
-  completed:   { label: "Completed",   color: "text-success",          bg: "bg-success/10",        icon: CheckCircle2 },
-  overdue:     { label: "Overdue",     color: "text-destructive",      bg: "bg-destructive/10",    icon: AlertTriangle },
+const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; icon: React.ElementType }> = {
+  pending:     { key: "pending",     color: "text-muted-foreground", bg: "bg-muted",             icon: Clock },
+  in_progress: { key: "in_progress", color: "text-info",             bg: "bg-info/10",           icon: TrendingUp },
+  completed:   { key: "completed",   color: "text-success",          bg: "bg-success/10",        icon: CheckCircle2 },
+  overdue:     { key: "overdue",     color: "text-destructive",      bg: "bg-destructive/10",    icon: AlertTriangle },
 };
-const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", icon: Clock };
+const STATUS_FALLBACK = { key: "unknown", color: "text-muted-foreground", bg: "bg-muted", icon: Clock };
 
-const GOAL_STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
-  on_track: { color: "text-success",     bg: "bg-success/10",     label: "On Track" },
-  at_risk:  { color: "text-warning",     bg: "bg-warning/10",     label: "At Risk" },
-  achieved: { color: "text-primary",     bg: "bg-primary/10",     label: "Achieved" },
-  missed:   { color: "text-destructive", bg: "bg-destructive/10", label: "Missed" },
+const GOAL_STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
+  on_track: { key: "on_track", color: "text-success",     bg: "bg-success/10" },
+  at_risk:  { key: "at_risk",  color: "text-warning",     bg: "bg-warning/10" },
+  achieved: { key: "achieved", color: "text-primary",     bg: "bg-primary/10" },
+  missed:   { key: "missed",   color: "text-destructive", bg: "bg-destructive/10" },
 };
-const GOAL_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted", label: "Unknown" };
-
-const REVIEW_TYPE_LABELS: Record<string, string> = {
-  annual: "Annual Review", mid_year: "Mid-Year", probation: "Probation Review", pip: "PIP",
-};
+const GOAL_FALLBACK = { key: "unknown", color: "text-muted-foreground", bg: "bg-muted" };
 
 function RatingStars({ rating, size = "sm" }: { rating?: Rating; size?: "sm" | "lg" }) {
   const s = size === "lg" ? "h-5 w-5" : "h-3.5 w-3.5";
@@ -89,6 +86,7 @@ function RatingBar({ label, value }: { label: string; value?: Rating }) {
 const GOAL_STATUSES: PerformanceGoalDto["status"][] = ["on_track", "at_risk", "achieved", "missed"];
 
 function GoalCard({ reviewId, goal, index }: { reviewId: string; goal: PerformanceGoalDto; index: number }) {
+  const { t } = useTranslation("hr");
   const [editing, setEditing] = React.useState(false);
   const [progress, setProgress] = React.useState(goal.progress);
   const [status, setStatus] = React.useState<PerformanceGoalDto["status"]>(goal.status);
@@ -114,13 +112,13 @@ function GoalCard({ reviewId, goal, index }: { reviewId: string; goal: Performan
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-semibold">{goal.title}</p>
         <div className="flex items-center gap-2 shrink-0">
-          {!editing && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", gc.color, gc.bg)}>{gc.label}</span>}
+          {!editing && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", gc.color, gc.bg)}>{t(`goalStatus.${gc.key}`)}</span>}
           <button onClick={() => deleteGoal.mutate({ id: reviewId, goalId: goal.id })} className="text-muted-foreground hover:text-destructive">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">Target: {goal.target}</p>
+      <p className="text-xs text-muted-foreground">{t("performance.drawer.target", { target: goal.target })}</p>
 
       {editing ? (
         <div className="space-y-2.5">
@@ -131,18 +129,18 @@ function GoalCard({ reviewId, goal, index }: { reviewId: string; goal: Performan
             <span className="text-xs text-muted-foreground">%</span>
             <select value={status} onChange={e => setStatus(e.target.value as PerformanceGoalDto["status"])}
               className="flex-1 h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-              {GOAL_STATUSES.map(s => <option key={s} value={s}>{(GOAL_STATUS_CONFIG[s] ?? GOAL_FALLBACK).label}</option>)}
+              {GOAL_STATUSES.map(s => <option key={s} value={s}>{t(`goalStatus.${(GOAL_STATUS_CONFIG[s] ?? GOAL_FALLBACK).key}`)}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-2 justify-end">
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditing(false)}>Cancel</Button>
-            <Button size="sm" className="h-7 text-xs" disabled={updateGoal.isPending} onClick={handleSave}>Save</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditing(false)}>{t("performance.drawer.cancel")}</Button>
+            <Button size="sm" className="h-7 text-xs" disabled={updateGoal.isPending} onClick={handleSave}>{t("performance.drawer.save")}</Button>
           </div>
         </div>
       ) : (
         <div onClick={() => setEditing(true)} className="cursor-pointer">
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Progress</span><span className="font-medium">{goal.progress}%</span>
+            <span>{t("performance.drawer.progress")}</span><span className="font-medium">{goal.progress}%</span>
           </div>
           <div className="h-1.5 bg-border rounded-full overflow-hidden">
             <div
@@ -154,13 +152,14 @@ function GoalCard({ reviewId, goal, index }: { reviewId: string; goal: Performan
       )}
 
       <div className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Clock className="h-3 w-3" />Due {formatDate(goal.dueDate, "medium")}
+        <Clock className="h-3 w-3" />{t("performance.drawer.due", { date: formatDate(goal.dueDate, "medium") })}
       </div>
     </motion.div>
   );
 }
 
 function AddGoalForm({ reviewId, onDone }: { reviewId: string; onDone: () => void }) {
+  const { t } = useTranslation("hr");
   const [title, setTitle] = React.useState("");
   const [target, setTarget] = React.useState("");
   const [dueDate, setDueDate] = React.useState("");
@@ -180,18 +179,19 @@ function AddGoalForm({ reviewId, onDone }: { reviewId: string; onDone: () => voi
 
   return (
     <div className="bg-muted/30 rounded-xl p-4 space-y-2.5">
-      <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Goal title" className="h-8 text-sm" />
-      <Input value={target} onChange={e => setTarget(e.target.value)} placeholder="Target (e.g. Close 10 deals)" className="h-8 text-sm" />
+      <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("performance.drawer.goalTitlePlaceholder")} className="h-8 text-sm" />
+      <Input value={target} onChange={e => setTarget(e.target.value)} placeholder={t("performance.drawer.goalTargetPlaceholder")} className="h-8 text-sm" />
       <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-sm" />
       <div className="flex items-center gap-2 justify-end">
-        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onDone}>Cancel</Button>
-        <Button size="sm" className="h-7 text-xs" disabled={!isValid || addGoal.isPending} onClick={handleAdd}>Add Goal</Button>
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onDone}>{t("performance.drawer.cancel")}</Button>
+        <Button size="sm" className="h-7 text-xs" disabled={!isValid || addGoal.isPending} onClick={handleAdd}>{t("performance.drawer.addGoal")}</Button>
       </div>
     </div>
   );
 }
 
 function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | null; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("hr");
   const [tab, setTab] = React.useState<"overview" | "goals">("overview");
   const [completing, setCompleting] = React.useState(false);
   const [overallRating, setOverallRating] = React.useState<Rating | undefined>();
@@ -245,17 +245,17 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
             className="fixed top-0 right-0 h-full w-full max-w-lg bg-background border-l border-border shadow-2xl z-50 flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <p className="font-bold text-base">Performance Review</p>
+              <p className="font-bold text-base">{t("performance.drawer.title")}</p>
               <div className="flex items-center gap-2">
                 {review.status === "pending" && (
                   <Button size="sm" className="h-8 text-xs" disabled={startReview.isPending}
                     onClick={() => startReview.mutate(review.id)}>
-                    Start Review
+                    {t("performance.drawer.startReview")}
                   </Button>
                 )}
                 {review.status === "in_progress" && !completing && (
                   <Button size="sm" className="h-8 text-xs" onClick={() => setCompleting(true)}>
-                    Complete Review
+                    {t("performance.drawer.completeReview")}
                   </Button>
                 )}
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -264,11 +264,11 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
 
             {/* Tabs */}
             <div className="flex border-b border-border px-6">
-              {(["overview","goals"] as const).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={cn("px-4 py-3 text-sm font-medium capitalize border-b-2 -mb-px transition-colors",
-                    tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                  {t === "overview" ? "Overview" : "Goals & Objectives"}
+              {(["overview","goals"] as const).map(tk => (
+                <button key={tk} onClick={() => setTab(tk)}
+                  className={cn("px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
+                    tab === tk ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  {t(`performance.drawer.tab.${tk}`)}
                 </button>
               ))}
             </div>
@@ -291,58 +291,58 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
                   {/* Meta */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Period</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("performance.drawer.period")}</p>
                       <p className="text-sm font-semibold">{review.reviewPeriod}</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Type</p>
-                      <p className="text-sm font-semibold">{REVIEW_TYPE_LABELS[review.reviewType] ?? review.reviewType}</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("performance.drawer.type")}</p>
+                      <p className="text-sm font-semibold">{t(`reviewType.${review.reviewType}`, { defaultValue: review.reviewType })}</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Due Date</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("performance.drawer.dueDate")}</p>
                       <p className="text-sm font-semibold">{formatDate(review.dueDate, "medium")}</p>
                     </div>
                     <div className="bg-muted/30 rounded-xl p-3 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Reviewed By</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("performance.drawer.reviewedBy")}</p>
                       <p className="text-sm font-semibold truncate">{review.reviewedBy}</p>
                     </div>
                   </div>
 
                   {/* Status */}
                   <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
-                    <span className="text-sm text-muted-foreground">Status</span>
+                    <span className="text-sm text-muted-foreground">{t("performance.drawer.status")}</span>
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      <sc.icon className="h-3 w-3" />{sc.label}
+                      <sc.icon className="h-3 w-3" />{t(`reviewStatus.${sc.key}`)}
                     </span>
                   </div>
 
                   {/* Complete review form */}
                   {completing && (
                     <div className="space-y-4 bg-primary/5 border border-primary/20 rounded-xl p-4">
-                      <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">Complete Review</h4>
+                      <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">{t("performance.drawer.completeReview")}</h4>
                       <div className="space-y-2.5">
-                        <RatingSelector label="Overall Rating" value={overallRating} onChange={setOverallRating} />
-                        <RatingSelector label="Technical Skills" value={technicalRating} onChange={setTechnicalRating} />
-                        <RatingSelector label="Communication" value={communicationRating} onChange={setCommunicationRating} />
-                        <RatingSelector label="Teamwork" value={teamworkRating} onChange={setTeamworkRating} />
-                        <RatingSelector label="Leadership" value={leadershipRating} onChange={setLeadershipRating} />
+                        <RatingSelector label={t("performance.drawer.overallRating")} value={overallRating} onChange={setOverallRating} />
+                        <RatingSelector label={t("performance.drawer.technicalSkills")} value={technicalRating} onChange={setTechnicalRating} />
+                        <RatingSelector label={t("performance.drawer.communication")} value={communicationRating} onChange={setCommunicationRating} />
+                        <RatingSelector label={t("performance.drawer.teamwork")} value={teamworkRating} onChange={setTeamworkRating} />
+                        <RatingSelector label={t("performance.drawer.leadership")} value={leadershipRating} onChange={setLeadershipRating} />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Strengths</label>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("performance.drawer.strengths")}</label>
                         <textarea value={strengths} onChange={e => setStrengths(e.target.value)} rows={2}
-                          placeholder="Key strengths observed…"
+                          placeholder={t("performance.drawer.strengthsPlaceholder")}
                           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Areas for Improvement</label>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("performance.drawer.areasForImprovement")}</label>
                         <textarea value={improvements} onChange={e => setImprovements(e.target.value)} rows={2}
-                          placeholder="Areas to improve…"
+                          placeholder={t("performance.drawer.improvementsPlaceholder")}
                           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                       </div>
                       <div className="flex items-center gap-2 justify-end">
-                        <Button variant="outline" size="sm" onClick={() => setCompleting(false)}>Cancel</Button>
+                        <Button variant="outline" size="sm" onClick={() => setCompleting(false)}>{t("performance.drawer.cancel")}</Button>
                         <Button size="sm" disabled={!overallRating || completeReview.isPending} onClick={handleComplete}>
-                          {completeReview.isPending ? "Submitting…" : "Submit Review"}
+                          {completeReview.isPending ? t("performance.drawer.submitting") : t("performance.drawer.submitReview")}
                         </Button>
                       </div>
                     </div>
@@ -351,7 +351,7 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
                   {/* Overall rating */}
                   {review.overallRating && (
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                      <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-2">Overall Rating</p>
+                      <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-2">{t("performance.drawer.overallRating")}</p>
                       <RatingStars rating={review.overallRating} size="lg" />
                       <p className="text-2xl font-bold mt-2">{review.overallRating}<span className="text-sm text-muted-foreground">/5</span></p>
                     </div>
@@ -360,12 +360,12 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
                   {/* Category ratings */}
                   {(review.technicalRating || review.communicationRating) && (
                     <div className="space-y-3">
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category Ratings</h4>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("performance.drawer.categoryRatings")}</h4>
                       <div className="space-y-3 bg-muted/30 rounded-xl p-4">
-                        <RatingBar label="Technical Skills" value={review.technicalRating} />
-                        <RatingBar label="Communication" value={review.communicationRating} />
-                        <RatingBar label="Teamwork" value={review.teamworkRating} />
-                        <RatingBar label="Leadership" value={review.leadershipRating} />
+                        <RatingBar label={t("performance.drawer.technicalSkills")} value={review.technicalRating} />
+                        <RatingBar label={t("performance.drawer.communication")} value={review.communicationRating} />
+                        <RatingBar label={t("performance.drawer.teamwork")} value={review.teamworkRating} />
+                        <RatingBar label={t("performance.drawer.leadership")} value={review.leadershipRating} />
                       </div>
                     </div>
                   )}
@@ -373,13 +373,13 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
                   {/* Strengths / Improvements */}
                   {review.strengths && (
                     <div>
-                      <h4 className="text-xs font-semibold text-success uppercase tracking-wide mb-2">Strengths</h4>
+                      <h4 className="text-xs font-semibold text-success uppercase tracking-wide mb-2">{t("performance.drawer.strengths")}</h4>
                       <p className="text-sm text-muted-foreground bg-success/5 border border-success/20 rounded-xl p-3 leading-relaxed">{review.strengths}</p>
                     </div>
                   )}
                   {review.improvements && (
                     <div>
-                      <h4 className="text-xs font-semibold text-warning uppercase tracking-wide mb-2">Areas for Improvement</h4>
+                      <h4 className="text-xs font-semibold text-warning uppercase tracking-wide mb-2">{t("performance.drawer.areasForImprovement")}</h4>
                       <p className="text-sm text-muted-foreground bg-warning/5 border border-warning/20 rounded-xl p-3 leading-relaxed">{review.improvements}</p>
                     </div>
                   )}
@@ -389,10 +389,10 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
               {tab === "goals" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold">Goals & Objectives ({(review.goals ?? []).length})</h4>
+                    <h4 className="text-sm font-semibold">{t("performance.drawer.goalsTitle", { count: (review.goals ?? []).length })}</h4>
                     {!addingGoal && (
                       <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAddingGoal(true)}>
-                        <Plus className="h-3 w-3" />Add Goal
+                        <Plus className="h-3 w-3" />{t("performance.drawer.addGoal")}
                       </Button>
                     )}
                   </div>
@@ -411,6 +411,7 @@ function ReviewDrawer({ review, open, onClose }: { review: PerformanceReview | n
 }
 
 export function PerformanceView() {
+  const { t } = useTranslation("hr");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [selectedReviewId, setSelectedReviewId] = React.useState<string | null>(null);
@@ -459,24 +460,24 @@ export function PerformanceView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Performance</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Track reviews, ratings, and employee goals</p>
+          <h1 className="text-2xl font-bold">{t("performance.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("performance.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Can permission="hr.performance.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Review</Button></Can>
+          <Can permission="hr.performance.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("performance.newReview")}</Button></Can>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: "Total Reviews",  value: performanceSummary?.totalReviews ?? performanceReviews.length,                                             color: "text-primary bg-primary/10",         icon: BarChart3 },
-          { label: "Completed",      value: performanceSummary?.completed    ?? performanceReviews.filter(r => r.status === "completed").length,    color: "text-success bg-success/10",         icon: CheckCircle2 },
-          { label: "In Progress",    value: performanceSummary?.inProgress   ?? performanceReviews.filter(r => r.status === "in_progress").length,  color: "text-info bg-info/10",               icon: TrendingUp },
-          { label: "Pending",        value: performanceSummary?.pending      ?? performanceReviews.filter(r => r.status === "pending").length,      color: "text-muted-foreground bg-muted",     icon: Clock },
-          { label: "Overdue",        value: performanceSummary?.overdue      ?? performanceReviews.filter(r => r.status === "overdue").length,      color: "text-destructive bg-destructive/10", icon: AlertTriangle },
-          { label: "Avg Rating",     value: `${performanceSummary?.avgRating ?? 0}/5`,                                                             color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20", icon: Star },
+          { label: t("performance.stat.totalReviews"), value: performanceSummary?.totalReviews ?? performanceReviews.length,                                             color: "text-primary bg-primary/10",         icon: BarChart3 },
+          { label: t("performance.stat.completed"),    value: performanceSummary?.completed    ?? performanceReviews.filter(r => r.status === "completed").length,    color: "text-success bg-success/10",         icon: CheckCircle2 },
+          { label: t("performance.stat.inProgress"),   value: performanceSummary?.inProgress   ?? performanceReviews.filter(r => r.status === "in_progress").length,  color: "text-info bg-info/10",               icon: TrendingUp },
+          { label: t("performance.stat.pending"),      value: performanceSummary?.pending      ?? performanceReviews.filter(r => r.status === "pending").length,      color: "text-muted-foreground bg-muted",     icon: Clock },
+          { label: t("performance.stat.overdue"),      value: performanceSummary?.overdue      ?? performanceReviews.filter(r => r.status === "overdue").length,      color: "text-destructive bg-destructive/10", icon: AlertTriangle },
+          { label: t("performance.stat.avgRating"),    value: `${performanceSummary?.avgRating ?? 0}/5`,                                                             color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20", icon: Star },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -493,14 +494,14 @@ export function PerformanceView() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Search employee or department..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+          <Input placeholder={t("performance.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           {["all","completed","in_progress","pending","overdue"].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={cn("px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors",
+              className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                 statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-              {s === "all" ? "All" : s === "in_progress" ? "In Progress" : s.charAt(0).toUpperCase() + s.slice(1)}
+              {s === "all" ? t("performance.filterAll") : t(`reviewStatus.${s}`)}
             </button>
           ))}
         </div>
@@ -513,18 +514,23 @@ export function PerformanceView() {
             <table className="w-full text-sm">
               <thead className="border-y border-border bg-muted/30">
                 <tr>
-                  {["Employee","Review Period","Type","Due Date","Reviewed By","Overall Rating","Goals","Status",""].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  {[
+                    ["employee", t("performance.table.employee")], ["reviewPeriod", t("performance.table.reviewPeriod")],
+                    ["type", t("performance.table.type")], ["dueDate", t("performance.table.dueDate")],
+                    ["reviewedBy", t("performance.table.reviewedBy")], ["overallRating", t("performance.table.overallRating")],
+                    ["goals", t("performance.table.goals")], ["status", t("performance.table.status")], ["actions", ""],
+                  ].map(([k, h]) => (
+                    <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No reviews found.</td></tr>
+                  <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("performance.empty")}</td></tr>
                 ) : filtered.map((rev, i) => {
                   const sc = STATUS_CONFIG[rev.status] ?? STATUS_FALLBACK;
                   const goals = rev.goals ?? [];
-                  const goalsSummary = `${goals.filter(g => g.status === "achieved" || g.status === "on_track").length}/${goals.length} on track`;
+                  const goalsSummary = t("performance.onTrackSummary", { onTrack: goals.filter(g => g.status === "achieved" || g.status === "on_track").length, total: goals.length });
                   return (
                     <motion.tr key={rev.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }} className="erp-table-row cursor-pointer"
@@ -541,7 +547,7 @@ export function PerformanceView() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{rev.reviewPeriod}</td>
-                      <td className="px-4 py-3 text-sm">{REVIEW_TYPE_LABELS[rev.reviewType] ?? rev.reviewType}</td>
+                      <td className="px-4 py-3 text-sm">{t(`reviewType.${rev.reviewType}`, { defaultValue: rev.reviewType })}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                         <span className={cn(rev.status === "overdue" ? "text-destructive font-medium" : "")}>
                           {formatDate(rev.dueDate, "medium")}
@@ -552,7 +558,7 @@ export function PerformanceView() {
                       <td className="px-4 py-3 text-xs text-muted-foreground">{goalsSummary}</td>
                       <td className="px-4 py-3">
                         <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                          <sc.icon className="h-3 w-3" />{sc.label}
+                          <sc.icon className="h-3 w-3" />{t(`reviewStatus.${sc.key}`)}
                         </span>
                       </td>
                       <td className="px-4 py-3"><ChevronRight className="h-4 w-4 text-muted-foreground/40" /></td>
@@ -563,7 +569,7 @@ export function PerformanceView() {
             </table>
           </div>
           <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-            Showing {filtered.length} of {performanceReviews.length} reviews
+            {t("performance.showing", { shown: filtered.length, total: performanceReviews.length })}
           </div>
         </CardContent>
       </Card>

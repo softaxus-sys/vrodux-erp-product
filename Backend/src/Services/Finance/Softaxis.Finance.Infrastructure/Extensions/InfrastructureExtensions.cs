@@ -8,6 +8,7 @@ using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.Finance.Application.Abstractions;
 using Softaxis.Finance.Application.Accounts.Commands;
 using Softaxis.Finance.Infrastructure.Handlers.Accounts;
+using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 using Softaxis.Finance.Infrastructure.Persistence.Seed;
 using Softaxis.Finance.Infrastructure.Services;
@@ -76,6 +77,51 @@ public static class InfrastructureExtensions
             var includeDemo = DemoSeedGate.DemoEnabled(scope.ServiceProvider);
             await FinanceSeedData.SeedAsync(db, includeDemo);
             await FinanceBankingTaxSeed.SeedAsync(db, includeDemo);
+        }
+
+        await BackfillTenantChartOfAccountsAsync(db);
+    }
+
+    /// <summary>
+    /// Gives every existing tenant its own copy of the standard chart of accounts.
+    ///
+    /// The seed above writes the reference chart with <c>TenantId = NULL</c> (there is no ambient
+    /// tenant during startup, so <c>StampTenantId</c> no-ops), which the tenant query filter then
+    /// hides from every tenant — leaving <c>GlPoster</c> unable to find e.g. account '1200' and
+    /// throwing the first time an invoice is sent. See <see cref="ChartOfAccountsProvisioner"/>.
+    ///
+    /// Idempotent and self-limiting: once a tenant owns the standard account numbers this is a
+    /// no-op. Best-effort — a failure here must never crash-loop service startup, and the tenant
+    /// is provisioned on demand by <c>GlPoster</c> anyway.
+    /// </summary>
+    private static async Task BackfillTenantChartOfAccountsAsync(FinanceDbContext db)
+    {
+        // Outside the try: a catalogue that cannot satisfy GlPoster is a programming error and
+        // should fail loudly at startup, not be swallowed and rediscovered as a runtime 500.
+        ChartOfAccountsCatalogue.AssertCoversGlPoster(GlPoster.RequiredAccountNumbers);
+
+        try
+        {
+            // Finance and Identity share one physical database (different schemas), so the tenant
+            // list is a plain cross-schema read. NOTE: `identity` is a reserved SQL Server keyword
+            // and MUST stay bracketed, or this fails with "Incorrect syntax near the keyword 'identity'".
+            var tenantIds = await db.Database
+                .SqlQueryRaw<Guid>("SELECT [Id] AS [Value] FROM [identity].[tenants]")
+                .ToListAsync();
+
+            foreach (var tenantId in tenantIds)
+                await ChartOfAccountsProvisioner.EnsureForTenantAsync(db, tenantId);
+
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Not rethrown: startup seeding runs before the app serves traffic, and a hard failure
+            // here would take the whole gateway down over data that GlPoster can provision lazily
+            // on first use. But it MUST be visible — a silent catch here just relocates the
+            // original "GL account not found" mystery to a different place.
+            Console.Error.WriteLine(
+                $"[Finance] Chart-of-accounts tenant backfill failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 }

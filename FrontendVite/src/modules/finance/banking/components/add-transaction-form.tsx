@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,19 +7,9 @@ import { Input } from "@/components/ui/input";
 import { useBankAccounts, useCreateBankTransaction } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 
-const CATEGORIES = [
-  "Revenue / Sales Receipt",
-  "Customer Payment",
-  "Vendor Payment",
-  "Salary / Payroll",
-  "Rent & Facilities",
-  "Utility Bill",
-  "Tax Payment",
-  "Loan Repayment",
-  "Inter-Account Transfer",
-  "Bank Charges",
-  "Petty Cash",
-  "Other",
+const CATEGORY_KEYS = [
+  "revenue", "customerPayment", "vendorPayment", "salary", "rent", "utility",
+  "tax", "loan", "interAccount", "bankCharges", "pettyCash", "other",
 ];
 
 type TxType = "inflow" | "outflow" | "transfer";
@@ -29,6 +20,7 @@ interface AddTransactionFormProps {
 }
 
 export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
+  const { t } = useTranslation("finance");
   const { data: bankAccounts = [] } = useBankAccounts();
   const createTransaction = useCreateBankTransaction();
 
@@ -72,10 +64,10 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
         reference:   reference.trim() || undefined,
         toAccountId: isTransfer && toAccountId ? toAccountId : undefined,
       });
-      toast.success("Transaction recorded successfully.");
+      toast.success(t("banking.txForm.recorded"));
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save transaction.");
+      toast.error(err instanceof Error ? err.message : t("banking.txForm.saveFailed"));
     }
   };
 
@@ -99,8 +91,8 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Bank Transaction</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Record a manual bank transaction</p>
+                <h2 className="text-base font-bold text-foreground">{t("banking.txForm.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("banking.txForm.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -111,12 +103,12 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Transaction type */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Transaction Type</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("banking.txForm.transactionType")}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {([
-                    { value: "inflow",   label: "Money In",  icon: ArrowDownLeft,  color: "text-success",     ring: "ring-success/40  bg-success/5" },
-                    { value: "outflow",  label: "Money Out", icon: ArrowUpRight,   color: "text-destructive", ring: "ring-destructive/40 bg-destructive/5" },
-                    { value: "transfer", label: "Transfer",  icon: ArrowLeftRight, color: "text-primary",     ring: "ring-primary/40  bg-primary/5" },
+                    { value: "inflow",   label: t("banking.txForm.moneyIn"),  icon: ArrowDownLeft,  color: "text-success",     ring: "ring-success/40  bg-success/5" },
+                    { value: "outflow",  label: t("banking.txForm.moneyOut"), icon: ArrowUpRight,   color: "text-destructive", ring: "ring-destructive/40 bg-destructive/5" },
+                    { value: "transfer", label: t("banking.txForm.transfer"), icon: ArrowLeftRight, color: "text-primary",     ring: "ring-primary/40  bg-primary/5" },
                   ] as const).map(opt => {
                     const Icon = opt.icon;
                     const active = txType === opt.value;
@@ -136,11 +128,11 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
               {/* Fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.date")}</label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.currency")}</label>
                   <Input
                     readOnly
                     value={selectedAccount?.currency ?? "—"}
@@ -150,11 +142,11 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
 
                 <div className="col-span-2 space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {isTransfer ? "From Account" : "Bank Account"} *
+                    {isTransfer ? t("banking.txForm.fromAccount") : t("banking.txForm.bankAccount")} {t("banking.txForm.required")}
                   </label>
                   <select value={accountId} onChange={e => setAccountId(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="">Select account…</option>
+                    <option value="">{t("banking.txForm.selectAccount")}</option>
                     {bankAccounts.map(a => (
                       <option key={a.id} value={a.id}>
                         {a.bankName} — {a.accountName} ({a.currency})
@@ -165,10 +157,10 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
 
                 {isTransfer && (
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">To Account *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.toAccount")}</label>
                     <select value={toAccountId} onChange={e => setToAccountId(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select account…</option>
+                      <option value="">{t("banking.txForm.selectAccount")}</option>
                       {bankAccounts.filter(a => a.id !== accountId).map(a => (
                         <option key={a.id} value={a.id}>
                           {a.bankName} — {a.accountName} ({a.currency})
@@ -179,13 +171,13 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
                 )}
 
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.description")}</label>
                   <Input value={description} onChange={e => setDescription(e.target.value)}
-                    placeholder="Brief transaction description…" className="h-9 text-sm" />
+                    placeholder={t("banking.txForm.descriptionPh")} className="h-9 text-sm" />
                 </div>
 
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.amount")}</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">
                       {selectedAccount?.currency ?? "AED"}
@@ -196,35 +188,38 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
                 </div>
 
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.category")}</label>
                   <select value={category} onChange={e => setCategory(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="">Select category…</option>
-                    {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="">{t("banking.txForm.selectCategory")}</option>
+                    {CATEGORY_KEYS.map(key => {
+                      const label = t(`banking.txForm.categories.${key}`);
+                      return <option key={key} value={label}>{label}</option>;
+                    })}
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {txType === "inflow" ? "Payer" : txType === "outflow" ? "Payee" : "Counter-party"}
+                    {txType === "inflow" ? t("banking.txForm.payer") : txType === "outflow" ? t("banking.txForm.payee") : t("banking.txForm.counterParty")}
                   </label>
                   <Input value={party} onChange={e => setParty(e.target.value)}
-                    placeholder={txType === "inflow" ? "Customer / source…" : txType === "outflow" ? "Vendor / recipient…" : "Transfer party…"}
+                    placeholder={txType === "inflow" ? t("banking.txForm.payerPh") : txType === "outflow" ? t("banking.txForm.payeePh") : t("banking.txForm.transferPartyPh")}
                     className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reference #</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.reference")}</label>
                   <Input value={reference} onChange={e => setReference(e.target.value)}
-                    placeholder="Cheque, TT ref, INV #…" className="h-9 text-sm" />
+                    placeholder={t("banking.txForm.referencePh")} className="h-9 text-sm" />
                 </div>
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? "Saving…" : "Save Transaction"}
+                {isPending ? t("common:action.saving") : t("banking.txForm.submit")}
               </Button>
             </div>
           </motion.div>

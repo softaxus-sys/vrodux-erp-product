@@ -263,6 +263,13 @@ export const navigationConfig: NavGroup[] = [
             href: "/crm/activities",
             icon: "ListChecks",
           },
+          {
+            id: "crm-documents",
+            label: "Documents",
+            labelAr: "المستندات",
+            href: "/crm/documents",
+            icon: "FolderOpen",
+          },
         ],
       },
     ],

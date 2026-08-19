@@ -25,7 +25,9 @@ internal sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.AccountNumber).IsUnique();
+        // Uniqueness is per TENANT, not global — the composite unique index is declared in
+        // FinanceDbContext.OnModelCreating, after the shadow TenantId property exists.
+        builder.HasIndex(x => x.AccountNumber);
         builder.HasIndex(x => x.AccountType);
 
         builder.HasMany(x => x.JournalLines)

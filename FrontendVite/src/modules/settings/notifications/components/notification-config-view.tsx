@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ const CHANNELS: { id: NotificationChannel; label: string }[] = [
 ];
 
 export function NotificationConfigView() {
+  const { t } = useTranslation("settings");
   const [channel, setChannel] = React.useState<NotificationChannel>("sms");
   const canEdit = useCan("restaurant.notifications.edit");
   const { data: config, isLoading } = useNotificationProviderConfig(channel);
@@ -47,10 +49,10 @@ export function NotificationConfigView() {
     <div className="p-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Bell className="w-5 h-5 text-primary" /> SMS &amp; WhatsApp
+          <Bell className="w-5 h-5 text-primary" /> {t("notifications.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Twilio credentials used to send digital receipts (Restaurant POS → Bill &amp; Payment → Send Receipt).
+          {t("notifications.description")}
         </p>
       </div>
 
@@ -68,29 +70,29 @@ export function NotificationConfigView() {
         <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> Loading…</div>
       ) : (
         <div className="bg-card border border-border rounded-xl p-5 space-y-3 max-w-md">
-          <p className="text-sm font-semibold text-foreground">Twilio</p>
+          <p className="text-sm font-semibold text-foreground">{t("notifications.twilio")}</p>
           <div>
-            <label className="text-xs text-muted-foreground">{config?.hasAccountSid ? "Account SID (leave blank to keep current)" : "Account SID"}</label>
+            <label className="text-xs text-muted-foreground">{config?.hasAccountSid ? t("notifications.accountSidKeep") : t("notifications.accountSid")}</label>
             <Input type="password" value={accountSid} onChange={e => setAccountSid(e.target.value)}
-              placeholder={config?.hasAccountSid ? "•••••••• (unchanged)" : "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"} disabled={!canEdit} className="h-9 text-sm" />
+              placeholder={config?.hasAccountSid ? t("notifications.unchanged") : "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"} disabled={!canEdit} className="h-9 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">{config?.hasAuthToken ? "Auth Token (leave blank to keep current)" : "Auth Token"}</label>
+            <label className="text-xs text-muted-foreground">{config?.hasAuthToken ? t("notifications.authTokenKeep") : t("notifications.authToken")}</label>
             <Input type="password" value={authToken} onChange={e => setAuthToken(e.target.value)}
-              placeholder={config?.hasAuthToken ? "•••••••• (unchanged)" : ""} disabled={!canEdit} className="h-9 text-sm" />
+              placeholder={config?.hasAuthToken ? t("notifications.unchanged") : ""} disabled={!canEdit} className="h-9 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">From Number</label>
+            <label className="text-xs text-muted-foreground">{t("notifications.fromNumber")}</label>
             <Input value={fromNumber} onChange={e => setFromNumber(e.target.value)}
-              placeholder={channel === "whatsapp" ? "+14155238886 (Twilio WhatsApp sender)" : "+1xxxxxxxxxx"} disabled={!canEdit} className="h-9 text-sm" />
+              placeholder={channel === "whatsapp" ? t("notifications.fromPhWhatsapp") : t("notifications.fromPhSms")} disabled={!canEdit} className="h-9 text-sm" />
           </div>
           <label className="flex items-center gap-2 text-sm text-foreground">
-            <input type="checkbox" checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} disabled={!canEdit} /> Enabled
+            <input type="checkbox" checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} disabled={!canEdit} /> {t("notifications.enabled")}
           </label>
 
           {canEdit && (
             <Button className="w-full" onClick={handleSave} disabled={upsert.isPending}>
-              {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+              {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("notifications.save")}
             </Button>
           )}
         </div>

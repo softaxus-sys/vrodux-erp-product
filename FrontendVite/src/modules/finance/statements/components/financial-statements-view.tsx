@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { BarChart3, Scale, TrendingUp, Wallet, Printer, Download, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const yearStartIso = () => `${new Date().getFullYear()}-01-01`;
 
 export function FinancialStatementsView() {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const [tab, setTab]   = React.useState<Tab>("pl");
   const [from, setFrom] = React.useState(yearStartIso());
@@ -32,9 +34,9 @@ export function FinancialStatementsView() {
   };
 
   const TABS: { key: Tab; label: string; icon: typeof BarChart3 }[] = [
-    { key: "pl", label: "Profit & Loss", icon: TrendingUp },
-    { key: "bs", label: "Balance Sheet", icon: Scale },
-    { key: "cf", label: "Cash Flow",     icon: Wallet },
+    { key: "pl", label: t("statements.tab.pl"), icon: TrendingUp },
+    { key: "bs", label: t("statements.tab.bs"), icon: Scale },
+    { key: "cf", label: t("statements.tab.cf"), icon: Wallet },
   ];
 
   const exportCsv = () => {
@@ -74,33 +76,33 @@ export function FinancialStatementsView() {
         <div className="flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-primary" />
           <div>
-            <h1 className="text-2xl font-bold">Financial Statements</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Profit &amp; Loss, Balance Sheet and Cash Flow — from posted journal entries</p>
+            <h1 className="text-2xl font-bold">{t("statements.title")}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">{t("statements.subtitle")}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={exportCsv}><Download className="h-4 w-4" />Export</Button>
-          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handlePrint}><Printer className="h-4 w-4" />Print</Button>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={exportCsv}><Download className="h-4 w-4" />{t("common:action.export")}</Button>
+          <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handlePrint}><Printer className="h-4 w-4" />{t("common:action.print")}</Button>
         </div>
       </div>
 
       {/* Tabs + date controls */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-1.5">
-          {TABS.map(t => {
-            const Icon = t.icon;
+          {TABS.map(tab_ => {
+            const Icon = tab_.icon;
             return (
-              <button key={t.key} onClick={() => setTab(t.key)}
+              <button key={tab_.key} onClick={() => setTab(tab_.key)}
                 className={cn("flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all",
-                  tab === t.key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-                <Icon className="h-4 w-4" />{t.label}
+                  tab === tab_.key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                <Icon className="h-4 w-4" />{tab_.label}
               </button>
             );
           })}
         </div>
         <div className="flex items-center gap-2 text-sm">
           {tab === "bs" ? (
-            <label className="flex items-center gap-1.5"><span className="text-muted-foreground text-xs">As of</span>
+            <label className="flex items-center gap-1.5"><span className="text-muted-foreground text-xs">{t("statements.asOf")}</span>
               <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40 text-sm" /></label>
           ) : (
             <>
@@ -124,6 +126,7 @@ export function FinancialStatementsView() {
 // ── Section table ─────────────────────────────────────────────────────────────
 
 function Section({ title, lines, total, tone = "default" }: { title: string; lines: StatementLine[]; total: number; tone?: "default" | "good" | "bad" }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -133,7 +136,7 @@ function Section({ title, lines, total, tone = "default" }: { title: string; lin
       <table className="w-full text-sm">
         <tbody className="divide-y divide-border/60">
           {lines.length === 0 ? (
-            <tr><td className="px-4 py-3 text-muted-foreground text-xs">No entries</td></tr>
+            <tr><td className="px-4 py-3 text-muted-foreground text-xs">{t("statements.noEntries")}</td></tr>
           ) : lines.map(l => (
             <tr key={l.accountCode} className="hover:bg-muted/20">
               <td className="px-4 py-2.5"><span className="font-mono text-xs text-muted-foreground mr-2">{l.accountCode}</span>{l.accountName}</td>
@@ -143,7 +146,7 @@ function Section({ title, lines, total, tone = "default" }: { title: string; lin
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-border bg-muted/20">
-            <td className="px-4 py-2.5 font-bold">Total {title}</td>
+            <td className="px-4 py-2.5 font-bold">{t("statements.totalOf", { title })}</td>
             <td className={cn("px-4 py-2.5 text-right font-bold tabular-nums",
               tone === "good" ? "text-success" : tone === "bad" ? "text-destructive" : "")}>{formatCurrency(total, currency)}</td>
           </tr>
@@ -154,23 +157,25 @@ function Section({ title, lines, total, tone = "default" }: { title: string; lin
 }
 
 function Loading() {
-  return <div className="bg-card border border-border rounded-xl p-12 text-center text-sm text-muted-foreground">Loading…</div>;
+  const { t } = useTranslation("common");
+  return <div className="bg-card border border-border rounded-xl p-12 text-center text-sm text-muted-foreground">{t("message.loading")}</div>;
 }
 
 // ── P&L ─────────────────────────────────────────────────────────────────────────
 
 function ProfitLoss({ data, loading }: { data: ReturnType<typeof useProfitLoss>["data"]; loading: boolean }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   if (loading || !data) return <Loading />;
   const margin = data.totalRevenue > 0 ? Math.round((data.netProfit / data.totalRevenue) * 100) : 0;
   return (
     <div className="space-y-4">
-      <Section title="Revenue" lines={data.revenue} total={data.totalRevenue} tone="good" />
-      <Section title="Expenses" lines={data.expenses} total={data.totalExpenses} tone="bad" />
+      <Section title={t("statements.section.revenue")} lines={data.revenue} total={data.totalRevenue} tone="good" />
+      <Section title={t("statements.section.expenses")} lines={data.expenses} total={data.totalExpenses} tone="bad" />
       <div className={cn("rounded-xl p-5 flex items-center justify-between", data.netProfit >= 0 ? "bg-success/10 border border-success/20" : "bg-destructive/10 border border-destructive/20")}>
         <div>
-          <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground">Net Profit</p>
-          <p className="text-[11px] text-muted-foreground">Margin {margin}% · {data.from} → {data.to}</p>
+          <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground">{t("statements.pl.netProfit")}</p>
+          <p className="text-[11px] text-muted-foreground">{t("statements.pl.marginPeriod", { margin, from: data.from, to: data.to })}</p>
         </div>
         <p className={cn("text-2xl font-bold tabular-nums", data.netProfit >= 0 ? "text-success" : "text-destructive")}>{formatCurrency(data.netProfit, currency)}</p>
       </div>
@@ -181,6 +186,7 @@ function ProfitLoss({ data, loading }: { data: ReturnType<typeof useProfitLoss>[
 // ── Balance Sheet ────────────────────────────────────────────────────────────────
 
 function BalanceSheet({ data, loading }: { data: ReturnType<typeof useBalanceSheet>["data"]; loading: boolean }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   if (loading || !data) return <Loading />;
   return (
@@ -188,17 +194,17 @@ function BalanceSheet({ data, loading }: { data: ReturnType<typeof useBalanceShe
       <div className={cn("rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm font-medium",
         data.isBalanced ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
         {data.isBalanced ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-        {data.isBalanced ? "Balanced — Assets = Liabilities + Equity" : "Out of balance — check posted entries"}
+        {data.isBalanced ? t("statements.bs.balanced") : t("statements.bs.outOfBalance")}
       </div>
       <div className="grid md:grid-cols-2 gap-4 items-start">
-        <Section title="Assets" lines={data.assets} total={data.totalAssets} />
+        <Section title={t("statements.section.assets")} lines={data.assets} total={data.totalAssets} />
         <div className="space-y-4">
-          <Section title="Liabilities" lines={data.liabilities} total={data.totalLiabilities} />
-          <Section title="Equity"
-            lines={[...data.equity, { accountCode: "—", accountName: "Retained Earnings", amount: data.retainedEarnings }]}
+          <Section title={t("statements.section.liabilities")} lines={data.liabilities} total={data.totalLiabilities} />
+          <Section title={t("statements.section.equity")}
+            lines={[...data.equity, { accountCode: "—", accountName: t("statements.bs.retainedEarnings"), amount: data.retainedEarnings }]}
             total={data.totalEquity} />
           <div className="bg-card border border-border rounded-xl px-4 py-3 flex items-center justify-between">
-            <span className="font-bold text-sm">Total Liabilities + Equity</span>
+            <span className="font-bold text-sm">{t("statements.bs.totalLiabEquity")}</span>
             <span className="font-bold tabular-nums">{formatCurrency(data.totalLiabilitiesAndEquity, currency)}</span>
           </div>
         </div>
@@ -210,13 +216,14 @@ function BalanceSheet({ data, loading }: { data: ReturnType<typeof useBalanceShe
 // ── Cash Flow ─────────────────────────────────────────────────────────────────────
 
 function CashFlow({ data, loading }: { data: ReturnType<typeof useCashFlow>["data"]; loading: boolean }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   if (loading || !data) return <Loading />;
   const rows: { label: string; value: number; tone?: "good" | "bad" }[] = [
-    { label: "Opening Cash Balance", value: data.openingCash },
-    { label: "Cash Inflows", value: data.inflows, tone: "good" },
-    { label: "Cash Outflows", value: -data.outflows, tone: "bad" },
-    { label: "Net Cash Flow", value: data.netCashFlow, tone: data.netCashFlow >= 0 ? "good" : "bad" },
+    { label: t("statements.cf.openingCash"), value: data.openingCash },
+    { label: t("statements.cf.inflows"), value: data.inflows, tone: "good" },
+    { label: t("statements.cf.outflows"), value: -data.outflows, tone: "bad" },
+    { label: t("statements.cf.netCashFlow"), value: data.netCashFlow, tone: data.netCashFlow >= 0 ? "good" : "bad" },
   ];
   return (
     <div className="space-y-4">
@@ -233,13 +240,13 @@ function CashFlow({ data, loading }: { data: ReturnType<typeof useCashFlow>["dat
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-border bg-primary/5">
-              <td className="px-4 py-3 font-bold">Closing Cash Balance</td>
+              <td className="px-4 py-3 font-bold">{t("statements.cf.closingCash")}</td>
               <td className="px-4 py-3 text-right font-bold tabular-nums text-primary">{formatCurrency(data.closingCash, currency)}</td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground px-1">Direct method over cash &amp; bank accounts · {data.from} → {data.to}</p>
+      <p className="text-xs text-muted-foreground px-1">{t("statements.cf.directMethod", { from: data.from, to: data.to })}</p>
     </div>
   );
 }

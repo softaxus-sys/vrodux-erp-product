@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   ShoppingCart, Package, Truck, CheckCircle2, Clock, Ban,
@@ -15,24 +16,24 @@ import { AddSalesOrderForm } from "./add-sales-order-form";
 import { CreateDeliveryChallanForm } from "@/modules/sales/delivery-challans/components/create-delivery-challan-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  pending:   { label: "Pending",   color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
-  confirmed: { label: "Confirmed", color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
-  shipped:   { label: "Shipped",   color: "text-primary",     bg: "bg-primary/10",                     dot: "bg-primary" },
-  delivered: { label: "Delivered", color: "text-success",     bg: "bg-success/10",                     dot: "bg-success" },
-  cancelled: { label: "Cancelled", color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
+const STATUS_CONFIG_KEYS = {
+  pending:   "orders.status.pending",
+  confirmed: "orders.status.confirmed",
+  shipped:   "orders.status.shipped",
+  delivered: "orders.status.delivered",
+  cancelled: "orders.status.cancelled",
 };
 
-const STATUS_FILTERS = [
-  { key: "",          label: "All" },
-  { key: "pending",   label: "Pending" },
-  { key: "confirmed", label: "Confirmed" },
-  { key: "shipped",   label: "Shipped" },
-  { key: "delivered", label: "Delivered" },
-  { key: "cancelled", label: "Cancelled" },
-];
+const STATUS_STYLES: Record<string, { color: string; bg: string; dot: string }> = {
+  pending:   { color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
+  confirmed: { color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
+  shipped:   { color: "text-primary",     bg: "bg-primary/10",                     dot: "bg-primary" },
+  delivered: { color: "text-success",     bg: "bg-success/10",                     dot: "bg-success" },
+  cancelled: { color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
+};
 
 export function OrdersView() {
+  const { t } = useTranslation("sales");
   const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
@@ -66,12 +67,12 @@ export function OrdersView() {
   }), [data?.totalCount, items]);
 
   const STAT_CARDS = [
-    { label: "Total Orders",  value: stats.total,                                icon: ShoppingCart, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50", isText: false },
-    { label: "Pending",       value: stats.pending,                              icon: Clock,        color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50", isText: false },
-    { label: "Shipped",       value: stats.shipped,                              icon: Truck,        color: "text-primary",   bg: "bg-primary/10",                    isText: false },
-    { label: "Delivered",     value: stats.delivered,                            icon: CheckCircle2, color: "text-success",   bg: "bg-success/10",                    isText: false },
-    { label: "Cancelled",     value: stats.cancelled,                            icon: Ban,          color: "text-destructive", bg: "bg-destructive/10",              isText: false },
-    { label: "Revenue",       value: formatCurrency(stats.revenue, currency),       icon: DollarSign,   color: "text-success",   bg: "bg-success/10",                    isText: true },
+    { label: t("orders.stats.total"),      value: stats.total,                                icon: ShoppingCart, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50", isText: false },
+    { label: t("orders.stats.pending"),    value: stats.pending,                              icon: Clock,        color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50", isText: false },
+    { label: t("orders.stats.shipped"),    value: stats.shipped,                              icon: Truck,        color: "text-primary",   bg: "bg-primary/10",                    isText: false },
+    { label: t("orders.stats.delivered"),  value: stats.delivered,                            icon: CheckCircle2, color: "text-success",   bg: "bg-success/10",                    isText: false },
+    { label: t("orders.stats.cancelled"),  value: stats.cancelled,                            icon: Ban,          color: "text-destructive", bg: "bg-destructive/10",              isText: false },
+    { label: t("orders.stats.revenue"),    value: formatCurrency(stats.revenue, currency),   icon: DollarSign,   color: "text-success",   bg: "bg-success/10",                    isText: true },
   ];
 
   function handleStatusChange(order: SalesOrderSummaryDto, newStatus: string) {
@@ -83,12 +84,12 @@ export function OrdersView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Sales Orders</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Track and manage customer orders through fulfillment</p>
+          <h1 className="text-2xl font-bold">{t("orders.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("orders.description")}</p>
         </div>
         <Can permission="sales.orders.create">
           <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" />New Order
+            <Plus className="h-4 w-4" />{t("orders.new")}
           </Button>
         </Can>
       </div>
@@ -116,18 +117,18 @@ export function OrdersView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search orders…" value={search}
+          <Input placeholder={t("orders.search")} value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="pl-9 h-9 text-sm" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {STATUS_FILTERS.map(f => (
-            <button key={f.key} onClick={() => { setStatusFilter(f.key); setPage(1); }}
+          {(["", "pending", "confirmed", "shipped", "delivered", "cancelled"] as const).map(key => (
+            <button key={key} onClick={() => { setStatusFilter(key); setPage(1); }}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                statusFilter === f.key
+                statusFilter === key
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-              {f.label}
+              {t(`orders.filters.${key || "all"}`)}
             </button>
           ))}
         </div>
@@ -138,27 +139,29 @@ export function OrdersView() {
         className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading orders…</span>
+            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("orders.loading")}</span>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Order #</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Expected</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Items</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.orderNum")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.customer")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("orders.table.date")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("orders.table.expected")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.total")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("orders.table.items")}</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.status")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.action")}</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">No orders found.</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">{t("orders.noResults")}</td></tr>
               ) : items.map((o, i) => {
-                const sc = STATUS_CONFIG[o.status] ?? { label: o.status, color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
+                const styleKey = o.status as keyof typeof STATUS_STYLES;
+                const style = STATUS_STYLES[styleKey] ?? { color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
+                const label = t(STATUS_CONFIG_KEYS[styleKey as keyof typeof STATUS_CONFIG_KEYS] ?? "common.unknown");
                 return (
                   <motion.tr key={o.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
                     onClick={() => { setSelected(o); setDrawerOpen(true); }}
@@ -170,7 +173,7 @@ export function OrdersView() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-sm font-medium">{o.customerName ?? "Walk-in"}</p>
+                      <p className="text-sm font-medium">{o.customerName ?? t("orders.walkIn")}</p>
                     </td>
                     <td className="px-4 py-3.5 hidden md:table-cell">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -187,22 +190,22 @@ export function OrdersView() {
                       <span className="text-sm text-muted-foreground">{o.itemCount}</span>
                     </td>
                     <td className="px-4 py-3.5 text-center">
-                      <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                        <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}
+                      <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", style.color, style.bg)}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full", style.dot)} />{label}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-right" onClick={e => e.stopPropagation()}>
                       {o.status === "pending" && (
                         <Can permission="sales.orders.edit">
                           <Button size="sm" className="h-7 text-xs gap-1" onClick={() => handleStatusChange(o, "confirmed")}>
-                            <CheckCircle2 className="h-3 w-3" />Confirm
+                            <CheckCircle2 className="h-3 w-3" />{t("orders.button.confirm")}
                           </Button>
                         </Can>
                       )}
                       {(o.status === "confirmed" || o.status === "shipped") && (
                         <Can permission="sales.orders.edit">
                           <Button size="sm" className="h-7 text-xs gap-1" onClick={() => { setDcOrderId(o.id); setShowDcForm(true); }}>
-                            <Truck className="h-3 w-3" />Delivery Challan
+                            <Truck className="h-3 w-3" />{t("orders.button.delivery")}
                           </Button>
                         </Can>
                       )}
@@ -218,10 +221,10 @@ export function OrdersView() {
       {/* Pagination */}
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-xs">Page {data.page} of {data.totalPages} ({data.totalCount} orders)</span>
+          <span className="text-muted-foreground text-xs">{t("orders.pagination", { page: data.page, total: data.totalPages, count: data.totalCount })}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>{t("orders.button.prev")}</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>{t("orders.button.next")}</Button>
           </div>
         </div>
       )}

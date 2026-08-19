@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Search, Plus, Building2, LayoutGrid,
@@ -22,34 +23,36 @@ import { Can } from "@/components/auth/can";
 
 type ViewMode = "list" | "grid";
 
-const TIER_CONFIG: Record<CustomerTier, { label: string; color: string; bg: string; icon: string }> = {
-  platinum: { label: "Platinum", color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/30", icon: "💎" },
-  gold:     { label: "Gold",     color: "text-amber-600",  bg: "bg-amber-100 dark:bg-amber-900/30",  icon: "🥇" },
-  silver:   { label: "Silver",   color: "text-slate-600",  bg: "bg-slate-100 dark:bg-slate-700/50",  icon: "🥈" },
-  standard: { label: "Standard", color: "text-muted-foreground", bg: "bg-muted",                     icon: "⭐" },
+const TIER_CONFIG: Record<CustomerTier, { color: string; bg: string; icon: string }> = {
+  platinum: { color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/30", icon: "💎" },
+  gold:     { color: "text-amber-600",  bg: "bg-amber-100 dark:bg-amber-900/30",  icon: "🥇" },
+  silver:   { color: "text-slate-600",  bg: "bg-slate-100 dark:bg-slate-700/50",  icon: "🥈" },
+  standard: { color: "text-muted-foreground", bg: "bg-muted",                     icon: "⭐" },
 };
 
-const STATUS_CONFIG: Record<CustomerStatus, { label: string; color: string; bg: string; dot: string }> = {
-  active:   { label: "Active",   color: "text-success",         bg: "bg-success/10",      dot: "bg-success" },
-  inactive: { label: "Inactive", color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
-  at_risk:  { label: "At Risk",  color: "text-warning",         bg: "bg-warning/10",      dot: "bg-warning" },
-  churned:  { label: "Churned",  color: "text-destructive",     bg: "bg-destructive/10",  dot: "bg-destructive" },
+const STATUS_CONFIG: Record<CustomerStatus, { color: string; bg: string; dot: string }> = {
+  active:   { color: "text-success",         bg: "bg-success/10",      dot: "bg-success" },
+  inactive: { color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
+  at_risk:  { color: "text-warning",         bg: "bg-warning/10",      dot: "bg-warning" },
+  churned:  { color: "text-destructive",     bg: "bg-destructive/10",  dot: "bg-destructive" },
 };
 
 function StatusBadge({ status }: { status: CustomerStatus }) {
+  const { t } = useTranslation("crm");
   const c = STATUS_CONFIG[status];
   return (
     <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{c.label}
+      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{t(`customerStatus.${status}`)}
     </span>
   );
 }
 
 function TierBadge({ tier }: { tier: CustomerTier }) {
+  const { t } = useTranslation("crm");
   const c = TIER_CONFIG[tier];
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
-      {c.icon} {c.label}
+      {c.icon} {t(`tier.${tier}`)}
     </span>
   );
 }
@@ -66,7 +69,7 @@ function NpsStars({ score }: { score?: number }) {
 
 /* ── Grid card ── */
 function CustomerCard({ customer, index, onClick }: { customer: Customer; index: number; onClick: () => void }) {
-  const tier = TIER_CONFIG[customer.tier];
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   return (
     <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.04 }}>
@@ -89,11 +92,11 @@ function CustomerCard({ customer, index, onClick }: { customer: Customer; index:
           {/* Stats row */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-muted/40 rounded-lg p-2.5 text-center">
-              <p className="text-[10px] text-muted-foreground">Revenue</p>
+              <p className="text-[10px] text-muted-foreground">{t("customers.revenue")}</p>
               <p className="text-xs font-bold">{customer.totalRevenue > 0 ? formatCurrency(customer.totalRevenue, currency) : "—"}</p>
             </div>
             <div className="bg-muted/40 rounded-lg p-2.5 text-center">
-              <p className="text-[10px] text-muted-foreground">Open Deals</p>
+              <p className="text-[10px] text-muted-foreground">{t("customers.openDeals")}</p>
               <p className="text-xs font-bold">{customer.openDeals}</p>
             </div>
           </div>
@@ -115,6 +118,7 @@ function CustomerCard({ customer, index, onClick }: { customer: Customer; index:
 }
 
 export function CustomersView() {
+  const { t } = useTranslation("crm");
   const { data: customers = [], isLoading } = useCustomers();
   const currency = useCurrency();
 
@@ -173,13 +177,13 @@ export function CustomersView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Customers</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage accounts, contacts, and relationship history</p>
+          <h1 className="text-2xl font-bold">{t("customers.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("customers.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Can permission="crm.customers.create">
-            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingCustomer(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Customer</Button>
+            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingCustomer(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />{t("customers.addCustomer")}</Button>
           </Can>
         </div>
       </div>
@@ -187,12 +191,12 @@ export function CustomersView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: "Total Accounts",  value: customersSummary?.total ?? customers.length,                                          sub: "All customers",      icon: Users,      color: "text-primary bg-primary/10" },
-          { label: "Active",          value: customersSummary?.active ?? customers.filter(c=>c.status==="active").length,         sub: "Healthy accounts",   icon: Building2,  color: "text-success bg-success/10" },
-          { label: "Total Revenue",   value: formatCurrency(customersSummary?.totalRevenue ?? customers.reduce((s,c)=>s+c.totalRevenue,0), currency), sub: "Lifetime value", icon: DollarSign, color: "text-info bg-info/10" },
-          { label: "Open Deals",      value: customersSummary?.openDeals ?? customers.reduce((s,c)=>s+c.openDeals,0),            sub: "In pipeline",        icon: TrendingUp, color: "text-warning bg-warning/10" },
-          { label: "Platinum",        value: customersSummary?.platinum ?? customers.filter(c=>c.tier==="platinum").length,       sub: "Top tier accounts",  icon: Award,      color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-          { label: "Avg NPS",         value: `${customersSummary?.avgNps ?? 0}/10`,                                               sub: "Satisfaction score", icon: Star,       color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
+          { label: t("customers.stat.totalAccounts"), value: customersSummary?.total ?? customers.length,                                          sub: t("customers.stat.allCustomers"),    icon: Users,      color: "text-primary bg-primary/10" },
+          { label: t("customers.stat.active"),         value: customersSummary?.active ?? customers.filter(c=>c.status==="active").length,         sub: t("customers.stat.healthyAccounts"), icon: Building2,  color: "text-success bg-success/10" },
+          { label: t("customers.stat.totalRevenue"),   value: formatCurrency(customersSummary?.totalRevenue ?? customers.reduce((s,c)=>s+c.totalRevenue,0), currency), sub: t("customers.stat.lifetimeValue"), icon: DollarSign, color: "text-info bg-info/10" },
+          { label: t("customers.stat.openDeals"),      value: customersSummary?.openDeals ?? customers.reduce((s,c)=>s+c.openDeals,0),            sub: t("customers.stat.inPipeline"),      icon: TrendingUp, color: "text-warning bg-warning/10" },
+          { label: t("customers.stat.platinum"),       value: customersSummary?.platinum ?? customers.filter(c=>c.tier==="platinum").length,       sub: t("customers.stat.topTier"),         icon: Award,      color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
+          { label: t("customers.stat.avgNps"),         value: `${customersSummary?.avgNps ?? 0}/10`,                                               sub: t("customers.stat.satisfaction"),    icon: Star,       color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -214,24 +218,24 @@ export function CustomersView() {
         <div className="flex items-center gap-2 flex-wrap flex-1">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Search accounts..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder={t("customers.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           {/* Status pills */}
           <div className="flex items-center gap-1 flex-wrap">
             {["all","active","at_risk","inactive","churned"].map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
-                className={cn("px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors",
+                className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                   statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                {s === "all" ? "All" : s === "at_risk" ? "At Risk" : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === "all" ? t("customers.all") : t(`customerStatus.${s}`)}
               </button>
             ))}
           </div>
           {/* Tier filter */}
           <select value={tierFilter} onChange={e => setTierFilter(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">All Tiers</option>
-            {(["platinum","gold","silver","standard"] as CustomerTier[]).map(t => (
-              <option key={t} value={t}>{TIER_CONFIG[t].label}</option>
+            <option value="all">{t("customers.allTiers")}</option>
+            {(["platinum","gold","silver","standard"] as CustomerTier[]).map(tk => (
+              <option key={tk} value={tk}>{t(`tier.${tk}`)}</option>
             ))}
           </select>
         </div>
@@ -241,12 +245,12 @@ export function CustomersView() {
           <button onClick={() => setViewMode("list")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-            <List className="h-3.5 w-3.5" />List
+            <List className="h-3.5 w-3.5" />{t("customers.list")}
           </button>
           <button onClick={() => setViewMode("grid")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-            <LayoutGrid className="h-3.5 w-3.5" />Grid
+            <LayoutGrid className="h-3.5 w-3.5" />{t("customers.grid")}
           </button>
         </div>
       </div>
@@ -259,13 +263,13 @@ export function CustomersView() {
               <CustomerCard key={c.id} customer={c} index={Math.min(i, 12)} onClick={() => openDrawer(c)} />
             ))}
             {listLazy.total === 0 && (
-              <div className="col-span-full text-center py-20 text-muted-foreground text-sm">No customers found.</div>
+              <div className="col-span-full text-center py-20 text-muted-foreground text-sm">{t("customers.noCustomers")}</div>
             )}
           </div>
           {listLazy.hasMore && (
             <div ref={listLazy.sentinelRef} className="flex flex-col items-center gap-2 py-4">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
-              <span className="text-xs text-muted-foreground">Showing {listLazy.shown} of {listLazy.total} customers</span>
+              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("customers.loadMore")}</Button>
+              <span className="text-xs text-muted-foreground">{t("customers.showing", { shown: listLazy.shown, total: listLazy.total })}</span>
             </div>
           )}
         </>
@@ -279,14 +283,20 @@ export function CustomersView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Company","Industry","Account Manager","Revenue","Open Deals","Tier","Last Activity","NPS","Status"].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    {[
+                      ["company", t("customers.table.company")], ["industry", t("customers.table.industry")],
+                      ["accountManager", t("customers.table.accountManager")], ["revenue", t("customers.table.revenue")],
+                      ["openDeals", t("customers.table.openDeals")], ["tier", t("customers.table.tier")],
+                      ["lastActivity", t("customers.table.lastActivity")], ["nps", t("customers.table.nps")],
+                      ["status", t("customers.table.status")],
+                    ].map(([k, h]) => (
+                      <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {listLazy.total === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No customers found.</td></tr>
+                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("customers.noCustomers")}</td></tr>
                   ) : listLazy.visible.map((c, i) => (
                     <motion.tr key={c.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(c)}>
@@ -327,11 +337,11 @@ export function CustomersView() {
             </div>
             {listLazy.hasMore && (
               <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("customers.loadMore")}</Button>
               </div>
             )}
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {listLazy.shown} of {listLazy.total} customers
+              {t("customers.showing", { shown: listLazy.shown, total: listLazy.total })}
             </div>
           </CardContent>
         </Card>

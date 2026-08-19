@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Search, Mail, Phone, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +12,7 @@ import { DEPARTMENTS, type EmployeeDto as Employee } from "@/lib/hr/hr.api";
 interface Props { employees: Employee[]; onView: (e: Employee) => void; }
 
 export function EmployeeGrid({ employees, onView }: Props) {
+  const { t } = useTranslation("hr");
   const [search, setSearch] = React.useState("");
   const [deptFilter, setDeptFilter] = React.useState("All Departments");
 
@@ -26,7 +28,7 @@ export function EmployeeGrid({ employees, onView }: Props) {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder="Search employees..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+          <Input placeholder={t("employees.grid.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
         </div>
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
@@ -71,7 +73,7 @@ export function EmployeeGrid({ employees, onView }: Props) {
           </motion.div>
         ))}
       </div>
-      <p className="text-xs text-muted-foreground text-center">Showing {filtered.length} of {employees.length} employees</p>
+      <p className="text-xs text-muted-foreground text-center">{t("employees.grid.showing", { shown: filtered.length, total: employees.length })}</p>
     </div>
   );
 }

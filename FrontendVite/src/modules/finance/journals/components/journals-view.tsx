@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BookOpen, FileText, CheckCircle2, RotateCcw, Plus,
@@ -13,24 +14,19 @@ import { useJournals, useJournalsSummary, usePostJournal, useVoidJournal } from 
 import { AddJournalForm } from "./add-journal-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<JournalStatus, { label: string; color: string; bg: string; dot: string }> = {
-  draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
-  posted:   { label: "Posted",   color: "text-success",     bg: "bg-success/10",                    dot: "bg-success" },
-  reversed: { label: "Reversed", color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
-  voided:   { label: "Voided",   color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
+const STATUS_CONFIG: Record<JournalStatus, { color: string; bg: string; dot: string }> = {
+  draft:    { color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
+  posted:   { color: "text-success",     bg: "bg-success/10",                    dot: "bg-success" },
+  reversed: { color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
+  voided:   { color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
 };
 
-const FILTERS: { key: JournalStatus | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "draft", label: "Draft" },
-  { key: "posted", label: "Posted" },
-  { key: "reversed", label: "Reversed" },
-  { key: "voided", label: "Voided" },
-];
+const FILTER_KEYS: (JournalStatus | "all")[] = ["all", "draft", "posted", "reversed", "voided"];
 
 const PERIODS = ["All Periods", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"];
 
 function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const post = usePostJournal();
   const reverse = useVoidJournal();
@@ -51,11 +47,11 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
               <p className="text-sm text-muted-foreground">{entry.description}</p>
               <div className="flex items-center gap-2 mt-1.5">
                 <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}
+                  <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{t(`journals.status.${entry.status}`)}
                 </span>
                 {entry.isBalanced
-                  ? <span className="text-[11px] text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Balanced</span>
-                  : <span className="text-[11px] text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />Unbalanced</span>}
+                  ? <span className="text-[11px] text-success flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{t("journals.drawer.balanced")}</span>
+                  : <span className="text-[11px] text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{t("journals.drawer.unbalanced")}</span>}
               </div>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -63,15 +59,15 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground">Date</p>
+                <p className="text-[10px] text-muted-foreground">{t("journals.drawer.date")}</p>
                 <p className="font-semibold text-sm">{formatDate(entry.date, "medium")}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground">Period</p>
+                <p className="text-[10px] text-muted-foreground">{t("journals.drawer.period")}</p>
                 <p className="font-semibold text-sm">{entry.period}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground">Reference</p>
+                <p className="text-[10px] text-muted-foreground">{t("journals.drawer.reference")}</p>
                 <p className="font-semibold text-sm font-mono text-xs">{entry.reference || "—"}</p>
               </div>
             </div>
@@ -79,10 +75,10 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/40 text-xs text-muted-foreground">
-                    <th className="text-left px-4 py-3 font-semibold">Account</th>
-                    <th className="text-left px-4 py-3 font-semibold">Description</th>
-                    <th className="text-right px-4 py-3 font-semibold text-success">Debit</th>
-                    <th className="text-right px-4 py-3 font-semibold text-destructive">Credit</th>
+                    <th className="text-left px-4 py-3 font-semibold">{t("journals.drawer.account")}</th>
+                    <th className="text-left px-4 py-3 font-semibold">{t("journals.drawer.description")}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-success">{t("journals.drawer.debit")}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-destructive">{t("journals.drawer.credit")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -100,7 +96,7 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
                     </motion.tr>
                   ))}
                   <tr className="border-t-2 border-border bg-muted/30">
-                    <td colSpan={2} className="px-4 py-3 text-sm font-bold">Totals</td>
+                    <td colSpan={2} className="px-4 py-3 text-sm font-bold">{t("journals.drawer.totals")}</td>
                     <td className="px-4 py-3 text-right font-bold text-success">{formatCurrency(entry.totalDebit, currency)}</td>
                     <td className="px-4 py-3 text-right font-bold text-destructive">{formatCurrency(entry.totalCredit, currency)}</td>
                   </tr>
@@ -108,14 +104,14 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
               </table>
             </div>
             <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Created by</span><span>{entry.createdBy}</span></div>
-              {entry.postedBy && <div className="flex justify-between"><span className="text-muted-foreground">Posted by</span><span>{entry.postedBy}</span></div>}
-              {entry.postedDate && <div className="flex justify-between"><span className="text-muted-foreground">Posted on</span><span>{formatDate(entry.postedDate, "medium")}</span></div>}
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("journals.drawer.createdBy")}</span><span>{entry.createdBy}</span></div>
+              {entry.postedBy && <div className="flex justify-between"><span className="text-muted-foreground">{t("journals.drawer.postedBy")}</span><span>{entry.postedBy}</span></div>}
+              {entry.postedDate && <div className="flex justify-between"><span className="text-muted-foreground">{t("journals.drawer.postedOn")}</span><span>{formatDate(entry.postedDate, "medium")}</span></div>}
             </div>
           </div>
           <div className="border-t border-border px-6 py-4 flex items-center gap-2">
-            {entry.status === "draft" && <Button size="sm" disabled={busy || !entry.isBalanced} className="gap-1.5 h-9" onClick={() => post.mutate(entry.id, { onSuccess: onClose })}><CheckCircle2 className="h-3.5 w-3.5" />Post Journal</Button>}
-            {entry.status === "posted" && <Button variant="outline" size="sm" disabled={busy} className="gap-1.5 h-9 text-destructive border-destructive/30" onClick={() => reverse.mutate(entry.id, { onSuccess: onClose })}><RotateCcw className="h-3.5 w-3.5" />Reverse</Button>}
+            {entry.status === "draft" && <Button size="sm" disabled={busy || !entry.isBalanced} className="gap-1.5 h-9" onClick={() => post.mutate(entry.id, { onSuccess: onClose })}><CheckCircle2 className="h-3.5 w-3.5" />{t("journals.drawer.postJournal")}</Button>}
+            {entry.status === "posted" && <Button variant="outline" size="sm" disabled={busy} className="gap-1.5 h-9 text-destructive border-destructive/30" onClick={() => reverse.mutate(entry.id, { onSuccess: onClose })}><RotateCcw className="h-3.5 w-3.5" />{t("journals.drawer.reverse")}</Button>}
           </div>
         </motion.div>
       </>)}
@@ -124,6 +120,7 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
 }
 
 export function JournalsView() {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: journals = [] } = useJournals();
   const { data: journalsSummary } = useJournalsSummary();
@@ -147,17 +144,17 @@ export function JournalsView() {
   }, [journals, search, statusFilter, period]);
 
   const STATS = [
-    { label: "Total Journals", value: journalsSummary?.total ?? journals.length, icon: BookOpen, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Draft", value: journalsSummary?.draft ?? journals.filter(j => j.status === "draft").length, icon: FileText, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Posted", value: journalsSummary?.posted ?? journals.filter(j => j.status === "posted").length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
-    { label: "Posted Value", value: formatCurrency(journalsSummary?.totalPostedValue ?? 0, currency), icon: Percent, color: "text-primary", bg: "bg-primary/10", isText: true },
+    { label: t("journals.stat.totalJournals"), value: journalsSummary?.total ?? journals.length, icon: BookOpen, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("journals.stat.draft"), value: journalsSummary?.draft ?? journals.filter(j => j.status === "draft").length, icon: FileText, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("journals.stat.posted"), value: journalsSummary?.posted ?? journals.filter(j => j.status === "posted").length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+    { label: t("journals.stat.postedValue"), value: formatCurrency(journalsSummary?.totalPostedValue ?? 0, currency), icon: Percent, color: "text-primary", bg: "bg-primary/10", isText: true },
   ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Journal Entries</h1><p className="text-sm text-muted-foreground mt-0.5">Create and post manual journal entries</p></div>
-        <Can permission="finance.journals.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Journal</Button></Can>
+        <div><h1 className="text-2xl font-bold">{t("journals.title")}</h1><p className="text-sm text-muted-foreground mt-0.5">{t("journals.subtitle")}</p></div>
+        <Can permission="finance.journals.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("journals.newJournal")}</Button></Can>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {STATS.map((s, i) => {
@@ -174,20 +171,20 @@ export function JournalsView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search journals…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
+          <Input placeholder={t("journals.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {FILTERS.map(f => (
-            <button key={f.key} onClick={() => setStatusFilter(f.key as JournalStatus | "all")}
+          {FILTER_KEYS.map(key => (
+            <button key={key} onClick={() => setStatusFilter(key)}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                statusFilter === f.key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-              {f.label}
+                statusFilter === key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+              {key === "all" ? t("journals.all") : t(`journals.status.${key}`)}
             </button>
           ))}
         </div>
         <select value={period} onChange={e => setPeriod(e.target.value)}
           className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
-          {PERIODS.map(p => <option key={p}>{p}</option>)}
+          {PERIODS.map(p => <option key={p} value={p}>{p === "All Periods" ? t("journals.allPeriods") : p}</option>)}
         </select>
       </div>
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -195,18 +192,18 @@ export function JournalsView() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Journal #</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Date</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Period</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Debit</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Credit</th>
-              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.table.journalNumber")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.table.description")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("journals.table.date")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("journals.table.period")}</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.table.debit")}</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("journals.table.credit")}</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.table.status")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No journal entries found.</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{t("journals.table.empty")}</td></tr>
             ) : filtered.map((j, i) => {
               const sc = STATUS_CONFIG[j.status];
               return (
@@ -218,7 +215,7 @@ export function JournalsView() {
                       <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="font-mono text-sm font-semibold">{j.journalNumber}</span>
                     </div>
-                    {!j.isBalanced && <span className="text-[10px] text-destructive pl-5">Unbalanced</span>}
+                    {!j.isBalanced && <span className="text-[10px] text-destructive pl-5">{t("journals.table.unbalanced")}</span>}
                   </td>
                   <td className="px-4 py-3.5">
                     <p className="text-sm font-medium">{j.description}</p>
@@ -232,7 +229,7 @@ export function JournalsView() {
                   <td className="px-4 py-3.5 text-right font-semibold text-sm text-destructive hidden md:table-cell">{formatCurrency(j.totalCredit, currency)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}
+                      <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{t(`journals.status.${j.status}`)}
                     </span>
                   </td>
                 </motion.tr>

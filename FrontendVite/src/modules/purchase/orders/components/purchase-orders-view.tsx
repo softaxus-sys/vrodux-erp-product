@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   ShoppingBag, FileText, Send, CheckCircle2, Package, Ban, PackageCheck, RotateCcw,
@@ -16,25 +17,26 @@ import { CreateGrnForm } from "@/modules/purchase/grn/components/create-grn-form
 import { CreatePurchaseReturnForm } from "@/modules/purchase/returns/components/create-purchase-return-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
-  sent:     { label: "Sent",     color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
-  partial:  { label: "Partial",  color: "text-primary",     bg: "bg-primary/10",                     dot: "bg-primary" },
-  received: { label: "Received", color: "text-success",     bg: "bg-success/10",                     dot: "bg-success" },
-  cancelled:{ label: "Cancelled",color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
-};
-
-const STATUS_FILTERS = [
-  { key: "",          label: "All" },
-  { key: "draft",     label: "Draft" },
-  { key: "sent",      label: "Sent" },
-  { key: "partial",   label: "Partial" },
-  { key: "received",  label: "Received" },
-  { key: "cancelled", label: "Cancelled" },
-];
-
 export function PurchaseOrdersView() {
+  const { t } = useTranslation("purchase");
   const currency = useCurrency();
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+    draft:    { label: t("orders.status.draft"),    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
+    sent:     { label: t("orders.status.sent"),     color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
+    partial:  { label: t("orders.status.partial"),  color: "text-primary",     bg: "bg-primary/10",                     dot: "bg-primary" },
+    received: { label: t("orders.status.received"), color: "text-success",     bg: "bg-success/10",                     dot: "bg-success" },
+    cancelled:{ label: t("orders.status.cancelled"),color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
+  };
+
+  const STATUS_FILTERS = [
+    { key: "",          label: t("orders.filters.all") },
+    { key: "draft",     label: t("orders.filters.draft") },
+    { key: "sent",      label: t("orders.filters.sent") },
+    { key: "partial",   label: t("orders.filters.partial") },
+    { key: "received",  label: t("orders.filters.received") },
+    { key: "cancelled", label: t("orders.filters.cancelled") },
+  ];
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]               = React.useState(1);
@@ -68,12 +70,12 @@ export function PurchaseOrdersView() {
   }), [data?.totalCount, items]);
 
   const STAT_CARDS = [
-    { label: "Total POs",   value: stats.total,                          icon: ShoppingBag,  color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Draft",       value: stats.draft,                          icon: FileText,     color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Sent",        value: stats.sent,                           icon: Send,         color: "text-blue-600",  bg: "bg-blue-50 dark:bg-blue-900/20" },
-    { label: "Partial",     value: stats.partial,                        icon: Package,      color: "text-primary",   bg: "bg-primary/10" },
-    { label: "Received",    value: stats.received,                       icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
-    { label: "Total Value", value: formatCurrency(stats.value, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("orders.table.poNumber"),   value: stats.total,                          icon: ShoppingBag,  color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("orders.filters.draft"),       value: stats.draft,                          icon: FileText,     color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("orders.filters.sent"),        value: stats.sent,                           icon: Send,         color: "text-blue-600",  bg: "bg-blue-50 dark:bg-blue-900/20" },
+    { label: t("orders.filters.partial"),     value: stats.partial,                        icon: Package,      color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("orders.filters.received"),    value: stats.received,                       icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
+    { label: t("orders.drawer.total"), value: formatCurrency(stats.value, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
   ];
 
   return (
@@ -81,12 +83,12 @@ export function PurchaseOrdersView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Purchase Orders</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage supplier orders from draft through receipt</p>
+          <h1 className="text-2xl font-bold">{t("orders.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("orders.description")}</p>
         </div>
         <Can permission="purchase.orders.create">
           <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" />New PO
+            <Plus className="h-4 w-4" />{t("orders.new")}
           </Button>
         </Can>
       </div>
@@ -114,7 +116,7 @@ export function PurchaseOrdersView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search PO or vendor…" value={search}
+          <Input placeholder={t("orders.search")} value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="pl-9 h-9 text-sm" />
         </div>
@@ -136,25 +138,25 @@ export function PurchaseOrdersView() {
         className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading purchase orders…</span>
+            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("orders.loading")}</span>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">PO #</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendor</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Created</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Expected</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Items</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.poNumber")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.vendor")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("orders.table.created")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("orders.table.expected")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.amount")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("orders.table.items")}</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.status")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.table.action")}</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">No purchase orders found.</td></tr>
+                <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">{t("orders.noResults")}</td></tr>
               ) : items.map((po, i) => {
                 const sc = STATUS_CONFIG[po.status] ?? { label: po.status, color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
                 return (
@@ -194,7 +196,7 @@ export function PurchaseOrdersView() {
                         <Can permission="purchase.orders.edit">
                           <Button size="sm" className="h-7 text-xs gap-1" disabled={updateStatus.isPending}
                             onClick={() => updateStatus.mutate({ id: po.id, status: "sent" })}>
-                            <Send className="h-3 w-3" />Send
+                            <Send className="h-3 w-3" />{t("orders.button.send")}
                           </Button>
                         </Can>
                       )}
@@ -202,7 +204,7 @@ export function PurchaseOrdersView() {
                         <Can permission="purchase.orders.edit">
                           <Button size="sm" className="h-7 text-xs gap-1 bg-success hover:bg-success/90"
                             onClick={() => { setGrnOrderId(po.id); setGrnOpen(true); }}>
-                            <PackageCheck className="h-3 w-3" />Receive
+                            <PackageCheck className="h-3 w-3" />{t("orders.button.receive")}
                           </Button>
                         </Can>
                       )}
@@ -210,7 +212,7 @@ export function PurchaseOrdersView() {
                         <Can permission="purchase.orders.edit">
                           <Button size="sm" variant="outline" className="h-7 text-xs gap-1 ml-1.5"
                             onClick={() => { setReturnOrderId(po.id); setReturnOpen(true); }}>
-                            <RotateCcw className="h-3 w-3" />Return
+                            <RotateCcw className="h-3 w-3" />{t("orders.button.return")}
                           </Button>
                         </Can>
                       )}
@@ -226,10 +228,10 @@ export function PurchaseOrdersView() {
       {/* Pagination */}
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between">
-          <span className="text-muted-foreground text-xs">Page {data.page} of {data.totalPages} ({data.totalCount} orders)</span>
+          <span className="text-muted-foreground text-xs">{t("orders.pagination", { page: data.page, total: data.totalPages, count: data.totalCount })}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>{t("common.prev")}</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>{t("common.next")}</Button>
           </div>
         </div>
       )}

@@ -11,8 +11,10 @@ import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Can } from "@/components/auth/can";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 export function InvoicingView() {
+  const { t } = useTranslation("finance");
   const { data: invoices = [] } = useInvoices();
   const { data: invoiceSummary } = useInvoiceSummary();
   const deleteInvoice = useDeleteInvoice();
@@ -45,9 +47,9 @@ export function InvoicingView() {
     setPendingDeleteInvoice(null);
     try {
       await deleteInvoice.mutateAsync(inv.id);
-      toast.success(`Invoice ${inv.invoiceNumber} deleted.`);
+      toast.success(t("invoicing.toast.deleted", { number: inv.invoiceNumber }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete invoice.");
+      toast.error(err instanceof Error ? err.message : t("invoicing.toast.deleteFailed"));
     }
   };
 
@@ -77,9 +79,9 @@ export function InvoicingView() {
   const handleSend = async (invoice: Invoice) => {
     try {
       await sendInvoice.mutateAsync(invoice.id);
-      toast.success(`Invoice ${invoice.invoiceNumber} sent to customer.`);
+      toast.success(t("invoicing.toast.sent", { number: invoice.invoiceNumber }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send invoice.");
+      toast.error(err instanceof Error ? err.message : t("invoicing.toast.sendFailed"));
     }
   };
 
@@ -88,16 +90,16 @@ export function InvoicingView() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Invoicing</h1>
+          <h1 className="text-2xl font-bold">{t("invoicing.title")}</h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
-            Manage sales invoices, credit notes, and customer billing.
+            {t("invoicing.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Can permission="finance.invoicing.create">
             <Button size="sm" className="gap-2" onClick={handleCreate}>
-              <Plus className="h-4 w-4" /> New Invoice
+              <Plus className="h-4 w-4" /> {t("invoicing.newInvoice")}
             </Button>
           </Can>
         </div>
@@ -126,18 +128,18 @@ export function InvoicingView() {
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="font-semibold text-sm">Delete Invoice?</p>
+                <p className="font-semibold text-sm">{t("invoicing.delete.title")}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {pendingDeleteInvoice.invoiceNumber} — This cannot be undone.
+                  {t("invoicing.delete.body", { number: pendingDeleteInvoice.invoiceNumber })}
                 </p>
               </div>
             </div>
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setPendingDeleteInvoice(null)}>
-                Cancel
+                {t("common:action.cancel")}
               </Button>
               <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={deleteInvoice.isPending}>
-                {deleteInvoice.isPending ? "Deleting…" : "Delete"}
+                {deleteInvoice.isPending ? t("common:action.deleting") : t("common:action.delete")}
               </Button>
             </div>
           </div>

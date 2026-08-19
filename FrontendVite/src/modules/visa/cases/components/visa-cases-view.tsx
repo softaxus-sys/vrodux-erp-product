@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Search, Plus, Stamp, FileWarning, Send, CheckCircle2, XCircle,
@@ -26,26 +27,29 @@ type ViewMode = "board" | "list";
 const TODAY = new Date().toISOString().split("T")[0];
 
 function StatusBadge({ status }: { status: VisaCaseStatus }) {
+  const { t } = useTranslation("visa");
   const m = CASE_STATUS_META[status];
   if (!m) return null;
   return (
     <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap", m.color, m.bg)}>
-      {m.label}
+      {t(`cases.status.${status}`)}
     </span>
   );
 }
 
 function SlaChip({ due, status }: { due?: string | null; status: VisaCaseStatus }) {
+  const { t } = useTranslation("visa");
   if (!due || ["issued", "closed", "cancelled", "rejected"].includes(status)) return null;
   const overdue = due < TODAY;
   return (
     <span className={cn("inline-flex items-center gap-1 text-[11px]", overdue ? "text-destructive font-semibold" : "text-muted-foreground")}>
-      <Clock className="h-3 w-3" />{formatDate(due, "medium")}{overdue && " · overdue"}
+      <Clock className="h-3 w-3" />{formatDate(due, "medium")}{overdue && ` · ${t("cases.overdue")}`}
     </span>
   );
 }
 
 function CaseCard({ c, index, onClick }: { c: VisaCase; index: number; onClick: () => void }) {
+  const { t } = useTranslation("visa");
   const currency = useCurrency();
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * 0.04 }}
@@ -65,7 +69,7 @@ function CaseCard({ c, index, onClick }: { c: VisaCase; index: number; onClick: 
       <div className="flex items-center justify-between pt-2 border-t border-border/50">
         <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
           <Users className="h-3 w-3" />{c.applicantCount}
-          {c.documentsTotal > 0 && <> · docs {c.documentsTotal - c.documentsPending}/{c.documentsTotal}</>}
+          {c.documentsTotal > 0 && <> · {t("cases.docs")} {c.documentsTotal - c.documentsPending}/{c.documentsTotal}</>}
         </span>
         <span className="text-[11px] text-muted-foreground truncate max-w-[100px]">{c.assignedTo}</span>
       </div>
@@ -88,6 +92,7 @@ function BoardColumn({
   onCardDragEnd: () => void;
   onCaseClick: (c: VisaCase) => void;
 }) {
+  const { t } = useTranslation("visa");
   const m = CASE_STATUS_META[status];
   const { visible, hasMore, loadMore, shown, total } = useLazyList(cases, 10);
 
@@ -96,7 +101,7 @@ function BoardColumn({
       <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 border transition-colors",
         isOver ? "border-primary/40 bg-primary/5" : `${m.bg} border-transparent`)}>
         <div className="flex items-center gap-2">
-          <span className={cn("text-xs font-bold uppercase tracking-wide", m.color)}>{m.label}</span>
+          <span className={cn("text-xs font-bold uppercase tracking-wide", m.color)}>{t(`cases.status.${status}`)}</span>
           <span className={cn("inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold", m.color, m.bg)}>
             {total}
           </span>
@@ -112,13 +117,13 @@ function BoardColumn({
         ))}
         {hasMore && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={loadMore}>
-            Show {total - shown} more
+            {t("cases.showMore", { count: total - shown })}
           </Button>
         )}
         {total === 0 && (
           <div className={cn("flex-1 flex items-center justify-center rounded-lg border-2 border-dashed text-xs text-muted-foreground/50 h-24",
             isOver ? "border-primary/40 text-primary" : "border-border")}>
-            {isOver ? "Drop here" : "No cases"}
+            {isOver ? t("cases.dropHere") : t("cases.noCases")}
           </div>
         )}
       </div>
@@ -127,6 +132,7 @@ function BoardColumn({
 }
 
 function CasesBoard({ cases, onCaseClick }: { cases: VisaCase[]; onCaseClick: (c: VisaCase) => void }) {
+  const { t } = useTranslation("visa");
   const changeStatus = useChangeCaseStatus();
   const byName = useAuthStore(s => s.user?.name) ?? "";
   const [colCases, setColCases] = React.useState<VisaCase[]>(cases);
@@ -143,7 +149,10 @@ function CasesBoard({ cases, onCaseClick }: { cases: VisaCase[]; onCaseClick: (c
     if (!c || c.status === status) return;
     // Only legal moves per the status machine (mirrors the backend guard).
     if (!CASE_TRANSITIONS[c.status]?.includes(status)) {
-      toast.error(`A ${CASE_STATUS_META[c.status].label} case can't move to ${CASE_STATUS_META[status].label}.`);
+      toast.error(t("cases.invalidTransition", {
+        from: t(`cases.status.${c.status}`),
+        to:   t(`cases.status.${status}`),
+      }));
       return;
     }
     setColCases(prev => prev.map(x => x.id === id ? { ...x, status } : x));
@@ -172,6 +181,7 @@ function CasesBoard({ cases, onCaseClick }: { cases: VisaCase[]; onCaseClick: (c
 }
 
 export function VisaCasesView() {
+  const { t } = useTranslation("visa");
   const currency = useCurrency();
   const { data: cases = [], isLoading } = useVisaCases();
   const { data: summary } = useVisaCasesSummary();
@@ -202,12 +212,12 @@ export function VisaCasesView() {
   const openDrawer = (c: VisaCase) => { setSelectedId(c.id); setDrawerOpen(true); };
 
   const stats = [
-    { label: "Total Cases",    value: summary?.total ?? cases.length,       sub: "All time",       icon: Stamp,        color: "text-primary bg-primary/10" },
-    { label: "Open",           value: summary?.open ?? 0,                    sub: "In progress",    icon: Clock,        color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
-    { label: "Docs Pending",   value: summary?.docsPending ?? 0,             sub: "Awaiting papers",icon: FileWarning,  color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
-    { label: "Submitted",      value: summary?.submitted ?? 0,               sub: "With government",icon: Send,         color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-    { label: "Approved (mo.)", value: summary?.approvedThisMonth ?? 0,       sub: "This month",     icon: CheckCircle2, color: "text-success bg-success/10" },
-    { label: "Open Fees",      value: formatCurrency((summary?.openServiceFees ?? 0) + (summary?.openGovtFees ?? 0), currency), sub: "Service + govt", icon: DollarSign, color: "text-warning bg-warning/10" },
+    { key: "total",         label: t("cases.stats.total"),         value: summary?.total ?? cases.length, sub: t("cases.stats.totalSub"),         icon: Stamp,        color: "text-primary bg-primary/10" },
+    { key: "open",          label: t("cases.stats.open"),          value: summary?.open ?? 0,             sub: t("cases.stats.openSub"),          icon: Clock,        color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
+    { key: "docsPending",   label: t("cases.stats.docsPending"),   value: summary?.docsPending ?? 0,      sub: t("cases.stats.docsPendingSub"),   icon: FileWarning,  color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
+    { key: "submitted",     label: t("cases.stats.submitted"),     value: summary?.submitted ?? 0,        sub: t("cases.stats.submittedSub"),     icon: Send,         color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
+    { key: "approvedMonth", label: t("cases.stats.approvedMonth"), value: summary?.approvedThisMonth ?? 0, sub: t("cases.stats.approvedMonthSub"), icon: CheckCircle2, color: "text-success bg-success/10" },
+    { key: "openFees",      label: t("cases.stats.openFees"),      value: formatCurrency((summary?.openServiceFees ?? 0) + (summary?.openGovtFees ?? 0), currency), sub: t("cases.stats.openFeesSub"), icon: DollarSign, color: "text-warning bg-warning/10" },
   ];
 
   return (
@@ -215,12 +225,12 @@ export function VisaCasesView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Visa Cases</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">UAE visa applications — intake, documents, submission, tracking</p>
+          <h1 className="text-2xl font-bold">{t("cases.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("cases.description")}</p>
         </div>
         <Can permission="visa.cases.create">
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowWizard(true)}>
-            <Plus className="h-4 w-4" />New Case
+            <Plus className="h-4 w-4" />{t("cases.new")}
           </Button>
         </Can>
       </div>
@@ -228,7 +238,7 @@ export function VisaCasesView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {stats.map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          <motion.div key={s.key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", s.color)}><s.icon className="h-4 w-4" /></div>
@@ -248,14 +258,14 @@ export function VisaCasesView() {
         <div className="flex items-center gap-2 flex-wrap flex-1">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Search cases, applicants..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder={t("cases.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           <div className="flex items-center gap-1 flex-wrap">
             {(["all", ...Object.keys(CASE_STATUS_META)] as string[]).map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
                 className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                   statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                {s === "all" ? "All" : CASE_STATUS_META[s as VisaCaseStatus].label}
+                {s === "all" ? t("cases.filterAll") : t(`cases.status.${s}`)}
               </button>
             ))}
           </div>
@@ -264,12 +274,12 @@ export function VisaCasesView() {
           <button onClick={() => setViewMode("board")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "board" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-            <LayoutGrid className="h-3.5 w-3.5" />Board
+            <LayoutGrid className="h-3.5 w-3.5" />{t("cases.board")}
           </button>
           <button onClick={() => setViewMode("list")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-            <List className="h-3.5 w-3.5" />List
+            <List className="h-3.5 w-3.5" />{t("cases.list")}
           </button>
         </div>
       </div>
@@ -285,16 +295,16 @@ export function VisaCasesView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Case #","Applicant","Visa Type","Emirate","Docs","Fees","SLA Due","Assigned To","Status"].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    {["caseNum","applicant","visaType","emirate","docs","fees","slaDue","assignedTo","status"].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{t(`cases.table.${h}`)}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">Loading cases…</td></tr>
+                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("cases.loading")}</td></tr>
                   ) : listLazy.total === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">No visa cases yet. Create your first case.</td></tr>
+                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("cases.noResults")}</td></tr>
                   ) : listLazy.visible.map((c, i) => (
                     <motion.tr key={c.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(c)}>
@@ -319,11 +329,11 @@ export function VisaCasesView() {
             </div>
             {listLazy.hasMore && (
               <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("cases.loadMore")}</Button>
               </div>
             )}
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {listLazy.shown} of {listLazy.total} cases
+              {t("cases.showing", { shown: listLazy.shown, total: listLazy.total })}
             </div>
           </CardContent>
         </Card>

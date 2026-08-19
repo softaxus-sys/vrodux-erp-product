@@ -19,7 +19,8 @@ internal sealed class AccountTypeConfiguration : IEntityTypeConfiguration<Accoun
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(x => x.CreatedAt).IsRequired();
 
-        builder.HasIndex(x => x.Code).IsUnique();
+        // Uniqueness is per TENANT, not global — see FinanceDbContext.OnModelCreating.
+        builder.HasIndex(x => x.Code);
         builder.HasIndex(x => new { x.ParentId, x.SortOrder });
 
         builder.HasOne<AccountType>()

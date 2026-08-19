@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,18 +14,21 @@ const STAGE_KEY: Record<string, string> = {
   "Qualified": "qualified", "Proposal Sent": "proposal", "Negotiation": "negotiation",
   "Contract Review": "negotiation", "Closed Won": "won", "Closed Lost": "lost",
 };
+const STAGE_SLUG: Record<string, string> = {
+  "Qualified": "qualified", "Proposal Sent": "proposal_sent", "Negotiation": "negotiation",
+  "Contract Review": "contract_review", "Closed Won": "closed_won", "Closed Lost": "closed_lost",
+};
 const KEY_LABEL: Record<string, string> = {
   lead: "Qualified", qualified: "Qualified", proposal: "Proposal Sent",
   negotiation: "Negotiation", won: "Closed Won", lost: "Closed Lost",
 };
 const DEAL_TYPES      = ["New Business", "Upsell", "Renewal", "Cross-sell", "Partnership"];
+const TYPE_SLUG: Record<string, string> = {
+  "New Business": "new_business", "Upsell": "upsell", "Renewal": "renewal",
+  "Cross-sell": "cross_sell", "Partnership": "partnership",
+};
 const PROBABILITIES   = ["10%", "25%", "50%", "75%", "90%", "100%"];
-const FORECASTS       = [
-  { value: "auto",      label: "Auto (from stage)" },
-  { value: "pipeline",  label: "Pipeline" },
-  { value: "best_case", label: "Best case" },
-  { value: "commit",    label: "Commit" },
-];
+const FORECASTS       = ["auto", "pipeline", "best_case", "commit"];
 const MANUAL_FORECASTS = ["pipeline", "best_case", "commit"];
 
 interface AddDealFormProps {
@@ -34,6 +38,7 @@ interface AddDealFormProps {
 }
 
 export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
+  const { t } = useTranslation("crm");
   const isEdit = !!editing;
   const [dealName, setDealName]       = React.useState("");
   const [company, setCompany]         = React.useState("");
@@ -122,8 +127,8 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">{isEdit ? "Edit Deal" : "New Deal"}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? "Update deal details" : "Add a deal to your sales pipeline"}</p>
+                <h2 className="text-base font-bold text-foreground">{isEdit ? t("dealForm.editTitle") : t("dealForm.newTitle")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? t("dealForm.editSubtitle") : t("dealForm.newSubtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -135,24 +140,24 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
               {/* Deal Info */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Name *</label>
-                  <Input value={dealName} onChange={e => setDealName(e.target.value)} placeholder="e.g. Enterprise License — TechCorp" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.dealName")}</label>
+                  <Input value={dealName} onChange={e => setDealName(e.target.value)} placeholder={t("dealForm.dealNamePlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5 relative">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account / Company *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.account")}</label>
                   <div className="relative">
                     <Input
                       value={company}
                       onChange={e => { setCompany(e.target.value); setCustomerId(null); setAcctOpen(true); }}
                       onFocus={() => setAcctOpen(true)}
                       onBlur={() => setTimeout(() => setAcctOpen(false), 120)}
-                      placeholder="Search accounts or type a new one…"
+                      placeholder={t("dealForm.accountPlaceholder")}
                       className={`h-9 text-sm ${customerId ? "pr-16" : ""}`}
                     />
                     {customerId && (
                       <span className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary">
-                          <Link2 className="h-2.5 w-2.5" />Linked
+                          <Link2 className="h-2.5 w-2.5" />{t("dealForm.linked")}
                         </span>
                         <button type="button" onMouseDown={e => { e.preventDefault(); clearAccount(); }}
                           className="p-0.5 rounded hover:bg-muted text-muted-foreground" aria-label="Unlink account">
@@ -174,36 +179,36 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                     </div>
                   )}
                   {!customerId && company.trim() && (
-                    <p className="text-[11px] text-muted-foreground">New account — won't be linked to an existing customer.</p>
+                    <p className="text-[11px] text-muted-foreground">{t("dealForm.newAccountHint")}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Type</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.dealType")}</label>
                   <select value={dealType} onChange={e => setDealType(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {DEAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {DEAL_TYPES.map(dt => <option key={dt} value={dt}>{t(`dealForm.type.${TYPE_SLUG[dt]}`)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact Name</label>
-                  <Input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Primary contact…" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.contactName")}</label>
+                  <Input value={contactName} onChange={e => setContactName(e.target.value)} placeholder={t("dealForm.contactNamePlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact Email</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.contactEmail")}</label>
                   <Input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} placeholder="email@client.com" className="h-9 text-sm" />
                 </div>
               </div>
 
               {/* Pipeline */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Pipeline Stage</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("dealForm.pipelineStage")}</p>
                 <div className="grid grid-cols-3 gap-1.5">
                   {PIPELINE_STAGES.map(s => (
                     <button key={s} onClick={() => setStage(s)}
                       className={`py-2 rounded-lg border text-xs font-medium transition-all ${
                         stage === s ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
                       }`}>
-                      {s}
+                      {t(`dealForm.stageOption.${STAGE_SLUG[s]}`)}
                     </button>
                   ))}
                 </div>
@@ -212,7 +217,7 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
               {/* Value & Date */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5 col-span-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Value *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.dealValue")}</label>
                   <div className="flex gap-2">
                     <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground shrink-0">
                       {currency}
@@ -222,34 +227,34 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Close Date *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.closeDate")}</label>
                   <Input type="date" value={closeDate} onChange={e => setCloseDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Win Probability</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.winProbability")}</label>
                   <select value={probability} onChange={e => setProbability(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {PROBABILITIES.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Forecast Category</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.forecastCategory")}</label>
                   <select value={forecast} onChange={e => setForecast(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {FORECASTS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                    {FORECASTS.map(f => <option key={f} value={f}>{t(`dealForm.forecastOption.${f}`)}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned To</label>
-                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Sales representative…" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.assignedTo")}</label>
+                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder={t("dealForm.assignedToPlaceholder")} className="h-9 text-sm" />
                 </div>
               </div>
 
               {/* Description */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.description")}</label>
                 <textarea value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="Deal background, requirements, key stakeholders…" rows={3}
+                  placeholder={t("dealForm.descriptionPlaceholder")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -257,9 +262,9 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={saving}>{t("dealForm.cancel")}</Button>
               <Button onClick={handleSave} disabled={!isValid || saving}>
-                {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Deal"}
+                {saving ? t("dealForm.saving") : isEdit ? t("dealForm.saveChanges") : t("dealForm.createDeal")}
               </Button>
             </div>
           </motion.div>

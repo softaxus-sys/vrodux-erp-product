@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Phone, Mail, Calendar, CheckSquare, StickyNote, Plus, Check, RotateCcw, Trash2, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +10,12 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import type { ActivityType } from "@/lib/crm/crm.api";
 
-const TYPES: { value: ActivityType; label: string; icon: typeof Phone }[] = [
-  { value: "task", label: "Task", icon: CheckSquare },
-  { value: "call", label: "Call", icon: Phone },
-  { value: "meeting", label: "Meeting", icon: Calendar },
-  { value: "email", label: "Email", icon: Mail },
-  { value: "note", label: "Note", icon: StickyNote },
+const TYPES: { value: ActivityType; icon: typeof Phone }[] = [
+  { value: "task", icon: CheckSquare },
+  { value: "call", icon: Phone },
+  { value: "meeting", icon: Calendar },
+  { value: "email", icon: Mail },
+  { value: "note", icon: StickyNote },
 ];
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, assignedTo = "" }: Props) {
+  const { t } = useTranslation("crm");
   const { data: activities = [] } = useActivities({ relatedToType, relatedToId });
   const create = useCreateActivity();
   const complete = useCompleteActivity();
@@ -59,30 +61,30 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
       {/* Quick add */}
       <div className="rounded-xl border border-border p-3 space-y-2 bg-muted/20">
         <div className="flex flex-wrap gap-1">
-          {TYPES.map(t => {
-            const Icon = t.icon;
+          {TYPES.map(ty => {
+            const Icon = ty.icon;
             return (
-              <button key={t.value} onClick={() => setType(t.value)}
+              <button key={ty.value} onClick={() => setType(ty.value)}
                 className={cn("flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all",
-                  type === t.value ? "border-primary bg-primary/10 text-primary" : "border-transparent text-muted-foreground hover:bg-muted")}>
-                <Icon className="h-3 w-3" />{t.label}
+                  type === ty.value ? "border-primary bg-primary/10 text-primary" : "border-transparent text-muted-foreground hover:bg-muted")}>
+                <Icon className="h-3 w-3" />{t(`activityType.${ty.value}`)}
               </button>
             );
           })}
         </div>
         <div className="flex gap-2">
           <Input value={subject} onChange={e => setSubject(e.target.value)} onKeyDown={e => e.key === "Enter" && add()}
-            placeholder={type === "note" ? "Log a note…" : `Add a ${type}…`} className="h-8 text-sm flex-1" />
+            placeholder={type === "note" ? t("activity.logNote") : t("activity.addA", { type: t(`activityType.${type}`) })} className="h-8 text-sm flex-1" />
           {needsDue && <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs w-36" />}
           <Button size="sm" className="h-8 gap-1" disabled={!subject.trim() || create.isPending} onClick={add}>
-            <Plus className="h-3.5 w-3.5" />Add
+            <Plus className="h-3.5 w-3.5" />{t("activity.add")}
           </Button>
         </div>
       </div>
 
       {/* Timeline */}
       {activities.length === 0 ? (
-        <p className="text-xs text-muted-foreground text-center py-4">No activity yet. Log a note, call, or task above.</p>
+        <p className="text-xs text-muted-foreground text-center py-4">{t("activity.empty")}</p>
       ) : (
         <div className="space-y-2">
           {activities.map(a => {
@@ -98,10 +100,10 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
                 <div className="flex-1 min-w-0">
                   <p className={cn("text-sm font-medium leading-tight", a.completed && "line-through text-muted-foreground")}>{a.subject}</p>
                   <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                    <span className="capitalize">{a.type}</span>
+                    <span>{t(`activityType.${a.type}`)}</span>
                     {a.dueDate && (
                       <span className={cn("inline-flex items-center gap-0.5", overdue && "text-destructive font-semibold")}>
-                        <Clock className="h-2.5 w-2.5" />{a.dueDate}{overdue && " · overdue"}
+                        <Clock className="h-2.5 w-2.5" />{a.dueDate}{overdue && ` · ${t("activity.overdue")}`}
                       </span>
                     )}
                     {a.assignedTo && <span>· {a.assignedTo}</span>}
@@ -110,10 +112,10 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {a.type !== "note" && a.type !== "email" && (
                     a.completed
-                      ? <button title="Reopen" onClick={() => reopen.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-foreground"><RotateCcw className="h-3.5 w-3.5" /></button>
-                      : <button title="Complete" onClick={() => complete.mutate(a.id)} className="p-1 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>
+                      ? <button title={t("activity.reopen")} onClick={() => reopen.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-foreground"><RotateCcw className="h-3.5 w-3.5" /></button>
+                      : <button title={t("activity.complete")} onClick={() => complete.mutate(a.id)} className="p-1 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>
                   )}
-                  <button title="Delete" onClick={() => del.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button title={t("activity.delete")} onClick={() => del.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             );

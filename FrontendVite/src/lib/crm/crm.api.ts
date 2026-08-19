@@ -1,4 +1,5 @@
 import { rawApiClient } from "@/lib/api-client";
+import i18n from "@/i18n";
 
 const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 const BASE = `${API_ROOT}/api/crm`;
@@ -186,10 +187,48 @@ export function formatCompactValue(amount: number | null | undefined, currency: 
 }
 
 /** Lead temperature derived from the intent score — the at-a-glance "should I call this now?" signal. */
-export function leadHeat(score: number): { label: "Hot" | "Warm" | "Cold"; color: string; bg: string; emoji: string } {
-  if (score >= 70) return { label: "Hot",  color: "text-destructive",     bg: "bg-destructive/10",              emoji: "🔥" };
-  if (score >= 40) return { label: "Warm", color: "text-warning",         bg: "bg-warning/10",                  emoji: "🌤️" };
-  return             { label: "Cold", color: "text-blue-600",        bg: "bg-blue-50 dark:bg-blue-900/20", emoji: "❄️" };
+export function leadHeat(score: number): { label: string; color: string; bg: string; emoji: string } {
+  if (score >= 70) return { label: i18n.t("crm:heat.hot"),  color: "text-destructive", bg: "bg-destructive/10",              emoji: "🔥" };
+  if (score >= 40) return { label: i18n.t("crm:heat.warm"), color: "text-warning",     bg: "bg-warning/10",                  emoji: "🌤️" };
+  return             { label: i18n.t("crm:heat.cold"), color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20", emoji: "❄️" };
+}
+
+/**
+ * Industry values that mark a lead as visa/immigration work.
+ * `INDUSTRIES` in add-lead-form offers "Visa Services"; the others are accepted because leads
+ * imported or captured from integrations carry whatever the source called it.
+ */
+const VISA_INDUSTRIES = ["visa services", "visa", "immigration"];
+
+/**
+ * Keywords used as a FALLBACK when the industry is not set. Inbound leads (Meta forms, imports,
+ * webhooks) rarely populate `industry`, so relying on it alone would hide the Visa Case action on
+ * exactly the leads that need it most.
+ */
+const VISA_KEYWORDS = [
+  "visa", "immigration", "residency", "residence permit", "work permit",
+  "golden visa", "freelance permit", "iqama", "emirates id", "citizenship",
+];
+
+/**
+ * Is this lead visa/immigration business?
+ *
+ * Structured signal first (industry), then a keyword scan of what the lead actually asked for.
+ * Deliberately generous: a false positive only shows an extra button, whereas a false negative
+ * hides a useful shortcut. To force it on, set the lead's industry to "Visa Services".
+ */
+export function isVisaLead(
+  lead: Pick<LeadDto, "industry" | "interestedIn" | "message" | "source">,
+): boolean {
+  const industry = (lead.industry ?? "").trim().toLowerCase();
+  if (industry && VISA_INDUSTRIES.includes(industry)) return true;
+
+  const haystack = [lead.interestedIn, lead.message, lead.source]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.length > 0 && VISA_KEYWORDS.some((k) => haystack.includes(k));
 }
 
 /** A short human summary of what the lead wants — assembled from the captured intent fields.
@@ -197,8 +236,8 @@ export function leadHeat(score: number): { label: "Hot" | "Warm" | "Cold"; color
 export function buildLeadSummary(lead: Pick<LeadDto, "interestedIn" | "budget" | "purchaseTimeframe" | "purchaseUrgency" | "message" | "company">): string {
   const parts: string[] = [];
   if (lead.interestedIn) parts.push(lead.interestedIn.trim());
-  if (lead.budget) parts.push(`Budget ${lead.budget.trim()}`);
-  const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? URGENCY_META[lead.purchaseUrgency]?.label : null;
+  if (lead.budget) parts.push(i18n.t("crm:summary.budget", { value: lead.budget.trim() }));
+  const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? i18n.t(`crm:urgency.${lead.purchaseUrgency}`) : null;
   if (urg) parts.push(urg);
   if (parts.length) return parts.join(" · ");
   if (lead.message) return lead.message.trim().replace(/\s+/g, " ").slice(0, 140);
@@ -237,11 +276,11 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
  */
 export function sourceLabel(source: string | null | undefined): string {
   if (!source) return "—";
-  const known = (SOURCE_LABELS as Record<string, string>)[source];
-  if (known) return known;
-  return source
+  const humanized = source
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, c => c.toUpperCase());
+  // Known sources have a translation key; unknown provider keys fall back to humanized.
+  return i18n.t(`crm:source.${source}`, { defaultValue: humanized });
 }
 
 // ── Customers ───────────────────────────────────────────────────────────────

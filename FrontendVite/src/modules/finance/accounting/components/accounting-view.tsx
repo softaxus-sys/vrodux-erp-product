@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, TrendingUp, TrendingDown, Scale, DollarSign, X, ChevronRight,
@@ -120,6 +121,7 @@ function AccountDrawer({
   onEdit: (a: Account) => void;
   onDelete: (a: Account) => void;
 }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const parentAccount = account.parentId
     ? accounts.find((a) => a.id === account.parentId)
@@ -161,7 +163,7 @@ function AccountDrawer({
         className="fixed top-0 right-0 h-full w-full max-w-[520px] bg-background border-l border-border shadow-2xl z-50 flex flex-col"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Account Detail</p>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("accounting.drawer.detail")}</p>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground"
               onClick={() => onEdit(account)}>
@@ -192,21 +194,21 @@ function AccountDrawer({
           </div>
 
           <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs text-muted-foreground mb-1">Current Balance</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("accounting.drawer.currentBalance")}</p>
             <p className={cn("text-3xl font-bold", account.balance >= 0 ? "text-success" : "text-destructive")}>
               {formatCurrency(Math.abs(account.balance), currency)}
             </p>
-            {account.balance < 0 && <p className="text-xs text-muted-foreground mt-1">Credit balance</p>}
+            {account.balance < 0 && <p className="text-xs text-muted-foreground mt-1">{t("accounting.drawer.creditBalance")}</p>}
           </div>
 
           <div className="space-y-0 divide-y divide-border/50">
             {[
-              { label: "Account Number", value: account.accountNumber },
-              { label: "Account Type",   value: getTypeName(account) },
-              { label: "Status",         value: account.isActive ? "Active" : "Inactive" },
-              { label: "Parent Account", value: parentAccount
+              { label: t("accounting.drawer.accountNumber"), value: account.accountNumber },
+              { label: t("accounting.drawer.accountType"),   value: getTypeName(account) },
+              { label: t("accounting.drawer.status"),        value: account.isActive ? t("accounting.status.active") : t("accounting.status.inactive") },
+              { label: t("accounting.drawer.parentAccount"), value: parentAccount
                   ? `${parentAccount.accountNumber} — ${parentAccount.name}`
-                  : "Root Account" },
+                  : t("accounting.drawer.rootAccount") },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center py-3">
                 <span className="text-xs text-muted-foreground">{label}</span>
@@ -217,7 +219,7 @@ function AccountDrawer({
 
           {children.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold mb-3">Child Accounts</h3>
+              <h3 className="text-sm font-semibold mb-3">{t("accounting.drawer.childAccounts")}</h3>
               <div className="space-y-2">
                 {children.map((child) => (
                   <div key={child.id}
@@ -254,6 +256,7 @@ function AccountFormModal({
   editAccount: Account | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("finance");
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount();
   const isEdit = Boolean(editAccount);
@@ -312,10 +315,10 @@ function AccountFormModal({
     e.preventDefault();
     if (isEdit && editAccount) {
       await updateMutation.mutateAsync({ id: editAccount.id, data: form });
-      toast.success("Account updated.");
+      toast.success(t("accounting.form.updated"));
     } else {
       await createMutation.mutateAsync(form);
-      toast.success("Account created.");
+      toast.success(t("accounting.form.created"));
     }
     onClose();
   };
@@ -341,7 +344,7 @@ function AccountFormModal({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 className="text-base font-bold">{isEdit ? "Edit Account" : "New Account"}</h2>
+            <h2 className="text-base font-bold">{isEdit ? t("accounting.form.editTitle") : t("accounting.form.newTitle")}</h2>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
               <X className="h-4 w-4" />
             </Button>
@@ -350,26 +353,26 @@ function AccountFormModal({
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account Number *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("accounting.form.accountNumber")}</label>
                 <Input
-                  placeholder="e.g. 1001"
+                  placeholder={t("accounting.form.accountNumberPh")}
                   value={form.accountNumber}
                   onChange={(e) => set("accountNumber", e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("accounting.form.type")}</label>
                 <select
                   value={form.accountTypeId}
                   onChange={(e) => set("accountTypeId", e.target.value)}
                   className="w-full h-10 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                   required
                 >
-                  <option value="" disabled>Select type…</option>
-                  {typeTree.filter((t) => t.isActive).map((root) => (
+                  <option value="" disabled>{t("accounting.form.selectType")}</option>
+                  {typeTree.filter((rt) => rt.isActive).map((root) => (
                     <optgroup key={root.id} label={root.name}>
-                      <option value={root.id}>{root.subtypes.length > 0 ? "General" : root.name}</option>
+                      <option value={root.id}>{root.subtypes.length > 0 ? t("accounting.form.general") : root.name}</option>
                       {root.subtypes.filter((s) => s.isActive).map((sub) => (
                         <option key={sub.id} value={sub.id}>{"  "}{sub.name}</option>
                       ))}
@@ -380,9 +383,9 @@ function AccountFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account Name *</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("accounting.form.accountName")}</label>
               <Input
-                placeholder="e.g. Cash on Hand"
+                placeholder={t("accounting.form.accountNamePh")}
                 value={form.name}
                 onChange={(e) => set("name", e.target.value)}
                 required
@@ -390,13 +393,13 @@ function AccountFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Parent Account</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("accounting.form.parentAccount")}</label>
               <select
                 value={form.parentId ?? ""}
                 onChange={(e) => set("parentId", e.target.value || null)}
                 className="w-full h-10 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="">— Root Account —</option>
+                <option value="">{t("accounting.form.rootOption")}</option>
                 {typeTree.map((root) => {
                   const opts = parentOptionsByRoot.get(root.id);
                   if (!opts?.length) return null;
@@ -414,9 +417,9 @@ function AccountFormModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("accounting.form.description")}</label>
               <Input
-                placeholder="Optional description"
+                placeholder={t("accounting.form.descriptionPh")}
                 value={form.description ?? ""}
                 onChange={(e) => set("description", e.target.value || null)}
               />
@@ -430,13 +433,13 @@ function AccountFormModal({
                 onChange={(e) => set("isActive", e.target.checked)}
                 className="h-4 w-4 rounded border border-input"
               />
-              <label htmlFor="isActive" className="text-sm">Active</label>
+              <label htmlFor="isActive" className="text-sm">{t("accounting.form.active")}</label>
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={onClose} disabled={busy}>{t("common:action.cancel")}</Button>
               <Button type="submit" disabled={busy}>
-                {busy ? "Saving…" : isEdit ? "Save Changes" : "Create Account"}
+                {busy ? t("common:action.saving") : isEdit ? t("accounting.form.saveChanges") : t("accounting.form.createAccount")}
               </Button>
             </div>
           </form>
@@ -473,6 +476,7 @@ function AccountTypesModal({
   accountTypes: AccountTypeDto[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation("finance");
   const createType   = useCreateAccountType();
   const updateType   = useUpdateAccountType();
   const deleteType   = useDeleteAccountType();
@@ -567,10 +571,10 @@ function AccountTypesModal({
   };
 
   const renderRow = (
-    t: AccountTypeDto,
+    at: AccountTypeDto,
     opts: { handle: { attributes: Record<string, unknown>; listeners: Record<string, unknown> | undefined }; isSub: boolean }
   ) => {
-    const isEditing = editingId === t.id;
+    const isEditing = editingId === at.id;
     return (
       <div
         className={cn(
@@ -583,7 +587,7 @@ function AccountTypesModal({
           {...opts.handle.listeners}
           style={{ touchAction: "none" }}
           className="text-muted-foreground hover:text-foreground cursor-grab shrink-0"
-          aria-label="Drag to reorder"
+          aria-label={t("accounting.types.dragToReorder")}
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -593,32 +597,32 @@ function AccountTypesModal({
             autoFocus
             value={editingName}
             onChange={(e) => setEditingName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") void handleRename(t); if (e.key === "Escape") setEditingId(null); }}
+            onKeyDown={(e) => { if (e.key === "Enter") void handleRename(at); if (e.key === "Escape") setEditingId(null); }}
             className="h-8 flex-1"
           />
         ) : (
-          <span className={cn("flex-1 text-sm", !t.isActive && "text-muted-foreground line-through")}>{t.name}</span>
+          <span className={cn("flex-1 text-sm", !at.isActive && "text-muted-foreground line-through")}>{at.name}</span>
         )}
 
-        {!t.parentId && (
+        {!at.parentId && (
           <span className={cn(
-            "px-2 py-0.5 rounded-full text-xs font-medium capitalize shrink-0",
-            t.normalBalance === "debit" ? "bg-primary/10 text-primary" : "bg-violet-500/10 text-violet-500"
+            "px-2 py-0.5 rounded-full text-xs font-medium shrink-0",
+            at.normalBalance === "debit" ? "bg-primary/10 text-primary" : "bg-violet-500/10 text-violet-500"
           )}>
-            {t.normalBalance}
+            {t(`accounting.types.${at.normalBalance}`, { defaultValue: at.normalBalance })}
           </span>
         )}
 
-        {!t.isActive && (
+        {!at.isActive && (
           <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground shrink-0">
-            Inactive
+            {t("accounting.types.inactive")}
           </span>
         )}
 
         <div className="flex items-center gap-0.5 shrink-0">
           {isEditing ? (
             <>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRename(t)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRename(at)}>
                 <Plus className="h-3.5 w-3.5 rotate-45" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingId(null)}>
@@ -627,15 +631,15 @@ function AccountTypesModal({
             </>
           ) : (
             <>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleToggleActive(t)}>
-                {t.isActive ? "Deactivate" : "Activate"}
+              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => handleToggleActive(at)}>
+                {at.isActive ? t("accounting.types.deactivate") : t("accounting.types.activate")}
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                onClick={() => startRename(t)}>
+                onClick={() => startRename(at)}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                onClick={() => setPendingDelete(t)}>
+                onClick={() => setPendingDelete(at)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </>
@@ -665,9 +669,9 @@ function AccountTypesModal({
         >
           <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <div>
-              <h2 className="text-base font-bold">Manage Account Types</h2>
+              <h2 className="text-base font-bold">{t("accounting.types.title")}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Add custom types and subtypes, drag to reorder.
+                {t("accounting.types.subtitle")}
               </p>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
@@ -703,21 +707,21 @@ function AccountTypesModal({
                         <div className="ml-8 flex items-center gap-2">
                           <Input
                             autoFocus
-                            placeholder="Subtype name"
+                            placeholder={t("accounting.types.subtypeNamePh")}
                             value={newSubName}
                             onChange={(e) => setNewSubName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") void handleAddSub(root.id); if (e.key === "Escape") setAddingSubFor(null); }}
                             className="h-8 flex-1"
                           />
-                          <Button size="sm" className="h-8" onClick={() => handleAddSub(root.id)} disabled={createType.isPending}>Add</Button>
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => { setAddingSubFor(null); setNewSubName(""); }}>Cancel</Button>
+                          <Button size="sm" className="h-8" onClick={() => handleAddSub(root.id)} disabled={createType.isPending}>{t("accounting.types.add")}</Button>
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => { setAddingSubFor(null); setNewSubName(""); }}>{t("common:action.cancel")}</Button>
                         </div>
                       ) : (
                         <button
                           className="ml-8 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
                           onClick={() => { setAddingSubFor(root.id); setNewSubName(""); }}
                         >
-                          <Plus className="h-3 w-3" /> Add Subtype
+                          <Plus className="h-3 w-3" /> {t("accounting.types.addSubtype")}
                         </button>
                       )}
                     </div>
@@ -730,7 +734,7 @@ function AccountTypesModal({
               <div className="flex items-center gap-2 pt-2 border-t border-border">
                 <Input
                   autoFocus
-                  placeholder="Type name (e.g. ABC)"
+                  placeholder={t("accounting.types.typeNamePh")}
                   value={newRootName}
                   onChange={(e) => setNewRootName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") void handleAddRoot(); if (e.key === "Escape") setAddingRoot(false); }}
@@ -741,18 +745,18 @@ function AccountTypesModal({
                   onChange={(e) => setNewRootBalance(e.target.value as "debit" | "credit")}
                   className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 >
-                  <option value="debit">Debit</option>
-                  <option value="credit">Credit</option>
+                  <option value="debit">{t("accounting.types.debit")}</option>
+                  <option value="credit">{t("accounting.types.credit")}</option>
                 </select>
-                <Button size="sm" onClick={handleAddRoot} disabled={createType.isPending}>Add</Button>
-                <Button size="sm" variant="outline" onClick={() => { setAddingRoot(false); setNewRootName(""); }}>Cancel</Button>
+                <Button size="sm" onClick={handleAddRoot} disabled={createType.isPending}>{t("accounting.types.add")}</Button>
+                <Button size="sm" variant="outline" onClick={() => { setAddingRoot(false); setNewRootName(""); }}>{t("common:action.cancel")}</Button>
               </div>
             ) : (
               <button
                 className="w-full pt-2 border-t border-border text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 py-2"
                 onClick={() => setAddingRoot(true)}
               >
-                <Plus className="h-4 w-4" /> Add Type
+                <Plus className="h-4 w-4" /> {t("accounting.types.addType")}
               </button>
             )}
           </div>
@@ -775,14 +779,14 @@ function AccountTypesModal({
               className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 pointer-events-auto space-y-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-base font-bold">Delete "{pendingDelete.name}"?</h3>
+              <h3 className="text-base font-bold">{t("accounting.types.deleteTitle", { name: pendingDelete.name })}</h3>
               <p className="text-sm text-muted-foreground">
-                This cannot be undone. Types with subtypes or accounts assigned to them cannot be deleted.
+                {t("accounting.types.deleteBody")}
               </p>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setPendingDelete(null)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setPendingDelete(null)}>{t("common:action.cancel")}</Button>
                 <Button variant="destructive" onClick={handleDelete} disabled={deleteType.isPending}>
-                  {deleteType.isPending ? "Deleting…" : "Delete"}
+                  {deleteType.isPending ? t("common:action.deleting") : t("common:action.delete")}
                 </Button>
               </div>
             </div>
@@ -812,6 +816,7 @@ function AccountSection({
   currency: string;
   showHeader?: boolean;
 }) {
+  const { t } = useTranslation("finance");
   const tree = React.useMemo(() => buildAccountTree(accounts), [accounts]);
   const rows = search
     ? accounts.map((a): AccountNode => ({ ...a, children: [], depth: depthMap.get(a.id) ?? 0 }))
@@ -829,10 +834,10 @@ function AccountSection({
           <div className="flex items-center gap-2">
             <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", !isCollapsed && "rotate-90")} />
             <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-semibold", color.bg)}>{label}</span>
-            <span className="text-xs text-muted-foreground">{accounts.length} accounts</span>
+            <span className="text-xs text-muted-foreground">{t("accounting.accountsCount", { count: accounts.length })}</span>
           </div>
           <span className={cn("text-sm font-bold", color.text)}>
-            Subtotal: {formatCurrency(subtotal, currency)}
+            {t("accounting.subtotal", { amount: formatCurrency(subtotal, currency) })}
           </span>
         </button>
       )}
@@ -841,11 +846,11 @@ function AccountSection({
         <table className="w-full">
           <thead>
             <tr className="border-b border-border/50">
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground w-24">Code</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Account Name</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden md:table-cell">Description</th>
-              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground w-20">Status</th>
-              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground w-40">Balance</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground w-24">{t("accounting.table.code")}</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("accounting.table.accountName")}</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden md:table-cell">{t("accounting.table.description")}</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground w-20">{t("accounting.table.status")}</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground w-40">{t("accounting.table.balance")}</th>
             </tr>
           </thead>
           <tbody>
@@ -864,7 +869,7 @@ function AccountSection({
                       <button
                         onClick={(e) => { e.stopPropagation(); onToggleCollapse(account.id); }}
                         className="p-0.5 rounded hover:bg-muted shrink-0"
-                        aria-label={collapsed.has(account.id) ? "Expand" : "Collapse"}
+                        aria-label={collapsed.has(account.id) ? t("accounting.expand") : t("accounting.collapse")}
                       >
                         <ChevronRight className={cn(
                           "h-3.5 w-3.5 text-muted-foreground transition-transform",
@@ -887,12 +892,12 @@ function AccountSection({
                       ? "bg-success/10 text-success"
                       : "bg-muted text-muted-foreground"
                   )}>
-                    {account.isActive ? "Active" : "Inactive"}
+                    {account.isActive ? t("accounting.status.active") : t("accounting.status.inactive")}
                   </span>
                 </td>
                 <td className={cn("px-4 py-3 text-right text-sm font-semibold", color.text)}>
                   {formatCurrency(Math.abs(account.balance), currency)}
-                  {account.balance < 0 && <span className="text-xs ml-1">(Cr)</span>}
+                  {account.balance < 0 && <span className="text-xs ml-1">{t("accounting.crMark")}</span>}
                 </td>
               </tr>
             ))}
@@ -906,6 +911,7 @@ function AccountSection({
 // ── Main View ──────────────────────────────────────────────────────────────────
 
 export function AccountingView() {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: accounts = [] } = useAccounts();
   const { data: accountTypes = [] } = useAccountTypes();
@@ -938,12 +944,12 @@ export function AccountingView() {
   );
 
   const STAT_CARDS = [
-    { label: "Total Assets",       value: accountingSummary?.totalAssets      ?? 0, color: "text-success",     icon: TrendingUp,   bg: "bg-success/10" },
-    { label: "Total Liabilities",  value: accountingSummary?.totalLiabilities ?? 0, color: "text-destructive", icon: TrendingDown,  bg: "bg-destructive/10" },
-    { label: "Equity",             value: accountingSummary?.totalEquity      ?? 0, color: "text-primary",     icon: Scale,         bg: "bg-primary/10" },
-    { label: "Revenue YTD",        value: accountingSummary?.totalRevenue     ?? 0, color: "text-success",     icon: TrendingUp,   bg: "bg-success/10" },
-    { label: "Expenses YTD",       value: accountingSummary?.totalExpenses    ?? 0, color: "text-destructive", icon: TrendingDown,  bg: "bg-destructive/10" },
-    { label: "Net Profit",         value: accountingSummary?.netProfit        ?? 0, color: "text-success",     icon: DollarSign,   bg: "bg-success/10" },
+    { label: t("accounting.stat.totalAssets"),      value: accountingSummary?.totalAssets      ?? 0, color: "text-success",     icon: TrendingUp,   bg: "bg-success/10" },
+    { label: t("accounting.stat.totalLiabilities"), value: accountingSummary?.totalLiabilities ?? 0, color: "text-destructive", icon: TrendingDown,  bg: "bg-destructive/10" },
+    { label: t("accounting.stat.equity"),           value: accountingSummary?.totalEquity      ?? 0, color: "text-primary",     icon: Scale,         bg: "bg-primary/10" },
+    { label: t("accounting.stat.revenueYtd"),       value: accountingSummary?.totalRevenue     ?? 0, color: "text-success",     icon: TrendingUp,   bg: "bg-success/10" },
+    { label: t("accounting.stat.expensesYtd"),      value: accountingSummary?.totalExpenses    ?? 0, color: "text-destructive", icon: TrendingDown,  bg: "bg-destructive/10" },
+    { label: t("accounting.stat.netProfit"),        value: accountingSummary?.netProfit        ?? 0, color: "text-success",     icon: DollarSign,   bg: "bg-success/10" },
   ];
 
   const [search, setSearch] = React.useState("");
@@ -1046,11 +1052,11 @@ export function AccountingView() {
     if (!pendingAccountDelete) return;
     try {
       await deleteMutation.mutateAsync(pendingAccountDelete.id);
-      toast.success("Account deleted.");
+      toast.success(t("accounting.deleteAccount.deleted"));
       setPendingAccountDelete(null);
       setSelectedAccount(null);
     } catch (err: unknown) {
-      toast.error((err as Error).message ?? "Could not delete account.");
+      toast.error((err as Error).message ?? t("accounting.deleteAccount.deleteFailed"));
     }
   };
 
@@ -1059,20 +1065,20 @@ export function AccountingView() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Chart of Accounts</h1>
+          <h1 className="text-2xl font-bold">{t("accounting.title")}</h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
-            Manage your general ledger accounts and financial structure.
+            {t("accounting.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowManageTypes(true)}>
-            <ListTree className="h-4 w-4" /> Manage Types
+            <ListTree className="h-4 w-4" /> {t("accounting.manageTypes")}
           </Button>
           <Can permission="finance.accounting.create">
             <Button size="sm" className="gap-2"
               onClick={() => { setEditAccount(null); setShowForm(true); }}>
-              <Plus className="h-4 w-4" /> New Account
+              <Plus className="h-4 w-4" /> {t("accounting.newAccount")}
             </Button>
           </Can>
         </div>
@@ -1104,7 +1110,7 @@ export function AccountingView() {
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search accounts..."
+            placeholder={t("accounting.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-9"
@@ -1120,7 +1126,7 @@ export function AccountingView() {
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            All
+            {t("accounting.all")}
           </button>
           {activeRoots.map((root) => (
             <button
@@ -1173,18 +1179,18 @@ export function AccountingView() {
                   <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-semibold", color.bg)}>
                     {root.name}
                   </span>
-                  <span className="text-xs text-muted-foreground">{totalCount} accounts</span>
+                  <span className="text-xs text-muted-foreground">{t("accounting.accountsCount", { count: totalCount })}</span>
                 </button>
                 <div className="flex items-center gap-3">
                   <span className={cn("text-sm font-bold", color.text)}>
-                    Subtotal: {formatCurrency(rootSubtotal, currency)}
+                    {t("accounting.subtotal", { amount: formatCurrency(rootSubtotal, currency) })}
                   </span>
                   <button
                     {...attributes}
                     {...(listeners ?? {})}
                     className="p-1 -mr-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 cursor-grab active:cursor-grabbing touch-none"
-                    aria-label={`Drag to reorder ${root.name}`}
-                    title="Drag to reorder"
+                    aria-label={t("accounting.dragToReorderNamed", { name: root.name })}
+                    title={t("accounting.dragToReorder")}
                   >
                     <GripVertical className="h-3.5 w-3.5" />
                   </button>
@@ -1196,7 +1202,7 @@ export function AccountingView() {
                   {generalAccounts.length > 0 && (
                     root.subtypes.length > 0 ? (
                       <AccountSection
-                        label="General"
+                        label={t("accounting.general")}
                         color={color}
                         accounts={generalAccounts}
                         search={search}
@@ -1248,7 +1254,7 @@ export function AccountingView() {
                   })}
 
                   {totalCount === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No accounts in this type yet.</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">{t("accounting.noAccountsInType")}</p>
                   )}
                 </div>
               )}
@@ -1314,14 +1320,14 @@ export function AccountingView() {
                 className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 pointer-events-auto space-y-4"
                 onClick={(e) => e.stopPropagation()}
               >
-                <h3 className="text-base font-bold">Delete "{pendingAccountDelete.name}"?</h3>
+                <h3 className="text-base font-bold">{t("accounting.deleteAccount.title", { name: pendingAccountDelete.name })}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Account <span className="font-mono">{pendingAccountDelete.accountNumber}</span> will be deleted. This cannot be undone. Accounts with transactions cannot be deleted.
+                  {t("accounting.deleteAccount.body", { number: pendingAccountDelete.accountNumber })}
                 </p>
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setPendingAccountDelete(null)}>Cancel</Button>
+                  <Button variant="outline" onClick={() => setPendingAccountDelete(null)}>{t("common:action.cancel")}</Button>
                   <Button variant="destructive" onClick={confirmAccountDelete} disabled={deleteMutation.isPending}>
-                    {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                    {deleteMutation.isPending ? t("common:action.deleting") : t("common:action.delete")}
                   </Button>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Building2, Globe, Phone, Mail, Star,
@@ -14,10 +15,11 @@ import { AddVendorForm } from "./add-vendor-form";
 
 interface Props { vendor: VendorDto | null; open: boolean; onClose: () => void; }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  active:   { label: "Active",   color: "text-success",          bg: "bg-success/10",     icon: CheckCircle2 },
-  inactive: { label: "Inactive", color: "text-muted-foreground", bg: "bg-muted",          icon: AlertCircle },
-  blocked:  { label: "Blocked",  color: "text-destructive",      bg: "bg-destructive/10", icon: Ban },
+/** Styling only — labels via t(`vendors.status.${status}`). */
+const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+  active:   { color: "text-success",          bg: "bg-success/10",     icon: CheckCircle2 },
+  inactive: { color: "text-muted-foreground", bg: "bg-muted",          icon: AlertCircle },
+  blocked:  { color: "text-destructive",      bg: "bg-destructive/10", icon: Ban },
 };
 
 function StarRating({ rating }: { rating: number }) {
@@ -33,6 +35,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export function VendorDrawer({ vendor, open, onClose }: Props) {
+  const { t } = useTranslation("purchase");
   const [showEditForm, setShowEditForm] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
 
@@ -42,7 +45,7 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
 
   if (!vendor) return null;
 
-  const sc = STATUS_CONFIG[vendor.status] ?? { label: vendor.status, color: "text-muted-foreground", bg: "bg-muted", icon: AlertCircle };
+  const sc = STATUS_CONFIG[vendor.status] ?? { color: "text-muted-foreground", bg: "bg-muted", icon: AlertCircle };
   const StatusIcon = sc.icon;
 
   function handleDelete() {
@@ -73,7 +76,7 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
                     <p className="text-sm text-muted-foreground truncate">{vendor.category}</p>
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                        <StatusIcon className="h-3 w-3" />{sc.label}
+                        <StatusIcon className="h-3 w-3" />{t(`vendors.status.${vendor.status}`, { defaultValue: vendor.status })}
                       </span>
                       {vendor.code && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">
@@ -91,13 +94,13 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
                 {/* Rating + POs */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-muted/30 rounded-xl p-4">
-                    <p className="text-xs text-muted-foreground mb-2">Rating</p>
+                    <p className="text-xs text-muted-foreground mb-2">{t("vendors.drawer.rating")}</p>
                     <StarRating rating={vendor.rating} />
                   </div>
                   <div className="bg-muted/30 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-1">
                       <ShoppingBag className="h-4 w-4 text-primary" />
-                      <span className="text-xs text-muted-foreground">Purchase Orders</span>
+                      <span className="text-xs text-muted-foreground">{t("vendors.drawer.purchaseOrders")}</span>
                     </div>
                     <p className="font-bold text-lg">{vendor.purchaseOrderCount}</p>
                   </div>
@@ -106,18 +109,18 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
                 {/* Payment & Currency */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><CreditCard className="h-3 w-3" />Payment Terms</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><CreditCard className="h-3 w-3" />{t("vendors.drawer.paymentTerms")}</p>
                     <p className="text-xs font-semibold">{vendor.paymentTerms}</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Globe className="h-3 w-3" />Currency</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Globe className="h-3 w-3" />{t("vendors.form.currency")}</p>
                     <p className="text-xs font-semibold">{vendor.currency}</p>
                   </div>
                 </div>
 
                 {/* Contact Info */}
                 <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Contact Information</h4>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("vendors.drawer.contactInfo")}</h4>
                   <div className="bg-muted/30 rounded-xl p-4 space-y-3 border border-border">
                     {vendor.contactPerson && (
                       <div className="flex items-center gap-3">
@@ -144,7 +147,7 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
                       </div>
                     )}
                     {!vendor.contactPerson && !vendor.phone && !vendor.email && !vendor.address && (
-                      <p className="text-sm text-muted-foreground">No contact information on file.</p>
+                      <p className="text-sm text-muted-foreground">{t("vendors.drawer.noContact")}</p>
                     )}
                   </div>
                 </div>
@@ -153,17 +156,17 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
                 <div className="grid grid-cols-2 gap-3">
                   {vendor.taxNumber && (
                     <div className="bg-muted/30 rounded-xl p-3 border border-border col-span-2">
-                      <p className="text-[10px] text-muted-foreground mb-1">Tax Number</p>
+                      <p className="text-[10px] text-muted-foreground mb-1">{t("vendors.drawer.taxNumber")}</p>
                       <p className="text-xs font-mono font-semibold">{vendor.taxNumber}</p>
                     </div>
                   )}
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />Added</p>
+                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />{t("vendors.drawer.added")}</p>
                     <p className="text-xs font-semibold">{formatDate(vendor.createdAt)}</p>
                   </div>
                   {vendor.updatedAt && (
                     <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                      <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />Updated</p>
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />{t("vendors.drawer.updated")}</p>
                       <p className="text-xs font-semibold">{formatDate(vendor.updatedAt)}</p>
                     </div>
                   )}
@@ -172,7 +175,7 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
                 {/* Notes */}
                 {vendor.notes && (
                   <div className="bg-muted/30 rounded-xl p-4 border border-border">
-                    <p className="text-xs text-muted-foreground font-semibold mb-1">Notes</p>
+                    <p className="text-xs text-muted-foreground font-semibold mb-1">{t("vendors.drawer.notes")}</p>
                     <p className="text-sm text-muted-foreground">{vendor.notes}</p>
                   </div>
                 )}
@@ -182,23 +185,23 @@ export function VendorDrawer({ vendor, open, onClose }: Props) {
               <div className="p-4 border-t border-border flex items-center gap-2">
                 <Button variant="outline" size="sm" className="gap-1.5 h-9"
                   onClick={() => setShowEditForm(true)}>
-                  <Pencil className="h-3.5 w-3.5" />Edit
+                  <Pencil className="h-3.5 w-3.5" />{t("vendors.drawer.edit")}
                 </Button>
 
                 {confirmDelete ? (
                   <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-xs text-destructive font-medium">Delete this vendor?</span>
+                    <span className="text-xs text-destructive font-medium">{t("vendors.drawer.deleteConfirm")}</span>
                     <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={deleteMutation.isPending}
                       onClick={handleDelete}>
                       {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 text-xs"
-                      onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                      onClick={() => setConfirmDelete(false)}>{t("vendors.drawer.cancel")}</Button>
                   </div>
                 ) : (
                   <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
                     onClick={() => setConfirmDelete(true)}>
-                    <Trash2 className="h-3.5 w-3.5" />Delete
+                    <Trash2 className="h-3.5 w-3.5" />{t("vendors.drawer.delete")}
                   </Button>
                 )}
               </div>

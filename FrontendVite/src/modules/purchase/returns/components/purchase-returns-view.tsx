@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Calendar, Loader2, RotateCcw, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -6,15 +7,16 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { usePurchaseReturns } from "@/hooks/purchase/use-purchase-returns";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  posted:    { label: "Posted",    color: "text-success",     bg: "bg-success/10",     dot: "bg-success" },
-  cancelled: { label: "Cancelled", color: "text-destructive", bg: "bg-destructive/10", dot: "bg-destructive" },
-};
-
 export function PurchaseReturnsView() {
+  const { t } = useTranslation("purchase");
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const { data, isLoading } = usePurchaseReturns();
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+    posted:    { label: t("returns.status.posted"),    color: "text-success",     bg: "bg-success/10",     dot: "bg-success" },
+    cancelled: { label: t("returns.status.cancelled"), color: "text-destructive", bg: "bg-destructive/10", dot: "bg-destructive" },
+  };
 
   const items = (data ?? []).filter(r =>
     !search ||
@@ -27,8 +29,8 @@ export function PurchaseReturnsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Purchase Returns</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Goods returned to vendors against purchase orders</p>
+          <h1 className="text-2xl font-bold">{t("returns.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("returns.description")}</p>
         </div>
       </div>
 
@@ -36,7 +38,7 @@ export function PurchaseReturnsView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search return, PO or vendor…" value={search}
+          <Input placeholder={t("returns.search")} value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm" />
         </div>
@@ -47,24 +49,24 @@ export function PurchaseReturnsView() {
         className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading purchase returns…</span>
+            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("returns.loading")}</span>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Return #</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Purchase Order</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendor</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Return Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Reason</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.returnNumber")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.poNumber")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.vendor")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("returns.table.date")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("returns.table.reason")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("common.amount")}</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("common.status")}</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No purchase returns found.</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{t("returns.noResults")}</td></tr>
               ) : items.map((r, i) => {
                 const sc = STATUS_CONFIG[r.status] ?? { label: r.status, color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
                 return (

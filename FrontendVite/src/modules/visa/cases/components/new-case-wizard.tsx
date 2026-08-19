@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, ChevronLeft, ChevronRight, FileText, Loader2, Building2, Link2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export interface CaseWizardPrefill {
 interface Props { open: boolean; onClose: () => void; prefill?: CaseWizardPrefill; }
 
 export function NewCaseWizard({ open, onClose, prefill }: Props) {
+  const { t } = useTranslation("visa");
   const currency = useCurrency();
   const createdByName = useAuthStore(s => s.user?.name) ?? "";
   const { data: types = [] } = useVisaTypes();
@@ -53,7 +55,7 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
   const [makeInvoice, setMakeInvoice] = React.useState(true);
   const [applicants, setApplicants] = React.useState<ApplicantInput[]>([emptyApplicant()]);
 
-  const selectedType = types.find(t => t.id === typeId) ?? null;
+  const selectedType = types.find(vt => vt.id === typeId) ?? null;
 
   const acctMatches = React.useMemo(() => {
     const q = customerName.trim().toLowerCase();
@@ -134,8 +136,8 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Visa Case</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Step {step} of 2 — {step === 1 ? "Visa type & details" : "Applicants"}</p>
+                <h2 className="text-base font-bold text-foreground">{t("wizard.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("wizard.stepLabel", { step, name: step === 1 ? t("wizard.step1") : t("wizard.step2") })}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
@@ -145,60 +147,60 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
               {step === 1 && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Visa Type *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.visaType")}</label>
                     <select value={typeId} onChange={e => setTypeId(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select visa type…</option>
-                      {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                      <option value="">{t("wizard.selectType")}</option>
+                      {types.map(vt => <option key={vt.id} value={vt.id}>{vt.name}</option>)}
                     </select>
                   </div>
 
                   {selectedType && (
                     <div className="bg-muted/30 rounded-xl p-4 space-y-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Processing time</span>
-                        <span className="font-medium">~{selectedType.processingDays} days</span>
+                        <span className="text-muted-foreground">{t("wizard.processingTime")}</span>
+                        <span className="font-medium">{t("wizard.processingDays", { count: selectedType.processingDays })}</span>
                       </div>
                       <div className="flex items-start gap-2 text-xs text-muted-foreground">
                         <FileText className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span>{selectedType.requiredDocuments.length} required documents per applicant — the checklist is generated automatically.</span>
+                        <span>{t("wizard.docsHint", { count: selectedType.requiredDocuments.length })}</span>
                       </div>
                     </div>
                   )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Emirate</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.emirate")}</label>
                       <select value={emirate} onChange={e => setEmirate(e.target.value)}
                         className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                         {EMIRATES.map(e2 => <option key={e2} value={e2}>{e2}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Priority</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.priority")}</label>
                       <select value={priority} onChange={e => setPriority(e.target.value)}
-                        className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground capitalize focus:outline-none focus:ring-2 focus:ring-primary/30">
-                        {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                        className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        {PRIORITIES.map(p => <option key={p} value={p}>{t(`wizard.priorityValue.${p}`)}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5 relative col-span-2">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account / Client</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.account")}</label>
                       <div className="relative">
                         <Input
                           value={customerName}
                           onChange={e => { setCustomerName(e.target.value); setCustomerId(null); setAcctOpen(true); }}
                           onFocus={() => setAcctOpen(true)}
                           onBlur={() => setTimeout(() => setAcctOpen(false), 120)}
-                          placeholder="Search CRM accounts or type a client name…"
+                          placeholder={t("wizard.accountPlaceholder")}
                           className={cn("h-9 text-sm", customerId && "pr-16")}
                         />
                         {customerId && (
                           <span className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
                             <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium bg-primary/10 text-primary">
-                              <Link2 className="h-2.5 w-2.5" />Linked
+                              <Link2 className="h-2.5 w-2.5" />{t("wizard.linked")}
                             </span>
                             <button type="button" onMouseDown={e => { e.preventDefault(); setCustomerId(null); setCustomerName(""); }}
-                              className="p-0.5 rounded hover:bg-muted text-muted-foreground" aria-label="Unlink account">
+                              className="p-0.5 rounded hover:bg-muted text-muted-foreground" aria-label={t("wizard.unlink")}>
                               <X className="h-3 w-3" />
                             </button>
                           </span>
@@ -218,23 +220,23 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
                       )}
                     </div>
                     <div className="space-y-1.5 col-span-2">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned PRO</label>
-                      <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder={createdByName || "PRO name…"} className="h-9 text-sm" />
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.assignedPro")}</label>
+                      <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder={createdByName || t("wizard.proPlaceholder")} className="h-9 text-sm" />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Service Fee ({currency})</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.serviceFee", { currency })}</label>
                       <Input type="number" min={0} value={serviceFee} onChange={e => setServiceFee(e.target.value)} className="h-9 text-sm text-right" />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Govt Fee ({currency})</label>
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.govtFee", { currency })}</label>
                       <Input type="number" min={0} value={govtFee} onChange={e => setGovtFee(e.target.value)} className="h-9 text-sm text-right" />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("wizard.notes")}</label>
                     <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
-                      placeholder="Case background, sponsor details…"
+                      placeholder={t("wizard.notesPlaceholder")}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
                   </div>
 
@@ -246,8 +248,8 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
                         {makeInvoice && <Check className="h-3.5 w-3.5" />}
                       </span>
                       <span className="flex-1">
-                        <span className="text-sm font-medium block">Create a draft invoice in Finance</span>
-                        <span className="text-xs text-muted-foreground">Service + government fees as line items, linked to this case.</span>
+                        <span className="text-sm font-medium block">{t("wizard.invoiceTitle")}</span>
+                        <span className="text-xs text-muted-foreground">{t("wizard.invoiceHint")}</span>
                       </span>
                     </button>
                   )}
@@ -260,27 +262,27 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
                     <div key={i} className="rounded-xl border border-border p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <select value={a.relationship} onChange={e => setApplicant(i, { relationship: e.target.value })}
-                          className="h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground capitalize focus:outline-none focus:ring-2 focus:ring-primary/30">
-                          {RELATIONSHIPS.map(r => <option key={r} value={r}>{r}</option>)}
+                          className="h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                          {RELATIONSHIPS.map(r => <option key={r} value={r}>{t(`wizard.relationship.${r}`)}</option>)}
                         </select>
                         {applicants.length > 1 && (
                           <button onClick={() => setApplicants(prev => prev.filter((_, idx) => idx !== i))}
-                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label="Remove applicant">
+                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive" aria-label={t("wizard.removeApplicant")}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <Input value={a.firstName} onChange={e => setApplicant(i, { firstName: e.target.value })} placeholder="First name *" className="h-9 text-sm" />
-                        <Input value={a.lastName} onChange={e => setApplicant(i, { lastName: e.target.value })} placeholder="Last name" className="h-9 text-sm" />
-                        <Input value={a.nationality} onChange={e => setApplicant(i, { nationality: e.target.value })} placeholder="Nationality *" className="h-9 text-sm" />
-                        <Input value={a.passportNumber} onChange={e => setApplicant(i, { passportNumber: e.target.value })} placeholder="Passport number *" className="h-9 text-sm font-mono" />
+                        <Input value={a.firstName} onChange={e => setApplicant(i, { firstName: e.target.value })} placeholder={t("wizard.firstName")} className="h-9 text-sm" />
+                        <Input value={a.lastName} onChange={e => setApplicant(i, { lastName: e.target.value })} placeholder={t("wizard.lastName")} className="h-9 text-sm" />
+                        <Input value={a.nationality} onChange={e => setApplicant(i, { nationality: e.target.value })} placeholder={t("wizard.nationality")} className="h-9 text-sm" />
+                        <Input value={a.passportNumber} onChange={e => setApplicant(i, { passportNumber: e.target.value })} placeholder={t("wizard.passportNumber")} className="h-9 text-sm font-mono" />
                         <div className="space-y-1">
-                          <label className="text-[10px] text-muted-foreground uppercase">Passport expiry</label>
+                          <label className="text-[10px] text-muted-foreground uppercase">{t("wizard.passportExpiry")}</label>
                           <Input type="date" value={a.passportExpiry ?? ""} onChange={e => setApplicant(i, { passportExpiry: e.target.value || null })} className="h-9 text-sm" />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] text-muted-foreground uppercase">Date of birth</label>
+                          <label className="text-[10px] text-muted-foreground uppercase">{t("wizard.dateOfBirth")}</label>
                           <Input type="date" value={a.dateOfBirth ?? ""} onChange={e => setApplicant(i, { dateOfBirth: e.target.value || null })} className="h-9 text-sm" />
                         </div>
                       </div>
@@ -288,7 +290,7 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
                   ))}
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 w-full"
                     onClick={() => setApplicants(prev => [...prev, emptyApplicant(prev.length === 0 ? "primary" : "spouse")])}>
-                    <Plus className="h-3.5 w-3.5" />Add dependent
+                    <Plus className="h-3.5 w-3.5" />{t("wizard.button.addDependent")}
                   </Button>
                 </div>
               )}
@@ -297,20 +299,20 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex items-center justify-between shrink-0">
               {step === 1 ? (
-                <Button variant="outline" onClick={onClose} disabled={create.isPending}>Cancel</Button>
+                <Button variant="outline" onClick={onClose} disabled={create.isPending}>{t("wizard.button.cancel")}</Button>
               ) : (
                 <Button variant="outline" onClick={() => setStep(1)} disabled={create.isPending} className="gap-1">
-                  <ChevronLeft className="h-4 w-4" />Back
+                  <ChevronLeft className="h-4 w-4" />{t("wizard.button.back")}
                 </Button>
               )}
               {step === 1 ? (
                 <Button onClick={() => setStep(2)} disabled={!step1Valid} className="gap-1">
-                  Applicants<ChevronRight className="h-4 w-4" />
+                  {t("wizard.button.next")}<ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
                 <Button onClick={handleCreate} disabled={!applicantsValid || create.isPending} className="gap-1.5">
                   {create.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Create Case — {formatCurrency(totalFees, currency)}
+                  {t("wizard.button.create", { total: formatCurrency(totalFees, currency) })}
                 </Button>
               )}
             </div>

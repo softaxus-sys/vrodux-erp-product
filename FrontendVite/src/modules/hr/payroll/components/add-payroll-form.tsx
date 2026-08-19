@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, AlertCircle, ChevronRight, ChevronLeft,
@@ -7,18 +8,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, activeLocale } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePayrollRun, useEmployees } from "@/hooks/hr/use-hr";
 import type { EmployeeDto } from "@/lib/hr/hr.api";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const PAYROLL_TYPES = [
-  { value: "monthly",     label: "Monthly Payroll",        desc: "Regular monthly salary for all active employees" },
-  { value: "bonus",       label: "Bonus Run",              desc: "One-time bonus or incentive disbursement" },
-  { value: "termination", label: "Termination Settlement", desc: "Final settlement for departing employees" },
-  { value: "correction",  label: "Payroll Correction",     desc: "Adjustment to a previously processed run" },
-];
+const PAYROLL_TYPES = ["monthly", "bonus", "termination", "correction"];
 
 // Generate last 13 months + next month dynamically
 function buildPeriodOptions(): { value: string; label: string }[] {
@@ -27,7 +23,7 @@ function buildPeriodOptions(): { value: string; label: string }[] {
   for (let i = -1; i <= 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleString("en-AE", { month: "long", year: "numeric" });
+    const label = d.toLocaleString(activeLocale(), { month: "long", year: "numeric" });
     opts.push({ value, label });
   }
   return opts;
@@ -67,6 +63,7 @@ interface AddPayrollFormProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps) {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const PERIODS = React.useMemo(buildPeriodOptions, []);
 
@@ -146,7 +143,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
 
   // Submit
   const handleSubmit = () => {
-    if (rows.length === 0) { setApiError("No active employees to include."); return; }
+    if (rows.length === 0) { setApiError(t("payrollForm.noActive")); return; }
     setApiError(null);
     createPayroll.mutate(
       {
@@ -196,15 +193,15 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                 )}
                 <div>
                   <h2 className="text-base font-bold">
-                    {step === 1 ? "New Payroll Run" : "Review & Adjust Salaries"}
+                    {step === 1 ? t("payrollForm.step1Title") : t("payrollForm.step2Title")}
                   </h2>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${step === 1 ? "bg-primary/10 text-primary" : "bg-success/10 text-success"}`}>
-                      Step 1: Configure
+                      {t("payrollForm.step1Chip")}
                     </span>
                     <ChevronRight className="w-3 h-3 text-muted-foreground" />
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${step === 2 ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      Step 2: Review Employees
+                      {t("payrollForm.step2Chip")}
                     </span>
                   </div>
                 </div>
@@ -219,17 +216,17 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
                 {/* Payroll Type */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payroll Type</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("payrollForm.payrollType")}</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {PAYROLL_TYPES.map(t => (
-                      <button key={t.value} onClick={() => setPayrollType(t.value)}
+                    {PAYROLL_TYPES.map(pt => (
+                      <button key={pt} onClick={() => setPayrollType(pt)}
                         className={`py-3 px-3 rounded-xl border-2 text-left transition-all ${
-                          payrollType === t.value
+                          payrollType === pt
                             ? "border-primary bg-primary/5"
                             : "border-border hover:border-primary/30"
                         }`}>
-                        <p className={`text-xs font-semibold ${payrollType === t.value ? "text-primary" : "text-foreground"}`}>{t.label}</p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{t.desc}</p>
+                        <p className={`text-xs font-semibold ${payrollType === pt ? "text-primary" : "text-foreground"}`}>{t(`payrollForm.type.${pt}Label`)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{t(`payrollForm.type.${pt}Desc`)}</p>
                       </button>
                     ))}
                   </div>
@@ -238,7 +235,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                 {/* Period & Date */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pay Period *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("payrollForm.payPeriod")}</label>
                     <select
                       value={period}
                       onChange={e => setPeriod(e.target.value)}
@@ -248,18 +245,18 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment Date *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("payrollForm.paymentDate")}</label>
                     <Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} className="h-9 text-sm" />
                   </div>
                 </div>
 
                 {/* Notes */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes / Description</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("payrollForm.notes")}</label>
                   <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="e.g. Monthly payroll including Q2 bonuses…"
+                    placeholder={t("payrollForm.notesPlaceholder")}
                     rows={3}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                   />
@@ -272,16 +269,16 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold">
-                      {loadingEmp ? "Loading…" : `${employees.filter(e => e.status === "active").length} active employees`}
+                      {loadingEmp ? t("payrollForm.loading") : t("payrollForm.activeEmployees", { count: employees.filter(e => e.status === "active").length })}
                     </p>
-                    <p className="text-xs text-muted-foreground">will be included in this payroll run</p>
+                    <p className="text-xs text-muted-foreground">{t("payrollForm.willBeIncluded")}</p>
                   </div>
                 </div>
 
                 {/* Warning */}
                 <div className="flex items-start gap-2 px-3 py-2.5 bg-warning/5 border border-warning/20 rounded-xl text-xs text-warning">
                   <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  Payroll runs require Finance approval before payment disbursement.
+                  {t("payrollForm.financeWarning")}
                 </div>
               </div>
             )}
@@ -299,7 +296,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
 
                   {/* Global adjustments */}
                   <div className="flex items-center gap-3 flex-wrap">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Apply to All:</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">{t("payrollForm.applyToAll")}</p>
 
                     {/* Global bonus */}
                     <div className="flex items-center gap-1.5">
@@ -308,12 +305,12 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                         type="number" min={0} step={100}
                         value={globalBonus}
                         onChange={e => setGlobalBonus(e.target.value)}
-                        placeholder="Bonus amount"
+                        placeholder={t("payrollForm.bonusAmount")}
                         className="h-7 w-32 text-xs"
                         onKeyDown={e => e.key === "Enter" && applyGlobalBonus()}
                       />
                       <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-success border-success/30 hover:bg-success/10" onClick={applyGlobalBonus}>
-                        <Plus className="w-3 h-3" />Add Bonus
+                        <Plus className="w-3 h-3" />{t("payrollForm.addBonus")}
                       </Button>
                     </div>
 
@@ -324,12 +321,12 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                         type="number" min={0} step={100}
                         value={globalDeduct}
                         onChange={e => setGlobalDeduct(e.target.value)}
-                        placeholder="Deduction amount"
+                        placeholder={t("payrollForm.deductionAmount")}
                         className="h-7 w-32 text-xs"
                         onKeyDown={e => e.key === "Enter" && applyGlobalDeduct()}
                       />
                       <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={applyGlobalDeduct}>
-                        <Minus className="w-3 h-3" />Add Deduction
+                        <Minus className="w-3 h-3" />{t("payrollForm.addDeduction")}
                       </Button>
                     </div>
 
@@ -338,7 +335,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                       <Input
                         value={search} onChange={e => setSearch(e.target.value)}
-                        placeholder="Search employees…"
+                        placeholder={t("payrollForm.searchPlaceholder")}
                         className="h-7 pl-6 w-44 text-xs"
                       />
                     </div>
@@ -350,8 +347,12 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                   <table className="w-full text-sm">
                     <thead className="border-b border-border bg-muted/30 sticky top-0 z-10">
                       <tr>
-                        {["Employee", "Department", "Basic Salary", "Allowances / Bonus", "Deductions", "Net Salary"].map(h => (
-                          <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        {[
+                          ["employee", t("payrollForm.table.employee")], ["department", t("payrollForm.table.department")],
+                          ["basicSalary", t("payrollForm.table.basicSalary")], ["allowancesBonus", t("payrollForm.table.allowancesBonus")],
+                          ["deductions", t("payrollForm.table.deductions")], ["netSalary", t("payrollForm.table.netSalary")],
+                        ].map(([k, h]) => (
+                          <th key={k} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -359,7 +360,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                       {filteredRows.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="text-center py-16 text-muted-foreground text-sm">
-                            {search ? "No employees match your search." : "No active employees found."}
+                            {search ? t("payrollForm.noMatch") : t("payrollForm.noActiveFound")}
                           </td>
                         </tr>
                       ) : filteredRows.map((row, i) => {
@@ -420,7 +421,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                       <tfoot className="border-t-2 border-border bg-muted/40 sticky bottom-0">
                         <tr>
                           <td className="px-4 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wide">
-                            {rows.length} Employees
+                            {t("payrollForm.employeesTotal", { count: rows.length })}
                           </td>
                           <td />
                           <td className="px-4 py-3 text-sm font-bold">{formatCurrency(totalBasic, currency)}</td>
@@ -440,12 +441,12 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                 {/* Summary bar */}
                 <div className="px-6 py-3 border-t border-border bg-muted/20 shrink-0">
                   <div className="flex items-center gap-6 text-xs flex-wrap">
-                    <span className="text-muted-foreground">Period: <span className="font-semibold text-foreground">{period}</span></span>
-                    <span className="text-muted-foreground">Employees: <span className="font-semibold text-foreground">{rows.length}</span></span>
-                    <span className="text-muted-foreground">Basic: <span className="font-semibold text-foreground">{formatCurrency(totalBasic, currency)}</span></span>
-                    {totalAllowances > 0 && <span className="text-muted-foreground">Allowances: <span className="font-semibold text-success">+{formatCurrency(totalAllowances, currency)}</span></span>}
-                    {totalDeductions > 0 && <span className="text-muted-foreground">Deductions: <span className="font-semibold text-destructive">−{formatCurrency(totalDeductions, currency)}</span></span>}
-                    <span className="ml-auto font-bold">Net Payroll: <span className="text-primary">{formatCurrency(totalNet, currency)}</span></span>
+                    <span className="text-muted-foreground">{t("payrollForm.summary.period")} <span className="font-semibold text-foreground">{period}</span></span>
+                    <span className="text-muted-foreground">{t("payrollForm.summary.employees")} <span className="font-semibold text-foreground">{rows.length}</span></span>
+                    <span className="text-muted-foreground">{t("payrollForm.summary.basic")} <span className="font-semibold text-foreground">{formatCurrency(totalBasic, currency)}</span></span>
+                    {totalAllowances > 0 && <span className="text-muted-foreground">{t("payrollForm.summary.allowances")} <span className="font-semibold text-success">+{formatCurrency(totalAllowances, currency)}</span></span>}
+                    {totalDeductions > 0 && <span className="text-muted-foreground">{t("payrollForm.summary.deductions")} <span className="font-semibold text-destructive">−{formatCurrency(totalDeductions, currency)}</span></span>}
+                    <span className="ml-auto font-bold">{t("payrollForm.summary.netPayroll")} <span className="text-primary">{formatCurrency(totalNet, currency)}</span></span>
                   </div>
                 </div>
               </div>
@@ -454,7 +455,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
             {/* ── Footer ── */}
             <div className="px-6 py-4 border-t border-border flex items-center justify-between shrink-0">
               <Button variant="outline" onClick={onClose} disabled={createPayroll.isPending}>
-                Cancel
+                {t("payrollForm.cancel")}
               </Button>
 
               {step === 1 ? (
@@ -463,7 +464,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                   disabled={!step1Valid || loadingEmp}
                   className="gap-1.5"
                 >
-                  {loadingEmp ? "Loading employees…" : "Review Employees"}
+                  {loadingEmp ? t("payrollForm.loadingEmployees") : t("payrollForm.reviewEmployees")}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
@@ -473,7 +474,7 @@ export function AddPayrollForm({ open, onClose, onSuccess }: AddPayrollFormProps
                   className="gap-1.5"
                 >
                   <CheckCircle2 className="h-4 w-4" />
-                  {createPayroll.isPending ? "Processing…" : `Run Payroll — ${formatCurrency(totalNet, currency)}`}
+                  {createPayroll.isPending ? t("payrollForm.processing") : t("payrollForm.runPayrollAmount", { amount: formatCurrency(totalNet, currency) })}
                 </Button>
               )}
             </div>

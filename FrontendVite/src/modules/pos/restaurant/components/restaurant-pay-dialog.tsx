@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { X, Loader2, Banknote, CreditCard, Users, SplitSquareHorizontal, Wallet, CheckCircle2, HandCoins, User2, Search, UserPlus } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface RestaurantPayDialogProps {
 type Mode = "full" | "split-type" | "members";
 
 export function RestaurantPayDialog({ order, currency, onPaid, onClose }: RestaurantPayDialogProps) {
+  const { t } = useTranslation("restaurant");
   const addPayment = useAddOrderPayment();
   const setTip = useSetOrderTip();
   const setOrderCustomer = useSetOrderCustomer();
@@ -54,9 +56,9 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
    * enough balance/available credit for the given amount; every other method is always usable. */
   const customerFundedIssue = (m: string, amt: number): string | null => {
     if (!CUSTOMER_FUNDED_METHODS.has(m)) return null;
-    if (!linkedCustomer) return "Link a customer first";
-    if (m === "Wallet" && amt > linkedCustomer.walletBalance) return `Only ${formatCurrency(linkedCustomer.walletBalance, currency)} in wallet`;
-    if (m === "House Account" && amt > linkedCustomer.availableCredit) return `Only ${formatCurrency(linkedCustomer.availableCredit, currency)} available`;
+    if (!linkedCustomer) return t("pay.issue.linkCustomer");
+    if (m === "Wallet" && amt > linkedCustomer.walletBalance) return t("pay.issue.walletOnly", { amount: formatCurrency(linkedCustomer.walletBalance, currency) });
+    if (m === "House Account" && amt > linkedCustomer.availableCredit) return t("pay.issue.creditOnly", { amount: formatCurrency(linkedCustomer.availableCredit, currency) });
     return null;
   };
   const memberShare = React.useMemo(() => {
@@ -88,7 +90,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-md" zIndexClassName="z-[60]">
       <div className="-mx-5 -mt-5 px-5 py-3 border-b border-border flex items-center justify-between">
-        <h2 className="text-sm font-bold">Bill &amp; Payment</h2>
+        <h2 className="text-sm font-bold">{t("pay.title")}</h2>
         <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted/60 text-muted-foreground"><X className="h-4 w-4" /></button>
       </div>
 
@@ -96,15 +98,15 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
           {/* Totals */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="rounded-xl bg-muted/40 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">Total</p>
+              <p className="text-[10px] text-muted-foreground uppercase font-semibold">{t("pay.total")}</p>
               <p className="text-sm font-bold tabular-nums">{formatCurrency(displayOrder.total, currency)}</p>
             </div>
             <div className="rounded-xl bg-primary/10 py-2">
-              <p className="text-[10px] text-primary uppercase font-semibold">Paid</p>
+              <p className="text-[10px] text-primary uppercase font-semibold">{t("pay.paid")}</p>
               <p className="text-sm font-bold tabular-nums text-primary">{formatCurrency(displayOrder.amountPaid, currency)}</p>
             </div>
             <div className={cn("rounded-xl py-2", outstanding > 0 ? "bg-destructive/10" : "bg-success/10")}>
-              <p className={cn("text-[10px] uppercase font-semibold", outstanding > 0 ? "text-destructive" : "text-success")}>Outstanding</p>
+              <p className={cn("text-[10px] uppercase font-semibold", outstanding > 0 ? "text-destructive" : "text-success")}>{t("pay.outstanding")}</p>
               <p className={cn("text-sm font-bold tabular-nums", outstanding > 0 ? "text-destructive" : "text-success")}>{formatCurrency(outstanding, currency)}</p>
             </div>
           </div>
@@ -122,7 +124,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
           {(canEditTip || displayOrder.tipAmount > 0) && (
             <div className="rounded-xl border border-border overflow-hidden">
               <div className="flex items-center justify-between px-3 py-2 text-xs font-semibold">
-                <span className="flex items-center gap-1.5"><HandCoins className="h-3.5 w-3.5 text-primary" />Tip</span>
+                <span className="flex items-center gap-1.5"><HandCoins className="h-3.5 w-3.5 text-primary" />{t("pay.tip")}</span>
                 <span className="tabular-nums">{formatCurrency(displayOrder.tipAmount, currency)}</span>
               </div>
               {canEditTip && (
@@ -137,15 +139,15 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                     ))}
                     <button disabled={setTip.isPending} onClick={() => applyTip(0)}
                       className="py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:border-destructive/40 hover:text-destructive disabled:opacity-50">
-                      None
+                      {t("pay.tipNone")}
                     </button>
                   </div>
                   <div className="flex gap-2">
                     <Input type="number" min={0} step="0.01" value={tipInput} onChange={e => setTipInput(e.target.value)}
-                      placeholder="Custom amount" className="h-8 text-sm" />
+                      placeholder={t("pay.tipCustom")} className="h-8 text-sm" />
                     <Button size="sm" className="h-8 shrink-0" disabled={setTip.isPending || !tipInput}
                       onClick={() => { applyTip(parseFloat(tipInput) || 0); setTipInput(""); }}>
-                      {setTip.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Set"}
+                      {setTip.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("pay.tipSet")}
                     </Button>
                   </div>
                 </div>
@@ -158,7 +160,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
             <div className="space-y-1 max-h-28 overflow-y-auto">
               {displayOrder.payments.map(p => (
                 <div key={p.id} className="flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-muted/30">
-                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-success" />{p.method}{p.reference ? ` · ${p.reference}` : ""}</span>
+                  <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3 w-3 text-success" />{t(`pay.method.${p.method}`, { defaultValue: p.method })}{p.reference ? ` · ${p.reference}` : ""}</span>
                   <span className="font-semibold tabular-nums">{formatCurrency(p.amount, currency)}</span>
                 </div>
               ))}
@@ -167,23 +169,23 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
 
           {outstanding <= 0 ? (
             <div className="text-center py-3 text-success font-semibold flex items-center justify-center gap-2">
-              <CheckCircle2 className="h-5 w-5" /> Fully paid
+              <CheckCircle2 className="h-5 w-5" /> {t("pay.fullyPaid")}
             </div>
           ) : (
             <>
               {/* Mode selector */}
               <div className="grid grid-cols-3 gap-1">
                 {[
-                  { id: "full" as Mode, label: "Full", icon: Banknote },
-                  { id: "split-type" as Mode, label: "Split Pay", icon: SplitSquareHorizontal },
-                  { id: "members" as Mode, label: "Members", icon: Users },
-                ].map(t => {
-                  const Icon = t.icon;
+                  { id: "full" as Mode, icon: Banknote },
+                  { id: "split-type" as Mode, icon: SplitSquareHorizontal },
+                  { id: "members" as Mode, icon: Users },
+                ].map(opt => {
+                  const Icon = opt.icon;
                   return (
-                    <button key={t.id} onClick={() => setMode(t.id)}
+                    <button key={opt.id} onClick={() => setMode(opt.id)}
                       className={cn("flex flex-col items-center gap-1 py-2 rounded-lg border text-[10px] font-semibold transition-all",
-                        mode === t.id ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30")}>
-                      <Icon className="h-3.5 w-3.5" />{t.label}
+                        mode === opt.id ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30")}>
+                      <Icon className="h-3.5 w-3.5" />{t(`pay.mode.${opt.id}`)}
                     </button>
                   );
                 })}
@@ -191,9 +193,9 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
 
               {mode === "members" && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-muted-foreground">Split between</span>
+                  <span className="text-muted-foreground">{t("pay.splitBetween")}</span>
                   <Input type="number" min={1} value={members} onChange={e => setMembers(e.target.value)} className="h-8 w-16 text-sm text-center" />
-                  <span className="text-muted-foreground">guests · share</span>
+                  <span className="text-muted-foreground">{t("pay.guestsShare")}</span>
                   <span className="font-bold text-foreground">{formatCurrency(memberShare, currency)}</span>
                 </div>
               )}
@@ -208,7 +210,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                       <Button key={m} variant="outline" disabled={addPayment.isPending || !!issue}
                         title={issue ?? undefined}
                         onClick={() => post(outstanding, m)} className="gap-1.5 h-10">
-                        <Icon className="h-4 w-4" />{m}
+                        <Icon className="h-4 w-4" />{t(`pay.method.${m}`, { defaultValue: m })}
                       </Button>
                     );
                   })}
@@ -218,13 +220,13 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                   <div className="flex gap-2">
                     <select value={method} onChange={e => setMethod(e.target.value)}
                       className="h-9 rounded-lg border border-border bg-background px-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {METHODS.map(m => <option key={m} value={m}>{m}</option>)}
+                      {METHODS.map(m => <option key={m} value={m}>{t(`pay.method.${m}`, { defaultValue: m })}</option>)}
                     </select>
                     <Input type="number" min={0} step="0.01" value={amount} onChange={e => setAmount(e.target.value)}
                       className="h-9 w-28 text-right text-sm" />
                   </div>
                   {mode === "members" && (
-                    <Input value={ref} onChange={e => setRef(e.target.value)} placeholder={`Guest ${paidGuests + 1} (optional label)`} className="h-8 text-xs" />
+                    <Input value={ref} onChange={e => setRef(e.target.value)} placeholder={t("pay.guestLabel", { n: paidGuests + 1 })} className="h-8 text-xs" />
                   )}
                   {customerFundedIssue(method, parseFloat(amount) || 0) && (
                     <p className="text-xs text-destructive">{customerFundedIssue(method, parseFloat(amount) || 0)}</p>
@@ -232,7 +234,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                   <Button className="w-full" disabled={addPayment.isPending || (parseFloat(amount) || 0) <= 0 || !!customerFundedIssue(method, parseFloat(amount) || 0)}
                     onClick={() => post(parseFloat(amount) || 0, method, mode === "members" ? (ref || `Guest ${paidGuests + 1}`) : null)}>
                     {addPayment.isPending ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : `Add ${formatCurrency(parseFloat(amount) || 0, currency)} (${method})`}
+                      : t("pay.addPayment", { amount: formatCurrency(parseFloat(amount) || 0, currency), method: t(`pay.method.${method}`, { defaultValue: method }) })}
                   </Button>
                 </div>
               )}
@@ -248,6 +250,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
 function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick }: {
   linkedCustomer: CustomerDto | null; editable: boolean; busy: boolean; currency: string; onPick: (customerId: string | null) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
   const [creating, setCreating] = React.useState(false);
@@ -285,11 +288,14 @@ function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick 
           editable && "hover:border-primary/30")}>
         <User2 className="h-3.5 w-3.5 shrink-0" />
         <span className="flex-1 text-left truncate">
-          {linkedCustomer ? linkedCustomer.name : "No customer linked"}
+          {linkedCustomer ? linkedCustomer.name : t("pay.customer.none")}
         </span>
         {linkedCustomer && (
           <span className="text-[10px] text-muted-foreground shrink-0">
-            Wallet {formatCurrency(linkedCustomer.walletBalance, currency)} · Credit {formatCurrency(linkedCustomer.availableCredit, currency)}
+            {t("pay.customer.balances", {
+              wallet: formatCurrency(linkedCustomer.walletBalance, currency),
+              credit: formatCurrency(linkedCustomer.availableCredit, currency),
+            })}
           </span>
         )}
         {linkedCustomer && editable && (
@@ -304,15 +310,15 @@ function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick 
         <div className="absolute z-10 mt-1 w-full rounded-xl border border-border bg-card shadow-xl overflow-hidden">
           {creating ? (
             <div className="p-3 space-y-2">
-              <p className="text-xs font-bold flex items-center gap-1.5"><UserPlus className="h-3.5 w-3.5 text-primary" />New Customer</p>
+              <p className="text-xs font-bold flex items-center gap-1.5"><UserPlus className="h-3.5 w-3.5 text-primary" />{t("pay.customer.new")}</p>
               <Input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") submitNew(); }} placeholder="Name *" className="h-8 text-xs" />
+                onKeyDown={e => { if (e.key === "Enter") submitNew(); }} placeholder={t("pay.customer.name")} className="h-8 text-xs" />
               <Input value={newPhone} onChange={e => setNewPhone(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") submitNew(); }} placeholder="Phone (optional)" className="h-8 text-xs" />
+                onKeyDown={e => { if (e.key === "Enter") submitNew(); }} placeholder={t("pay.customer.phone")} className="h-8 text-xs" />
               <div className="flex gap-2 pt-0.5">
-                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => setCreating(false)} disabled={createCustomer.isPending}>Back</Button>
+                <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => setCreating(false)} disabled={createCustomer.isPending}>{t("pay.customer.back")}</Button>
                 <Button size="sm" className="flex-1 h-8 text-xs" onClick={submitNew} disabled={!newName.trim() || createCustomer.isPending}>
-                  {createCustomer.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Create"}
+                  {createCustomer.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("pay.customer.create")}
                 </Button>
               </div>
             </div>
@@ -321,17 +327,17 @@ function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick 
               <div className="p-2 border-b border-border flex gap-1.5">
                 <div className="relative flex-1">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Search customers…" className="pl-8 h-8 text-xs" />
+                  <Input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder={t("pay.customer.search")} className="pl-8 h-8 text-xs" />
                 </div>
-                <Button size="sm" className="h-8 px-2 shrink-0" title="Add new customer" onClick={() => { setNewName(search); setCreating(true); }}>
+                <Button size="sm" className="h-8 px-2 shrink-0" title={t("pay.customer.addNew")} onClick={() => { setNewName(search); setCreating(true); }}>
                   <UserPlus className="h-3.5 w-3.5" />
                 </Button>
               </div>
               <div className="max-h-56 overflow-y-auto">
                 {isLoading ? (
-                  <p className="px-3 py-3 text-xs text-muted-foreground">Loading…</p>
+                  <p className="px-3 py-3 text-xs text-muted-foreground">{t("pay.customer.loading")}</p>
                 ) : customers.length === 0 ? (
-                  <p className="px-3 py-3 text-xs text-muted-foreground">No customers found.</p>
+                  <p className="px-3 py-3 text-xs text-muted-foreground">{t("pay.customer.noResults")}</p>
                 ) : (
                   customers.map(c => (
                     <button key={c.id} onClick={() => pick(c)}
@@ -341,7 +347,7 @@ function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick 
                         {c.phone && <p className="text-[10px] text-muted-foreground truncate">{c.phone}</p>}
                       </div>
                       <span className="text-[10px] text-muted-foreground shrink-0">
-                        Wallet {formatCurrency(c.walletBalance, currency)}
+                        {t("pay.customer.walletOnly", { amount: formatCurrency(c.walletBalance, currency) })}
                       </span>
                     </button>
                   ))

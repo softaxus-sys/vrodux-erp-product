@@ -194,8 +194,12 @@ async function rawRequest<T>(
 ): Promise<T> {
   const { token, refreshToken, logout } = useAuthStore.getState();
 
+  const isFormData = options.body instanceof FormData;
+
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    // Never set Content-Type for FormData: the browser has to generate it itself so it can append
+    // the multipart boundary. Forcing application/json here makes the server reject the upload.
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(options.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -236,6 +240,26 @@ export const rawApiClient = {
   put:    <T>(url: string, data?: unknown)  => rawRequest<T>(url, { method: "PUT",    body: data !== undefined ? JSON.stringify(data) : undefined }),
   patch:  <T>(url: string, data?: unknown)  => rawRequest<T>(url, { method: "PATCH",  body: data !== undefined ? JSON.stringify(data) : undefined }),
   delete: <T>(url: string)                  => rawRequest<T>(url, { method: "DELETE" }),
+  /** Multipart upload. Pass a FormData; the browser sets the Content-Type + boundary itself. */
+  postForm: <T>(url: string, form: FormData) => rawRequest<T>(url, { method: "POST", body: form }),
+  /**
+   * Downloads a file with the auth header attached. A plain <a href> can't be used for protected
+   * endpoints because the browser would send no bearer token.
+   */
+  getBlob: async (url: string): Promise<{ blob: Blob; fileName: string | null }> => {
+    const { token } = useAuthStore.getState();
+    const res = await fetch(url, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new ApiError(res.status, null, `Download failed (HTTP ${res.status}).`);
+
+    // Prefer the server's filename from Content-Disposition; callers fall back to their own.
+    const disposition = res.headers.get("content-disposition") ?? "";
+    const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+    const fileName = match ? decodeURIComponent(match[1]) : null;
+
+    return { blob: await res.blob(), fileName };
+  },
 };
 
 // ── Public helpers ────────────────────────────────────────────────────────────

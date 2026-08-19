@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Ensure a single React copy — react-i18next (and other hook-using libs) must
+    // share the app's React instance or hooks throw "Invalid hook call".
+    dedupe: ["react", "react-dom"],
   },
   server: {
     port: 5173,
@@ -44,6 +47,7 @@ export default defineConfig(({ mode }) => ({
           "forms":         ["react-hook-form", "@hookform/resolvers", "zod"],
           "zustand":       ["zustand"],
           "icons":         ["lucide-react"],
+          "i18n":          ["i18next", "react-i18next", "i18next-browser-languagedetector"],
         },
       },
     },
@@ -58,6 +62,9 @@ export default defineConfig(({ mode }) => ({
       "zustand",
       "framer-motion",
       "lucide-react",
+      "i18next",
+      "react-i18next",
+      "i18next-browser-languagedetector",
     ],
   },
 }));

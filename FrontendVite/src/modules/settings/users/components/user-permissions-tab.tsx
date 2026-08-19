@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Shield, Check, X, Save, Loader2, Search, RotateCcw, ChevronDown, ChevronUp, Lock,
@@ -12,7 +13,7 @@ import { useAuthStore } from "@/store/auth.store";
 import type { UserDto } from "@/lib/identity/types";
 import type { ModuleKey } from "@/types";
 import {
-  ACTION_ORDER, ACTION_LABELS, GROUP_ORDER,
+  ACTION_ORDER, actionShortLabel, GROUP_ORDER, groupLabel,
   groupPermissions, buildPermActionMap, moduleLabel,
 } from "@/lib/identity/permission-matrix";
 
@@ -28,6 +29,7 @@ function TriCell({
   override: boolean | undefined;
   onClick: () => void;
 }) {
+  const { t } = useTranslation("settings");
   if (roleHas === null) {
     return (
       <div className="w-8 h-8 flex items-center justify-center">
@@ -43,20 +45,20 @@ function TriCell({
 
   let cls = "bg-muted/20 border-border text-muted-foreground hover:border-primary/50";
   let icon: React.ReactNode = <span className="opacity-40">+</span>;
-  let title = "Not granted — click to grant";
+  let title = t("userPermissions.titleNotGranted");
 
   if (isInherited && roleHas) {
     cls = "bg-muted border-border text-muted-foreground/80";
     icon = <Check className="h-3.5 w-3.5" />;
-    title = "Inherited from role — click to deny";
+    title = t("userPermissions.titleInherited");
   } else if (isGrant) {
     cls = "bg-emerald-500 border-emerald-500 text-white shadow-sm";
     icon = <Check className="h-3.5 w-3.5" />;
-    title = "Granted to this user — click to remove";
+    title = t("userPermissions.titleGranted");
   } else if (isDeny) {
     cls = "bg-destructive border-destructive text-white shadow-sm";
     icon = <X className="h-3.5 w-3.5" />;
-    title = "Denied for this user — click to restore role default";
+    title = t("userPermissions.titleDenied");
   }
 
   return (
@@ -73,7 +75,7 @@ function TriCell({
         <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400 border border-background" />
       )}
       {/* effective hint for screen readers / future use */}
-      <span className="sr-only">{effective ? "granted" : "not granted"}</span>
+      <span className="sr-only">{effective ? t("userPermissions.granted") : t("userPermissions.notGranted")}</span>
     </button>
   );
 }
@@ -116,6 +118,7 @@ function ModuleRow({
 // ── Main tab ────────────────────────────────────────────────────────────────────
 
 export function UserPermissionsTab({ user }: { user: UserDto }) {
+  const { t } = useTranslation("settings");
   const { data: allPermsData, isLoading } = useAllPermissions();
   const allPerms = allPermsData ?? [];
   const savePerms = useUpdateUserPermissions(user.id);
@@ -213,13 +216,13 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
       <div className="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center gap-3 shrink-0">
         <div className="relative w-44 shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-          <Input placeholder="Filter modules…" value={search} onChange={e => setSearch(e.target.value)}
+          <Input placeholder={t("userPermissions.filterModules")} value={search} onChange={e => setSearch(e.target.value)}
             className="pl-7 h-7 text-xs" />
         </div>
         <div className="flex items-center gap-1 ml-1 overflow-x-auto">
           {ACTION_ORDER.map(action => (
             <div key={action} className="w-8 text-center text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
-              {ACTION_LABELS[action].slice(0, 3)}
+              {actionShortLabel(action)}
             </div>
           ))}
         </div>
@@ -232,7 +235,7 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : orderedGroups.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">No modules match your search.</div>
+          <div className="py-16 text-center text-sm text-muted-foreground">{t("userPermissions.noMatches")}</div>
         ) : (
           orderedGroups.map(group => (
             <div key={group}>
@@ -241,7 +244,7 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
                 onClick={() => toggleGroup(group)}>
                 <div className="flex items-center gap-2">
                   <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">{group}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">{groupLabel(group)}</span>
                   <span className="text-[10px] text-muted-foreground">({filteredByGroup[group]?.length ?? 0} modules)</span>
                 </div>
                 {expanded.has(group)
@@ -275,35 +278,35 @@ export function UserPermissionsTab({ user }: { user: UserDto }) {
         <div className="flex items-center gap-4 text-[10px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="w-4 h-4 rounded bg-muted border border-border flex items-center justify-center"><Check className="h-2.5 w-2.5 text-muted-foreground/80" /></span>
-            <span>Inherited from role</span>
+            <span>{t("userPermissions.legendInherited")}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-4 h-4 rounded bg-emerald-500 flex items-center justify-center"><Check className="h-2.5 w-2.5 text-white" /></span>
-            <span>Granted to user</span>
+            <span>{t("userPermissions.legendGranted")}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-4 h-4 rounded bg-destructive flex items-center justify-center"><X className="h-2.5 w-2.5 text-white" /></span>
-            <span>Denied for user</span>
+            <span>{t("userPermissions.legendDenied")}</span>
           </div>
           <span className="ml-auto font-medium text-foreground">
-            {overrideCount} override{overrideCount !== 1 ? "s" : ""}
+            {t("userPermissions.overrides", { count: overrideCount })}
           </span>
         </div>
 
         {isSuperAdmin && (
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Lock className="h-3 w-3" />
-            <span>This user is a super-admin and bypasses all permission checks regardless of overrides.</span>
+            <span>{t("userPermissions.superAdminNote")}</span>
           </div>
         )}
 
         <div className="flex items-center gap-2">
           <Button size="sm" className="gap-1.5 h-8" onClick={handleSave} disabled={!hasChanges || savePerms.isPending}>
-            {savePerms.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5" />Save overrides</>}
+            {savePerms.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5" />{t("userPermissions.saveOverrides")}</>}
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs"
             onClick={handleReset} disabled={overrideCount === 0 || savePerms.isPending}>
-            <RotateCcw className="h-3 w-3" />Reset to role defaults
+            <RotateCcw className="h-3 w-3" />{t("userPermissions.resetDefaults")}
           </Button>
         </div>
       </div>

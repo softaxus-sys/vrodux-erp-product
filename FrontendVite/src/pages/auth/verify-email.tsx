@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { Loader2, MailCheck, CheckCircle, AlertCircle, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { authApi } from "@/lib/identity/auth.api";
@@ -41,11 +42,12 @@ function getInitialMode(): "light" | "dark" {
 type State = "verifying" | "success" | "error";
 
 export default function VerifyEmailPage() {
+  const { t } = useTranslation("auth");
   const navigate            = useNavigate();
   const [params]            = useSearchParams();
   const [mode, setMode]     = React.useState<"light" | "dark">(getInitialMode);
   const [state, setState]   = React.useState<State>("verifying");
-  const [errorMsg, setErrorMsg]   = React.useState("This verification link is invalid or has expired.");
+  const [errorMsg, setErrorMsg]   = React.useState<string>("verify.defaultError");
   const [resending, setResending] = React.useState(false);
   const D = mode === "dark" ? DARK : LIGHT;
 
@@ -65,7 +67,7 @@ export default function VerifyEmailPage() {
     ran.current = true;
 
     if (!token || !email) {
-      setErrorMsg("This link is missing required parameters.");
+      setErrorMsg("verify.missingParams");
       setState("error");
       return;
     }
@@ -80,15 +82,15 @@ export default function VerifyEmailPage() {
 
   const handleResend = async () => {
     if (!email) {
-      toast.error("No email address to resend to.");
+      toast.error(t("verify.noEmail"));
       return;
     }
     setResending(true);
     try {
       await authApi.resendVerification(email);
-      toast.success("If the account exists and is unverified, a new link has been sent.");
+      toast.success(t("verify.resent"));
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not send the verification email.");
+      toast.error(err instanceof ApiError ? err.message : t("verify.resendFailed"));
     } finally {
       setResending(false);
     }
@@ -111,7 +113,7 @@ export default function VerifyEmailPage() {
         <button
           type="button"
           onClick={toggleMode}
-          aria-label="Toggle theme"
+          aria-label={t("shared.toggleTheme")}
           className="flex items-center justify-center h-7 w-7 rounded-full border transition-colors"
           style={{ color: D.muted, borderColor: D.border, background: D.faint }}
         >
@@ -140,9 +142,9 @@ export default function VerifyEmailPage() {
                 >
                   <Loader2 className="h-8 w-8 animate-spin" style={{ color: D.accent }} />
                 </div>
-                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>Verifying your email…</h2>
+                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>{t("verify.verifyingTitle")}</h2>
                 <p className="text-sm" style={{ color: D.muted }}>
-                  This will only take a moment.
+                  {t("verify.verifyingBody")}
                 </p>
               </div>
             )}
@@ -159,9 +161,9 @@ export default function VerifyEmailPage() {
                 >
                   <CheckCircle className="h-8 w-8 text-green-500" />
                 </motion.div>
-                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>Email verified!</h2>
+                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>{t("verify.successTitle")}</h2>
                 <p className="text-sm mb-8" style={{ color: D.muted }}>
-                  Your account is now active. You can log in and start using Softaxis ERP.
+                  {t("verify.successBody")}
                 </p>
                 <button
                   type="button"
@@ -169,7 +171,7 @@ export default function VerifyEmailPage() {
                   className="w-full h-11 rounded-lg text-sm font-semibold"
                   style={{ background: D.accent, color: "#fff" }}
                 >
-                  Go to login
+                  {t("shared.goToLogin")}
                 </button>
               </div>
             )}
@@ -183,9 +185,9 @@ export default function VerifyEmailPage() {
                 >
                   <AlertCircle className="h-8 w-8 text-red-500" />
                 </div>
-                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>Verification failed</h2>
+                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>{t("verify.failedTitle")}</h2>
                 <p className="text-sm mb-6" style={{ color: D.muted }}>
-                  {errorMsg}
+                  {t(errorMsg, { defaultValue: errorMsg })}
                 </p>
                 {email && (
                   <button
@@ -196,8 +198,8 @@ export default function VerifyEmailPage() {
                     style={{ background: D.accent, color: "#fff" }}
                   >
                     {resending
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-                      : <><MailCheck className="h-4 w-4" /> Resend verification link</>}
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("shared.sending")}</>
+                      : <><MailCheck className="h-4 w-4" /> {t("verify.resend")}</>}
                   </button>
                 )}
                 <Link
@@ -205,7 +207,7 @@ export default function VerifyEmailPage() {
                   className="text-sm transition-colors hover:underline"
                   style={{ color: D.muted }}
                 >
-                  Back to login
+                  {t("shared.backToLogin")}
                 </Link>
               </div>
             )}

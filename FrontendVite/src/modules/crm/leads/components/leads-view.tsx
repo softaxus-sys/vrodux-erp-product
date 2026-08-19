@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Search, Plus, Users, TrendingUp,
@@ -62,22 +63,24 @@ function makeLeadComparator(sortBy: SortKey, sortDir: SortDir) {
   };
 }
 
-const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string; dot: string }> = {
-  new:         { label: "New",         color: "text-slate-600",      bg: "bg-slate-100 dark:bg-slate-800/50",  dot: "bg-slate-400" },
-  contacted:   { label: "Contacted",   color: "text-blue-600",       bg: "bg-blue-50 dark:bg-blue-900/20",     dot: "bg-blue-500" },
-  qualified:   { label: "Qualified",   color: "text-success",        bg: "bg-success/10",                      dot: "bg-success" },
-  unqualified: { label: "Unqualified", color: "text-muted-foreground", bg: "bg-muted",                         dot: "bg-muted-foreground" },
-  converted:   { label: "Converted",  color: "text-primary",        bg: "bg-primary/10",                      dot: "bg-primary" },
-  lost:        { label: "Lost",        color: "text-destructive",    bg: "bg-destructive/10",                  dot: "bg-destructive" },
+// `label` intentionally removed — status text comes from i18n via t(`status.${status}`).
+const STATUS_CONFIG: Record<LeadStatus, { color: string; bg: string; dot: string }> = {
+  new:         { color: "text-slate-600",      bg: "bg-slate-100 dark:bg-slate-800/50",  dot: "bg-slate-400" },
+  contacted:   { color: "text-blue-600",       bg: "bg-blue-50 dark:bg-blue-900/20",     dot: "bg-blue-500" },
+  qualified:   { color: "text-success",        bg: "bg-success/10",                      dot: "bg-success" },
+  unqualified: { color: "text-muted-foreground", bg: "bg-muted",                         dot: "bg-muted-foreground" },
+  converted:   { color: "text-primary",        bg: "bg-primary/10",                      dot: "bg-primary" },
+  lost:        { color: "text-destructive",    bg: "bg-destructive/10",                  dot: "bg-destructive" },
 };
 
 const KANBAN_COLS: LeadStatus[] = ["new", "contacted", "qualified", "converted"];
 
 function StatusBadge({ status }: { status: LeadStatus }) {
+  const { t } = useTranslation("crm");
   const c = STATUS_CONFIG[status];
   return (
     <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{c.label}
+      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{t(`status.${status}`)}
     </span>
   );
 }
@@ -96,9 +99,11 @@ function ScoreBar({ score }: { score: number }) {
 
 /* ── Kanban card — rich at-a-glance view ── */
 function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; onClick: () => void }) {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const heat = leadHeat(lead.score);
   const urg = lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" ? URGENCY_META[lead.purchaseUrgency] : null;
+  const urgKey = lead.purchaseUrgency;
   const summary = buildLeadSummary(lead);
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index, 12) * 0.04 }}
@@ -138,7 +143,7 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
         {urg && (
           <div className="flex items-center gap-1.5 text-[11px]">
             <Clock className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-semibold", urg.color, urg.bg)}>{urg.label}</span>
+            <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-semibold", urg.color, urg.bg)}>{t(`urgency.${urgKey}`)}</span>
           </div>
         )}
       </div>
@@ -219,6 +224,7 @@ function LeadColumn({
   onCardDragEnd: () => void;
   onLeadClick: (l: Lead) => void;
 }) {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const sc = STATUS_CONFIG[status];
   const { visible, hasMore, loadMore, shown, total } = useLazyList(leads, 8);
@@ -230,7 +236,7 @@ function LeadColumn({
       <div className={cn("flex items-center justify-between px-3 py-2.5 rounded-xl mb-3 border transition-colors",
         isOver ? "border-primary/40 bg-primary/5" : `${sc.bg} border-transparent`)}>
         <div className="flex items-center gap-2">
-          <span className={cn("text-xs font-bold uppercase tracking-wide", sc.color)}>{sc.label}</span>
+          <span className={cn("text-xs font-bold uppercase tracking-wide", sc.color)}>{t(`status.${status}`)}</span>
           <span className={cn("inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold", sc.color, sc.bg)}>
             {total}
           </span>
@@ -255,13 +261,13 @@ function LeadColumn({
         ))}
         {hasMore && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={loadMore}>
-            Show {total - shown} more
+            {t("leads.showMore", { count: total - shown })}
           </Button>
         )}
         {total === 0 && (
           <div className={cn("flex-1 flex items-center justify-center rounded-xl border-2 border-dashed text-xs text-muted-foreground/50 h-24",
             isOver ? "border-primary/40 text-primary" : "border-border")}>
-            {isOver ? "Drop here" : "No leads"}
+            {isOver ? t("leads.dropHere") : t("leads.noLeads")}
           </div>
         )}
       </div>
@@ -270,6 +276,7 @@ function LeadColumn({
 }
 
 export function LeadsView() {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const { data: leads = [], isLoading } = useLeads();
 
@@ -359,8 +366,8 @@ export function LeadsView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Leads</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Capture, qualify, and convert inbound leads</p>
+          <h1 className="text-2xl font-bold">{t("leads.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("leads.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -368,16 +375,16 @@ export function LeadsView() {
             variant={mineOnly ? "default" : "outline"}
             className="h-9 gap-1.5 text-sm"
             onClick={() => setMineOnly(v => !v)}
-            title="Show only leads assigned to me"
+            title={t("leads.assignedToMeTitle")}
           >
-            <Users className="h-4 w-4" />Assigned to me
+            <Users className="h-4 w-4" />{t("leads.assignedToMe")}
           </Button>
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Can permission="crm.leads.create">
-            <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setShowImport(true)}><UploadCloud className="h-4 w-4" />Import</Button>
+            <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setShowImport(true)}><UploadCloud className="h-4 w-4" />{t("leads.import")}</Button>
           </Can>
           <Can permission="crm.leads.create">
-            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />Add Lead</Button>
+            <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingLead(null); setShowAddForm(true); }}><Plus className="h-4 w-4" />{t("leads.addLead")}</Button>
           </Can>
         </div>
       </div>
@@ -385,12 +392,12 @@ export function LeadsView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: "Total Leads",       value: leadsSummary?.total ?? leads.length,               sub: "All time",         icon: Users,      color: "text-primary bg-primary/10" },
-          { label: "New",               value: leadsSummary?.newThisWeek ?? leads.filter(l=>l.status==="new").length, sub: "Needs contact", icon: Zap, color: "text-slate-600 bg-slate-100 dark:bg-slate-800/50" },
-          { label: "Qualified",         value: leadsSummary?.qualified ?? leads.filter(l=>l.status==="qualified").length, sub: "Hot leads", icon: Target, color: "text-success bg-success/10" },
-          { label: "Contacted",         value: leadsSummary?.contacted ?? leads.filter(l=>l.status==="contacted").length, sub: "In follow-up", icon: TrendingUp, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
-          { label: "Converted",         value: leadsSummary?.converted ?? leads.filter(l=>l.status==="converted").length, sub: "To deals", icon: CheckCircle2, color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-          { label: "Pipeline Value",    value: formatCurrency(leadsSummary?.totalEstimatedValue ?? leads.reduce((s,l)=>s+l.estimatedValue,0), currency), sub: "Est. value", icon: DollarSign, color: "text-warning bg-warning/10" },
+          { label: t("leads.stat.totalLeads"), value: leadsSummary?.total ?? leads.length,               sub: t("leads.stat.allTime"),     icon: Users,      color: "text-primary bg-primary/10" },
+          { label: t("leads.stat.new"),        value: leadsSummary?.newThisWeek ?? leads.filter(l=>l.status==="new").length, sub: t("leads.stat.needsContact"), icon: Zap, color: "text-slate-600 bg-slate-100 dark:bg-slate-800/50" },
+          { label: t("leads.stat.qualified"),  value: leadsSummary?.qualified ?? leads.filter(l=>l.status==="qualified").length, sub: t("leads.stat.hotLeads"), icon: Target, color: "text-success bg-success/10" },
+          { label: t("leads.stat.contacted"),  value: leadsSummary?.contacted ?? leads.filter(l=>l.status==="contacted").length, sub: t("leads.stat.inFollowUp"), icon: TrendingUp, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
+          { label: t("leads.stat.converted"),  value: leadsSummary?.converted ?? leads.filter(l=>l.status==="converted").length, sub: t("leads.stat.toDeals"), icon: CheckCircle2, color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
+          { label: t("leads.stat.pipelineValue"), value: formatCurrency(leadsSummary?.totalEstimatedValue ?? leads.reduce((s,l)=>s+l.estimatedValue,0), currency), sub: t("leads.stat.estValue"), icon: DollarSign, color: "text-warning bg-warning/10" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -412,20 +419,20 @@ export function LeadsView() {
         <div className="flex items-center gap-2 flex-wrap flex-1">
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input placeholder="Search name, email, phone, source..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+            <Input placeholder={t("leads.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           {/* Status filter */}
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">All Statuses</option>
+            <option value="all">{t("leads.allStatuses")}</option>
             {(["new","contacted","qualified","converted","unqualified","lost"] as LeadStatus[]).map(s => (
-              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
+              <option key={s} value={s}>{t(`status.${s}`)}</option>
             ))}
           </select>
           {/* Source filter */}
           <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
             className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">All Sources</option>
+            <option value="all">{t("leads.allSources")}</option>
             {uniqueSources.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
           </select>
           {/* Sort field + direction */}
@@ -459,12 +466,12 @@ export function LeadsView() {
           <button onClick={() => setViewMode("list")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-            <List className="h-3.5 w-3.5" />List
+            <List className="h-3.5 w-3.5" />{t("leads.list")}
           </button>
           <button onClick={() => setViewMode("kanban")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "kanban" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}>
-            <LayoutGrid className="h-3.5 w-3.5" />Kanban
+            <LayoutGrid className="h-3.5 w-3.5" />{t("leads.kanban")}
           </button>
         </div>
       </div>
@@ -480,14 +487,25 @@ export function LeadsView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Lead","Phone","WhatsApp","Source","Est. Value","Score","Next Follow-up","Assigned To","Status",""].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    {[
+                      { k: "lead",     label: t("leads.table.lead") },
+                      { k: "phone",    label: t("leads.table.phone") },
+                      { k: "whatsapp", label: t("leads.table.whatsapp") },
+                      { k: "source",   label: t("leads.table.source") },
+                      { k: "estValue", label: t("leads.table.estValue") },
+                      { k: "score",    label: t("leads.table.score") },
+                      { k: "followup", label: t("leads.table.nextFollowUp") },
+                      { k: "assigned", label: t("leads.table.assignedTo") },
+                      { k: "status",   label: t("leads.table.status") },
+                      { k: "actions",  label: "" },
+                    ].map(h => (
+                      <th key={h.k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {listLazy.total === 0 ? (
-                    <tr><td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">No leads found.</td></tr>
+                    <tr><td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">{t("leads.empty")}</td></tr>
                   ) : listLazy.visible.map((lead, i) => (
                     <motion.tr key={lead.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(lead)}>
@@ -507,7 +525,7 @@ export function LeadsView() {
                               {lead.purchaseUrgency && lead.purchaseUrgency !== "unknown" && URGENCY_META[lead.purchaseUrgency] && (
                                 <span className={cn("shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-semibold",
                                   URGENCY_META[lead.purchaseUrgency].color, URGENCY_META[lead.purchaseUrgency].bg)}>
-                                  {URGENCY_META[lead.purchaseUrgency].label}
+                                  {t(`urgency.${lead.purchaseUrgency}`)}
                                 </span>
                               )}
                             </div>
@@ -551,7 +569,7 @@ export function LeadsView() {
                         {lead.status === "qualified" && (
                           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-success hover:text-success hover:bg-success/10"
                             onClick={e => { e.stopPropagation(); openDrawer(lead); }}>
-                            <ArrowRight className="h-3.5 w-3.5" />Convert
+                            <ArrowRight className="h-3.5 w-3.5" />{t("leads.convert")}
                           </Button>
                         )}
                       </td>
@@ -562,11 +580,11 @@ export function LeadsView() {
             </div>
             {listLazy.hasMore && (
               <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>Load more</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("common:action.loadMore")}</Button>
               </div>
             )}
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {listLazy.shown} of {listLazy.total} leads · Conversion rate: {leadsSummary?.conversionRate ?? 0}%
+              {t("leads.showing", { shown: listLazy.shown, total: listLazy.total, rate: leadsSummary?.conversionRate ?? 0 })}
             </div>
           </CardContent>
         </Card>

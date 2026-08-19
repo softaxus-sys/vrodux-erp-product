@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ interface AddApplicantFormProps {
 }
 
 export function AddApplicantForm({ open, jobId, jobTitle, onClose }: AddApplicantFormProps) {
+  const { t } = useTranslation("hr");
   const [name, setName]                     = React.useState("");
   const [email, setEmail]                   = React.useState("");
   const [phone, setPhone]                   = React.useState("");
@@ -74,8 +76,8 @@ export function AddApplicantForm({ open, jobId, jobTitle, onClose }: AddApplican
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">Add Applicant</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{jobTitle ? `Applying for ${jobTitle}` : "Add a new applicant"}</p>
+                <h2 className="text-base font-bold text-foreground">{t("recruitment.applicantForm.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{jobTitle ? t("recruitment.applicantForm.applyingFor", { title: jobTitle }) : t("recruitment.applicantForm.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -85,44 +87,44 @@ export function AddApplicantForm({ open, jobId, jobTitle, onClose }: AddApplican
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Full Name *</label>
-                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sara Al Mansoori" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.fullName")}</label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("recruitment.applicantForm.fullNamePlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.email")}</label>
                   <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.phone")}</label>
                   <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+971 5x xxx xxxx" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nationality</label>
-                  <Input value={nationality} onChange={e => setNationality(e.target.value)} placeholder="e.g. UAE" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.nationality")}</label>
+                  <Input value={nationality} onChange={e => setNationality(e.target.value)} placeholder={t("recruitment.applicantForm.nationalityPlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Role</label>
-                  <Input value={currentRole} onChange={e => setCurrentRole(e.target.value)} placeholder="e.g. Software Engineer" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.currentRole")}</label>
+                  <Input value={currentRole} onChange={e => setCurrentRole(e.target.value)} placeholder={t("recruitment.applicantForm.currentRolePlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Company</label>
-                  <Input value={currentCompany} onChange={e => setCurrentCompany(e.target.value)} placeholder="e.g. Acme Inc." className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.currentCompany")}</label>
+                  <Input value={currentCompany} onChange={e => setCurrentCompany(e.target.value)} placeholder={t("recruitment.applicantForm.currentCompanyPlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Experience (years)</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.experienceYears")}</label>
                   <Input type="number" min={0} value={experience} onChange={e => setExperience(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Source</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.source")}</label>
                   <select value={source} onChange={e => setSource(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.applicantForm.notes")}</label>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Any additional notes…" rows={3}
+                    placeholder={t("recruitment.applicantForm.notesPlaceholder")} rows={3}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                   />
                 </div>
@@ -130,9 +132,9 @@ export function AddApplicantForm({ open, jobId, jobTitle, onClose }: AddApplican
             </div>
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-end shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="outline" onClick={onClose}>{t("recruitment.applicantForm.cancel")}</Button>
               <Button disabled={!isValid || createApplicant.isPending} onClick={handleSubmit}>
-                {createApplicant.isPending ? "Adding…" : "Add Applicant"}
+                {createApplicant.isPending ? t("recruitment.applicantForm.adding") : t("recruitment.applicantForm.addApplicant")}
               </Button>
             </div>
           </motion.div>

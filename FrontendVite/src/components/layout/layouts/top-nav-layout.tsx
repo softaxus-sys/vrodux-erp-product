@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { navigationConfig } from "@/config/navigation";
+import { useNavigation } from "@/hooks/use-navigation";
 import { BrandLogo } from "@/components/brand/brand-logo";
 import type { NavItem } from "@/types";
 import { NavIcon } from "@/components/layout/nav/nav-utils";
@@ -132,6 +132,7 @@ function TopNavGroup({ item }: TopNavGroupProps) {
 }
 
 export function TopNavLayout({ children }: { children: React.ReactNode }) {
+  const navigationConfig = useNavigation();
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
       {/* Top navigation bar */}

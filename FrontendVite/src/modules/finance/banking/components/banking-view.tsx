@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Building2, ArrowUpCircle, ArrowDownCircle, Wallet, AlertCircle, CheckCircle2, Plus,
@@ -20,6 +21,7 @@ const CURRENCY_FLAGS: Record<string, string> = {
 
 
 export function BankingView() {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: bankAccounts = [] } = useBankAccounts();
   const { data: bankTransactions = [] } = useBankTransactions();
@@ -27,11 +29,11 @@ export function BankingView() {
   const { data: bankingSummary } = useBankingSummary();
 
   const STAT_CARDS = [
-    { label: "Total Balance (AED)", value: bankingSummary?.totalBalance ?? 0, icon: Wallet, color: "text-primary", bg: "bg-primary/10", format: "currency" as const },
-    { label: "Active Accounts", value: bankingSummary?.totalAccounts ?? 0, icon: Building2, color: "text-primary", bg: "bg-primary/10", format: "number" as const },
-    { label: "Credits This Month", value: bankingSummary?.totalCreditThisMonth ?? 0, icon: ArrowUpCircle, color: "text-success", bg: "bg-success/10", format: "currency" as const },
-    { label: "Debits This Month", value: bankingSummary?.totalDebitThisMonth ?? 0, icon: ArrowDownCircle, color: "text-destructive", bg: "bg-destructive/10", format: "currency" as const },
-    { label: "Unreconciled", value: bankingSummary?.unreconciled ?? 0, icon: AlertCircle, color: "text-warning", bg: "bg-warning/10", format: "number" as const },
+    { label: t("banking.stat.totalBalance"), value: bankingSummary?.totalBalance ?? 0, icon: Wallet, color: "text-primary", bg: "bg-primary/10", format: "currency" as const },
+    { label: t("banking.stat.activeAccounts"), value: bankingSummary?.totalAccounts ?? 0, icon: Building2, color: "text-primary", bg: "bg-primary/10", format: "number" as const },
+    { label: t("banking.stat.creditsThisMonth"), value: bankingSummary?.totalCreditThisMonth ?? 0, icon: ArrowUpCircle, color: "text-success", bg: "bg-success/10", format: "currency" as const },
+    { label: t("banking.stat.debitsThisMonth"), value: bankingSummary?.totalDebitThisMonth ?? 0, icon: ArrowDownCircle, color: "text-destructive", bg: "bg-destructive/10", format: "currency" as const },
+    { label: t("banking.stat.unreconciled"), value: bankingSummary?.unreconciled ?? 0, icon: AlertCircle, color: "text-warning", bg: "bg-warning/10", format: "number" as const },
   ];
 
   const [selectedAccountId, setSelectedAccountId] = React.useState<string>("");
@@ -53,18 +55,18 @@ export function BankingView() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Bank Accounts</h1>
-          <p className="text-muted-foreground mt-0.5 text-sm">Monitor bank balances and reconcile transactions.</p>
+          <h1 className="text-2xl font-bold">{t("banking.title")}</h1>
+          <p className="text-muted-foreground mt-0.5 text-sm">{t("banking.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Can permission="finance.banking.create">
             <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAddAccount(true)}>
-              <Building2 className="h-4 w-4" /> Add Bank Account
+              <Building2 className="h-4 w-4" /> {t("banking.addAccount")}
             </Button>
           </Can>
           <Can permission="finance.banking.create">
             <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-              <Plus className="h-4 w-4" /> Add Transaction
+              <Plus className="h-4 w-4" /> {t("banking.addTransaction")}
             </Button>
           </Can>
         </div>
@@ -97,7 +99,7 @@ export function BankingView() {
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
         {/* Bank Account Cards */}
         <div className="space-y-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bank Accounts</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountsHeading")}</p>
           {bankAccounts.map((account) => (
             <BankAccountCard
               key={account.id}
@@ -112,28 +114,28 @@ export function BankingView() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Transactions — {selectedAccount?.accountName ?? "—"}
+              {t("banking.txHeading", { account: selectedAccount?.accountName ?? "—" })}
             </p>
-            <p className="text-xs text-muted-foreground">{transactions.length} entries</p>
+            <p className="text-xs text-muted-foreground">{t("banking.entries", { count: transactions.length })}</p>
           </div>
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="bg-muted/30 border-b border-border">
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Date</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Description</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden sm:table-cell">Reference</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Debit</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Credit</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden md:table-cell">Balance</th>
-                  <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground">Rec.</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("banking.table.date")}</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("banking.table.description")}</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden sm:table-cell">{t("banking.table.reference")}</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("banking.table.debit")}</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("banking.table.credit")}</th>
+                  <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground hidden md:table-cell">{t("banking.table.balance")}</th>
+                  <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("banking.table.rec")}</th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                      No transactions for this account.
+                      {t("banking.table.empty")}
                     </td>
                   </tr>
                 ) : (
@@ -163,10 +165,10 @@ export function BankingView() {
                           <button
                             onClick={() => reconcile.mutate(txn.id)}
                             disabled={reconcile.isPending}
-                            title="Mark as reconciled"
+                            title={t("banking.table.reconcileTitle")}
                             className="inline-flex items-center gap-1 text-warning hover:text-success transition-colors disabled:opacity-50">
                             <AlertCircle className="h-4 w-4" />
-                            <span className="text-[10px] font-medium">Reconcile</span>
+                            <span className="text-[10px] font-medium">{t("banking.table.reconcile")}</span>
                           </button>
                         )}
                       </td>
@@ -185,6 +187,7 @@ export function BankingView() {
 }
 
 function BankAccountCard({ account, isSelected, onClick }: { account: BankAccount; isSelected: boolean; onClick: () => void }) {
+  const { t } = useTranslation("finance");
   const typeColor = account.accountType === "savings" ? "text-primary" : "text-success";
 
   return (
@@ -207,10 +210,10 @@ function BankAccountCard({ account, isSelected, onClick }: { account: BankAccoun
           </div>
         </div>
         <span className={cn(
-          "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
+          "px-2 py-0.5 rounded-full text-xs font-medium",
           account.status === "active" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
         )}>
-          {account.accountType}
+          {t(`banking.accountType.${account.accountType}`, { defaultValue: account.accountType })}
         </span>
       </div>
       <p className="text-xs text-muted-foreground mb-0.5">{account.accountName}</p>
@@ -218,10 +221,10 @@ function BankAccountCard({ account, isSelected, onClick }: { account: BankAccoun
         {formatCurrency(account.balance, account.currency)}
       </p>
       <p className="text-xs text-muted-foreground mt-1">
-        Available: {formatCurrency(account.availableBalance, account.currency)}
+        {t("banking.card.available", { amount: formatCurrency(account.availableBalance, account.currency) })}
       </p>
       <p className="text-xs text-muted-foreground mt-2">
-        Synced {formatDate(account.lastSynced, "relative")}
+        {t("banking.card.synced", { time: formatDate(account.lastSynced, "relative") })}
       </p>
     </motion.button>
   );

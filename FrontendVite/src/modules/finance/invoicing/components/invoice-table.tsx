@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Search, Filter, Eye, MoreHorizontal, Send, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,15 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const STATUS_FILTERS: { label: string; value: string }[] = [
-  { label: "All", value: "all" },
-  { label: "Draft", value: "draft" },
-  { label: "Sent", value: "sent" },
-  { label: "Paid", value: "paid" },
-  { label: "Overdue", value: "overdue" },
-  { label: "Partial", value: "partial" },
-  { label: "Cancelled", value: "cancelled" },
-];
+const STATUS_FILTER_VALUES = ["all", "draft", "sent", "paid", "overdue", "partial", "cancelled"] as const;
 
 type SortField = "invoiceNumber" | "customerName" | "invoiceDate" | "dueDate" | "total" | "status";
 type SortDir = "asc" | "desc";
@@ -37,6 +30,7 @@ interface InvoiceTableProps {
 }
 
 export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTableProps) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -97,7 +91,7 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search invoices, customers..."
+              placeholder={t("invoicing.table.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-8 h-9 text-sm"
@@ -105,18 +99,18 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
           </div>
           {/* Status filters */}
           <div className="flex items-center gap-1 flex-wrap">
-            {STATUS_FILTERS.map((f) => (
+            {STATUS_FILTER_VALUES.map((value) => (
               <button
-                key={f.value}
-                onClick={() => setStatusFilter(f.value)}
+                key={value}
+                onClick={() => setStatusFilter(value)}
                 className={cn(
                   "px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                  statusFilter === f.value
+                  statusFilter === value
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                {f.label}
+                {value === "all" ? t("invoicing.table.all") : t(`invoicing.status.${value}`)}
               </button>
             ))}
           </div>
@@ -128,12 +122,12 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
           <table className="w-full text-sm">
             <thead className="border-y border-border bg-muted/30">
               <tr>
-                {th("Invoice #", "invoiceNumber")}
-                {th("Customer", "customerName")}
-                {th("Issue Date", "invoiceDate")}
-                {th("Due Date", "dueDate")}
-                {th("Amount", "total")}
-                {th("Status", "status")}
+                {th(t("invoicing.table.invoiceNumber"), "invoiceNumber")}
+                {th(t("invoicing.table.customer"), "customerName")}
+                {th(t("invoicing.table.issueDate"), "invoiceDate")}
+                {th(t("invoicing.table.dueDate"), "dueDate")}
+                {th(t("invoicing.table.amount"), "total")}
+                {th(t("invoicing.table.status"), "status")}
                 <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
@@ -141,7 +135,7 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">
-                    No invoices found.
+                    {t("invoicing.table.empty")}
                   </td>
                 </tr>
               ) : (
@@ -189,18 +183,18 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => onView(inv)}>
-                            <Eye className="mr-2 h-4 w-4" /> View
+                            <Eye className="mr-2 h-4 w-4" /> {t("invoicing.table.view")}
                           </DropdownMenuItem>
                           {inv.status === "draft" && (
                             <DropdownMenuItem onClick={() => onSend(inv)}>
-                              <Send className="mr-2 h-4 w-4" /> Send to Customer
+                              <Send className="mr-2 h-4 w-4" /> {t("invoicing.table.sendToCustomer")}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             onClick={() => onDelete(inv)}>
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            <Trash2 className="mr-2 h-4 w-4" /> {t("common:action.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -214,11 +208,11 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
 
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          <span>Showing {filtered.length} of {invoices.length} invoices</span>
+          <span>{t("invoicing.table.showing", { shown: filtered.length, total: invoices.length })}</span>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>Previous</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>{t("common:action.previous")}</Button>
             <Button variant="outline" size="sm" className="h-7 text-xs px-3 bg-primary/5 border-primary/20 text-primary">1</Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>Next</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>{t("common:action.next")}</Button>
           </div>
         </div>
       </CardContent>

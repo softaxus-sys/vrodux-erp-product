@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Users, UserCheck, Plane, Clock, AlertTriangle, Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,13 +8,14 @@ import type { HrSummaryDto } from "@/lib/hr/hr.api";
 interface Props { summary: HrSummaryDto; }
 
 export function EmployeeStats({ summary }: Props) {
+  const { t } = useTranslation("hr");
   const stats = [
-    { label: "Total Employees", value: summary.total, sub: "Across all branches", icon: Users, color: "text-primary bg-primary/10" },
-    { label: "Active", value: summary.active, sub: "Currently working", icon: UserCheck, color: "text-success bg-success/10" },
-    { label: "On Leave", value: summary.onLeave, sub: "Annual / sick leave", icon: Plane, color: "text-info bg-info/10" },
-    { label: "Probation", value: summary.probation, sub: "New joiners", icon: Clock, color: "text-warning bg-warning/10" },
-    { label: "Expiring Docs", value: summary.expiringDocuments, sub: "Need renewal soon", icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
-    { label: "Departments", value: summary.departments, sub: "Active departments", icon: Building2, color: "text-muted-foreground bg-muted" },
+    { label: t("employees.stats.total"), value: summary.total, sub: t("employees.stats.totalSub"), icon: Users, color: "text-primary bg-primary/10" },
+    { label: t("employees.stats.active"), value: summary.active, sub: t("employees.stats.activeSub"), icon: UserCheck, color: "text-success bg-success/10" },
+    { label: t("employees.stats.onLeave"), value: summary.onLeave, sub: t("employees.stats.onLeaveSub"), icon: Plane, color: "text-info bg-info/10" },
+    { label: t("employees.stats.probation"), value: summary.probation, sub: t("employees.stats.probationSub"), icon: Clock, color: "text-warning bg-warning/10" },
+    { label: t("employees.stats.expiringDocs"), value: summary.expiringDocuments, sub: t("employees.stats.expiringDocsSub"), icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
+    { label: t("employees.stats.departments"), value: summary.departments, sub: t("employees.stats.departmentsSub"), icon: Building2, color: "text-muted-foreground bg-muted" },
   ];
 
   return (

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,19 +11,11 @@ import { toast } from "sonner";
 
 const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management", "Procurement"];
 
-const CATEGORIES = [
-  "Salaries & Benefits",
-  "Rent & Facilities",
-  "Software & Licenses",
-  "Marketing & Advertising",
-  "Travel & Entertainment",
-  "Professional Services",
-  "Equipment & Hardware",
-  "Training & Development",
-  "Utilities",
-  "Contingency",
-  "Capital Expenditure",
-  "Other Operating Costs",
+// Category keys → i18n (budgeting.form.categories.<key>). The translated label is
+// stored as the line's category value.
+const CATEGORY_KEYS = [
+  "salaries", "rent", "software", "marketing", "travel", "professional",
+  "equipment", "training", "utilities", "contingency", "capital", "otherOperating",
 ];
 
 interface BudgetLine {
@@ -44,6 +37,7 @@ interface AddBudgetFormProps {
 }
 
 export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const createBudget = useCreateBudget();
 
@@ -74,16 +68,16 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
     if (!department || grandTotal === 0) return;
 
     const activeLines = lines.filter(l => l.category && lineTotal(l) > 0);
-    if (activeLines.length === 0) { toast.error("Add at least one budget line with a category and amount."); return; }
+    if (activeLines.length === 0) { toast.error(t("budgeting.form.atLeastOne")); return; }
 
     const notesText = [
       notes,
-      owner ? `Budget owner: ${owner}` : "",
+      owner ? t("budgeting.form.ownerNote", { owner }) : "",
     ].filter(Boolean).join(" | ");
 
     try {
       await createBudget.mutateAsync({
-        name:   `${department} — FY${fiscalYear} Budget`,
+        name:   t("budgeting.form.budgetName", { department, year: fiscalYear }),
         period: fiscalYear,
         notes:  notesText || undefined,
         lines:  activeLines.map(l => ({
@@ -91,10 +85,10 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
           budgetedAmount: lineTotal(l),
         })),
       });
-      toast.success("Budget created successfully.");
+      toast.success(t("budgeting.form.created"));
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create budget.");
+      toast.error(err instanceof Error ? err.message : t("budgeting.form.createFailed"));
     }
   };
 
@@ -117,8 +111,8 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Budget</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Set departmental budget allocations by quarter</p>
+                <h2 className="text-base font-bold text-foreground">{t("budgeting.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("budgeting.form.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -130,49 +124,49 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
               {/* Header fields */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Department *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("budgeting.form.department")}</label>
                   <select value={department} onChange={e => setDepartment(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="">Select…</option>
+                    <option value="">{t("budgeting.form.select")}</option>
                     {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fiscal Year *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("budgeting.form.fiscalYear")}</label>
                   <select value={fiscalYear} onChange={e => setFiscalYear(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {["2024", "2025", "2026", "2027"].map(y => <option key={y}>{y}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget Owner</label>
-                  <Input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Department head…" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("budgeting.form.budgetOwner")}</label>
+                  <Input value={owner} onChange={e => setOwner(e.target.value)} placeholder={t("budgeting.form.ownerPh")} className="h-9 text-sm" />
                 </div>
               </div>
 
               {/* Grand total banner */}
               <div className="flex items-center justify-between px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
-                <span className="text-sm font-semibold text-foreground">Total Annual Budget</span>
+                <span className="text-sm font-semibold text-foreground">{t("budgeting.form.totalAnnual")}</span>
                 <span className="text-xl font-bold text-primary">{formatCurrency(grandTotal, currency)}</span>
               </div>
 
               {/* Budget Lines */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget Lines (Quarterly)</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("budgeting.form.budgetLines")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={addLine} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add Category
+                    <Plus className="w-3 h-3" /> {t("budgeting.form.addCategory")}
                   </Button>
                 </div>
                 <div className="border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/30 border-b border-border">
                       <tr>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground min-w-[180px]">Category</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground min-w-[180px]">{t("budgeting.form.category")}</th>
                         {["Q1", "Q2", "Q3", "Q4"].map(q => (
-                          <th key={q} className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{q} (AED)</th>
+                          <th key={q} className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("budgeting.form.qCol", { q, currency })}</th>
                         ))}
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">Annual</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("budgeting.form.annual")}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -182,8 +176,11 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
                           <td className="px-2 py-1.5">
                             <select value={line.category} onChange={e => updateLine(line.id, "category", e.target.value)}
                               className="w-full h-8 px-2 rounded border border-transparent bg-card text-xs text-foreground focus:outline-none focus:border-primary/40 hover:border-border">
-                              <option value="">Select category…</option>
-                              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                              <option value="">{t("budgeting.form.selectCategory")}</option>
+                              {CATEGORY_KEYS.map(key => {
+                                const label = t(`budgeting.form.categories.${key}`);
+                                return <option key={key} value={label}>{label}</option>;
+                              })}
                             </select>
                           </td>
                           {(["q1", "q2", "q3", "q4"] as const).map(q => (
@@ -211,7 +208,7 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
                     </tbody>
                     <tfoot className="bg-muted/20 border-t border-border font-semibold">
                       <tr>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">Totals</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{t("budgeting.form.totals")}</td>
                         {(["q1", "q2", "q3", "q4"] as const).map(q => (
                           <td key={q} className="px-3 py-2 text-right text-xs text-foreground">
                             {formatCurrency(totalByQ(q), currency)}
@@ -227,9 +224,9 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes & Assumptions</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("budgeting.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Key assumptions, headcount basis, planned initiatives…"
+                  placeholder={t("budgeting.form.notesPh")}
                   rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
@@ -238,9 +235,9 @@ export function AddBudgetForm({ open, onClose }: AddBudgetFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={isPending || !department || grandTotal === 0}>
-                {isPending ? "Saving…" : "Create Budget"}
+                {isPending ? t("common:action.saving") : t("budgeting.form.createBudget")}
               </Button>
             </div>
           </motion.div>

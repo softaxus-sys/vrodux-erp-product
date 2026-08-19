@@ -44,6 +44,7 @@ const LeadsPage            = React.lazy(() => import("@/pages/crm/leads"));
 const PipelinePage         = React.lazy(() => import("@/pages/crm/pipeline"));
 const CustomersPage        = React.lazy(() => import("@/pages/crm/customers"));
 const CrmActivitiesPage    = React.lazy(() => import("@/pages/crm/activities"));
+const CrmDocumentsPage     = React.lazy(() => import("@/pages/crm/documents"));
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
 const QuotationsPage       = React.lazy(() => import("@/pages/sales/quotations"));
@@ -320,6 +321,7 @@ export function App() {
             <Route path="/crm/pipeline"  element={<PipelinePage />} />
             <Route path="/crm/customers" element={<CustomersPage />} />
             <Route path="/crm/activities" element={<CrmActivitiesPage />} />
+            <Route path="/crm/documents" element={<CrmDocumentsPage />} />
           </Route>
 
           {/* ── Sales ───────────────────────────────────────────────────────── */}

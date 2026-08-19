@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { Trans, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check,
   KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud,
@@ -42,19 +44,29 @@ const LOGO: Record<string, { label: string; color: string }> = {
 };
 const logoFor = (key: string) => LOGO[key] ?? { label: key.slice(0, 2).toUpperCase(), color: "bg-primary" };
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  connected:    { label: "Connected",    color: "text-success",          bg: "bg-success/10",     icon: Link2 },
-  disconnected: { label: "Not Connected", color: "text-muted-foreground", bg: "bg-muted",          icon: Link2Off },
-  error:        { label: "Error",        color: "text-destructive",      bg: "bg-destructive/10", icon: AlertCircle },
+const STATUS_CFG: Record<string, { labelKey: string; color: string; bg: string; icon: React.ElementType }> = {
+  connected:    { labelKey: "integrations.status.connected",    color: "text-success",          bg: "bg-success/10",     icon: Link2 },
+  disconnected: { labelKey: "integrations.status.disconnected", color: "text-muted-foreground", bg: "bg-muted",          icon: Link2Off },
+  error:        { labelKey: "integrations.status.error",        color: "text-destructive",      bg: "bg-destructive/10", icon: AlertCircle },
 };
 
 const HEALTH_DOT: Record<string, string> = {
   healthy: "bg-success", degraded: "bg-amber-500", down: "bg-destructive", unknown: "bg-muted-foreground",
 };
 
+/** Categories come from the backend as English display strings — translate with a passthrough fallback. */
+const categoryLabel = (t: TFunction, cat: string) => t(`integrations.category.${cat}`, { defaultValue: cat });
+/** Health / sync statuses are raw API values — same passthrough treatment. */
+const healthLabel = (t: TFunction, h: string) => t(`integrations.health.${h}`, { defaultValue: h });
+const syncStatusLabel = (t: TFunction, s: string) => t(`integrations.syncStatus.${s}`, { defaultValue: s });
+
+/** Shared <Trans> components for the setup-guide prose (inline code + bold). */
+const RICH = { c: <code />, b: <b /> };
+
 // ── Main view ────────────────────────────────────────────────────────────────
 
 export function IntegrationsView() {
+  const { t } = useTranslation("settings");
   const navigate = useNavigate();
   const { hasRawPermission } = useAuthStore();
   const canEdit = hasRawPermission("settings.integrations.edit");
@@ -75,10 +87,10 @@ export function IntegrationsView() {
     if (p.get("provider") !== "meta") return;
     const status = p.get("status");
     const id = p.get("integration");
-    if (status === "connected" && id) { toast.success("Facebook authorized — choose your pages."); setMetaSelectId(id); }
-    else if (status === "error") toast.error("Facebook connection failed. Please try again.");
+    if (status === "connected" && id) { toast.success(t("integrations.metaAuthorized")); setMetaSelectId(id); }
+    else if (status === "error") toast.error(t("integrations.metaFailed"));
     window.history.replaceState({}, "", window.location.pathname);
-  }, []);
+  }, [t]);
 
   const categories = React.useMemo(
     () => Array.from(new Set(catalog.map((c) => c.category))).sort(),
@@ -137,9 +149,9 @@ export function IntegrationsView() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Integrations</h1>
+          <h1 className="text-2xl font-bold">{t("integrations.title")}</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Connect external lead sources. New leads flow automatically into your CRM pipeline.
+            {t("integrations.description")}
           </p>
         </div>
       </div>
@@ -147,10 +159,10 @@ export function IntegrationsView() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Available", value: stats.available, cls: "text-primary" },
-          { label: "Connected", value: stats.connected, cls: "text-success" },
-          { label: "Total Providers", value: stats.total, cls: "text-foreground" },
-          { label: "Errors", value: stats.errors, cls: "text-destructive" },
+          { label: t("integrations.statAvailable"), value: stats.available, cls: "text-primary" },
+          { label: t("integrations.statConnected"), value: stats.connected, cls: "text-success" },
+          { label: t("integrations.statTotal"),     value: stats.total,     cls: "text-foreground" },
+          { label: t("integrations.statErrors"),    value: stats.errors,    cls: "text-destructive" },
         ].map((s) => (
           <div key={s.label} className="bg-card border border-border rounded-xl p-4">
             <p className={cn("text-2xl font-bold", s.cls)}>{s.value}</p>
@@ -163,12 +175,12 @@ export function IntegrationsView() {
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search integrations…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder={t("integrations.searchPlaceholder")} className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <FilterChip active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>All</FilterChip>
+          <FilterChip active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>{t("integrations.all")}</FilterChip>
           {categories.map((cat) => (
-            <FilterChip key={cat} active={categoryFilter === cat} onClick={() => setCategoryFilter(cat)}>{cat}</FilterChip>
+            <FilterChip key={cat} active={categoryFilter === cat} onClick={() => setCategoryFilter(cat)}>{categoryLabel(t, cat)}</FilterChip>
           ))}
         </div>
       </div>
@@ -176,7 +188,7 @@ export function IntegrationsView() {
       {/* Grid */}
       {isLoading ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading integrations…
+          <Loader2 className="h-5 w-5 animate-spin mr-2" /> {t("integrations.loading")}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -230,6 +242,7 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
   item: ProviderCatalogItem; index: number; canEdit: boolean; connecting: boolean;
   onConnect: () => void; onConfigure: () => void;
 }) {
+  const { t } = useTranslation("settings");
   const logo = logoFor(item.key);
   const statusKey = item.connected ? "connected" : item.status === "error" ? "error" : "disconnected";
   const cfg = STATUS_CFG[statusKey];
@@ -247,17 +260,17 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
           </div>
           <div>
             <h3 className="font-semibold leading-tight">{item.displayName}</h3>
-            <span className="text-xs text-muted-foreground">{item.category}</span>
+            <span className="text-xs text-muted-foreground">{categoryLabel(t, item.category)}</span>
           </div>
         </div>
         {item.comingSoon ? (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-muted text-muted-foreground">
-            Coming soon
+            {t("integrations.card.comingSoon")}
           </span>
         ) : (
           <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", cfg.color, cfg.bg)}>
             {item.connected && <span className={cn("h-1.5 w-1.5 rounded-full", HEALTH_DOT[item.health ?? "unknown"])} />}
-            <StatusIcon className="h-3 w-3" /> {cfg.label}
+            <StatusIcon className="h-3 w-3" /> {t(cfg.labelKey)}
           </span>
         )}
       </div>
@@ -266,26 +279,26 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
 
       {item.connected && (
         <div className="bg-muted/30 rounded-lg p-3 text-xs flex items-center justify-between">
-          <span className="text-muted-foreground">Last sync</span>
+          <span className="text-muted-foreground">{t("integrations.card.lastSync")}</span>
           <span>{formatDate(item.lastSyncAt, "relative")}</span>
         </div>
       )}
 
       <div className="flex gap-2 pt-1 mt-auto">
         {item.comingSoon ? (
-          <Button size="sm" variant="outline" className="flex-1" disabled>Coming soon</Button>
+          <Button size="sm" variant="outline" className="flex-1" disabled>{t("integrations.card.comingSoon")}</Button>
         ) : item.connected ? (
           <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={onConfigure}>
-            <SlidersHorizontal className="h-3.5 w-3.5" /> Configure
+            <SlidersHorizontal className="h-3.5 w-3.5" /> {t("integrations.card.configure")}
           </Button>
         ) : item.capabilities.includes("manualImport") ? (
           <Button size="sm" className="flex-1 gap-1.5" disabled={!canEdit} onClick={onConnect}>
-            <UploadCloud className="h-3.5 w-3.5" /> Import leads
+            <UploadCloud className="h-3.5 w-3.5" /> {t("integrations.card.importLeads")}
           </Button>
         ) : (
           <Button size="sm" className="flex-1 gap-1.5" disabled={!canEdit || connecting} onClick={onConnect}>
             {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plug className="h-3.5 w-3.5" />}
-            Connect
+            {t("integrations.card.connect")}
           </Button>
         )}
       </div>
@@ -300,6 +313,7 @@ type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" |
 function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
   integrationId: string; canEdit: boolean; onClose: () => void; onManageMeta: (id: string) => void;
 }) {
+  const { t } = useTranslation("settings");
   const { data: integration, isLoading } = useIntegration(integrationId);
   const [tab, setTab] = React.useState<Tab>("overview");
   const disconnect = useDisconnectIntegration();
@@ -310,14 +324,14 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
     (integration?.providerKey !== "meta");
 
   const tabs: { id: Tab; label: string; icon: React.ElementType; show: boolean }[] = [
-    { id: "overview", label: "Overview",     icon: ShieldCheck,       show: true },
-    { id: "setup",    label: "Setup Guide",  icon: Plug,              show: isInbound },
-    { id: "inbound",  label: "Inbound URL",  icon: KeyRound,          show: isInbound },
-    { id: "mapping",  label: "Field Mapping",icon: SlidersHorizontal, show: true },
-    { id: "dedupe",   label: "Duplicates",   icon: ShieldCheck,       show: true },
-    { id: "routing",  label: "Routing",      icon: SlidersHorizontal, show: true },
-    { id: "history",  label: "Sync History", icon: History,           show: true },
-    { id: "errors",   label: "Error Log",    icon: FileWarning,       show: true },
+    { id: "overview", label: t("integrations.tab.overview"), icon: ShieldCheck,       show: true },
+    { id: "setup",    label: t("integrations.tab.setup"),    icon: Plug,              show: isInbound },
+    { id: "inbound",  label: t("integrations.tab.inbound"),  icon: KeyRound,          show: isInbound },
+    { id: "mapping",  label: t("integrations.tab.mapping"),  icon: SlidersHorizontal, show: true },
+    { id: "dedupe",   label: t("integrations.tab.dedupe"),   icon: ShieldCheck,       show: true },
+    { id: "routing",  label: t("integrations.tab.routing"),  icon: SlidersHorizontal, show: true },
+    { id: "history",  label: t("integrations.tab.history"),  icon: History,           show: true },
+    { id: "errors",   label: t("integrations.tab.errors"),   icon: FileWarning,       show: true },
   ];
 
   return (
@@ -346,7 +360,7 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
                   <h2 className="font-semibold">{integration.name}</h2>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span className={cn("h-1.5 w-1.5 rounded-full", HEALTH_DOT[integration.health])} />
-                    {STATUS_CFG[integration.status].label} · {integration.health}
+                    {t(STATUS_CFG[integration.status].labelKey)} · {healthLabel(t, integration.health)}
                   </div>
                 </div>
               </div>
@@ -354,15 +368,15 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
             </div>
 
             <div className="flex gap-1 px-3 pt-3 border-b border-border overflow-x-auto">
-              {tabs.filter((t) => t.show).map((t) => (
+              {tabs.filter((tb) => tb.show).map((tb) => (
                 <button
-                  key={t.id} onClick={() => setTab(t.id)}
+                  key={tb.id} onClick={() => setTab(tb.id)}
                   className={cn(
                     "px-3 py-2 text-sm font-medium rounded-t-lg whitespace-nowrap border-b-2 -mb-px transition-colors",
-                    tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+                    tab === tb.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {t.label}
+                  {tb.label}
                 </button>
               ))}
             </div>
@@ -382,12 +396,12 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
               <div className="p-4 border-t border-border flex justify-between">
                 <Button variant="ghost" size="sm" className="text-destructive gap-1.5"
                   onClick={async () => { await remove.mutateAsync(integration.id).catch(() => {}); onClose(); }}>
-                  <Trash2 className="h-4 w-4" /> Remove
+                  <Trash2 className="h-4 w-4" /> {t("integrations.remove")}
                 </Button>
                 {integration.status === "connected" && (
                   <Button variant="outline" size="sm" className="gap-1.5"
                     onClick={() => disconnect.mutate(integration.id)}>
-                    <Link2Off className="h-4 w-4" /> Disconnect
+                    <Link2Off className="h-4 w-4" /> {t("integrations.disconnect")}
                   </Button>
                 )}
               </div>
@@ -411,21 +425,22 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function OverviewTab({ integration, isMeta, onManageMeta }: { integration: any; isMeta: boolean; onManageMeta: () => void }) {
+  const { t } = useTranslation("settings");
   return (
     <div className="space-y-1">
-      <Row label="Provider" value={integration.providerKey} />
-      <Row label="Status" value={STATUS_CFG[integration.status].label} />
-      <Row label="Health" value={integration.health} />
-      <Row label="Last sync" value={formatDate(integration.lastSyncAt, "relative")} />
-      <Row label="Last success" value={formatDate(integration.lastSuccessAt, "relative")} />
-      <Row label="Last failure" value={formatDate(integration.lastFailureAt, "relative")} />
-      <Row label="Retry count" value={integration.retryCount} />
+      <Row label={t("integrations.overview.provider")} value={integration.providerKey} />
+      <Row label={t("integrations.overview.status")} value={t(STATUS_CFG[integration.status].labelKey)} />
+      <Row label={t("integrations.overview.health")} value={healthLabel(t, integration.health)} />
+      <Row label={t("integrations.overview.lastSync")} value={formatDate(integration.lastSyncAt, "relative")} />
+      <Row label={t("integrations.overview.lastSuccess")} value={formatDate(integration.lastSuccessAt, "relative")} />
+      <Row label={t("integrations.overview.lastFailure")} value={formatDate(integration.lastFailureAt, "relative")} />
+      <Row label={t("integrations.overview.retryCount")} value={integration.retryCount} />
       {integration.lastError && (
         <div className="mt-3 p-3 rounded-lg bg-destructive/10 text-destructive text-xs">{integration.lastError}</div>
       )}
       {isMeta && (
         <Button className="mt-4 w-full gap-1.5" variant="outline" onClick={onManageMeta}>
-          <SlidersHorizontal className="h-4 w-4" /> Manage Pages & Forms
+          <SlidersHorizontal className="h-4 w-4" /> {t("integrations.overview.managePages")}
         </Button>
       )}
     </div>
@@ -433,6 +448,7 @@ function OverviewTab({ integration, isMeta, onManageMeta }: { integration: any; 
 }
 
 function InboundTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
+  const { t } = useTranslation("settings");
   const [secret, setSecret] = React.useState<string | null>(null);
   const [loadingSecret, setLoadingSecret] = React.useState(false);
   const rotate = useRotateInboundKey();
@@ -449,32 +465,32 @@ function InboundTab({ integration, canEdit }: { integration: any; canEdit: boole
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Send leads here from any service that can POST JSON. Possession of this URL is the secret — keep it private.
+        {t("integrations.inbound.intro")}
       </p>
-      <CopyField label="Inbound URL" value={integration.inboundUrl ?? "—"} />
+      <CopyField label={t("integrations.inbound.urlLabel")} value={integration.inboundUrl ?? "—"} />
 
       <div className="space-y-2">
-        <label className="text-xs font-medium text-muted-foreground">HMAC Signing Secret (optional)</label>
+        <label className="text-xs font-medium text-muted-foreground">{t("integrations.inbound.secretLabel")}</label>
         {secret ? <CopyField label="" value={secret} mono /> : (
           <Button variant="outline" size="sm" onClick={reveal} disabled={loadingSecret}>
-            {loadingSecret ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reveal secret"}
+            {loadingSecret ? <Loader2 className="h-4 w-4 animate-spin" /> : t("integrations.inbound.revealSecret")}
           </Button>
         )}
       </div>
 
       {integration.providerKey === "website" && snippetUrl && (
         <div className="space-y-2">
-          <label className="text-xs font-medium text-muted-foreground">Website snippet</label>
+          <label className="text-xs font-medium text-muted-foreground">{t("integrations.inbound.snippetLabel")}</label>
           <CopyField label="" value={`<script src="${snippetUrl}"></script>`} mono />
           <p className="text-xs text-muted-foreground">
-            Add <code className="text-foreground">data-vrodux-lead</code> to any form to auto-capture its submissions.
+            <Trans t={t} i18nKey="integrations.inbound.snippetHint" components={{ c: <code className="text-foreground" /> }} />
           </p>
         </div>
       )}
 
       {canEdit && (
         <Button variant="ghost" size="sm" className="gap-1.5 text-amber-600" onClick={() => rotate.mutate(integration.id)}>
-          <RefreshCw className="h-4 w-4" /> Rotate inbound key
+          <RefreshCw className="h-4 w-4" /> {t("integrations.inbound.rotate")}
         </Button>
       )}
     </div>
@@ -503,17 +519,18 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
 // ── Setup Guide (per-provider instructions) ──────────────────────────────────
 
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
+  const { t } = useTranslation("settings");
   const [copied, setCopied] = React.useState(false);
   return (
     <div className="relative group">
       {lang && <span className="absolute top-2 left-3 text-[10px] uppercase tracking-wide text-muted-foreground/70">{lang}</span>}
-      <pre className={cn("bg-muted rounded-lg p-3 pr-11 text-xs overflow-x-auto font-mono leading-relaxed", lang && "pt-6")}>
+      <pre className={cn("bg-muted rounded-lg p-3 pr-11 text-xs overflow-x-auto font-mono leading-relaxed", lang && "pt-6")} dir="ltr">
         <code>{code}</code>
       </pre>
       <button
         onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
         className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 border border-border hover:bg-background"
-        title="Copy"
+        title={t("integrations.copy")}
       >
         {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
@@ -549,7 +566,20 @@ function SetupSection({ title, desc, children }: { title: string; desc?: string;
 const ACCEPTED_FIELDS =
   "first_name, last_name, name, email, phone, whatsapp, company, title, city, country, interested_in, budget, message, campaign";
 
+/** "Accepted fields: <code>…</code>" line shared by several provider guides. */
+function AcceptedFields({ extra }: { extra?: boolean }) {
+  const { t } = useTranslation("settings");
+  return (
+    <p className="text-xs text-muted-foreground">
+      {t("integrations.setup.acceptedFields")}{" "}
+      <code className="text-foreground bg-muted px-1 rounded text-[11px]" dir="ltr">{ACCEPTED_FIELDS}</code>
+      {extra ? <>. {t("integrations.setup.acceptedFieldsExtra")}</> : null}
+    </p>
+  );
+}
+
 function ProviderSetup({ integration }: { integration: any }) {
+  const { t } = useTranslation("settings");
   const url: string = integration.inboundUrl ?? "";
   const key: string = integration.providerKey;
   const [webMode, setWebMode] = React.useState<"easy" | "advanced">("easy");
@@ -585,38 +615,41 @@ function ProviderSetup({ integration }: { integration: any }) {
         <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
           {(["easy", "advanced"] as const).map(m => (
             <button key={m} onClick={() => setWebMode(m)}
-              className={cn("px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors",
+              className={cn("px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
                 webMode === m ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground")}>
-              {m === "easy" ? "Easy — Hosted form" : "Advanced — Your own form"}
+              {m === "easy" ? t("integrations.setup.web.easy") : t("integrations.setup.web.advanced")}
             </button>
           ))}
         </div>
 
         {webMode === "easy" ? (
-          <SetupSection title="Embed the ready-made form" desc="Zero coding — paste this iframe on any page. Submissions appear in CRM → Leads automatically.">
+          <SetupSection title={t("integrations.setup.web.easyTitle")} desc={t("integrations.setup.web.easyDesc")}>
             <CodeBlock code={iframe} lang="html" />
             <a href={`${url}/form`} target="_blank" rel="noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
-              <UploadCloud className="h-3.5 w-3.5" /> Preview the form
+              <UploadCloud className="h-3.5 w-3.5" /> {t("integrations.setup.web.preview")}
             </a>
             <Steps items={[
-              <>Copy the iframe above.</>,
-              <>Paste it into your website's HTML where you want the form to appear.</>,
-              <>Every submission is captured as a lead under your account — with dedupe &amp; routing applied.</>,
+              t("integrations.setup.web.step1"),
+              t("integrations.setup.web.step2"),
+              t("integrations.setup.web.step3"),
             ]} />
           </SetupSection>
         ) : (
-          <SetupSection title="Use your own form" desc="Two ways to send your existing/custom form to Vrodux.">
+          <SetupSection title={t("integrations.setup.web.advTitle")} desc={t("integrations.setup.web.advDesc")}>
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-foreground">Option A — Drop-in script (no backend)</p>
+              <p className="text-xs font-semibold text-foreground">{t("integrations.setup.web.optionA")}</p>
               <CodeBlock code={`<script src="${url}/snippet.js"></script>`} lang="html" />
-              <p className="text-xs text-muted-foreground">Add the script once, then put <code className="text-foreground bg-muted px-1 rounded">data-vrodux-lead</code> on any form:</p>
+              <p className="text-xs text-muted-foreground">
+                <Trans t={t} i18nKey="integrations.setup.web.optionAHint"
+                  components={{ c: <code className="text-foreground bg-muted px-1 rounded" /> }} />
+              </p>
               <CodeBlock code={exampleForm} lang="html" />
             </div>
             <div className="space-y-2 pt-2">
-              <p className="text-xs font-semibold text-foreground">Option B — POST directly from your backend</p>
+              <p className="text-xs font-semibold text-foreground">{t("integrations.setup.web.optionB")}</p>
               <CodeBlock code={curlExample} lang="bash" />
-              <p className="text-xs text-muted-foreground">Accepted fields: <code className="text-foreground bg-muted px-1 rounded text-[11px]">{ACCEPTED_FIELDS}</code></p>
+              <AcceptedFields />
             </div>
           </SetupSection>
         )}
@@ -644,15 +677,11 @@ function vroduxSendRow(e) {
   });
 }`;
     return (
-      <SetupSection title="Turn new spreadsheet rows into leads" desc="A one-time Apps Script posts each new row to Vrodux. Your header row names become the lead fields.">
+      <SetupSection title={t("integrations.setup.sheets.title")} desc={t("integrations.setup.sheets.desc")}>
         <CodeBlock code={script} lang="apps script" />
-        <Steps items={[
-          <>Open your Google Sheet → <code>Extensions</code> → <code>Apps Script</code>.</>,
-          <>Delete any sample code, paste the script above, and <code>Save</code>.</>,
-          <>Click <code>Triggers</code> (clock icon) → <code>Add Trigger</code>.</>,
-          <>Choose function <code>vroduxSendRow</code>, event source <code>From spreadsheet</code>, event type <code>On form submit</code> (or <code>On edit</code> for manual rows), then <code>Save</code> and authorize.</>,
-          <>Make sure row 1 has headers like <code>name</code>, <code>email</code>, <code>phone</code>, <code>company</code>, <code>interested_in</code>, <code>budget</code>, <code>message</code>.</>,
-        ]} />
+        <Steps items={[1, 2, 3, 4, 5].map(n => (
+          <Trans key={n} t={t} i18nKey={`integrations.setup.sheets.step${n}`} components={RICH} />
+        ))} />
       </SetupSection>
     );
   }
@@ -672,14 +701,11 @@ function vroduxOnFormSubmit(e) {
   });
 }`;
     return (
-      <SetupSection title="Send Google Forms responses to CRM" desc="A one-time Apps Script posts each response to Vrodux. Name your form questions to match the CRM fields.">
+      <SetupSection title={t("integrations.setup.forms.title")} desc={t("integrations.setup.forms.desc")}>
         <CodeBlock code={script} lang="apps script" />
-        <Steps items={[
-          <>Open your Google Form → <code>⋮</code> menu → <code>Apps Script</code> (or Extensions → Apps Script).</>,
-          <>Paste the script above and <code>Save</code>.</>,
-          <>Click <code>Triggers</code> → <code>Add Trigger</code> → function <code>vroduxOnFormSubmit</code>, event type <code>On form submit</code>. Save &amp; authorize.</>,
-          <>Tip: name your questions <code>Email</code>, <code>Phone</code>, <code>Company</code>, <code>Interested in</code>, <code>Budget</code>, <code>Message</code> so they map automatically. Unrecognized questions are still saved under the lead's Form Responses.</>,
-        ]} />
+        <Steps items={[1, 2, 3, 4].map(n => (
+          <Trans key={n} t={t} i18nKey={`integrations.setup.forms.step${n}`} components={RICH} />
+        ))} />
       </SetupSection>
     );
   }
@@ -714,38 +740,32 @@ function vroduxOnFormSubmit(e) {
   -d '${pfPayload.replace(/\n/g, "\n  ")}'`;
     return (
       <div className="space-y-5">
-        <SetupSection title="Connect Property Finder leads"
-          desc="Every buyer/tenant enquiry on your Property Finder listings — email, call, WhatsApp or SMS — is created as a CRM lead, with the property, price and message attached.">
-          <CopyField label="Your inbound URL" value={url || "—"} />
-          <Steps items={[
-            <>In your Property Finder <b>agent / broker portal</b>, open <code>Settings</code> → <code>Integrations</code> (or <code>Leads</code> → <code>CRM / API</code>). If you use a lead-management partner, this is where a webhook / CRM endpoint is configured.</>,
-            <>Add a <b>webhook / lead-forwarding</b> destination and paste the inbound URL above as the target. Choose <code>JSON</code> as the format if asked.</>,
-            <>Save. Send a test enquiry from one of your live listings — it should appear under <b>CRM → Leads</b> within a few seconds, with dedupe &amp; routing applied.</>,
-          ]} />
+        <SetupSection title={t("integrations.setup.pf.title")} desc={t("integrations.setup.pf.desc")}>
+          <CopyField label={t("integrations.setup.yourInboundUrl")} value={url || "—"} />
+          <Steps items={[1, 2, 3].map(n => (
+            <Trans key={n} t={t} i18nKey={`integrations.setup.pf.step${n}`} components={RICH} />
+          ))} />
           <p className="text-xs text-muted-foreground">
-            Property Finder's lead delivery is enabled per account — if you don't see a webhook / API option,
-            ask your Property Finder account manager to enable <b>lead export / CRM integration</b>, or forward
-            leads via an automation tool (Zapier / Make) to the URL above.
+            <Trans t={t} i18nKey="integrations.setup.pf.note" components={RICH} />
           </p>
         </SetupSection>
 
-        <SetupSection title="Payload Vrodux understands"
-          desc="Property Finder (or your automation) should POST JSON like this. The enquirer can be nested under client/contact; the listing under property/listing. Unknown fields are still saved under the lead's Form Responses.">
+        <SetupSection title={t("integrations.setup.pf.payloadTitle")} desc={t("integrations.setup.pf.payloadDesc")}>
           <CodeBlock code={pfPayload} lang="json" />
           <p className="text-xs text-muted-foreground">
-            Mapped automatically: <code className="text-foreground bg-muted px-1 rounded text-[11px]">name · email · phone · message → the lead; property title + reference → Interested In; price + offering → Budget; location → City</code>.
+            <Trans t={t} i18nKey="integrations.setup.pf.mappedHint"
+              components={{ c: <code className="text-foreground bg-muted px-1 rounded text-[11px]" /> }} />
           </p>
         </SetupSection>
 
-        <SetupSection title="Test it from a terminal" desc="Fire a sample enquiry at your inbound URL to confirm the connection.">
+        <SetupSection title={t("integrations.setup.pf.testTitle")} desc={t("integrations.setup.pf.testDesc")}>
           <CodeBlock code={pfCurl} lang="bash" />
         </SetupSection>
 
-        <SetupSection title="Optional — verify signatures (HMAC)" desc="If Property Finder (or your middleware) signs the request body, store the signing secret in the Inbound URL tab and Vrodux will verify it.">
-          <Steps items={[
-            <>Reveal / set your <b>signing secret</b> in the <code>Inbound URL</code> tab.</>,
-            <>Sign the raw body with <code>HMAC-SHA256</code> (lowercase hex) and send it as <code>X-PropertyFinder-Signature: sha256=&lt;hex&gt;</code> (or <code>X-Signature</code>). Unsigned requests are still accepted on the strength of the unguessable inbound URL.</>,
-          ]} />
+        <SetupSection title={t("integrations.setup.pf.hmacTitle")} desc={t("integrations.setup.pf.hmacDesc")}>
+          <Steps items={[1, 2].map(n => (
+            <Trans key={n} t={t} i18nKey={`integrations.setup.pf.hmacStep${n}`} components={RICH} />
+          ))} />
         </SetupSection>
       </div>
     );
@@ -765,18 +785,18 @@ function vroduxOnFormSubmit(e) {
     "scope": "organization"
   }'`;
     return (
-      <SetupSection title="Create a Calendly webhook" desc="Calendly delivers new bookings to your inbound URL. Webhooks require a Calendly paid plan / API access.">
+      <SetupSection title={t("integrations.setup.calendly.title")} desc={t("integrations.setup.calendly.desc")}>
         <Steps items={[
-          <>In Calendly, go to <code>Integrations &amp; apps</code> → <code>API &amp; webhooks</code> → generate a <b>Personal Access Token</b>.</>,
-          <>Find your organization URI (copy <code>current_organization</code> from the response):</>,
+          <Trans t={t} i18nKey="integrations.setup.calendly.step1" components={RICH} />,
+          <Trans t={t} i18nKey="integrations.setup.calendly.step2" components={RICH} />,
         ]} />
         <CodeBlock code={orgCurl} lang="bash" />
         <Steps items={[
-          <>Create the webhook subscription pointing at your inbound URL (replace the token &amp; organization):</>,
+          <Trans t={t} i18nKey="integrations.setup.calendly.step3" components={RICH} />,
         ]} />
         <CodeBlock code={subCurl} lang="bash" />
         <Steps items={[
-          <>Done — each new Calendly booking (<code>invitee.created</code>) now creates a CRM lead. The invitee's name, email and any questions are captured.</>,
+          <Trans t={t} i18nKey="integrations.setup.calendly.step4" components={RICH} />,
         ]} />
       </SetupSection>
     );
@@ -785,28 +805,26 @@ function vroduxOnFormSubmit(e) {
   // ── Custom API / Zapier / Make / generic webhook ───────────────────────────
   return (
     <div className="space-y-5">
-      <SetupSection title="Push leads to your inbound URL" desc="Any tool or backend that can POST JSON can send leads here. Possession of the URL is the secret — keep it private.">
-        <CopyField label="Inbound URL" value={url || "—"} />
+      <SetupSection title={t("integrations.setup.generic.title")} desc={t("integrations.setup.generic.desc")}>
+        <CopyField label={t("integrations.inbound.urlLabel")} value={url || "—"} />
         <CodeBlock code={curlExample} lang="bash" />
-        <p className="text-xs text-muted-foreground">Accepted fields: <code className="text-foreground bg-muted px-1 rounded text-[11px]">{ACCEPTED_FIELDS}</code>. Extra fields are saved under the lead's Form Responses.</p>
+        <AcceptedFields extra />
       </SetupSection>
 
       {(key === "zapier" || key === "make") && (
-        <SetupSection title={`Connect from ${key === "zapier" ? "Zapier" : "Make.com"}`}>
+        <SetupSection title={key === "zapier" ? t("integrations.setup.generic.zapierTitle") : t("integrations.setup.generic.makeTitle")}>
           <Steps items={[
-            <>Add a <code>Webhooks</code> action → <code>POST</code>.</>,
-            <>Set the URL to the inbound URL above and payload type <code>JSON</code>.</>,
-            <>Map your trigger's fields to the accepted field names, then turn the {key === "zapier" ? "Zap" : "scenario"} on.</>,
+            <Trans t={t} i18nKey="integrations.setup.generic.step1" components={RICH} />,
+            <Trans t={t} i18nKey="integrations.setup.generic.step2" components={RICH} />,
+            key === "zapier" ? t("integrations.setup.generic.step3Zapier") : t("integrations.setup.generic.step3Make"),
           ]} />
         </SetupSection>
       )}
 
-      <SetupSection title="Optional — sign your requests (HMAC)" desc="For extra security, sign the raw request body so Vrodux can verify it came from you.">
-        <Steps items={[
-          <>Reveal your <b>signing secret</b> in the <code>Inbound URL</code> tab.</>,
-          <>Compute <code>HMAC-SHA256(rawBody, secret)</code> as lowercase hex.</>,
-          <>Send it in the header <code>X-Vrodux-Signature: sha256=&lt;hex&gt;</code>. Unsigned requests are still accepted unless you require signing.</>,
-        ]} />
+      <SetupSection title={t("integrations.setup.generic.hmacTitle")} desc={t("integrations.setup.generic.hmacDesc")}>
+        <Steps items={[1, 2, 3].map(n => (
+          <Trans key={n} t={t} i18nKey={`integrations.setup.generic.hmacStep${n}`} components={RICH} />
+        ))} />
       </SetupSection>
     </div>
   );
@@ -816,29 +834,14 @@ function vroduxOnFormSubmit(e) {
 // CanonicalLeadFields (LeadIntakeService.ApplyFieldMappings). Grouped + labelled so users can map
 // Meta/Instagram/Facebook lead-form questions (budget, timeframe, interest, whatsapp, …), not just
 // the basic contact fields.
-const TARGET_FIELDS: { value: string; label: string }[] = [
-  { value: "firstName",    label: "First name" },
-  { value: "lastName",     label: "Last name" },
-  { value: "fullName",     label: "Full name" },
-  { value: "email",        label: "Email" },
-  { value: "phone",        label: "Phone" },
-  { value: "whatsApp",     label: "WhatsApp" },
-  { value: "company",      label: "Company" },
-  { value: "title",        label: "Job title" },
-  { value: "industry",     label: "Industry" },
-  { value: "address",      label: "Address" },
-  { value: "city",         label: "City" },
-  { value: "country",      label: "Country" },
-  { value: "interestedIn", label: "Interested in" },
-  { value: "budget",       label: "Budget (→ lead value)" },
-  { value: "timeframe",    label: "Purchase timeframe (→ urgency)" },
-  { value: "message",      label: "Message / enquiry" },
-  { value: "notes",        label: "Notes" },
-  { value: "campaign",     label: "Campaign" },
-  { value: "formName",     label: "Form name" },
+const TARGET_FIELDS: string[] = [
+  "firstName", "lastName", "fullName", "email", "phone", "whatsApp",
+  "company", "title", "industry", "address", "city", "country",
+  "interestedIn", "budget", "timeframe", "message", "notes", "campaign", "formName",
 ];
 
 function MappingTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
+  const { t } = useTranslation("settings");
   const [rows, setRows] = React.useState<{ sourceField: string; targetField: string }[]>(
     integration.fieldMappings.map((m: any) => ({ sourceField: m.sourceField, targetField: m.targetField })),
   );
@@ -847,19 +850,19 @@ function MappingTab({ integration, canEdit }: { integration: any; canEdit: boole
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Map incoming source fields to CRM lead fields. Unmapped fields are auto-detected by name.
+        {t("integrations.mapping.intro")}
       </p>
       {rows.map((r, i) => (
         <div key={i} className="flex items-center gap-2">
-          <Input placeholder="source_field" value={r.sourceField} disabled={!canEdit}
+          <Input placeholder={t("integrations.mapping.sourcePlaceholder")} value={r.sourceField} disabled={!canEdit}
             onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, sourceField: e.target.value } : x))} />
           <span className="text-muted-foreground">→</span>
           <select
             className="bg-card border border-border rounded-md px-2 py-2 text-sm flex-1" value={r.targetField} disabled={!canEdit}
             onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, targetField: e.target.value } : x))}
           >
-            <option value="">— field —</option>
-            {TARGET_FIELDS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            <option value="">{t("integrations.mapping.pickField")}</option>
+            {TARGET_FIELDS.map((f) => <option key={f} value={f}>{t(`integrations.mapping.field.${f}`)}</option>)}
           </select>
           {canEdit && (
             <button className="text-muted-foreground hover:text-destructive" onClick={() => setRows((p) => p.filter((_, j) => j !== i))}>
@@ -871,10 +874,10 @@ function MappingTab({ integration, canEdit }: { integration: any; canEdit: boole
       {canEdit && (
         <div className="flex gap-2 pt-2">
           <Button variant="outline" size="sm" onClick={() => setRows((p) => [...p, { sourceField: "", targetField: "" }])}>
-            Add mapping
+            {t("integrations.mapping.addMapping")}
           </Button>
           <Button size="sm" onClick={() => update.mutate({ id: integration.id, req: { fieldMappings: rows.filter((r) => r.sourceField && r.targetField) } })}>
-            Save mappings
+            {t("integrations.mapping.saveMappings")}
           </Button>
         </div>
       )}
@@ -883,17 +886,18 @@ function MappingTab({ integration, canEdit }: { integration: any; canEdit: boole
 }
 
 function DedupeTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
+  const { t } = useTranslation("settings");
   const parsed = safeParse(integration.dedupeConfig, { byEmail: true, byPhone: true, byExternalId: true });
   const [rules, setRules] = React.useState(parsed);
   const update = useUpdateIntegrationConfig();
   const items: { key: keyof typeof rules; label: string }[] = [
-    { key: "byEmail", label: "Match by email" },
-    { key: "byPhone", label: "Match by phone" },
-    { key: "byExternalId", label: "Match by external lead id" },
+    { key: "byEmail", label: t("integrations.dedupe.byEmail") },
+    { key: "byPhone", label: t("integrations.dedupe.byPhone") },
+    { key: "byExternalId", label: t("integrations.dedupe.byExternalId") },
   ];
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Skip creating a lead when an existing one matches any enabled rule.</p>
+      <p className="text-sm text-muted-foreground">{t("integrations.dedupe.intro")}</p>
       {items.map((it) => (
         <label key={it.key} className="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" checked={!!rules[it.key]} disabled={!canEdit}
@@ -903,7 +907,7 @@ function DedupeTab({ integration, canEdit }: { integration: any; canEdit: boolea
       ))}
       {canEdit && (
         <Button size="sm" onClick={() => update.mutate({ id: integration.id, req: { dedupeConfig: JSON.stringify(rules) } })}>
-          Save rules
+          {t("integrations.dedupe.saveRules")}
         </Button>
       )}
     </div>
@@ -911,29 +915,30 @@ function DedupeTab({ integration, canEdit }: { integration: any; canEdit: boolea
 }
 
 function RoutingTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
+  const { t } = useTranslation("settings");
   const parsed = safeParse(integration.routingConfig, { mode: "fixed", assignTo: "", pool: [] as string[] });
   const [routing, setRouting] = React.useState(parsed);
   const update = useUpdateIntegrationConfig();
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">Decide who new leads from this source are assigned to.</p>
+      <p className="text-sm text-muted-foreground">{t("integrations.routing.intro")}</p>
       <select className="bg-card border border-border rounded-md px-2 py-2 text-sm w-full" value={routing.mode} disabled={!canEdit}
         onChange={(e) => setRouting((p: any) => ({ ...p, mode: e.target.value }))}>
-        <option value="fixed">Assign to a specific user</option>
-        <option value="round_robin">Round-robin across a team</option>
-        <option value="unassigned">Leave unassigned</option>
+        <option value="fixed">{t("integrations.routing.fixed")}</option>
+        <option value="round_robin">{t("integrations.routing.roundRobin")}</option>
+        <option value="unassigned">{t("integrations.routing.unassigned")}</option>
       </select>
       {routing.mode === "fixed" && (
-        <Input placeholder="user@example.com or name" value={routing.assignTo ?? ""} disabled={!canEdit}
+        <Input placeholder={t("integrations.routing.assignToPlaceholder")} value={routing.assignTo ?? ""} disabled={!canEdit}
           onChange={(e) => setRouting((p: any) => ({ ...p, assignTo: e.target.value }))} />
       )}
       {routing.mode === "round_robin" && (
-        <Input placeholder="comma,separated,users" value={(routing.pool ?? []).join(",")} disabled={!canEdit}
+        <Input placeholder={t("integrations.routing.poolPlaceholder")} value={(routing.pool ?? []).join(",")} disabled={!canEdit}
           onChange={(e) => setRouting((p: any) => ({ ...p, pool: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))} />
       )}
       {canEdit && (
         <Button size="sm" onClick={() => update.mutate({ id: integration.id, req: { routingConfig: JSON.stringify(routing) } })}>
-          Save routing
+          {t("integrations.routing.saveRouting")}
         </Button>
       )}
     </div>
@@ -941,9 +946,10 @@ function RoutingTab({ integration, canEdit }: { integration: any; canEdit: boole
 }
 
 function HistoryTab({ integrationId }: { integrationId: string }) {
+  const { t } = useTranslation("settings");
   const { data: logs = [], isLoading } = useIntegrationSyncLogs(integrationId);
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
-  if (!logs.length) return <Empty text="No sync activity yet." />;
+  if (!logs.length) return <Empty text={t("integrations.history.empty")} />;
   return (
     <div className="space-y-2">
       {logs.map((l) => (
@@ -951,10 +957,15 @@ function HistoryTab({ integrationId }: { integrationId: string }) {
           <div className="flex items-center justify-between">
             <span className="font-medium capitalize">{l.trigger}</span>
             <span className={cn("text-xs px-2 py-0.5 rounded-full",
-              l.status === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>{l.status}</span>
+              l.status === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+              {syncStatusLabel(t, l.status)}
+            </span>
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {l.created} created · {l.duplicates} dup · {l.failed} failed · {formatDate(l.startedAt, "relative")}
+            {t("integrations.history.summary", {
+              created: l.created, duplicates: l.duplicates, failed: l.failed,
+              when: formatDate(l.startedAt, "relative"),
+            })}
           </div>
           {l.message && <div className="text-xs text-destructive mt-1">{l.message}</div>}
         </div>
@@ -964,9 +975,10 @@ function HistoryTab({ integrationId }: { integrationId: string }) {
 }
 
 function ErrorsTab({ integrationId }: { integrationId: string }) {
+  const { t } = useTranslation("settings");
   const { data: rows = [], isLoading } = useIntegrationInbox(integrationId);
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
-  if (!rows.length) return <Empty text="No inbound payloads recorded yet." />;
+  if (!rows.length) return <Empty text={t("integrations.errors.empty")} />;
   return (
     <div className="space-y-2">
       {rows.map((r) => (
@@ -977,10 +989,12 @@ function ErrorsTab({ integrationId }: { integrationId: string }) {
               r.status === "processed" ? "bg-success/10 text-success"
               : r.status === "duplicate" ? "bg-muted text-muted-foreground"
               : r.status === "failed" ? "bg-destructive/10 text-destructive"
-              : "bg-amber-500/10 text-amber-600")}>{r.status}</span>
+              : "bg-amber-500/10 text-amber-600")}>
+              {syncStatusLabel(t, r.status)}
+            </span>
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {r.attempts} attempt(s) · {formatDate(r.receivedAt, "relative")}
+            {t("integrations.errors.attempts", { n: r.attempts, when: formatDate(r.receivedAt, "relative") })}
           </div>
           {r.lastError && <div className="text-xs text-destructive mt-1">{r.lastError}</div>}
         </div>
@@ -996,6 +1010,8 @@ function Empty({ text }: { text: string }) {
 // ── Meta page/form selection ─────────────────────────────────────────────────
 
 function MetaSelectModal({ integrationId, onClose }: { integrationId: string; onClose: () => void }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const { data: pages = [], isLoading } = useMetaPages(integrationId, true);
   const select = useSelectMetaTargets();
   const startOAuth = useStartMetaOAuth();
@@ -1035,7 +1051,7 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
         pageId,
         forms: (forms[pageId] ?? []).filter((f) => set.has(f.formId)).map((f) => ({ formId: f.formId, name: f.name })),
       }));
-    if (!selections.length) { toast.error("Select at least one form."); return; }
+    if (!selections.length) { toast.error(t("integrations.meta.selectAtLeastOne")); return; }
     try { await select.mutateAsync({ id: integrationId, pages: selections }); onClose(); } catch { /* toasted */ }
   }
 
@@ -1049,27 +1065,29 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
       >
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
-            <h2 className="font-semibold">Select Facebook Pages & Forms</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Choose which Lead Ad forms sync into your CRM.</p>
+            <h2 className="font-semibold">{t("integrations.meta.title")}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("integrations.meta.subtitle")}</p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {isLoading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto my-8" />
-            : pages.length === 0 ? <Empty text="No Facebook pages found for this account." />
+            : pages.length === 0 ? <Empty text={t("integrations.meta.noPages")} />
             : pages.map((page) => (
               <div key={page.pageId} className="border border-border rounded-lg">
                 <button className="w-full flex items-center justify-between p-3 text-sm font-medium" onClick={() => toggleExpand(page.pageId)}>
                   <span>{page.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {(picked[page.pageId]?.size ?? 0) > 0 ? `${picked[page.pageId].size} selected` : "Select forms"}
+                    {(picked[page.pageId]?.size ?? 0) > 0
+                      ? t("integrations.meta.selectedCount", { n: picked[page.pageId].size })
+                      : t("integrations.meta.selectForms")}
                   </span>
                 </button>
                 {expanded === page.pageId && (
                   <div className="px-3 pb-3 space-y-1.5 border-t border-border pt-2">
                     {!forms[page.pageId] ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      : forms[page.pageId].length === 0 ? <p className="text-xs text-muted-foreground">No lead forms on this page.</p>
+                      : forms[page.pageId].length === 0 ? <p className="text-xs text-muted-foreground">{t("integrations.meta.noForms")}</p>
                       : forms[page.pageId].map((f) => (
                         <label key={f.formId} className="flex items-center gap-2 text-sm cursor-pointer">
                           <input type="checkbox" checked={picked[page.pageId]?.has(f.formId) ?? false}
@@ -1086,12 +1104,12 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
         <div className="p-4 border-t border-border flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" className="gap-1.5" disabled={startOAuth.isPending} onClick={reauthorize}>
             {startOAuth.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Re-authorize with Facebook
+            {t("integrations.meta.reauthorize")}
           </Button>
           <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onClose}>{tc("action.cancel")}</Button>
           <Button size="sm" disabled={select.isPending} onClick={save}>
-            {select.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect selected"}
+            {select.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("integrations.meta.connectSelected")}
           </Button>
           </div>
         </div>

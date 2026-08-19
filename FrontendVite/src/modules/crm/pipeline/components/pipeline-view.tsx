@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Filter, Search, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { Can } from "@/components/auth/can";
 type ViewMode = "board" | "list";
 
 export function PipelineView() {
+  const { t } = useTranslation("crm");
   const { data: deals = [], isLoading } = useDeals();
   const { data: crmSummary }            = useCrmSummary();
   const currency = useCurrency();
@@ -78,14 +80,14 @@ export function PipelineView() {
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Sales Pipeline</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Track and manage your deals across all stages</p>
+          <h1 className="text-2xl font-bold">{t("pipeline.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("pipeline.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Can permission="crm.pipeline.create">
             <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => { setEditingDeal(null); setShowAddForm(true); }}>
-              <Plus className="h-4 w-4" />Add Deal
+              <Plus className="h-4 w-4" />{t("pipeline.addDeal")}
             </Button>
           </Can>
         </div>
@@ -104,7 +106,7 @@ export function PipelineView() {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              placeholder="Search deals..."
+              placeholder={t("pipeline.searchPlaceholder")}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-8 h-9 text-sm"
@@ -119,7 +121,7 @@ export function PipelineView() {
                 stageFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
-              All
+              {t("pipeline.all")}
             </button>
             {PIPELINE_STAGES.map(s => (
               <button
@@ -130,7 +132,7 @@ export function PipelineView() {
                   stageFilter === s.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
-                {s.label}
+                {t(`stage.${s.key}`)}
               </button>
             ))}
           </div>
@@ -143,14 +145,14 @@ export function PipelineView() {
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "board" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}
           >
-            <LayoutGrid className="h-3.5 w-3.5" />Board
+            <LayoutGrid className="h-3.5 w-3.5" />{t("pipeline.board")}
           </button>
           <button
             onClick={() => setViewMode("list")}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
               viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}
           >
-            <List className="h-3.5 w-3.5" />List
+            <List className="h-3.5 w-3.5" />{t("pipeline.list")}
           </button>
         </div>
       </div>
@@ -177,6 +179,7 @@ import { motion } from "framer-motion";
 import { useLazyList } from "@/hooks/use-lazy-list";
 
 function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: (d: Deal) => void }) {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const { visible, hasMore, loadMore, sentinelRef, shown, total } = useLazyList(deals, 25);
   const stageStyle = (stage: Deal["stage"]) => {
@@ -191,8 +194,13 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
           <table className="w-full text-sm">
             <thead className="border-y border-border bg-muted/30">
               <tr>
-                {["Deal", "Company", "Value", "Stage", "Probability", "Close Date", "Assigned To", "Priority"].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                {[
+                  ["deal", t("pipeline.table.deal")], ["company", t("pipeline.table.company")],
+                  ["value", t("pipeline.table.value")], ["stage", t("pipeline.table.stage")],
+                  ["probability", t("pipeline.table.probability")], ["closeDate", t("pipeline.table.closeDate")],
+                  ["assignedTo", t("pipeline.table.assignedTo")], ["priority", t("pipeline.table.priority")],
+                ].map(([k, h]) => (
+                  <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -200,7 +208,7 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
             </thead>
             <tbody>
               {visible.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">No deals found.</td></tr>
+                <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">{t("pipeline.noDeals")}</td></tr>
               ) : visible.map((deal, i) => (
                 <motion.tr
                   key={deal.id}
@@ -217,7 +225,7 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
                   <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCurrency(deal.value, currency)}</td>
                   <td className="px-4 py-3">
                     <span className={stageStyle(deal.stage)}>
-                      {PIPELINE_STAGES.find(s => s.key === deal.stage)?.label}
+                      {t(`stage.${deal.stage}`)}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -241,11 +249,11 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
         </div>
         {hasMore && (
           <div ref={sentinelRef} className="flex justify-center py-4 border-t border-border">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={loadMore}>Load more</Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={loadMore}>{t("pipeline.loadMore")}</Button>
           </div>
         )}
         <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          Showing {shown} of {total} deals
+          {t("pipeline.showing", { shown, total })}
         </div>
       </CardContent>
     </Card>

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Download, FileText, CheckCircle2, Clock, DollarSign,
@@ -19,16 +20,16 @@ import { exportPdf } from "@/lib/pdf";
 import { AddPayrollForm } from "./add-payroll-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  draft:      { label: "Draft",      color: "text-muted-foreground", bg: "bg-muted",             icon: FileText },
-  processing: { label: "Processing", color: "text-info",             bg: "bg-info/10",           icon: Clock },
-  processed:  { label: "Processed",  color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
-  approved:   { label: "Approved",   color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
-  paid:       { label: "Paid",       color: "text-success",          bg: "bg-success/10",        icon: CheckCircle2 },
-  failed:     { label: "Failed",     color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
-  rejected:   { label: "Rejected",   color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
+const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; icon: React.ElementType }> = {
+  draft:      { key: "draft",      color: "text-muted-foreground", bg: "bg-muted",             icon: FileText },
+  processing: { key: "processing", color: "text-info",             bg: "bg-info/10",           icon: Clock },
+  processed:  { key: "processed",  color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
+  approved:   { key: "approved",   color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
+  paid:       { key: "paid",       color: "text-success",          bg: "bg-success/10",        icon: CheckCircle2 },
+  failed:     { key: "failed",     color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
+  rejected:   { key: "rejected",   color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
 };
-const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", icon: FileText };
+const STATUS_FALLBACK = { key: "unknown", color: "text-muted-foreground", bg: "bg-muted", icon: FileText };
 
 // Normalise raw backend slip to a consistent internal shape
 function normaliseSlip(s: any, run: { period: string; paidAt?: string | null; status: string }) {
@@ -59,6 +60,7 @@ type NormalisedSlip = ReturnType<typeof normaliseSlip>;
 function PayslipDetailView({
   slip, runId, onBack,
 }: { slip: NormalisedSlip; runId: string; onBack: () => void }) {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const sendEmail = useSendPayslipEmail();
   const [sentTo,   setSentTo]   = React.useState<string | null>(slip.emailSentTo ?? null);
@@ -66,15 +68,15 @@ function PayslipDetailView({
 
   const handleDownload = () => {
     exportPdf({
-      title:    `Payslip — ${slip.employeeName}`,
-      subtitle: `Pay Period: ${slip.payPeriod}`,
-      columns:  ["Description", "Amount (AED)"],
+      title:    t("payroll.payslip.pdfTitle", { name: slip.employeeName }),
+      subtitle: t("payroll.payslip.pdfSubtitle", { period: slip.payPeriod }),
+      columns:  [t("payroll.payslip.earnings"), `${currency}`],
       rows: [
-        ["Basic Salary",     slip.basicSalary.toFixed(2)],
-        ["Allowances",       slip.allowances.toFixed(2)],
-        ["Gross Salary",     slip.grossSalary.toFixed(2)],
-        ["Deductions",       `- ${slip.deductions.toFixed(2)}`],
-        ["Net Salary",       slip.netSalary.toFixed(2)],
+        [t("payroll.payslip.basicSalary"),  slip.basicSalary.toFixed(2)],
+        [t("payroll.payslip.allowances"),   slip.allowances.toFixed(2)],
+        [t("payroll.payslip.grossSalary"),  slip.grossSalary.toFixed(2)],
+        [t("payroll.payslip.deductions"),   `- ${slip.deductions.toFixed(2)}`],
+        [t("payroll.payslip.netSalary"),    slip.netSalary.toFixed(2)],
       ],
     });
   };
@@ -105,7 +107,7 @@ function PayslipDetailView({
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleDownload}>
-            <Printer className="h-3.5 w-3.5" />Download PDF
+            <Printer className="h-3.5 w-3.5" />{t("payroll.payslip.downloadPdf")}
           </Button>
         </div>
       </div>
@@ -125,27 +127,27 @@ function PayslipDetailView({
             <p className="text-xs text-muted-foreground">{slip.department}</p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Net Salary</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{t("payroll.payslip.netSalary")}</p>
             <p className="text-xl font-bold text-primary">{formatCurrency(slip.netSalary, currency)}</p>
           </div>
         </div>
 
         {/* Earnings */}
         <div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">Earnings</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">{t("payroll.payslip.earnings")}</p>
           <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
             <div className="flex justify-between items-center px-4 py-3 text-sm">
-              <span className="text-muted-foreground">Basic Salary</span>
+              <span className="text-muted-foreground">{t("payroll.payslip.basicSalary")}</span>
               <span className="font-semibold">{formatCurrency(slip.basicSalary, currency)}</span>
             </div>
             {slip.allowances > 0 && (
               <div className="flex justify-between items-center px-4 py-3 text-sm">
-                <span className="text-muted-foreground">Allowances</span>
+                <span className="text-muted-foreground">{t("payroll.payslip.allowances")}</span>
                 <span className="text-success">+ {formatCurrency(slip.allowances, currency)}</span>
               </div>
             )}
             <div className="flex justify-between items-center px-4 py-3 text-sm font-bold bg-muted/20 rounded-b-xl">
-              <span>Gross Salary</span>
+              <span>{t("payroll.payslip.grossSalary")}</span>
               <span className="text-primary">{formatCurrency(slip.grossSalary, currency)}</span>
             </div>
           </div>
@@ -154,10 +156,10 @@ function PayslipDetailView({
         {/* Deductions */}
         {slip.deductions > 0 && (
           <div>
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">Deductions</p>
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">{t("payroll.payslip.deductions")}</p>
             <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
               <div className="flex justify-between items-center px-4 py-3 text-sm">
-                <span className="text-muted-foreground">Total Deductions</span>
+                <span className="text-muted-foreground">{t("payroll.payslip.totalDeductions")}</span>
                 <span className="text-destructive font-semibold">- {formatCurrency(slip.deductions, currency)}</span>
               </div>
             </div>
@@ -167,21 +169,21 @@ function PayslipDetailView({
         {/* Net summary */}
         <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold text-primary uppercase tracking-wide">Net Salary</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Amount to be credited</p>
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide">{t("payroll.payslip.netSalary")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("payroll.payslip.amountToCredit")}</p>
           </div>
           <p className="text-2xl font-bold text-primary">{formatCurrency(slip.netSalary, currency)}</p>
         </div>
 
         {/* Payment info */}
         <div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">Payment Details</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-2">{t("payroll.payslip.paymentDetails")}</p>
           <div className="bg-muted/30 rounded-xl divide-y divide-border/50">
             {[
-              { icon: Building2, label: "Bank",    value: slip.bank || "—" },
-              { icon: CreditCard,label: "IBAN",    value: slip.iban || "—" },
-              { icon: Calendar,  label: "Pay Period", value: slip.payPeriod },
-              { icon: Calendar,  label: "Paid On", value: slip.paidAt ? formatDate(slip.paidAt, "medium") : "Pending" },
+              { icon: Building2, label: t("payroll.payslip.bank"),      value: slip.bank || "—" },
+              { icon: CreditCard,label: t("payroll.payslip.iban"),      value: slip.iban || "—" },
+              { icon: Calendar,  label: t("payroll.payslip.payPeriod"), value: slip.payPeriod },
+              { icon: Calendar,  label: t("payroll.payslip.paidOn"),    value: slip.paidAt ? formatDate(slip.paidAt, "medium") : t("payroll.payslip.pending") },
             ].map(row => (
               <div key={row.label} className="flex items-center gap-3 px-4 py-3">
                 <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -197,7 +199,7 @@ function PayslipDetailView({
           <div className="flex items-center gap-3 p-3 bg-success/10 border border-success/20 rounded-xl">
             <MailCheck className="h-4 w-4 text-success shrink-0" />
             <div className="text-xs text-success">
-              <span className="font-semibold">Payslip sent</span> to {sentTo}
+              <span className="font-semibold">{t("payroll.payslip.payslipSent")}</span> {sentTo}
               {sentAt && <span className="text-success/70"> · {formatDate(sentAt, "medium")}</span>}
             </div>
           </div>
@@ -207,7 +209,7 @@ function PayslipDetailView({
       {/* Footer actions */}
       <div className="border-t border-border px-5 py-4 flex gap-2 shrink-0">
         <Button variant="outline" size="sm" className="flex-1 h-9 gap-1.5" onClick={handleDownload}>
-          <Download className="h-3.5 w-3.5" />Download PDF
+          <Download className="h-3.5 w-3.5" />{t("payroll.payslip.downloadPdf")}
         </Button>
         <Button
           size="sm"
@@ -217,11 +219,11 @@ function PayslipDetailView({
           onClick={handleSendEmail}
         >
           {sendEmail.isPending ? (
-            <><Clock className="h-3.5 w-3.5 animate-spin" />Sending…</>
+            <><Clock className="h-3.5 w-3.5 animate-spin" />{t("payroll.payslip.sending")}</>
           ) : sentTo ? (
-            <><MailCheck className="h-3.5 w-3.5" />Resend Email</>
+            <><MailCheck className="h-3.5 w-3.5" />{t("payroll.payslip.resendEmail")}</>
           ) : (
-            <><Mail className="h-3.5 w-3.5" />Send to Employee</>
+            <><Mail className="h-3.5 w-3.5" />{t("payroll.payslip.sendToEmployee")}</>
           )}
         </Button>
       </div>
@@ -231,6 +233,7 @@ function PayslipDetailView({
 
 // ── Payroll run drawer (single panel, push-navigation for payslip detail) ─────
 function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const [selectedSlip,  setSelectedSlip]  = React.useState<NormalisedSlip | null>(null);
   const [search,        setSearch]        = React.useState("");
@@ -291,12 +294,12 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
                 <div>
-                  <p className="font-bold text-lg">{activeRun.period} Payroll</p>
+                  <p className="font-bold text-lg">{t("payroll.runTitle", { period: activeRun.period })}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      <sc.icon className="h-3 w-3" />{sc.label}
+                      <sc.icon className="h-3 w-3" />{t(`payrollStatus.${sc.key}`)}
                     </span>
-                    <span className="text-xs text-muted-foreground">{activeRun.slipCount} employees</span>
+                    <span className="text-xs text-muted-foreground">{t("payroll.employeesCount", { count: activeRun.slipCount })}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -309,13 +312,13 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                       <Button size="sm" variant="outline"
                         className="h-8 text-xs gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/10"
                         onClick={() => setShowReject(true)}>
-                        <Trash2 className="h-3.5 w-3.5" />Reject
+                        <Trash2 className="h-3.5 w-3.5" />{t("payroll.reject")}
                       </Button>
                       <Button size="sm" className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90"
                         disabled={processRun.isPending}
                         onClick={() => processRun.mutate(activeRun.id)}>
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        {processRun.isPending ? "Processing…" : "Accept & Process"}
+                        {processRun.isPending ? t("payroll.processing") : t("payroll.acceptProcess")}
                       </Button>
                     </>
                   )}
@@ -324,20 +327,20 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                       disabled={payRun.isPending}
                       onClick={() => payRun.mutate(activeRun.id, { onSuccess: onClose })}>
                       <DollarSign className="h-3.5 w-3.5" />
-                      {payRun.isPending ? "Marking Paid…" : "Mark as Paid"}
+                      {payRun.isPending ? t("payroll.markingPaid") : t("payroll.markAsPaid")}
                     </Button>
                   )}
                   {!detailLoading && activeRun.status === "rejected" && !editMode && (
                     <Button size="sm" className="h-8 text-xs gap-1.5"
                       onClick={() => { setEditMode(true); setLocalEdits({}); }}>
-                      <Pencil className="h-3.5 w-3.5" />Edit & Resubmit
+                      <Pencil className="h-3.5 w-3.5" />{t("payroll.editResubmit")}
                     </Button>
                   )}
                   {editMode && (
                     <>
                       <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5"
                         onClick={() => { setEditMode(false); setLocalEdits({}); }}>
-                        Cancel
+                        {t("payroll.cancel")}
                       </Button>
                       <Button size="sm" className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90"
                         disabled={reopenRun.isPending}
@@ -354,7 +357,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                           });
                         }}>
                         <RotateCcw className="h-3.5 w-3.5" />
-                        {reopenRun.isPending ? "Resubmitting…" : "Resubmit as Draft"}
+                        {reopenRun.isPending ? t("payroll.resubmitting") : t("payroll.resubmitAsDraft")}
                       </Button>
                     </>
                   )}
@@ -365,9 +368,9 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
               {/* Summary cards */}
               <div className="grid grid-cols-3 gap-3 px-6 pt-4 pb-3 shrink-0">
                 {[
-                  { label: "Gross Payroll", value: formatCurrency(grossTotal, currency),                    color: "text-foreground" },
-                  { label: "Deductions",    value: formatCurrency(activeRun.totalDeductions, currency),     color: "text-destructive" },
-                  { label: "Net Payroll",   value: formatCurrency(activeRun.totalNetSalary, currency),      color: "text-primary" },
+                  { label: t("payroll.grossPayroll"),   value: formatCurrency(grossTotal, currency),                    color: "text-foreground" },
+                  { label: t("payroll.deductionsLabel"), value: formatCurrency(activeRun.totalDeductions, currency),     color: "text-destructive" },
+                  { label: t("payroll.netPayrollLabel"), value: formatCurrency(activeRun.totalNetSalary, currency),      color: "text-primary" },
                 ].map(s => (
                   <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
@@ -384,22 +387,21 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                     className="mx-6 mb-3 overflow-hidden shrink-0"
                   >
                     <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl">
-                      <p className="text-sm font-semibold text-destructive mb-0.5">Reject this payroll run?</p>
+                      <p className="text-sm font-semibold text-destructive mb-0.5">{t("payroll.rejectTitle")}</p>
                       <p className="text-xs text-muted-foreground mb-3">
-                        The run will be marked <span className="font-medium text-destructive">Rejected</span> and remain visible
-                        {activeRun.createdByName ? <> to <span className="font-medium text-foreground">{activeRun.createdByName}</span></> : ""} with your reason.
+                        <Trans t={t} i18nKey="payroll.rejectDescription" components={{ 1: <span className="font-medium text-destructive" /> }} />
                       </p>
                       <textarea
                         value={rejectReason}
                         onChange={e => setRejectReason(e.target.value)}
-                        placeholder="Reason for rejection (e.g. incorrect allowances for Q2, missing deductions)…"
+                        placeholder={t("payroll.rejectPlaceholder")}
                         rows={3}
                         className="w-full rounded-lg border border-destructive/30 bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-destructive/50 mb-3"
                       />
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" className="h-8 text-xs flex-1"
                           onClick={() => { setShowReject(false); setRejectReason(""); }}>
-                          Cancel
+                          {t("payroll.cancel")}
                         </Button>
                         <Button size="sm"
                           className="h-8 text-xs flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground gap-1.5"
@@ -409,7 +411,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                             { onSuccess: () => { setShowReject(false); setRejectReason(""); onClose(); } }
                           )}>
                           <Trash2 className="h-3.5 w-3.5" />
-                          {rejectRun.isPending ? "Rejecting…" : "Confirm Rejection"}
+                          {rejectRun.isPending ? t("payroll.rejecting") : t("payroll.confirmRejection")}
                         </Button>
                       </div>
                     </div>
@@ -424,7 +426,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                     <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-destructive">
-                        Rejected{activeRun.rejectedByName ? ` by ${activeRun.rejectedByName}` : ""}
+                        {t("payroll.rejectedBy", { by: activeRun.rejectedByName ? t("payroll.byName", { name: activeRun.rejectedByName }) : "" })}
                         {activeRun.rejectedAt ? <span className="font-normal text-muted-foreground text-xs ml-2">{formatDate(activeRun.rejectedAt, "medium")}</span> : ""}
                       </p>
                       {activeRun.rejectionReason && (
@@ -432,8 +434,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                       )}
                       {activeRun.createdByName && (
                         <p className="text-xs text-muted-foreground mt-2">
-                          Originally created by <span className="font-medium text-foreground">{activeRun.createdByName}</span>.
-                          They should create a new corrected payroll run.
+                          {t("payroll.originallyCreatedBy", { name: activeRun.createdByName })}
                         </p>
                       )}
                     </div>
@@ -444,8 +445,8 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
               {/* Approval trail */}
               {(activeRun.processedAt || activeRun.paidAt || activeRun.notes) && (
                 <div className="px-6 pb-3 flex items-center gap-4 text-xs text-muted-foreground shrink-0">
-                  {activeRun.processedAt && <span>Processed <span className="font-medium text-foreground">{formatDate(activeRun.processedAt, "medium")}</span></span>}
-                  {activeRun.paidAt && <span>Paid <span className="font-medium text-foreground">{formatDate(activeRun.paidAt, "medium")}</span></span>}
+                  {activeRun.processedAt && <span>{t("payroll.processedOn", { date: formatDate(activeRun.processedAt, "medium") })}</span>}
+                  {activeRun.paidAt && <span>{t("payroll.paidOnLabel", { date: formatDate(activeRun.paidAt, "medium") })}</span>}
                   {activeRun.notes && <span className="truncate italic">{activeRun.notes}</span>}
                 </div>
               )}
@@ -456,7 +457,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <input
                     type="text" value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Search employees…"
+                    placeholder={t("payroll.searchPlaceholder")}
                     className="w-full h-9 rounded-md border border-input bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
@@ -467,20 +468,24 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                 {detailLoading ? (
                   <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
                     <Clock className="h-6 w-6 opacity-40 animate-spin" />
-                    <p className="text-sm">Loading payslips…</p>
+                    <p className="text-sm">{t("payroll.loadingPayslips")}</p>
                   </div>
                 ) : filtered.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
                     <FileText className="h-8 w-8 opacity-30" />
-                    <p className="text-sm">{search ? "No employees match your search." : "No payslips found for this run."}</p>
+                    <p className="text-sm">{search ? t("payroll.noMatch") : t("payroll.noPayslips")}</p>
                   </div>
                 ) : editMode ? (
                   // ── Edit mode: inline editable slips ──
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-amber-500/10 sticky top-0">
                       <tr>
-                        {["Employee","Basic","Allowances","Deductions","Net"].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        {[
+                          ["employee", t("payroll.editTable.employee")], ["basic", t("payroll.editTable.basic")],
+                          ["allowances", t("payroll.editTable.allowances")], ["deductions", t("payroll.editTable.deductions")],
+                          ["net", t("payroll.editTable.net")],
+                        ].map(([k, h]) => (
+                          <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -534,8 +539,12 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                   <table className="w-full text-sm">
                     <thead className="border-y border-border bg-muted/30 sticky top-0">
                       <tr>
-                        {["Employee","Department","Basic","Net","Email",""].map(h => (
-                          <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                        {[
+                          ["employee", t("payroll.listTable.employee")], ["department", t("payroll.listTable.department")],
+                          ["basic", t("payroll.listTable.basic")], ["net", t("payroll.listTable.net")],
+                          ["email", t("payroll.listTable.email")], ["actions", ""],
+                        ].map(([k, h]) => (
+                          <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -562,7 +571,7 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
                           <td className="px-4 py-3">
                             {ps.emailSentAt ? (
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full">
-                                <MailCheck className="h-3 w-3" />Sent
+                                <MailCheck className="h-3 w-3" />{t("payroll.sent")}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">—</span>
@@ -630,6 +639,7 @@ function generateWpsSif(run: PayrollRun): string {
 function WpsSubmitModal({ runId, period, open, onClose }: {
   runId: string | null; period: string; open: boolean; onClose: () => void;
 }) {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const { data: run, isLoading } = usePayrollRunById(runId);
   const [submitted, setSubmitted] = React.useState(false);
@@ -662,8 +672,8 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div>
-                <p className="font-bold text-base">WPS Submission</p>
-                <p className="text-xs text-muted-foreground">Wage Protection System — {period}</p>
+                <p className="font-bold text-base">{t("payroll.wps.title")}</p>
+                <p className="text-xs text-muted-foreground">{t("payroll.wps.subtitle", { period })}</p>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
             </div>
@@ -674,7 +684,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
               <div className="flex items-start gap-3 p-4 bg-info/10 border border-info/20 rounded-xl">
                 <AlertCircle className="h-4 w-4 text-info mt-0.5 shrink-0" />
                 <div className="text-xs text-info leading-relaxed">
-                  Download the SIF file below and upload it to your bank's WPS portal (e.g., ENBD, FAB, ADCB Business Banking) to process salaries under the UAE Wage Protection System.
+                  {t("payroll.wps.infoBanner")}
                 </div>
               </div>
 
@@ -682,9 +692,9 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
               {run && (
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: "Pay Period",    value: run.period },
-                    { label: "Employees",     value: run.slipCount },
-                    { label: "Total Payroll", value: formatCurrency(run.totalNetSalary, currency) },
+                    { label: t("payroll.wps.payPeriod"),    value: run.period },
+                    { label: t("payroll.wps.employees"),     value: run.slipCount },
+                    { label: t("payroll.wps.totalPayroll"), value: formatCurrency(run.totalNetSalary, currency) },
                   ].map(s => (
                     <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{s.label}</p>
@@ -696,20 +706,23 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
 
               {/* SIF preview */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">SIF File Preview</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("payroll.wps.sifPreview")}</h4>
                 {isLoading ? (
-                  <div className="bg-muted/30 rounded-xl p-4 text-xs text-muted-foreground text-center">Loading payslip data…</div>
+                  <div className="bg-muted/30 rounded-xl p-4 text-xs text-muted-foreground text-center">{t("payroll.wps.loadingData")}</div>
                 ) : payslips.length === 0 ? (
                   <div className="bg-muted/30 rounded-xl p-4 text-xs text-muted-foreground text-center">
-                    No payslips found for this run. Generate payslips first before submitting WPS.
+                    {t("payroll.wps.noPayslips")}
                   </div>
                 ) : (
                   <div className="overflow-x-auto rounded-xl border border-border">
                     <table className="w-full text-xs">
                       <thead className="bg-muted/30 border-b border-border">
                         <tr>
-                          {["Emp #","Name","IBAN","Net Salary","Status"].map(h => (
-                            <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
+                          {[
+                            ["empNo", t("payroll.wps.empNo")], ["name", t("payroll.wps.name")], ["iban", t("payroll.wps.iban")],
+                            ["net", t("payroll.wps.netSalary")], ["status", t("payroll.wps.status")],
+                          ].map(([k, h]) => (
+                            <th key={k} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -725,7 +738,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
                                 "px-2 py-0.5 rounded-full text-[10px] font-semibold",
                                 ps.iban ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
                               )}>
-                                {ps.iban ? "Ready" : "Missing IBAN"}
+                                {ps.iban ? t("payroll.wps.ready") : t("payroll.wps.missingIban")}
                               </span>
                             </td>
                           </tr>
@@ -740,7 +753,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
               {submitted && (
                 <div className="flex items-center gap-3 p-4 bg-success/10 border border-success/20 rounded-xl">
                   <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
-                  <p className="text-xs text-success font-medium">SIF file downloaded. Upload it to your bank's WPS portal to complete submission.</p>
+                  <p className="text-xs text-success font-medium">{t("payroll.wps.downloaded")}</p>
                 </div>
               )}
             </div>
@@ -748,10 +761,10 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex gap-2">
               <Button variant="outline" size="sm" className="h-9 gap-1.5 flex-1" onClick={handleDownloadSif} disabled={isLoading || !run}>
-                <Download className="h-3.5 w-3.5" />Download SIF File
+                <Download className="h-3.5 w-3.5" />{t("payroll.wps.downloadSif")}
               </Button>
               <Button size="sm" className="h-9 gap-1.5 flex-1 bg-success hover:bg-success/90" onClick={handleConfirmSubmit} disabled={isLoading || !run || payslips.length === 0}>
-                <Send className="h-3.5 w-3.5" />{submitted ? "Re-download SIF" : "Submit WPS"}
+                <Send className="h-3.5 w-3.5" />{submitted ? t("payroll.wps.reDownloadSif") : t("payroll.wps.submitWps")}
               </Button>
             </div>
           </motion.div>
@@ -762,6 +775,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
 }
 
 export function PayrollView() {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const [selectedRun, setSelectedRun] = React.useState<PayrollRun | null>(null);
   const [runDrawerOpen, setRunDrawerOpen] = React.useState(false);
@@ -787,22 +801,22 @@ export function PayrollView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Payroll</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Process salaries, payslips, and WPS submissions</p>
+          <h1 className="text-2xl font-bold">{t("payroll.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("payroll.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => currentRun && openWps(currentRun)} disabled={!currentRun}><Download className="h-3.5 w-3.5" />WPS File</Button>
-          <Can permission="hr.payroll.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><CheckCircle2 className="h-4 w-4" />Run Payroll</Button></Can>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => currentRun && openWps(currentRun)} disabled={!currentRun}><Download className="h-3.5 w-3.5" />{t("payroll.wpsFile")}</Button>
+          <Can permission="hr.payroll.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><CheckCircle2 className="h-4 w-4" />{t("payroll.runPayroll")}</Button></Can>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Current Month Net",  value: formatCurrency(thisMonth?.totalNetSalary ?? currentRun?.totalNetSalary ?? 0, currency), sub: currentMonth ?? currentRun?.period ?? "—", icon: DollarSign, color: "text-primary bg-primary/10" },
-          { label: "All-Time Paid",      value: formatCurrency(0, currency),                                                                  sub: "YTD (not tracked)",                                       icon: TrendingUp, color: "text-success bg-success/10" },
-          { label: "Total Employees",    value: thisMonth?.employeeCount ?? currentRun?.slipCount ?? 0,                                    sub: "On payroll",                                              icon: Users,      color: "text-info bg-info/10" },
-          { label: "Paid Runs",          value: payrollSummary?.allTime?.paid ?? payrollRuns.filter(r => r.status === "paid").length,      sub: "All time",                                                icon: BarChart3,  color: "text-muted-foreground bg-muted" },
+          { label: t("payroll.stat.currentMonthNet"), value: formatCurrency(thisMonth?.totalNetSalary ?? currentRun?.totalNetSalary ?? 0, currency), sub: currentMonth ?? currentRun?.period ?? "—", icon: DollarSign, color: "text-primary bg-primary/10" },
+          { label: t("payroll.stat.allTimePaid"),     value: formatCurrency(0, currency),                                                                  sub: t("payroll.stat.ytdNotTracked"),                           icon: TrendingUp, color: "text-success bg-success/10" },
+          { label: t("payroll.stat.totalEmployees"),  value: thisMonth?.employeeCount ?? currentRun?.slipCount ?? 0,                                    sub: t("payroll.stat.onPayroll"),                               icon: Users,      color: "text-info bg-info/10" },
+          { label: t("payroll.stat.paidRuns"),        value: payrollSummary?.allTime?.paid ?? payrollRuns.filter(r => r.status === "paid").length,      sub: t("payroll.stat.allTime"),                                 icon: BarChart3,  color: "text-muted-foreground bg-muted" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -829,22 +843,22 @@ export function PayrollView() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-primary uppercase tracking-wide">Current Payroll Run</span>
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wide">{t("payroll.currentRun")}</span>
                     <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      {sc.label}
+                      {t(`payrollStatus.${sc.key}`)}
                     </span>
                   </div>
                   <p className="font-bold text-xl">{currentMonth ?? currentRun.period}</p>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {thisMonth?.employeeCount ?? currentRun.slipCount} employees · Net {formatCurrency(thisMonth?.totalNetSalary ?? currentRun.totalNetSalary, currency)}
+                    {t("payroll.employeesNet", { count: thisMonth?.employeeCount ?? currentRun.slipCount, net: formatCurrency(thisMonth?.totalNetSalary ?? currentRun.totalNetSalary, currency) })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => openRun(currentRun)}>
-                    <FileText className="h-3.5 w-3.5" />View Payslips
+                    <FileText className="h-3.5 w-3.5" />{t("payroll.viewPayslips")}
                   </Button>
                   <Button size="sm" className="h-9 gap-1.5 bg-success hover:bg-success/90" onClick={() => openWps(currentRun)}>
-                    <Send className="h-3.5 w-3.5" />Submit WPS
+                    <Send className="h-3.5 w-3.5" />{t("payroll.submitWps")}
                   </Button>
                 </div>
               </div>
@@ -856,15 +870,21 @@ export function PayrollView() {
       {/* Payroll history */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-semibold">Payroll History — 2026</CardTitle>
+          <CardTitle className="text-sm font-semibold">{t("payroll.history")}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-y border-border bg-muted/30">
                 <tr>
-                  {["Run #","Pay Period","Employees","Gross","Deductions","Net Payroll","Processed","Paid On","Status",""].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  {[
+                    ["runNumber", t("payroll.table.runNumber")], ["payPeriod", t("payroll.table.payPeriod")],
+                    ["employees", t("payroll.table.employees")], ["gross", t("payroll.table.gross")],
+                    ["deductions", t("payroll.table.deductions")], ["netPayroll", t("payroll.table.netPayroll")],
+                    ["processed", t("payroll.table.processed")], ["paidOn", t("payroll.table.paidOn")],
+                    ["status", t("payroll.table.status")], ["actions", ""],
+                  ].map(([k, h]) => (
+                    <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -885,7 +905,7 @@ export function PayrollView() {
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{run.paidAt ? formatDate(run.paidAt, "medium") : "—"}</td>
                       <td className="px-4 py-3">
                         <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                          <sc.icon className="h-3 w-3" />{sc.label}
+                          <sc.icon className="h-3 w-3" />{t(`payrollStatus.${sc.key}`)}
                         </span>
                       </td>
                       <td className="px-4 py-3"><ChevronRight className="h-4 w-4 text-muted-foreground/40" /></td>

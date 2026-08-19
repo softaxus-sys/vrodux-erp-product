@@ -1,59 +1,62 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { DollarSign, CheckCircle2, AlertTriangle, Clock, FileEdit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { InvoiceSummaryDto } from "@/lib/finance/finance.api";
 import type { Currency } from "@/types/global";
+import type { TFunction } from "i18next";
 
 interface InvoiceStatsProps {
   summary: InvoiceSummaryDto;
 }
 
-const stats = (summary: InvoiceSummaryDto, currency: Currency) => [
+const stats = (summary: InvoiceSummaryDto, currency: Currency, t: TFunction) => [
   {
-    label: "Total Invoiced",
+    label: t("invoicing.stats.totalInvoiced"),
     value: formatCurrency(summary.totalAmount, currency),
-    sub: `${summary.totalInvoices} invoices`,
+    sub: t("invoicing.stats.invoicesCount", { count: summary.totalInvoices }),
     icon: DollarSign,
     color: "text-primary bg-primary/10",
   },
   {
-    label: "Collected",
+    label: t("invoicing.stats.collected"),
     value: formatCurrency(summary.totalPaid, currency),
-    sub: "Paid invoices",
+    sub: t("invoicing.stats.collectedSub"),
     icon: CheckCircle2,
     color: "text-success bg-success/10",
   },
   {
-    label: "Outstanding",
+    label: t("invoicing.stats.outstanding"),
     value: formatCurrency(summary.totalOutstanding, currency),
-    sub: "Awaiting payment",
+    sub: t("invoicing.stats.outstandingSub"),
     icon: Clock,
     color: "text-warning bg-warning/10",
   },
   {
-    label: "Overdue",
+    label: t("invoicing.stats.overdue"),
     value: formatCurrency(summary.totalOverdue, currency),
-    sub: "Past due date",
+    sub: t("invoicing.stats.overdueSub"),
     icon: AlertTriangle,
     color: "text-destructive bg-destructive/10",
   },
   {
-    label: "Drafts",
+    label: t("invoicing.stats.drafts"),
     value: String(summary.draftCount),
-    sub: "Not yet sent",
+    sub: t("invoicing.stats.draftsSub"),
     icon: FileEdit,
     color: "text-muted-foreground bg-muted",
   },
 ];
 
 export function InvoiceStats({ summary }: InvoiceStatsProps) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-      {stats(summary, currency).map((stat, i) => {
+      {stats(summary, currency, t).map((stat, i) => {
         const Icon = stat.icon;
         return (
           <motion.div

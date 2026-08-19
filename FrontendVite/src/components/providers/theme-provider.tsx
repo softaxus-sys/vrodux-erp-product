@@ -2,6 +2,8 @@ import * as React from "react";
 import { useThemeStore } from "@/store/theme.store";
 import { useAuthStore } from "@/store/auth.store";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
+import i18n from "@/i18n";
+import { getLanguage } from "@/i18n/languages";
 import type { ThemePalette, LayoutVariant } from "@/config/themes";
 
 // In light mode, force a light sidebar surface (themes ship a dark sidebar even
@@ -45,6 +47,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     appSettingsApi.getCategory("appearance")
       .then(a => {
         if (cancelled) return;
+
+        // Apply the user's saved UI language (falls back to the localStorage /
+        // browser-detected language when unset). Normalized to a supported code.
+        if (a.language && a.language !== "") {
+          const code = getLanguage(a.language).code;
+          if (code !== i18n.language) i18n.changeLanguage(code);
+        }
 
         // Resolve darkMode from two possible keys:
         //  • "darkMode"  (boolean string) — saved by /settings/appearance page

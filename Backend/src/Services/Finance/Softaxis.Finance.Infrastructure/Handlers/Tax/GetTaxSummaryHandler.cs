@@ -17,13 +17,36 @@ internal sealed class GetTaxSummaryHandler(FinanceDbContext db) : IQueryHandler<
 
         var current = periods.FirstOrDefault(p => p.Status == "open") ?? periods.FirstOrDefault();
 
+        // Figures come from the actual invoices/bills, not TaxPeriod.OutputVat/InputVat — those
+        // stored fields are never populated by anything in the request path, so they always read 0.
+        var rows = await VatLedger.BuildAsync(db, ct);
+
+        // Scope to the current period when one is declared; otherwise report across everything so
+        // a tenant that has not set up periods yet still sees its VAT position.
+        var scoped = current is null
+            ? rows
+            : rows.Where(r => string.CompareOrdinal(r.Date, current.FromDate) >= 0
+                           && string.CompareOrdinal(r.Date, current.ToDate) <= 0).ToList();
+
+        var (output, input, net) = VatLedger.Totals(scoped);
+
+        // VAT already settled: periods marked paid, valued from their own date ranges.
+        var ytdPaid = 0m;
+        foreach (var p in periods.Where(p => p.Status == "paid"))
+        {
+            var inPeriod = rows.Where(r => string.CompareOrdinal(r.Date, p.FromDate) >= 0
+                                        && string.CompareOrdinal(r.Date, p.ToDate) <= 0);
+            ytdPaid += VatLedger.Totals(inPeriod).Net;
+        }
+
         return Result.Success(new TaxSummaryDto(
-            current?.OutputVat ?? 0m,
-            current?.InputVat ?? 0m,
-            current?.NetVat ?? 0m,
-            periods.Where(p => p.Status == "paid").Sum(p => p.NetVat),
+            output, input, net,
+            ytdPaid,
             current?.DueDate ?? "",
             current?.Period ?? "",
-            "TRN-100234567890003"));
+            // The tenant's own TRN is not captured anywhere yet. This used to return a hardcoded
+            // demo TRN to EVERY tenant — a legal identifier on VAT returns must never be invented,
+            // so return empty and let the UI prompt for it once there is somewhere to store it.
+            ""));
     }
 }

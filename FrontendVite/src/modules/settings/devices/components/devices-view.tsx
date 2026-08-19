@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Smartphone, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/components/auth/can";
@@ -17,6 +18,7 @@ function timeAgo(iso: string): string {
 }
 
 export function DevicesView() {
+  const { t } = useTranslation("settings");
   const canEdit = useCan("restaurant.devices.edit");
   const { data: devices = [], isLoading } = useDeviceRegistrations();
   const { data: branches = [] } = useBranches();
@@ -29,28 +31,28 @@ export function DevicesView() {
     <div className="p-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Smartphone className="w-5 h-5 text-primary" /> Registered Devices
+          <Smartphone className="w-5 h-5 text-primary" /> {t("devices.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          POS terminals/tablets that have connected to this tenant — inventory only, this list doesn't gate access.
+          {t("devices.description")}
         </p>
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> Loading…</div>
+          <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> {t("devices.loading")}</div>
         ) : devices.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-10">No devices have registered yet.</p>
+          <p className="text-center text-sm text-muted-foreground py-10">{t("devices.empty")}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-2.5 font-medium">Device</th>
-                  <th className="px-4 py-2.5 font-medium">Branch</th>
-                  <th className="px-4 py-2.5 font-medium">Last Seen</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                  {canEdit && <th className="px-4 py-2.5 font-medium text-right">Actions</th>}
+                  <th className="px-4 py-2.5 font-medium">{t("devices.colDevice")}</th>
+                  <th className="px-4 py-2.5 font-medium">{t("devices.colBranch")}</th>
+                  <th className="px-4 py-2.5 font-medium">{t("devices.colLastSeen")}</th>
+                  <th className="px-4 py-2.5 font-medium">{t("devices.colStatus")}</th>
+                  {canEdit && <th className="px-4 py-2.5 font-medium text-right">{t("devices.colActions")}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -73,6 +75,7 @@ function DeviceRow({ d, branchName, canEdit, onToggleActive, onRemove }: {
   d: DeviceRegistrationDto; branchName: string; canEdit: boolean;
   onToggleActive: () => void; onRemove: () => void;
 }) {
+  const { t } = useTranslation("settings");
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/20">
       <td className="px-4 py-2.5 font-medium text-foreground">{d.deviceName}</td>
@@ -82,7 +85,7 @@ function DeviceRow({ d, branchName, canEdit, onToggleActive, onRemove }: {
         <button onClick={canEdit ? onToggleActive : undefined} disabled={!canEdit}
           className={cn("px-2 py-0.5 rounded-full text-xs font-medium",
             d.isActive ? "bg-success/10 text-success" : "bg-muted/30 text-muted-foreground")}>
-          {d.isActive ? "Active" : "Deactivated"}
+          {d.isActive ? t("devices.active") : t("devices.deactivated")}
         </button>
       </td>
       {canEdit && (

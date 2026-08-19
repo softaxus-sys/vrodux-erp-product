@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { X, Scan, Search, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,29 +15,14 @@ import { toast } from "sonner";
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const ADJUSTMENT_TYPES = [
-  { value: "in",               label: "Receive In",       desc: "Stock received from supplier or return",    color: "border-success bg-success/5 text-success", sign: "+" },
-  { value: "write_off",        label: "Write-Off",        desc: "Damaged, expired, or lost stock",           color: "border-destructive bg-destructive/5 text-destructive", sign: "–" },
-  { value: "adjustment",       label: "Manual Adjust",    desc: "Correct quantity — increase or decrease",   color: "border-warning bg-warning/5 text-warning", sign: "±" },
-  { value: "count_correction", label: "Count Correction", desc: "Physical count result differs from system", color: "border-primary bg-primary/5 text-primary", sign: "±" },
+  { value: "in",               color: "border-success bg-success/5 text-success", sign: "+" },
+  { value: "write_off",        color: "border-destructive bg-destructive/5 text-destructive", sign: "–" },
+  { value: "adjustment",       color: "border-warning bg-warning/5 text-warning", sign: "±" },
+  { value: "count_correction", color: "border-primary bg-primary/5 text-primary", sign: "±" },
 ];
 
-const WRITE_OFF_REASONS = [
-  "Damaged in transit",
-  "Expired / past best-before",
-  "Lost / theft",
-  "Defective / non-functional",
-  "Packaging compromised",
-  "Other",
-];
-
-const ADJUST_REASONS = [
-  "Physical count correction",
-  "System discrepancy",
-  "Return from customer",
-  "Return to supplier",
-  "Inter-department transfer",
-  "Other",
-];
+const WRITE_OFF_REASON_KEYS = ["damaged_transit", "expired", "lost_theft", "defective", "packaging", "other"];
+const ADJUST_REASON_KEYS = ["physical_count", "system_discrepancy", "return_customer", "return_supplier", "inter_department", "other"];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -48,6 +34,7 @@ interface AddAdjustmentFormProps {
 }
 
 export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjustmentFormProps) {
+  const { t } = useTranslation("inventory");
   const [adjType, setAdjType]       = React.useState("in");
   const [itemSearch, setItemSearch] = React.useState("");
   const [selectedItem, setSelectedItem] = React.useState<ProductSummaryDto | null>(null);
@@ -140,8 +127,10 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
   }, [itemSearch, allProducts]);
 
   const isValid = selectedItem && quantity && parseInt(quantity) > 0;
-  const adjConfig = ADJUSTMENT_TYPES.find(t => t.value === adjType)!;
-  const reasonOptions = adjType === "write_off" ? WRITE_OFF_REASONS : ADJUST_REASONS;
+  const adjConfig = ADJUSTMENT_TYPES.find(at => at.value === adjType)!;
+  const adjLabel = t(`adjustment.types.${adjType}.label`);
+  const reasonKeys = adjType === "write_off" ? WRITE_OFF_REASON_KEYS : ADJUST_REASON_KEYS;
+  const reasonBlock = adjType === "write_off" ? "writeOffReasons" : "adjustReasons";
 
   const createMovement = useCreateStockMovement();
 
@@ -172,7 +161,7 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
       },
       {
         onSuccess: () => {
-          toast.success(`Stock ${signedQty >= 0 ? "increased" : "decreased"} by ${Math.abs(signedQty)} for ${selectedItem.name}.`);
+          toast.success(t(signedQty >= 0 ? "adjustment.toastIncreased" : "adjustment.toastDecreased", { qty: Math.abs(signedQty), name: selectedItem.name }));
           onClose();
         },
       },
@@ -193,8 +182,8 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold">Record Stock Adjustment</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Scan barcode or search to select an item</p>
+                <h2 className="text-base font-bold">{t("adjustment.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("adjustment.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
@@ -210,8 +199,8 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
                         ? "bg-success/10 text-success border border-success/20"
                         : "bg-destructive/10 text-destructive border border-destructive/20")}>
                     {scanFeedback === "found"
-                      ? <><CheckCircle2 className="h-4 w-4 shrink-0" />Item found — {selectedItem?.name}</>
-                      : <><AlertCircle className="h-4 w-4 shrink-0" />Barcode not recognised</>
+                      ? <><CheckCircle2 className="h-4 w-4 shrink-0" />{t("adjustment.itemFound", { name: selectedItem?.name })}</>
+                      : <><AlertCircle className="h-4 w-4 shrink-0" />{t("adjustment.barcodeNotRecognised")}</>
                     }
                   </motion.div>
                 )}
@@ -221,22 +210,22 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
               <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-lg">
                 <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
                 <Scan className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs text-primary font-medium">Barcode scanner ready — scan any item to select it</span>
+                <span className="text-xs text-primary font-medium">{t("adjustment.scannerReady")}</span>
               </div>
 
               {/* Adjustment type */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Adjustment Type</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.adjustmentType")}</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {ADJUSTMENT_TYPES.map(t => (
-                    <button key={t.value} onClick={() => { setAdjType(t.value); setReason(""); }}
+                  {ADJUSTMENT_TYPES.map(at => (
+                    <button key={at.value} onClick={() => { setAdjType(at.value); setReason(""); }}
                       className={cn("px-3 py-3 rounded-xl border-2 text-left transition-all",
-                        adjType === t.value ? t.color : "border-border hover:border-primary/30")}>
+                        adjType === at.value ? at.color : "border-border hover:border-primary/30")}>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold">{t.label}</span>
-                        <span className={cn("text-base font-bold", adjType === t.value ? "" : "text-muted-foreground")}>{t.sign}</span>
+                        <span className="text-xs font-bold">{t(`adjustment.types.${at.value}.label`)}</span>
+                        <span className={cn("text-base font-bold", adjType === at.value ? "" : "text-muted-foreground")}>{at.sign}</span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground leading-tight">{t.desc}</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight">{t(`adjustment.types.${at.value}.desc`)}</p>
                     </button>
                   ))}
                 </div>
@@ -244,12 +233,12 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
 
               {/* Item search */}
               <div className="space-y-1.5 relative">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Item *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.item")}</label>
                 {selectedItem ? (
                   <div className="flex items-center gap-3 px-3 py-2.5 bg-primary/5 border-2 border-primary rounded-xl">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{selectedItem.name}</p>
-                      <p className="text-xs font-mono text-muted-foreground">{selectedItem.sku ?? "—"} · {selectedItem.stockQuantity} in stock</p>
+                      <p className="text-xs font-mono text-muted-foreground">{selectedItem.sku ?? "—"} · {selectedItem.stockQuantity} {t("adjustment.inStock")}</p>
                     </div>
                     <button onClick={() => { setSelectedItem(null); setItemSearch(""); }} className="text-muted-foreground hover:text-destructive">
                       <X className="h-4 w-4" />
@@ -264,7 +253,7 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
                         value={itemSearch}
                         onChange={e => { setItemSearch(e.target.value); setShowItemList(true); }}
                         onFocus={() => setShowItemList(true)}
-                        placeholder="Search by name, SKU, or barcode…"
+                        placeholder={t("adjustment.itemSearch")}
                         className="pl-9 h-9 text-sm"
                       />
                     </div>
@@ -297,12 +286,12 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
               {/* Quantity & direction */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Quantity *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.quantity")}</label>
                   <Input type="number" min={1} value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
                 </div>
                 {adjType === "adjustment" && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Direction</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.direction")}</label>
                     <div className="grid grid-cols-2 gap-2">
                       {(["+", "-"] as const).map(d => (
                         <button key={d} onClick={() => setDirection(d)}
@@ -317,17 +306,17 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reference #</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.reference")}</label>
                   <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="ADJ-XXXX" className="h-9 text-sm font-mono" />
                 </div>
               </div>
 
               {/* Warehouse */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.warehouse")}</label>
                 <select value={warehouseId} onChange={e => setWarehouseId(e.target.value)}
                   className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  {warehouses.length === 0 && <option value="">No warehouses</option>}
+                  {warehouses.length === 0 && <option value="">{t("adjustment.noWarehouses")}</option>}
                   {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                 </select>
               </div>
@@ -336,11 +325,11 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
               {adjType === "in" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Batch / Lot #</label>
-                    <Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} placeholder="Optional" className="h-9 text-sm font-mono" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.batchLot")}</label>
+                    <Input value={batchNumber} onChange={e => setBatchNumber(e.target.value)} placeholder={t("adjustment.optional")} className="h-9 text-sm font-mono" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expiry Date</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.expiryDate")}</label>
                     <Input type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} className="h-9 text-sm" />
                   </div>
                 </div>
@@ -349,33 +338,36 @@ export function AddAdjustmentForm({ open, onClose, preselectedItemId }: AddAdjus
               {/* Reason */}
               {adjType !== "in" && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reason *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.reason")}</label>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {reasonOptions.map(r => (
-                      <button key={r} onClick={() => setReason(r)}
-                        className={cn("py-2 px-3 rounded-lg border-2 text-xs font-medium text-left transition-all",
-                          reason === r ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30")}>
-                        {r}
-                      </button>
-                    ))}
+                    {reasonKeys.map(rk => {
+                      const label = t(`adjustment.${reasonBlock}.${rk}`);
+                      return (
+                        <button key={rk} onClick={() => setReason(label)}
+                          className={cn("py-2 px-3 rounded-lg border-2 text-xs font-medium text-left transition-all",
+                            reason === label ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30")}>
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("adjustment.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Additional details, special circumstances…" rows={2}
+                  placeholder={t("adjustment.notesPlaceholder")} rows={2}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={createMovement.isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={createMovement.isPending}>{t("adjustment.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || createMovement.isPending}>
-                {createMovement.isPending ? "Saving…" : `${adjConfig.sign} Record ${adjConfig.label}`}
+                {createMovement.isPending ? t("adjustment.saving") : t("adjustment.recordCta", { sign: adjConfig.sign, label: adjLabel })}
               </Button>
             </div>
           </motion.div>

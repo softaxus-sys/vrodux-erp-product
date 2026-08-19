@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Check, ChevronsUpDown, Package } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
@@ -13,6 +14,7 @@ interface ProductPickerProps {
 }
 
 export function ProductPicker({ value, onSelect, onTextChange }: ProductPickerProps) {
+  const { t } = useTranslation("purchase");
   const currency = useCurrency();
   const [open, setOpen]     = React.useState(false);
   const [search, setSearch] = React.useState("");
@@ -38,13 +40,13 @@ export function ProductPicker({ value, onSelect, onTextChange }: ProductPickerPr
       <PopoverContent className="w-[320px]" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search products…"
+            placeholder={t("orders.picker.search")}
             value={search}
             onValueChange={(v) => { setSearch(v); onTextChange(v); }}
           />
           <CommandList>
-            {isLoading && <div className="py-4 text-center text-xs text-muted-foreground">Searching…</div>}
-            {!isLoading && <CommandEmpty>No products found. Free text will be used.</CommandEmpty>}
+            {isLoading && <div className="py-4 text-center text-xs text-muted-foreground">{t("orders.picker.searching")}</div>}
+            {!isLoading && <CommandEmpty>{t("orders.picker.empty")}</CommandEmpty>}
             <CommandGroup>
               {products.map((p) => (
                 <CommandItem

@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { X, Package, Tag, ShoppingCart, BarChart3, Pencil, SlidersHorizontal, Warehouse as WarehouseIcon, Star, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -22,6 +23,7 @@ function getStockColor(p: ProductSummaryDto) {
 }
 
 export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDrawerProps) {
+  const { t } = useTranslation("inventory");
   const currency = useCurrency();
   const { data: stockBreakdown } = useProductStock(open ? item?.id : null);
   const { data: batches } = useProductBatches(open ? item?.id : null);
@@ -74,15 +76,15 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
 
               {/* Stock level */}
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Stock Levels</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("stockDrawer.stockLevels")}</h3>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-muted/30 rounded-xl p-4 border border-border text-center">
-                    <p className="text-xs text-muted-foreground mb-1">On Hand</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t("stockDrawer.onHand")}</p>
                     <p className={cn("text-2xl font-bold", getStockColor(item))}>{item.stockQuantity}</p>
                     <p className="text-xs text-muted-foreground">{item.unit}</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-4 border border-border text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Reorder At</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t("stockDrawer.reorderAt")}</p>
                     <p className="text-2xl font-bold">{item.reorderLevel}</p>
                     <p className="text-xs text-muted-foreground">{item.unit}</p>
                   </div>
@@ -90,7 +92,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
                 {/* Stock bar */}
                 <div>
                   <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-                    <span>Stock Level</span>
+                    <span>{t("stockDrawer.stockLevel")}</span>
                     <span>{item.stockQuantity} / {item.reorderLevel * 4} {item.unit}</span>
                   </div>
                   <div className="h-2.5 bg-muted rounded-full overflow-hidden relative">
@@ -109,7 +111,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               {stockBreakdown && stockBreakdown.warehouses?.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-                    <WarehouseIcon className="h-3.5 w-3.5 text-primary" />Stock by Warehouse
+                    <WarehouseIcon className="h-3.5 w-3.5 text-primary" />{t("stockDrawer.stockByWarehouse")}
                   </h3>
                   <div className="border border-border rounded-xl overflow-hidden divide-y divide-border">
                     {stockBreakdown.warehouses.map(w => (
@@ -121,7 +123,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {w.isLowStock && w.quantity > 0 && (
-                            <span className="text-[10px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Low</span>
+                            <span className="text-[10px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">{t("stockDrawer.low")}</span>
                           )}
                           <span className={cn("text-sm font-bold tabular-nums",
                             w.quantity <= 0 ? "text-muted-foreground" : w.isLowStock ? "text-warning" : "text-foreground")}>
@@ -131,7 +133,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
                       </div>
                     ))}
                     <div className="flex items-center justify-between px-3 py-2.5 bg-muted/30">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total On Hand</span>
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("stockDrawer.totalOnHand")}</span>
                       <span className="text-sm font-bold tabular-nums">{stockBreakdown.totalOnHand} {item.unit}</span>
                     </div>
                   </div>
@@ -142,24 +144,27 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               {Array.isArray(batches) && batches.length > 0 && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-                    <CalendarClock className="h-3.5 w-3.5 text-primary" />Batches &amp; Expiry
+                    <CalendarClock className="h-3.5 w-3.5 text-primary" />{t("stockDrawer.batchesExpiry")}
                   </h3>
                   <div className="border border-border rounded-xl overflow-hidden divide-y divide-border">
                     {batches.map(b => {
                       const tone = b.status === "Expired" ? "text-destructive bg-destructive/10"
                         : b.status === "Expiring soon" ? "text-warning bg-warning/10"
                         : "text-muted-foreground bg-muted";
+                      const batchLabel = b.status === "Expired" ? t("stockDrawer.batchStatus.expired")
+                        : b.status === "Expiring soon" ? t("stockDrawer.batchStatus.expiring_soon")
+                        : b.status;
                       return (
                         <div key={b.id} className="flex items-center justify-between px-3 py-2.5">
                           <div className="min-w-0">
                             <p className="text-sm font-mono font-medium truncate">{b.batchNumber}</p>
                             <p className="text-[11px] text-muted-foreground">
-                              {b.warehouseName}{b.expiryDate ? ` · exp ${b.expiryDate.slice(0, 10)}` : ""}
+                              {b.warehouseName}{b.expiryDate ? ` · ${t("stockDrawer.exp")} ${b.expiryDate.slice(0, 10)}` : ""}
                               {b.daysToExpiry !== null ? ` (${b.daysToExpiry}d)` : ""}
                             </p>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
-                            <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full", tone)}>{b.status}</span>
+                            <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded-full", tone)}>{batchLabel}</span>
                             <span className="text-sm font-bold tabular-nums">{b.quantity} <span className="text-xs text-muted-foreground font-normal">{item.unit}</span></span>
                           </div>
                         </div>
@@ -171,18 +176,18 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
 
               {/* Pricing */}
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pricing</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("stockDrawer.pricing")}</h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-xs text-muted-foreground">Sale Price</p>
+                    <p className="text-xs text-muted-foreground">{t("stockDrawer.salePrice")}</p>
                     <p className="text-sm font-bold mt-1">{formatCurrency(item.salePrice, currency)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-xs text-muted-foreground">Cost Price</p>
+                    <p className="text-xs text-muted-foreground">{t("stockDrawer.costPrice")}</p>
                     <p className="text-sm font-bold mt-1 text-muted-foreground">{formatCurrency(item.costPrice, currency)}</p>
                   </div>
                   <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-xs text-muted-foreground">Margin</p>
+                    <p className="text-xs text-muted-foreground">{t("stockDrawer.margin")}</p>
                     {margin !== null ? (
                       <p className={cn("text-sm font-bold mt-1",
                         margin >= 30 ? "text-success" : margin >= 15 ? "text-warning" : "text-destructive")}>
@@ -199,7 +204,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
               {(item.barcode || item.taxRate > 0) && (
                 <div>
                   <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-                    <ShoppingCart className="h-3.5 w-3.5 text-primary" />POS Details
+                    <ShoppingCart className="h-3.5 w-3.5 text-primary" />{t("stockDrawer.posDetails")}
                   </h3>
                   <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-3">
                     {item.barcode && (
@@ -210,7 +215,7 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
                     )}
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="text-xs text-muted-foreground">Tax Rate: <span className="font-semibold text-foreground">{item.taxRate}%</span></span>
+                      <span className="text-xs text-muted-foreground">{t("stockDrawer.taxRate")} <span className="font-semibold text-foreground">{item.taxRate}%</span></span>
                     </div>
                   </div>
                 </div>
@@ -218,16 +223,16 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
 
               {/* Status */}
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Status</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("stockDrawer.status")}</h3>
                 <div className="flex items-center gap-2">
                   <span className={cn("inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold",
                     item.isActive ? "bg-success/10 text-success" : "bg-muted text-muted-foreground")}>
                     <span className={cn("h-1.5 w-1.5 rounded-full", item.isActive ? "bg-success" : "bg-muted-foreground")} />
-                    {item.isActive ? "Active" : "Inactive"}
+                    {item.isActive ? t("stockDrawer.active") : t("stockDrawer.inactive")}
                   </span>
                   {item.isLowStock && (
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-warning/10 text-warning">
-                      <span className="h-1.5 w-1.5 rounded-full bg-warning" />Low Stock
+                      <span className="h-1.5 w-1.5 rounded-full bg-warning" />{t("stockDrawer.lowStock")}
                     </span>
                   )}
                 </div>
@@ -238,10 +243,10 @@ export function StockDrawer({ item, open, onClose, onEdit, onAdjust }: StockDraw
             {/* Footer */}
             <div className="p-6 border-t border-border shrink-0 flex gap-3">
               <Button variant="outline" className="flex-1 gap-1.5" onClick={() => onAdjust?.(item)}>
-                <SlidersHorizontal className="h-4 w-4" />Adjust Stock
+                <SlidersHorizontal className="h-4 w-4" />{t("stockDrawer.adjustStock")}
               </Button>
               <Button className="flex-1 gap-1.5" onClick={() => onEdit?.(item)}>
-                <Pencil className="h-4 w-4" />Edit
+                <Pencil className="h-4 w-4" />{t("stockDrawer.edit")}
               </Button>
             </div>
           </motion.div>

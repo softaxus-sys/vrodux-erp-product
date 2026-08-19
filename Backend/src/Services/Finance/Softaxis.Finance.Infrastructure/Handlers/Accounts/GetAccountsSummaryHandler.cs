@@ -13,12 +13,23 @@ internal sealed class GetAccountsSummaryHandler(FinanceDbContext db)
     public async Task<Result<AccountSummaryDto>> Handle(
         GetAccountsSummaryQuery _, CancellationToken ct)
     {
-        var rows = await db.Accounts
-            .AsNoTracking()
+        var accounts = await db.Accounts.AsNoTracking()
             .Where(x => x.IsActive)
-            .GroupBy(x => x.AccountType)
-            .Select(g => new { Type = g.Key, Total = g.Sum(x => x.Balance) })
             .ToListAsync(ct);
+
+        // Totals are built from CURRENT balances (opening + posted movements), so this summary
+        // agrees with the trial balance / balance sheet instead of only reflecting opening figures.
+        var movements      = await AccountBalances.LoadMovementsAsync(db, ct);
+        var normalBalances = await AccountBalances.LoadNormalBalancesAsync(db, ct);
+
+        var rows = accounts
+            .GroupBy(x => x.AccountType)
+            .Select(g => new
+            {
+                Type  = g.Key,
+                Total = g.Sum(x => AccountBalances.Current(x, movements, normalBalances)),
+            })
+            .ToList();
 
         decimal Sum(string type) =>
             rows.FirstOrDefault(r => r.Type == type)?.Total ?? 0m;

@@ -41,6 +41,7 @@ public sealed class Invoice
     public DateTime? UpdatedAt     { get; private set; }
     public bool      IsDeleted     { get; private set; }
     public Guid?     JournalEntryId { get; private set; }
+    public Guid?     PaymentJournalEntryId { get; private set; }
 
     public ICollection<InvoiceItem> Items { get; private set; } = new List<InvoiceItem>();
 
@@ -88,6 +89,13 @@ public sealed class Invoice
     public void SetCustomerId(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
 
     public void SetJournalEntryId(Guid? journalEntryId) { JournalEntryId = journalEntryId; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>
+    /// The cash-receipt entry (Dr Bank/Cash, Cr AR) posted when the invoice is settled via
+    /// "mark as paid". Kept separate from <see cref="JournalEntryId"/> (the sales entry) so
+    /// cancelling an invoice can reverse both without one overwriting the other.
+    /// </summary>
+    public void SetPaymentJournalEntryId(Guid? journalEntryId) { PaymentJournalEntryId = journalEntryId; UpdatedAt = DateTime.UtcNow; }
 
     public void RecordPayment(decimal amount)
     {

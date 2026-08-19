@@ -1,8 +1,9 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   RotateCcw, CheckCircle2, Clock, Ban, Banknote,
-  Search, DollarSign, AlertCircle, Calendar, Plus,
+  Search, DollarSign, AlertCircle, Calendar, Plus, Loader2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,32 +14,14 @@ import { ReturnDrawer } from "./return-drawer";
 import { AddReturnForm } from "./add-return-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  pending:   { label: "Pending",   color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50",  dot: "bg-slate-400" },
-  approved:  { label: "Approved",  color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",     dot: "bg-blue-500" },
-  rejected:  { label: "Rejected",  color: "text-destructive", bg: "bg-destructive/10",                  dot: "bg-destructive" },
-  refunded:  { label: "Refunded",  color: "text-success",     bg: "bg-success/10",                      dot: "bg-success" },
-  completed: { label: "Completed", color: "text-success",     bg: "bg-success/10",                      dot: "bg-success" },
+const STATUS_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
+const STATUS_STYLES: Record<string, { color: string; bg: string; dot: string }> = {
+  pending:   { color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50",  dot: "bg-slate-400" },
+  approved:  { color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",     dot: "bg-blue-500" },
+  rejected:  { color: "text-destructive", bg: "bg-destructive/10",                  dot: "bg-destructive" },
+  refunded:  { color: "text-success",     bg: "bg-success/10",                      dot: "bg-success" },
+  completed: { color: "text-success",     bg: "bg-success/10",                      dot: "bg-success" },
 };
-
-const REASON_LABELS: Record<ReturnReason, string> = {
-  defective:        "Defective",
-  wrong_item:       "Wrong Item",
-  not_as_described: "Not As Described",
-  duplicate_order:  "Duplicate Order",
-  changed_mind:     "Changed Mind",
-  other:            "Other",
-};
-
-const STATUS_FILTERS: { key: ReturnStatus | "all"; label: string }[] = [
-  { key: "all",       label: "All" },
-  { key: "pending",   label: "Pending" },
-  { key: "approved",  label: "Approved" },
-  { key: "refunded",  label: "Refunded" },
-  { key: "completed", label: "Completed" },
-  { key: "rejected",  label: "Rejected" },
-];
 
 function StatCard({ card, index }: { card: { label: string; value: number; icon: React.ElementType; color: string; bg: string; format: string }; index: number }) {
   const Icon = card.icon;
@@ -62,6 +45,7 @@ function StatCard({ card, index }: { card: { label: string; value: number; icon:
 }
 
 export function ReturnsView() {
+  const { t } = useTranslation("sales");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<ReturnStatus | "all">("all");
   const [selected, setSelected] = React.useState<SalesReturn | null>(null);
@@ -72,11 +56,11 @@ export function ReturnsView() {
   const { data: returnsSummary } = useReturnsSummary();
 
   const STAT_CARDS = [
-    { label: "Total Returns",      value: returnsSummary?.total            ?? returns_.length,                                                               icon: RotateCcw,    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", format: "number" },
-    { label: "Pending Review",     value: returnsSummary?.pending          ?? returns_.filter(r => r.status === "pending").length,                           icon: Clock,        color: "text-warning",     bg: "bg-warning/10",                     format: "number" },
-    { label: "Approved",           value: returnsSummary?.approved         ?? returns_.filter(r => r.status === "approved").length,                          icon: CheckCircle2, color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    format: "number" },
-    { label: "Refunded",           value: returnsSummary?.refunded         ?? returns_.filter(r => r.status === "refunded" || r.status === "completed").length, icon: Banknote,  color: "text-success",     bg: "bg-success/10",                     format: "number" },
-    { label: "Total Refund Value", value: returnsSummary?.totalRefundValue ?? returns_.reduce((s, r) => s + r.refundAmount, 0),                              icon: DollarSign,   color: "text-destructive", bg: "bg-destructive/10",                 format: "currency" },
+    { label: t("returns.stats.total"),      value: returnsSummary?.total            ?? returns_.length,                                                               icon: RotateCcw,    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", format: "number" },
+    { label: t("returns.stats.pending"),    value: returnsSummary?.pending          ?? returns_.filter(r => r.status === "pending").length,                           icon: Clock,        color: "text-warning",     bg: "bg-warning/10",                     format: "number" },
+    { label: t("returns.stats.approved"),   value: returnsSummary?.approved         ?? returns_.filter(r => r.status === "approved").length,                          icon: CheckCircle2, color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    format: "number" },
+    { label: t("returns.stats.refunded"),   value: returnsSummary?.refunded         ?? returns_.filter(r => r.status === "refunded" || r.status === "completed").length, icon: Banknote,  color: "text-success",     bg: "bg-success/10",                     format: "number" },
+    { label: t("returns.stats.totalValue"), value: returnsSummary?.totalRefundValue ?? returns_.reduce((s, r) => s + r.refundAmount, 0),                              icon: DollarSign,   color: "text-destructive", bg: "bg-destructive/10",                 format: "currency" },
   ];
 
   const filtered = React.useMemo(() => {
@@ -101,12 +85,12 @@ export function ReturnsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Sales Returns</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Handle return requests, refunds, and credit notes</p>
+          <h1 className="text-2xl font-bold">{t("returns.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("returns.description")}</p>
         </div>
         <Can permission="sales.returns.create">
           <Button size="sm" className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" /> New Return
+            <Plus className="h-4 w-4" /> {t("returns.new")}
           </Button>
         </Can>
       </div>
@@ -120,17 +104,17 @@ export function ReturnsView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search returns…" value={search} onChange={e => setSearch(e.target.value)}
+          <Input placeholder={t("returns.search")} value={search} onChange={e => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {STATUS_FILTERS.map(f => (
-            <button key={f.key} onClick={() => setStatusFilter(f.key as ReturnStatus | "all")}
+          {(["", "pending", "approved", "rejected", "refunded", "completed"] as const).map(key => (
+            <button key={key} onClick={() => setStatusFilter(key as ReturnStatus | "all")}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                statusFilter === f.key
+                statusFilter === key
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-              {f.label}
+              {t(`returns.filters.${key || "all"}`)}
             </button>
           ))}
         </div>
@@ -142,19 +126,19 @@ export function ReturnsView() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Return #</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Order Ref</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Reason</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Date</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Refund Amt</th>
-              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.returnNum")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.customer")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("returns.table.orderRef")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("returns.table.reason")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("returns.table.date")}</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.refundAmt")}</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.status")}</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.table.action")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">No returns found.</td></tr>
+              <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">{t("returns.noResults")}</td></tr>
             ) : filtered.map((r, i) => {
               const sc = STATUS_CONFIG[r.status] ?? STATUS_FALLBACK;
               return (
@@ -177,7 +161,7 @@ export function ReturnsView() {
                   <td className="px-4 py-3.5 hidden lg:table-cell">
                     <div className="flex items-center gap-1.5">
                       <AlertCircle className="h-3 w-3 text-warning shrink-0" />
-                      <span className="text-sm text-muted-foreground">{REASON_LABELS[r.reason]}</span>
+                      <span className="text-sm text-muted-foreground">{t(`returns.reasons.${r.reason}`)}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3.5 hidden lg:table-cell">
@@ -193,7 +177,7 @@ export function ReturnsView() {
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
                       <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />
-                      {sc.label}
+                      {t(`returns.status.${r.status}`)}
                     </span>
                   </td>
                   <td className="px-4 py-3.5" onClick={e => e.stopPropagation()}>
@@ -202,18 +186,18 @@ export function ReturnsView() {
                         <>
                           <button onClick={e => { e.stopPropagation(); openDrawer(r); }}
                             className="h-7 px-2.5 rounded-md text-xs font-medium bg-success/10 text-success hover:bg-success/20 transition-colors">
-                            Approve
+                            {t("returns.button.approve")}
                           </button>
                           <button onClick={e => { e.stopPropagation(); openDrawer(r); }}
                             className="h-7 px-2.5 rounded-md text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">
-                            Reject
+                            {t("returns.button.reject")}
                           </button>
                         </>
                       )}
                       {r.status === "approved" && (
                         <button onClick={e => { e.stopPropagation(); openDrawer(r); }}
                           className="h-7 px-2.5 rounded-md text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                          Refund
+                          {t("returns.button.refund")}
                         </button>
                       )}
                     </div>

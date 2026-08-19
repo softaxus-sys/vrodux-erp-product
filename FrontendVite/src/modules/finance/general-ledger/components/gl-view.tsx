@@ -1,9 +1,10 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, AlertTriangle, BarChart3, BookOpen, Calendar, TrendingUp, X, Loader2, Info, Lightbulb,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, activeLocale } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { GLPeriod, TrialBalanceLine, AccountTypeDto } from "@/lib/finance/finance.api";
 import { useTrialBalance, useGLSummary, useAccountLedger, useAccountTypes } from "@/hooks/finance/use-finance";
@@ -22,12 +23,13 @@ const TYPE_PALETTE = [
 function formatPeriodLabel(period: string): string {
   const [year, month] = period.split("-").map(Number);
   if (!year || !month) return period;
-  return new Date(year, month - 1, 1).toLocaleString("en-AE", { month: "long", year: "numeric" });
+  return new Date(year, month - 1, 1).toLocaleString(activeLocale(), { month: "long", year: "numeric" });
 }
 
 const CURRENT_PERIOD = new Date().toISOString().slice(0, 7);
 
 export function GLView() {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: trialBalance = [] } = useTrialBalance();
   const { data: glSummary } = useGLSummary();
@@ -93,17 +95,17 @@ export function GLView() {
 
   const isBalanced = glSummary?.isBalanced ?? true;
   const STAT_CARDS = [
-    { label: "Total Debits", value: formatCurrency(glSummary?.totalDebits ?? 0, currency), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Total Credits", value: formatCurrency(glSummary?.totalCredits ?? 0, currency), icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("gl.stat.totalDebits"), value: formatCurrency(glSummary?.totalDebits ?? 0, currency), icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("gl.stat.totalCredits"), value: formatCurrency(glSummary?.totalCredits ?? 0, currency), icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
     {
-      label: "Balance Status",
-      value: isBalanced ? "Balanced" : "Unbalanced",
+      label: t("gl.stat.balanceStatus"),
+      value: isBalanced ? t("gl.balanced") : t("gl.unbalanced"),
       icon: isBalanced ? CheckCircle2 : AlertTriangle,
       color: isBalanced ? "text-success" : "text-destructive",
       bg: isBalanced ? "bg-success/10" : "bg-destructive/10",
     },
-    { label: "Accounts", value: `${glSummary?.accounts ?? trialBalance.length} accounts`, icon: BookOpen, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Period", value: formatPeriodLabel(activePeriod), icon: Calendar, color: "text-muted-foreground", bg: "bg-muted" },
+    { label: t("gl.stat.accounts"), value: t("gl.stat.accountsCount", { count: glSummary?.accounts ?? trialBalance.length }), icon: BookOpen, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("gl.stat.period"), value: formatPeriodLabel(activePeriod), icon: Calendar, color: "text-muted-foreground", bg: "bg-muted" },
   ];
 
   return (
@@ -111,18 +113,18 @@ export function GLView() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">General Ledger</h1>
-          <p className="text-muted-foreground mt-0.5 text-sm">Trial balance and account activity across all periods.</p>
+          <h1 className="text-2xl font-bold">{t("gl.title")}</h1>
+          <p className="text-muted-foreground mt-0.5 text-sm">{t("gl.subtitle")}</p>
         </div>
         {isBalanced ? (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-success/10 border border-success/20">
             <CheckCircle2 className="h-4 w-4 text-success" />
-            <span className="text-sm font-semibold text-success">Ledger Balanced</span>
+            <span className="text-sm font-semibold text-success">{t("gl.ledgerBalanced")}</span>
           </div>
         ) : (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-destructive/10 border border-destructive/20">
             <AlertTriangle className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-semibold text-destructive">Imbalance Detected</span>
+            <span className="text-sm font-semibold text-destructive">{t("gl.imbalanceDetected")}</span>
           </div>
         )}
       </div>
@@ -134,35 +136,38 @@ export function GLView() {
             <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="text-sm font-semibold text-destructive">
-                Out of balance by {formatCurrency(Math.abs(grandTotalDebits - grandTotalCredits), currency)}
+                {t("gl.imbalance.outOfBalanceBy", { amount: formatCurrency(Math.abs(grandTotalDebits - grandTotalCredits), currency) })}
               </p>
               <p className="text-xs text-muted-foreground">
-                Total Debits ({formatCurrency(grandTotalDebits, currency)}) {grandTotalDebits > grandTotalCredits ? "exceed" : "are less than"} Total Credits ({formatCurrency(grandTotalCredits, currency)}).
-                In double-entry bookkeeping these two totals must always be equal — every posted transaction debits one account and credits another for the same amount.
+                {t("gl.imbalance.explanation", {
+                  debits: formatCurrency(grandTotalDebits, currency),
+                  credits: formatCurrency(grandTotalCredits, currency),
+                  relation: grandTotalDebits > grandTotalCredits ? t("gl.imbalance.exceed") : t("gl.imbalance.less"),
+                })}
               </p>
             </div>
           </div>
           <div className="grid sm:grid-cols-2 gap-4 pl-8">
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Info className="h-3.5 w-3.5" /> Likely causes
+                <Info className="h-3.5 w-3.5" /> {t("gl.imbalance.likelyCauses")}
               </p>
               <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>A journal entry was posted with unequal debit and credit totals (e.g. via a direct database edit, import, or migration that bypassed validation)</li>
-                <li>An opening balance was entered for an account without a matching offsetting entry</li>
-                <li>A posted journal entry was later edited or deleted without reversing both its debit and credit sides</li>
-                <li>Rounding differences from multi-currency transactions</li>
+                <li>{t("gl.imbalance.cause1")}</li>
+                <li>{t("gl.imbalance.cause2")}</li>
+                <li>{t("gl.imbalance.cause3")}</li>
+                <li>{t("gl.imbalance.cause4")}</li>
               </ul>
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <Lightbulb className="h-3.5 w-3.5" /> How to fix it
+                <Lightbulb className="h-3.5 w-3.5" /> {t("gl.imbalance.howToFix")}
               </p>
               <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                <li>Open Journals and look for any entry whose debit and credit totals don't match — the New Journal Entry form blocks this, so an existing imbalanced entry usually predates that check</li>
-                <li>Click an account row below to open its ledger and trace transactions for an unexpected closing balance</li>
-                <li>Post a correcting journal entry for {formatCurrency(Math.abs(grandTotalDebits - grandTotalCredits), currency)} against a Suspense/Clearing account, then investigate and reclassify it once the source is found</li>
-                <li>If this followed a data import or migration, re-run it ensuring every batch of entries is balanced before posting</li>
+                <li>{t("gl.imbalance.fix1")}</li>
+                <li>{t("gl.imbalance.fix2")}</li>
+                <li>{t("gl.imbalance.fix3", { amount: formatCurrency(Math.abs(grandTotalDebits - grandTotalCredits), currency) })}</li>
+                <li>{t("gl.imbalance.fix4")}</li>
               </ul>
             </div>
           </div>
@@ -190,7 +195,7 @@ export function GLView() {
 
       {/* Period Selector */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground font-medium">Period:</span>
+        <span className="text-xs text-muted-foreground font-medium">{t("gl.periodLabel")}</span>
         <div className="flex gap-1.5 flex-wrap">
           {(glSummary?.periods ?? [CURRENT_PERIOD]).map((period) => (
             <button
@@ -224,22 +229,22 @@ export function GLView() {
                 </span>
                 <div className="flex items-center gap-6 text-xs font-semibold">
                   <span className="text-muted-foreground">
-                    Dr: <span className="text-foreground">{formatCurrency(sub.debits, currency)}</span>
+                    {t("gl.dr")}: <span className="text-foreground">{formatCurrency(sub.debits, currency)}</span>
                   </span>
                   <span className="text-muted-foreground">
-                    Cr: <span className="text-foreground">{formatCurrency(sub.credits, currency)}</span>
+                    {t("gl.cr")}: <span className="text-foreground">{formatCurrency(sub.credits, currency)}</span>
                   </span>
                 </div>
               </div>
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/50">
-                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground w-24">Code</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Account Name</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Opening Balance</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Total Debits</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Total Credits</th>
-                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Closing Balance</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground w-24">{t("gl.table.code")}</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("gl.table.accountName")}</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("gl.table.openingBalance")}</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("gl.table.totalDebits")}</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("gl.table.totalCredits")}</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("gl.table.closingBalance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -262,14 +267,14 @@ export function GLView() {
                       </td>
                       <td className={cn("px-4 py-3 text-right text-sm font-bold", color.text)}>
                         {formatCurrency(Math.abs(line.closingBalance), currency)}
-                        {line.closingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}
+                        {line.closingBalance < 0 && <span className="text-xs ml-1">{t("gl.crMark")}</span>}
                       </td>
                     </tr>
                   ))}
                   {/* Subtotal row */}
                   <tr className="bg-muted/20 border-t border-border">
                     <td colSpan={2} className="px-4 py-2.5 text-xs font-bold text-muted-foreground">
-                      {typeLabel(type)} Subtotal
+                      {t("gl.table.subtotal", { type: typeLabel(type) })}
                     </td>
                     <td className="px-4 py-2.5 text-right text-xs font-bold"></td>
                     <td className="px-4 py-2.5 text-right text-xs font-bold">{formatCurrency(sub.debits, currency)}</td>
@@ -289,23 +294,23 @@ export function GLView() {
       <div className="bg-card border border-border rounded-xl p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold">Trial Balance Totals</span>
+            <span className="text-sm font-bold">{t("gl.grandTotals")}</span>
             {isBalanced ? (
               <span className="flex items-center gap-1 text-xs text-success font-medium">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Balanced
+                <CheckCircle2 className="h-3.5 w-3.5" /> {t("gl.balanced")}
               </span>
             ) : (
               <span className="flex items-center gap-1 text-xs text-destructive font-medium">
-                <AlertTriangle className="h-3.5 w-3.5" /> Imbalanced
+                <AlertTriangle className="h-3.5 w-3.5" /> {t("gl.imbalanced")}
               </span>
             )}
           </div>
           <div className="flex items-center gap-8 text-sm font-bold">
             <span className="text-muted-foreground">
-              Total Dr: <span className="text-foreground">{formatCurrency(grandTotalDebits, currency)}</span>
+              {t("gl.totalDr")}: <span className="text-foreground">{formatCurrency(grandTotalDebits, currency)}</span>
             </span>
             <span className="text-muted-foreground">
-              Total Cr: <span className="text-foreground">{formatCurrency(grandTotalCredits, currency)}</span>
+              {t("gl.totalCr")}: <span className="text-foreground">{formatCurrency(grandTotalCredits, currency)}</span>
             </span>
           </div>
         </div>
@@ -321,6 +326,7 @@ export function GLView() {
 }
 
 function AccountLedgerDrawer({ account, typesByCode, onClose }: { account: TrialBalanceLine; typesByCode: Map<string, AccountTypeDto>; onClose: () => void }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data, isLoading } = useAccountLedger(account.accountId);
 
@@ -353,24 +359,24 @@ function AccountLedgerDrawer({ account, typesByCode, onClose }: { account: Trial
         <div className="p-6 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading ledger…
+              <Loader2 className="h-5 w-5 animate-spin mr-2" /> {t("gl.drawer.loading")}
             </div>
           ) : !data ? (
-            <p className="text-sm text-muted-foreground py-12 text-center">No ledger data available.</p>
+            <p className="text-sm text-muted-foreground py-12 text-center">{t("gl.drawer.noData")}</p>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-muted/30 rounded-xl p-3">
-                  <p className="text-xs text-muted-foreground">Opening Balance</p>
-                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.openingBalance), currency)}{data.openingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
+                  <p className="text-xs text-muted-foreground">{t("gl.drawer.openingBalance")}</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.openingBalance), currency)}{data.openingBalance < 0 && <span className="text-xs ml-1">{t("gl.crMark")}</span>}</p>
                 </div>
                 <div className="bg-muted/30 rounded-xl p-3">
-                  <p className="text-xs text-muted-foreground">Total Dr / Cr</p>
+                  <p className="text-xs text-muted-foreground">{t("gl.drawer.totalDrCr")}</p>
                   <p className="text-sm font-bold mt-1">{formatCurrency(data.totalDebits, currency)} / {formatCurrency(data.totalCredits, currency)}</p>
                 </div>
                 <div className="bg-muted/30 rounded-xl p-3">
-                  <p className="text-xs text-muted-foreground">Closing Balance</p>
-                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.closingBalance), currency)}{data.closingBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}</p>
+                  <p className="text-xs text-muted-foreground">{t("gl.drawer.closingBalance")}</p>
+                  <p className="text-sm font-bold mt-1">{formatCurrency(Math.abs(data.closingBalance), currency)}{data.closingBalance < 0 && <span className="text-xs ml-1">{t("gl.crMark")}</span>}</p>
                 </div>
               </div>
 
@@ -378,18 +384,18 @@ function AccountLedgerDrawer({ account, typesByCode, onClose }: { account: Trial
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/50 bg-muted/30">
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Date</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Entry #</th>
-                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Description</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Debit</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Credit</th>
-                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">Balance</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("gl.drawer.date")}</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("gl.drawer.entryNumber")}</th>
+                      <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("gl.drawer.description")}</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">{t("gl.drawer.debit")}</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">{t("gl.drawer.credit")}</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground">{t("gl.drawer.balance")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.entries.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">No posted activity yet.</td>
+                        <td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">{t("gl.drawer.noActivity")}</td>
                       </tr>
                     ) : (
                       data.entries.map((entry, i) => (
@@ -401,7 +407,7 @@ function AccountLedgerDrawer({ account, typesByCode, onClose }: { account: Trial
                           <td className="px-3 py-2 text-right text-sm">{entry.credit !== 0 ? formatCurrency(entry.credit, currency) : "—"}</td>
                           <td className="px-3 py-2 text-right text-sm font-semibold">
                             {formatCurrency(Math.abs(entry.runningBalance), currency)}
-                            {entry.runningBalance < 0 && <span className="text-xs ml-1">(Cr)</span>}
+                            {entry.runningBalance < 0 && <span className="text-xs ml-1">{t("gl.crMark")}</span>}
                           </td>
                         </tr>
                       ))

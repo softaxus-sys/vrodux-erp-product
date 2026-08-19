@@ -1,5 +1,6 @@
 import * as React from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Plus, Building2, CheckCircle, Star, ArrowUpDown,
   Search, Phone, User, MapPin, Loader2, Pencil, Trash2,
@@ -29,6 +30,7 @@ interface WarehouseFormProps {
 }
 
 function WarehouseForm({ initial, onSave, onCancel, saving }: WarehouseFormProps) {
+  const { t } = useTranslation("inventory");
   const [name,          setName]          = React.useState(initial?.name          ?? "");
   const [code,          setCode]          = React.useState(initial?.code          ?? "");
   const [address,       setAddress]       = React.useState(initial?.address       ?? "");
@@ -38,7 +40,7 @@ function WarehouseForm({ initial, onSave, onCancel, saving }: WarehouseFormProps
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) { toast.error("Warehouse name is required."); return; }
+    if (!name.trim()) { toast.error(t("warehouses.form.nameRequired")); return; }
     onSave({ name, code, address, contactPerson, phone, isActive });
   }
 
@@ -49,28 +51,28 @@ function WarehouseForm({ initial, onSave, onCancel, saving }: WarehouseFormProps
         animate={{ opacity: 1, scale: 1 }}
         className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-enterprise-lg"
       >
-        <h2 className="text-lg font-bold mb-4">{initial ? "Edit Warehouse" : "Add Warehouse"}</h2>
+        <h2 className="text-lg font-bold mb-4">{initial ? t("warehouses.form.editTitle") : t("warehouses.form.addTitle")}</h2>
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name *</label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Main Warehouse" />
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("warehouses.form.name")}</label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("warehouses.form.namePlaceholder")} />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Code</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("warehouses.form.code")}</label>
               <Input value={code} onChange={e => setCode(e.target.value)} placeholder="WH-001" />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("warehouses.form.phone")}</label>
               <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+92 300 0000000" />
             </div>
             <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Address</label>
-              <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Karachi, Pakistan" />
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("warehouses.form.address")}</label>
+              <Input value={address} onChange={e => setAddress(e.target.value)} placeholder={t("warehouses.form.addressPlaceholder")} />
             </div>
             <div className="col-span-2">
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Contact Person</label>
-              <Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="John Doe" />
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{t("warehouses.form.contactPerson")}</label>
+              <Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder={t("warehouses.form.contactPersonPlaceholder")} />
             </div>
           </div>
           <div className="flex items-center gap-2 pt-1">
@@ -81,13 +83,13 @@ function WarehouseForm({ initial, onSave, onCancel, saving }: WarehouseFormProps
               onChange={e => setIsActive(e.target.checked)}
               className="h-4 w-4 accent-primary"
             />
-            <label htmlFor="isActive" className="text-sm">Active</label>
+            <label htmlFor="isActive" className="text-sm">{t("warehouses.form.active")}</label>
           </div>
           <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+            <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t("warehouses.form.cancel")}</Button>
             <Button type="submit" className="flex-1" disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {initial ? "Save Changes" : "Create"}
+              {initial ? t("warehouses.form.saveChanges") : t("warehouses.form.create")}
             </Button>
           </div>
         </form>
@@ -99,6 +101,7 @@ function WarehouseForm({ initial, onSave, onCancel, saving }: WarehouseFormProps
 // ── Main View ─────────────────────────────────────────────────────────────────
 
 export function WarehousesView() {
+  const { t } = useTranslation("inventory");
   const { data: warehouses = [], isLoading } = useWarehouses();
   const createWarehouse   = useCreateWarehouse();
   const updateWarehouse   = useUpdateWarehouse();
@@ -141,14 +144,14 @@ export function WarehousesView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Warehouses</h1>
+          <h1 className="text-2xl font-bold">{t("warehouses.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage storage locations, contact info, and default warehouse.
+            {t("warehouses.subtitle")}
           </p>
         </div>
         <Can permission="inventory.warehouses.create">
           <Button className="gap-2" onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4" /> Add Warehouse
+            <Plus className="h-4 w-4" /> {t("warehouses.addWarehouse")}
           </Button>
         </Can>
       </div>
@@ -156,10 +159,10 @@ export function WarehousesView() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total",    value: warehouses.length,     icon: Building2,   color: "text-primary",     bg: "bg-primary/10" },
-          { label: "Active",   value: active,                icon: CheckCircle, color: "text-success",     bg: "bg-success/10" },
-          { label: "Inactive", value: inactive,              icon: Building2,   color: "text-muted-foreground", bg: "bg-muted" },
-          { label: "Movements",value: warehouses.reduce((a, w) => a + (w.movementCount ?? 0), 0), icon: ArrowUpDown, color: "text-warning", bg: "bg-warning/10" },
+          { label: t("warehouses.stats.total"),    value: warehouses.length,     icon: Building2,   color: "text-primary",     bg: "bg-primary/10" },
+          { label: t("warehouses.stats.active"),   value: active,                icon: CheckCircle, color: "text-success",     bg: "bg-success/10" },
+          { label: t("warehouses.stats.inactive"), value: inactive,              icon: Building2,   color: "text-muted-foreground", bg: "bg-muted" },
+          { label: t("warehouses.stats.movements"),value: warehouses.reduce((a, w) => a + (w.movementCount ?? 0), 0), icon: ArrowUpDown, color: "text-warning", bg: "bg-warning/10" },
         ].map((s, i) => (
           <motion.div
             key={s.label}
@@ -182,7 +185,7 @@ export function WarehousesView() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search warehouses..."
+            placeholder={t("warehouses.search")}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9"
@@ -214,7 +217,7 @@ export function WarehousesView() {
                     )}
                     {w.isDefault && (
                       <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                        <Star className="h-3 w-3" /> Default
+                        <Star className="h-3 w-3" /> {t("warehouses.default")}
                       </span>
                     )}
                   </div>
@@ -224,7 +227,7 @@ export function WarehousesView() {
                   "text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ml-2",
                   w.isActive ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
                 )}>
-                  {w.isActive ? "Active" : "Inactive"}
+                  {w.isActive ? t("warehouses.active") : t("warehouses.inactive")}
                 </span>
               </div>
 
@@ -253,7 +256,7 @@ export function WarehousesView() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-3 border-t border-border">
                 <div>
-                  <p className="text-xs text-muted-foreground">Movements</p>
+                  <p className="text-xs text-muted-foreground">{t("warehouses.movements")}</p>
                   <p className="text-sm font-bold">{(w.movementCount ?? 0).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-1">
@@ -263,7 +266,7 @@ export function WarehousesView() {
                       size="icon"
                       className="h-7 w-7"
                       onClick={() => setDefault.mutate(w.id)}
-                      title="Set as default"
+                      title={t("warehouses.setDefault")}
                     >
                       <Star className="h-3.5 w-3.5" />
                     </Button>
@@ -273,7 +276,7 @@ export function WarehousesView() {
                     size="icon"
                     className="h-7 w-7"
                     onClick={() => setEditing(w)}
-                    title="Edit"
+                    title={t("warehouses.edit")}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -282,7 +285,7 @@ export function WarehousesView() {
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive"
                     onClick={() => setDeleteId(w.id)}
-                    title="Delete"
+                    title={t("warehouses.delete")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -293,7 +296,7 @@ export function WarehousesView() {
 
           {filtered.length === 0 && !isLoading && (
             <div className="col-span-3 bg-card border border-border rounded-xl p-12 text-center">
-              <p className="text-muted-foreground text-sm">No warehouses found.</p>
+              <p className="text-muted-foreground text-sm">{t("warehouses.empty")}</p>
             </div>
           )}
         </div>
@@ -303,7 +306,7 @@ export function WarehousesView() {
         page={pg.page} totalPages={pg.totalPages} totalCount={pg.totalCount}
         hasPrev={pg.hasPrev} hasNext={pg.hasNext}
         onPrev={() => pg.setPage(p => p - 1)} onNext={() => pg.setPage(p => p + 1)}
-        label="warehouses"
+        label={t("warehouses.label")}
       />
 
       {/* Add / Edit form */}
@@ -324,12 +327,12 @@ export function WarehousesView() {
             animate={{ opacity: 1, scale: 1 }}
             className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm"
           >
-            <h3 className="font-bold text-lg mb-2">Delete Warehouse?</h3>
+            <h3 className="font-bold text-lg mb-2">{t("warehouses.deleteTitle")}</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              This action cannot be undone.
+              {t("warehouses.deleteBody")}
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setDeleteId(null)}>Cancel</Button>
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteId(null)}>{t("warehouses.cancel")}</Button>
               <Button
                 variant="destructive"
                 className="flex-1"
@@ -337,7 +340,7 @@ export function WarehousesView() {
                 onClick={() => deleteWarehouse.mutate(deleteId, { onSuccess: () => setDeleteId(null) })}
               >
                 {deleteWarehouse.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Delete
+                {t("warehouses.delete")}
               </Button>
             </div>
           </motion.div>

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, ChefHat, Bell, Timer, Loader2, Send } from "lucide-react";
@@ -14,13 +15,14 @@ const LATE_MINUTES = 20;
 
 // ── Elapsed time from createdAt ─────────────────────────────────────────────────
 function Elapsed({ from }: { from: string }) {
+  const { t } = useTranslation("restaurant");
   const [, tick] = React.useReducer(x => x + 1, 0);
   React.useEffect(() => { const id = setInterval(tick, 30_000); return () => clearInterval(id); }, []);
   const mins = Math.max(0, Math.floor((Date.now() - new Date(from).getTime()) / 60000));
   const late = mins >= LATE_MINUTES;
   return (
     <span className={cn("flex items-center gap-1 text-xs font-mono", late ? "text-destructive font-bold" : "text-muted-foreground")}>
-      <Timer className="w-3 h-3" />{mins}m{late && " ⚠️"}
+      <Timer className="w-3 h-3" />{t("kitchen.minutes", { count: mins })}{late && " ⚠️"}
     </span>
   );
 }
@@ -29,6 +31,7 @@ function Elapsed({ from }: { from: string }) {
 function TicketCard({ ticket, onReady, onServe, busy }: {
   ticket: KitchenTicket; onReady: (id: string) => void; onServe: (id: string) => void; busy: boolean;
 }) {
+  const { t } = useTranslation("restaurant");
   const isReady = ticket.status === "ready";
   const late = ticket.waitMinutes >= LATE_MINUTES;
   return (
@@ -37,8 +40,8 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
         isReady ? "border-success/40" : late ? "border-destructive/40 ring-1 ring-destructive/20" : "border-warning/40")}>
       <div className={cn("px-4 py-3 flex items-center justify-between", isReady ? "bg-success/10" : "bg-warning/10")}>
         <div>
-          <p className="text-sm font-bold text-foreground">Table {ticket.tableNumber}</p>
-          <p className="text-xs text-muted-foreground">{ticket.orderNumber.slice(-8)} · {ticket.waiter} · {ticket.covers} cov</p>
+          <p className="text-sm font-bold text-foreground">{t("kitchen.tableLabel", { number: ticket.tableNumber })}</p>
+          <p className="text-xs text-muted-foreground">{ticket.orderNumber.slice(-8)} · {ticket.waiter} · {t("kitchen.covers", { count: ticket.covers })}</p>
         </div>
         <Elapsed from={ticket.createdAt} />
       </div>
@@ -50,7 +53,7 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">
                 {it.itemName}
-                {it.courseNumber > 1 && <span className="ml-1.5 text-[10px] font-medium text-muted-foreground">Course {it.courseNumber}</span>}
+                {it.courseNumber > 1 && <span className="ml-1.5 text-[10px] font-medium text-muted-foreground">{t("kitchen.course", { number: it.courseNumber })}</span>}
               </p>
               {it.modifiers && <p className="text-xs text-warning italic">{it.modifiers}</p>}
             </div>
@@ -62,11 +65,11 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
         <Can permission="restaurant.kitchen.edit">
           {!isReady ? (
             <Button size="sm" className="w-full" disabled={busy} onClick={() => onReady(ticket.id)}>
-              <Bell className="w-3.5 h-3.5 mr-1.5" /> Mark Ready
+              <Bell className="w-3.5 h-3.5 mr-1.5" /> {t("kitchen.button.markReady")}
             </Button>
           ) : (
             <Button size="sm" variant="outline" className="w-full border-success text-success" disabled={busy} onClick={() => onServe(ticket.id)}>
-              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Served
+              <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> {t("kitchen.button.markServed")}
             </Button>
           )}
         </Can>
@@ -77,6 +80,7 @@ function TicketCard({ ticket, onReady, onServe, busy }: {
 
 // ── Main view ────────────────────────────────────────────────────────────────────
 export function KitchenDisplayView() {
+  const { t } = useTranslation("restaurant");
   useRestaurantRealtime();
   const { data: stations = [] } = useKitchenStations();
   const [stationId, setStationId] = React.useState<string | undefined>(undefined);
@@ -99,12 +103,12 @@ export function KitchenDisplayView() {
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <ChefHat className="w-8 h-8 text-muted-foreground/30 mb-2" />
-            <p className="text-xs text-muted-foreground">No orders</p>
+            <p className="text-xs text-muted-foreground">{t("kitchen.noOrders")}</p>
           </div>
         ) : (
           <AnimatePresence>
-            {items.map(t => (
-              <TicketCard key={t.id} ticket={t} busy={busy}
+            {items.map(tk => (
+              <TicketCard key={tk.id} ticket={tk} busy={busy}
                 onReady={id => markReady.mutate(id)} onServe={id => serve.mutate(id)} />
             ))}
           </AnimatePresence>
@@ -119,9 +123,12 @@ export function KitchenDisplayView() {
         <div className="flex items-center gap-3">
           <ChefHat className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h1 className="text-xl font-bold text-foreground">Kitchen Display</h1>
+            <h1 className="text-xl font-bold text-foreground">{t("kitchen.title")}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {summary?.sentToKitchen ?? newOrders.length} new · {summary?.ready ?? readyOrders.length} ready
+              {t("kitchen.summary", {
+                new:   summary?.sentToKitchen ?? newOrders.length,
+                ready: summary?.ready ?? readyOrders.length,
+              })}
             </p>
           </div>
         </div>
@@ -133,7 +140,7 @@ export function KitchenDisplayView() {
           <button onClick={() => setStationId(undefined)}
             className={cn("px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap",
               !stationId ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50")}>
-            All Stations
+            {t("kitchen.allStations")}
           </button>
           {stations.map(s => (
             <button key={s.id} onClick={() => setStationId(s.id)}
@@ -148,8 +155,8 @@ export function KitchenDisplayView() {
 
       <div className="flex-1 overflow-hidden">
         <div className="h-full grid grid-cols-2 divide-x divide-border">
-          <Column title="New / Preparing" icon={<Send className="w-4 h-4 text-warning" />} items={newOrders} tone="bg-warning/10" />
-          <Column title="Ready to Serve"  icon={<Bell className="w-4 h-4 text-success" />} items={readyOrders} tone="bg-success/10" />
+          <Column title={t("kitchen.columnNew")}   icon={<Send className="w-4 h-4 text-warning" />} items={newOrders} tone="bg-warning/10" />
+          <Column title={t("kitchen.columnReady")} icon={<Bell className="w-4 h-4 text-success" />} items={readyOrders} tone="bg-success/10" />
         </div>
       </div>
     </div>

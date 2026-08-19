@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Landmark, CheckCircle2, Clock, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import {
 import type { PaymentGatewayCatalogEntryDto } from "@/lib/pos/payment-gateway.api";
 
 export function PaymentGatewayView() {
+  const { t } = useTranslation("settings");
   const canEdit = useCan("pos.payment-gateway.edit");
   const { data: catalog = [], isLoading: catalogLoading } = usePaymentGatewayCatalog();
   const { data: config } = usePaymentGatewayConfig();
@@ -19,16 +21,15 @@ export function PaymentGatewayView() {
     <div className="p-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Landmark className="w-5 h-5 text-primary" /> Payment Gateway
+          <Landmark className="w-5 h-5 text-primary" /> {t("paymentGateway.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Select and configure an online payment gateway. "Manual / Terminal" (the default) means card/cash
-          payments continue going through your physical terminal, unaffected by this page.
+          {t("paymentGateway.description")}
         </p>
       </div>
 
       {catalogLoading ? (
-        <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> Loading…</div>
+        <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> {t("paymentGateway.loading")}</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {catalog.map(entry => {
@@ -52,13 +53,13 @@ export function PaymentGatewayView() {
                 {isActive && config && (
                   <p className="text-xs">
                     <span className={cn("font-medium", config.isEnabled ? "text-success" : "text-muted-foreground")}>
-                      {config.isEnabled ? "Enabled" : "Disabled"}
+                      {config.isEnabled ? t("paymentGateway.enabled") : t("paymentGateway.disabled")}
                     </span> · {config.mode}
                   </p>
                 )}
                 {canEdit && (
                   <Button size="sm" variant="outline" className="w-full" onClick={() => setEditing(entry)}>
-                    {isActive ? "Configure" : "Select & Configure"}
+                    {isActive ? t("paymentGateway.configure") : t("paymentGateway.selectConfigure")}
                   </Button>
                 )}
               </div>
@@ -79,6 +80,7 @@ function ConfigureDrawer({ entry, current, onClose }: {
   current: ReturnType<typeof usePaymentGatewayConfig>["data"] | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("settings");
   const upsert = useUpsertPaymentGatewayConfig();
   const [apiKey, setApiKey] = React.useState("");
   const [secretKey, setSecretKey] = React.useState("");
@@ -110,39 +112,39 @@ function ConfigureDrawer({ entry, current, onClose }: {
 
         {entry.needsApiKey && (
           <div>
-            <label className="text-xs text-muted-foreground">{current?.hasApiKey ? "API Key (leave blank to keep current)" : "API Key"}</label>
-            <Input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={current?.hasApiKey ? "•••••••• (unchanged)" : ""} className="h-9 text-sm" />
+            <label className="text-xs text-muted-foreground">{current?.hasApiKey ? t("paymentGateway.apiKeyKeep") : t("paymentGateway.apiKey")}</label>
+            <Input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={current?.hasApiKey ? t("paymentGateway.unchanged") : ""} className="h-9 text-sm" />
           </div>
         )}
         {entry.needsSecretKey && (
           <div>
-            <label className="text-xs text-muted-foreground">{current?.hasSecretKey ? "Secret Key (leave blank to keep current)" : "Secret Key"}</label>
-            <Input type="password" value={secretKey} onChange={e => setSecretKey(e.target.value)} placeholder={current?.hasSecretKey ? "•••••••• (unchanged)" : ""} className="h-9 text-sm" />
+            <label className="text-xs text-muted-foreground">{current?.hasSecretKey ? t("paymentGateway.secretKeyKeep") : t("paymentGateway.secretKey")}</label>
+            <Input type="password" value={secretKey} onChange={e => setSecretKey(e.target.value)} placeholder={current?.hasSecretKey ? t("paymentGateway.unchanged") : ""} className="h-9 text-sm" />
           </div>
         )}
         {entry.needsPublicKey && (
           <div>
-            <label className="text-xs text-muted-foreground">Publishable Key</label>
+            <label className="text-xs text-muted-foreground">{t("paymentGateway.publishableKey")}</label>
             <Input value={publicKey} onChange={e => setPublicKey(e.target.value)} className="h-9 text-sm" />
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-muted-foreground">Mode</label>
+            <label className="text-xs text-muted-foreground">{t("paymentGateway.mode")}</label>
             <select value={mode} onChange={e => setMode(e.target.value as "test" | "live")}
               className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-              <option value="test">Test</option>
-              <option value="live">Live</option>
+              <option value="test">{t("paymentGateway.modeTest")}</option>
+              <option value="live">{t("paymentGateway.modeLive")}</option>
             </select>
           </div>
           <label className="flex items-center gap-2 text-sm text-foreground mt-5">
-            <input type="checkbox" checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} /> Enabled
+            <input type="checkbox" checked={isEnabled} onChange={e => setIsEnabled(e.target.checked)} /> {t("paymentGateway.enabled")}
           </label>
         </div>
 
         <Button className="w-full" onClick={handleSave} disabled={upsert.isPending}>
-          {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+          {upsert.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("paymentGateway.save")}
         </Button>
       </div>
     </div>

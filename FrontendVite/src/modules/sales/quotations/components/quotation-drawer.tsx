@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, FileText, Send, ArrowRight, Copy,
@@ -15,13 +16,13 @@ import { Can } from "@/components/auth/can";
 type Tab = "overview" | "items";
 type QuoteStatus = "draft" | "sent" | "approved" | "rejected" | "converted" | "expired";
 
-const STATUS_CONFIG: Record<QuoteStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  draft:     { label: "Draft",     color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", icon: FileText },
-  sent:      { label: "Sent",      color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    icon: Send },
-  approved:  { label: "Approved",  color: "text-success",     bg: "bg-success/10",                     icon: CheckCircle2 },
-  rejected:  { label: "Rejected",  color: "text-destructive", bg: "bg-destructive/10",                 icon: Ban },
-  expired:   { label: "Expired",   color: "text-warning",     bg: "bg-warning/10",                     icon: Clock },
-  converted: { label: "Converted", color: "text-primary",     bg: "bg-primary/10",                     icon: ArrowRight },
+const STATUS_STYLES: Record<QuoteStatus, { color: string; bg: string; icon: React.ElementType }> = {
+  draft:     { color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", icon: FileText },
+  sent:      { color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    icon: Send },
+  approved:  { color: "text-success",     bg: "bg-success/10",                     icon: CheckCircle2 },
+  rejected:  { color: "text-destructive", bg: "bg-destructive/10",                 icon: Ban },
+  expired:   { color: "text-warning",     bg: "bg-warning/10",                     icon: Clock },
+  converted: { color: "text-primary",     bg: "bg-primary/10",                     icon: ArrowRight },
 };
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
+  const { t } = useTranslation("sales");
   const currency = useCurrency();
   const [tab, setTab] = React.useState<Tab>("overview");
 
@@ -47,8 +49,8 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
 
   if (!quote) return null;
 
-  const status  = (quote.status as QuoteStatus) in STATUS_CONFIG ? (quote.status as QuoteStatus) : "draft";
-  const sc      = STATUS_CONFIG[status];
+  const status  = (quote.status as QuoteStatus) in STATUS_STYLES ? (quote.status as QuoteStatus) : "draft";
+  const sc      = STATUS_STYLES[status];
   const StatusIcon = sc.icon;
 
   const isExpiredOrRejected = ["expired", "rejected"].includes(quote.status);
@@ -254,23 +256,23 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                           <div className="bg-muted/30 rounded-xl p-4">
                             <div className="space-y-2">
                               <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Subtotal</span>
+                                <span className="text-muted-foreground">{t("quotations.drawer.subtotal")}</span>
                                 <span>{formatCurrency(subTotal, currency)}</span>
                               </div>
                               {quote.discountPercent > 0 && (
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground flex items-center gap-1">
-                                    <Percent className="h-3 w-3" />Discount ({quote.discountPercent}%)
+                                    <Percent className="h-3 w-3" />{t("quotations.drawer.discount")} ({quote.discountPercent}%)
                                   </span>
                                   <span className="text-destructive">−{formatCurrency(subTotal * quote.discountPercent / 100, currency)}</span>
                                 </div>
                               )}
                               <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Tax</span>
+                                <span className="text-muted-foreground">{t("quotations.drawer.tax")}</span>
                                 <span>{formatCurrency(taxAmount, currency)}</span>
                               </div>
                               <div className="border-t border-border/60 pt-2 flex justify-between font-bold text-base">
-                                <span>Total</span>
+                                <span>{t("quotations.drawer.total")}</span>
                                 <span className="text-primary">{formatCurrency(total, currency)}</span>
                               </div>
                             </div>
@@ -287,7 +289,7 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
             <div className="border-t border-border px-6 py-4 flex items-center gap-2 flex-wrap">
               {quote.status === "draft" && (
                 <Button size="sm" className="gap-1.5 h-9">
-                  <Send className="h-3.5 w-3.5" />Send to Customer
+                  <Send className="h-3.5 w-3.5" />{t("quotations.drawer.button.send")}
                 </Button>
               )}
               {quote.status === "approved" && (
@@ -301,34 +303,34 @@ export function QuotationDrawer({ quotation: quote, open, onClose }: Props) {
                     {convertMutation.isPending
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       : <ArrowRight className="h-3.5 w-3.5" />}
-                    Convert to Order
+                    {t("quotations.drawer.button.convert")}
                   </Button>
                 </Can>
               )}
               {quote.status === "expired" && (
                 <Button size="sm" className="gap-1.5 h-9">
-                  <Copy className="h-3.5 w-3.5" />Re-issue Quote
+                  <Copy className="h-3.5 w-3.5" />{t("quotations.drawer.button.reissue")}
                 </Button>
               )}
               <Button variant="outline" size="sm" className="gap-1.5 h-9 ml-auto">
-                <Copy className="h-3.5 w-3.5" />Duplicate
+                <Copy className="h-3.5 w-3.5" />{t("quotations.drawer.button.duplicate")}
               </Button>
               {["draft", "sent"].includes(quote.status) && (
                 <Can permission="sales.quotations.delete">{
                 confirmDelete ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-destructive font-medium">Delete this quote?</span>
+                    <span className="text-xs text-destructive font-medium">{t("quotations.drawer.deleteConfirm")}</span>
                     <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={deleteMutation.isPending}
                       onClick={handleDelete}>
-                      {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirm"}
+                      {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : t("quotations.drawer.button.confirm")}
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 text-xs"
-                      onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                      onClick={() => setConfirmDelete(false)}>{t("quotations.drawer.button.cancel")}</Button>
                   </div>
                 ) : (
                   <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:text-destructive hover:bg-destructive/10"
                     onClick={() => setConfirmDelete(true)}>
-                    <Trash2 className="h-3.5 w-3.5" />Delete
+                    <Trash2 className="h-3.5 w-3.5" />{t("quotations.drawer.button.delete")}
                   </Button>
                 )
                 }</Can>

@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navigationConfig } from "@/config/navigation";
+import { useNavigation } from "@/hooks/use-navigation";
 import type { NavItem, NavGroup, ModuleKey } from "@/types";
 import { useAuthStore } from "@/store/auth.store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -216,6 +216,7 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarNavItemProps) {
 export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   const { hasModuleAccess, user, tenant } = useAuthStore();
   const impersonation = useAuthStore((s) => s.impersonation);
+  const navigationConfig = useNavigation();
 
   // A platform super-admin who is NOT impersonating a tenant sees ONLY the super-admin
   // console (Tenant Management) — never operational modules with pooled cross-tenant data.
@@ -244,7 +245,7 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
       }))
       .filter((group) => group.items.length > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, tenant, impersonation]);
+  }, [user, tenant, impersonation, navigationConfig]);
 
   return (
     <TooltipProvider delayDuration={0}>

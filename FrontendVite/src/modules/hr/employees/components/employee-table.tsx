@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Search, MoreHorizontal, Eye, Edit, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,13 +12,7 @@ import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { DEPARTMENTS, type EmployeeDto as Employee, type EmployeeStatus } from "@/lib/hr/hr.api";
 
-const STATUS_FILTERS: { label: string; value: string }[] = [
-  { label: "All", value: "all" },
-  { label: "Active", value: "active" },
-  { label: "On Leave", value: "on_leave" },
-  { label: "Probation", value: "probation" },
-  { label: "Terminated", value: "terminated" },
-];
+const STATUS_FILTERS = ["all", "active", "on_leave", "probation", "terminated"] as const;
 
 type SortField = "fullName" | "department" | "designation" | "joinDate" | "basicSalary";
 type SortDir = "asc" | "desc";
@@ -25,6 +20,7 @@ type SortDir = "asc" | "desc";
 interface Props { employees: Employee[]; onView: (e: Employee) => void; }
 
 export function EmployeeTable({ employees, onView }: Props) {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
@@ -80,7 +76,7 @@ export function EmployeeTable({ employees, onView }: Props) {
             {/* Search */}
             <div className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <Input placeholder="Search name, ID, designation..." value={search}
+              <Input placeholder={t("employees.table.searchPlaceholder")} value={search}
                 onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
             </div>
             {/* Department filter */}
@@ -95,10 +91,10 @@ export function EmployeeTable({ employees, onView }: Props) {
           {/* Status filters */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {STATUS_FILTERS.map(f => (
-              <button key={f.value} onClick={() => setStatusFilter(f.value)}
+              <button key={f} onClick={() => setStatusFilter(f)}
                 className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                  statusFilter === f.value ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                {f.label}
+                  statusFilter === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
+                {f === "all" ? t("employees.table.filterAll") : t(`employeeStatus.${f}`)}
               </button>
             ))}
           </div>
@@ -110,19 +106,19 @@ export function EmployeeTable({ employees, onView }: Props) {
           <table className="w-full text-sm">
             <thead className="border-y border-border bg-muted/30">
               <tr>
-                {th("Employee", "fullName")}
-                {th("Department", "department")}
-                {th("Designation", "designation")}
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Branch</th>
-                {th("Join Date", "joinDate")}
-                {th("Salary", "basicSalary")}
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                {th(t("employees.table.employee"), "fullName")}
+                {th(t("employees.table.department"), "department")}
+                {th(t("employees.table.designation"), "designation")}
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.table.branch")}</th>
+                {th(t("employees.table.joinDate"), "joinDate")}
+                {th(t("employees.table.salary"), "basicSalary")}
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.table.status")}</th>
                 <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">No employees found.</td></tr>
+                <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">{t("employees.table.empty")}</td></tr>
               ) : (
                 filtered.map((emp, i) => (
                   <motion.tr key={emp.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
@@ -157,11 +153,11 @@ export function EmployeeTable({ employees, onView }: Props) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onView(emp)}><Eye className="mr-2 h-4 w-4" />View Profile</DropdownMenuItem>
-                          <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />Edit</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onView(emp)}><Eye className="mr-2 h-4 w-4" />{t("employees.table.viewProfile")}</DropdownMenuItem>
+                          <DropdownMenuItem><Edit className="mr-2 h-4 w-4" />{t("employees.table.edit")}</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-destructive focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />Terminate
+                            <Trash2 className="mr-2 h-4 w-4" />{t("employees.table.terminate")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -173,11 +169,11 @@ export function EmployeeTable({ employees, onView }: Props) {
           </table>
         </div>
         <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          <span>Showing {filtered.length} of {employees.length} employees</span>
+          <span>{t("employees.table.showing", { shown: filtered.length, total: employees.length })}</span>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>Previous</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>{t("employees.table.previous")}</Button>
             <Button variant="outline" size="sm" className="h-7 text-xs px-3 bg-primary/5 border-primary/20 text-primary">1</Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>Next</Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs" disabled>{t("employees.table.next")}</Button>
           </div>
         </div>
       </CardContent>

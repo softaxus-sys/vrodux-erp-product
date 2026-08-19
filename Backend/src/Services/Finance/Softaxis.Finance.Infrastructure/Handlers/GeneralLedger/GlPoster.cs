@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.Finance.Domain.Entities;
 using Softaxis.Finance.Infrastructure.Persistence;
+using Softaxis.Finance.Infrastructure.Persistence.Seed;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 
@@ -20,7 +22,24 @@ internal static class GlPoster
     public const string Purchases     = "5400"; // Cost of Goods Sold / Purchases
     public const string FxGainLoss    = "4950"; // Foreign Exchange Gain/Loss (net account)
 
+    /// <summary>
+    /// Every account number this poster can reference. Startup asserts the chart-of-accounts
+    /// catalogue covers all of them, so a missing one is caught at boot rather than when a
+    /// tenant next sends an invoice.
+    /// </summary>
+    public static readonly IReadOnlyList<string> RequiredAccountNumbers =
+    [
+        Cash, Bank, AccountsReceivable, AccountsPayable, VatPayable, SalesRevenue, Purchases, FxGainLoss,
+    ];
+
     public sealed record Line(string AccountNumber, decimal Debit, decimal Credit, string? Description = null);
+
+    /// <summary>Looks the posting accounts up for the current tenant (the global filter scopes this).</summary>
+    private static async Task<Dictionary<string, Account>> LoadAccountsAsync(
+        FinanceDbContext db, IReadOnlyList<string> accountNumbers, CancellationToken ct)
+        => await db.Accounts.AsNoTracking()
+            .Where(a => accountNumbers.Contains(a.AccountNumber) && !a.IsDeleted)
+            .ToDictionaryAsync(a => a.AccountNumber, ct);
 
     /// <summary>Builds, balances, and posts a journal entry. Returns the new entry's id, or null if there were no non-zero lines.</summary>
     public static async Task<Guid?> PostAsync(
@@ -31,15 +50,25 @@ internal static class GlPoster
             return null;
 
         var accountNumbers = nonZeroLines.Select(l => l.AccountNumber).Distinct().ToList();
-        var accounts = await db.Accounts.AsNoTracking()
-            .Where(a => accountNumbers.Contains(a.AccountNumber))
-            .ToDictionaryAsync(a => a.AccountNumber, ct);
+        var accounts = await LoadAccountsAsync(db, accountNumbers, ct);
+
+        // A tenant created since the last startup backfill has no chart of accounts yet. Provision
+        // the standard chart for it on demand rather than failing the invoice/bill it is posting.
+        if (accountNumbers.Any(number => !accounts.ContainsKey(number)) && TenantAmbient.TenantId is { } tenantId)
+        {
+            await ChartOfAccountsProvisioner.EnsureForTenantAsync(db, tenantId, ct);
+            await db.SaveChangesAsync(ct);
+            accounts = await LoadAccountsAsync(db, accountNumbers, ct);
+        }
 
         var entry = new JournalEntry(date, description, reference, null);
         foreach (var line in nonZeroLines)
         {
             if (!accounts.TryGetValue(line.AccountNumber, out var account))
-                throw new InvalidOperationException($"GL account '{line.AccountNumber}' was not found while auto-posting '{description}'.");
+                throw new InvalidOperationException(
+                    $"GL account '{line.AccountNumber}' was not found for this tenant while auto-posting " +
+                    $"'{description}'. The standard chart of accounts should be provisioned automatically — " +
+                    $"if this persists, check that the account exists and is not soft-deleted.");
 
             entry.Lines.Add(new JournalEntryLine(entry.Id, account.Id, account.Name, line.Debit, line.Credit, line.Description));
         }

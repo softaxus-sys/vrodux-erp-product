@@ -14,35 +14,38 @@ import {
 import type { KitchenStation, PrinterProfile, Combo, ComboItemInput, HappyHourRule } from "@/lib/restaurant/restaurant.api";
 import { useAuthStore } from "@/store/auth.store";
 import { Can, useCan } from "@/components/auth/can";
+import { useTranslation } from "react-i18next";
 
 const TABS = [
-  { id: "stations", label: "Kitchen Stations", icon: ChefHat },
-  { id: "printers", label: "Printers", icon: Printer },
-  { id: "combos", label: "Combos", icon: UtensilsCrossed },
-  { id: "happyhour", label: "Happy Hour", icon: Clock },
+  { id: "stations", icon: ChefHat },
+  { id: "printers", icon: Printer },
+  { id: "combos", icon: UtensilsCrossed },
+  { id: "happyhour", icon: Clock },
 ] as const;
 
+// `key` indexes kitchenConfig.day.*; `bit` is the persisted daysOfWeekMask value.
 const DAYS = [
-  { bit: 1, label: "Sun" }, { bit: 2, label: "Mon" }, { bit: 4, label: "Tue" }, { bit: 8, label: "Wed" },
-  { bit: 16, label: "Thu" }, { bit: 32, label: "Fri" }, { bit: 64, label: "Sat" },
+  { bit: 1, key: "sun" }, { bit: 2, key: "mon" }, { bit: 4, key: "tue" }, { bit: 8, key: "wed" },
+  { bit: 16, key: "thu" }, { bit: 32, key: "fri" }, { bit: 64, key: "sat" },
 ];
 
 export function KitchenConfigView() {
+  const { t } = useTranslation("restaurant");
   const [tab, setTab] = React.useState<typeof TABS[number]["id"]>("stations");
 
   return (
     <div className="p-6 space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Kitchen & Menu Configuration</h1>
-        <p className="text-sm text-muted-foreground">Stations, printers, combo deals, and happy-hour pricing.</p>
+        <h1 className="text-xl font-bold text-foreground">{t("kitchenConfig.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("kitchenConfig.subtitle")}</p>
       </div>
 
       <div className="flex gap-2 border-b border-border pb-2">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+        {TABS.map(tb => (
+          <button key={tb.id} onClick={() => setTab(tb.id)}
             className={cn("px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5",
-              tab === t.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
-            <t.icon className="w-3.5 h-3.5" /> {t.label}
+              tab === tb.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
+            <tb.icon className="w-3.5 h-3.5" /> {t(`kitchenConfig.tab.${tb.id}`)}
           </button>
         ))}
       </div>
@@ -57,6 +60,7 @@ export function KitchenConfigView() {
 
 // ─── Kitchen Stations ──────────────────────────────────────────────────────────
 function StationsTab() {
+  const { t } = useTranslation("restaurant");
   const { data: stations = [] } = useKitchenStations();
   const { data: printers = [] } = usePrinterProfiles();
   const create = useCreateKitchenStation();
@@ -68,7 +72,7 @@ function StationsTab() {
   return (
     <div className="space-y-3">
       {canEdit && (
-        <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> Add Station</Button>
+        <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> {t("kitchenConfig.stations.add")}</Button>
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {stations.map(s => (
@@ -80,17 +84,17 @@ function StationsTab() {
               </div>
               {canEdit && (
                 <div className="flex gap-1">
-                  <button onClick={() => setEditing(s)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button onClick={() => setEditing(s)} className="text-xs text-primary hover:underline">{t("kitchenConfig.edit")}</button>
                   <button onClick={() => del.mutate(s.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
                 </div>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {printers.find(p => p.id === s.printerProfileId)?.name ?? "No printer assigned"}
+              {printers.find(p => p.id === s.printerProfileId)?.name ?? t("kitchenConfig.stations.noPrinter")}
             </p>
           </div>
         ))}
-        {stations.length === 0 && <p className="text-sm text-muted-foreground">No kitchen stations yet.</p>}
+        {stations.length === 0 && <p className="text-sm text-muted-foreground">{t("kitchenConfig.stations.empty")}</p>}
       </div>
 
       {editing && (
@@ -109,6 +113,7 @@ function StationModal({ station, printers, onClose, onSave }: {
   station: KitchenStation | null; printers: PrinterProfile[]; onClose: () => void;
   onSave: (p: { name: string; displayName?: string | null; colorTag?: string | null; sortOrder: number; printerProfileId?: string | null }) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState(station?.name ?? "");
   const [displayName, setDisplayName] = React.useState(station?.displayName ?? "");
   const [colorTag, setColorTag] = React.useState(station?.colorTag ?? "#f97316");
@@ -117,26 +122,26 @@ function StationModal({ station, printers, onClose, onSave }: {
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-sm">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{station ? "Edit" : "Add"} Station</p>
+        <p className="text-sm font-semibold text-foreground">{t(station ? "kitchenConfig.stations.editTitle" : "kitchenConfig.stations.addTitle")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
-      <div><label className="text-xs text-muted-foreground">Name</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Grill" className="h-9 text-sm" /></div>
-      <div><label className="text-xs text-muted-foreground">Display Name (optional)</label>
+      <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.stations.name")}</label>
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("kitchenConfig.stations.namePlaceholder")} className="h-9 text-sm" /></div>
+      <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.stations.displayName")}</label>
         <Input value={displayName} onChange={e => setDisplayName(e.target.value)} className="h-9 text-sm" /></div>
       <div className="flex items-center gap-2">
-        <label className="text-xs text-muted-foreground">Color</label>
+        <label className="text-xs text-muted-foreground">{t("kitchenConfig.stations.color")}</label>
         <input type="color" value={colorTag} onChange={e => setColorTag(e.target.value)} className="h-8 w-12" />
       </div>
-      <div><label className="text-xs text-muted-foreground">Printer</label>
+      <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.stations.printer")}</label>
         <select value={printerProfileId} onChange={e => setPrinterProfileId(e.target.value)}
           className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-          <option value="">None</option>
+          <option value="">{t("kitchenConfig.stations.none")}</option>
           {printers.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select></div>
       <Button className="w-full" disabled={!name.trim()}
         onClick={() => onSave({ name: name.trim(), displayName: displayName.trim() || null, colorTag, sortOrder: 0, printerProfileId: printerProfileId || null })}>
-        Save Station
+        {t("kitchenConfig.stations.save")}
       </Button>
     </LeftDrawer>
   );
@@ -144,6 +149,7 @@ function StationModal({ station, printers, onClose, onSave }: {
 
 // ─── Printer Profiles ──────────────────────────────────────────────────────────
 function PrintersTab() {
+  const { t } = useTranslation("restaurant");
   const { data: printers = [] } = usePrinterProfiles();
   const create = useCreatePrinterProfile();
   const update = useUpdatePrinterProfile();
@@ -153,7 +159,7 @@ function PrintersTab() {
 
   return (
     <div className="space-y-3">
-      {canEdit && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> Add Printer</Button>}
+      {canEdit && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> {t("kitchenConfig.printers.add")}</Button>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {printers.map(p => (
           <div key={p.id} className="bg-card border border-border rounded-xl p-4">
@@ -161,16 +167,16 @@ function PrintersTab() {
               <p className="font-semibold text-foreground">{p.name}</p>
               {canEdit && (
                 <div className="flex gap-1">
-                  <button onClick={() => setEditing(p)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button onClick={() => setEditing(p)} className="text-xs text-primary hover:underline">{t("kitchenConfig.edit")}</button>
                   <button onClick={() => del.mutate(p.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
                 </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1 capitalize">{p.type} · {p.connectionType}{p.isDefault ? " · Default" : ""}</p>
+            <p className="text-xs text-muted-foreground mt-1 capitalize">{p.type} · {p.connectionType}{p.isDefault ? t("kitchenConfig.printers.defaultSuffix") : ""}</p>
             {p.ipAddress && <p className="text-xs text-muted-foreground">{p.ipAddress}{p.port ? `:${p.port}` : ""}</p>}
           </div>
         ))}
-        {printers.length === 0 && <p className="text-sm text-muted-foreground">No printer profiles yet.</p>}
+        {printers.length === 0 && <p className="text-sm text-muted-foreground">{t("kitchenConfig.printers.empty")}</p>}
       </div>
 
       {editing && (
@@ -188,6 +194,7 @@ function PrinterModal({ printer, onClose, onSave }: {
   printer: PrinterProfile | null; onClose: () => void;
   onSave: (p: { name: string; type: string; connectionType: string; ipAddress?: string | null; port?: number | null; isDefault: boolean }) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState(printer?.name ?? "");
   const [type, setType] = React.useState(printer?.type ?? "kitchen");
   const [connectionType, setConnectionType] = React.useState(printer?.connectionType ?? "network");
@@ -198,35 +205,35 @@ function PrinterModal({ printer, onClose, onSave }: {
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-sm">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{printer ? "Edit" : "Add"} Printer</p>
+        <p className="text-sm font-semibold text-foreground">{t(printer ? "kitchenConfig.printers.editTitle" : "kitchenConfig.printers.addTitle")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
-      <div><label className="text-xs text-muted-foreground">Name</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Kitchen Printer 1" className="h-9 text-sm" /></div>
+      <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.name")}</label>
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("kitchenConfig.printers.namePlaceholder")} className="h-9 text-sm" /></div>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">Type</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.type")}</label>
           <select value={type} onChange={e => setType(e.target.value)} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-            <option value="kitchen">Kitchen</option><option value="receipt">Receipt</option>
+            <option value="kitchen">{t("kitchenConfig.printers.typeKitchen")}</option><option value="receipt">{t("kitchenConfig.printers.typeReceipt")}</option>
           </select></div>
-        <div><label className="text-xs text-muted-foreground">Connection</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.connection")}</label>
           <select value={connectionType} onChange={e => setConnectionType(e.target.value)} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-            <option value="network">Network</option><option value="usb">USB</option><option value="bluetooth">Bluetooth</option>
+            <option value="network">{t("kitchenConfig.printers.connNetwork")}</option><option value="usb">{t("kitchenConfig.printers.connUsb")}</option><option value="bluetooth">{t("kitchenConfig.printers.connBluetooth")}</option>
           </select></div>
       </div>
       {connectionType === "network" && (
         <div className="grid grid-cols-2 gap-2">
-          <div><label className="text-xs text-muted-foreground">IP Address</label>
-            <Input value={ipAddress} onChange={e => setIpAddress(e.target.value)} placeholder="192.168.1.50" className="h-9 text-sm" /></div>
-          <div><label className="text-xs text-muted-foreground">Port</label>
+          <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.ip")}</label>
+            <Input value={ipAddress} onChange={e => setIpAddress(e.target.value)} placeholder={t("kitchenConfig.printers.ipPlaceholder")} className="h-9 text-sm" /></div>
+          <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.port")}</label>
             <Input value={port} onChange={e => setPort(e.target.value)} className="h-9 text-sm" /></div>
         </div>
       )}
       <label className="flex items-center gap-2 text-sm text-foreground">
-        <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} /> Default printer
+        <input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} /> {t("kitchenConfig.printers.isDefault")}
       </label>
       <Button className="w-full" disabled={!name.trim()}
         onClick={() => onSave({ name: name.trim(), type, connectionType, ipAddress: ipAddress.trim() || null, port: port ? Number(port) : null, isDefault })}>
-        Save Printer
+        {t("kitchenConfig.printers.save")}
       </Button>
     </LeftDrawer>
   );
@@ -234,6 +241,7 @@ function PrinterModal({ printer, onClose, onSave }: {
 
 // ─── Combos ────────────────────────────────────────────────────────────────────
 function CombosTab() {
+  const { t } = useTranslation("restaurant");
   const { data: combos = [] } = useCombos();
   const { data: menu = [] } = useMenu();
   const create = useCreateCombo();
@@ -245,7 +253,7 @@ function CombosTab() {
 
   return (
     <div className="space-y-3">
-      {canEdit && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> Add Combo</Button>}
+      {canEdit && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> {t("kitchenConfig.combos.add")}</Button>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {combos.map(c => (
           <div key={c.id} className="bg-card border border-border rounded-xl p-4">
@@ -253,16 +261,16 @@ function CombosTab() {
               <p className="font-semibold text-foreground">{c.name}</p>
               {canEdit && (
                 <div className="flex gap-1">
-                  <button onClick={() => setEditing(c)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button onClick={() => setEditing(c)} className="text-xs text-primary hover:underline">{t("kitchenConfig.edit")}</button>
                   <button onClick={() => del.mutate(c.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
                 </div>
               )}
             </div>
             <p className="text-sm font-bold text-primary">{formatCurrency(c.price, currency)}</p>
-            <p className="text-xs text-muted-foreground mt-1">{c.items.length} slot(s){!c.isActive && " · Inactive"}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t("kitchenConfig.combos.slots", { n: c.items.length })}{!c.isActive && t("kitchenConfig.combos.inactiveSuffix")}</p>
           </div>
         ))}
-        {combos.length === 0 && <p className="text-sm text-muted-foreground">No combos yet.</p>}
+        {combos.length === 0 && <p className="text-sm text-muted-foreground">{t("kitchenConfig.combos.empty")}</p>}
       </div>
 
       {editing && (
@@ -282,6 +290,7 @@ function ComboModal({ combo, menu, onClose, onSave }: {
   combo: Combo | null; menu: { id: string; name: string; items: { id: string; name: string }[] }[]; onClose: () => void;
   onSave: (p: { name: string; price: number; items: ComboItemInput[]; isActive?: boolean }) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState(combo?.name ?? "");
   const [price, setPrice] = React.useState(combo?.price?.toString() ?? "");
   const [isActive, setIsActive] = React.useState(combo?.isActive ?? true);
@@ -314,22 +323,22 @@ function ComboModal({ combo, menu, onClose, onSave }: {
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-lg">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{combo ? "Edit" : "Add"} Combo</p>
+        <p className="text-sm font-semibold text-foreground">{t(combo ? "kitchenConfig.combos.editTitle" : "kitchenConfig.combos.addTitle")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">Name</label>
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Burger Combo" className="h-9 text-sm" /></div>
-        <div><label className="text-xs text-muted-foreground">Combo Price</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.combos.name")}</label>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("kitchenConfig.combos.namePlaceholder")} className="h-9 text-sm" /></div>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.combos.price")}</label>
           <Input type="number" min={0} value={price} onChange={e => setPrice(e.target.value)} className="h-9 text-sm" /></div>
       </div>
       {combo && (
         <label className="flex items-center gap-2 text-sm text-foreground">
-          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> Active
+          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> {t("kitchenConfig.combos.active")}
         </label>
       )}
 
-      <p className="text-xs font-semibold text-muted-foreground">Slots</p>
+      <p className="text-xs font-semibold text-muted-foreground">{t("kitchenConfig.combos.slotsLabel")}</p>
       <div className="space-y-2">
         {slots.map(s => (
           <div key={s.key} className="flex items-center gap-2 border border-border rounded-lg p-2">
@@ -337,19 +346,19 @@ function ComboModal({ combo, menu, onClose, onSave }: {
               className="h-8 w-14 text-xs" />
             <select value={s.mode} onChange={e => updateSlot(s.key, { mode: e.target.value as "fixed" | "choice" })}
               className="h-8 text-xs rounded-md border border-border bg-card px-1">
-              <option value="fixed">Fixed item</option>
-              <option value="choice">Choose from category</option>
+              <option value="fixed">{t("kitchenConfig.combos.modeFixed")}</option>
+              <option value="choice">{t("kitchenConfig.combos.modeChoice")}</option>
             </select>
             {s.mode === "fixed" ? (
               <select value={s.menuItemId} onChange={e => updateSlot(s.key, { menuItemId: e.target.value })}
                 className="flex-1 h-8 text-xs rounded-md border border-border bg-card px-1">
-                <option value="">Select item…</option>
+                <option value="">{t("kitchenConfig.combos.selectItem")}</option>
                 {allItems.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
               </select>
             ) : (
               <select value={s.categoryId} onChange={e => updateSlot(s.key, { categoryId: e.target.value })}
                 className="flex-1 h-8 text-xs rounded-md border border-border bg-card px-1">
-                <option value="">Select category…</option>
+                <option value="">{t("kitchenConfig.combos.selectCategory")}</option>
                 {menu.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             )}
@@ -361,16 +370,17 @@ function ComboModal({ combo, menu, onClose, onSave }: {
       </div>
       <Button size="sm" variant="outline"
         onClick={() => setSlots(prev => [...prev, { key: `s-${Date.now()}`, menuItemId: "", categoryId: "", mode: "fixed", quantity: 1 }])}>
-        <Plus className="w-3.5 h-3.5 mr-1" /> Add Slot
+        <Plus className="w-3.5 h-3.5 mr-1" /> {t("kitchenConfig.combos.addSlot")}
       </Button>
 
-      <Button className="w-full" disabled={!valid} onClick={handleSave}>Save Combo</Button>
+      <Button className="w-full" disabled={!valid} onClick={handleSave}>{t("kitchenConfig.combos.save")}</Button>
     </LeftDrawer>
   );
 }
 
 // ─── Happy Hour Rules ──────────────────────────────────────────────────────────
 function HappyHourTab() {
+  const { t } = useTranslation("restaurant");
   const { data: rules = [] } = useHappyHourRules();
   const { data: menu = [] } = useMenu();
   const create = useCreateHappyHourRule();
@@ -381,7 +391,7 @@ function HappyHourTab() {
 
   return (
     <div className="space-y-3">
-      {canEdit && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> Add Rule</Button>}
+      {canEdit && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> {t("kitchenConfig.happyHour.add")}</Button>}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {rules.map(r => (
           <div key={r.id} className="bg-card border border-border rounded-xl p-4">
@@ -389,22 +399,26 @@ function HappyHourTab() {
               <p className="font-semibold text-foreground">{r.name}</p>
               {canEdit && (
                 <div className="flex gap-1">
-                  <button onClick={() => setEditing(r)} className="text-xs text-primary hover:underline">Edit</button>
+                  <button onClick={() => setEditing(r)} className="text-xs text-primary hover:underline">{t("kitchenConfig.edit")}</button>
                   <button onClick={() => del.mutate(r.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
                 </div>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {DAYS.filter(d => (r.daysOfWeekMask & d.bit) !== 0).map(d => d.label).join(", ")} · {r.startTime}–{r.endTime}
+              {DAYS.filter(d => (r.daysOfWeekMask & d.bit) !== 0).map(d => t(`kitchenConfig.day.${d.key}`)).join(", ")} · {r.startTime}–{r.endTime}
             </p>
             <p className="text-xs text-muted-foreground">
-              {r.discountType === "percentage" ? `${r.discountValue}% off` : `${r.discountValue} off`}
-              {r.categoryId ? ` · ${menu.find(c => c.id === r.categoryId)?.name ?? "category"}` : " · whole order"}
-              {!r.isActive && " · Inactive"}
+              {r.discountType === "percentage"
+                ? t("kitchenConfig.happyHour.percentOff", { value: r.discountValue })
+                : t("kitchenConfig.happyHour.flatOff", { value: r.discountValue })}
+              {r.categoryId
+                ? ` · ${menu.find(c => c.id === r.categoryId)?.name ?? t("kitchenConfig.happyHour.categoryFallback")}`
+                : t("kitchenConfig.happyHour.wholeOrderSuffix")}
+              {!r.isActive && t("kitchenConfig.happyHour.inactiveSuffix")}
             </p>
           </div>
         ))}
-        {rules.length === 0 && <p className="text-sm text-muted-foreground">No happy-hour rules yet.</p>}
+        {rules.length === 0 && <p className="text-sm text-muted-foreground">{t("kitchenConfig.happyHour.empty")}</p>}
       </div>
 
       {editing && (
@@ -422,6 +436,7 @@ function HappyHourModal({ rule, menu, onClose, onSave }: {
   rule: HappyHourRule | null; menu: { id: string; name: string }[]; onClose: () => void;
   onSave: (p: Omit<HappyHourRule, "id">) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState(rule?.name ?? "");
   const [mask, setMask] = React.useState(rule?.daysOfWeekMask ?? 62); // Mon-Fri default
   const [startTime, setStartTime] = React.useState(rule?.startTime ?? "17:00");
@@ -437,51 +452,51 @@ function HappyHourModal({ rule, menu, onClose, onSave }: {
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-sm">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{rule ? "Edit" : "Add"} Happy Hour Rule</p>
+        <p className="text-sm font-semibold text-foreground">{t(rule ? "kitchenConfig.happyHour.editTitle" : "kitchenConfig.happyHour.addTitle")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
-      <div><label className="text-xs text-muted-foreground">Name</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Evening Happy Hour" className="h-9 text-sm" /></div>
+      <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.name")}</label>
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("kitchenConfig.happyHour.namePlaceholder")} className="h-9 text-sm" /></div>
 
       <div>
-        <label className="text-xs text-muted-foreground">Days</label>
+        <label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.days")}</label>
         <div className="flex gap-1 mt-1">
           {DAYS.map(d => (
             <button key={d.bit} onClick={() => toggleDay(d.bit)}
               className={cn("px-2 py-1 rounded text-xs font-medium", (mask & d.bit) !== 0 ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground")}>
-              {d.label}
+              {t(`kitchenConfig.day.${d.key}`)}
             </button>
           ))}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">Start</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.start")}</label>
           <Input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="h-9 text-sm" /></div>
-        <div><label className="text-xs text-muted-foreground">End</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.end")}</label>
           <Input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="h-9 text-sm" /></div>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">Discount Type</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.discountType")}</label>
           <select value={discountType} onChange={e => setDiscountType(e.target.value as "percentage" | "flat")}
             className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-            <option value="percentage">Percentage</option><option value="flat">Flat Amount</option>
+            <option value="percentage">{t("kitchenConfig.happyHour.percentage")}</option><option value="flat">{t("kitchenConfig.happyHour.flat")}</option>
           </select></div>
-        <div><label className="text-xs text-muted-foreground">Value</label>
+        <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.value")}</label>
           <Input type="number" min={0} value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="h-9 text-sm" /></div>
       </div>
 
-      <div><label className="text-xs text-muted-foreground">Applies To</label>
+      <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.happyHour.appliesTo")}</label>
         <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
           className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-          <option value="">Whole order</option>
+          <option value="">{t("kitchenConfig.happyHour.wholeOrder")}</option>
           {menu.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select></div>
 
       {rule && (
         <label className="flex items-center gap-2 text-sm text-foreground">
-          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> Active
+          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> {t("kitchenConfig.happyHour.active")}
         </label>
       )}
 
@@ -491,7 +506,7 @@ function HappyHourModal({ rule, menu, onClose, onSave }: {
           discountType, discountValue: Number(discountValue), categoryId: categoryId || null,
           isActive, branchId: null,
         })}>
-        Save Rule
+        {t("kitchenConfig.happyHour.save")}
       </Button>
     </LeftDrawer>
   );

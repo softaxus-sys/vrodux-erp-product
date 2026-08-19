@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp, TrendingDown, Target, AlertTriangle, CheckCircle2, BarChart3,
@@ -23,11 +24,11 @@ const STATUS_STYLES: Record<BudgetStatus, string> = {
 };
 
 /** Valid lifecycle transitions, mirroring Budget.CanTransitionTo on the backend. */
-const STATUS_ACTIONS: Record<BudgetStatus, { to: BudgetStatus; label: string; variant?: "outline" }[]> = {
-  draft:    [{ to: "approved", label: "Submit for Approval" }],
-  approved: [{ to: "active", label: "Activate" }, { to: "draft", label: "Send Back to Draft", variant: "outline" }],
-  active:   [{ to: "closed", label: "Close Budget" }],
-  closed:   [{ to: "active", label: "Reopen", variant: "outline" }],
+const STATUS_ACTIONS: Record<BudgetStatus, { to: BudgetStatus; labelKey: string; variant?: "outline" }[]> = {
+  draft:    [{ to: "approved", labelKey: "budgeting.action.submitApproval" }],
+  approved: [{ to: "active", labelKey: "budgeting.action.activate" }, { to: "draft", labelKey: "budgeting.action.sendBackDraft", variant: "outline" }],
+  active:   [{ to: "closed", labelKey: "budgeting.action.closeBudget" }],
+  closed:   [{ to: "active", labelKey: "budgeting.action.reopen", variant: "outline" }],
 };
 
 function UtilisationBar({ actual, budget }: { actual: number; budget: number }) {
@@ -49,6 +50,7 @@ function UtilisationBar({ actual, budget }: { actual: number; budget: number }) 
 }
 
 function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void }) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const changeStatus = useChangeBudgetStatus();
   const actions = STATUS_ACTIONS[budget.status] ?? [];
@@ -73,7 +75,7 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
         className="fixed top-0 right-0 h-full w-full max-w-[480px] bg-background border-l border-border shadow-2xl z-50 flex flex-col"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Budget Detail</p>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("budgeting.drawer.header")}</p>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -83,16 +85,16 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold">{budget.name}</h2>
-              <p className="text-sm text-muted-foreground mt-0.5 capitalize">{budget.period} · {budget.lineCount} line items</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{budget.period} · {t("budgeting.drawer.lineItems", { count: budget.lineCount })}</p>
             </div>
-            <span className={cn("px-3 py-1 rounded-full text-xs font-semibold capitalize", STATUS_STYLES[budget.status])}>
-              {budget.status}
+            <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", STATUS_STYLES[budget.status])}>
+              {t(`budgeting.status.${budget.status}`)}
             </span>
           </div>
 
           {/* Status workflow actions */}
           <div className="rounded-xl border border-border bg-card p-4">
-            <p className="text-xs font-semibold text-muted-foreground mb-2">Status Workflow</p>
+            <p className="text-xs font-semibold text-muted-foreground mb-2">{t("budgeting.drawer.statusWorkflow")}</p>
             {actions.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {actions.map((a) => (
@@ -103,29 +105,29 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
                     disabled={changeStatus.isPending}
                     onClick={() => changeStatus.mutate({ id: budget.id, status: a.to })}
                   >
-                    {a.label}
+                    {t(a.labelKey)}
                   </Button>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">This budget is closed — no further actions.</p>
+              <p className="text-sm text-muted-foreground">{t("budgeting.drawer.noActions")}</p>
             )}
-            <p className="text-[11px] text-muted-foreground mt-2">Lifecycle: Draft → Approved → Active → Closed</p>
+            <p className="text-[11px] text-muted-foreground mt-2">{t("budgeting.drawer.lifecycle")}</p>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">Budgeted</p>
+              <p className="text-xs text-muted-foreground">{t("budgeting.drawer.budgeted")}</p>
               <p className="text-lg font-bold text-primary mt-1">{formatCurrency(budget.totalBudgeted, currency)}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">Actual</p>
+              <p className="text-xs text-muted-foreground">{t("budgeting.drawer.actual")}</p>
               <p className={cn("text-lg font-bold mt-1", budget.totalActual > budget.totalBudgeted ? "text-destructive" : "text-success")}>
                 {formatCurrency(budget.totalActual, currency)}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">Variance</p>
+              <p className="text-xs text-muted-foreground">{t("budgeting.drawer.variance")}</p>
               <p className={cn("text-lg font-bold mt-1", budget.variance > 0 ? "text-destructive" : "text-success")}>
                 {budget.variance > 0 ? "+" : ""}{formatCurrency(Math.abs(budget.variance), currency)}
               </p>
@@ -133,15 +135,15 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
           </div>
 
           <div>
-            <p className="text-xs text-muted-foreground mb-2">Budget Utilisation</p>
+            <p className="text-xs text-muted-foreground mb-2">{t("budgeting.drawer.utilisation")}</p>
             <UtilisationBar actual={budget.totalActual} budget={budget.totalBudgeted} />
           </div>
 
           <div className="space-y-0 divide-y divide-border/50">
             {[
-              { label: "Period", value: budget.period ? budget.period.charAt(0).toUpperCase() + budget.period.slice(1) : "—" },
-              { label: "Variance %", value: `${Number(variancePct) > 0 ? "+" : ""}${variancePct}%` },
-              { label: "Line Items", value: String(budget.lineCount) },
+              { label: t("budgeting.drawer.period"), value: budget.period ? budget.period.charAt(0).toUpperCase() + budget.period.slice(1) : "—" },
+              { label: t("budgeting.drawer.variancePct"), value: `${Number(variancePct) > 0 ? "+" : ""}${variancePct}%` },
+              { label: t("budgeting.drawer.lineItemsLabel"), value: String(budget.lineCount) },
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between items-center py-3">
                 <span className="text-xs text-muted-foreground">{label}</span>
@@ -156,6 +158,7 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
 }
 
 export function BudgetingView() {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: budgets = [] } = useBudgets();
 
@@ -188,12 +191,12 @@ export function BudgetingView() {
   const utilisationPct = totalBudgeted > 0 ? ((totalActual / totalBudgeted) * 100).toFixed(1) : "0.0";
 
   const STAT_CARDS = [
-    { label: "Total Budgeted", value: formatCurrency(totalBudgeted, currency), icon: Target, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Actual Spend", value: formatCurrency(totalActual, currency), icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
-    { label: "Overall Variance", value: formatCurrency(budgetingSummary?.overallVariance ?? 0, currency), icon: TrendingDown, color: "text-success", bg: "bg-success/10" },
-    { label: "Deps Over Budget", value: budgetingSummary?.depsOverBudget ?? budgets.filter(b => b.totalActual > b.totalBudgeted).length, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-    { label: "Deps Under Budget", value: budgetingSummary?.depsUnderBudget ?? budgets.filter(b => b.totalActual <= b.totalBudgeted).length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
-    { label: "Utilisation", value: `${budgetingSummary?.utilisation ?? utilisationPct}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("budgeting.stat.totalBudgeted"), value: formatCurrency(totalBudgeted, currency), icon: Target, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("budgeting.stat.actualSpend"), value: formatCurrency(totalActual, currency), icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
+    { label: t("budgeting.stat.overallVariance"), value: formatCurrency(budgetingSummary?.overallVariance ?? 0, currency), icon: TrendingDown, color: "text-success", bg: "bg-success/10" },
+    { label: t("budgeting.stat.depsOver"), value: budgetingSummary?.depsOverBudget ?? budgets.filter(b => b.totalActual > b.totalBudgeted).length, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+    { label: t("budgeting.stat.depsUnder"), value: budgetingSummary?.depsUnderBudget ?? budgets.filter(b => b.totalActual <= b.totalBudgeted).length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+    { label: t("budgeting.stat.utilisation"), value: `${budgetingSummary?.utilisation ?? utilisationPct}%`, icon: TrendingUp, color: "text-primary", bg: "bg-primary/10" },
   ];
 
   return (
@@ -201,14 +204,14 @@ export function BudgetingView() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Budget Planning</h1>
-          <p className="text-muted-foreground mt-0.5 text-sm">Track departmental budgets vs. actual spending for FY2026.</p>
+          <h1 className="text-2xl font-bold">{t("budgeting.title")}</h1>
+          <p className="text-muted-foreground mt-0.5 text-sm">{t("budgeting.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Can permission="finance.budgeting.create">
             <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-              <Plus className="h-4 w-4" /> New Budget
+              <Plus className="h-4 w-4" /> {t("budgeting.newBudget")}
             </Button>
           </Can>
         </div>
@@ -236,17 +239,17 @@ export function BudgetingView() {
       {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 bg-muted/30 border-b border-border">
-          <p className="text-sm font-semibold">Budget Overview</p>
+          <p className="text-sm font-semibold">{t("budgeting.overview")}</p>
         </div>
         <table className="w-full">
           <thead>
             <tr className="border-b border-border/50">
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Budget Name</th>
-              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Budgeted</th>
-              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Actual</th>
-              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Variance</th>
-              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground w-48">Utilisation</th>
-              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("budgeting.table.budgetName")}</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("budgeting.table.budgeted")}</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("budgeting.table.actual")}</th>
+              <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("budgeting.table.variance")}</th>
+              <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground w-48">{t("budgeting.table.utilisation")}</th>
+              <th className="text-center px-4 py-2.5 text-xs font-semibold text-muted-foreground">{t("budgeting.table.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -262,7 +265,7 @@ export function BudgetingView() {
                 >
                   <td className="px-4 py-3">
                     <p className="text-sm font-semibold">{budget.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{budget.period} · {budget.lineCount} lines</p>
+                    <p className="text-xs text-muted-foreground">{budget.period} · {t("budgeting.table.linesShort", { count: budget.lineCount })}</p>
                   </td>
                   <td className="px-4 py-3 text-right text-sm text-muted-foreground">
                     {formatCurrency(budget.totalBudgeted, currency)}
@@ -278,8 +281,8 @@ export function BudgetingView() {
                     <UtilisationBar actual={budget.totalActual} budget={budget.totalBudgeted} />
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold capitalize", STATUS_STYLES[budget.status])}>
-                      {budget.status}
+                    <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", STATUS_STYLES[budget.status])}>
+                      {t(`budgeting.status.${budget.status}`)}
                     </span>
                   </td>
                 </tr>

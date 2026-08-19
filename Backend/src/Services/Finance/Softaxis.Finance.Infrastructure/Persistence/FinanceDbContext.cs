@@ -42,6 +42,22 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         // from tenant isolation so they are shared across tenants and not hidden by a NULL TenantId.
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Finance.Domain",
             exclude: [typeof(Currency), typeof(ExchangeRate)]);
+
+        // Account numbers and account-type codes are unique PER TENANT, not globally. These were
+        // originally single-column unique indexes, which made it impossible for a second tenant to
+        // own the standard chart of accounts at all (inserting its own '1001' hit a duplicate key).
+        // Declared here rather than in the entity configurations because the shadow TenantId
+        // property only exists after ApplyTenantId has run. Filtered to non-NULL so the legacy
+        // global rows (TenantId IS NULL) are exempt. Mirrors the roles Name -> (TenantId, Name) fix.
+        modelBuilder.Entity<Account>()
+            .HasIndex(TenantIsolation.Column, nameof(Account.AccountNumber))
+            .IsUnique()
+            .HasFilter($"[{TenantIsolation.Column}] IS NOT NULL");
+        modelBuilder.Entity<AccountType>()
+            .HasIndex(TenantIsolation.Column, nameof(AccountType.Code))
+            .IsUnique()
+            .HasFilter($"[{TenantIsolation.Column}] IS NOT NULL");
+
         base.OnModelCreating(modelBuilder);
     }
 

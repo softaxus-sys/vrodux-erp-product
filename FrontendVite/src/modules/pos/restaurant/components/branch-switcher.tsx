@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Building2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrentBranch } from "@/hooks/restaurant/use-current-branch";
@@ -6,6 +7,7 @@ import { useCurrentBranch } from "@/hooks/restaurant/use-current-branch";
 /** Small dropdown for picking the "acting branch" — hidden entirely for single-location tenants
  * (no branches configured at all) since there's nothing to switch between. */
 export function BranchSwitcher() {
+  const { t } = useTranslation("restaurant");
   const { branchId, branchName, options, restricted, setBranchId } = useCurrentBranch();
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
@@ -34,7 +36,7 @@ export function BranchSwitcher() {
             <button onClick={() => { setBranchId(null); setOpen(false); }}
               className={cn("w-full text-left px-3 py-1.5 text-sm hover:bg-muted/30",
                 branchId === null && "text-primary font-medium")}>
-              All Branches
+              {t("branch.allBranches")}
             </button>
           )}
           {options.map(b => (

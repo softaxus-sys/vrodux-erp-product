@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface AddJournalFormProps {
 }
 
 export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
+  const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: accounts = [] } = useAccounts({ isActive: true });
   const createJournal = useCreateJournal();
@@ -93,10 +95,10 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
 
     try {
       await createJournal.mutateAsync(payload);
-      toast.success("Journal entry created successfully.");
+      toast.success(t("journals.form.created"));
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create journal entry.");
+      toast.error(err instanceof Error ? err.message : t("journals.form.createFailed"));
     }
   };
 
@@ -119,8 +121,8 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Journal Entry</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Record a manual double-entry transaction</p>
+                <h2 className="text-base font-bold text-foreground">{t("journals.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("journals.form.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -132,20 +134,20 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
               {/* Meta fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.form.date")}</label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reference</label>
-                  <Input value={reference} onChange={e => setReference(e.target.value)} placeholder="Invoice #, PO #..." className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.form.reference")}</label>
+                  <Input value={reference} onChange={e => setReference(e.target.value)} placeholder={t("journals.form.referencePh")} className="h-9 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description *</label>
-                  <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Record May rent expense" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.form.description")}</label>
+                  <Input value={description} onChange={e => setDescription(e.target.value)} placeholder={t("journals.form.descriptionPh")} className="h-9 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes <span className="text-muted-foreground/60 normal-case font-normal">(optional)</span></label>
-                  <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Supporting document references..." className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.form.notes")} <span className="text-muted-foreground/60 normal-case font-normal">{t("journals.form.optional")}</span></label>
+                  <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("journals.form.notesPh")} className="h-9 text-sm" />
                 </div>
               </div>
 
@@ -159,27 +161,31 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
               }`}>
                 <AlertCircle className="w-3.5 h-3.5" />
                 {isBalanced && totalDebit > 0
-                  ? `Balanced — ${formatCurrency(totalDebit, currency)}`
-                  : `Out of balance — Dr: ${formatCurrency(totalDebit, currency)} / Cr: ${formatCurrency(totalCredit, currency)} (diff: ${formatCurrency(Math.abs(totalDebit - totalCredit), currency)})`
+                  ? t("journals.form.balanced", { amount: formatCurrency(totalDebit, currency) })
+                  : t("journals.form.outOfBalance", {
+                      debit: formatCurrency(totalDebit, currency),
+                      credit: formatCurrency(totalCredit, currency),
+                      diff: formatCurrency(Math.abs(totalDebit - totalCredit), currency),
+                    })
                 }
               </div>
 
               {/* Journal Lines */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Journal Lines</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("journals.form.journalLines")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={addLine} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add Line
+                    <Plus className="w-3 h-3" /> {t("journals.form.addLine")}
                   </Button>
                 </div>
                 <div className="border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/30 border-b border-border">
                       <tr>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground w-52">Account</th>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Description</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">Debit (AED)</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">Credit (AED)</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground w-52">{t("journals.form.account")}</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("journals.form.lineDescription")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("journals.form.debitCol", { currency })}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("journals.form.creditCol", { currency })}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -192,7 +198,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                               onChange={e => selectAccount(line.id, e.target.value)}
                               className="w-full h-8 px-2 rounded border border-transparent bg-card text-xs text-foreground focus:outline-none focus:border-primary/40 hover:border-border"
                             >
-                              <option value="">Select account…</option>
+                              <option value="">{t("journals.form.selectAccount")}</option>
                               {accounts.map(a => (
                                 <option key={a.id} value={a.id}>
                                   {a.accountNumber} — {a.name}
@@ -204,7 +210,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                             <Input
                               value={line.description}
                               onChange={e => updateLine(line.id, "description", e.target.value)}
-                              placeholder="Line description"
+                              placeholder={t("journals.form.lineDescriptionPh")}
                               className="h-8 text-xs border-transparent bg-transparent focus-visible:border-primary/40 px-2"
                             />
                           </td>
@@ -240,7 +246,7 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
                     </tbody>
                     <tfoot className="bg-muted/20 border-t border-border">
                       <tr>
-                        <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground">Totals</td>
+                        <td colSpan={2} className="px-3 py-2 text-xs font-semibold text-muted-foreground">{t("journals.form.totals")}</td>
                         <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalDebit, currency)}</td>
                         <td className="px-3 py-2 text-right text-xs font-bold text-foreground">{formatCurrency(totalCredit, currency)}</td>
                         <td />
@@ -253,9 +259,9 @@ export function AddJournalForm({ open, onClose }: AddJournalFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? "Saving…" : "Post Journal"}
+                {isPending ? t("common:action.saving") : t("journals.form.postJournal")}
               </Button>
             </div>
           </motion.div>

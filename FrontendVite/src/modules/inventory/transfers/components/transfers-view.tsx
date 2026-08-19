@@ -1,5 +1,7 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import {
   ArrowLeftRight, Clock, Truck, CheckCircle2, Ban, DollarSign,
   Search, Plus, Calendar, X, MapPin,
@@ -18,19 +20,24 @@ import { ClientPagination, useClientPagination } from "@/components/ui/client-pa
 import { AddTransferForm } from "./add-transfer-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  draft:      { label: "Draft",      color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
-  pending:    { label: "Pending",    color: "text-warning",     bg: "bg-warning/10",                    dot: "bg-warning" },
-  in_transit: { label: "In Transit", color: "text-primary",     bg: "bg-primary/10",                    dot: "bg-primary" },
-  received:   { label: "Received",   color: "text-success",     bg: "bg-success/10",                    dot: "bg-success" },
-  cancelled:  { label: "Cancelled",  color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
+const STATUS_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
+const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
+  draft:      { color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
+  pending:    { color: "text-warning",     bg: "bg-warning/10",                    dot: "bg-warning" },
+  in_transit: { color: "text-primary",     bg: "bg-primary/10",                    dot: "bg-primary" },
+  received:   { color: "text-success",     bg: "bg-success/10",                    dot: "bg-success" },
+  cancelled:  { color: "text-destructive", bg: "bg-destructive/10",                dot: "bg-destructive" },
 };
+
+/** Localized transfer status label (falls back to "Unknown"). */
+const statusLabel = (status: string) =>
+  i18n.t(`transferStatus.${status}`, { ns: "inventory", defaultValue: i18n.t("transferStatus.unknown", { ns: "inventory" }) });
 
 function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceive, busy }: {
   transfer: StockTransfer | null; open: boolean; onClose: () => void;
   onSubmit: (id: string) => void; onApprove: (id: string) => void; onReceive: (id: string) => void; busy: boolean;
 }) {
+  const { t } = useTranslation("inventory");
   const currency = useCurrency();
   if (!transfer) return null;
   const sc = STATUS_CONFIG[transfer.status] ?? STATUS_FALLBACK;
@@ -51,42 +58,42 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
                 <span>{transfer.toWarehouseName}</span>
               </div>
               <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold mt-1.5", sc.color, sc.bg)}>
-                <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}
+                <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{statusLabel(transfer.status)}
               </span>
             </div>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
             <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Transfer Value</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("transfers.drawer.transferValue")}</p>
               <p className="text-2xl font-bold text-primary">{formatCurrency(transfer.totalValue, currency)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{(transfer.items ?? []).length} items</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("transfers.drawer.itemsCount", { count: (transfer.items ?? []).length })}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-muted/30 rounded-xl p-3">
-                <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" />From</p>
+                <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" />{t("transfers.drawer.from")}</p>
                 <p className="text-sm font-semibold">{transfer.fromWarehouseName}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3">
-                <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" />To</p>
+                <p className="text-[10px] text-muted-foreground mb-1 flex items-center gap-1"><MapPin className="h-3 w-3" />{t("transfers.drawer.to")}</p>
                 <p className="text-sm font-semibold">{transfer.toWarehouseName}</p>
               </div>
             </div>
             <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Requested By</span><span>{transfer.requestedBy}</span></div>
-              {transfer.approvedBy && <div className="flex justify-between"><span className="text-muted-foreground">Approved By</span><span>{transfer.approvedBy}</span></div>}
-              <div className="flex justify-between"><span className="text-muted-foreground">Request Date</span><span>{formatDate(transfer.requestDate, "medium")}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Expected</span><span>{formatDate(transfer.expectedDate, "medium")}</span></div>
-              {transfer.receivedDate && <div className="flex justify-between"><span className="text-muted-foreground">Received</span><span className="text-success">{formatDate(transfer.receivedDate, "medium")}</span></div>}
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("transfers.drawer.requestedBy")}</span><span>{transfer.requestedBy}</span></div>
+              {transfer.approvedBy && <div className="flex justify-between"><span className="text-muted-foreground">{t("transfers.drawer.approvedBy")}</span><span>{transfer.approvedBy}</span></div>}
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("transfers.drawer.requestDate")}</span><span>{formatDate(transfer.requestDate, "medium")}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">{t("transfers.drawer.expected")}</span><span>{formatDate(transfer.expectedDate, "medium")}</span></div>
+              {transfer.receivedDate && <div className="flex justify-between"><span className="text-muted-foreground">{t("transfers.drawer.received")}</span><span className="text-success">{formatDate(transfer.receivedDate, "medium")}</span></div>}
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Items ({(transfer.items ?? []).length})</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("transfers.drawer.items", { count: (transfer.items ?? []).length })}</h4>
               <div className="rounded-xl border border-border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead><tr className="bg-muted/40 text-xs text-muted-foreground">
-                    <th className="text-left px-3 py-2.5 font-semibold">Item</th>
-                    <th className="text-right px-3 py-2.5 font-semibold">Qty</th>
-                    <th className="text-right px-3 py-2.5 font-semibold">Value</th>
+                    <th className="text-left px-3 py-2.5 font-semibold">{t("transfers.drawer.colItem")}</th>
+                    <th className="text-right px-3 py-2.5 font-semibold">{t("transfers.drawer.colQty")}</th>
+                    <th className="text-right px-3 py-2.5 font-semibold">{t("transfers.drawer.colValue")}</th>
                   </tr></thead>
                   <tbody>
                     {(transfer.items ?? []).map((item, i) => (
@@ -104,13 +111,13 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
                 </table>
               </div>
             </div>
-            {transfer.notes && <div><h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Notes</h4>
+            {transfer.notes && <div><h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("transfers.drawer.notes")}</h4>
               <p className="text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">{transfer.notes}</p></div>}
           </div>
           <div className="border-t border-border px-6 py-4 flex items-center gap-2">
-            {transfer.status === "draft" && <Button size="sm" disabled={busy} onClick={() => onSubmit(transfer.id)} className="gap-1.5 h-9"><CheckCircle2 className="h-3.5 w-3.5" />Submit for Approval</Button>}
-            {transfer.status === "pending" && <Button size="sm" disabled={busy} onClick={() => onApprove(transfer.id)} className="gap-1.5 h-9"><Truck className="h-3.5 w-3.5" />Approve &amp; Dispatch</Button>}
-            {transfer.status === "in_transit" && <Button size="sm" disabled={busy} onClick={() => onReceive(transfer.id)} className="gap-1.5 h-9 bg-success hover:bg-success/90"><CheckCircle2 className="h-3.5 w-3.5" />Mark Received</Button>}
+            {transfer.status === "draft" && <Button size="sm" disabled={busy} onClick={() => onSubmit(transfer.id)} className="gap-1.5 h-9"><CheckCircle2 className="h-3.5 w-3.5" />{t("transfers.drawer.submitForApproval")}</Button>}
+            {transfer.status === "pending" && <Button size="sm" disabled={busy} onClick={() => onApprove(transfer.id)} className="gap-1.5 h-9"><Truck className="h-3.5 w-3.5" />{t("transfers.drawer.approveDispatch")}</Button>}
+            {transfer.status === "in_transit" && <Button size="sm" disabled={busy} onClick={() => onReceive(transfer.id)} className="gap-1.5 h-9 bg-success hover:bg-success/90"><CheckCircle2 className="h-3.5 w-3.5" />{t("transfers.drawer.markReceived")}</Button>}
           </div>
         </motion.div>
       </>)}
@@ -119,6 +126,7 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
 }
 
 export function TransfersView() {
+  const { t: tr } = useTranslation("inventory");
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<TransferStatus | "all">("all");
@@ -149,23 +157,20 @@ export function TransfersView() {
   const pg = useClientPagination(filtered, 25);
 
   const STATS = [
-    { label: "Total",      value: transfersSummary?.total      ?? stockTransfers.length,                                               icon: ArrowLeftRight, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Pending",    value: transfersSummary?.pending    ?? stockTransfers.filter(t => t.status === "pending").length,           icon: Clock,          color: "text-warning",   bg: "bg-warning/10" },
-    { label: "In Transit", value: transfersSummary?.inTransit  ?? stockTransfers.filter(t => t.status === "in_transit").length,        icon: Truck,          color: "text-primary",   bg: "bg-primary/10" },
-    { label: "Received",   value: transfersSummary?.received   ?? stockTransfers.filter(t => t.status === "received").length,          icon: CheckCircle2,   color: "text-success",   bg: "bg-success/10" },
-    { label: "Total Value", value: formatCurrency(transfersSummary?.totalValue ?? stockTransfers.reduce((s, t) => s + t.totalValue, 0), currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
+    { label: tr("transfers.stats.total"),      value: transfersSummary?.total      ?? stockTransfers.length,                                               icon: ArrowLeftRight, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: tr("transfers.stats.pending"),    value: transfersSummary?.pending    ?? stockTransfers.filter(t => t.status === "pending").length,           icon: Clock,          color: "text-warning",   bg: "bg-warning/10" },
+    { label: tr("transfers.stats.inTransit"),  value: transfersSummary?.inTransit  ?? stockTransfers.filter(t => t.status === "in_transit").length,        icon: Truck,          color: "text-primary",   bg: "bg-primary/10" },
+    { label: tr("transfers.stats.received"),   value: transfersSummary?.received   ?? stockTransfers.filter(t => t.status === "received").length,          icon: CheckCircle2,   color: "text-success",   bg: "bg-success/10" },
+    { label: tr("transfers.stats.totalValue"), value: formatCurrency(transfersSummary?.totalValue ?? stockTransfers.reduce((s, t) => s + t.totalValue, 0), currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
   ];
 
-  const FILTERS = [
-    { key: "all", label: "All" }, { key: "draft", label: "Draft" }, { key: "pending", label: "Pending" },
-    { key: "in_transit", label: "In Transit" }, { key: "received", label: "Received" }, { key: "cancelled", label: "Cancelled" },
-  ];
+  const FILTER_KEYS = ["all", "draft", "pending", "in_transit", "received", "cancelled"];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold">Stock Transfers</h1><p className="text-sm text-muted-foreground mt-0.5">Move inventory between warehouses and locations</p></div>
-        <Can permission="inventory.transfers.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Transfer</Button></Can>
+        <div><h1 className="text-2xl font-bold">{tr("transfers.title")}</h1><p className="text-sm text-muted-foreground mt-0.5">{tr("transfers.subtitle")}</p></div>
+        <Can permission="inventory.transfers.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{tr("transfers.newTransfer")}</Button></Can>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {STATS.map((s, i) => {
@@ -182,14 +187,14 @@ export function TransfersView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search transfers…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
+          <Input placeholder={tr("transfers.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {FILTERS.map(f => (
-            <button key={f.key} onClick={() => setStatusFilter(f.key as TransferStatus | "all")}
+          {FILTER_KEYS.map(key => (
+            <button key={key} onClick={() => setStatusFilter(key as TransferStatus | "all")}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                statusFilter === f.key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-              {f.label}
+                statusFilter === key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+              {key === "all" ? tr("transfers.filterAll") : statusLabel(key)}
             </button>
           ))}
         </div>
@@ -199,18 +204,18 @@ export function TransfersView() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Transfer #</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">From → To</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Requested By</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Expected</th>
-              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Items</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value</th>
-              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr("transfers.table.transferNo")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr("transfers.table.fromTo")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{tr("transfers.table.requestedBy")}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{tr("transfers.table.expected")}</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr("transfers.table.items")}</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr("transfers.table.value")}</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{tr("transfers.table.status")}</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No transfers found.</td></tr>
+              <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{tr("transfers.empty")}</td></tr>
             ) : pg.pageItems.map((t, i) => {
               const sc = STATUS_CONFIG[t.status] ?? STATUS_FALLBACK;
               return (
@@ -233,7 +238,7 @@ export function TransfersView() {
                   <td className="px-4 py-3.5 text-right font-semibold text-sm">{formatCurrency(t.totalValue, currency)}</td>
                   <td className="px-4 py-3.5 text-center">
                     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{sc.label}
+                      <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{statusLabel(t.status)}
                     </span>
                   </td>
                 </motion.tr>
@@ -246,7 +251,7 @@ export function TransfersView() {
         page={pg.page} totalPages={pg.totalPages} totalCount={pg.totalCount}
         hasPrev={pg.hasPrev} hasNext={pg.hasNext}
         onPrev={() => pg.setPage(p => p - 1)} onNext={() => pg.setPage(p => p + 1)}
-        label="transfers"
+        label={tr("transfers.label")}
       />
       <TransferDrawer
         transfer={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)}

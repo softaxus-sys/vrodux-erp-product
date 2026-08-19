@@ -1,4 +1,8 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { StagedDocumentPicker, uploadStagedDocuments } from "@/modules/crm/shared/components/staged-document-picker";
+import type { StagedDocument } from "@/modules/crm/shared/components/staged-document-picker";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +12,9 @@ import { useCurrency } from "@/hooks/use-currency";
 import type { CustomerDto } from "@/lib/crm/crm.api";
 
 const CUSTOMER_TYPES   = ["Individual", "Company", "Government", "SME", "Enterprise"];
+const TYPE_SLUG: Record<string, string> = {
+  "Individual": "individual", "Company": "company", "Government": "government", "SME": "sme", "Enterprise": "enterprise",
+};
 const INDUSTRIES       = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Other"];
 const PAYMENT_TERMS    = ["Net 15", "Net 30", "Net 45", "Net 60", "Cash on Delivery", "Advance"];
 
@@ -18,6 +25,7 @@ interface AddCustomerFormProps {
 }
 
 export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps) {
+  const { t } = useTranslation("crm");
   const isEdit = !!editing;
   const [customerType, setCustomerType] = React.useState("Company");
   const [name, setName]                 = React.useState("");
@@ -35,6 +43,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   const [country, setCountry]           = React.useState("UAE");
   const [assignedTo, setAssignedTo]     = React.useState("");
   const [notes, setNotes]               = React.useState("");
+  const [staged, setStaged]             = React.useState<StagedDocument[]>([]);
 
   const createCustomer = useCreateCustomer();
   const updateCustomer = useUpdateCustomer();
@@ -66,11 +75,20 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
         name: name.trim(), industry, country, city, address: address.trim(),
         phone: phone.trim(), email: email.trim(), tier: "standard",
         accountManager: assignedTo.trim(), description,
-      }, { onSuccess: onClose });
+      }, {
+        onSuccess: async (created: any) => {
+          if (staged.length && created?.id) {
+            const failed = await uploadStagedDocuments("customer", created.id, staged);
+            if (failed > 0) toast.error(t("documents.someFailed", { defaultValue: "{{count}} document(s) could not be attached.", count: failed }));
+          }
+          onClose();
+        },
+      });
     }
   };
 
   const reset = () => {
+    setStaged([]);
     setCustomerType("Company"); setName(""); setContactPerson(""); setEmail(""); setPhone("");
     setIndustry(""); setWebsite(""); setTrn(""); setPaymentTerms("Net 30"); setCreditLimit("");
     setAddress(""); setCity("Dubai"); setCountry("UAE"); setAssignedTo(""); setNotes("");
@@ -95,8 +113,8 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">{isEdit ? "Edit Customer" : "New Customer"}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? "Update account details" : "Add a new customer account"}</p>
+                <h2 className="text-base font-bold text-foreground">{isEdit ? t("customerForm.editTitle") : t("customerForm.newTitle")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? t("customerForm.editSubtitle") : t("customerForm.newSubtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -107,14 +125,14 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Type selector */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer Type</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.customerType")}</label>
                 <div className="flex gap-2 flex-wrap">
-                  {CUSTOMER_TYPES.map(t => (
-                    <button key={t} onClick={() => setCustomerType(t)}
+                  {CUSTOMER_TYPES.map(ct => (
+                    <button key={ct} onClick={() => setCustomerType(ct)}
                       className={`px-3 py-1.5 rounded-lg border-2 text-xs font-medium transition-all ${
-                        customerType === t ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
+                        customerType === ct ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
                       }`}>
-                      {t}
+                      {t(`customerForm.type.${TYPE_SLUG[ct]}`)}
                     </button>
                   ))}
                 </div>
@@ -122,43 +140,43 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
 
               {/* Basic Info */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Basic Information</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("customerForm.basicInformation")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {customerType === "Individual" ? "Full Name *" : "Company Name *"}
+                      {customerType === "Individual" ? t("customerForm.fullName") : t("customerForm.companyName")}
                     </label>
                     <Input value={name} onChange={e => setName(e.target.value)}
-                      placeholder={customerType === "Individual" ? "John Smith" : "Company Ltd."} className="h-9 text-sm" />
+                      placeholder={customerType === "Individual" ? t("customerForm.fullNamePlaceholder") : t("customerForm.companyNamePlaceholder")} className="h-9 text-sm" />
                   </div>
                   {customerType !== "Individual" && (
                     <div className="col-span-2 space-y-1.5">
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact Person</label>
-                      <Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Primary contact name…" className="h-9 text-sm" />
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.contactPerson")}</label>
+                      <Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder={t("customerForm.contactPersonPlaceholder")} className="h-9 text-sm" />
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.email")}</label>
                     <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@company.com" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.phone")}</label>
                     <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Industry</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.industry")}</label>
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select…</option>
+                      <option value="">{t("customerForm.select")}</option>
                       {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Website</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.website")}</label>
                     <Input value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">TRN (VAT No.)</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.trn")}</label>
                     <Input value={trn} onChange={e => setTrn(e.target.value)} placeholder="100XXXXXXXXX003" className="h-9 text-sm" />
                   </div>
                 </div>
@@ -166,23 +184,23 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
 
               {/* Financial */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Settings</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("customerForm.financialSettings")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment Terms</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.paymentTerms")}</label>
                     <select value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {PAYMENT_TERMS.map(pt => <option key={pt} value={pt}>{pt}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.currency")}</label>
                     <div className="w-full h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground">
                       {currency}
                     </div>
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Credit Limit ({currency})</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.creditLimit", { currency })}</label>
                     <Input type="number" min={0} step={1000} value={creditLimit} onChange={e => setCreditLimit(e.target.value)}
                       placeholder="0.00" className="h-9 text-sm text-right" />
                   </div>
@@ -191,18 +209,18 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
 
               {/* Address */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Address</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("customerForm.address")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Street Address</label>
-                    <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Building, street…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.streetAddress")}</label>
+                    <Input value={address} onChange={e => setAddress(e.target.value)} placeholder={t("customerForm.streetPlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">City</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.city")}</label>
                     <Input value={city} onChange={e => setCity(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Country</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.country")}</label>
                     <Input value={country} onChange={e => setCountry(e.target.value)} className="h-9 text-sm" />
                   </div>
                 </div>
@@ -211,24 +229,35 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
               {/* Assign & Notes */}
               <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account Manager</label>
-                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder="Assigned sales rep…" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.accountManager")}</label>
+                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder={t("customerForm.accountManagerPlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.notes")}</label>
                   <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Background, special terms, referral source…" rows={2}
+                    placeholder={t("customerForm.notesPlaceholder")} rows={2}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                   />
                 </div>
+              </div>
+
+              {/* Documents — optional. Staged locally, uploaded once the record has an id. */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  {t("documents.tab", { defaultValue: "Documents" })}
+                  <span className="ml-1.5 normal-case font-normal text-muted-foreground/70">
+                    {t("documents.optional", { defaultValue: "(optional)" })}
+                  </span>
+                </p>
+                <StagedDocumentPicker files={staged} onChange={setStaged} />
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={saving}>{t("customerForm.cancel")}</Button>
               <Button onClick={handleSave} disabled={!isValid || saving}>
-                {saving ? "Saving…" : isEdit ? "Save Changes" : "Save Customer"}
+                {saving ? t("customerForm.saving") : isEdit ? t("customerForm.saveChanges") : t("customerForm.saveCustomer")}
               </Button>
             </div>
           </motion.div>

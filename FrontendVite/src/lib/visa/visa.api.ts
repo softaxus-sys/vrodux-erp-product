@@ -10,18 +10,19 @@ export type VisaCaseStatus =
 
 export type CaseDocumentStatus = "pending" | "received" | "verified" | "rejected" | "expired";
 
-export const CASE_STATUS_META: Record<VisaCaseStatus, { label: string; color: string; bg: string }> = {
-  draft:         { label: "Draft",          color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50" },
-  docs_pending:  { label: "Docs Pending",   color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-900/20" },
-  docs_complete: { label: "Docs Complete",  color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20" },
-  submitted:     { label: "Submitted",      color: "text-violet-600",  bg: "bg-violet-50 dark:bg-violet-900/20" },
-  in_review:     { label: "In Review",      color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-900/20" },
-  rfi_required:  { label: "RFI Required",   color: "text-orange-600",  bg: "bg-orange-50 dark:bg-orange-900/20" },
-  approved:      { label: "Approved",       color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-  issued:        { label: "Issued",         color: "text-success",     bg: "bg-success/10" },
-  rejected:      { label: "Rejected",       color: "text-destructive", bg: "bg-destructive/10" },
-  cancelled:     { label: "Cancelled",      color: "text-muted-foreground", bg: "bg-muted" },
-  closed:        { label: "Closed",         color: "text-muted-foreground", bg: "bg-muted" },
+/** Styling only — labels come from i18n: t(`cases.status.${status}`) in the `visa` namespace. */
+export const CASE_STATUS_META: Record<VisaCaseStatus, { color: string; bg: string }> = {
+  draft:         { color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50" },
+  docs_pending:  { color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-900/20" },
+  docs_complete: { color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20" },
+  submitted:     { color: "text-violet-600",  bg: "bg-violet-50 dark:bg-violet-900/20" },
+  in_review:     { color: "text-indigo-600",  bg: "bg-indigo-50 dark:bg-indigo-900/20" },
+  rfi_required:  { color: "text-orange-600",  bg: "bg-orange-50 dark:bg-orange-900/20" },
+  approved:      { color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+  issued:        { color: "text-success",     bg: "bg-success/10" },
+  rejected:      { color: "text-destructive", bg: "bg-destructive/10" },
+  cancelled:     { color: "text-muted-foreground", bg: "bg-muted" },
+  closed:        { color: "text-muted-foreground", bg: "bg-muted" },
 };
 
 /** Kanban columns — the active working pipeline (terminal states shown via filters). */

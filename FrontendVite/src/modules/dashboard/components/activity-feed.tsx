@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { DollarSign, Users, ShoppingCart, Handshake, Package, Building, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
@@ -24,11 +25,12 @@ const activityColors: Record<string, string> = {
 };
 
 export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
+  const { t } = useTranslation("dashboard");
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Activity</CardTitle>
-        <CardDescription>Live feed across all modules</CardDescription>
+        <CardTitle>{t("activity.title")}</CardTitle>
+        <CardDescription>{t("activity.liveFeed")}</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y divide-border/50">
@@ -51,7 +53,7 @@ export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
                   </p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="text-[11px] text-muted-foreground/70">
-                      by {activity.user}
+                      {t("activity.by", { user: activity.user })}
                     </span>
                     <span className="text-[11px] text-muted-foreground/40">·</span>
                     <span className="text-[11px] text-muted-foreground/70">

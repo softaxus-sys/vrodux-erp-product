@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   ClipboardList, Clock, CheckCircle2, Ban, DollarSign,
@@ -12,31 +13,25 @@ import { CATEGORY_LABELS } from "@/lib/purchase/approvals.api";
 import { useApprovals, useApprovalsSummary } from "@/hooks/purchase/use-approvals";
 import { ApprovalDrawer } from "./approval-drawer";
 
+const getStatusConfig = (t: any): Record<string, { label: string; color: string; bg: string; dot: string }> => ({
+  pending:   { label: t("common.pending"),   color: "text-warning",          bg: "bg-warning/10",     dot: "bg-warning" },
+  approved:  { label: t("common.approved"),  color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
+  rejected:  { label: t("common.rejected"),  color: "text-destructive",      bg: "bg-destructive/10", dot: "bg-destructive" },
+  cancelled: { label: t("common.cancelled"), color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
+});
+
+const getPriorityConfig = (t: any): Record<string, { label: string; color: string; bg: string }> => ({
+  low:    { label: t("common.low"),    color: "text-muted-foreground", bg: "bg-muted" },
+  medium: { label: t("common.medium"), color: "text-blue-600",         bg: "bg-blue-50 dark:bg-blue-900/20" },
+  high:   { label: t("common.high"),   color: "text-warning",          bg: "bg-warning/10" },
+  urgent: { label: t("common.urgent"), color: "text-destructive",      bg: "bg-destructive/10" },
+});
+
 const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  pending:   { label: "Pending",   color: "text-warning",          bg: "bg-warning/10",     dot: "bg-warning" },
-  approved:  { label: "Approved",  color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
-  rejected:  { label: "Rejected",  color: "text-destructive",      bg: "bg-destructive/10", dot: "bg-destructive" },
-  cancelled: { label: "Cancelled", color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
-};
-
 const PRIORITY_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  low:    { label: "Low",    color: "text-muted-foreground", bg: "bg-muted" },
-  medium: { label: "Medium", color: "text-blue-600",         bg: "bg-blue-50 dark:bg-blue-900/20" },
-  high:   { label: "High",   color: "text-warning",          bg: "bg-warning/10" },
-  urgent: { label: "Urgent", color: "text-destructive",      bg: "bg-destructive/10" },
-};
 
-const STATUS_FILTERS: { key: ApprovalStatus | "all"; label: string }[] = [
-  { key: "all",      label: "All" },
-  { key: "pending",  label: "Pending" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
-];
-
-
-function StatCard({ card, index }: { card: typeof STAT_CARDS[0]; index: number }) {
+function StatCard({ card, index }: { card?: { label: string; value: number | string; icon: any; color: string; bg: string; format: string }; index: number }) {
+  if (!card) return null;
   const Icon = card.icon;
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -56,6 +51,7 @@ function StatCard({ card, index }: { card: typeof STAT_CARDS[0]; index: number }
 }
 
 export function ApprovalsView() {
+  const { t } = useTranslation("purchase");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<ApprovalStatus | "all">("all");
   const [selected, setSelected] = React.useState<PurchaseApproval | null>(null);
@@ -63,13 +59,22 @@ export function ApprovalsView() {
 
   const { data: approvals = [] } = useApprovals();
   const { data: approvalsSummary } = useApprovalsSummary();
+  const STATUS_CONFIG = getStatusConfig(t);
+  const PRIORITY_CONFIG = getPriorityConfig(t);
+
+  const STATUS_FILTERS: { key: ApprovalStatus | "all"; label: string }[] = [
+    { key: "all",      label: t("common.all") },
+    { key: "pending",  label: t("common.pending") },
+    { key: "approved", label: t("common.approved") },
+    { key: "rejected", label: t("common.rejected") },
+  ];
 
   const STAT_CARDS = [
-    { label: "Total Requests",   value: approvalsSummary?.total                 ?? approvals.length,                                            icon: ClipboardList, color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", format: "number" },
-    { label: "Pending Review",   value: approvalsSummary?.pending               ?? approvals.filter(a => a.status === "pending").length,         icon: Clock,         color: "text-warning",     bg: "bg-warning/10",                     format: "number" },
-    { label: "Approved",         value: approvalsSummary?.approved              ?? approvals.filter(a => a.status === "approved").length,        icon: CheckCircle2,  color: "text-success",     bg: "bg-success/10",                     format: "number" },
-    { label: "Rejected",         value: approvalsSummary?.rejected              ?? approvals.filter(a => a.status === "rejected").length,        icon: Ban,           color: "text-destructive", bg: "bg-destructive/10",                 format: "number" },
-    { label: "Budget Requested", value: approvalsSummary?.totalRequestedValue   ?? approvals.filter(a => a.status !== "rejected").reduce((s, a) => s + a.totalAmount, 0), icon: DollarSign, color: "text-primary", bg: "bg-primary/10", format: "currency" },
+    { label: t("common.totalRequests"),   value: approvalsSummary?.total                 ?? approvals.length,                                            icon: ClipboardList, color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", format: "number" },
+    { label: t("common.pendingReview"),   value: approvalsSummary?.pending               ?? approvals.filter(a => a.status === "pending").length,         icon: Clock,         color: "text-warning",     bg: "bg-warning/10",                     format: "number" },
+    { label: t("common.approved"),        value: approvalsSummary?.approved              ?? approvals.filter(a => a.status === "approved").length,        icon: CheckCircle2,  color: "text-success",     bg: "bg-success/10",                     format: "number" },
+    { label: t("common.rejected"),        value: approvalsSummary?.rejected              ?? approvals.filter(a => a.status === "rejected").length,        icon: Ban,           color: "text-destructive", bg: "bg-destructive/10",                 format: "number" },
+    { label: t("common.budgetRequested"), value: approvalsSummary?.totalRequestedValue   ?? approvals.filter(a => a.status !== "rejected").reduce((s, a) => s + a.totalAmount, 0), icon: DollarSign, color: "text-primary", bg: "bg-primary/10", format: "currency" },
   ];
 
   const filtered = React.useMemo(() => {

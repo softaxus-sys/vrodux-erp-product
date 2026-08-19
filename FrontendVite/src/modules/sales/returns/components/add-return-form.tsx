@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ interface AddReturnFormProps {
 }
 
 export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
+  const { t } = useTranslation("sales");
   const createReturn = useCreateReturn();
   const [orderRef, setOrderRef]       = React.useState("");
   const [customer, setCustomer]       = React.useState("");
@@ -103,8 +105,8 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Sales Return</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Process a customer return request</p>
+                <h2 className="text-base font-bold text-foreground">{t("returns.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("returns.form.description")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -116,22 +118,22 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
               {/* Header fields */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Original Order # *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.form.orderRef")}</label>
                   <Input value={orderRef} onChange={e => setOrderRef(e.target.value)} placeholder="SO-XXXXX" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Return Date</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.form.returnDate")}</label>
                   <Input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.form.customer")}</label>
                   <Input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="Customer name…" className="h-9 text-sm" />
                 </div>
               </div>
 
               {/* Return Action */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Return Action</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.form.returnAction")}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {RETURN_ACTIONS.map(a => (
                     <button key={a.value} onClick={() => setReturnAction(a.value)}
@@ -147,9 +149,9 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
               {/* Return Lines */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Return Items</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.form.returnItems")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setLines(p => [...p, newLine()])} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add Item
+                    <Plus className="w-3 h-3" /> {t("returns.form.button.addItem")}
                   </Button>
                 </div>
                 <div className="space-y-3">
@@ -168,17 +170,17 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
                       </div>
                       <div className="grid grid-cols-4 gap-2 ml-6">
                         <div className="space-y-1">
-                          <label className="text-[10px] text-muted-foreground uppercase">Qty Returned</label>
+                          <label className="text-[10px] text-muted-foreground uppercase">{t("returns.form.qtyReturned")}</label>
                           <Input type="number" min={1} step={1} value={line.qtyReturned || ""} onChange={e => updateLine(line.id, "qtyReturned", +e.target.value)}
                             className="h-7 text-xs text-right" />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] text-muted-foreground uppercase">Unit Price</label>
+                          <label className="text-[10px] text-muted-foreground uppercase">{t("returns.form.unitPrice")}</label>
                           <Input type="number" min={0} step={0.01} value={line.unitPrice || ""} onChange={e => updateLine(line.id, "unitPrice", +e.target.value)}
                             placeholder="0.00" className="h-7 text-xs text-right" />
                         </div>
                         <div className="col-span-2 space-y-1">
-                          <label className="text-[10px] text-muted-foreground uppercase">Reason</label>
+                          <label className="text-[10px] text-muted-foreground uppercase">{t("returns.form.reason")}</label>
                           <select value={line.reason} onChange={e => updateLine(line.id, "reason", e.target.value)}
                             className="w-full h-7 px-2 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                             {RETURN_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -195,7 +197,7 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
                 <div className="flex items-center justify-between px-4 py-3 bg-destructive/5 border border-destructive/20 rounded-xl">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-destructive" />
-                    <span className="text-sm font-semibold text-foreground">Total Refund Value</span>
+                    <span className="text-sm font-semibold text-foreground">{t("returns.form.totalRefund")}</span>
                   </div>
                   <span className="text-lg font-bold text-destructive">{formatCurrency(totalRefund, "AED")}</span>
                 </div>
@@ -203,7 +205,7 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Internal Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("returns.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
                   placeholder="Condition of returned items, inspection notes…" rows={2}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
@@ -213,8 +215,8 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button onClick={handleProcess} disabled={!isValid || createReturn.isPending}>Process Return</Button>
+              <Button variant="outline" onClick={onClose}>{t("returns.form.button.cancel")}</Button>
+              <Button onClick={handleProcess} disabled={!isValid || createReturn.isPending}>{t("returns.form.button.process")}</Button>
             </div>
           </motion.div>
         </>

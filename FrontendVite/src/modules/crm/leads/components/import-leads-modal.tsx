@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation, Trans } from "react-i18next";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
@@ -31,14 +32,6 @@ const FIELD_SYNONYMS: Record<ImportTargetField, string[]> = {
   timeframe:    ["timeframe", "timeline", "whentobuy", "whenlookingtobuy", "purchasetimeline", "buyingtimeline", "whenplanningtoinvest", "movein", "urgency"],
   campaign:     ["campaign", "campaignname", "adcampaign"],
   formName:     ["formname", "form", "formtitle", "leadform"],
-};
-
-const TARGET_LABEL: Record<ImportTargetField, string> = {
-  firstName: "First name", lastName: "Last name", fullName: "Full name", email: "Email",
-  phone: "Phone", company: "Company", title: "Job title", industry: "Industry",
-  address: "Address", city: "City", country: "Country", notes: "Notes",
-  whatsApp: "WhatsApp", interestedIn: "Interested in", budget: "Budget",
-  message: "Message", timeframe: "Purchase timeframe", campaign: "Campaign", formName: "Form name",
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -141,6 +134,7 @@ export function ImportLeadsModal({ open, onClose }: { open: boolean; onClose: ()
 }
 
 function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation("crm");
   const importLeads = useImportLeads();
   const [stage, setStage] = React.useState<Stage>("upload");
   const [fileName, setFileName] = React.useState("");
@@ -157,7 +151,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
     try {
       const grid = await parseFile(file);
       if (grid.length < 2) {
-        toast.error("The file needs a header row and at least one data row.");
+        toast.error(t("import.needHeaderRow"));
         return;
       }
       const hdr = grid[0].map((h) => h.trim());
@@ -167,7 +161,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
       setMapping(hdr.map(autoDetect));
       setStage("map");
     } catch (e) {
-      toast.error(`Could not read the file: ${(e as Error).message}`);
+      toast.error(t("import.couldNotRead", { error: (e as Error).message }));
     } finally {
       setParsing(false);
     }
@@ -203,7 +197,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
 
   async function runImport() {
     const payload = buildPayload();
-    if (payload.length === 0) { toast.error("No importable rows — check your column mapping."); return; }
+    if (payload.length === 0) { toast.error(t("import.noImportable")); return; }
 
     const totals: ImportLeadsResult = { created: 0, duplicates: 0, failed: 0, errors: [] };
     setProgress({ done: 0, total: payload.length });
@@ -218,7 +212,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
       }
       setResult(totals);
       setStage("result");
-      if (totals.created > 0) toast.success(`Imported ${totals.created} lead${totals.created === 1 ? "" : "s"}.`);
+      if (totals.created > 0) toast.success(t("import.imported", { count: totals.created }));
     } catch {
       /* hook toasts the error */
     } finally {
@@ -247,8 +241,8 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
               <FileSpreadsheet className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="font-semibold">Import Leads</h2>
-              <p className="text-xs text-muted-foreground">{fileName || "Excel (.xlsx) or CSV file"}</p>
+              <h2 className="font-semibold">{t("import.title")}</h2>
+              <p className="text-xs text-muted-foreground">{fileName || t("import.fileHint")}</p>
             </div>
           </div>
           <button onClick={busy ? undefined : onClose} disabled={busy}
@@ -264,11 +258,11 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
             >
               {parsing ? <Loader2 className="h-8 w-8 animate-spin text-primary" /> : <UploadCloud className="h-8 w-8 text-muted-foreground" />}
               <div>
-                <p className="font-medium">{parsing ? "Reading file…" : "Drop your file here"}</p>
-                <p className="text-sm text-muted-foreground">Supports .xlsx, .xls and .csv — first row must be column headers.</p>
+                <p className="font-medium">{parsing ? t("import.readingFile") : t("import.dropHere")}</p>
+                <p className="text-sm text-muted-foreground">{t("import.supports")}</p>
               </div>
               {!parsing && (
-                <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>Choose file</Button>
+                <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()}>{t("import.chooseFile")}</Button>
               )}
               <input ref={inputRef} type="file" accept=".csv,.txt,.xlsx,.xls" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
@@ -278,14 +272,13 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
           {stage === "map" && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Match each column to a CRM field. We auto-detected what we could — adjust anything below.
-                Leave a column as <span className="font-medium text-foreground">Ignore</span> to skip it.
+                <Trans t={t} i18nKey="import.mapIntro" components={{ 1: <span className="font-medium text-foreground" /> }} />
               </p>
               <div className="border border-border rounded-lg divide-y divide-border">
                 {headers.map((h, i) => (
                   <div key={i} className="flex items-center gap-3 px-3 py-2.5">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{h || <span className="text-muted-foreground italic">Column {i + 1}</span>}</p>
+                      <p className="text-sm font-medium truncate">{h || <span className="text-muted-foreground italic">{t("import.column", { n: i + 1 })}</span>}</p>
                       <p className="text-[11px] text-muted-foreground truncate">
                         e.g. {rows.slice(0, 1).map((r) => r[i]).filter(Boolean)[0] || "—"}
                       </p>
@@ -296,11 +289,11 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
                       value={mapping[i] ?? ""}
                       onChange={(e) => setMapping((prev) => prev.map((m, j) => (j === i ? (e.target.value as ImportTargetField | "") : m)))}
                     >
-                      <option value="">Ignore</option>
+                      <option value="">{t("import.ignore")}</option>
                       {IMPORT_TARGET_FIELDS.map((f) => (
                         <option key={f} value={f}
                           disabled={f !== mapping[i] && mappedFields.has(f)}>
-                          {TARGET_LABEL[f]}{f !== mapping[i] && mappedFields.has(f) ? " (used)" : ""}
+                          {t(`import.field.${f}`)}{f !== mapping[i] && mappedFields.has(f) ? t("import.used") : ""}
                         </option>
                       ))}
                     </select>
@@ -311,12 +304,12 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
               {!hasIdentity && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 text-amber-600 text-sm">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                  Map at least one of <span className="font-medium">Email, Phone, Full name or First name</span> — every lead needs an identifier.
+                  <span><Trans t={t} i18nKey="import.identityWarning" components={{ 1: <span className="font-medium" /> }} /></span>
                 </div>
               )}
 
               <div className="text-sm text-muted-foreground">
-                {rows.length} row{rows.length === 1 ? "" : "s"} in file · <span className="text-foreground font-medium">{validCount}</span> importable
+                {t("import.rowsImportable", { count: rows.length, valid: validCount })}
               </div>
             </div>
           )}
@@ -325,18 +318,18 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
             <div className="space-y-4 py-4">
               <div className="flex flex-col items-center text-center gap-2">
                 <CheckCircle2 className="h-12 w-12 text-success" />
-                <h3 className="font-semibold text-lg">Import complete</h3>
+                <h3 className="font-semibold text-lg">{t("import.importComplete")}</h3>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <ResultTile label="Created" value={result.created} cls="text-success" />
-                <ResultTile label="Duplicates skipped" value={result.duplicates} cls="text-muted-foreground" />
-                <ResultTile label="Failed" value={result.failed} cls={result.failed ? "text-destructive" : "text-muted-foreground"} />
+                <ResultTile label={t("import.created")} value={result.created} cls="text-success" />
+                <ResultTile label={t("import.duplicatesSkipped")} value={result.duplicates} cls="text-muted-foreground" />
+                <ResultTile label={t("import.failed")} value={result.failed} cls={result.failed ? "text-destructive" : "text-muted-foreground"} />
               </div>
               {result.errors.length > 0 && (
                 <div className="border border-border rounded-lg p-3 max-h-40 overflow-y-auto text-xs space-y-1">
-                  <p className="font-medium text-muted-foreground mb-1">First {result.errors.length} problem row(s):</p>
+                  <p className="font-medium text-muted-foreground mb-1">{t("import.problemRows", { count: result.errors.length })}</p>
                   {result.errors.map((e, i) => (
-                    <div key={i} className="text-destructive">Row {e.row + 2}: {e.message}</div>
+                    <div key={i} className="text-destructive">{t("import.rowError", { row: e.row + 2, message: e.message })}</div>
                   ))}
                 </div>
               )}
@@ -347,19 +340,19 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
         <div className="shrink-0 p-4 border-t border-border flex items-center justify-between gap-2">
           {stage === "map" ? (
             <>
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setStage("upload"); setResult(null); }}>Back</Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => { setStage("upload"); setResult(null); }}>{t("import.back")}</Button>
               <Button size="sm" disabled={!hasIdentity || validCount === 0 || busy} onClick={runImport} className="gap-1.5">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-                {progress ? `Importing ${progress.done}/${progress.total}…` : `Import ${validCount} lead${validCount === 1 ? "" : "s"}`}
+                {progress ? t("import.importing", { done: progress.done, total: progress.total }) : t("import.importN", { count: validCount })}
               </Button>
             </>
           ) : stage === "result" ? (
             <>
-              <Button variant="ghost" size="sm" onClick={() => { setStage("upload"); setResult(null); setRows([]); setHeaders([]); }}>Import another</Button>
-              <Button size="sm" onClick={onClose}>Done</Button>
+              <Button variant="ghost" size="sm" onClick={() => { setStage("upload"); setResult(null); setRows([]); setHeaders([]); }}>{t("import.importAnother")}</Button>
+              <Button size="sm" onClick={onClose}>{t("import.done")}</Button>
             </>
           ) : (
-            <Button variant="ghost" size="sm" onClick={onClose} className="ml-auto">Cancel</Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="ml-auto">{t("import.cancel")}</Button>
           )}
         </div>
       </motion.div>

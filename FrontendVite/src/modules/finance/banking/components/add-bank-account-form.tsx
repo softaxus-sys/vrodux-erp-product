@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ interface AddBankAccountFormProps {
 }
 
 export function AddBankAccountForm({ open, onClose }: AddBankAccountFormProps) {
+  const { t } = useTranslation("finance");
   const tenantCurrency = useCurrency();
   const create = useCreateBankAccount();
 
@@ -71,8 +73,8 @@ export function AddBankAccountForm({ open, onClose }: AddBankAccountFormProps) {
                   <Building2 className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-foreground">Add Bank Account</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Register a new bank account</p>
+                  <h2 className="text-base font-bold text-foreground">{t("banking.accountForm.title")}</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("banking.accountForm.subtitle")}</p>
                 </div>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
@@ -84,35 +86,35 @@ export function AddBankAccountForm({ open, onClose }: AddBankAccountFormProps) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account Name *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountForm.accountName")}</label>
                   <Input value={accountName} onChange={e => setAccountName(e.target.value)}
-                    placeholder="e.g. Operating Account" className="h-9 text-sm" />
+                    placeholder={t("banking.accountForm.accountNamePh")} className="h-9 text-sm" />
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Bank Name *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountForm.bankName")}</label>
                   <Input value={bankName} onChange={e => setBankName(e.target.value)}
-                    placeholder="e.g. Emirates NBD" className="h-9 text-sm" />
+                    placeholder={t("banking.accountForm.bankNamePh")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account Number *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountForm.accountNumber")}</label>
                   <Input value={accountNumber} onChange={e => setAccountNumber(e.target.value)}
-                    placeholder="0123456789" className="h-9 text-sm" />
+                    placeholder={t("banking.accountForm.accountNumberPh")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account Type *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountForm.accountTypeLabel")}</label>
                   <select value={accountType} onChange={e => setAccountType(e.target.value as "current" | "savings")}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="current">Current</option>
-                    <option value="savings">Savings</option>
+                    <option value="current">{t("banking.accountType.current")}</option>
+                    <option value="savings">{t("banking.accountType.savings")}</option>
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">IBAN *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountForm.iban")}</label>
                   <Input value={iban} onChange={e => setIban(e.target.value)}
-                    placeholder="AE07 0331 2345 6789 0123 456" className="h-9 text-sm font-mono uppercase" />
+                    placeholder={t("banking.accountForm.ibanPh")} className="h-9 text-sm font-mono uppercase" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.accountForm.currency")}</label>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -120,15 +122,15 @@ export function AddBankAccountForm({ open, onClose }: AddBankAccountFormProps) {
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                The opening balance starts at zero — record an inflow transaction to set the initial balance.
+                {t("banking.accountForm.openingNote")}
               </p>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? "Saving…" : "Add Account"}
+                {isPending ? t("common:action.saving") : t("banking.accountForm.submit")}
               </Button>
             </div>
           </motion.div>

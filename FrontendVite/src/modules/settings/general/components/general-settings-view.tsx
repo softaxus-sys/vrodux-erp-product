@@ -1,5 +1,6 @@
 import * as React from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Building2, Globe, MapPin, Bell, Shield, Palette,
   CheckCircle, Camera, ChevronRight, Moon, Sun, Monitor,
@@ -17,6 +18,39 @@ import { appSettingsApi } from "@/lib/identity/app-settings.api";
 void MapPin; void ChevronRight;
 
 const SETTINGS_KEY = "softaxis-app-settings";
+
+// Option VALUES are persisted to the backend, so they stay canonical/English —
+// only the displayed label goes through i18n.
+const INDUSTRY_VALUES = [
+  "IT Services / SaaS", "Real Estate", "Construction", "Hospitality",
+  "Retail", "Manufacturing", "Healthcare", "Finance",
+] as const;
+const COMPANY_SIZE_VALUES = ["1-10", "11-50", "50-200", "201-500", "500+"] as const;
+const COUNTRY_OPTIONS = [
+  { value: "ae", flag: "🇦🇪" }, { value: "pk", flag: "🇵🇰" }, { value: "sa", flag: "🇸🇦" },
+  { value: "om", flag: "🇴🇲" }, { value: "qa", flag: "🇶🇦" }, { value: "kw", flag: "🇰🇼" },
+  { value: "bh", flag: "🇧🇭" }, { value: "in", flag: "🇮🇳" }, { value: "gb", flag: "🇬🇧" },
+  { value: "us", flag: "🇺🇸" },
+] as const;
+const CURRENCY_VALUES = [
+  "AED", "PKR", "SAR", "OMR", "QAR", "KWD", "BHD", "INR", "USD", "EUR", "GBP",
+] as const;
+const NUMBER_FORMATS = [
+  { value: "1,234,567.89", key: "comma" },
+  { value: "1.234.567,89", key: "dot" },
+  { value: "1 234 567.89", key: "space" },
+] as const;
+const LANGUAGE_VALUES = ["en-US", "en-GB", "ar-AE", "fr-FR", "hi-IN"] as const;
+const FISCAL_MONTHS = ["January", "February", "March", "April", "July", "October"] as const;
+const DIGEST_VALUES = ["realtime", "hourly", "daily", "weekly"] as const;
+const SESSION_TIMEOUTS = ["30", "60", "240", "480", "1440"] as const;
+const LOGIN_ATTEMPTS = ["3", "5", "10"] as const;
+const PASSWORD_LENGTHS = ["8", "10", "12", "14", "16"] as const;
+const PASSWORD_EXPIRY = ["30", "60", "90", "180", "never"] as const;
+const MODULE_KEYS = [
+  "crm", "finance", "hr", "sales", "purchase", "inventory",
+  "realEstate", "construction", "hospitality", "pos", "aiAssistant", "fileManager",
+] as const;
 
 // ─── Default values (used as fallback when backend has no data yet) ───────────
 const DEFAULTS = {
@@ -239,6 +273,7 @@ function UnsavedBanner({
   onDiscard: () => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation("settings");
   return (
     <motion.div
       initial={{ opacity: 0, y: -8 }}
@@ -247,15 +282,15 @@ function UnsavedBanner({
       className="flex items-center gap-3 px-4 py-3 bg-warning/10 border border-warning/30 rounded-xl mb-4"
     >
       <AlertTriangle className="w-4 h-4 text-warning flex-shrink-0" />
-      <p className="text-sm text-warning font-medium flex-1">You have unsaved changes</p>
+      <p className="text-sm text-warning font-medium flex-1">{t("general.unsaved")}</p>
       <Button size="sm" variant="outline" onClick={onDiscard} disabled={saving}>
-        <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Discard
+        <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> {t("general.discard")}
       </Button>
       <Button size="sm" onClick={onSave} disabled={saving}>
         {saving
           ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
           : <Save className="w-3.5 h-3.5 mr-1.5" />}
-        Save
+        {t("general.save")}
       </Button>
     </motion.div>
   );
@@ -263,6 +298,7 @@ function UnsavedBanner({
 
 // ─── Main View ────────────────────────────────────────────────────────────────
 export function GeneralSettingsView() {
+  const { t } = useTranslation("settings");
   // ── Section state ──────────────────────────────────────────────────────────
   const [company,       setCompany]       = React.useState(DEFAULTS.company);
   const [regional,      setRegional]      = React.useState(DEFAULTS.regional);
@@ -432,13 +468,13 @@ export function GeneralSettingsView() {
           if (saved.notifications) setNotifications(n => ({ ...n, ...saved.notifications }));
           if (saved.security)      setSecurity(s => ({ ...s, ...saved.security }));
           if (saved.modules)       setModules(m => ({ ...m, ...saved.modules }));
-          toast.warning("Loaded from local cache — backend unreachable.");
+          toast.warning(t("general.toastCached"));
         }
       } catch { /* ignore */ }
     } finally {
       setIsLoading(false);
     }
-  }, [applySnapshot, setDarkMode]);
+  }, [applySnapshot, setDarkMode, t]);
 
   React.useEffect(() => { loadSettings(); }, [loadSettings]);
 
@@ -497,10 +533,10 @@ export function GeneralSettingsView() {
 
       setIsDirty(false);
       setSaveSuccess(true);
-      toast.success("Settings saved successfully.");
+      toast.success(t("general.toastSaved"));
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch {
-      toast.error("Failed to save settings. Please check your connection and try again.");
+      toast.error(t("general.toastSaveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -538,7 +574,7 @@ export function GeneralSettingsView() {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Loading settings…</p>
+        <p className="text-sm text-muted-foreground">{t("general.loading")}</p>
       </div>
     );
   }
@@ -549,14 +585,14 @@ export function GeneralSettingsView() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">General Settings</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("general.title")}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage company profile, regional preferences, and system-wide configuration.
+            {t("general.description")}
           </p>
         </div>
         {saveSuccess && (
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-success/10 text-success text-sm font-medium">
-            <CheckCircle className="w-4 h-4" /> Saved
+            <CheckCircle className="w-4 h-4" /> {t("general.saved")}
           </span>
         )}
       </div>
@@ -567,7 +603,7 @@ export function GeneralSettingsView() {
       )}
 
       {/* ── Company Profile ── */}
-      <SectionCard title="Company Profile" description="Legal name, industry, and contact details" icon={Building2}>
+      <SectionCard title={t("general.company.title")} description={t("general.company.description")} icon={Building2}>
         {/* Logo */}
         <div className="flex items-start gap-5 mb-6 pb-6 border-b border-border">
           <div className="relative">
@@ -585,70 +621,55 @@ export function GeneralSettingsView() {
             <p className="text-xs text-muted-foreground mt-0.5">{company.industry}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-semibold">
-                <CheckCircle className="h-3 w-3" /> Verified
+                <CheckCircle className="h-3 w-3" /> {t("general.company.verified")}
               </span>
-              <span className="text-xs text-muted-foreground">ID: SXT-2019-001</span>
+              <span className="text-xs text-muted-foreground">{t("general.company.idLabel")} SXT-2019-001</span>
             </div>
-            <Button variant="outline" size="sm" className="mt-3 h-7 text-xs">Upload Logo</Button>
+            <Button variant="outline" size="sm" className="mt-3 h-7 text-xs">{t("general.company.uploadLogo")}</Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label="Company Name">
+          <FormField label={t("general.company.name")}>
             <Input value={company.name} onChange={e => updateCompany("name", e.target.value)} className="h-9 text-sm" />
           </FormField>
-          <FormField label="Legal Name">
+          <FormField label={t("general.company.legalName")}>
             <Input value={company.legalName} onChange={e => updateCompany("legalName", e.target.value)} className="h-9 text-sm" />
           </FormField>
-          <FormField label="Industry">
+          <FormField label={t("general.company.industry")}>
             <SelectField
               value={company.industry}
               onChange={v => updateCompany("industry", v)}
-              options={[
-                { value: "IT Services / SaaS", label: "IT Services / SaaS" },
-                { value: "Real Estate",        label: "Real Estate" },
-                { value: "Construction",       label: "Construction" },
-                { value: "Hospitality",        label: "Hospitality" },
-                { value: "Retail",             label: "Retail" },
-                { value: "Manufacturing",      label: "Manufacturing" },
-                { value: "Healthcare",         label: "Healthcare" },
-                { value: "Finance",            label: "Finance" },
-              ]}
+              options={INDUSTRY_VALUES.map(v => ({ value: v, label: t(`general.company.industryOption.${v}`) }))}
             />
           </FormField>
-          <FormField label="Company Size">
+          <FormField label={t("general.company.size")}>
             <SelectField
               value={company.companySize}
               onChange={v => updateCompany("companySize", v)}
-              options={[
-                { value: "1-10",    label: "1–10 employees" },
-                { value: "11-50",   label: "11–50 employees" },
-                { value: "50-200",  label: "50–200 employees" },
-                { value: "201-500", label: "201–500 employees" },
-                { value: "500+",    label: "500+ employees" },
-              ]}
+              options={COMPANY_SIZE_VALUES.map(v => ({ value: v, label: t(`general.company.sizeOption.${v}`) }))}
             />
           </FormField>
-          <FormField label="Website">
-            <Input value={company.website} onChange={e => updateCompany("website", e.target.value)} className="h-9 text-sm" placeholder="www.example.com" />
+          <FormField label={t("general.company.website")}>
+            <Input value={company.website} onChange={e => updateCompany("website", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.websitePlaceholder")} />
           </FormField>
-          <FormField label="Registration Number">
+          <FormField label={t("general.company.registrationNo")}>
             <Input value={company.registrationNo} onChange={e => updateCompany("registrationNo", e.target.value)} className="h-9 text-sm font-mono" />
           </FormField>
-          <FormField label="Primary Phone">
+          <FormField label={t("general.company.phone")}>
             <Input value={company.phone} onChange={e => updateCompany("phone", e.target.value)} className="h-9 text-sm" />
           </FormField>
-          <FormField label="Primary Email">
+          <FormField label={t("general.company.email")}>
             <Input value={company.email} onChange={e => updateCompany("email", e.target.value)} className="h-9 text-sm" />
           </FormField>
-          <FormField label="Support Email">
+          <FormField label={t("general.company.supportEmail")}>
             <Input value={company.supportEmail} onChange={e => updateCompany("supportEmail", e.target.value)} className="h-9 text-sm" />
           </FormField>
-          <FormField label="P.O. Box">
+          <FormField label={t("general.company.poBox")}>
             <Input value={company.poBox} onChange={e => updateCompany("poBox", e.target.value)} className="h-9 text-sm" />
           </FormField>
           <div className="md:col-span-2">
-            <FormField label="Headquarters Address">
+            <FormField label={t("general.company.address")}>
               <Input value={company.address} onChange={e => updateCompany("address", e.target.value)} className="h-9 text-sm" />
             </FormField>
           </div>
@@ -656,10 +677,10 @@ export function GeneralSettingsView() {
       </SectionCard>
 
       {/* ── Regional Settings ── */}
-      <SectionCard title="Regional & Locale" description="Currency, timezone, date formats, and fiscal year" icon={Globe}>
+      <SectionCard title={t("general.regional.title")} description={t("general.regional.description")} icon={Globe}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Country is the primary jurisdiction selector — drives POS receipts, reports, tax labels */}
-          <FormField label="Country / Jurisdiction" hint="Sets tax regime, reports, and receipt format for POS">
+          <FormField label={t("general.regional.country")} hint={t("general.regional.countryHint")}>
             <SelectField
               value={regional.country}
               onChange={v => {
@@ -684,40 +705,21 @@ export function GeneralSettingsView() {
                   updateRegional("vatRate",  d.vatRate);
                 }
               }}
-              options={[
-                { value: "ae", label: "🇦🇪 United Arab Emirates (FTA · VAT 5%)" },
-                { value: "pk", label: "🇵🇰 Pakistan (FBR · GST 17%)" },
-                { value: "sa", label: "🇸🇦 Saudi Arabia (ZATCA · VAT 15%)" },
-                { value: "om", label: "🇴🇲 Oman (OTA · VAT 5%)" },
-                { value: "qa", label: "🇶🇦 Qatar (no VAT)" },
-                { value: "kw", label: "🇰🇼 Kuwait (no VAT)" },
-                { value: "bh", label: "🇧🇭 Bahrain (NBR · VAT 10%)" },
-                { value: "in", label: "🇮🇳 India (GSTN · GST 18%)" },
-                { value: "gb", label: "🇬🇧 United Kingdom (HMRC · VAT 20%)" },
-                { value: "us", label: "🇺🇸 United States (no federal VAT)" },
-              ]}
+              options={COUNTRY_OPTIONS.map(({ value, flag }) => ({
+                value, label: `${flag} ${t(`general.regional.countryOption.${value}`)}`,
+              }))}
             />
           </FormField>
-          <FormField label="Default Currency">
+          <FormField label={t("general.regional.currency")}>
             <SelectField
               value={regional.currency}
               onChange={v => updateRegional("currency", v)}
-              options={[
-                { value: "AED", label: "AED – UAE Dirham" },
-                { value: "PKR", label: "PKR – Pakistani Rupee" },
-                { value: "SAR", label: "SAR – Saudi Riyal" },
-                { value: "OMR", label: "OMR – Omani Rial" },
-                { value: "QAR", label: "QAR – Qatari Riyal" },
-                { value: "KWD", label: "KWD – Kuwaiti Dinar" },
-                { value: "BHD", label: "BHD – Bahraini Dinar" },
-                { value: "INR", label: "INR – Indian Rupee" },
-                { value: "USD", label: "USD – US Dollar" },
-                { value: "EUR", label: "EUR – Euro" },
-                { value: "GBP", label: "GBP – British Pound" },
-              ]}
+              options={CURRENCY_VALUES.map(v => ({
+                value: v, label: `${v} – ${t(`general.regional.currencyOption.${v}`)}`,
+              }))}
             />
           </FormField>
-          <FormField label="Timezone">
+          <FormField label={t("general.regional.timezone")}>
             <SelectField
               value={regional.timezone}
               onChange={v => updateRegional("timezone", v)}
@@ -730,7 +732,7 @@ export function GeneralSettingsView() {
               ]}
             />
           </FormField>
-          <FormField label="Date Format">
+          <FormField label={t("general.regional.dateFormat")}>
             <SelectField
               value={regional.dateFormat}
               onChange={v => updateRegional("dateFormat", v)}
@@ -742,38 +744,30 @@ export function GeneralSettingsView() {
               ]}
             />
           </FormField>
-          <FormField label="Language">
+          <FormField label={t("general.regional.language")}>
             <SelectField
               value={regional.language}
               onChange={v => updateRegional("language", v)}
-              options={[
-                { value: "en-US",  label: "English (US)" },
-                { value: "en-GB",  label: "English (UK)" },
-                { value: "ar-AE",  label: "Arabic (UAE)" },
-                { value: "fr-FR",  label: "French" },
-                { value: "hi-IN",  label: "Hindi" },
-              ]}
+              options={LANGUAGE_VALUES.map(v => ({ value: v, label: t(`general.regional.languageOption.${v}`) }))}
             />
           </FormField>
-          <FormField label="Number Format">
+          <FormField label={t("general.regional.numberFormat")}>
             <SelectField
               value={regional.numberFormat}
               onChange={v => updateRegional("numberFormat", v)}
-              options={[
-                { value: "1,234,567.89", label: "1,234,567.89 (comma thousands)" },
-                { value: "1.234.567,89", label: "1.234.567,89 (dot thousands)" },
-                { value: "1 234 567.89", label: "1 234 567.89 (space thousands)" },
-              ]}
+              options={NUMBER_FORMATS.map(({ value, key }) => ({
+                value, label: `${value} (${t(`general.regional.numberFormatOption.${key}`)})`,
+              }))}
             />
           </FormField>
-          <FormField label="Fiscal Year Start">
+          <FormField label={t("general.regional.fiscalYearStart")}>
             <SelectField
               value={regional.fiscalYearStart}
               onChange={v => updateRegional("fiscalYearStart", v)}
-              options={["January","February","March","April","July","October"].map(m => ({ value: m, label: m }))}
+              options={FISCAL_MONTHS.map(m => ({ value: m, label: t(`general.regional.month.${m}`) }))}
             />
           </FormField>
-          <FormField label="VAT Rate (%)" hint="Applied to all taxable transactions">
+          <FormField label={t("general.regional.vatRate")} hint={t("general.regional.vatRateHint")}>
             <Input
               value={regional.vatRate}
               onChange={e => updateRegional("vatRate", e.target.value)}
@@ -784,27 +778,27 @@ export function GeneralSettingsView() {
               step="0.5"
             />
           </FormField>
-          <FormField label="VAT / TRN Number">
+          <FormField label={t("general.regional.vatTrn")}>
             <Input
               value={regional.vatTrn}
               onChange={e => updateRegional("vatTrn", e.target.value)}
               className="h-9 text-sm font-mono"
-              placeholder="TRN number"
+              placeholder={t("general.regional.vatTrnPlaceholder")}
             />
           </FormField>
         </div>
       </SectionCard>
 
       {/* ── Appearance ── */}
-      <SectionCard title="Appearance" description="Theme, layout density, and UI preferences" icon={Palette}>
+      <SectionCard title={t("general.appearance.title")} description={t("general.appearance.description")} icon={Palette}>
         {/* Theme selector */}
         <div className="mb-5 pb-5 border-b border-border">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Theme</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("general.appearance.theme")}</p>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { value: "light",  label: "Light",  icon: Sun },
-              { value: "dark",   label: "Dark",   icon: Moon },
-              { value: "system", label: "System", icon: Monitor },
+              { value: "light",  label: t("general.appearance.light"),  icon: Sun },
+              { value: "dark",   label: t("general.appearance.dark"),   icon: Moon },
+              { value: "system", label: t("general.appearance.system"), icon: Monitor },
             ].map(opt => {
               const Icon = opt.icon;
               const active = appearance.theme === opt.value;
@@ -830,81 +824,76 @@ export function GeneralSettingsView() {
         {/* Toggles */}
         <div>
           <ToggleRow
-            label="Compact Mode"
-            description="Reduce spacing and padding for denser information display"
+            label={t("general.appearance.compactMode")}
+            description={t("general.appearance.compactModeDesc")}
             checked={appearance.compactMode}
             onChange={v => updateAppearance("compactMode", v)}
           />
           <ToggleRow
-            label="Show Breadcrumbs"
-            description="Display navigation breadcrumbs in the topbar"
+            label={t("general.appearance.breadcrumbs")}
+            description={t("general.appearance.breadcrumbsDesc")}
             checked={appearance.showBreadcrumbs}
             onChange={v => updateAppearance("showBreadcrumbs", v)}
           />
           <ToggleRow
-            label="Enable Animations"
-            description="Page transitions and micro-interaction animations"
+            label={t("general.appearance.animations")}
+            description={t("general.appearance.animationsDesc")}
             checked={appearance.animationsEnabled}
             onChange={v => updateAppearance("animationsEnabled", v)}
           />
           <ToggleRow
-            label="RTL Support"
-            description="Enable right-to-left layout for Arabic interface"
+            label={t("general.appearance.rtl")}
+            description={t("general.appearance.rtlDesc")}
             checked={appearance.rtlSupport}
             onChange={v => updateAppearance("rtlSupport", v)}
-            badge="Arabic"
+            badge={t("general.appearance.rtlBadge")}
           />
         </div>
       </SectionCard>
 
       {/* ── Notifications ── */}
-      <SectionCard title="Notification Preferences" description="Control how and when you receive system alerts" icon={Bell}>
+      <SectionCard title={t("general.notifications.title")} description={t("general.notifications.description")} icon={Bell}>
         {/* Email */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-3">
             <Mail className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Email Notifications</p>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">{t("general.notifications.emailHeading")}</p>
           </div>
-          <ToggleRow label="Approval Requests" description="Receive email when items require your approval" checked={notifications.emailApprovals} onChange={v => updateNotifications("emailApprovals", v)} />
-          <ToggleRow label="Invoice & Payment Alerts" description="New invoices raised and payment confirmations" checked={notifications.emailInvoices} onChange={v => updateNotifications("emailInvoices", v)} />
-          <ToggleRow label="Leave & HR Notifications" description="Leave approvals, rejections, and HR actions" checked={notifications.emailLeaves} onChange={v => updateNotifications("emailLeaves", v)} />
-          <ToggleRow label="System Announcements" description="Platform updates, maintenance windows, and news" checked={notifications.emailSystem} onChange={v => updateNotifications("emailSystem", v)} />
+          <ToggleRow label={t("general.notifications.emailApprovals")} description={t("general.notifications.emailApprovalsDesc")} checked={notifications.emailApprovals} onChange={v => updateNotifications("emailApprovals", v)} />
+          <ToggleRow label={t("general.notifications.emailInvoices")} description={t("general.notifications.emailInvoicesDesc")} checked={notifications.emailInvoices} onChange={v => updateNotifications("emailInvoices", v)} />
+          <ToggleRow label={t("general.notifications.emailLeaves")} description={t("general.notifications.emailLeavesDesc")} checked={notifications.emailLeaves} onChange={v => updateNotifications("emailLeaves", v)} />
+          <ToggleRow label={t("general.notifications.emailSystem")} description={t("general.notifications.emailSystemDesc")} checked={notifications.emailSystem} onChange={v => updateNotifications("emailSystem", v)} />
         </div>
 
         {/* SMS */}
         <div className="mb-5 pt-4 border-t border-border">
           <div className="flex items-center gap-2 mb-3">
             <Smartphone className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">SMS / WhatsApp</p>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">{t("general.notifications.smsHeading")}</p>
           </div>
-          <ToggleRow label="OTP & 2FA Codes" description="One-time passwords for login verification" checked={notifications.smsOtp} onChange={v => updateNotifications("smsOtp", v)} />
-          <ToggleRow label="Critical Alerts" description="Urgent system alerts and security warnings via SMS" checked={notifications.smsAlerts} onChange={v => updateNotifications("smsAlerts", v)} />
+          <ToggleRow label={t("general.notifications.smsOtp")} description={t("general.notifications.smsOtpDesc")} checked={notifications.smsOtp} onChange={v => updateNotifications("smsOtp", v)} />
+          <ToggleRow label={t("general.notifications.smsAlerts")} description={t("general.notifications.smsAlertsDesc")} checked={notifications.smsAlerts} onChange={v => updateNotifications("smsAlerts", v)} />
         </div>
 
         {/* In-App */}
         <div className="pt-4 border-t border-border">
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">In-App Notifications</p>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide">{t("general.notifications.inAppHeading")}</p>
           </div>
-          <ToggleRow label="All Notifications" description="Master toggle for in-app notification panel" checked={notifications.inAppAll} onChange={v => updateNotifications("inAppAll", v)} />
-          <ToggleRow label="Mentions & Tags" description="When someone mentions you in a comment or note" checked={notifications.inAppMentions} onChange={v => updateNotifications("inAppMentions", v)} />
-          <ToggleRow label="Task Assignments" description="New tasks assigned to you or your team" checked={notifications.inAppTasks} onChange={v => updateNotifications("inAppTasks", v)} />
-          <ToggleRow label="System Events" description="Background jobs, imports, and system events" checked={notifications.inAppSystem} onChange={v => updateNotifications("inAppSystem", v)} />
+          <ToggleRow label={t("general.notifications.inAppAll")} description={t("general.notifications.inAppAllDesc")} checked={notifications.inAppAll} onChange={v => updateNotifications("inAppAll", v)} />
+          <ToggleRow label={t("general.notifications.inAppMentions")} description={t("general.notifications.inAppMentionsDesc")} checked={notifications.inAppMentions} onChange={v => updateNotifications("inAppMentions", v)} />
+          <ToggleRow label={t("general.notifications.inAppTasks")} description={t("general.notifications.inAppTasksDesc")} checked={notifications.inAppTasks} onChange={v => updateNotifications("inAppTasks", v)} />
+          <ToggleRow label={t("general.notifications.inAppSystem")} description={t("general.notifications.inAppSystemDesc")} checked={notifications.inAppSystem} onChange={v => updateNotifications("inAppSystem", v)} />
         </div>
 
         <div className="mt-5 pt-4 border-t border-border">
           <div className="grid grid-cols-2 gap-4 items-end">
-            <FormField label="Email Digest Frequency" hint="Summary of all notifications sent together">
+            <FormField label={t("general.notifications.digest")} hint={t("general.notifications.digestHint")}>
               <SelectField
                 value={notifications.digestFrequency}
                 onChange={v => updateNotifications("digestFrequency", v)}
-                options={[
-                  { value: "realtime", label: "Real-time (immediately)" },
-                  { value: "hourly",   label: "Hourly digest" },
-                  { value: "daily",    label: "Daily digest (08:00 UAE)" },
-                  { value: "weekly",   label: "Weekly digest (Monday)" },
-                ]}
+                options={DIGEST_VALUES.map(v => ({ value: v, label: t(`general.notifications.digestOption.${v}`) }))}
               />
             </FormField>
           </div>
@@ -912,48 +901,38 @@ export function GeneralSettingsView() {
       </SectionCard>
 
       {/* ── Security ── */}
-      <SectionCard title="Security & Access" description="Authentication, password policies, and session management" icon={Shield} badge="Admin Only">
+      <SectionCard title={t("general.security.title")} description={t("general.security.description")} icon={Shield} badge={t("general.security.badge")}>
         <div className="space-y-6">
           {/* Authentication */}
           <div>
             <div className="flex items-center gap-2 mb-3">
               <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Authentication</p>
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">{t("general.security.authHeading")}</p>
             </div>
-            <ToggleRow label="Enforce Two-Factor Authentication" description="Require all users to set up 2FA to access the system" checked={security.enforce2FA} onChange={v => updateSecurity("enforce2FA", v)} />
-            <ToggleRow label="Single Active Session" description="Prevent users from being logged in on multiple devices simultaneously" checked={security.singleSession} onChange={v => updateSecurity("singleSession", v)} />
-            <ToggleRow label="IP Whitelist" description="Restrict access to specific IP addresses or ranges" checked={security.ipWhitelistEnabled} onChange={v => updateSecurity("ipWhitelistEnabled", v)} />
+            <ToggleRow label={t("general.security.enforce2FA")} description={t("general.security.enforce2FADesc")} checked={security.enforce2FA} onChange={v => updateSecurity("enforce2FA", v)} />
+            <ToggleRow label={t("general.security.singleSession")} description={t("general.security.singleSessionDesc")} checked={security.singleSession} onChange={v => updateSecurity("singleSession", v)} />
+            <ToggleRow label={t("general.security.ipWhitelist")} description={t("general.security.ipWhitelistDesc")} checked={security.ipWhitelistEnabled} onChange={v => updateSecurity("ipWhitelistEnabled", v)} />
           </div>
 
           {/* Session */}
           <div className="pt-4 border-t border-border">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Session</p>
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">{t("general.security.sessionHeading")}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <FormField label="Session Timeout (minutes)" hint="Auto-logout after inactivity">
+              <FormField label={t("general.security.sessionTimeout")} hint={t("general.security.sessionTimeoutHint")}>
                 <SelectField
                   value={security.sessionTimeout}
                   onChange={v => updateSecurity("sessionTimeout", v)}
-                  options={[
-                    { value: "30",   label: "30 minutes" },
-                    { value: "60",   label: "1 hour" },
-                    { value: "240",  label: "4 hours" },
-                    { value: "480",  label: "8 hours" },
-                    { value: "1440", label: "24 hours" },
-                  ]}
+                  options={SESSION_TIMEOUTS.map(v => ({ value: v, label: t(`general.security.timeoutOption.${v}`) }))}
                 />
               </FormField>
-              <FormField label="Max Login Attempts" hint="Account lock after failed attempts">
+              <FormField label={t("general.security.maxAttempts")} hint={t("general.security.maxAttemptsHint")}>
                 <SelectField
                   value={security.maxLoginAttempts}
                   onChange={v => updateSecurity("maxLoginAttempts", v)}
-                  options={[
-                    { value: "3",  label: "3 attempts" },
-                    { value: "5",  label: "5 attempts" },
-                    { value: "10", label: "10 attempts" },
-                  ]}
+                  options={LOGIN_ATTEMPTS.map(v => ({ value: v, label: t("general.security.attemptsOption", { n: v }) }))}
                 />
               </FormField>
             </div>
@@ -963,58 +942,39 @@ export function GeneralSettingsView() {
           <div className="pt-4 border-t border-border">
             <div className="flex items-center gap-2 mb-3">
               <Lock className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">Password Policy</p>
+              <p className="text-xs font-semibold text-foreground uppercase tracking-wide">{t("general.security.passwordHeading")}</p>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <FormField label="Minimum Length" hint="Minimum character requirement">
+              <FormField label={t("general.security.minLength")} hint={t("general.security.minLengthHint")}>
                 <SelectField
                   value={security.passwordMinLength}
                   onChange={v => updateSecurity("passwordMinLength", v)}
-                  options={["8","10","12","14","16"].map(n => ({ value: n, label: `${n} characters` }))}
+                  options={PASSWORD_LENGTHS.map(n => ({ value: n, label: t("general.security.charactersOption", { n }) }))}
                 />
               </FormField>
-              <FormField label="Password Expiry" hint="Force reset after N days">
+              <FormField label={t("general.security.expiry")} hint={t("general.security.expiryHint")}>
                 <SelectField
                   value={security.passwordExpiry}
                   onChange={v => updateSecurity("passwordExpiry", v)}
-                  options={[
-                    { value: "30",    label: "30 days" },
-                    { value: "60",    label: "60 days" },
-                    { value: "90",    label: "90 days" },
-                    { value: "180",   label: "180 days" },
-                    { value: "never", label: "Never expire" },
-                  ]}
+                  options={PASSWORD_EXPIRY.map(v => ({ value: v, label: t(`general.security.expiryOption.${v}`) }))}
                 />
               </FormField>
             </div>
-            <ToggleRow label="Require Uppercase Letters"     description="Password must contain at least one uppercase letter (A–Z)" checked={security.passwordRequireUpper}   onChange={v => updateSecurity("passwordRequireUpper", v)} />
-            <ToggleRow label="Require Numbers"               description="Password must contain at least one number (0–9)"           checked={security.passwordRequireNumbers} onChange={v => updateSecurity("passwordRequireNumbers", v)} />
-            <ToggleRow label="Require Special Characters"    description="Password must contain !@#$%^&* or similar symbols"         checked={security.passwordRequireSymbols} onChange={v => updateSecurity("passwordRequireSymbols", v)} />
+            <ToggleRow label={t("general.security.requireUpper")} description={t("general.security.requireUpperDesc")} checked={security.passwordRequireUpper}   onChange={v => updateSecurity("passwordRequireUpper", v)} />
+            <ToggleRow label={t("general.security.requireNumbers")} description={t("general.security.requireNumbersDesc")} checked={security.passwordRequireNumbers} onChange={v => updateSecurity("passwordRequireNumbers", v)} />
+            <ToggleRow label={t("general.security.requireSymbols")} description={t("general.security.requireSymbolsDesc")} checked={security.passwordRequireSymbols} onChange={v => updateSecurity("passwordRequireSymbols", v)} />
           </div>
         </div>
       </SectionCard>
 
       {/* ── Module Access ── */}
-      <SectionCard title="Module Access" description="Enable or disable system modules across the organisation" icon={ToggleLeft} badge="Enterprise">
+      <SectionCard title={t("general.modules.title")} description={t("general.modules.description")} icon={ToggleLeft} badge={t("general.modules.badge")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-          {[
-            { key: "crm",          label: "CRM",            description: "Leads, pipeline, and customers" },
-            { key: "finance",      label: "Finance",         description: "Accounting, invoicing, and banking" },
-            { key: "hr",           label: "HR & Payroll",    description: "Employees, leaves, and payroll" },
-            { key: "sales",        label: "Sales",           description: "Quotations and sales orders" },
-            { key: "purchase",     label: "Purchase",        description: "Vendors and purchase orders" },
-            { key: "inventory",    label: "Inventory",       description: "Stock, warehouses, and transfers" },
-            { key: "realEstate",   label: "Real Estate",     description: "Properties, tenants, and contracts" },
-            { key: "construction", label: "Construction",    description: "Projects, BOQ, and contractors" },
-            { key: "hospitality",  label: "Hospitality",     description: "Bookings, rooms, and housekeeping" },
-            { key: "pos",          label: "Point of Sale",   description: "Retail, restaurant, and kitchen" },
-            { key: "aiAssistant",  label: "AI Assistant",    description: "Conversational AI and automation" },
-            { key: "fileManager",  label: "File Manager",    description: "Document storage and sharing" },
-          ].map(({ key, label, description }) => (
+          {MODULE_KEYS.map(key => (
             <ToggleRow
               key={key}
-              label={label}
-              description={description}
+              label={t(`general.modules.${key}`)}
+              description={t(`general.modules.${key}Desc`)}
               checked={modules[key as keyof typeof modules]}
               onChange={v => updateModules(key, v)}
             />
@@ -1026,16 +986,16 @@ export function GeneralSettingsView() {
       {isDirty && (
         <div className="sticky bottom-0 -mx-0 pb-2">
           <div className="bg-card border border-border rounded-xl px-5 py-3 flex items-center justify-between shadow-lg">
-            <p className="text-sm text-muted-foreground">You have unsaved changes</p>
+            <p className="text-sm text-muted-foreground">{t("general.unsaved")}</p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleDiscard} disabled={isSaving}>
-                <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Discard
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> {t("general.discard")}
               </Button>
               <Button size="sm" onClick={handleSave} disabled={isSaving}>
                 {isSaving
                   ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
                   : <Save className="w-3.5 h-3.5 mr-1.5" />}
-                Save
+                {t("general.save")}
               </Button>
             </div>
           </div>

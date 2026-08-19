@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { CheckSquare, Phone, Mail, Calendar, StickyNote, ListTodo, AlertTriangle, CalendarClock, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,16 +10,12 @@ import { useLazyList } from "@/hooks/use-lazy-list";
 import { Button } from "@/components/ui/button";
 
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
-const FILTERS = [
-  { key: "open", label: "Open" },
-  { key: "overdue", label: "Overdue" },
-  { key: "today", label: "Due Today" },
-  { key: "completed", label: "Completed" },
-  { key: "all", label: "All" },
-] as const;
-type FilterKey = typeof FILTERS[number]["key"];
+const ORIGIN_KEYS = new Set(["customer", "deal", "lead"]);
+const FILTERS = ["open", "overdue", "today", "completed", "all"] as const;
+type FilterKey = typeof FILTERS[number];
 
 export function ActivitiesView() {
+  const { t } = useTranslation("crm");
   const [filter, setFilter] = React.useState<FilterKey>("open");
   const { data: summary } = useActivitiesSummary();
   const { data: all = [] } = useActivities(
@@ -38,10 +35,10 @@ export function ActivitiesView() {
   const lazy = useLazyList(items, 30);
 
   const stats = [
-    { label: "Open Tasks", value: summary?.openTasks ?? 0, icon: ListTodo, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Overdue", value: summary?.overdue ?? 0, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
-    { label: "Due Today", value: summary?.dueToday ?? 0, icon: CalendarClock, color: "text-warning", bg: "bg-warning/10" },
-    { label: "Upcoming", value: summary?.upcoming ?? 0, icon: Calendar, color: "text-success", bg: "bg-success/10" },
+    { label: t("activity.view.openTasks"), value: summary?.openTasks ?? 0, icon: ListTodo, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("activity.view.overdueStat"), value: summary?.overdue ?? 0, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
+    { label: t("activity.view.dueToday"), value: summary?.dueToday ?? 0, icon: CalendarClock, color: "text-warning", bg: "bg-warning/10" },
+    { label: t("activity.view.upcoming"), value: summary?.upcoming ?? 0, icon: Calendar, color: "text-success", bg: "bg-success/10" },
   ];
 
   return (
@@ -49,8 +46,8 @@ export function ActivitiesView() {
       <div className="flex items-center gap-2">
         <ListTodo className="h-6 w-6 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold">Activities &amp; Tasks</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">All calls, meetings, and to-dos across leads, deals, and customers</p>
+          <h1 className="text-2xl font-bold">{t("activity.view.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("activity.view.subtitle")}</p>
         </div>
       </div>
 
@@ -71,17 +68,17 @@ export function ActivitiesView() {
 
       <div className="flex items-center gap-1.5 flex-wrap">
         {FILTERS.map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)}
+          <button key={f} onClick={() => setFilter(f)}
             className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              filter === f.key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
-            {f.label}
+              filter === f ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+            {t(`activity.view.filter.${f}`)}
           </button>
         ))}
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
         {lazy.total === 0 ? (
-          <div className="text-center py-16 text-sm text-muted-foreground">Nothing here. Log activities from a lead, deal, or customer.</div>
+          <div className="text-center py-16 text-sm text-muted-foreground">{t("activity.view.empty")}</div>
         ) : lazy.visible.map(a => {
           const Icon = ICON[a.type] ?? StickyNote;
           const overdue = !a.completed && a.dueDate && a.dueDate < today;
@@ -94,17 +91,17 @@ export function ActivitiesView() {
               <div className="flex-1 min-w-0">
                 <p className={cn("text-sm font-medium leading-tight truncate", a.completed && "line-through text-muted-foreground")}>{a.subject}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  <span className="capitalize">{a.type}</span>
-                  {a.relatedToName && <> · {a.relatedToName} <span className="capitalize opacity-70">({a.relatedToType})</span></>}
-                  {a.dueDate && <span className={cn(overdue && "text-destructive font-semibold")}> · due {a.dueDate}{overdue && " (overdue)"}</span>}
+                  <span>{t(`activityType.${a.type}`)}</span>
+                  {a.relatedToName && <> · {a.relatedToName} <span className="opacity-70">({t(`activity.origin.${ORIGIN_KEYS.has(a.relatedToType) ? a.relatedToType : "customer"}`)})</span></>}
+                  {a.dueDate && <span className={cn(overdue && "text-destructive font-semibold")}> · {t("activity.view.due", { date: a.dueDate })}{overdue && ` ${t("activity.view.overdueParen")}`}</span>}
                   {a.assignedTo && <> · {a.assignedTo}</>}
                 </p>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {a.type !== "note" && a.type !== "email" && (
                   a.completed
-                    ? <button onClick={() => reopen.mutate(a.id)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1">Reopen</button>
-                    : <button onClick={() => complete.mutate(a.id)} className="inline-flex items-center gap-1 text-xs text-success hover:bg-success/10 rounded px-2 py-1"><Check className="h-3.5 w-3.5" />Done</button>
+                    ? <button onClick={() => reopen.mutate(a.id)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1">{t("activity.view.reopen")}</button>
+                    : <button onClick={() => complete.mutate(a.id)} className="inline-flex items-center gap-1 text-xs text-success hover:bg-success/10 rounded px-2 py-1"><Check className="h-3.5 w-3.5" />{t("activity.view.done")}</button>
                 )}
                 <button onClick={() => del.mutate(a.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
@@ -113,8 +110,8 @@ export function ActivitiesView() {
         })}
         {lazy.hasMore && (
           <div ref={lazy.sentinelRef} className="flex items-center justify-center gap-3 py-3">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={lazy.loadMore}>Load more</Button>
-            <span className="text-xs text-muted-foreground">Showing {lazy.shown} of {lazy.total}</span>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={lazy.loadMore}>{t("activity.view.loadMore")}</Button>
+            <span className="text-xs text-muted-foreground">{t("activity.view.showing", { shown: lazy.shown, total: lazy.total })}</span>
           </div>
         )}
       </div>

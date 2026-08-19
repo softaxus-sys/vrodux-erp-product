@@ -1,5 +1,6 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   MapPin, Users, Phone, Mail, Globe, Building2,
   X, Plus, Pencil, Trash2, AlertTriangle, Loader2,
@@ -7,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import {
   useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch,
 } from "@/hooks/identity/use-branches";
@@ -60,10 +60,10 @@ function toLocalBranch(dto: BranchDto): Branch {
 
 // ── Configs ───────────────────────────────────────────────────────────────────
 
-const TYPE_CONFIG: Record<BranchType, { label: string; color: string; bg: string }> = {
-  main:          { label: "Main",          color: "text-primary",           bg: "bg-primary/10" },
-  regional:      { label: "Regional",      color: "text-amber-600",         bg: "bg-amber-50 dark:bg-amber-950/30" },
-  international: { label: "International", color: "text-muted-foreground",  bg: "bg-muted" },
+const TYPE_CONFIG: Record<BranchType, { labelKey: string; color: string; bg: string }> = {
+  main:          { labelKey: "branches.type.main",          color: "text-primary",           bg: "bg-primary/10" },
+  regional:      { labelKey: "branches.type.regional",      color: "text-amber-600",         bg: "bg-amber-50 dark:bg-amber-950/30" },
+  international: { labelKey: "branches.type.international", color: "text-muted-foreground",  bg: "bg-muted" },
 };
 
 const CURRENCY_OPTIONS = ["PKR","AED","USD","EUR","GBP","SAR"];
@@ -88,6 +88,8 @@ function BranchFormModal({
   onSave: (data: Omit<Branch, "id">) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const [form, setForm] = React.useState<Omit<Branch, "id">>(
     initial ? { ...initial } : { ...EMPTY_BRANCH }
   );
@@ -117,88 +119,88 @@ function BranchFormModal({
           <div className="flex-1 overflow-y-auto p-5 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Branch Name *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.name")}</label>
                 <Input value={form.name} onChange={e => set("name", e.target.value)}
-                  placeholder="e.g. Karachi HQ" className="h-9" autoFocus />
+                  placeholder={t("branches.form.namePlaceholder")} className="h-9" autoFocus />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Branch Code *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.code")}</label>
                 <Input value={form.code} onChange={e => set("code", e.target.value.toUpperCase())}
-                  placeholder="e.g. KHI-HQ" className="h-9 font-mono" />
+                  placeholder={t("branches.form.codePlaceholder")} className="h-9 font-mono" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.type")}</label>
                 <select value={form.type} onChange={e => set("type", e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <option value="main">Main</option>
-                  <option value="regional">Regional</option>
-                  <option value="international">International</option>
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <option value="main">{t("branches.type.main")}</option>
+                  <option value="regional">{t("branches.type.regional")}</option>
+                  <option value="international">{t("branches.type.international")}</option>
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.status")}</label>
                 <select value={form.status} onChange={e => set("status", e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <option value="active">{t("branches.status.active")}</option>
+                  <option value="inactive">{t("branches.status.inactive")}</option>
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">City *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.city")}</label>
                 <Input value={form.city} onChange={e => set("city", e.target.value)}
-                  placeholder="e.g. Karachi" className="h-9" />
+                  placeholder={t("branches.form.cityPlaceholder")} className="h-9" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Country</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.country")}</label>
                 <Input value={form.country} onChange={e => set("country", e.target.value)}
-                  placeholder="e.g. Pakistan" className="h-9" />
+                  placeholder={t("branches.form.countryPlaceholder")} className="h-9" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flag emoji</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.flag")}</label>
                 <Input value={form.flag} onChange={e => set("flag", e.target.value)}
                   placeholder="🇵🇰" className="h-9 text-lg" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.currency")}</label>
                 <select value={form.currency} onChange={e => set("currency", e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                   {CURRENCY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5 col-span-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Timezone</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.timezone")}</label>
                 <select value={form.timezone} onChange={e => set("timezone", e.target.value)}
-                  className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                   {TIMEZONE_OPTIONS.map(tz => <option key={tz} value={tz}>{tz}</option>)}
                 </select>
               </div>
               <div className="space-y-1.5 col-span-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Full Address</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.address")}</label>
                 <Input value={form.address} onChange={e => set("address", e.target.value)}
-                  placeholder="Street address" className="h-9" />
+                  placeholder={t("branches.form.addressPlaceholder")} className="h-9" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.phone")}</label>
                 <Input value={form.phone} onChange={e => set("phone", e.target.value)}
                   placeholder="+92 21 xxx xxxx" className="h-9" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.email")}</label>
                 <Input value={form.email} onChange={e => set("email", e.target.value)}
-                  placeholder="branch@company.io" className="h-9" type="email" />
+                  placeholder={t("branches.form.emailPlaceholder")} className="h-9" type="email" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Manager</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.manager")}</label>
                 <Input value={form.manager} onChange={e => set("manager", e.target.value)}
-                  placeholder="Manager name" className="h-9" />
+                  placeholder={t("branches.form.managerPlaceholder")} className="h-9" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Staff Count</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.staff")}</label>
                 <Input value={form.staff} onChange={e => set("staff", Number(e.target.value))}
                   type="number" min="0" className="h-9" />
               </div>
               <div className="space-y-1.5 col-span-2">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Opening Date</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("branches.form.openedDate")}</label>
                 <Input value={form.openedDate} onChange={e => set("openedDate", e.target.value)}
                   type="date" className="h-9" />
               </div>
@@ -208,9 +210,9 @@ function BranchFormModal({
           {/* Footer */}
           <div className="px-5 py-4 border-t border-border flex gap-2 shrink-0">
             <Button className="flex-1" onClick={() => isValid && onSave(form)} disabled={!isValid}>
-              Save Branch
+              {t("branches.form.save")}
             </Button>
-            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button variant="outline" onClick={onClose}>{tc("action.cancel")}</Button>
           </div>
         </div>
       </motion.div>
@@ -223,6 +225,8 @@ function BranchFormModal({
 function ConfirmDeleteModal({
   branchName, onConfirm, onCancel,
 }: { branchName: string; onConfirm: () => void; onCancel: () => void }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   return (
     <>
       <motion.div className="fixed inset-0 bg-black/40 z-40"
@@ -236,17 +240,17 @@ function ConfirmDeleteModal({
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <h3 className="font-bold">Delete branch?</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">This cannot be undone.</p>
+              <h3 className="font-bold">{t("branches.deleteTitle")}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("branches.deleteWarning")}</p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mb-5">
-            <span className="font-semibold text-foreground">"{branchName}"</span> will be permanently removed.
+            {t("branches.deleteBody", { name: branchName })}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onCancel}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={onCancel}>{tc("action.cancel")}</Button>
             <Button variant="destructive" className="flex-1" onClick={onConfirm}>
-              <Trash2 className="h-4 w-4 mr-1.5" />Delete
+              <Trash2 className="h-4 w-4 mr-1.5" />{tc("action.delete")}
             </Button>
           </div>
         </div>
@@ -260,6 +264,8 @@ function ConfirmDeleteModal({
 function BranchDetailDrawer({
   branch, onClose, onEdit, onDelete,
 }: { branch: Branch; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const typeCfg = TYPE_CONFIG[branch.type];
   return (
     <AnimatePresence>
@@ -271,7 +277,7 @@ function BranchDetailDrawer({
         className="fixed right-0 top-0 h-full w-full max-w-md bg-background border-l border-border z-50 flex flex-col"
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-semibold">Branch Details</h2>
+          <h2 className="font-semibold">{t("branches.detailTitle")}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -285,11 +291,11 @@ function BranchDetailDrawer({
               <p className="text-sm text-muted-foreground">{branch.city}, {branch.country}</p>
               <div className="flex items-center gap-2 mt-2">
                 <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", typeCfg.color, typeCfg.bg)}>
-                  {typeCfg.label}
+                  {t(typeCfg.labelKey)}
                 </span>
                 <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold",
                   branch.status === "active" ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" : "text-muted-foreground bg-muted")}>
-                  {branch.status === "active" ? "Active" : "Inactive"}
+                  {branch.status === "active" ? t("branches.status.active") : t("branches.status.inactive")}
                 </span>
               </div>
             </div>
@@ -298,12 +304,12 @@ function BranchDetailDrawer({
           {/* Grid info */}
           <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-xl p-4">
             {[
-              { label: "Branch Code", value: branch.code },
-              { label: "Manager",     value: branch.manager || "—" },
-              { label: "Staff Count", value: `${branch.staff} employees` },
-              { label: "Currency",    value: branch.currency },
-              { label: "Timezone",    value: branch.timezone },
-              { label: "Opened",      value: branch.openedDate || "—" },
+              { label: t("branches.branchCode"), value: branch.code },
+              { label: t("branches.manager"),    value: branch.manager || "—" },
+              { label: t("branches.staffCount"), value: t("branches.employees", { n: branch.staff }) },
+              { label: t("branches.currency"),   value: branch.currency },
+              { label: t("branches.timezone"),   value: branch.timezone },
+              { label: t("branches.opened"),     value: branch.openedDate || "—" },
             ].map(item => (
               <div key={item.label}>
                 <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -314,7 +320,7 @@ function BranchDetailDrawer({
 
           {/* Contact */}
           <div className="space-y-3">
-            <p className="text-sm font-semibold">Contact Information</p>
+            <p className="text-sm font-semibold">{t("branches.contactInfo")}</p>
             {branch.address && (
               <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
                 <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -337,7 +343,7 @@ function BranchDetailDrawer({
         </div>
         <div className="px-6 py-4 border-t border-border flex gap-2">
           <Button className="flex-1 gap-1.5" variant="outline" onClick={onEdit}>
-            <Pencil className="h-4 w-4" />Edit
+            <Pencil className="h-4 w-4" />{tc("action.edit")}
           </Button>
           <Button variant="outline" size="icon" className="text-destructive hover:text-destructive hover:border-destructive/40"
             onClick={onDelete}>
@@ -352,6 +358,7 @@ function BranchDetailDrawer({
 // ── Branch Card ───────────────────────────────────────────────────────────────
 
 function BranchCard({ branch, index, onView }: { branch: Branch; index: number; onView: () => void }) {
+  const { t } = useTranslation("settings");
   const typeCfg = TYPE_CONFIG[branch.type];
   return (
     <motion.div
@@ -370,27 +377,27 @@ function BranchCard({ branch, index, onView }: { branch: Branch; index: number; 
         </div>
         <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold",
           branch.status === "active" ? "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30" : "text-muted-foreground bg-muted")}>
-          {branch.status === "active" ? "Active" : "Inactive"}
+          {branch.status === "active" ? t("branches.status.active") : t("branches.status.inactive")}
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <p className="text-xs text-muted-foreground">Type</p>
+          <p className="text-xs text-muted-foreground">{t("branches.form.type")}</p>
           <span className={cn("inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold mt-0.5", typeCfg.color, typeCfg.bg)}>
-            {typeCfg.label}
+            {t(typeCfg.labelKey)}
           </span>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Currency</p>
+          <p className="text-xs text-muted-foreground">{t("branches.currency")}</p>
           <p className="font-medium">{branch.currency}</p>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
-          <span className="text-sm">{branch.staff} staff</span>
+          <span className="text-sm">{t("branches.staffLabel", { n: branch.staff })}</span>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Manager</p>
+          <p className="text-xs text-muted-foreground">{t("branches.manager")}</p>
           <p className="font-medium text-xs">{branch.manager.split(" ")[0] || "—"}</p>
         </div>
       </div>
@@ -402,7 +409,7 @@ function BranchCard({ branch, index, onView }: { branch: Branch; index: number; 
         </div>
       )}
 
-      <Button variant="outline" size="sm" className="w-full" onClick={onView}>View Details</Button>
+      <Button variant="outline" size="sm" className="w-full" onClick={onView}>{t("branches.viewDetails")}</Button>
     </motion.div>
   );
 }
@@ -410,6 +417,7 @@ function BranchCard({ branch, index, onView }: { branch: Branch; index: number; 
 // ── Main View ─────────────────────────────────────────────────────────────────
 
 export function BranchesView() {
+  const { t } = useTranslation("settings");
   const { data: branchDtos = [], isLoading } = useBranches();
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
@@ -486,21 +494,21 @@ export function BranchesView() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Branch Management</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage office locations, staff, and regional settings.</p>
+          <h1 className="text-2xl font-bold">{t("branches.title")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t("branches.description")}</p>
         </div>
         <Button className="gap-2" onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4" />Add Branch
+          <Plus className="h-4 w-4" />{t("branches.add")}
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Branches", value: stats.total,         icon: Building2, color: "bg-primary/10 text-primary" },
-          { label: "Active",         value: stats.active,        icon: Globe,     color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" },
-          { label: "International",  value: stats.international, icon: Globe,     color: "bg-muted text-muted-foreground" },
-          { label: "Total Staff",    value: stats.totalStaff,    icon: Users,     color: "bg-amber-50 text-amber-600 dark:bg-amber-950/30" },
+          { label: t("branches.statTotal"),         value: stats.total,         icon: Building2, color: "bg-primary/10 text-primary" },
+          { label: t("branches.statActive"),        value: stats.active,        icon: Globe,     color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30" },
+          { label: t("branches.statInternational"), value: stats.international, icon: Globe,     color: "bg-muted text-muted-foreground" },
+          { label: t("branches.statStaff"),         value: stats.totalStaff,    icon: Users,     color: "bg-amber-50 text-amber-600 dark:bg-amber-950/30" },
         ].map(s => (
           <div key={s.label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
             <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", s.color)}>
@@ -522,7 +530,7 @@ export function BranchesView() {
         ))}
         {branches.length === 0 && (
           <div className="col-span-3 py-16 text-center text-sm text-muted-foreground">
-            No branches yet. Click <strong>Add Branch</strong> to create one.
+            {t("branches.empty")}
           </div>
         )}
       </div>
@@ -540,10 +548,10 @@ export function BranchesView() {
       {/* Modals */}
       <AnimatePresence>
         {showCreate && (
-          <BranchFormModal title="Add New Branch" onSave={handleCreate} onClose={() => setShowCreate(false)} />
+          <BranchFormModal title={t("branches.addNew")} onSave={handleCreate} onClose={() => setShowCreate(false)} />
         )}
         {editBranch && (
-          <BranchFormModal title="Edit Branch" initial={editBranch} onSave={handleEdit} onClose={() => setEditBranch(null)} />
+          <BranchFormModal title={t("branches.edit")} initial={editBranch} onSave={handleEdit} onClose={() => setEditBranch(null)} />
         )}
         {deleteBranch && (
           <ConfirmDeleteModal
@@ -556,4 +564,3 @@ export function BranchesView() {
     </div>
   );
 }
-

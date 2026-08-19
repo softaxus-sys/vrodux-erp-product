@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Target, Award, BarChart3, Percent } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,14 +10,15 @@ import type { CrmSummaryDto } from "@/lib/crm/crm.api";
 interface Props { summary: CrmSummaryDto; }
 
 export function PipelineStats({ summary }: Props) {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const stats = [
-    { label: "Pipeline Value",  value: formatCurrency(summary.totalValue, currency),   sub: "Active deals",         icon: DollarSign, color: "text-primary bg-primary/10" },
-    { label: "Won Value",       value: formatCurrency(summary.wonValue, currency),      sub: "Closed this quarter",  icon: Award,      color: "text-success bg-success/10" },
-    { label: "Win Rate",        value: `${summary.winRate}%`,                        sub: "Won vs Lost",          icon: Percent,    color: "text-info bg-info/10" },
-    { label: "Total Deals",     value: summary.totalDeals,                           sub: "All stages",           icon: BarChart3,  color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-    { label: "Avg Deal Size",   value: formatCurrency(summary.avgDealSize, currency),   sub: "Per active deal",      icon: TrendingUp, color: "text-warning bg-warning/10" },
-    { label: "Lost Deals",      value: summary.lostDeals,                            sub: "Need follow-up",       icon: Target,     color: "text-destructive bg-destructive/10" },
+    { label: t("pipeline.stats.pipelineValue"), value: formatCurrency(summary.totalValue, currency),   sub: t("pipeline.stats.activeDeals"),       icon: DollarSign, color: "text-primary bg-primary/10" },
+    { label: t("pipeline.stats.wonValue"),      value: formatCurrency(summary.wonValue, currency),      sub: t("pipeline.stats.closedThisQuarter"), icon: Award,      color: "text-success bg-success/10" },
+    { label: t("pipeline.stats.winRate"),       value: `${summary.winRate}%`,                        sub: t("pipeline.stats.wonVsLost"),         icon: Percent,    color: "text-info bg-info/10" },
+    { label: t("pipeline.stats.totalDeals"),    value: summary.totalDeals,                           sub: t("pipeline.stats.allStages"),         icon: BarChart3,  color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
+    { label: t("pipeline.stats.avgDealSize"),   value: formatCurrency(summary.avgDealSize, currency),   sub: t("pipeline.stats.perActiveDeal"),     icon: TrendingUp, color: "text-warning bg-warning/10" },
+    { label: t("pipeline.stats.lostDeals"),     value: summary.lostDeals,                            sub: t("pipeline.stats.needFollowUp"),      icon: Target,     color: "text-destructive bg-destructive/10" },
   ];
 
   return (

@@ -3,6 +3,7 @@
  * permission editor (roles-permissions-view.tsx) and the per-user override editor
  * (user-permissions-tab.tsx) so the two screens stay visually and behaviourally identical.
  */
+import i18n from "@/i18n";
 import type { PermissionDto } from "@/lib/identity/types";
 
 export const ACTION_ORDER = [
@@ -12,11 +13,18 @@ export const ACTION_ORDER = [
 
 export type Action = typeof ACTION_ORDER[number];
 
-export const ACTION_LABELS: Record<Action, string> = {
-  view: "View", create: "Create", edit: "Edit", delete: "Delete",
-  approve: "Approve", export: "Export", print: "Print",
-  void: "Void", refund: "Refund", discount: "Discount", adjust: "Adjust",
-};
+/** Full action label, translated. */
+export const actionLabel = (action: string) =>
+  i18n.t(`settings:permMatrix.action.${action}`, { defaultValue: action });
+
+/**
+ * Short label for the matrix column headers (~3 chars wide).
+ * The old code did `ACTION_LABELS[a].slice(0, 3)`, which only produces a sensible
+ * abbreviation in English — Arabic needs its own short forms, so they live in the
+ * locale files rather than being derived.
+ */
+export const actionShortLabel = (action: string) =>
+  i18n.t(`settings:permMatrix.actionShort.${action}`, { defaultValue: action.slice(0, 3).toUpperCase() });
 
 export const MODULE_GROUPS: Record<string, string> = {
   inventory: "Inventory", pos: "POS", finance: "Finance", hr: "HR",
@@ -50,17 +58,17 @@ export function groupPermissions(perms: PermissionDto[]) {
   return { byModule, byGroup };
 }
 
-/** Friendlier labels for module ids whose auto-derived name reads awkwardly. */
-const MODULE_LABEL_OVERRIDES: Record<string, string> = {
-  "crm.leads-assigned": "Leads (Assigned only)",
-};
-
-/** Human label for a module id, e.g. "finance.invoicing" → "Invoicing". */
+/**
+ * Human label for a module id, e.g. "finance.invoicing" → "Invoicing".
+ * Translated via `permMatrix.module.<id>`; the title-cased suffix is the fallback so a
+ * permission group added on the backend still renders before its key is translated.
+ */
 export function moduleLabel(moduleId: string) {
-  if (MODULE_LABEL_OVERRIDES[moduleId]) return MODULE_LABEL_OVERRIDES[moduleId];
   const parts = moduleId.split(".");
-  if (parts.length < 2) return moduleId;
-  return parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+  const derived = parts.length < 2
+    ? moduleId
+    : parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+  return i18n.t(`settings:permMatrix.module.${moduleId}`, { defaultValue: derived });
 }
 
 /**
@@ -69,13 +77,28 @@ export function moduleLabel(moduleId: string) {
  * a role is linked to. Falls back to a title-cased prefix for unknown modules.
  */
 export function moduleGroupLabel(prefix: string) {
-  return (
-    MODULE_GROUPS[prefix.toLowerCase()] ??
+  const key = prefix.toLowerCase();
+  const derived =
+    MODULE_GROUPS[key] ??
     prefix
       .split("-")
       .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-      .join(" ")
-  );
+      .join(" ");
+  return i18n.t(`settings:permMatrix.group.${key}`, { defaultValue: derived });
+}
+
+/**
+ * Translated label for a matrix group heading. `groupPermissions` buckets modules under
+ * the ENGLISH group name (it is also the key used by GROUP_ORDER and the expand/collapse
+ * state), so the display label is resolved back through MODULE_GROUPS here rather than
+ * translating the bucket key itself.
+ */
+const GROUP_PREFIX_BY_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(MODULE_GROUPS).map(([prefix, name]) => [name, prefix]),
+);
+export function groupLabel(groupName: string) {
+  const prefix = GROUP_PREFIX_BY_NAME[groupName];
+  return prefix ? moduleGroupLabel(prefix) : groupName;
 }
 
 /**

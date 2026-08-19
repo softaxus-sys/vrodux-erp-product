@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface AddVendorFormProps {
 }
 
 export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
+  const { t } = useTranslation("purchase");
   const isEdit = !!vendor;
   const defaultCurrency = useCurrency();
 
@@ -112,7 +114,7 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">{isEdit ? "Edit Vendor" : "New Vendor"}</h2>
+                <h2 className="text-base font-bold text-foreground">{isEdit ? t("vendors.form.editTitle") : t("vendors.form.title")}</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {isEdit ? `Updating ${vendor?.name}` : "Register a new supplier or service provider"}
                 </p>
@@ -126,60 +128,60 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Company Info */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Company Information</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("vendors.form.companyInfo")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company Name *</label>
-                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="Vendor company name…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.name")}</label>
+                    <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("vendors.form.namePh")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendor Code</label>
-                    <Input value={code} onChange={e => setCode(e.target.value)} placeholder="VND-001" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.code")}</label>
+                    <Input value={code} onChange={e => setCode(e.target.value)} placeholder={t("vendors.form.codePh")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.category")}</label>
                     <select value={category} onChange={e => setCategory(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select…</option>
+                      <option value="">{t("vendors.form.selectPh")}</option>
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact Person</label>
-                    <Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder="Primary contact…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.contact")}</label>
+                    <Input value={contactPerson} onChange={e => setContactPerson(e.target.value)} placeholder={t("vendors.form.contactPh")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</label>
-                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="vendor@company.com" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.email")}</label>
+                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t("vendors.form.emailPh")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
-                    <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+92 3XX XXX XXXX" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.phone")}</label>
+                    <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder={t("vendors.form.phonePh")} className="h-9 text-sm" />
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address</label>
-                    <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Building, street, city…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.address")}</label>
+                    <Input value={address} onChange={e => setAddress(e.target.value)} placeholder={t("vendors.form.addressPh")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tax / NTN Number</label>
-                    <Input value={taxNumber} onChange={e => setTaxNumber(e.target.value)} placeholder="0000000-0" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.taxId")}</label>
+                    <Input value={taxNumber} onChange={e => setTaxNumber(e.target.value)} placeholder={t("vendors.form.taxIdPh")} className="h-9 text-sm" />
                   </div>
                 </div>
               </div>
 
               {/* Financial Terms */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Terms</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("vendors.form.financialTerms")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment Terms</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.paymentTerms")}</label>
                     <select value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {PAYMENT_TERMS.map(t => <option key={t} value={t}>{t}</option>)}
+                      {PAYMENT_TERMS.map(pt => <option key={pt} value={pt}>{pt}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.currency")}</label>
                     <select value={currency} onChange={e => setCurrency(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {CURRENCIES.map(c => <option key={c}>{c}</option>)}
@@ -190,9 +192,9 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("vendors.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Special terms, compliance notes, approved products…" rows={3}
+                  placeholder={t("vendors.form.notesPh")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -200,11 +202,11 @@ export function AddVendorForm({ open, onClose, vendor }: AddVendorFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={handleClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("vendors.form.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
                 {isPending
-                  ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />Saving…</>
-                  : isEdit ? "Save Changes" : "Save Vendor"}
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("vendors.form.saving")}</>
+                  : isEdit ? t("vendors.form.save") : t("vendors.form.create")}
               </Button>
             </div>
           </motion.div>

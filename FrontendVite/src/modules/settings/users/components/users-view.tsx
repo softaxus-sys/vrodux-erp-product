@@ -1,5 +1,6 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Search, Plus, Users, UserCheck, UserX, Mail, Shield,
   X, Edit, Trash2, Eye, Clock, Layers, Loader2, RefreshCw, AlertTriangle,
@@ -19,10 +20,10 @@ import { Can } from "@/components/auth/can";
 
 // ── Local role/status config ──────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  active:   { label: "Active",   color: "text-success",          bg: "bg-success/10", dot: "bg-success" },
-  inactive: { label: "Inactive", color: "text-muted-foreground", bg: "bg-muted",      dot: "bg-muted-foreground" },
-  invited:  { label: "Invited",  color: "text-warning",          bg: "bg-warning/10", dot: "bg-warning" },
+const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: string; dot: string }> = {
+  active:   { labelKey: "users.status.active",   color: "text-success",          bg: "bg-success/10", dot: "bg-success" },
+  inactive: { labelKey: "users.status.inactive", color: "text-muted-foreground", bg: "bg-muted",      dot: "bg-muted-foreground" },
+  invited:  { labelKey: "users.status.invited",  color: "text-warning",          bg: "bg-warning/10", dot: "bg-warning" },
 };
 
 const AVATAR_COLORS = [
@@ -39,11 +40,12 @@ function avatarColor(name: string) {
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation("settings");
   const s = status.toLowerCase();
   const c = STATUS_CONFIG[s] ?? STATUS_CONFIG.inactive;
   return (
     <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{c.label}
+      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{t(c.labelKey)}
     </span>
   );
 }
@@ -77,6 +79,8 @@ function StatCard({ label, value, icon: Icon, color }: {
 function ConfirmDeleteModal({
   userName, onConfirm, onCancel, loading,
 }: { userName: string; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   return (
     <>
       <motion.div className="fixed inset-0 bg-black/40 z-50" initial={{ opacity: 0 }}
@@ -91,18 +95,17 @@ function ConfirmDeleteModal({
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground">Delete user?</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">This cannot be undone.</p>
+              <h3 className="font-bold text-foreground">{t("users.deleteTitle")}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("users.deleteWarning")}</p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mb-5">
-            <span className="font-semibold text-foreground">"{userName}"</span> will be permanently
-            deleted and all their sessions revoked.
+            {t("users.deleteBody", { name: userName })}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>{tc("action.cancel")}</Button>
             <Button variant="destructive" className="flex-1" onClick={onConfirm} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1.5" />Delete</>}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1.5" />{tc("action.delete")}</>}
             </Button>
           </div>
         </div>
@@ -121,6 +124,7 @@ function UserDrawer({
   onEdit: (user: UserDto) => void;
   onDelete: (user: UserDto) => void;
 }) {
+  const { t } = useTranslation("settings");
   const { data: user, isLoading } = useUser(userId);
   const [tab, setTab] = React.useState<"profile" | "permissions">("profile");
 
@@ -144,16 +148,16 @@ function UserDrawer({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-1">
-            {(["profile", "permissions"] as const).map(t => (
+            {(["profile", "permissions"] as const).map(tabId => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
+                key={tabId}
+                onClick={() => setTab(tabId)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors",
-                  tab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/40",
+                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                  tab === tabId ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/40",
                 )}
               >
-                {t}
+                {tabId === "profile" ? t("users.tabProfile") : t("users.tabPermissions")}
               </button>
             ))}
           </div>
@@ -168,7 +172,7 @@ function UserDrawer({
           ) : user ? (
             <UserPermissionsTab user={user} />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-16">User not found.</p>
+            <p className="text-sm text-muted-foreground text-center py-16">{t("users.notFound")}</p>
           )
         ) : (
         <>
@@ -199,21 +203,21 @@ function UserDrawer({
               {/* Info grid */}
               <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-xl p-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Username</p>
+                  <p className="text-xs text-muted-foreground">{t("users.username")}</p>
                   <p className="text-sm font-medium mt-0.5">{user.username}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Phone</p>
+                  <p className="text-xs text-muted-foreground">{t("users.phone")}</p>
                   <p className="text-sm font-medium mt-0.5">{user.phoneNumber || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Joined</p>
+                  <p className="text-xs text-muted-foreground">{t("users.joined")}</p>
                   <p className="text-sm font-medium mt-0.5">{formatDate(user.createdAt)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Last Login</p>
+                  <p className="text-xs text-muted-foreground">{t("users.lastLogin")}</p>
                   <p className="text-sm font-medium mt-0.5">
-                    {user.lastLoginAt ? formatDate(user.lastLoginAt, "relative") : "Never"}
+                    {user.lastLoginAt ? formatDate(user.lastLoginAt, "relative") : t("users.never")}
                   </p>
                 </div>
               </div>
@@ -223,7 +227,7 @@ function UserDrawer({
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Layers className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm font-semibold">Roles & Permissions</p>
+                    <p className="text-sm font-semibold">{t("users.rolesAndPermissions")}</p>
                   </div>
                   <div className="space-y-3">
                     {user.roles.map(role => (
@@ -232,7 +236,7 @@ function UserDrawer({
                           <Shield className="h-3.5 w-3.5 text-primary" />
                           <span className="text-sm font-semibold">{role.name}</span>
                           {role.isSystem && (
-                            <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium text-muted-foreground">SYSTEM</span>
+                            <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium text-muted-foreground">{t("users.systemBadge")}</span>
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1">
@@ -242,7 +246,7 @@ function UserDrawer({
                             </span>
                           ))}
                           {role.permissions.length === 0 && (
-                            <span className="text-xs text-muted-foreground">No permissions assigned</span>
+                            <span className="text-xs text-muted-foreground">{t("users.noPermissions")}</span>
                           )}
                         </div>
                       </div>
@@ -252,7 +256,7 @@ function UserDrawer({
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-16">User not found.</p>
+            <p className="text-sm text-muted-foreground text-center py-16">{t("users.notFound")}</p>
           )}
         </div>
 
@@ -264,7 +268,7 @@ function UserDrawer({
             disabled={!user}
             onClick={() => user && onEdit(user)}
           >
-            <Edit className="h-4 w-4 mr-1.5" />Edit User
+            <Edit className="h-4 w-4 mr-1.5" />{t("users.editUser")}
           </Button>
           {user && (
             <Button
@@ -286,6 +290,8 @@ function UserDrawer({
 // ── Create User Modal ─────────────────────────────────────────────────────────
 
 function CreateUserModal({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const { data: rolesData } = useRoles({ pageSize: 100 });
   const createUser = useCreateUser();
 
@@ -323,7 +329,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
       >
         <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 className="font-semibold text-foreground">Create New User</h2>
+            <h2 className="font-semibold text-foreground">{t("users.createTitle")}</h2>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
               <X className="w-4 h-4" />
             </button>
@@ -331,62 +337,62 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
           <div className="p-6 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First Name *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.firstName")}</label>
                 <Input
                   value={form.firstName}
                   onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
-                  placeholder="Ahmed"
+                  placeholder={t("users.firstNamePlaceholder")}
                   className="h-9 text-sm"
                   autoFocus
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Name</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.lastName")}</label>
                 <Input
                   value={form.lastName}
                   onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
-                  placeholder="Khan"
+                  placeholder={t("users.lastNamePlaceholder")}
                   className="h-9 text-sm"
                 />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.email")}</label>
               <Input
                 value={form.email}
                 onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                placeholder="ahmed@softaxis.io"
+                placeholder={t("users.emailPlaceholder")}
                 type="email"
                 className="h-9 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Username</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.usernameLabel")}</label>
               <Input
                 value={form.username}
                 onChange={e => setForm(p => ({ ...p, username: e.target.value }))}
-                placeholder="auto-generated from email"
+                placeholder={t("users.usernamePlaceholder")}
                 className="h-9 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Password *</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.password")}</label>
               <Input
                 value={form.password}
                 onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
                 type="password"
-                placeholder="Min 8 chars"
+                placeholder={t("users.passwordPlaceholder")}
                 className="h-9 text-sm"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Role</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.role")}</label>
               <select
                 value={form.roleId}
                 onChange={e => setForm(p => ({ ...p, roleId: e.target.value }))}
-                className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
-                <option value="">No role assigned</option>
+                <option value="">{t("users.noRoleAssigned")}</option>
                 {(rolesData?.items ?? []).map(r => (
                   <option key={r.id} value={r.id}>{r.name}</option>
                 ))}
@@ -399,10 +405,10 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
                 disabled={createUser.isPending || !form.firstName || !form.email || !form.password}
               >
                 {createUser.isPending
-                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Creating…</>
-                  : "Create User"}
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{tc("action.creating")}</>
+                  : t("users.create")}
               </Button>
-              <Button variant="outline" onClick={onClose} disabled={createUser.isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={createUser.isPending}>{tc("action.cancel")}</Button>
             </div>
           </div>
         </div>
@@ -415,6 +421,7 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
 // ── Role manager — add / remove a user's roles (live) ──────────────────────────
 function RoleManager({ userId }: { userId: string }) {
+  const { t } = useTranslation("settings");
   // Fetch fresh detail so the list reflects assign/remove immediately (both invalidate this query).
   const { data: user } = useUser(userId);
   const { data: rolesData } = useRoles({ pageSize: 100 });
@@ -434,7 +441,7 @@ function RoleManager({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-2 pt-1 border-t border-border">
-      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roles</label>
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.roleManager.label")}</label>
       <div className="space-y-1.5">
         {roles.map(role => (
           <div key={role.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20">
@@ -442,10 +449,10 @@ function RoleManager({ userId }: { userId: string }) {
               <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
               <span className="text-sm font-medium truncate">{role.name}</span>
               {role.isSystem && (
-                <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium text-muted-foreground shrink-0">SYSTEM</span>
+                <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded font-medium text-muted-foreground shrink-0">{t("users.systemBadge")}</span>
               )}
             </div>
-            <button type="button" title="Remove role" disabled={busy}
+            <button type="button" title={t("users.roleManager.removeRole")} disabled={busy}
               onClick={() => removeRole.mutate({ userId, roleId: role.id })}
               className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 shrink-0">
               <X className="h-3.5 w-3.5" />
@@ -453,27 +460,29 @@ function RoleManager({ userId }: { userId: string }) {
           </div>
         ))}
         {roles.length === 0 && (
-          <p className="text-xs text-muted-foreground">No roles assigned — add one below.</p>
+          <p className="text-xs text-muted-foreground">{t("users.roleManager.none")}</p>
         )}
       </div>
       <div className="flex gap-2 pt-1">
         <select value={addRoleId} onChange={e => setAddRoleId(e.target.value)} disabled={busy || available.length === 0}
           className="flex-1 h-9 px-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50">
-          <option value="">{available.length ? "Add a role…" : "All roles assigned"}</option>
+          <option value="">{available.length ? t("users.roleManager.addPlaceholder") : t("users.roleManager.allAssigned")}</option>
           {available.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
         <Button type="button" size="sm" className="h-9 gap-1.5" onClick={add} disabled={!addRoleId || busy}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}Add
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}{t("users.roleManager.add")}
         </Button>
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Changes apply immediately. To switch a user's role, add the new one and remove the old.
+        {t("users.roleManager.hint")}
       </p>
     </div>
   );
 }
 
 function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const updateUser = useUpdateUser(user.id);
   const [form, setForm] = React.useState({
     firstName:   user.firstName   ?? "",
@@ -508,7 +517,7 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
       >
         <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-            <h2 className="font-semibold text-foreground">Edit User</h2>
+            <h2 className="font-semibold text-foreground">{t("users.editTitle")}</h2>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
               <X className="w-4 h-4" />
             </button>
@@ -522,7 +531,7 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First Name *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.firstName")}</label>
                 <Input
                   value={form.firstName}
                   onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
@@ -531,7 +540,7 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Name</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.lastName")}</label>
                 <Input
                   value={form.lastName}
                   onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
@@ -541,11 +550,11 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("users.phone")}</label>
               <Input
                 value={form.phoneNumber}
                 onChange={e => setForm(p => ({ ...p, phoneNumber: e.target.value }))}
-                placeholder="+971 50 123 4567"
+                placeholder={t("users.phonePlaceholder")}
                 className="h-9 text-sm"
               />
             </div>
@@ -562,10 +571,10 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
                 disabled={updateUser.isPending || !form.firstName.trim()}
               >
                 {updateUser.isPending
-                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</>
-                  : "Save Changes"}
+                  ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{tc("action.saving")}</>
+                  : t("users.saveChanges")}
               </Button>
-              <Button variant="outline" onClick={onClose} disabled={updateUser.isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={updateUser.isPending}>{tc("action.cancel")}</Button>
             </div>
           </div>
         </div>
@@ -577,6 +586,8 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
 // ── Main view ─────────────────────────────────────────────────────────────────
 
 export function UsersView() {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const [search, setSearch]               = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [page, setPage]                   = React.useState(1);
@@ -589,8 +600,8 @@ export function UsersView() {
 
   // Debounce search
   React.useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 350);
-    return () => clearTimeout(t);
+    const handle = setTimeout(() => setDebouncedSearch(search), 350);
+    return () => clearTimeout(handle);
   }, [search]);
 
   React.useEffect(() => { setPage(1); }, [debouncedSearch]);
@@ -627,8 +638,8 @@ export function UsersView() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Manage team access, roles, and permissions.</p>
+          <h1 className="text-2xl font-bold">{t("users.title")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t("users.description")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
@@ -636,7 +647,7 @@ export function UsersView() {
           </Button>
           <Can permission="settings.users.create">
             <Button className="gap-2" onClick={() => setShowCreate(true)}>
-              <Plus className="h-4 w-4" />Create User
+              <Plus className="h-4 w-4" />{t("users.create")}
             </Button>
           </Can>
         </div>
@@ -644,10 +655,10 @@ export function UsersView() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total Users"  value={stats.total}     icon={Users}     color="bg-primary/10 text-primary" />
-        <StatCard label="Active"       value={stats.active}    icon={UserCheck} color="bg-success/10 text-success" />
-        <StatCard label="Inactive"     value={stats.inactive}  icon={UserX}     color="bg-muted text-muted-foreground" />
-        <StatCard label="With Roles"   value={stats.withRoles} icon={Shield}    color="bg-destructive/10 text-destructive" />
+        <StatCard label={t("users.statTotal")}     value={stats.total}     icon={Users}     color="bg-primary/10 text-primary" />
+        <StatCard label={t("users.statActive")}    value={stats.active}    icon={UserCheck} color="bg-success/10 text-success" />
+        <StatCard label={t("users.statInactive")}  value={stats.inactive}  icon={UserX}     color="bg-muted text-muted-foreground" />
+        <StatCard label={t("users.statWithRoles")} value={stats.withRoles} icon={Shield}    color="bg-destructive/10 text-destructive" />
       </div>
 
       {/* Search */}
@@ -655,7 +666,7 @@ export function UsersView() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email…"
+            placeholder={t("users.searchPlaceholder")}
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -671,19 +682,19 @@ export function UsersView() {
           </div>
         ) : isError ? (
           <div className="py-12 text-center space-y-3">
-            <p className="text-sm text-destructive">Failed to load users.</p>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>Retry</Button>
+            <p className="text-sm text-destructive">{t("users.loadFailed")}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>{tc("action.retry")}</Button>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">User</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Roles</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Joined</th>
-                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                  <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Actions</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("users.colUser")}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("users.colRoles")}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("users.colJoined")}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("users.colStatus")}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-muted-foreground">{t("users.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -711,10 +722,10 @@ export function UsersView() {
                     <td className="px-4 py-3">
                       {user.roleCount > 0 ? (
                         <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-                          {user.roleCount} role{user.roleCount > 1 ? "s" : ""}
+                          {t("users.roleCount", { count: user.roleCount })}
                         </span>
                       ) : (
-                        <span className="text-xs text-muted-foreground">No roles</span>
+                        <span className="text-xs text-muted-foreground">{t("users.noRoles")}</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -731,7 +742,7 @@ export function UsersView() {
                           className="h-7 px-2.5 text-xs gap-1"
                           onClick={() => setSelectedUserId(user.id)}
                         >
-                          <Eye className="h-3.5 w-3.5" />View
+                          <Eye className="h-3.5 w-3.5" />{t("users.view")}
                         </Button>
                       </div>
                     </td>
@@ -744,7 +755,7 @@ export function UsersView() {
 
         {!isLoading && !isError && users.length === 0 && (
           <div className="py-12 text-center text-muted-foreground text-sm">
-            No users match your search.
+            {t("users.empty")}
           </div>
         )}
 
@@ -752,7 +763,7 @@ export function UsersView() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
             <p className="text-xs text-muted-foreground">
-              Showing {users.length} of {totalCount} users
+              {t("users.showing", { shown: users.length, total: totalCount })}
             </p>
             <div className="flex gap-1.5">
               <Button
@@ -760,14 +771,14 @@ export function UsersView() {
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
-                Previous
+                {tc("action.previous")}
               </Button>
               <Button
                 variant="outline" size="sm"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
               >
-                Next
+                {tc("action.next")}
               </Button>
             </div>
           </div>

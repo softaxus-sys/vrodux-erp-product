@@ -1,5 +1,7 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import {
   TrendingUp, TrendingDown, RotateCcw, Sliders, AlertTriangle,
   Search, Plus, X, ArrowRightLeft, FileDown, Calendar, Loader2,
@@ -16,31 +18,28 @@ import { Can } from "@/components/auth/can";
 
 type MovementType = "Receipt" | "Sale" | "Adjustment" | "Transfer" | "WriteOff" | "Return" | "Opening";
 
-const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
-  Receipt:    { label: "Stock In",   color: "text-success",     bg: "bg-success/10",     Icon: TrendingUp },
-  Sale:       { label: "Stock Out",  color: "text-destructive", bg: "bg-destructive/10", Icon: TrendingDown },
-  Adjustment: { label: "Adjustment", color: "text-warning",     bg: "bg-warning/10",     Icon: Sliders },
-  Transfer:   { label: "Transfer",   color: "text-primary",     bg: "bg-primary/10",     Icon: ArrowRightLeft },
-  WriteOff:   { label: "Write-Off",  color: "text-destructive", bg: "bg-destructive/10", Icon: AlertTriangle },
-  Return:     { label: "Return",     color: "text-blue-600",    bg: "bg-blue-500/10",    Icon: RotateCcw },
-  Opening:    { label: "Opening",    color: "text-slate-600",   bg: "bg-slate-100",      Icon: Sliders },
+const TYPE_CONFIG: Record<string, { color: string; bg: string; Icon: React.ElementType }> = {
+  Receipt:    { color: "text-success",     bg: "bg-success/10",     Icon: TrendingUp },
+  Sale:       { color: "text-destructive", bg: "bg-destructive/10", Icon: TrendingDown },
+  Adjustment: { color: "text-warning",     bg: "bg-warning/10",     Icon: Sliders },
+  Transfer:   { color: "text-primary",     bg: "bg-primary/10",     Icon: ArrowRightLeft },
+  WriteOff:   { color: "text-destructive", bg: "bg-destructive/10", Icon: AlertTriangle },
+  Return:     { color: "text-blue-600",    bg: "bg-blue-500/10",    Icon: RotateCcw },
+  Opening:    { color: "text-slate-600",   bg: "bg-slate-100",      Icon: Sliders },
 };
 
-const TYPE_FILTERS = [
-  { key: "",          label: "All" },
-  { key: "Receipt",   label: "Stock In" },
-  { key: "Sale",      label: "Stock Out" },
-  { key: "Adjustment",label: "Adjustment" },
-  { key: "Transfer",  label: "Transfer" },
-  { key: "WriteOff",  label: "Write-Off" },
-  { key: "Return",    label: "Return" },
-];
+/** Localized label for a backend movement type (falls back to the raw key). */
+const typeLabel = (key: string) => i18n.t(`movementType.${key}`, { ns: "inventory", defaultValue: key });
+
+const TYPE_FILTER_KEYS = ["", "Receipt", "Sale", "Adjustment", "Transfer", "WriteOff", "Return"];
 
 // ─── Detail Drawer ─────────────────────────────────────────────────────────────
 
 function MovementDetailDrawer({ record, open, onClose }: { record: StockMovementDto | null; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("inventory");
   if (!record) return null;
-  const cfg = TYPE_CONFIG[record.adjustmentType] ?? { label: record.adjustmentType, color: "text-muted-foreground", bg: "bg-muted", Icon: Sliders };
+  const cfg = TYPE_CONFIG[record.adjustmentType] ?? { color: "text-muted-foreground", bg: "bg-muted", Icon: Sliders };
+  const label = typeLabel(record.adjustmentType);
   const Icon = cfg.Icon;
   const isPositive = record.quantity >= 0;
 
@@ -58,46 +57,46 @@ function MovementDetailDrawer({ record, open, onClose }: { record: StockMovement
                 </div>
                 <div>
                   <p className="font-bold text-sm">{record.reference ?? "—"}</p>
-                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", cfg.color, cfg.bg)}>{cfg.label}</span>
+                  <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", cfg.color, cfg.bg)}>{label}</span>
                 </div>
               </div>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className={cn("rounded-xl p-4 border", isPositive ? "bg-success/5 border-success/20" : "bg-destructive/5 border-destructive/20")}>
-                <p className="text-xs text-muted-foreground mb-1">Quantity Change</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("movements.drawer.quantityChange")}</p>
                 <p className={cn("text-3xl font-bold", isPositive ? "text-success" : "text-destructive")}>
                   {isPositive ? "+" : ""}{record.quantity}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Balance after: <span className="font-semibold">{record.balanceAfter}</span></p>
+                <p className="text-xs text-muted-foreground mt-1">{t("movements.drawer.balanceAfter")} <span className="font-semibold">{record.balanceAfter}</span></p>
               </div>
               <div className="bg-muted/30 rounded-xl p-4 space-y-1 border border-border">
-                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">Product</p>
+                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">{t("movements.drawer.product")}</p>
                 <p className="font-semibold">{record.productName}</p>
                 {record.productSku && <p className="text-xs font-mono text-muted-foreground">{record.productSku}</p>}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Date",      value: formatDate(record.createdAt) },
-                  { label: "Reference", value: record.reference ?? "—" },
-                  { label: "Type",      value: cfg.label },
-                  { label: "Balance",   value: String(record.balanceAfter) },
-                ].map(({ label, value }) => (
-                  <div key={label} className="bg-muted/30 rounded-xl p-3 border border-border">
-                    <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
+                  { label: t("movements.drawer.date"),      value: formatDate(record.createdAt) },
+                  { label: t("movements.drawer.reference"), value: record.reference ?? "—" },
+                  { label: t("movements.drawer.type"),      value: label },
+                  { label: t("movements.drawer.balance"),   value: String(record.balanceAfter) },
+                ].map(({ label: fieldLabel, value }) => (
+                  <div key={fieldLabel} className="bg-muted/30 rounded-xl p-3 border border-border">
+                    <p className="text-[10px] text-muted-foreground mb-1">{fieldLabel}</p>
                     <p className="text-xs font-semibold">{value}</p>
                   </div>
                 ))}
               </div>
               {record.notes && (
                 <div className="bg-muted/30 rounded-xl p-4 border border-border">
-                  <p className="text-xs text-muted-foreground font-semibold mb-1">Notes</p>
+                  <p className="text-xs text-muted-foreground font-semibold mb-1">{t("movements.drawer.notes")}</p>
                   <p className="text-sm text-muted-foreground">{record.notes}</p>
                 </div>
               )}
             </div>
             <div className="p-4 border-t border-border">
-              <Button variant="outline" className="w-full" onClick={onClose}>Close</Button>
+              <Button variant="outline" className="w-full" onClick={onClose}>{t("movements.drawer.close")}</Button>
             </div>
           </motion.div>
         </>
@@ -109,6 +108,7 @@ function MovementDetailDrawer({ record, open, onClose }: { record: StockMovement
 // ─── Main View ────────────────────────────────────────────────────────────────
 
 export function MovementsView() {
+  const { t } = useTranslation("inventory");
   const [search, setSearch]           = React.useState("");
   const [typeFilter, setTypeFilter]   = React.useState("");
   const [dateFilter, setDateFilter]   = React.useState("");
@@ -146,10 +146,10 @@ export function MovementsView() {
   }), [data]);
 
   const STATS = [
-    { label: "Total Records", value: stats.total,       color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50", Icon: Sliders },
-    { label: "Stock In",      value: stats.inCount,     color: "text-success",   bg: "bg-success/10",     Icon: TrendingUp,   sub: "this page" },
-    { label: "Stock Out",     value: stats.outCount,    color: "text-destructive", bg: "bg-destructive/10", Icon: TrendingDown, sub: "this page" },
-    { label: "Adjustments",   value: stats.adjustments, color: "text-warning",   bg: "bg-warning/10",     Icon: RotateCcw },
+    { label: t("movements.stats.totalRecords"), value: stats.total,       color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50", Icon: Sliders },
+    { label: t("movements.stats.stockIn"),      value: stats.inCount,     color: "text-success",   bg: "bg-success/10",     Icon: TrendingUp,   sub: t("movements.stats.thisPage") },
+    { label: t("movements.stats.stockOut"),     value: stats.outCount,    color: "text-destructive", bg: "bg-destructive/10", Icon: TrendingDown, sub: t("movements.stats.thisPage") },
+    { label: t("movements.stats.adjustments"),  value: stats.adjustments, color: "text-warning",   bg: "bg-warning/10",     Icon: RotateCcw },
   ];
 
   return (
@@ -157,16 +157,16 @@ export function MovementsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Stock Movements</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Complete audit trail of every inventory movement, adjustment, and write-off</p>
+          <h1 className="text-2xl font-bold">{t("movements.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("movements.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="gap-1.5 h-9">
-            <FileDown className="h-3.5 w-3.5" />Export
+            <FileDown className="h-3.5 w-3.5" />{t("movements.export")}
           </Button>
           <Can permission="inventory.movements.create">
             <Button size="sm" className="gap-1.5 h-9" onClick={() => setShowAddForm(true)}>
-              <Plus className="h-4 w-4" />Record Adjustment
+              <Plus className="h-4 w-4" />{t("movements.recordAdjustment")}
             </Button>
           </Can>
         </div>
@@ -190,14 +190,14 @@ export function MovementsView() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder="Search product, SKU, ref…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9 h-9 text-sm" />
+          <Input placeholder={t("movements.search")} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9 h-9 text-sm" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {TYPE_FILTERS.map(f => (
-            <button key={f.key} onClick={() => { setTypeFilter(f.key); setPage(1); }}
+          {TYPE_FILTER_KEYS.map(key => (
+            <button key={key} onClick={() => { setTypeFilter(key); setPage(1); }}
               className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                typeFilter === f.key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted")}>
-              {f.label}
+                typeFilter === key ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted/40 text-muted-foreground hover:bg-muted")}>
+              {key === "" ? t("movements.filterAll") : typeLabel(key)}
             </button>
           ))}
         </div>
@@ -218,25 +218,25 @@ export function MovementsView() {
         className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading movements…</span>
+            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("movements.loading")}</span>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Product</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Qty</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Balance</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Reference</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("movements.table.date")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("movements.table.type")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("movements.table.product")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("movements.table.qty")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("movements.table.balance")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("movements.table.reference")}</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-12 text-sm text-muted-foreground">No movements found.</td></tr>
+                <tr><td colSpan={6} className="text-center py-12 text-sm text-muted-foreground">{t("movements.empty")}</td></tr>
               ) : items.map((m, i) => {
-                const cfg = TYPE_CONFIG[m.adjustmentType] ?? { label: m.adjustmentType, color: "text-muted-foreground", bg: "bg-muted", Icon: Sliders };
+                const cfg = TYPE_CONFIG[m.adjustmentType] ?? { color: "text-muted-foreground", bg: "bg-muted", Icon: Sliders };
                 const Icon = cfg.Icon;
                 const isPos = m.quantity >= 0;
                 return (
@@ -248,7 +248,7 @@ export function MovementsView() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px] font-semibold", cfg.color, cfg.bg)}>
-                        <Icon className="h-3 w-3" />{cfg.label}
+                        <Icon className="h-3 w-3" />{typeLabel(m.adjustmentType)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -277,10 +277,10 @@ export function MovementsView() {
       {/* Pagination */}
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground text-xs">Page {data.page} of {data.totalPages} ({data.totalCount} records)</span>
+          <span className="text-muted-foreground text-xs">{t("movements.pagination", { page: data.page, totalPages: data.totalPages, count: data.totalCount })}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>{t("movements.prev")}</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>{t("movements.next")}</Button>
           </div>
         </div>
       )}

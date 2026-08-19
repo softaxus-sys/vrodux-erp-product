@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { CalendarClock, IdCard, FileText, AlertTriangle, Search, Stamp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,14 +12,15 @@ import { CaseDrawer } from "@/modules/visa/cases/components/case-drawer";
 
 const HORIZONS = [30, 60, 90, 180];
 
-function urgency(days: number) {
-  if (days < 0) return { label: `${Math.abs(days)}d overdue`, cls: "text-destructive bg-destructive/10" };
-  if (days <= 14) return { label: `${days}d left`, cls: "text-destructive bg-destructive/10" };
-  if (days <= 30) return { label: `${days}d left`, cls: "text-warning bg-warning/10" };
-  return { label: `${days}d left`, cls: "text-muted-foreground bg-muted" };
+function urgency(days: number, t: (k: string, o?: Record<string, unknown>) => string) {
+  if (days < 0)   return { label: t("renewals.daysOverdue", { count: Math.abs(days) }), cls: "text-destructive bg-destructive/10" };
+  if (days <= 14) return { label: t("renewals.daysLeft",    { count: days }),           cls: "text-destructive bg-destructive/10" };
+  if (days <= 30) return { label: t("renewals.daysLeft",    { count: days }),           cls: "text-warning bg-warning/10" };
+  return            { label: t("renewals.daysLeft",    { count: days }),           cls: "text-muted-foreground bg-muted" };
 }
 
 export function VisaRenewalsView() {
+  const { t } = useTranslation("visa");
   const [withinDays, setWithinDays] = React.useState(90);
   const [search, setSearch] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -42,8 +44,8 @@ export function VisaRenewalsView() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Renewals & Expiries</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Passports and documents coming due — act before they block processing</p>
+          <h1 className="text-2xl font-bold">{t("renewals.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("renewals.description")}</p>
         </div>
         <div className="flex items-center bg-muted rounded-lg p-0.5 shrink-0">
           {HORIZONS.map(h => (
@@ -58,12 +60,12 @@ export function VisaRenewalsView() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Expiring Items", value: items.length,                          icon: CalendarClock, color: "text-primary bg-primary/10" },
-          { label: "Overdue",        value: overdue,                                icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
-          { label: "Visas",          value: items.filter(i => i.kind === "visa").length,     icon: Stamp,   color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-          { label: "Passports",      value: items.filter(i => i.kind === "passport").length, icon: IdCard,  color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
+          { key: "expiring",  label: t("renewals.stats.expiring"),  value: items.length,                                    icon: CalendarClock, color: "text-primary bg-primary/10" },
+          { key: "overdue",   label: t("renewals.stats.overdue"),   value: overdue,                                         icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
+          { key: "visas",     label: t("renewals.stats.visas"),     value: items.filter(i => i.kind === "visa").length,     icon: Stamp,   color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
+          { key: "passports", label: t("renewals.stats.passports"), value: items.filter(i => i.kind === "passport").length, icon: IdCard,  color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
         ].map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          <motion.div key={s.key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover"><CardContent className="p-4 flex items-center gap-3">
               <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", s.color)}><s.icon className="h-4 w-4" /></div>
               <div className="min-w-0"><p className="text-xs text-muted-foreground truncate">{s.label}</p><p className="font-bold text-base leading-tight">{s.value}</p></div>
@@ -74,7 +76,7 @@ export function VisaRenewalsView() {
 
       <div className="relative w-full sm:w-72">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-        <Input placeholder="Search applicant, case, type…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+        <Input placeholder={t("renewals.search")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
       </div>
 
       <Card>
@@ -83,18 +85,18 @@ export function VisaRenewalsView() {
             <table className="w-full text-sm">
               <thead className="border-y border-border bg-muted/30">
                 <tr>
-                  {["Item","Case","Visa Type","Expiry","Urgency","Case Status","Assigned To"].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  {["item","case","visaType","expiry","urgency","caseStatus","assignedTo"].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{t(`renewals.table.${h}`)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">Loading…</td></tr>
+                  <tr><td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">{t("renewals.loading")}</td></tr>
                 ) : lazy.total === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">Nothing expiring within {withinDays} days. 🎉</td></tr>
+                  <tr><td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">{t("renewals.emptyState", { days: withinDays })}</td></tr>
                 ) : lazy.visible.map((it, i) => {
-                  const u = urgency(it.daysLeft);
+                  const u = urgency(it.daysLeft, t);
                   const m = CASE_STATUS_META[it.caseStatus as VisaCaseStatus];
                   const Icon = it.kind === "visa" ? Stamp : it.kind === "passport" ? IdCard : FileText;
                   return (
@@ -105,7 +107,7 @@ export function VisaRenewalsView() {
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{it.visaTypeName}</td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">{it.expiryDate ? formatDate(it.expiryDate, "medium") : "—"}</td>
                       <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap", u.cls)}>{u.label}</span></td>
-                      <td className="px-4 py-3">{m && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", m.color, m.bg)}>{m.label}</span>}</td>
+                      <td className="px-4 py-3">{m && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", m.color, m.bg)}>{t(`cases.status.${it.caseStatus}`)}</span>}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{it.assignedTo || "—"}</td>
                     </motion.tr>
                   );
@@ -115,10 +117,10 @@ export function VisaRenewalsView() {
           </div>
           {lazy.hasMore && (
             <div ref={lazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
-              <span className="text-xs text-muted-foreground">Loading more…</span>
+              <span className="text-xs text-muted-foreground">{t("renewals.loadingMore")}</span>
             </div>
           )}
-          <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">Showing {lazy.shown} of {lazy.total}</div>
+          <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">{t("renewals.showing", { shown: lazy.shown, total: lazy.total })}</div>
         </CardContent>
       </Card>
 

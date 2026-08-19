@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, RotateCcw, CheckCircle2, Ban, Clock, RefreshCw,
@@ -13,38 +14,24 @@ import { useApproveReturn, useRejectReturn } from "@/hooks/sales/use-returns";
 import { useAuthStore } from "@/store/auth.store";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<ReturnStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  pending:   { label: "Pending",   color: "text-slate-600",    bg: "bg-slate-100 dark:bg-slate-800/50", icon: Clock },
-  approved:  { label: "Approved",  color: "text-blue-600",     bg: "bg-blue-50 dark:bg-blue-900/20",    icon: CheckCircle2 },
-  rejected:  { label: "Rejected",  color: "text-destructive",  bg: "bg-destructive/10",                 icon: Ban },
-  refunded:  { label: "Refunded",  color: "text-success",      bg: "bg-success/10",                     icon: Banknote },
-  completed: { label: "Completed", color: "text-success",      bg: "bg-success/10",                     icon: CheckCircle2 },
-};
-
-const REASON_LABELS: Record<ReturnReason, string> = {
-  defective:       "Defective / Bug",
-  wrong_item:      "Wrong Item Delivered",
-  not_as_described: "Not As Described",
-  duplicate_order: "Duplicate Order",
-  changed_mind:    "Customer Changed Mind",
-  other:           "Other",
-};
-
-const REFUND_METHOD_LABELS: Record<string, string> = {
-  bank_transfer: "Bank Transfer",
-  credit_note:   "Credit Note",
-  cash:          "Cash Refund",
+const STATUS_STYLES: Record<ReturnStatus, { color: string; bg: string; icon: React.ElementType }> = {
+  pending:   { color: "text-slate-600",    bg: "bg-slate-100 dark:bg-slate-800/50", icon: Clock },
+  approved:  { color: "text-blue-600",     bg: "bg-blue-50 dark:bg-blue-900/20",    icon: CheckCircle2 },
+  rejected:  { color: "text-destructive",  bg: "bg-destructive/10",                 icon: Ban },
+  refunded:  { color: "text-success",      bg: "bg-success/10",                     icon: Banknote },
+  completed: { color: "text-success",      bg: "bg-success/10",                     icon: CheckCircle2 },
 };
 
 interface Props { ret: SalesReturn | null; open: boolean; onClose: () => void; }
 
 export function ReturnDrawer({ ret, open, onClose }: Props) {
+  const { t } = useTranslation("sales");
   const approve = useApproveReturn();
   const reject  = useRejectReturn();
   const by = useAuthStore(s => s.user?.name) ?? "System";
   if (!ret) return null;
 
-  const sc = STATUS_CONFIG[ret.status];
+  const sc = STATUS_STYLES[ret.status];
   const StatusIcon = sc.icon;
   const busy = approve.isPending || reject.isPending;
 
@@ -111,16 +98,16 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
 
               {/* Return details */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Details</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("returns.drawer.details")}</h4>
                 <div className="bg-muted/30 rounded-xl p-4 space-y-0">
                   {[
-                    { icon: Building2,   label: "Customer",       value: ret.customerName },
-                    { icon: FileText,    label: "Order Ref",      value: ret.orderNumber },
-                    { icon: Calendar,    label: "Request Date",   value: formatDate(ret.requestDate, "medium") },
-                    ...(ret.processedBy ? [{ icon: User, label: "Processed By", value: ret.processedBy }] : []),
-                    ...(ret.processedDate ? [{ icon: Calendar, label: "Processed On", value: formatDate(ret.processedDate, "medium") }] : []),
-                    ...(ret.creditNote ? [{ icon: FileText, label: "Credit Note", value: <span className="font-mono text-xs">{ret.creditNote}</span> }] : []),
-                  ].map(row => (
+                    { icon: Building2,   label: t("returns.drawer.customer"),       value: ret.customerName },
+                    { icon: FileText,    label: t("returns.drawer.orderRef"),      value: ret.orderNumber },
+                    { icon: Calendar,    label: t("returns.drawer.requestDate"),   value: formatDate(ret.requestDate, "medium") },
+                    ...(ret.processedBy ? [{ icon: User, label: t("returns.drawer.processedBy"), value: ret.processedBy }] : []),
+                    ...(ret.processedDate ? [{ icon: Calendar, label: t("returns.drawer.processedOn"), value: formatDate(ret.processedDate, "medium") }] : []),
+                    ...(ret.creditNote ? [{ icon: FileText, label: t("returns.drawer.creditNote"), value: <span className="font-mono text-xs">{ret.creditNote}</span> }] : []),
+                  ].map((row, idx) => (
                     <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
                       <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                       <div className="flex-1 flex justify-between gap-4 min-w-0">
@@ -134,7 +121,7 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
 
               {/* Items */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Return Items ({ret.items.length})</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("returns.drawer.items", { count: ret.items.length })}</h4>
                 <div className="rounded-xl border border-border overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
@@ -160,7 +147,7 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                   </table>
                 </div>
                 <div className="mt-3 flex justify-between items-center px-1">
-                  <span className="text-sm text-muted-foreground">Refund Total (incl. VAT)</span>
+                  <span className="text-sm text-muted-foreground">{t("returns.drawer.refundTotal")}</span>
                   <span className="font-bold text-base">{formatCurrency(ret.refundAmount, ret.currency)}</span>
                 </div>
               </div>
@@ -172,21 +159,21 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                 <Can permission="sales.returns.approve">
                   <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={busy}
                     onClick={() => approve.mutate({ id: ret.id, by }, { onSuccess: onClose })}>
-                    {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}Approve Return
+                    {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{t("returns.drawer.button.approve")}
                   </Button>
                   <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10" disabled={busy}
                     onClick={() => reject.mutate({ id: ret.id, by }, { onSuccess: onClose })}>
-                    {reject.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}Reject
+                    {reject.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}{t("returns.drawer.button.reject")}
                   </Button>
                 </Can>
               )}
               {ret.status === "approved" && (
                 <Button size="sm" className="gap-1.5 h-9">
-                  <RefreshCw className="h-3.5 w-3.5" />Process Refund
+                  <RefreshCw className="h-3.5 w-3.5" />{t("returns.drawer.button.processRefund")}
                 </Button>
               )}
               <Button variant="outline" size="sm" className="gap-1.5 h-9 ml-auto">
-                <FileText className="h-3.5 w-3.5" />Credit Note
+                <FileText className="h-3.5 w-3.5" />{t("returns.drawer.button.creditNote")}
               </Button>
             </div>
           </motion.div>

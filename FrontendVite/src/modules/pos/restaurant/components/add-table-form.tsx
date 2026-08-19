@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { useCreateTable } from "@/hooks/restaurant/use-restaurant";
 import { useCurrentBranch } from "@/hooks/restaurant/use-current-branch";
 
+/** `value` is the stored/API value; the emoji is data, labels come from i18n (tableForm.sections.*). */
 const SECTIONS = [
-  { value: "indoor",  label: "🏠 Indoor",         desc: "Main dining area" },
-  { value: "outdoor", label: "☀️ Outdoor",         desc: "Open air terrace" },
-  { value: "terrace", label: "🌅 Terrace",         desc: "Elevated terrace seating" },
-  { value: "private", label: "🍽️ Private Dining",  desc: "Private dining rooms" },
+  { value: "indoor",  icon: "🏠" },
+  { value: "outdoor", icon: "☀️" },
+  { value: "terrace", icon: "🌅" },
+  { value: "private", icon: "🍽️" },
 ];
 
 const TABLE_SHAPES = ["Round", "Square", "Rectangle", "Booth"];
@@ -21,6 +23,7 @@ interface AddTableFormProps {
 }
 
 export function AddTableForm({ open, onClose }: AddTableFormProps) {
+  const { t } = useTranslation("restaurant");
   const [section, setSection]         = React.useState("indoor");
   const [shape, setShape]             = React.useState("Square");
   const [tableNumber, setTableNumber] = React.useState("");
@@ -68,8 +71,8 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">Add Table</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Add a new table to the floor plan</p>
+                <h2 className="text-base font-bold text-foreground">{t("tableForm.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("tableForm.description")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
             </div>
@@ -77,19 +80,19 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Section */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Section</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.section")}</label>
                 <div className="space-y-1.5">
                   {SECTIONS.map(s => (
                     <button key={s.value} onClick={() => setSection(s.value)}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 text-left transition-all ${
                         section === s.value ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
                       }`}>
-                      <span className="text-base">{s.label.split(" ")[0]}</span>
+                      <span className="text-base">{s.icon}</span>
                       <div>
                         <p className={`text-xs font-semibold ${section === s.value ? "text-primary" : "text-foreground"}`}>
-                          {s.label.split(" ").slice(1).join(" ")}
+                          {t(`tableForm.sections.${s.value}`)}
                         </p>
-                        <p className="text-[11px] text-muted-foreground">{s.desc}</p>
+                        <p className="text-[11px] text-muted-foreground">{t(`tableForm.sections.${s.value}Desc`)}</p>
                       </div>
                     </button>
                   ))}
@@ -98,45 +101,45 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
 
               {/* Table Details */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Table Details</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("tableForm.details")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Table Number *</label>
-                    <Input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="e.g. T-01" className="h-9 text-sm font-mono" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.tableNumber")}</label>
+                    <Input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder={t("tableForm.tableNumberPlaceholder")} className="h-9 text-sm font-mono" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Max Capacity *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.maxCapacity")}</label>
                     <Input type="number" min={1} max={30} value={capacity} onChange={e => setCapacity(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Min. Guests</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.minGuests")}</label>
                     <Input type="number" min={1} value={minCapacity} onChange={e => setMinCapacity(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Table Shape</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.shape")}</label>
                     <div className="grid grid-cols-4 gap-2">
                       {TABLE_SHAPES.map(sh => (
                         <button key={sh} onClick={() => setShape(sh)}
                           className={`py-1.5 rounded-lg border-2 text-xs font-medium transition-all ${
                             shape === sh ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
-                          }`}>{sh}</button>
+                          }`}>{t(`tableForm.shapes.${sh}`)}</button>
                       ))}
                     </div>
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location / Description</label>
-                    <Input value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Near window, corner…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.location")}</label>
+                    <Input value={location} onChange={e => setLocation(e.target.value)} placeholder={t("tableForm.locationPlaceholder")} className="h-9 text-sm" />
                   </div>
                 </div>
               </div>
 
               {/* Options */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Options</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.options")}</p>
                 <div className="flex items-center justify-between px-3 py-3 bg-muted/30 rounded-xl">
                   <div>
-                    <p className="text-xs font-semibold">Joinable Table</p>
-                    <p className="text-[11px] text-muted-foreground">Can be combined with adjacent tables</p>
+                    <p className="text-xs font-semibold">{t("tableForm.joinable")}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("tableForm.joinableHint")}</p>
                   </div>
                   <button onClick={() => setIsJoinable(p => !p)}
                     className={`relative h-5 w-9 rounded-full transition-colors ${isJoinable ? "bg-primary" : "bg-muted"}`}>
@@ -146,8 +149,8 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
                 </div>
                 <div className="flex items-center justify-between px-3 py-3 bg-muted/30 rounded-xl">
                   <div>
-                    <p className="text-xs font-semibold">Premium Table</p>
-                    <p className="text-[11px] text-muted-foreground">Highlighted as a premium/VIP table</p>
+                    <p className="text-xs font-semibold">{t("tableForm.premium")}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("tableForm.premiumHint")}</p>
                   </div>
                   <button onClick={() => setIsPremium(p => !p)}
                     className={`relative h-5 w-9 rounded-full transition-colors ${isPremium ? "bg-warning" : "bg-muted"}`}>
@@ -158,16 +161,16 @@ export function AddTableForm({ open, onClose }: AddTableFormProps) {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Special setup, accessibility needs…" rows={2}
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("tableForm.notes")}</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t("tableForm.notesPlaceholder")} rows={2}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
               </div>
             </div>
 
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={createTable.isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={createTable.isPending}>{t("tableForm.button.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || createTable.isPending}>
-                {createTable.isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Adding…</> : "Add Table"}
+                {createTable.isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{t("tableForm.button.adding")}</> : t("tableForm.button.submit")}
               </Button>
             </div>
           </motion.div>

@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X, Mail, Phone, MapPin, Calendar, Building2, CreditCard,
@@ -14,11 +15,11 @@ import type { EmployeeDto as Employee } from "@/lib/hr/hr.api";
 
 type Tab = "overview" | "documents" | "payroll" | "leave";
 
-const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "overview", label: "Overview", icon: User },
-  { id: "payroll", label: "Payroll", icon: Banknote },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "leave", label: "Leave", icon: Calendar },
+const TABS: { id: Tab; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "overview", icon: User },
+  { id: "payroll", icon: Banknote },
+  { id: "documents", icon: FileText },
+  { id: "leave", icon: Calendar },
 ];
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode }) {
@@ -34,39 +35,40 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ cla
 }
 
 function OverviewTab({ emp }: { emp: Employee }) {
+  const { t } = useTranslation("hr");
   return (
     <div className="space-y-6">
       {/* Personal */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Personal Information</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.personalInformation")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          <InfoRow icon={Mail} label="Email" value={<a href={`mailto:${emp.email}`} className="text-primary hover:underline">{emp.email}</a>} />
-          {emp.mobile    && <InfoRow icon={Phone}    label="Mobile"        value={emp.mobile} />}
-          {emp.phone     && <InfoRow icon={Phone}    label="Office"        value={emp.phone} />}
-          {emp.dateOfBirth && <InfoRow icon={Calendar} label="Date of Birth" value={formatDate(emp.dateOfBirth, "medium")} />}
-          {emp.gender    && <InfoRow icon={User}     label="Gender"        value={<span className="capitalize">{emp.gender}</span>} />}
-          {emp.nationality && <InfoRow icon={Shield}  label="Nationality"   value={emp.nationality} />}
-          {emp.address   && <InfoRow icon={MapPin}   label="Address"       value={emp.address} />}
+          <InfoRow icon={Mail} label={t("employees.drawer.email")} value={<a href={`mailto:${emp.email}`} className="text-primary hover:underline">{emp.email}</a>} />
+          {emp.mobile    && <InfoRow icon={Phone}    label={t("employees.drawer.mobile")}       value={emp.mobile} />}
+          {emp.phone     && <InfoRow icon={Phone}    label={t("employees.drawer.office")}       value={emp.phone} />}
+          {emp.dateOfBirth && <InfoRow icon={Calendar} label={t("employees.drawer.dateOfBirth")} value={formatDate(emp.dateOfBirth, "medium")} />}
+          {emp.gender    && <InfoRow icon={User}     label={t("employees.drawer.gender")}       value={<span className="capitalize">{emp.gender}</span>} />}
+          {emp.nationality && <InfoRow icon={Shield}  label={t("employees.drawer.nationality")}  value={emp.nationality} />}
+          {emp.address   && <InfoRow icon={MapPin}   label={t("employees.drawer.address")}      value={emp.address} />}
         </div>
       </div>
 
       {/* Employment */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Employment Details</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.employmentDetails")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          <InfoRow icon={Building2} label="Department"  value={emp.department  ?? "—"} />
-          <InfoRow icon={Briefcase} label="Designation" value={emp.designation ?? "—"} />
-          {emp.reportingTo && <InfoRow icon={User}   label="Reports To" value={emp.reportingTo} />}
-          {emp.branch      && <InfoRow icon={MapPin} label="Branch"     value={emp.branch} />}
-          <InfoRow icon={Calendar} label="Join Date" value={formatDate(emp.joinDate, "medium")} />
-          <InfoRow icon={FileText} label="Contract Type" value={<span className="capitalize">{emp.contractType?.replace("_", " ") ?? "—"}</span>} />
-          {emp.visaExpiry && <InfoRow icon={Calendar} label="Visa Expiry" value={formatDate(emp.visaExpiry, "medium")} />}
+          <InfoRow icon={Building2} label={t("employees.drawer.department")}  value={emp.department  ?? "—"} />
+          <InfoRow icon={Briefcase} label={t("employees.drawer.designation")} value={emp.designation ?? "—"} />
+          {emp.reportingTo && <InfoRow icon={User}   label={t("employees.drawer.reportsTo")} value={emp.reportingTo} />}
+          {emp.branch      && <InfoRow icon={MapPin} label={t("employees.drawer.branch")}    value={emp.branch} />}
+          <InfoRow icon={Calendar} label={t("employees.drawer.joinDate")} value={formatDate(emp.joinDate, "medium")} />
+          <InfoRow icon={FileText} label={t("employees.drawer.contractType")} value={<span className="capitalize">{emp.contractType?.replace("_", " ") ?? "—"}</span>} />
+          {emp.visaExpiry && <InfoRow icon={Calendar} label={t("employees.drawer.visaExpiry")} value={formatDate(emp.visaExpiry, "medium")} />}
         </div>
       </div>
 
       {/* Skills */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Skills & Expertise</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.skills")}</h3>
         <div className="flex flex-wrap gap-2">
           {(emp.skills ?? []).map(skill => (
             <span key={skill} className="px-2.5 py-1 rounded-full bg-primary/8 text-primary text-xs font-medium border border-primary/20">
@@ -79,11 +81,11 @@ function OverviewTab({ emp }: { emp: Employee }) {
       {/* Emergency Contact */}
       {emp.emergencyContact && (
         <div>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Emergency Contact</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.emergencyContact")}</h3>
           <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-            <InfoRow icon={User} label="Name" value={emp.emergencyContact.name ?? "—"} />
-            <InfoRow icon={User} label="Relation" value={emp.emergencyContact.relation ?? "—"} />
-            <InfoRow icon={Phone} label="Phone" value={emp.emergencyContact.phone ?? "—"} />
+            <InfoRow icon={User} label={t("employees.drawer.name")} value={emp.emergencyContact.name ?? "—"} />
+            <InfoRow icon={User} label={t("employees.drawer.relation")} value={emp.emergencyContact.relation ?? "—"} />
+            <InfoRow icon={Phone} label={t("employees.drawer.phone")} value={emp.emergencyContact.phone ?? "—"} />
           </div>
         </div>
       )}
@@ -92,11 +94,12 @@ function OverviewTab({ emp }: { emp: Employee }) {
 }
 
 function PayrollTab({ emp }: { emp: Employee }) {
+  const { t } = useTranslation("hr");
   const currency = useCurrency();
   const allowances = [
-    { label: "Housing Allowance", amount: Math.round(emp.basicSalary * 0.25) },
-    { label: "Transport Allowance", amount: Math.round(emp.basicSalary * 0.1) },
-    { label: "Medical Allowance", amount: 1000 },
+    { label: t("employees.drawer.housingAllowance"), amount: Math.round(emp.basicSalary * 0.25) },
+    { label: t("employees.drawer.transportAllowance"), amount: Math.round(emp.basicSalary * 0.1) },
+    { label: t("employees.drawer.medicalAllowance"), amount: 1000 },
   ];
   const totalAllowances = allowances.reduce((s, a) => s + a.amount, 0);
   const grossSalary = emp.basicSalary + totalAllowances;
@@ -105,14 +108,14 @@ function PayrollTab({ emp }: { emp: Employee }) {
     <div className="space-y-6">
       {/* Salary breakdown */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Salary Structure</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.salaryStructure")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          <InfoRow icon={Banknote} label="Basic Salary" value={<span className="font-bold">{formatCurrency(emp.basicSalary, currency)}</span>} />
+          <InfoRow icon={Banknote} label={t("employees.drawer.basicSalary")} value={<span className="font-bold">{formatCurrency(emp.basicSalary, currency)}</span>} />
           {allowances.map(a => (
             <InfoRow key={a.label} icon={CreditCard} label={a.label} value={formatCurrency(a.amount, currency)} />
           ))}
           <div className="flex justify-between items-center pt-2 mt-1 border-t border-border">
-            <span className="text-sm font-bold">Gross Salary</span>
+            <span className="text-sm font-bold">{t("employees.drawer.grossSalary")}</span>
             <span className="text-sm font-bold text-primary">{formatCurrency(grossSalary, currency)}</span>
           </div>
         </div>
@@ -120,17 +123,17 @@ function PayrollTab({ emp }: { emp: Employee }) {
 
       {/* Bank details */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Bank Details</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.bankDetails")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          <InfoRow icon={Building2} label="Bank" value={emp.bankAccount ?? "Not provided"} />
-          <InfoRow icon={CreditCard} label="IBAN" value={emp.iban ?? "Not provided"} />
-          <InfoRow icon={Shield} label="Insurance" value={emp.medicalInsurance ?? "Not provided"} />
+          <InfoRow icon={Building2} label={t("employees.drawer.bank")} value={emp.bankAccount ?? t("employees.drawer.notProvided")} />
+          <InfoRow icon={CreditCard} label={t("employees.drawer.iban")} value={emp.iban ?? t("employees.drawer.notProvided")} />
+          <InfoRow icon={Shield} label={t("employees.drawer.insurance")} value={emp.medicalInsurance ?? t("employees.drawer.notProvided")} />
         </div>
       </div>
 
       {/* Payroll history */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Recent Payslips</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.recentPayslips")}</h3>
         <div className="space-y-2">
           {["May 2026", "Apr 2026", "Mar 2026"].map((month, i) => (
             <div key={month} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer">
@@ -139,8 +142,8 @@ function PayrollTab({ emp }: { emp: Employee }) {
                   <FileText className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">{month} Payslip</p>
-                  <p className="text-xs text-muted-foreground">Processed on {i === 0 ? "19" : i === 1 ? "18" : "17"} {month.split(" ")[0]} 2026</p>
+                  <p className="text-sm font-medium">{t("employees.drawer.payslip", { month })}</p>
+                  <p className="text-xs text-muted-foreground">{t("employees.drawer.processedOn", { date: `${i === 0 ? "19" : i === 1 ? "18" : "17"} ${month.split(" ")[0]} 2026` })}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -156,18 +159,19 @@ function PayrollTab({ emp }: { emp: Employee }) {
 }
 
 function DocumentsTab({ emp }: { emp: Employee }) {
+  const { t } = useTranslation("hr");
   const docStatusConfig = {
-    valid: { icon: CheckCircle2, className: "text-success", label: "Valid" },
-    expiring: { icon: Clock, className: "text-warning", label: "Expiring Soon" },
-    expired: { icon: AlertTriangle, className: "text-destructive", label: "Expired" },
+    valid: { icon: CheckCircle2, className: "text-success", label: t("employees.drawer.docStatus.valid") },
+    expiring: { icon: Clock, className: "text-warning", label: t("employees.drawer.docStatus.expiring") },
+    expired: { icon: AlertTriangle, className: "text-destructive", label: t("employees.drawer.docStatus.expired") },
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Documents & Compliance</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{t("employees.drawer.documentsCompliance")}</h3>
         <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-          <FileText className="h-3 w-3" /> Upload
+          <FileText className="h-3 w-3" /> {t("employees.drawer.upload")}
         </Button>
       </div>
 
@@ -194,7 +198,7 @@ function DocumentsTab({ emp }: { emp: Employee }) {
                     {doc.expiry && (
                       <>
                         <span className="text-muted-foreground/40 text-xs">·</span>
-                        <span className="text-xs text-muted-foreground">Expires {formatDate(doc.expiry, "medium")}</span>
+                        <span className="text-xs text-muted-foreground">{t("employees.drawer.expires", { date: formatDate(doc.expiry, "medium") })}</span>
                       </>
                     )}
                   </div>
@@ -213,10 +217,10 @@ function DocumentsTab({ emp }: { emp: Employee }) {
 
       {/* IDs */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-6 mb-3">Identity Numbers</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-6 mb-3">{t("employees.drawer.identityNumbers")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          {emp.emiratesId && <InfoRow icon={Shield} label="Emirates ID" value={<span className="font-mono text-xs">{emp.emiratesId}</span>} />}
-          <InfoRow icon={FileText} label="Passport No." value={<span className="font-mono text-xs">{emp.passportNumber}</span>} />
+          {emp.emiratesId && <InfoRow icon={Shield} label={t("employees.drawer.emiratesId")} value={<span className="font-mono text-xs">{emp.emiratesId}</span>} />}
+          <InfoRow icon={FileText} label={t("employees.drawer.passportNo")} value={<span className="font-mono text-xs">{emp.passportNumber}</span>} />
         </div>
       </div>
     </div>
@@ -224,23 +228,24 @@ function DocumentsTab({ emp }: { emp: Employee }) {
 }
 
 function LeaveTab({ emp }: { emp: Employee }) {
+  const { t } = useTranslation("hr");
   const leaveTypes = [
-    { type: "Annual Leave", balance: emp.annualLeaveBalance ?? 0, total: 30, color: "bg-primary" },
-    { type: "Sick Leave",   balance: emp.sickLeaveBalance  ?? 0, total: 15, color: "bg-warning" },
-    { type: "Unpaid Leave", balance: 0, total: 0, color: "bg-muted-foreground" },
+    { type: t("employees.drawer.annualLeave"), balance: emp.annualLeaveBalance ?? 0, total: 30, color: "bg-primary" },
+    { type: t("employees.drawer.sickLeave"),   balance: emp.sickLeaveBalance  ?? 0, total: 15, color: "bg-warning" },
+    { type: t("employees.drawer.unpaidLeave"), balance: 0, total: 0, color: "bg-muted-foreground" },
   ];
 
   const recentLeaves = [
-    { type: "Annual Leave", from: "2026-04-10", to: "2026-04-14", days: 5, status: "approved" },
-    { type: "Sick Leave", from: "2026-03-02", to: "2026-03-03", days: 2, status: "approved" },
-    { type: "Annual Leave", from: "2026-01-01", to: "2026-01-03", days: 3, status: "approved" },
+    { type: t("employees.drawer.annualLeave"), from: "2026-04-10", to: "2026-04-14", days: 5, status: "approved" },
+    { type: t("employees.drawer.sickLeave"), from: "2026-03-02", to: "2026-03-03", days: 2, status: "approved" },
+    { type: t("employees.drawer.annualLeave"), from: "2026-01-01", to: "2026-01-03", days: 3, status: "approved" },
   ];
 
   return (
     <div className="space-y-6">
       {/* Balances */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Leave Balances</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.leaveBalances")}</h3>
         <div className="space-y-3">
           {leaveTypes.map(lt => (
             <div key={lt.type} className="bg-muted/30 rounded-xl p-4">
@@ -248,7 +253,7 @@ function LeaveTab({ emp }: { emp: Employee }) {
                 <p className="text-sm font-medium">{lt.type}</p>
                 <p className="text-sm font-bold">
                   <span className="text-foreground">{lt.balance}</span>
-                  <span className="text-muted-foreground font-normal"> / {lt.total} days</span>
+                  <span className="text-muted-foreground font-normal"> {t("employees.drawer.daysOf", { total: lt.total })}</span>
                 </p>
               </div>
               {lt.total > 0 && (
@@ -267,8 +272,8 @@ function LeaveTab({ emp }: { emp: Employee }) {
       {/* Recent requests */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Recent Leave History</h3>
-          <Button variant="outline" size="sm" className="h-7 text-xs">Apply Leave</Button>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{t("employees.drawer.recentLeaveHistory")}</h3>
+          <Button variant="outline" size="sm" className="h-7 text-xs">{t("employees.drawer.applyLeave")}</Button>
         </div>
         <div className="space-y-2">
           {recentLeaves.map((l, i) => (
@@ -279,11 +284,11 @@ function LeaveTab({ emp }: { emp: Employee }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{l.type}</p>
                 <p className="text-xs text-muted-foreground">
-                  {formatDate(l.from, "medium")} – {formatDate(l.to, "medium")} · {l.days} days
+                  {formatDate(l.from, "medium")} – {formatDate(l.to, "medium")} · {t("employees.drawer.days", { count: l.days })}
                 </p>
               </div>
-              <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full capitalize">
-                {l.status}
+              <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full">
+                {t("leaveStatus.approved")}
               </span>
             </div>
           ))}
@@ -296,6 +301,7 @@ function LeaveTab({ emp }: { emp: Employee }) {
 interface DrawerProps { open: boolean; onClose: () => void; employee: Employee | null; }
 
 export function EmployeeDrawer({ open, onClose, employee }: DrawerProps) {
+  const { t } = useTranslation("hr");
   const [tab, setTab] = React.useState<Tab>("overview");
 
   // Reset tab when new employee selected
@@ -315,7 +321,7 @@ export function EmployeeDrawer({ open, onClose, employee }: DrawerProps) {
           >
             {/* Drawer top bar */}
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Employee Profile</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("employees.drawer.profile")}</p>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-3.5 w-3.5" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8"><Printer className="h-3.5 w-3.5" /></Button>
@@ -353,18 +359,18 @@ export function EmployeeDrawer({ open, onClose, employee }: DrawerProps) {
 
             {/* Tabs */}
             <div className="flex items-center gap-0 border-b border-border px-5 shrink-0">
-              {TABS.map(t => {
-                const Icon = t.icon;
+              {TABS.map(tb => {
+                const Icon = tb.icon;
                 return (
-                  <button key={t.id} onClick={() => setTab(t.id)}
+                  <button key={tb.id} onClick={() => setTab(tb.id)}
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-3 text-xs font-medium border-b-2 transition-colors",
-                      tab === t.id
+                      tab === tb.id
                         ? "border-primary text-primary"
                         : "border-transparent text-muted-foreground hover:text-foreground"
                     )}>
                     <Icon className="h-3.5 w-3.5" />
-                    {t.label}
+                    {t(`employees.drawer.tab.${tb.id}`)}
                   </button>
                 );
               })}

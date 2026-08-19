@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, CheckCircle2, Ban, Clock, AlertTriangle,
@@ -15,23 +16,26 @@ import { useApproveApproval, useRejectApproval } from "@/hooks/purchase/use-appr
 import { useAuthStore } from "@/store/auth.store";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<ApprovalStatus, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  pending:   { label: "Pending",   color: "text-warning",      bg: "bg-warning/10",     icon: Clock },
-  approved:  { label: "Approved",  color: "text-success",      bg: "bg-success/10",     icon: CheckCircle2 },
-  rejected:  { label: "Rejected",  color: "text-destructive",  bg: "bg-destructive/10", icon: Ban },
-  cancelled: { label: "Cancelled", color: "text-muted-foreground", bg: "bg-muted",      icon: Ban },
+/** Styling only — labels via t(`approvals.status.${s}`). */
+const STATUS_CONFIG: Record<ApprovalStatus, { color: string; bg: string; icon: React.ElementType }> = {
+  pending:   { color: "text-warning",      bg: "bg-warning/10",     icon: Clock },
+  approved:  { color: "text-success",      bg: "bg-success/10",     icon: CheckCircle2 },
+  rejected:  { color: "text-destructive",  bg: "bg-destructive/10", icon: Ban },
+  cancelled: { color: "text-muted-foreground", bg: "bg-muted",      icon: Ban },
 };
 
-const PRIORITY_CONFIG: Record<ApprovalPriority, { label: string; color: string; bg: string }> = {
-  low:    { label: "Low",    color: "text-muted-foreground", bg: "bg-muted" },
-  medium: { label: "Medium", color: "text-blue-600",         bg: "bg-blue-50 dark:bg-blue-900/20" },
-  high:   { label: "High",   color: "text-warning",          bg: "bg-warning/10" },
-  urgent: { label: "Urgent", color: "text-destructive",      bg: "bg-destructive/10" },
+/** Styling only — labels via t(`approvals.priority.${p}`). */
+const PRIORITY_CONFIG: Record<ApprovalPriority, { color: string; bg: string }> = {
+  low:    { color: "text-muted-foreground", bg: "bg-muted" },
+  medium: { color: "text-blue-600",         bg: "bg-blue-50 dark:bg-blue-900/20" },
+  high:   { color: "text-warning",          bg: "bg-warning/10" },
+  urgent: { color: "text-destructive",      bg: "bg-destructive/10" },
 };
 
 interface Props { approval: PurchaseApproval | null; open: boolean; onClose: () => void; }
 
 export function ApprovalDrawer({ approval, open, onClose }: Props) {
+  const { t } = useTranslation("purchase");
   const approve = useApproveApproval();
   const reject  = useRejectApproval();
   const by = useAuthStore(s => s.user?.name) ?? "System";
@@ -69,15 +73,15 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                   <p className="text-sm text-muted-foreground truncate">{approval.title}</p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      <StatusIcon className="h-3 w-3" />{sc.label}
+                      <StatusIcon className="h-3 w-3" />{t(`approvals.status.${approval.status}`, { defaultValue: approval.status })}
                     </span>
                     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold", pc.color, pc.bg)}>
                       {approval.priority === "urgent" && <Zap className="h-3 w-3" />}
-                      {pc.label} Priority
+                      {t("approvals.drawer.priorityLabel", { priority: t(`approvals.priority.${approval.priority}`, { defaultValue: approval.priority }) })}
                     </span>
                     {isOverdue && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold text-destructive bg-destructive/10">
-                        <AlertTriangle className="h-3 w-3" />Overdue
+                        <AlertTriangle className="h-3 w-3" />{t("approvals.drawer.overdue")}
                       </span>
                     )}
                   </div>
@@ -93,7 +97,7 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                 approval.status === "approved" ? "bg-success/5 border-success/20" :
                 approval.status === "rejected" ? "bg-destructive/5 border-destructive/20" :
                 "bg-muted/30 border-border")}>
-                <p className="text-xs text-muted-foreground mb-1">Requested Budget</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("approvals.drawer.requestedBudget")}</p>
                 <p className={cn("text-3xl font-bold",
                   approval.status === "approved" ? "text-success" :
                   approval.status === "rejected" ? "text-destructive" : "text-foreground")}>
@@ -104,24 +108,24 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
 
               {/* Justification */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Business Justification</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("approvals.drawer.justification")}</h4>
                 <p className="text-sm text-muted-foreground bg-muted/30 rounded-xl p-4 leading-relaxed">{approval.justification}</p>
               </div>
 
               {/* Details */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Request Details</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("approvals.drawer.details")}</h4>
                 <div className="bg-muted/30 rounded-xl p-4 space-y-0">
                   {[
-                    { icon: User,       label: "Requested By",    value: approval.requestedBy },
-                    { icon: Building2,  label: "Department",      value: approval.department },
-                    { icon: Calendar,   label: "Request Date",    value: formatDate(approval.requestDate, "medium") },
-                    { icon: Calendar,   label: "Required By",     value: <span className={cn(isOverdue ? "text-destructive font-semibold" : "")}>{formatDate(approval.requiredBy, "medium")}</span> },
-                    { icon: Tag,        label: "Category",        value: CATEGORY_LABELS[approval.category] },
-                    ...(approval.vendorSuggestion ? [{ icon: Building2, label: "Preferred Vendor", value: approval.vendorSuggestion }] : []),
-                    ...(approval.approvedBy ? [{ icon: User, label: "Reviewed By", value: approval.approvedBy }] : []),
-                    ...(approval.approvedDate ? [{ icon: Calendar, label: "Reviewed On", value: formatDate(approval.approvedDate, "medium") }] : []),
-                    ...(approval.convertedToPO ? [{ icon: ShoppingBag, label: "PO Created", value: <span className="font-mono text-xs text-primary">{approval.convertedToPO}</span> }] : []),
+                    { icon: User,       label: t("approvals.drawer.requestedBy"),    value: approval.requestedBy },
+                    { icon: Building2,  label: t("approvals.drawer.department"),      value: approval.department },
+                    { icon: Calendar,   label: t("approvals.drawer.requestDate"),    value: formatDate(approval.requestDate, "medium") },
+                    { icon: Calendar,   label: t("approvals.drawer.requiredBy"),     value: <span className={cn(isOverdue ? "text-destructive font-semibold" : "")}>{formatDate(approval.requiredBy, "medium")}</span> },
+                    { icon: Tag,        label: t("approvals.drawer.category"),        value: CATEGORY_LABELS[approval.category] },
+                    ...(approval.vendorSuggestion ? [{ icon: Building2, label: t("approvals.drawer.preferredVendor"), value: approval.vendorSuggestion }] : []),
+                    ...(approval.approvedBy ? [{ icon: User, label: t("approvals.drawer.reviewedBy"), value: approval.approvedBy }] : []),
+                    ...(approval.approvedDate ? [{ icon: Calendar, label: t("approvals.drawer.reviewedOn"), value: formatDate(approval.approvedDate, "medium") }] : []),
+                    ...(approval.convertedToPO ? [{ icon: ShoppingBag, label: t("approvals.drawer.poCreated"), value: <span className="font-mono text-xs text-primary">{approval.convertedToPO}</span> }] : []),
                   ].map(row => (
                     <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
                       <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -137,7 +141,7 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
               {/* Rejection reason */}
               {approval.status === "rejected" && approval.rejectionReason && (
                 <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Rejection Reason</h4>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("approvals.drawer.rejectionReason")}</h4>
                   <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3">
                     <p className="text-sm text-destructive leading-relaxed">{approval.rejectionReason}</p>
                   </div>
@@ -153,10 +157,10 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-muted/40 text-xs text-muted-foreground">
-                        <th className="text-left px-4 py-3 font-semibold">Description</th>
-                        <th className="text-right px-4 py-3 font-semibold">Qty</th>
-                        <th className="text-right px-4 py-3 font-semibold">Est. Unit</th>
-                        <th className="text-right px-4 py-3 font-semibold">Total</th>
+                        <th className="text-left px-4 py-3 font-semibold">{t("approvals.drawer.colDescription")}</th>
+                        <th className="text-right px-4 py-3 font-semibold">{t("approvals.drawer.colQty")}</th>
+                        <th className="text-right px-4 py-3 font-semibold">{t("approvals.drawer.colUnit")}</th>
+                        <th className="text-right px-4 py-3 font-semibold">{t("approvals.drawer.colTotal")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -174,7 +178,7 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                   </table>
                 </div>
                 <div className="mt-3 flex justify-between items-center px-1">
-                  <span className="text-sm text-muted-foreground">Estimated Total</span>
+                  <span className="text-sm text-muted-foreground">{t("approvals.drawer.estimatedTotal")}</span>
                   <span className="font-bold text-base">{formatCurrency(approval.totalAmount, approval.currency)}</span>
                 </div>
               </div>
@@ -187,23 +191,23 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                   {rejecting ? (
                     <div className="flex items-center gap-2 flex-1">
                       <Input autoFocus value={reason} onChange={e => setReason(e.target.value)}
-                        placeholder="Rejection reason…" className="h-9 flex-1 text-sm" />
+                        placeholder={t("approvals.drawer.rejectPlaceholder")} className="h-9 flex-1 text-sm" />
                       <Button variant="outline" size="sm" className="h-9 text-destructive border-destructive/30 hover:bg-destructive/10"
                         disabled={busy || !reason.trim()}
                         onClick={() => reject.mutate({ id: approval.id, by, reason: reason.trim() }, { onSuccess: onClose })}>
                         {reject.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Reject"}
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-9" onClick={() => setRejecting(false)}>Cancel</Button>
+                      <Button variant="ghost" size="sm" className="h-9" onClick={() => setRejecting(false)}>{t("approvals.drawer.cancel")}</Button>
                     </div>
                   ) : (
                     <>
                       <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={busy}
                         onClick={() => approve.mutate({ id: approval.id, by }, { onSuccess: onClose })}>
-                        {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}Approve
+                        {approve.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{t("approvals.drawer.approve")}
                       </Button>
                       <Button variant="outline" size="sm" className="gap-1.5 h-9 text-destructive border-destructive/30 hover:bg-destructive/10" disabled={busy}
                         onClick={() => setRejecting(true)}>
-                        <Ban className="h-3.5 w-3.5" />Reject
+                        <Ban className="h-3.5 w-3.5" />{t("approvals.drawer.reject")}
                       </Button>
                     </>
                   )}
@@ -211,11 +215,11 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
               )}
               {approval.status === "approved" && !approval.convertedToPO && (
                 <Button size="sm" className="gap-1.5 h-9">
-                  <ShoppingBag className="h-3.5 w-3.5" />Create PO
+                  <ShoppingBag className="h-3.5 w-3.5" />{t("approvals.drawer.createPO")}
                 </Button>
               )}
               <Button variant="outline" size="sm" className="gap-1.5 h-9 ml-auto">
-                <FileText className="h-3.5 w-3.5" />Export
+                <FileText className="h-3.5 w-3.5" />{t("approvals.drawer.export")}
               </Button>
             </div>
           </motion.div>

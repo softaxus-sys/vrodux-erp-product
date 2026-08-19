@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { useLazyList } from "@/hooks/use-lazy-list";
 
 const COLUMN_PAGE = 15;
 
-const LOSS_REASONS = ["Price too high", "Lost to competitor", "No budget", "No decision / timing", "Bad fit", "Went silent", "Other"];
+const LOSS_REASON_KEYS = ["price_too_high", "lost_to_competitor", "no_budget", "no_decision", "bad_fit", "went_silent", "other"];
 
 const STAGE_PROBABILITY: Record<string, number> = {
   lead: 10, qualified: 30, proposal: 60, negotiation: 80, won: 100, lost: 0,
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function PipelineBoard({ deals, onDealClick }: Props) {
+  const { t } = useTranslation("crm");
   const moveStage = useMoveDealStage();
   const [draggedId, setDraggedId] = React.useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = React.useState<string | null>(null);
@@ -115,7 +117,7 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
-                <h3 className="text-base font-bold">Mark deal as lost</h3>
+                <h3 className="text-base font-bold">{t("pipeline.board.markLost")}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{pendingLost.title}</p>
               </div>
               <button onClick={() => setPendingLost(null)} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
@@ -123,32 +125,35 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Why was it lost?</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("pipeline.board.whyLost")}</p>
               <div className="flex flex-wrap gap-1.5">
-                {LOSS_REASONS.map(r => (
+                {LOSS_REASON_KEYS.map(rk => {
+                  const label = t(`pipeline.board.reason.${rk}`);
+                  return (
                   <button
-                    key={r}
-                    onClick={() => setLossReason(r)}
+                    key={rk}
+                    onClick={() => setLossReason(label)}
                     className={cn(
                       "px-2.5 py-1 rounded-full text-xs font-medium border transition-colors",
-                      lossReason === r ? "border-destructive bg-destructive/10 text-destructive" : "border-border text-muted-foreground hover:border-destructive/40"
+                      lossReason === label ? "border-destructive bg-destructive/10 text-destructive" : "border-border text-muted-foreground hover:border-destructive/40"
                     )}
                   >
-                    {r}
+                    {label}
                   </button>
-                ))}
+                  );
+                })}
               </div>
               <textarea
                 value={lossReason}
                 onChange={e => setLossReason(e.target.value)}
-                placeholder="Add detail (optional)…"
+                placeholder={t("pipeline.board.addDetail")}
                 rows={3}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/30 resize-none"
               />
             </div>
             <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setPendingLost(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={confirmLost}>Mark as lost</Button>
+              <Button variant="outline" onClick={() => setPendingLost(null)}>{t("pipeline.board.cancel")}</Button>
+              <Button variant="destructive" onClick={confirmLost}>{t("pipeline.board.markAsLost")}</Button>
             </div>
           </motion.div>
         </>
@@ -175,6 +180,7 @@ function BoardColumn({
   onCardDragEnd: () => void;
   onDealClick: (d: Deal) => void;
 }) {
+  const { t } = useTranslation("crm");
   const currency = useCurrency();
   const { visible, hasMore, loadMore, shown, total } = useLazyList(cards, COLUMN_PAGE);
   const colValue = cards.reduce((s, d) => s + d.value, 0);
@@ -192,7 +198,7 @@ function BoardColumn({
         isOver ? "border-primary/40 bg-primary/5" : `${stage.bg} border-transparent`
       )}>
         <div className="flex items-center gap-2">
-          <span className={cn("text-xs font-bold uppercase tracking-wide", stage.color)}>{stage.label}</span>
+          <span className={cn("text-xs font-bold uppercase tracking-wide", stage.color)}>{t(`stage.${stage.key}`)}</span>
           <span className={cn("inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full text-[10px] font-bold", stage.color, stage.bg)}>
             {total}
           </span>
@@ -221,7 +227,7 @@ function BoardColumn({
 
         {hasMore && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={loadMore}>
-            Show {total - shown} more
+            {t("pipeline.board.showMore", { count: total - shown })}
           </Button>
         )}
 
@@ -233,7 +239,7 @@ function BoardColumn({
               isOver ? "border-primary/40 text-primary" : "border-border"
             )}
           >
-            {isOver ? "Drop here" : "No deals"}
+            {isOver ? t("pipeline.board.dropHere") : t("pipeline.board.noDeals")}
           </motion.div>
         )}
       </div>

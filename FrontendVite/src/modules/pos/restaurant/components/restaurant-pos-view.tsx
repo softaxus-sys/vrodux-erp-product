@@ -35,27 +35,35 @@ import { useAuthStore } from "@/store/auth.store";
 import { Can } from "@/components/auth/can";
 import { useShift } from "@/modules/pos/retail/components/shift-gate";
 import { useRestaurantRealtime } from "@/hooks/restaurant/use-restaurant-realtime";
+import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
-const TABLE_STATUS: Record<TableStatus, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  available: { label: "Available", color: "text-success",          bg: "bg-success/10",  border: "border-success/30",  dot: "bg-success" },
-  occupied:  { label: "Occupied",  color: "text-primary",          bg: "bg-primary/10",  border: "border-primary/30",  dot: "bg-primary" },
-  reserved:  { label: "Reserved",  color: "text-blue-500",         bg: "bg-blue-500/10", border: "border-blue-500/30", dot: "bg-blue-500" },
-  cleaning:  { label: "Cleaning",  color: "text-muted-foreground", bg: "bg-muted/20",    border: "border-border",      dot: "bg-muted-foreground" },
+const TABLE_STATUS: Record<TableStatus, { color: string; bg: string; border: string; dot: string }> = {
+  available: { color: "text-success",          bg: "bg-success/10",  border: "border-success/30",  dot: "bg-success" },
+  occupied:  { color: "text-primary",          bg: "bg-primary/10",  border: "border-primary/30",  dot: "bg-primary" },
+  reserved:  { color: "text-blue-500",         bg: "bg-blue-500/10", border: "border-blue-500/30", dot: "bg-blue-500" },
+  cleaning:  { color: "text-muted-foreground", bg: "bg-muted/20",    border: "border-border",      dot: "bg-muted-foreground" },
 };
+const tableStatusLabel = (status: TableStatus) => i18n.t(`restaurant:posView.tableStatus.${status}`);
 
-const ORDER_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  open:      { label: "Open",       color: "text-muted-foreground", bg: "bg-muted/30" },
-  sent:      { label: "In Kitchen", color: "text-warning",          bg: "bg-warning/10" },
-  ready:     { label: "Ready",      color: "text-success",          bg: "bg-success/10" },
-  served:    { label: "Served",     color: "text-primary",          bg: "bg-primary/10" },
-  paid:      { label: "Paid",       color: "text-foreground",       bg: "bg-muted/20" },
-  cancelled: { label: "Cancelled",  color: "text-destructive",      bg: "bg-destructive/10" },
-  split:     { label: "Split",      color: "text-blue-500",         bg: "bg-blue-500/10" },
-  held:      { label: "Held",       color: "text-amber-500",        bg: "bg-amber-500/10" },
+// Colours only — the display label comes from the shared `orders.status.*` vocabulary.
+const ORDER_STATUS: Record<string, { color: string; bg: string }> = {
+  open:      { color: "text-muted-foreground", bg: "bg-muted/30" },
+  sent:      { color: "text-warning",          bg: "bg-warning/10" },
+  ready:     { color: "text-success",          bg: "bg-success/10" },
+  served:    { color: "text-primary",          bg: "bg-primary/10" },
+  paid:      { color: "text-foreground",       bg: "bg-muted/20" },
+  cancelled: { color: "text-destructive",      bg: "bg-destructive/10" },
+  split:     { color: "text-blue-500",         bg: "bg-blue-500/10" },
+  held:      { color: "text-amber-500",        bg: "bg-amber-500/10" },
 };
+const orderStatusLabel = (status: string) =>
+  i18n.t(`restaurant:orders.status.${status}`, { defaultValue: status });
 
 const SECTION_EMOJI: Record<string, string> = { indoor: "🏠", outdoor: "☀️", terrace: "🌅", private: "🍽️", vip: "⭐", bar: "🍸" };
-const sectionLabel = (s: string) => `${SECTION_EMOJI[s] ?? "🍽️"} ${s.charAt(0).toUpperCase() + s.slice(1)}`;
+// Section names are tenant-entered free text — translate the known ones, fall back to the raw value.
+const sectionLabel = (s: string) =>
+  `${SECTION_EMOJI[s] ?? "🍽️"} ${i18n.t(`restaurant:posView.section.${s}`, { defaultValue: s.charAt(0).toUpperCase() + s.slice(1) })}`;
 
 function StatCard({ label, value, accent = "bg-primary" }: { label: string; value: string | number; accent?: string }) {
   return (
@@ -70,6 +78,7 @@ function StatCard({ label, value, accent = "bg-primary" }: { label: string; valu
 function TableCard({ table, order, currency, onClick }: {
   table: RestaurantTable; order: RestaurantOrder | undefined; currency: string; onClick: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const cfg = TABLE_STATUS[table.status];
   return (
     <button onClick={onClick}
@@ -80,16 +89,16 @@ function TableCard({ table, order, currency, onClick }: {
           <p className="text-xs text-muted-foreground">{sectionLabel(table.section)}</p>
         </div>
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{cfg.label}
+          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />{tableStatusLabel(table.status)}
         </span>
       </div>
       <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1">
-        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {table.capacity} cap</span>
+        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {t("posView.card.capacity", { n: table.capacity })}</span>
         {table.currentWaiter && <span className="truncate">{table.currentWaiter}</span>}
       </div>
       {order && (
         <p className="text-xs font-medium text-primary mt-1">
-          {order.orderNumber.slice(-8)} · {formatCurrency(order.total, currency)} · {ORDER_STATUS[order.status]?.label}
+          {order.orderNumber.slice(-8)} · {formatCurrency(order.total, currency)} · {orderStatusLabel(order.status)}
         </p>
       )}
       <ChevronRight className="absolute right-3 bottom-3 w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -102,20 +111,21 @@ function ReasonModal({ title, danger, busy, onConfirm, onCancel }: {
   title: string; danger?: boolean; busy?: boolean;
   onConfirm: (reason: string) => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [reason, setReason] = React.useState("");
   return (
     <LeftDrawer onClose={onCancel} widthClassName="max-w-sm" zIndexClassName="z-[60]">
       <p className="text-sm font-semibold text-foreground">{title}</p>
       <textarea
         autoFocus rows={3} value={reason} onChange={e => setReason(e.target.value)}
-        placeholder="Reason (required)…"
+        placeholder={t("posView.reason.placeholder")}
         className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>{t("posView.common.cancel")}</Button>
         <Button size="sm" className={cn("flex-1", danger && "bg-destructive hover:bg-destructive/90")}
           disabled={!reason.trim() || busy} onClick={() => onConfirm(reason.trim())}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm"}
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.common.confirm")}
         </Button>
       </div>
     </LeftDrawer>
@@ -127,6 +137,7 @@ function RefundModal({ order, currency, busy, onConfirm, onCancel }: {
   order: RestaurantOrder; currency: string; busy?: boolean;
   onConfirm: (amount: number, reason: string, method: string) => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [amount, setAmount] = React.useState(String(order.amountPaid));
   const [method, setMethod] = React.useState(order.paymentMethod ?? "Cash");
   const [reason, setReason] = React.useState("");
@@ -135,26 +146,26 @@ function RefundModal({ order, currency, busy, onConfirm, onCancel }: {
 
   return (
     <LeftDrawer onClose={onCancel} widthClassName="max-w-sm" zIndexClassName="z-[60]">
-      <p className="text-sm font-semibold text-foreground">Refund order</p>
+      <p className="text-sm font-semibold text-foreground">{t("posView.refund.title")}</p>
       <div>
-        <label className="text-xs text-muted-foreground">Amount — max {formatCurrency(order.amountPaid, currency)}</label>
+        <label className="text-xs text-muted-foreground">{t("posView.refund.amountLabel", { max: formatCurrency(order.amountPaid, currency) })}</label>
         <Input type="number" min={0} max={order.amountPaid} value={amount}
           onChange={e => setAmount(e.target.value)} className="h-8 text-sm mt-1" />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Method</label>
+        <label className="text-xs text-muted-foreground">{t("posView.refund.method")}</label>
         <Input value={method} onChange={e => setMethod(e.target.value)} className="h-8 text-sm mt-1" />
       </div>
       <textarea
         rows={2} value={reason} onChange={e => setReason(e.target.value)}
-        placeholder="Reason (required)…"
+        placeholder={t("posView.reason.placeholder")}
         className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>{t("posView.common.cancel")}</Button>
         <Button size="sm" className="flex-1 bg-destructive hover:bg-destructive/90"
           disabled={!valid || busy} onClick={() => onConfirm(amt, reason.trim(), method.trim() || "Cash")}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Refund"}
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.refund.submit")}
         </Button>
       </div>
     </LeftDrawer>
@@ -166,6 +177,7 @@ function ModifierPickerModal({ item, currency, onConfirm, onCancel }: {
   item: MenuItem; currency: string;
   onConfirm: (selectedModifierIds: string[]) => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   // groupId -> selected modifier ids (radio for maxSelect===1, checkboxes otherwise)
   const [selections, setSelections] = React.useState<Record<string, string[]>>({});
 
@@ -202,7 +214,11 @@ function ModifierPickerModal({ item, currency, onConfirm, onCancel }: {
                 {g.name}
                 {g.minSelect > 0 && <span className="text-destructive"> *</span>}
                 <span className="text-muted-foreground font-normal ml-1">
-                  {g.maxSelect === 1 ? "(choose 1)" : `(choose up to ${g.maxSelect}${g.minSelect > 0 ? `, at least ${g.minSelect}` : ""})`}
+                  {g.maxSelect === 1
+                    ? t("posView.modifier.chooseOne")
+                    : g.minSelect > 0
+                      ? t("posView.modifier.chooseUpToMin", { max: g.maxSelect, min: g.minSelect })
+                      : t("posView.modifier.chooseUpTo", { max: g.maxSelect })}
                 </span>
               </p>
               <div className="space-y-1">
@@ -231,10 +247,10 @@ function ModifierPickerModal({ item, currency, onConfirm, onCancel }: {
           ))}
       </div>
       <div className="flex gap-2 pt-1">
-        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>{t("posView.common.cancel")}</Button>
         <Button size="sm" className="flex-1" disabled={!allValid}
           onClick={() => onConfirm(Object.values(selections).flat())}>
-          Add — {formatCurrency(item.price + deltaTotal, currency)}
+          {t("posView.modifier.addWithPrice", { price: formatCurrency(item.price + deltaTotal, currency) })}
         </Button>
       </div>
     </LeftDrawer>
@@ -246,6 +262,7 @@ function SplitBillModal({ order, currency, busy, onConfirm, onCancel }: {
   order: RestaurantOrder; currency: string; busy?: boolean;
   onConfirm: (groups: { itemIds: string[] }[]) => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [bucketCount, setBucketCount] = React.useState(2);
   // itemId -> bucket index (0-based); unset = unassigned
   const [assignment, setAssignment] = React.useState<Record<string, number>>({});
@@ -267,17 +284,17 @@ function SplitBillModal({ order, currency, busy, onConfirm, onCancel }: {
   return (
     <LeftDrawer onClose={onCancel} widthClassName="max-w-lg" zIndexClassName="z-[70]">
       <div className="-mx-5 -mt-5 px-5 py-4 border-b border-border flex items-center justify-between">
-        <p className="text-sm font-bold text-foreground">Split Bill</p>
+        <p className="text-sm font-bold text-foreground">{t("posView.split.title")}</p>
         <div className="flex items-center gap-2">
           <button onClick={() => setBucketCount(n => Math.max(2, n - 1))}
             className="w-6 h-6 rounded bg-muted flex items-center justify-center"><Minus className="w-3 h-3" /></button>
-          <span className="text-xs font-semibold w-16 text-center">{bucketCount} guests</span>
+          <span className="text-xs font-semibold w-16 text-center">{t("posView.split.guests", { n: bucketCount })}</span>
           <button onClick={() => setBucketCount(n => n + 1)}
             className="w-6 h-6 rounded bg-muted flex items-center justify-center"><Plus className="w-3 h-3" /></button>
         </div>
       </div>
       <div className="space-y-1.5">
-        <p className="text-[11px] text-muted-foreground mb-2">Assign every item to a guest.</p>
+        <p className="text-[11px] text-muted-foreground mb-2">{t("posView.split.assignHint")}</p>
           {items.map(item => (
             <div key={item.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
               <div className="min-w-0 flex-1">
@@ -300,17 +317,17 @@ function SplitBillModal({ order, currency, busy, onConfirm, onCancel }: {
         <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.min(bucketCount, 4)}, minmax(0, 1fr))` }}>
           {Array.from({ length: bucketCount }, (_, idx) => (
             <div key={idx} className="rounded-lg bg-muted/30 px-2 py-1.5 text-center">
-              <p className="text-[9px] text-muted-foreground">Guest {idx + 1}</p>
+              <p className="text-[9px] text-muted-foreground">{t("posView.split.guestLabel", { n: idx + 1 })}</p>
               <p className="text-xs font-bold">{formatCurrency(bucketTotal(idx), currency)}</p>
             </div>
           ))}
         </div>
-        {!allAssigned && <p className="text-[11px] text-warning">Every item must be assigned to a guest.</p>}
-        {allAssigned && usedBuckets < 2 && <p className="text-[11px] text-warning">Use at least 2 guests to split the bill.</p>}
+        {!allAssigned && <p className="text-[11px] text-warning">{t("posView.split.mustAssignAll")}</p>}
+        {allAssigned && usedBuckets < 2 && <p className="text-[11px] text-warning">{t("posView.split.minTwoGuests")}</p>}
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>{t("posView.common.cancel")}</Button>
           <Button size="sm" className="flex-1" disabled={!allAssigned || usedBuckets < 2 || busy} onClick={handleConfirm}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Split Bill"}
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.split.submit")}
           </Button>
         </div>
       </div>
@@ -323,6 +340,7 @@ function ComboPickerModal({ combo, menu, busy, onConfirm, onCancel }: {
   combo: Combo; menu: MenuCategory[]; busy: boolean;
   onConfirm: (selections: ComboSelectionInput[]) => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [choices, setChoices] = React.useState<Record<string, string>>({});
   const choiceSlots = combo.items.filter(i => i.categoryId);
   const allChosen = choiceSlots.every(s => !!choices[s.id]);
@@ -349,10 +367,10 @@ function ComboPickerModal({ combo, menu, busy, onConfirm, onCancel }: {
             <div key={slot.id}>
               {slot.categoryId ? (
                 <>
-                  <label className="text-xs text-muted-foreground">Choose one — {slot.categoryName}</label>
+                  <label className="text-xs text-muted-foreground">{t("posView.combo.chooseOne", { category: slot.categoryName })}</label>
                   <select value={choices[slot.id] ?? ""} onChange={e => setChoices(prev => ({ ...prev, [slot.id]: e.target.value }))}
                     className="w-full h-9 text-sm rounded-md border border-border bg-card px-2 mt-1">
-                    <option value="">Select…</option>
+                    <option value="">{t("posView.combo.select")}</option>
                     {itemsInCategory(slot.categoryId).map(mi => <option key={mi.id} value={mi.id}>{mi.name}</option>)}
                   </select>
                 </>
@@ -364,7 +382,7 @@ function ComboPickerModal({ combo, menu, busy, onConfirm, onCancel }: {
       </div>
 
       <Button className="w-full" disabled={!allChosen || busy} onClick={handleConfirm}>
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : `Add ${combo.name}`}
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.combo.add", { name: combo.name })}
       </Button>
     </LeftDrawer>
   );
@@ -377,6 +395,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
   table: RestaurantTable | null; order: RestaurantOrder | null; allOrders: RestaurantOrder[]; isTakeaway: boolean;
   currency: string; onClose: () => void; onOrderCreated?: (orderId: string) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const { user } = useAuthStore();
   const { sessionId } = useShift();
   const { branchId } = useCurrentBranch();
@@ -439,7 +458,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
   const applyPct = () => {
     if (!order) return; const v = parseFloat(discValue) || 0;
     if (v <= 0 || v > 100) return;
-    if (!discReason.trim()) { toast.error("A reason is required to apply a discount."); return; }
+    if (!discReason.trim()) { toast.error(t("posView.drawer.discountReasonRequired")); return; }
     applyDisc.mutate({ id: order.id, type: "percentage" as DiscountType,
       amount: Math.round(order.subTotal * (v / 100) * 100) / 100, reason: discReason.trim() });
     setAppliedVoucher(null);
@@ -447,7 +466,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
   const applyFixed = () => {
     if (!order) return; const v = parseFloat(discValue) || 0;
     if (v <= 0) return;
-    if (!discReason.trim()) { toast.error("A reason is required to apply a discount."); return; }
+    if (!discReason.trim()) { toast.error(t("posView.drawer.discountReasonRequired")); return; }
     applyDisc.mutate({ id: order.id, type: "flat" as DiscountType,
       amount: Math.min(v, order.subTotal), reason: discReason.trim() });
     setAppliedVoucher(null);
@@ -456,7 +475,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
     if (!order) return;
     const code = voucherCode.trim().toUpperCase();
     if (!code) return;
-    if (!discReason.trim()) { toast.error("A reason is required to apply a discount."); return; }
+    if (!discReason.trim()) { toast.error(t("posView.drawer.discountReasonRequired")); return; }
     setVoucherBusy(true); setVoucherMsg(null);
     try {
       const res = await vouchersApi.validate(code, order.subTotal);
@@ -464,17 +483,17 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
         await applyDisc.mutateAsync({ id: order.id, type: "voucher" as DiscountType,
           amount: res.discountAmount, reason: `Voucher ${code}: ${discReason.trim()}` });
         setAppliedVoucher(code);
-        setVoucherMsg({ ok: true, text: `Applied — ${res.discountAmount.toFixed(2)} off` });
+        setVoucherMsg({ ok: true, text: t("posView.drawer.voucherApplied", { amount: res.discountAmount.toFixed(2) }) });
       } else {
-        setVoucherMsg({ ok: false, text: res.message ?? "Voucher not valid." });
+        setVoucherMsg({ ok: false, text: res.message ?? t("posView.drawer.voucherInvalid") });
       }
     } catch (e: any) {
-      setVoucherMsg({ ok: false, text: e?.message ?? "Validation failed." });
+      setVoucherMsg({ ok: false, text: e?.message ?? t("posView.drawer.validationFailed") });
     } finally { setVoucherBusy(false); }
   };
   const removeDiscount = () => {
     if (!order) return;
-    if (!discReason.trim()) { toast.error("A reason is required to remove a discount."); return; }
+    if (!discReason.trim()) { toast.error(t("posView.drawer.removeReasonRequired")); return; }
     removeDisc.mutate({ id: order.id, reason: discReason.trim() });
     setAppliedVoucher(null);
   };
@@ -499,7 +518,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
       });
       await printRaw(esc).catch(() => {});
     }
-    toast.success("Bill settled.");
+    toast.success(t("posView.drawer.billSettled"));
     const wasMainOrder = order != null && paidOrder.id === order.id;
     setPayTarget(null);
     if (wasMainOrder) onClose(); // paying a split's child leaves the drawer open on the split overview
@@ -565,18 +584,18 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
           <div>
             <div className="flex items-center gap-2 mb-1">
               <p className="text-xl font-bold text-foreground">
-                {table ? `Table ${table.tableNumber}` : "Takeaway Order"}
+                {table ? t("posView.drawer.tableHeading", { number: table.tableNumber }) : t("posView.drawer.takeawayHeading")}
               </p>
               {table ? (
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${TABLE_STATUS[table.status].bg} ${TABLE_STATUS[table.status].color}`}>
-                  {TABLE_STATUS[table.status].label}
+                  {tableStatusLabel(table.status)}
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">🥡 Takeaway</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">🥡 {t("posView.drawer.takeawayBadge")}</span>
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              {table ? `${sectionLabel(table.section)} · ${table.capacity} capacity` : "Counter / pickup"}
+              {table ? t("posView.drawer.tableSubtitle", { section: sectionLabel(table.section), capacity: table.capacity }) : t("posView.drawer.counterPickup")}
               {order ? ` · ${order.waiter}` : ""}
             </p>
           </div>
@@ -585,10 +604,10 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
 
         {/* Tabs */}
         <div className="flex border-b border-border shrink-0">
-          {[{ key: "order", label: "Current Order" }, { key: "menu", label: "Add Items" }].map(t => (
-            <button key={t.key} onClick={() => setPanel(t.key as "order" | "menu")}
-              className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${panel === t.key ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-              {t.label}{t.key === "menu" && pending.length > 0 ? ` (${pending.reduce((s, p) => s + p.quantity, 0)})` : ""}
+          {[{ key: "order", labelKey: "posView.drawer.tabOrder" }, { key: "menu", labelKey: "posView.drawer.tabMenu" }].map(tb => (
+            <button key={tb.key} onClick={() => setPanel(tb.key as "order" | "menu")}
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${panel === tb.key ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+              {t(tb.labelKey)}{tb.key === "menu" && pending.length > 0 ? ` (${pending.reduce((s, p) => s + p.quantity, 0)})` : ""}
             </button>
           ))}
         </div>
@@ -600,9 +619,9 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
               {!order ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <UtensilsCrossed className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm text-muted-foreground">No active order</p>
+                  <p className="text-sm text-muted-foreground">{t("posView.drawer.noActiveOrder")}</p>
                   <Button size="sm" className="mt-4" onClick={() => setPanel("menu")}>
-                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Add items to start
+                    <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("posView.drawer.addItemsToStart")}
                   </Button>
                 </div>
               ) : (
@@ -610,10 +629,10 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-xs font-mono text-muted-foreground">{order.orderNumber}</p>
-                      <p className="text-xs text-muted-foreground">{order.covers} covers · {order.waiter}</p>
+                      <p className="text-xs text-muted-foreground">{t("posView.drawer.coversWaiter", { covers: order.covers, waiter: order.waiter })}</p>
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${ORDER_STATUS[order.status]?.bg} ${ORDER_STATUS[order.status]?.color}`}>
-                      {ORDER_STATUS[order.status]?.label}
+                      {orderStatusLabel(order.status)}
                     </span>
                   </div>
 
@@ -622,7 +641,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                        onto its children); each split is paid independently below. */
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">
-                        This bill was split into {order.splits.length} part{order.splits.length !== 1 ? "s" : ""}.
+                        {t("posView.drawer.splitInto", { count: order.splits.length })}
                       </p>
                       {order.splits.map(s => (
                         <div key={s.id} className="flex items-center justify-between p-3 rounded-xl border border-border">
@@ -630,19 +649,19 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                             <p className="text-xs font-mono text-foreground">{s.orderNumber}</p>
                             <p className="text-[10px] text-muted-foreground">
                               {formatCurrency(s.total, currency)}
-                              {s.status !== "paid" && ` · ${formatCurrency(s.outstanding, currency)} due`}
+                              {s.status !== "paid" && ` · ${t("posView.drawer.dueSuffix", { amount: formatCurrency(s.outstanding, currency) })}`}
                             </p>
                           </div>
                           {s.status === "paid" ? (
                             <span className="text-xs text-success font-semibold flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" />Paid
+                              <CheckCircle2 className="w-3.5 h-3.5" />{t("posView.drawer.paid")}
                             </span>
                           ) : (
                             <Can permission="restaurant.orders.edit">
                               <Button size="sm" variant="outline" onClick={() => {
                                 const full = allOrders.find(o => o.id === s.id);
                                 if (full) setPayTarget(full);
-                              }}>Pay</Button>
+                              }}>{t("posView.common.pay")}</Button>
                             </Can>
                           )}
                         </div>
@@ -663,7 +682,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                                 </p>
                               )}
                               {item.modifiers && <p className="text-xs text-warning mt-0.5 italic">{item.modifiers}</p>}
-                              <p className="text-xs text-muted-foreground mt-0.5">{formatCurrency(item.unitPrice, currency)} each</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{t("posView.drawer.eachPrice", { price: formatCurrency(item.unitPrice, currency) })}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               <p className="text-sm font-semibold text-foreground">{formatCurrency(item.lineTotal, currency)}</p>
@@ -683,7 +702,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                         <Can permission="restaurant.orders.discount">
                         <div className="rounded-xl border border-border overflow-hidden">
                           <button onClick={() => setShowDisc(s => !s)} className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold hover:bg-muted/30">
-                            <span className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-primary" />Discount
+                            <span className="flex items-center gap-1.5"><Tag className="h-3.5 w-3.5 text-primary" />{t("posView.drawer.discount")}
                               {order.discountAmount > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-success/15 text-success text-[10px]">-{formatCurrency(order.discountAmount, currency)}</span>}
                             </span>
                             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDisc && "rotate-180")} />
@@ -691,38 +710,38 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                           {showDisc && (
                             <div className="p-3 border-t border-border space-y-2">
                               <div className="grid grid-cols-3 gap-1">
-                                {[{ id: "pct", label: "Percent", icon: Percent }, { id: "fixed", label: "Amount", icon: Tag }, { id: "voucher", label: "Voucher", icon: Ticket }].map(t => {
-                                  const Icon = t.icon;
+                                {[{ id: "pct", labelKey: "posView.drawer.discountPercent", icon: Percent }, { id: "fixed", labelKey: "posView.drawer.discountAmount", icon: Tag }, { id: "voucher", labelKey: "posView.drawer.discountVoucher", icon: Ticket }].map(tb => {
+                                  const Icon = tb.icon;
                                   return (
-                                    <button key={t.id} onClick={() => { setDiscTab(t.id as any); setVoucherMsg(null); }}
+                                    <button key={tb.id} onClick={() => { setDiscTab(tb.id as any); setVoucherMsg(null); }}
                                       className={cn("flex flex-col items-center gap-1 py-1.5 rounded-lg border text-[10px] font-semibold",
-                                        discTab === t.id ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground")}>
-                                      <Icon className="h-3.5 w-3.5" />{t.label}
+                                        discTab === tb.id ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground")}>
+                                      <Icon className="h-3.5 w-3.5" />{t(tb.labelKey)}
                                     </button>
                                   );
                                 })}
                               </div>
                               {discTab === "pct" && (
-                                <div className="flex gap-2"><Input type="number" min={0} max={100} value={discValue} onChange={e => setDiscValue(e.target.value)} placeholder="0" className="h-8 text-sm" /><Button size="sm" className="h-8" onClick={applyPct} disabled={applyDisc.isPending}>{applyDisc.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}</Button></div>
+                                <div className="flex gap-2"><Input type="number" min={0} max={100} value={discValue} onChange={e => setDiscValue(e.target.value)} placeholder="0" className="h-8 text-sm" /><Button size="sm" className="h-8" onClick={applyPct} disabled={applyDisc.isPending}>{applyDisc.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.common.apply")}</Button></div>
                               )}
                               {discTab === "fixed" && (
-                                <div className="flex gap-2"><Input type="number" min={0} value={discValue} onChange={e => setDiscValue(e.target.value)} placeholder="0.00" className="h-8 text-sm" /><Button size="sm" className="h-8" onClick={applyFixed} disabled={applyDisc.isPending}>{applyDisc.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}</Button></div>
+                                <div className="flex gap-2"><Input type="number" min={0} value={discValue} onChange={e => setDiscValue(e.target.value)} placeholder="0.00" className="h-8 text-sm" /><Button size="sm" className="h-8" onClick={applyFixed} disabled={applyDisc.isPending}>{applyDisc.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.common.apply")}</Button></div>
                               )}
                               {discTab === "voucher" && (
                                 <div className="space-y-1.5">
                                   <div className="flex gap-2">
-                                    <Input value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder="CODE" className="h-8 text-sm font-mono uppercase" />
-                                    <Button size="sm" className="h-8 min-w-[64px]" onClick={applyVoucher} disabled={voucherBusy}>{voucherBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Apply"}</Button>
+                                    <Input value={voucherCode} onChange={e => setVoucherCode(e.target.value.toUpperCase())} placeholder={t("posView.drawer.voucherPlaceholder")} className="h-8 text-sm font-mono uppercase" />
+                                    <Button size="sm" className="h-8 min-w-[64px]" onClick={applyVoucher} disabled={voucherBusy}>{voucherBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.common.apply")}</Button>
                                   </div>
                                   {voucherMsg && <p className={cn("text-[11px]", voucherMsg.ok ? "text-success" : "text-destructive")}>{voucherMsg.text}</p>}
                                 </div>
                               )}
                               <Input value={discReason} onChange={e => setDiscReason(e.target.value)}
-                                placeholder="Reason (required)…" className="h-8 text-xs" />
+                                placeholder={t("posView.reason.placeholder")} className="h-8 text-xs" />
                               {order.discountAmount > 0 && (
                                 <button onClick={removeDiscount} disabled={removeDisc.isPending}
                                   className="text-[11px] text-destructive hover:underline disabled:opacity-50">
-                                  {removeDisc.isPending ? "Removing…" : "Remove discount"}
+                                  {removeDisc.isPending ? t("posView.drawer.removing") : t("posView.drawer.removeDiscount")}
                                 </button>
                               )}
                             </div>
@@ -732,12 +751,12 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                       )}
 
                       <div className="space-y-1.5 pt-2">
-                        <div className="flex justify-between text-xs text-muted-foreground"><span>Subtotal</span><span>{formatCurrency(order.subTotal, currency)}</span></div>
-                        {order.discountAmount > 0 && <div className="flex justify-between text-xs text-success"><span>Discount</span><span>-{formatCurrency(order.discountAmount, currency)}</span></div>}
-                        <div className="flex justify-between text-xs text-muted-foreground"><span>VAT (5%)</span><span>{formatCurrency(order.taxAmount, currency)}</span></div>
-                        <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border"><span>Total</span><span>{formatCurrency(order.total, currency)}</span></div>
+                        <div className="flex justify-between text-xs text-muted-foreground"><span>{t("posView.drawer.subtotal")}</span><span>{formatCurrency(order.subTotal, currency)}</span></div>
+                        {order.discountAmount > 0 && <div className="flex justify-between text-xs text-success"><span>{t("posView.drawer.discount")}</span><span>-{formatCurrency(order.discountAmount, currency)}</span></div>}
+                        <div className="flex justify-between text-xs text-muted-foreground"><span>{t("posView.drawer.vat")}</span><span>{formatCurrency(order.taxAmount, currency)}</span></div>
+                        <div className="flex justify-between text-sm font-bold text-foreground pt-2 border-t border-border"><span>{t("posView.drawer.total")}</span><span>{formatCurrency(order.total, currency)}</span></div>
                         {order.amountPaid > 0 && order.status !== "paid" && (
-                          <div className="flex justify-between text-xs text-primary"><span>Paid so far</span><span>{formatCurrency(order.amountPaid, currency)} · {formatCurrency(order.outstanding, currency)} left</span></div>
+                          <div className="flex justify-between text-xs text-primary"><span>{t("posView.drawer.paidSoFar")}</span><span>{t("posView.drawer.paidSoFarValue", { paid: formatCurrency(order.amountPaid, currency), left: formatCurrency(order.outstanding, currency) })}</span></div>
                         )}
                       </div>
                     </>
@@ -751,10 +770,10 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
               <div className="flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search menu…" className="pl-9 h-9 text-sm" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("posView.drawer.searchMenu")} className="pl-9 h-9 text-sm" />
                 </div>
                 <Can permission="restaurant.menu.edit">
-                  <Button variant={manageMenu ? "default" : "outline"} size="sm" onClick={() => setManage(m => !m)} title="Toggle availability editing">
+                  <Button variant={manageMenu ? "default" : "outline"} size="sm" onClick={() => setManage(m => !m)} title={t("posView.drawer.toggleAvailability")}>
                     {manageMenu ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                   </Button>
                 </Can>
@@ -763,7 +782,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
               {/* Combo deals — adding one requires an already-open order (can't expand into "pending" pre-order) */}
               {combos.length > 0 && order && order.status === "open" && (
                 <div className="space-y-1.5">
-                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><ComboIcon className="w-3 h-3" /> Combo Deals</p>
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><ComboIcon className="w-3 h-3" /> {t("posView.combo.deals")}</p>
                   <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                     {combos.map(combo => (
                       <button key={combo.id} disabled={addCombo.isPending}
@@ -779,7 +798,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
 
               <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 <button onClick={() => setCatId("all")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${catId === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}>All</button>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${catId === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}>{t("posView.drawer.all")}</button>
                 {menu.map(c => (
                   <button key={c.id} onClick={() => setCatId(c.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${catId === c.id ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}>{c.name}</button>
@@ -792,36 +811,36 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
                     item.isAvailable ? "bg-muted/20 hover:bg-muted/30" : "bg-muted/10 opacity-60")}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">{item.prepTimeMinutes}min{item.allergens ? ` · ${item.allergens}` : ""}</p>
+                      <p className="text-xs text-muted-foreground">{t("posView.drawer.prepMinutes", { n: item.prepTimeMinutes })}{item.allergens ? ` · ${item.allergens}` : ""}</p>
                     </div>
                     <p className="text-sm font-semibold text-foreground shrink-0">{formatCurrency(item.price, currency)}</p>
                     {manageMenu ? (
                       <>
-                        <Link to="/recipe/recipes" title={recipeMenuItemIds.has(item.id) ? "Recipe linked — view in Recipes" : "No recipe linked yet — stock won't auto-deduct when served"}
+                        <Link to="/recipe/recipes" title={recipeMenuItemIds.has(item.id) ? t("posView.drawer.recipeLinked") : t("posView.drawer.recipeMissing")}
                           className={cn("flex items-center gap-1 px-1.5 py-1 rounded-lg text-xs shrink-0",
                             recipeMenuItemIds.has(item.id) ? "text-success hover:bg-success/10" : "text-muted-foreground/50 hover:bg-muted/30")}>
                           <ChefHat className="w-3.5 h-3.5" />
                         </Link>
                         <button onClick={() => setAvail.mutate({ id: item.id, isAvailable: !item.isAvailable })}
                           className={cn("px-2 py-1 rounded-lg text-xs font-semibold shrink-0", item.isAvailable ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-                          {item.isAvailable ? "Available" : "86'd"}
+                          {item.isAvailable ? t("posView.drawer.available") : t("posView.drawer.unavailable")}
                         </button>
                       </>
                     ) : (
                       <button disabled={!item.isAvailable || (order != null && order.status !== "open")} onClick={() => addPending(item)}
                         className="flex items-center gap-0.5 text-xs text-primary hover:underline disabled:opacity-40 disabled:no-underline shrink-0">
-                        <Plus className="w-3 h-3" /> Add
+                        <Plus className="w-3 h-3" /> {t("posView.common.add")}
                       </button>
                     )}
                   </div>
                 ))}
-                {filteredMenu.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">No items found.</p>}
+                {filteredMenu.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">{t("posView.drawer.noItemsFound")}</p>}
               </div>
 
               {/* Pending additions */}
               {pending.length > 0 && (
                 <div className="border border-primary/20 bg-primary/5 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-semibold text-primary">To add ({pending.reduce((s, p) => s + p.quantity, 0)} items · {formatCurrency(pendingTotal, currency)})</p>
+                  <p className="text-xs font-semibold text-primary">{t("posView.drawer.toAdd", { count: pending.reduce((s, p) => s + p.quantity, 0), total: formatCurrency(pendingTotal, currency) })}</p>
                   {pending.map(p => (
                     <div key={p.key} className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
@@ -849,7 +868,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
           {/* Covers input when opening a new dine-in order */}
           {!order && table && (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Guests:</span>
+              <span className="text-xs text-muted-foreground">{t("posView.drawer.guests")}</span>
               <Input type="number" min={1} max={table.capacity} value={covers} onChange={e => setCovers(e.target.value)} className="h-8 w-20 text-sm" />
             </div>
           )}
@@ -857,28 +876,28 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
           <div className="flex flex-wrap gap-2">
             {!order && (
               <Button className="flex-1" size="sm" disabled={!pending.length || busy} onClick={handleOpenOrder}>
-                {createOrder.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1.5" />Open Order</>}
+                {createOrder.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.openOrder")}</>}
               </Button>
             )}
             {order && pending.length > 0 && (
               <Button className="flex-1" size="sm" disabled={busy} onClick={handleAddItems}>
-                {addItems.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1.5" />Add {pending.reduce((s, p) => s + p.quantity, 0)} items</>}
+                {addItems.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Plus className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.addItemsCount", { count: pending.reduce((s, p) => s + p.quantity, 0) })}</>}
               </Button>
             )}
             {order && order.status === "open" && pending.length === 0 && (
               <Button className="flex-1" size="sm" disabled={busy} onClick={() => sendKitchen.mutate(order.id)}>
-                <Send className="w-3.5 h-3.5 mr-1.5" />Send to Kitchen
+                <Send className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.sendToKitchen")}
               </Button>
             )}
             {order && (order.status === "ready" || order.status === "sent") && pending.length === 0 && (
               <Button className="flex-1" size="sm" disabled={busy} onClick={() => serveOrder.mutate(order.id)}>
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Mark Served
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.markServed")}
               </Button>
             )}
             {order && order.status !== "paid" && order.status !== "cancelled" && order.status !== "split" &&
               order.status !== "held" && pending.length === 0 && (
               <Button className="flex-1" size="sm" variant="outline" disabled={busy} onClick={() => setPayTarget(order)}>
-                <Receipt className="w-3.5 h-3.5 mr-1.5" />Bill &amp; Pay
+                <Receipt className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.billAndPay")}
               </Button>
             )}
             {order && order.status !== "paid" && order.status !== "cancelled" && order.status !== "split" &&
@@ -892,7 +911,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
             {order && order.status !== "paid" && order.status !== "cancelled" && order.status !== "split" &&
               order.status !== "held" && pending.length === 0 && (
               <Can permission="restaurant.orders.edit">
-                <Button size="sm" variant="outline" title="Fire next course" disabled={fireCourse.isPending}
+                <Button size="sm" variant="outline" title={t("posView.drawer.fireNextCourse")} disabled={fireCourse.isPending}
                   onClick={() => fireCourse.mutate(order.id)}>
                   {fireCourse.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChefHat className="w-3.5 h-3.5" />}
                 </Button>
@@ -908,7 +927,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
             {order && order.status === "held" && (
               <Can permission="restaurant.orders.edit">
                 <Button className="flex-1" size="sm" disabled={recallOrder.isPending} onClick={() => recallOrder.mutate(order.id)}>
-                  {recallOrder.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><PlayCircle className="w-3.5 h-3.5 mr-1.5" />Recall Order</>}
+                  {recallOrder.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><PlayCircle className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.recallOrder")}</>}
                 </Button>
               </Can>
             )}
@@ -922,7 +941,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
             {order && order.status === "paid" && order.amountPaid > 0 && (
               <Can permission="restaurant.orders.refund">
                 <Button size="sm" variant="outline" className="text-destructive border-destructive/40" onClick={() => setShowRefund(true)}>
-                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />Refund
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" />{t("posView.drawer.refund")}
                 </Button>
               </Can>
             )}
@@ -975,7 +994,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
       {/* Void-item reason prompt */}
       {voidItemTarget && order && (
         <ReasonModal
-          title="Void item" danger busy={voidItem.isPending}
+          title={t("posView.drawer.voidItemTitle")} danger busy={voidItem.isPending}
           onConfirm={reason => { voidItem.mutate({ id: order.id, itemId: voidItemTarget, reason }); setVoidItemTarget(null); }}
           onCancel={() => setVoidItemTarget(null)}
         />
@@ -984,7 +1003,7 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
       {/* Cancel-order reason prompt */}
       {showCancelReason && order && (
         <ReasonModal
-          title="Cancel order" danger busy={cancelOrder.isPending}
+          title={t("posView.drawer.cancelOrderTitle")} danger busy={cancelOrder.isPending}
           onConfirm={reason => { cancelOrder.mutate({ id: order.id, reason }); setShowCancelReason(false); onClose(); }}
           onCancel={() => setShowCancelReason(false)}
         />
@@ -1018,35 +1037,36 @@ function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, o
 function SendReceiptModal({ busy, onConfirm, onCancel }: {
   busy: boolean; onConfirm: (channel: "email" | "sms" | "whatsapp", recipientAddress: string) => void; onCancel: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [channel, setChannel] = React.useState<"email" | "sms" | "whatsapp">("email");
   const [recipient, setRecipient] = React.useState("");
 
   return (
     <LeftDrawer onClose={onCancel} widthClassName="max-w-sm" zIndexClassName="z-[60]">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Send Receipt</p>
+        <p className="text-sm font-semibold text-foreground">{t("posView.receipt.title")}</p>
         <button onClick={onCancel}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
       <div className="flex gap-2">
         <button onClick={() => setChannel("email")}
           className={cn("flex-1 py-1.5 rounded-lg text-xs font-medium", channel === "email" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground")}>
-          Email
+          {t("posView.receipt.email")}
         </button>
         <button onClick={() => setChannel("sms")}
           className={cn("flex-1 py-1.5 rounded-lg text-xs font-medium", channel === "sms" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground")}>
-          SMS
+          {t("posView.receipt.sms")}
         </button>
         <button onClick={() => setChannel("whatsapp")}
           className={cn("flex-1 py-1.5 rounded-lg text-xs font-medium", channel === "whatsapp" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground")}>
-          WhatsApp
+          {t("posView.receipt.whatsapp")}
         </button>
       </div>
       <Input value={recipient} onChange={e => setRecipient(e.target.value)}
-        placeholder={channel === "email" ? "guest@example.com" : "+971 5xxxxxxxx"} className="h-9 text-sm" />
+        placeholder={channel === "email" ? t("posView.receipt.emailPlaceholder") : t("posView.receipt.phonePlaceholder")} className="h-9 text-sm" />
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" size="sm" className="flex-1" onClick={onCancel}>{t("posView.common.cancel")}</Button>
         <Button size="sm" className="flex-1" disabled={!recipient.trim() || busy} onClick={() => onConfirm(channel, recipient.trim())}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send"}
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.common.send")}
         </Button>
       </div>
     </LeftDrawer>
@@ -1055,6 +1075,7 @@ function SendReceiptModal({ busy, onConfirm, onCancel }: {
 
 // ─── Main View ────────────────────────────────────────────────────────────────
 export function RestaurantPOSView() {
+  const { t } = useTranslation("restaurant");
   useRestaurantRealtime();
   useDeviceRegistration();
   const { tenant } = useAuthStore();
@@ -1103,24 +1124,28 @@ export function RestaurantPOSView() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Restaurant POS</h1>
+          <h1 className="text-xl font-bold text-foreground">{t("posView.title")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {tablesSummary?.total ?? tables.length} tables · {tablesSummary?.occupied ?? 0} occupied · {ordersSummary?.sent ?? 0} in kitchen
+            {t("posView.headerSummary", {
+              tables: tablesSummary?.total ?? tables.length,
+              occupied: tablesSummary?.occupied ?? 0,
+              inKitchen: ordersSummary?.sent ?? 0,
+            })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <BranchSwitcher />
           <HardwareStatusBar />
-          <Button variant={activeTab === "floor" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("floor")}>Floor Plan</Button>
-          <Button variant={activeTab === "orders" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("orders")}>Orders</Button>
+          <Button variant={activeTab === "floor" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("floor")}>{t("posView.floorPlan")}</Button>
+          <Button variant={activeTab === "orders" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("orders")}>{t("posView.ordersTab")}</Button>
           <Can permission="restaurant.orders.create">
-            <Button size="sm" className="gap-1.5" onClick={() => setTakeaway("new")}>🥡 Takeaway</Button>
+            <Button size="sm" className="gap-1.5" onClick={() => setTakeaway("new")}>🥡 {t("posView.takeaway")}</Button>
           </Can>
           <Can permission="restaurant.delivery.create">
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowNewDelivery(true)}>🛵 Delivery</Button>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowNewDelivery(true)}>🛵 {t("posView.delivery")}</Button>
           </Can>
           <Can permission="restaurant.tables.create">
-            <Button size="sm" variant="outline" onClick={() => setShowAddTable(true)}><Plus className="w-3.5 h-3.5 mr-1.5" />Add Table</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowAddTable(true)}><Plus className="w-3.5 h-3.5 mr-1.5" />{t("posView.addTable")}</Button>
           </Can>
         </div>
       </div>
@@ -1128,19 +1153,19 @@ export function RestaurantPOSView() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Total Tables" value={tablesSummary?.total ?? tables.length} accent="bg-primary" />
-          <StatCard label="Occupied"     value={tablesSummary?.occupied ?? 0} accent="bg-primary" />
-          <StatCard label="Available"    value={tablesSummary?.available ?? 0} accent="bg-success" />
-          <StatCard label="Reserved"     value={tablesSummary?.reserved ?? 0} accent="bg-blue-500" />
-          <StatCard label="In Kitchen"   value={ordersSummary?.sent ?? 0} accent="bg-warning" />
-          <StatCard label="Today Sales"  value={formatCurrency(ordersSummary?.todayRevenue ?? 0, currency)} accent="bg-success" />
+          <StatCard label={t("posView.stat.totalTables")} value={tablesSummary?.total ?? tables.length} accent="bg-primary" />
+          <StatCard label={t("posView.stat.occupied")}    value={tablesSummary?.occupied ?? 0} accent="bg-primary" />
+          <StatCard label={t("posView.stat.available")}   value={tablesSummary?.available ?? 0} accent="bg-success" />
+          <StatCard label={t("posView.stat.reserved")}    value={tablesSummary?.reserved ?? 0} accent="bg-blue-500" />
+          <StatCard label={t("posView.stat.inKitchen")}   value={ordersSummary?.sent ?? 0} accent="bg-warning" />
+          <StatCard label={t("posView.stat.todaySales")}  value={formatCurrency(ordersSummary?.todayRevenue ?? 0, currency)} accent="bg-success" />
         </div>
 
         {activeTab === "floor" ? (
           <>
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => setSectionFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${sectionFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}>All Sections</button>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium ${sectionFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}>{t("posView.allSections")}</button>
               {sections.map(s => (
                 <button key={s} onClick={() => setSectionFilter(s)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium ${sectionFilter === s ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}>{sectionLabel(s)}</button>
@@ -1157,7 +1182,7 @@ export function RestaurantPOSView() {
                   <div className="flex items-center gap-3 mb-3">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{sectionLabel(section)}</p>
                     <div className="flex-1 h-px bg-border" />
-                    <p className="text-xs text-muted-foreground">{secTables.length} tables</p>
+                    <p className="text-xs text-muted-foreground">{t("posView.sectionTableCount", { n: secTables.length })}</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     {secTables.map(t => (
@@ -1170,12 +1195,14 @@ export function RestaurantPOSView() {
           </>
         ) : (
           <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-border"><p className="text-sm font-semibold text-foreground">Orders</p></div>
+            <div className="px-4 py-3 border-b border-border"><p className="text-sm font-semibold text-foreground">{t("posView.ordersHeading")}</p></div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead><tr className="border-b border-border bg-muted/20">
-                  {["Order #", "Table", "Items", "Total", "Status", "Waiter", ""].map(h => (
-                    <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                  {["orderNum", "table", "items", "total", "status", "waiter", ""].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                      {h ? t(`posView.ordersTable.${h}`) : ""}
+                    </th>
                   ))}
                 </tr></thead>
                 <tbody>
@@ -1187,19 +1214,19 @@ export function RestaurantPOSView() {
                         <td className="px-4 py-3 text-xs font-semibold text-foreground">{o.tableNumber}</td>
                         <td className="px-4 py-3 text-xs text-foreground">{o.items.length}</td>
                         <td className="px-4 py-3 text-xs font-semibold text-foreground">{formatCurrency(o.total, currency)}</td>
-                        <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${sc?.bg} ${sc?.color}`}>{sc?.label}</span></td>
+                        <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${sc?.bg} ${sc?.color}`}>{orderStatusLabel(o.status)}</span></td>
                         <td className="px-4 py-3 text-xs text-foreground">{o.waiter}</td>
                         <td className="px-4 py-3">
                           <button onClick={() => {
                               if (o.orderType === "dine_in") { setSelectedTableId(o.tableId); setActiveTab("floor"); }
                               else { setTakeaway(o.id); }
                             }}
-                            className="text-xs text-primary hover:underline flex items-center gap-1">View <ChevronRight className="w-3 h-3" /></button>
+                            className="text-xs text-primary hover:underline flex items-center gap-1">{t("posView.view")} <ChevronRight className="w-3 h-3" /></button>
                         </td>
                       </tr>
                     );
                   })}
-                  {orders.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-muted-foreground">No orders yet.</td></tr>}
+                  {orders.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-muted-foreground">{t("posView.noOrders")}</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -1231,6 +1258,7 @@ export function RestaurantPOSView() {
 // Deliberately simpler than the full OrderDrawer (no modifiers/combos) — a v1 scope cut for the
 // delivery quick-create path; staff can still edit items via the normal Orders tab afterward.
 function NewDeliveryOrderModal({ currency, onClose }: { currency: string; onClose: () => void }) {
+  const { t } = useTranslation("restaurant");
   const { user } = useAuthStore();
   const { branchId } = useCurrentBranch();
   const { data: menu = [] } = useMenu();
@@ -1267,27 +1295,27 @@ function NewDeliveryOrderModal({ currency, onClose }: { currency: string; onClos
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-lg">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">🛵 New Delivery Order</p>
+        <p className="text-sm font-semibold text-foreground">🛵 {t("posView.newDelivery.title")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">Guest Name</label>
+        <div><label className="text-xs text-muted-foreground">{t("posView.newDelivery.guestName")}</label>
           <Input value={guestName} onChange={e => setGuestName(e.target.value)} className="h-9 text-sm" /></div>
-        <div><label className="text-xs text-muted-foreground">Phone</label>
+        <div><label className="text-xs text-muted-foreground">{t("posView.newDelivery.phone")}</label>
           <Input value={phone} onChange={e => setPhone(e.target.value)} className="h-9 text-sm" /></div>
       </div>
-      <div><label className="text-xs text-muted-foreground">Delivery Address</label>
+      <div><label className="text-xs text-muted-foreground">{t("posView.newDelivery.address")}</label>
         <Input value={address} onChange={e => setAddress(e.target.value)} className="h-9 text-sm" /></div>
       {zones.length > 0 && (
-        <div><label className="text-xs text-muted-foreground">Delivery Zone</label>
+        <div><label className="text-xs text-muted-foreground">{t("posView.newDelivery.zone")}</label>
           <select value={zoneId} onChange={e => setZoneId(e.target.value)} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
-            <option value="">No zone (custom fee)</option>
+            <option value="">{t("posView.newDelivery.noZone")}</option>
             {zones.filter(z => z.isActive).map(z => <option key={z.id} value={z.id}>{z.name} — {formatCurrency(z.deliveryFee, currency)}</option>)}
           </select></div>
       )}
 
-      <p className="text-xs font-semibold text-muted-foreground pt-2">Items</p>
+      <p className="text-xs font-semibold text-muted-foreground pt-2">{t("posView.newDelivery.items")}</p>
       <div className="max-h-40 overflow-auto space-y-1">
         {allItems.filter(i => i.isAvailable).map(item => (
           <button key={item.id} onClick={() => addItem(item)}
@@ -1306,13 +1334,13 @@ function NewDeliveryOrderModal({ currency, onClose }: { currency: string; onClos
             </div>
           ))}
           <div className="flex items-center justify-between text-xs font-semibold pt-1 border-t border-border">
-            <span>Total</span><span>{formatCurrency(total, currency)}</span>
+            <span>{t("posView.common.total")}</span><span>{formatCurrency(total, currency)}</span>
           </div>
         </div>
       )}
 
       <Button className="w-full" disabled={!valid || busy} onClick={handleCreate}>
-        {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Create Delivery Order
+        {busy ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} {t("posView.newDelivery.submit")}
       </Button>
     </LeftDrawer>
   );

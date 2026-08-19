@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, Upload, Receipt, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,24 +8,9 @@ import { formatCurrency } from "@/lib/utils";
 import { useCreateExpense, useUploadExpenseReceipt } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 
-const CATEGORIES = [
-  { value: "travel",        label: "✈️ Travel" },
-  { value: "accommodation", label: "🏨 Accommodation" },
-  { value: "meals",         label: "🍽️ Meals & Entertainment" },
-  { value: "fuel",          label: "⛽ Fuel & Transport" },
-  { value: "software",      label: "💻 Software & Subscriptions" },
-  { value: "office",        label: "🏢 Office Supplies" },
-  { value: "training",      label: "📚 Training & Education" },
-  { value: "medical",       label: "🏥 Medical" },
-  { value: "other",         label: "📎 Other" },
-];
-
-const PAYMENT_METHODS = [
-  { value: "cash",          label: "Cash" },
-  { value: "personal_card", label: "Personal Card" },
-  { value: "company_card",  label: "Company Card" },
-  { value: "bank_transfer", label: "Bank Transfer" },
-];
+const CATEGORY_VALUES = ["travel", "accommodation", "meals", "fuel", "software", "office", "training", "medical", "other"] as const;
+const PAYMENT_METHOD_VALUES = ["cash", "personal_card", "company_card", "bank_transfer"] as const;
+const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management"];
 
 interface ExpenseLine {
   id: string;
@@ -49,6 +35,7 @@ interface AddExpenseFormProps {
 }
 
 export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
+  const { t } = useTranslation("finance");
   const createExpense = useCreateExpense();
   const uploadReceipt = useUploadExpenseReceipt();
 
@@ -70,7 +57,7 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
 
   const attachReceipt = (id: string, file: File | null) => {
     if (file && file.size > MAX_RECEIPT_BYTES) {
-      toast.error("Receipt must be 5 MB or smaller.");
+      toast.error(t("expenses.form.toast.receiptTooLarge"));
       return;
     }
     setLines(prev => prev.map(l => l.id === id ? { ...l, receiptFile: file } : l));
@@ -88,13 +75,13 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
   /** One expense per line item — each sent to backend independently. */
   const handleSubmit = async (asDraft = false) => {
     const activeLines = lines.filter(l => l.amount > 0);
-    if (activeLines.length === 0) { toast.error("Add at least one expense item with an amount."); return; }
+    if (activeLines.length === 0) { toast.error(t("expenses.form.toast.atLeastOne")); return; }
 
     try {
       for (const line of activeLines) {
         const refParts = [line.receiptNo, project].filter(Boolean);
         const created = await createExpense.mutateAsync({
-          title:         line.description.trim() || `${CATEGORIES.find(c => c.value === line.category)?.label ?? line.category} expense`,
+          title:         line.description.trim() || `${t(`expenses.category.${line.category}`, { defaultValue: line.category })} ${t("expenses.form.expenseSuffix")}`,
           category:      line.category,
           amount:        line.amount,
           expenseDate:   date,
@@ -109,11 +96,11 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
         }
       }
       toast.success(asDraft
-        ? `${activeLines.length} expense(s) saved as draft.`
-        : `${activeLines.length} expense(s) submitted for approval.`);
+        ? t("expenses.form.toast.savedDraft", { count: activeLines.length })
+        : t("expenses.form.toast.submitted", { count: activeLines.length }));
       onClose();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save expense.");
+      toast.error(err instanceof Error ? err.message : t("expenses.form.toast.saveFailed"));
     }
   };
 
@@ -136,8 +123,8 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Expense Claim</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Submit expenses for reimbursement</p>
+                <h2 className="text-base font-bold text-foreground">{t("expenses.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("expenses.form.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -149,45 +136,45 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
               {/* Header fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expense Date *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.expenseDate")}</label>
                   <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment Method</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.paymentMethod")}</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    {PAYMENT_METHOD_VALUES.map(m => <option key={m} value={m}>{t(`expenses.form.paymentOption.${m}`)}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Department / Paid By</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.departmentPaidBy")}</label>
                   <select value={department} onChange={e => setDepartment(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    <option value="">Select department…</option>
-                    {["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management"].map(d => (
+                    <option value="">{t("expenses.form.selectDepartment")}</option>
+                    {DEPARTMENTS.map(d => (
                       <option key={d} value={d}>{d}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.currency")}</label>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {["AED", "USD", "EUR", "GBP", "SAR"].map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Project / Cost Centre <span className="text-muted-foreground/60 normal-case font-normal">(optional)</span></label>
-                  <Input value={project} onChange={e => setProject(e.target.value)} placeholder="e.g. Dubai Marina Project" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.projectCostCentre")} <span className="text-muted-foreground/60 normal-case font-normal">{t("expenses.form.optional")}</span></label>
+                  <Input value={project} onChange={e => setProject(e.target.value)} placeholder={t("expenses.form.projectPh")} className="h-9 text-sm" />
                 </div>
               </div>
 
               {/* Expense Items */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expense Items</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.expenseItems")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={addLine} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add Item
+                    <Plus className="w-3 h-3" /> {t("expenses.form.addItem")}
                   </Button>
                 </div>
                 <div className="space-y-2.5">
@@ -197,7 +184,7 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
                         <span className="text-xs font-semibold text-muted-foreground w-4">{idx + 1}</span>
                         <select value={line.category} onChange={e => updateLine(line.id, "category", e.target.value)}
                           className="flex-1 h-8 px-2 rounded-lg border border-border bg-background text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                          {CATEGORY_VALUES.map(c => <option key={c} value={c}>{t(`expenses.form.category.${c}`)}</option>)}
                         </select>
                         <Input
                           type="number" min={0} step={0.01}
@@ -213,21 +200,21 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
                       </div>
                       <div className="grid grid-cols-2 gap-2 ml-6">
                         <Input value={line.description} onChange={e => updateLine(line.id, "description", e.target.value)}
-                          placeholder="Description…" className="h-8 text-xs col-span-2" />
+                          placeholder={t("expenses.form.descriptionPh")} className="h-8 text-xs col-span-2" />
                         <Input value={line.receiptNo} onChange={e => updateLine(line.id, "receiptNo", e.target.value)}
-                          placeholder="Receipt / Ref #" className="h-8 text-xs" />
+                          placeholder={t("expenses.form.receiptRefPh")} className="h-8 text-xs" />
                         {line.receiptFile ? (
                           <div className="h-8 flex items-center gap-1.5 px-2 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary min-w-0">
                             <FileText className="w-3 h-3 shrink-0" />
                             <span className="truncate flex-1" title={line.receiptFile.name}>{line.receiptFile.name}</span>
                             <button type="button" onClick={() => attachReceipt(line.id, null)}
-                              className="shrink-0 text-muted-foreground hover:text-destructive" aria-label="Remove receipt">
+                              className="shrink-0 text-muted-foreground hover:text-destructive" aria-label={t("expenses.form.removeReceipt")}>
                               <X className="w-3 h-3" />
                             </button>
                           </div>
                         ) : (
                           <label className="h-8 flex items-center gap-1.5 px-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors cursor-pointer">
-                            <Upload className="w-3 h-3" /> Attach Receipt
+                            <Upload className="w-3 h-3" /> {t("expenses.form.attachReceipt")}
                             <input type="file" accept={ACCEPTED_RECEIPT} className="hidden"
                               onChange={e => { attachReceipt(line.id, e.target.files?.[0] ?? null); e.target.value = ""; }} />
                           </label>
@@ -242,16 +229,16 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
               <div className="flex justify-between items-center px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl">
                 <div className="flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Total Claim</span>
+                  <span className="text-sm font-semibold text-foreground">{t("expenses.form.totalClaim")}</span>
                 </div>
                 <span className="text-lg font-bold text-primary">{formatCurrency(totalAmount, currency)}</span>
               </div>
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes for Approver</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.notesForApprover")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Trip purpose, client name, justification…"
+                  placeholder={t("expenses.form.notesPh")}
                   rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
@@ -260,15 +247,15 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => handleSubmit(true)}
                   disabled={isPending || !date || totalAmount === 0}>
-                  {isPending ? "Saving…" : "Save as Draft"}
+                  {isPending ? t("common:action.saving") : t("expenses.form.saveDraft")}
                 </Button>
                 <Button onClick={() => handleSubmit(false)}
                   disabled={isPending || !date || !department || totalAmount === 0}>
-                  {isPending ? "Submitting…" : "Submit for Approval"}
+                  {isPending ? t("expenses.form.submitting") : t("expenses.form.submitApproval")}
                 </Button>
               </div>
             </div>

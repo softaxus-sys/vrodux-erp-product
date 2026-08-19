@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { UserPlus, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmployeeStats } from "./employee-stats";
@@ -17,6 +18,7 @@ import { Can } from "@/components/auth/can";
 type ViewMode = "table" | "grid";
 
 export function EmployeesView() {
+  const { t } = useTranslation("hr");
   const { data: employees = [] } = useEmployees();
   const { data: hrSummary } = useHrSummary();
 
@@ -64,9 +66,9 @@ export function EmployeesView() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Employees</h1>
+          <h1 className="text-2xl font-bold">{t("employees.title")}</h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
-            Manage employee profiles, contracts, and records.
+            {t("employees.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -94,7 +96,7 @@ export function EmployeesView() {
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
           <Can permission="hr.employees.create">
             <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-              <UserPlus className="h-4 w-4" /> Add Employee
+              <UserPlus className="h-4 w-4" /> {t("employees.addEmployee")}
             </Button>
           </Can>
         </div>

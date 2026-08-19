@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Calendar, Info, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,15 +7,15 @@ import { Input } from "@/components/ui/input";
 import { useCreateLeave, useEmployees } from "@/hooks/hr/use-hr";
 
 const LEAVE_TYPES = [
-  { value: "annual",    label: "🌴 Annual Leave" },
-  { value: "sick",      label: "🏥 Sick Leave" },
-  { value: "emergency", label: "🚨 Emergency Leave" },
-  { value: "maternity", label: "👶 Maternity Leave" },
-  { value: "paternity", label: "👶 Paternity Leave" },
-  { value: "unpaid",    label: "📋 Unpaid Leave" },
-  { value: "hajj",      label: "🕌 Hajj Leave" },
-  { value: "study",     label: "📚 Study Leave" },
-  { value: "other",     label: "📎 Other" },
+  { value: "annual",    emoji: "🌴" },
+  { value: "sick",      emoji: "🏥" },
+  { value: "emergency", emoji: "🚨" },
+  { value: "maternity", emoji: "👶" },
+  { value: "paternity", emoji: "👶" },
+  { value: "unpaid",    emoji: "📋" },
+  { value: "hajj",      emoji: "🕌" },
+  { value: "study",     emoji: "📚" },
+  { value: "other",     emoji: "📎" },
 ];
 
 interface AddLeaveFormProps {
@@ -24,6 +25,7 @@ interface AddLeaveFormProps {
 }
 
 export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
+  const { t } = useTranslation("hr");
   const createLeave = useCreateLeave();
   const { data: employees = [] } = useEmployees();
 
@@ -102,8 +104,8 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Leave Request</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Submit a leave application for approval</p>
+                <h2 className="text-base font-bold text-foreground">{t("leaves.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("leaves.form.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -122,10 +124,10 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
 
               {/* Employee Selector */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employee *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.employee")}</label>
                 <select value={selectedEmployeeId} onChange={e => setSelectedEmployeeId(e.target.value)}
                   className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <option value="">Select employee…</option>
+                  <option value="">{t("leaves.form.selectEmployee")}</option>
                   {employees.map(emp => (
                     <option key={emp.id} value={emp.id}>{emp.fullName}</option>
                   ))}
@@ -134,16 +136,16 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
 
               {/* Leave Type */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Leave Type *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.leaveType")}</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {LEAVE_TYPES.map(t => (
-                    <button key={t.value} onClick={() => setLeaveType(t.value)}
+                  {LEAVE_TYPES.map(lt => (
+                    <button key={lt.value} onClick={() => setLeaveType(lt.value)}
                       className={`text-left px-3 py-2 rounded-lg border-2 text-xs transition-all ${
-                        leaveType === t.value
+                        leaveType === lt.value
                           ? "border-primary bg-primary/5 text-primary font-semibold"
                           : "border-border text-foreground hover:border-primary/30"
                       }`}>
-                      {t.label}
+                      {lt.emoji} {t(`leaveType.${lt.value}`)}
                     </button>
                   ))}
                 </div>
@@ -152,8 +154,8 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
               {/* Half day toggle */}
               <div className="flex items-center justify-between px-4 py-3 bg-muted/20 rounded-xl border border-border">
                 <div>
-                  <p className="text-sm font-medium text-foreground">Half Day</p>
-                  <p className="text-xs text-muted-foreground">Request only half a working day</p>
+                  <p className="text-sm font-medium text-foreground">{t("leaves.form.halfDay")}</p>
+                  <p className="text-xs text-muted-foreground">{t("leaves.form.halfDayHint")}</p>
                 </div>
                 <button
                   onClick={() => setHalfDay(v => !v)}
@@ -167,14 +169,14 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
 
               {halfDay && (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Half Day Period</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.halfDayPeriod")}</label>
                   <div className="grid grid-cols-2 gap-2">
                     {(["morning", "afternoon"] as const).map(p => (
                       <button key={p} onClick={() => setHalfDayPeriod(p)}
-                        className={`py-2 rounded-lg border-2 text-xs capitalize transition-all ${
+                        className={`py-2 rounded-lg border-2 text-xs transition-all ${
                           halfDayPeriod === p ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-foreground hover:border-primary/30"
                         }`}>
-                        {p}
+                        {t(`leaves.form.${p}`)}
                       </button>
                     ))}
                   </div>
@@ -185,13 +187,13 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    {halfDay ? "Date *" : "From Date *"}
+                    {halfDay ? t("leaves.form.date") : t("leaves.form.fromDate")}
                   </label>
                   <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 {!halfDay && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">To Date *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.toDate")}</label>
                     <Input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} className="h-9 text-sm" />
                   </div>
                 )}
@@ -202,16 +204,16 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
                 <div className="flex items-center gap-2 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-xl">
                   <Calendar className="w-4 h-4 text-primary" />
                   <span className="text-sm font-semibold text-foreground">
-                    {daysCount} {daysCount === 1 ? "day" : "days"} requested
+                    {t("leaves.form.daysRequested", { count: daysCount })}
                   </span>
                 </div>
               )}
 
               {/* Reason */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reason *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.reason")}</label>
                 <textarea value={reason} onChange={e => setReason(e.target.value)}
-                  placeholder="Briefly describe the reason for your leave…" rows={3}
+                  placeholder={t("leaves.form.reasonPlaceholder")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -219,11 +221,11 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
               {/* Handover */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Handover To</label>
-                  <Input value={handoverTo} onChange={e => setHandoverTo(e.target.value)} placeholder="Colleague name…" className="h-9 text-sm" />
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.handoverTo")}</label>
+                  <Input value={handoverTo} onChange={e => setHandoverTo(e.target.value)} placeholder={t("leaves.form.handoverToPlaceholder")} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact During Leave</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.form.contactDuringLeave")}</label>
                   <Input value={contactDuringLeave} onChange={e => setContactDuringLeave(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
                 </div>
               </div>
@@ -231,15 +233,15 @@ export function AddLeaveForm({ open, onClose, onSuccess }: AddLeaveFormProps) {
               {/* Info banner */}
               <div className="flex items-start gap-2 px-3 py-2.5 bg-muted/30 border border-border rounded-xl text-xs text-muted-foreground">
                 <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                Leave requests require manager approval. You will be notified by email once processed.
+                {t("leaves.form.infoBanner")}
               </div>
             </div>
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={createLeave.isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={createLeave.isPending}>{t("leaves.form.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || createLeave.isPending}>
-                {createLeave.isPending ? "Submitting…" : "Submit Request"}
+                {createLeave.isPending ? t("leaves.form.submitting") : t("leaves.form.submitRequest")}
               </Button>
             </div>
           </motion.div>

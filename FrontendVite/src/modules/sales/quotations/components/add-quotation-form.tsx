@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ interface AddQuotationFormProps {
 }
 
 export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
+  const { t } = useTranslation("sales");
   const currency = useCurrency();
   const [customer, setCustomer]         = React.useState("");
   const [validUntil, setValidUntil]     = React.useState("");
@@ -99,8 +101,8 @@ export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Quotation</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Create a sales quotation for a customer</p>
+                <h2 className="text-base font-bold text-foreground">{t("quotations.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("quotations.form.description")}</p>
               </div>
               <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -112,22 +114,22 @@ export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
               {/* Header fields */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Customer *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("quotations.form.customer")}</label>
                   <Input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="Customer / Company name…" className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Valid Until</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("quotations.form.validUntil")}</label>
                   <Input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tax Rate</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("quotations.form.taxRate")}</label>
                   <select value={taxRate} onChange={e => setTaxRate(+e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {VAT_OPTIONS.map(v => <option key={v.label} value={v.rate}>{v.label}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Overall Discount %</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("quotations.form.discount")}</label>
                   <Input type="number" min={0} max={100} step={1} value={discountPct || ""}
                     onChange={e => setDiscountPct(+e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
                 </div>
@@ -136,9 +138,9 @@ export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
               {/* Line Items */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Line Items</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("quotations.form.lineItems")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setLines(p => [...p, newLine()])} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add Line
+                    <Plus className="w-3 h-3" /> {t("quotations.form.button.addLine")}
                   </Button>
                 </div>
                 <div className="border border-border rounded-xl overflow-hidden">
@@ -186,24 +188,24 @@ export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
                     </tbody>
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
-                        <td colSpan={4} className="px-3 py-2 text-right text-muted-foreground font-medium">Subtotal</td>
+                        <td colSpan={4} className="px-3 py-2 text-right text-muted-foreground font-medium">{t("quotations.form.subtotal")}</td>
                         <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(subtotal, currency)}</td>
                         <td />
                       </tr>
                       {discountPct > 0 && (
                         <tr>
-                          <td colSpan={4} className="px-3 py-2 text-right text-muted-foreground font-medium">Discount ({discountPct}%)</td>
+                          <td colSpan={4} className="px-3 py-2 text-right text-muted-foreground font-medium">{t("quotations.form.discount_pct", { pct: discountPct })}</td>
                           <td className="px-3 py-2 text-right font-semibold text-destructive">−{formatCurrency(discAmt, currency)}</td>
                           <td />
                         </tr>
                       )}
                       <tr>
-                        <td colSpan={4} className="px-3 py-2 text-right text-muted-foreground font-medium">Tax ({taxRate}%)</td>
+                        <td colSpan={4} className="px-3 py-2 text-right text-muted-foreground font-medium">{t("quotations.form.tax", { rate: taxRate })}</td>
                         <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, currency)}</td>
                         <td />
                       </tr>
                       <tr className="border-t border-border">
-                        <td colSpan={4} className="px-3 py-2 text-right font-bold text-foreground">Total</td>
+                        <td colSpan={4} className="px-3 py-2 text-right font-bold text-foreground">{t("quotations.form.total")}</td>
                         <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                         <td />
                       </tr>
@@ -214,7 +216,7 @@ export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Terms & Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("quotations.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
                   placeholder="Terms, delivery details, special conditions…" rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
@@ -224,13 +226,13 @@ export function AddQuotationForm({ open, onClose }: AddQuotationFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={handleClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("quotations.form.button.cancel")}</Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => handleSubmit("draft")} disabled={!isValid || isPending}>
-                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save as Draft"}
+                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t("quotations.form.button.saveDraft")}
                 </Button>
                 <Button onClick={() => handleSubmit("sent")} disabled={!isValid || isPending}>
-                  {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />Saving…</> : "Send to Customer"}
+                  {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common:action.saving")}</> : t("quotations.form.button.sendCustomer")}
                 </Button>
               </div>
             </div>

@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Plus, Shield, Users, Check, Copy, Trash2, Search,
   Lock, Save, X, Loader2, RefreshCw, AlertTriangle, ChevronDown, ChevronUp,
@@ -17,8 +18,8 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth.store";
 import type { ModuleKey } from "@/types";
 import {
-  ACTION_ORDER, ACTION_LABELS, GROUP_ORDER, MODULE_GROUPS,
-  groupPermissions, moduleLabel, moduleGroupLabel, UBIQUITOUS_MODULES,
+  ACTION_ORDER, actionShortLabel, GROUP_ORDER, MODULE_GROUPS,
+  groupPermissions, moduleLabel, moduleGroupLabel, groupLabel, UBIQUITOUS_MODULES,
 } from "@/lib/identity/permission-matrix";
 import { Can } from "@/components/auth/can";
 
@@ -39,6 +40,8 @@ const ROLE_COLORS = [
 function ConfirmDeleteModal({
   roleName, onConfirm, onCancel, loading,
 }: { roleName: string; onConfirm: () => void; onCancel: () => void; loading: boolean }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   return (
     <>
       <motion.div className="fixed inset-0 bg-black/40 z-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -52,18 +55,17 @@ function ConfirmDeleteModal({
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <h3 className="font-bold text-foreground">Delete role?</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">This cannot be undone.</p>
+              <h3 className="font-bold text-foreground">{t("roles.deleteTitle")}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("roles.deleteWarning")}</p>
             </div>
           </div>
           <p className="text-sm text-muted-foreground mb-5">
-            <span className="font-semibold text-foreground">"{roleName}"</span> will be permanently deleted.
-            Users assigned this role will lose its permissions.
+            {t("roles.deleteBody", { name: roleName })}
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>Cancel</Button>
+            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>{tc("action.cancel")}</Button>
             <Button variant="destructive" className="flex-1" onClick={onConfirm} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1.5" />Delete</>}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Trash2 className="h-4 w-4 mr-1.5" />{tc("action.delete")}</>}
             </Button>
           </div>
         </div>
@@ -83,6 +85,8 @@ function RoleFormModal({
   onClose: () => void;
   loading: boolean;
 }) {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const [name, setName] = React.useState(initial?.name ?? "");
   const [description, setDescription] = React.useState(initial?.description ?? "");
 
@@ -102,20 +106,20 @@ function RoleFormModal({
           </div>
           <div className="p-5 space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Role Name *</label>
-              <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Warehouse Manager" className="h-9" autoFocus />
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("roles.nameLabel")}</label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("roles.namePlaceholder")} className="h-9" autoFocus />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("roles.descriptionLabel")}</label>
               <Input value={description} onChange={e => setDescription(e.target.value)}
-                placeholder="Short description of what this role can do" className="h-9" />
+                placeholder={t("roles.descriptionPlaceholder")} className="h-9" />
             </div>
             <div className="flex gap-2 pt-1">
               <Button className="flex-1" onClick={() => onSave(name, description)}
                 disabled={!name.trim() || loading}>
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : tc("action.save")}
               </Button>
-              <Button variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={loading}>{tc("action.cancel")}</Button>
             </div>
           </div>
         </div>
@@ -160,6 +164,7 @@ function PermCell({
 function ModuleChips({
   modules, isSystem, max = 3,
 }: { modules: string[]; isSystem: boolean; max?: number }) {
+  const { t } = useTranslation("settings");
   const significant = (modules ?? [])
     .map(m => m.toLowerCase())
     .filter(m => !UBIQUITOUS_MODULES.has(m));
@@ -172,14 +177,14 @@ function ModuleChips({
   if (significant.length === 0) {
     return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-muted text-muted-foreground">
-        {isSystem ? "All modules" : "General"}
+        {isSystem ? t("roles.allModules") : t("roles.general")}
       </span>
     );
   }
   if (significant.length >= businessModuleCount) {
     return (
       <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-medium bg-primary/10 text-primary">
-        All modules
+        {t("roles.allModules")}
       </span>
     );
   }
@@ -264,6 +269,7 @@ function ModuleRow({
 // ── Main View ─────────────────────────────────────────────────────────────────
 
 export function RolesPermissionsView() {
+  const { t } = useTranslation("settings");
   // ── API data ──────────────────────────────────────────────────────────────────
   const { data: rolesData, isLoading: rolesLoading, refetch: refetchRoles } = useRoles({ pageSize: 100 });
   const { data: allPermsData, isLoading: permsLoading } = useAllPermissions();
@@ -412,7 +418,7 @@ export function RolesPermissionsView() {
   const handleClone = () => {
     if (!selectedRole) return;
     createRole.mutate(
-      { name: `${selectedRole.name} (Copy)`, description: selectedRole.description },
+      { name: t("roles.copySuffix", { name: selectedRole.name }), description: selectedRole.description },
       {
         onSuccess: async (newRole) => {
           // Copy permissions directly via API — hooks cannot be called in callbacks
@@ -424,7 +430,7 @@ export function RolesPermissionsView() {
             }
           }
           setSelectedRoleId(newRole.id);
-          toast.success("Role cloned successfully.");
+          toast.success(t("roles.cloned"));
         },
       }
     );
@@ -446,8 +452,8 @@ export function RolesPermissionsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Roles & Permissions</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Define what each role can see and do across all modules</p>
+          <h1 className="text-2xl font-bold">{t("roles.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("roles.description")}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => refetchRoles()}
@@ -456,7 +462,7 @@ export function RolesPermissionsView() {
           </Button>
           <Can permission="settings.roles.create">
             <Button size="sm" className="gap-1.5 h-9" onClick={() => setShowCreate(true)}>
-              <Plus className="h-4 w-4" />New Role
+              <Plus className="h-4 w-4" />{t("roles.newRole")}
             </Button>
           </Can>
         </div>
@@ -465,10 +471,10 @@ export function RolesPermissionsView() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Roles",  value: stats.total },
-          { label: "System Roles", value: stats.system },
-          { label: "Custom Roles", value: stats.custom },
-          { label: "Total Users",  value: stats.users },
+          { label: t("roles.statTotal"),  value: stats.total },
+          { label: t("roles.statSystem"), value: stats.system },
+          { label: t("roles.statCustom"), value: stats.custom },
+          { label: t("roles.statUsers"),  value: stats.users },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
@@ -507,7 +513,7 @@ export function RolesPermissionsView() {
                     <p className="font-semibold truncate text-xs">{role.name}</p>
                     {role.isSystem && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">{role.userCount} user{role.userCount !== 1 ? "s" : ""}</p>
+                  <p className="text-[10px] text-muted-foreground">{t("roles.userCount", { count: role.userCount })}</p>
                   <div className="mt-1">
                     <ModuleChips modules={role.modules} isSystem={role.isSystem} />
                   </div>
@@ -535,13 +541,13 @@ export function RolesPermissionsView() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-sm font-bold">{selectedRole.name}</h2>
                     {selectedRole.isSystem
-                      ? <span className="flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium"><Lock className="h-2.5 w-2.5" />System</span>
-                      : <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">Custom</span>
+                      ? <span className="flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-medium"><Lock className="h-2.5 w-2.5" />{t("roles.system")}</span>
+                      : <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">{t("roles.custom")}</span>
                     }
                   </div>
-                  <p className="text-xs text-muted-foreground">{selectedRole.description || "No description"}</p>
+                  <p className="text-xs text-muted-foreground">{selectedRole.description || t("roles.noDescription")}</p>
                   <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground/70 font-medium">Linked to:</span>
+                    <span className="text-[10px] text-muted-foreground/70 font-medium">{t("roles.linkedTo")}</span>
                     <ModuleChips
                       modules={rolesList.find(r => r.id === selectedRoleId)?.modules ?? []}
                       isSystem={selectedRole.isSystem}
@@ -556,7 +562,7 @@ export function RolesPermissionsView() {
                     <Button size="sm" className="gap-1.5 h-8" onClick={handleSave} disabled={savePerms.isPending}>
                       {savePerms.isPending
                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        : <><Save className="h-3.5 w-3.5" />Save</>
+                        : <><Save className="h-3.5 w-3.5" />{t("common:action.save")}</>
                       }
                     </Button>
                   </motion.div>
@@ -564,18 +570,18 @@ export function RolesPermissionsView() {
                 {!isReadOnly && (
                   <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
                     onClick={() => setShowEdit(true)}>
-                    Edit
+                    {t("roles.edit")}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={handleClone}
                   disabled={createRole.isPending}>
-                  <Copy className="h-3 w-3" />Clone
+                  <Copy className="h-3 w-3" />{t("roles.clone")}
                 </Button>
                 {!isReadOnly && (
                   <Button variant="outline" size="sm"
                     className="h-8 gap-1 text-xs text-destructive hover:text-destructive hover:border-destructive/40"
                     onClick={() => setShowDelete(true)}>
-                    <Trash2 className="h-3 w-3" />Delete
+                    <Trash2 className="h-3 w-3" />{t("common:action.delete")}
                   </Button>
                 )}
               </div>
@@ -590,13 +596,13 @@ export function RolesPermissionsView() {
           <div className="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center gap-3 shrink-0">
             <div className="relative w-44 shrink-0">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input placeholder="Filter modules…" value={search} onChange={e => setSearch(e.target.value)}
+              <Input placeholder={t("roles.filterModules")} value={search} onChange={e => setSearch(e.target.value)}
                 className="pl-7 h-7 text-xs" />
             </div>
             <div className="flex items-center gap-1 ml-1">
               {ACTION_ORDER.map(action => (
                 <div key={action} className="w-8 text-center text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  {ACTION_LABELS[action].slice(0, 3)}
+                  {actionShortLabel(action)}
                 </div>
               ))}
             </div>
@@ -609,7 +615,7 @@ export function RolesPermissionsView() {
                 <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
               </div>
             ) : orderedGroups.length === 0 ? (
-              <div className="py-16 text-center text-sm text-muted-foreground">No modules match your search.</div>
+              <div className="py-16 text-center text-sm text-muted-foreground">{t("roles.noMatches")}</div>
             ) : (
               orderedGroups.map(group => (
                 <div key={group}>
@@ -618,9 +624,9 @@ export function RolesPermissionsView() {
                     onClick={() => toggleGroup(group)}>
                     <div className="flex items-center gap-2">
                       <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">{group}</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">{groupLabel(group)}</span>
                       <span className="text-[10px] text-muted-foreground">
-                        ({filteredByGroup[group]?.length ?? 0} modules)
+                        {t("roles.moduleCount", { count: filteredByGroup[group]?.length ?? 0 })}
                       </span>
                     </div>
                     {expandedGroups.has(group)
@@ -656,25 +662,25 @@ export function RolesPermissionsView() {
               <div className="w-4 h-4 rounded-lg bg-primary border border-primary flex items-center justify-center">
                 <Check className="h-2.5 w-2.5 text-white" />
               </div>
-              <span>Granted</span>
+              <span>{t("roles.legendGranted")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-4 rounded-lg bg-muted/20 border border-border" />
-              <span>Not granted</span>
+              <span>{t("roles.legendNotGranted")}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground/30 font-mono">—</span>
-              <span>Not applicable</span>
+              <span>{t("roles.legendNotApplicable")}</span>
             </div>
             {selectedRole && (
               <span className="ml-auto font-medium text-foreground">
-                {pendingIds.size} / {allPerms.length} permissions granted
+                {t("roles.grantedCount", { granted: pendingIds.size, total: allPerms.length })}
               </span>
             )}
             {isReadOnly && (
               <div className="flex items-center gap-1 ml-auto">
                 <Lock className="h-3 w-3" />
-                <span>System roles are read-only — clone to customise</span>
+                <span>{t("roles.readOnlyNote")}</span>
               </div>
             )}
           </div>
@@ -684,11 +690,11 @@ export function RolesPermissionsView() {
       {/* Modals */}
       <AnimatePresence>
         {showCreate && (
-          <RoleFormModal title="Create New Role" loading={createRole.isPending}
+          <RoleFormModal title={t("roles.createTitle")} loading={createRole.isPending}
             onSave={handleCreate} onClose={() => setShowCreate(false)} />
         )}
         {showEdit && selectedRole && (
-          <RoleFormModal title="Edit Role" loading={updateRole.isPending}
+          <RoleFormModal title={t("roles.editTitle")} loading={updateRole.isPending}
             initial={{ name: selectedRole.name, description: selectedRole.description }}
             onSave={handleEdit} onClose={() => setShowEdit(false)} />
         )}

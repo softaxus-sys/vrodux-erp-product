@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Phone, Mail, Calendar, CheckSquare, StickyNote, Plus, Check, RotateCcw, Trash2, Clock, Building2, DollarSign, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,19 +8,19 @@ import { useCustomerTimeline, useCreateActivity, useCompleteActivity, useReopenA
 import { useAuthStore } from "@/store/auth.store";
 import type { ActivityType } from "@/lib/crm/crm.api";
 
-const TYPES: { value: ActivityType; label: string; icon: typeof Phone }[] = [
-  { value: "task", label: "Task", icon: CheckSquare },
-  { value: "call", label: "Call", icon: Phone },
-  { value: "meeting", label: "Meeting", icon: Calendar },
-  { value: "email", label: "Email", icon: Mail },
-  { value: "note", label: "Note", icon: StickyNote },
+const TYPES: { value: ActivityType; icon: typeof Phone }[] = [
+  { value: "task", icon: CheckSquare },
+  { value: "call", icon: Phone },
+  { value: "meeting", icon: Calendar },
+  { value: "email", icon: Mail },
+  { value: "note", icon: StickyNote },
 ];
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
 
-const ORIGIN: Record<string, { label: string; icon: typeof Phone; cls: string }> = {
-  customer: { label: "Account", icon: Building2,  cls: "bg-primary/10 text-primary" },
-  deal:     { label: "Deal",    icon: DollarSign, cls: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
-  lead:     { label: "Lead",    icon: UserPlus,   cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
+const ORIGIN: Record<string, { icon: typeof Phone; cls: string }> = {
+  customer: { icon: Building2,  cls: "bg-primary/10 text-primary" },
+  deal:     { icon: DollarSign, cls: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" },
+  lead:     { icon: UserPlus,   cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" },
 };
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
 /** Rolled-up account timeline: the account's own activities + those of its opportunities
  *  and originating lead. Quick-add logs against the account itself. */
 export function AccountTimeline({ customerId, customerName, accountManager = "" }: Props) {
+  const { t } = useTranslation("crm");
   const { data: activities = [], isLoading } = useCustomerTimeline(customerId);
   const create = useCreateActivity();
   const complete = useCompleteActivity();
@@ -62,32 +64,32 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
       {/* Quick add */}
       <div className="rounded-xl border border-border p-3 space-y-2 bg-muted/20">
         <div className="flex flex-wrap gap-1">
-          {TYPES.map(t => {
-            const Icon = t.icon;
+          {TYPES.map(ty => {
+            const Icon = ty.icon;
             return (
-              <button key={t.value} onClick={() => setType(t.value)}
+              <button key={ty.value} onClick={() => setType(ty.value)}
                 className={cn("flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border transition-all",
-                  type === t.value ? "border-primary bg-primary/10 text-primary" : "border-transparent text-muted-foreground hover:bg-muted")}>
-                <Icon className="h-3 w-3" />{t.label}
+                  type === ty.value ? "border-primary bg-primary/10 text-primary" : "border-transparent text-muted-foreground hover:bg-muted")}>
+                <Icon className="h-3 w-3" />{t(`activityType.${ty.value}`)}
               </button>
             );
           })}
         </div>
         <div className="flex gap-2">
           <Input value={subject} onChange={e => setSubject(e.target.value)} onKeyDown={e => e.key === "Enter" && add()}
-            placeholder={type === "note" ? "Log a note…" : `Add a ${type}…`} className="h-8 text-sm flex-1" />
+            placeholder={type === "note" ? t("activity.logNote") : t("activity.addA", { type: t(`activityType.${type}`) })} className="h-8 text-sm flex-1" />
           {needsDue && <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs w-36" />}
           <Button size="sm" className="h-8 gap-1" disabled={!subject.trim() || create.isPending} onClick={add}>
-            <Plus className="h-3.5 w-3.5" />Add
+            <Plus className="h-3.5 w-3.5" />{t("activity.add")}
           </Button>
         </div>
       </div>
 
       {/* Timeline */}
       {isLoading ? (
-        <p className="text-xs text-muted-foreground text-center py-4">Loading timeline…</p>
+        <p className="text-xs text-muted-foreground text-center py-4">{t("activity.loading")}</p>
       ) : activities.length === 0 ? (
-        <p className="text-xs text-muted-foreground text-center py-4">No activity yet across this account or its deals.</p>
+        <p className="text-xs text-muted-foreground text-center py-4">{t("activity.emptyAccount")}</p>
       ) : (
         <div className="space-y-2">
           {activities.map(a => {
@@ -106,13 +108,13 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
                   <p className={cn("text-sm font-medium leading-tight", a.completed && "line-through text-muted-foreground")}>{a.subject}</p>
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
                     <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium", origin.cls)}>
-                      <OriginIcon className="h-2.5 w-2.5" />{origin.label}
+                      <OriginIcon className="h-2.5 w-2.5" />{t(`activity.origin.${ORIGIN[a.relatedToType] ? a.relatedToType : "customer"}`)}
                     </span>
                     {a.relatedToName && a.relatedToType !== "customer" && <span className="truncate max-w-[140px]">{a.relatedToName}</span>}
-                    <span className="capitalize">{a.type}</span>
+                    <span>{t(`activityType.${a.type}`)}</span>
                     {a.dueDate && (
                       <span className={cn("inline-flex items-center gap-0.5", overdue && "text-destructive font-semibold")}>
-                        <Clock className="h-2.5 w-2.5" />{a.dueDate}{overdue && " · overdue"}
+                        <Clock className="h-2.5 w-2.5" />{a.dueDate}{overdue && ` · ${t("activity.overdue")}`}
                       </span>
                     )}
                     {a.assignedTo && <span>· {a.assignedTo}</span>}
@@ -121,10 +123,10 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {a.type !== "note" && a.type !== "email" && (
                     a.completed
-                      ? <button title="Reopen" onClick={() => reopen.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-foreground"><RotateCcw className="h-3.5 w-3.5" /></button>
-                      : <button title="Complete" onClick={() => complete.mutate(a.id)} className="p-1 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>
+                      ? <button title={t("activity.reopen")} onClick={() => reopen.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-foreground"><RotateCcw className="h-3.5 w-3.5" /></button>
+                      : <button title={t("activity.complete")} onClick={() => complete.mutate(a.id)} className="p-1 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>
                   )}
-                  <button title="Delete" onClick={() => del.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button title={t("activity.delete")} onClick={() => del.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             );

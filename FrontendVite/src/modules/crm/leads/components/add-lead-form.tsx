@@ -1,4 +1,8 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { StagedDocumentPicker, uploadStagedDocuments } from "@/modules/crm/shared/components/staged-document-picker";
+import type { StagedDocument } from "@/modules/crm/shared/components/staged-document-picker";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +15,8 @@ import { TIMEFRAME_OPTIONS, type LeadDto } from "@/lib/crm/crm.api";
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
 const LEAD_SOURCES = ["Website", "LinkedIn", "Referral", "Cold Call", "Email Campaign", "Trade Show", "Social Media", "Walk-In", "Partner", "Other"];
-const INDUSTRIES   = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Other"];
+// "Visa Services" drives the Visa Case action in the lead drawer (see isVisaLead).
+const INDUSTRIES   = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Visa Services", "Other"];
 const LEAD_STAGES  = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation"];
 const PRIORITIES   = ["Low", "Medium", "High", "Urgent"];
 
@@ -22,6 +27,7 @@ interface AddLeadFormProps {
 }
 
 export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
+  const { t } = useTranslation("crm");
   const isEdit = !!editing;
   // Real tenant users this lead can be assigned to. The Identity /users endpoint is
   // tenant-scoped server-side (non-super-admins only get their own tenant's users);
@@ -44,6 +50,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const [assignedToUserId, setAssignedToUserId] = React.useState(""); // Identity user id ("" = unassigned)
   const [expectedClose, setExpectedClose] = React.useState("");
   const [notes, setNotes]             = React.useState("");
+  const [staged, setStaged]           = React.useState<StagedDocument[]>([]);
   const [whatsApp, setWhatsApp]       = React.useState("");
   const [interestedIn, setInterestedIn] = React.useState("");
   const [budget, setBudget]           = React.useState("");
@@ -85,11 +92,20 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
     if (isEdit && editing) {
       updateLead.mutate({ id: editing.id, data: { ...base, score: editing.score, nextFollowUp: editing.nextFollowUp ?? null, tags: editing.tags } }, { onSuccess: onClose });
     } else {
-      createLead.mutate(base, { onSuccess: onClose });
+      createLead.mutate(base, {
+        onSuccess: async (created: any) => {
+          if (staged.length && created?.id) {
+            const failed = await uploadStagedDocuments("lead", created.id, staged);
+            if (failed > 0) toast.error(t("documents.someFailed", { defaultValue: "{{count}} document(s) could not be attached.", count: failed }));
+          }
+          onClose();
+        },
+      });
     }
   };
 
   const reset = () => {
+    setStaged([]);
     setFirstName(""); setLastName(""); setEmail(""); setPhone("");
     setCompany(""); setJobTitle(""); setIndustry(""); setSource("Website");
     setStage("New"); setPriority("Medium"); setDealValue("");
@@ -116,8 +132,8 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">{isEdit ? "Edit Lead" : "New Lead"}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? "Update lead details" : "Capture a new sales lead"}</p>
+                <h2 className="text-base font-bold text-foreground">{isEdit ? t("form.editTitle") : t("form.newTitle")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? t("form.editSubtitle") : t("form.newSubtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -128,37 +144,37 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Contact */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Contact Information</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("form.contactInformation")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First Name *</label>
-                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="First name…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.firstName")}</label>
+                    <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder={t("form.firstNamePlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Name</label>
-                    <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Last name…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.lastName")}</label>
+                    <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder={t("form.lastNamePlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.email")}</label>
                     <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.phone")}</label>
                     <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Company</label>
-                    <Input value={company} onChange={e => setCompany(e.target.value)} placeholder="Company name…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.company")}</label>
+                    <Input value={company} onChange={e => setCompany(e.target.value)} placeholder={t("form.companyPlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Job Title</label>
-                    <Input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="CEO, Manager…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.jobTitle")}</label>
+                    <Input value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder={t("form.jobTitlePlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Industry</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.industry")}</label>
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select industry…</option>
+                      <option value="">{t("form.selectIndustry")}</option>
                       {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
                   </div>
@@ -167,35 +183,35 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
 
               {/* Lead Details */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Lead Details</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("form.leadDetails")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lead Source *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.leadSource")}</label>
                     <select value={source} onChange={e => setSource(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {LEAD_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stage</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.stage")}</label>
                     <select value={stage} onChange={e => setStage(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {LEAD_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Priority</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.priority")}</label>
                     <select value={priority} onChange={e => setPriority(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expected Close</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.expectedClose")}</label>
                     <Input type="date" value={expectedClose} onChange={e => setExpectedClose(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Deal Value</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.dealValue")}</label>
                     <div className="flex gap-2">
                       <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground shrink-0">
                         {currency}
@@ -205,7 +221,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                     </div>
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Assigned To</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.assignedTo")}</label>
                     <select value={assignedToUserId}
                       onChange={e => {
                         const id = e.target.value;
@@ -214,54 +230,66 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                       }}
                       className="h-9 w-full px-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {/* Legacy leads carry only a name — surface it so it isn't silently lost. */}
-                      <option value="">{assignedTo && !assignedToUserId ? `${assignedTo} (unlinked)` : "Unassigned"}</option>
+                      <option value="">{assignedTo && !assignedToUserId ? t("form.unlinked", { name: assignedTo }) : t("form.unassigned")}</option>
                       {assignableUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
                     </select>
-                    <p className="text-[11px] text-muted-foreground">The chosen user sees this lead under “Assigned to me” on the Leads page.</p>
+                    <p className="text-[11px] text-muted-foreground">{t("form.assignedToHint")}</p>
                   </div>
                 </div>
               </div>
 
               {/* Requirements — captured from lead-gen forms, editable here */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Requirements</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("form.requirements")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">WhatsApp</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.whatsapp")}</label>
                     <Input value={whatsApp} onChange={e => setWhatsApp(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget</label>
-                    <Input value={budget} onChange={e => setBudget(e.target.value)} placeholder="e.g. 50k–100k" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.budget")}</label>
+                    <Input value={budget} onChange={e => setBudget(e.target.value)} placeholder={t("form.budgetPlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Planning to buy</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.planningToBuy")}</label>
                     <select value={timeframe} onChange={e => setTimeframe(e.target.value)}
                       className="w-full h-9 rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Not specified</option>
+                      <option value="">{t("form.notSpecified")}</option>
                       {TIMEFRAME_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
-                    <p className="text-[10px] text-muted-foreground">Sooner timeframe → higher lead score.</p>
+                    <p className="text-[10px] text-muted-foreground">{t("form.timeframeHint")}</p>
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Interested In</label>
-                    <Input value={interestedIn} onChange={e => setInterestedIn(e.target.value)} placeholder="Product / service of interest…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.interestedIn")}</label>
+                    <Input value={interestedIn} onChange={e => setInterestedIn(e.target.value)} placeholder={t("form.interestedInPlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Message from Lead</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.messageFromLead")}</label>
                     <textarea value={message} onChange={e => setMessage(e.target.value)}
-                      placeholder="The lead's own message / enquiry…" rows={2}
+                      placeholder={t("form.messagePlaceholder")} rows={2}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                     />
                   </div>
                 </div>
               </div>
 
+
+              {/* Documents — optional. Staged locally, uploaded once the record has an id. */}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                  {t("documents.tab", { defaultValue: "Documents" })}
+                  <span className="ml-1.5 normal-case font-normal text-muted-foreground/70">
+                    {t("documents.optional", { defaultValue: "(optional)" })}
+                  </span>
+                </p>
+                <StagedDocumentPicker files={staged} onChange={setStaged} />
+              </div>
+
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Initial contact notes, requirements, next steps…" rows={3}
+                  placeholder={t("form.notesPlaceholder")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -269,9 +297,9 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={saving}>{t("form.cancel")}</Button>
               <Button onClick={handleSave} disabled={!isValid || saving}>
-                {saving ? "Saving…" : isEdit ? "Save Changes" : "Save Lead"}
+                {saving ? t("form.saving") : isEdit ? t("form.saveChanges") : t("form.saveLead")}
               </Button>
             </div>
           </motion.div>

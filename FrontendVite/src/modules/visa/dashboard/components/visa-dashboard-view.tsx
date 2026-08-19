@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Stamp, Clock, AlertTriangle, CalendarClock, DollarSign, FileWarning, IdCard, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,20 +24,21 @@ function Bar({ label, value, max, tint }: { label: string; value: number; max: n
 }
 
 export function VisaDashboardView() {
+  const { t } = useTranslation("visa");
   const currency = useCurrency();
   const { data, isLoading } = useVisaDashboard();
 
   if (isLoading || !data) {
-    return <div className="p-12 text-center text-sm text-muted-foreground">Loading visa dashboard…</div>;
+    return <div className="p-12 text-center text-sm text-muted-foreground">{t("dashboard.loading")}</div>;
   }
 
   const stats = [
-    { label: "Total Cases",      value: data.totalCases,                                          sub: "All time",        icon: Stamp,        color: "text-primary bg-primary/10" },
-    { label: "Open",             value: data.openCases,                                           sub: "In progress",     icon: Clock,        color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
-    { label: "Overdue",          value: data.overdueCases,                                        sub: "Past SLA",        icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
-    { label: "Due This Week",    value: data.dueThisWeek,                                         sub: "Next 7 days",     icon: CalendarClock, color: "text-warning bg-warning/10" },
-    { label: "Expiring Visas",   value: data.expiringVisas90,                                     sub: "Within 90 days",  icon: IdCard,       color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
-    { label: "Open Fees",        value: formatCurrency(data.openServiceFees + data.openGovtFees, currency), sub: "Service + govt", icon: DollarSign, color: "text-success bg-success/10" },
+    { key: "total",         label: t("dashboard.stats.total"),         value: data.totalCases,    sub: t("dashboard.stats.totalSub"),         icon: Stamp,         color: "text-primary bg-primary/10" },
+    { key: "open",          label: t("dashboard.stats.open"),          value: data.openCases,     sub: t("dashboard.stats.openSub"),          icon: Clock,         color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
+    { key: "overdue",       label: t("dashboard.stats.overdue"),       value: data.overdueCases,  sub: t("dashboard.stats.overdueSub"),       icon: AlertTriangle, color: "text-destructive bg-destructive/10" },
+    { key: "dueThisWeek",   label: t("dashboard.stats.dueThisWeek"),   value: data.dueThisWeek,   sub: t("dashboard.stats.dueThisWeekSub"),   icon: CalendarClock, color: "text-warning bg-warning/10" },
+    { key: "expiringVisas", label: t("dashboard.stats.expiringVisas"), value: data.expiringVisas90, sub: t("dashboard.stats.expiringVisasSub"), icon: IdCard,      color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20" },
+    { key: "openFees",      label: t("dashboard.stats.openFees"),      value: formatCurrency(data.openServiceFees + data.openGovtFees, currency), sub: t("dashboard.stats.openFeesSub"), icon: DollarSign, color: "text-success bg-success/10" },
   ];
 
   const maxStatus = Math.max(1, ...data.byStatus.map(s => s.count));
@@ -47,13 +49,13 @@ export function VisaDashboardView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Visa Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Case pipeline, workload, revenue and upcoming expiries</p>
+        <h1 className="text-2xl font-bold">{t("dashboard.title")}</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">{t("dashboard.description")}</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {stats.map((s, i) => (
-          <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+          <motion.div key={s.key} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", s.color)}><s.icon className="h-4 w-4" /></div>
@@ -72,11 +74,11 @@ export function VisaDashboardView() {
         {/* By status */}
         <Card>
           <CardContent className="p-5">
-            <h3 className="text-sm font-semibold mb-4">Cases by status</h3>
-            {data.byStatus.length === 0 ? <p className="text-xs text-muted-foreground">No cases yet.</p> : (
+            <h3 className="text-sm font-semibold mb-4">{t("dashboard.byStatus")}</h3>
+            {data.byStatus.length === 0 ? <p className="text-xs text-muted-foreground">{t("dashboard.noCases")}</p> : (
               <div className="space-y-3">
                 {data.byStatus.map(s => (
-                  <Bar key={s.key} label={CASE_STATUS_META[s.key as VisaCaseStatus]?.label ?? s.key} value={s.count} max={maxStatus} tint="bg-primary" />
+                  <Bar key={s.key} label={t(`cases.status.${s.key}`, { defaultValue: s.key })} value={s.count} max={maxStatus} tint="bg-primary" />
                 ))}
               </div>
             )}
@@ -86,8 +88,8 @@ export function VisaDashboardView() {
         {/* By type */}
         <Card>
           <CardContent className="p-5">
-            <h3 className="text-sm font-semibold mb-4">Cases by visa type</h3>
-            {data.byType.length === 0 ? <p className="text-xs text-muted-foreground">No cases yet.</p> : (
+            <h3 className="text-sm font-semibold mb-4">{t("dashboard.byType")}</h3>
+            {data.byType.length === 0 ? <p className="text-xs text-muted-foreground">{t("dashboard.noCases")}</p> : (
               <div className="space-y-3">
                 {data.byType.slice(0, 8).map(s => (
                   <Bar key={s.key} label={s.key} value={s.count} max={maxType} tint="bg-violet-500" />
@@ -100,8 +102,8 @@ export function VisaDashboardView() {
         {/* Revenue by type */}
         <Card>
           <CardContent className="p-5">
-            <h3 className="text-sm font-semibold mb-4">Revenue by visa type</h3>
-            {data.revenueByType.length === 0 ? <p className="text-xs text-muted-foreground">No revenue yet.</p> : (
+            <h3 className="text-sm font-semibold mb-4">{t("dashboard.revenueByType")}</h3>
+            {data.revenueByType.length === 0 ? <p className="text-xs text-muted-foreground">{t("dashboard.noRevenue")}</p> : (
               <div className="space-y-3">
                 {data.revenueByType.slice(0, 8).map(r => (
                   <Bar key={r.key} label={`${r.key} · ${formatCurrency(r.serviceFees + r.govtFees, currency)}`}
@@ -115,8 +117,8 @@ export function VisaDashboardView() {
         {/* PRO workload */}
         <Card>
           <CardContent className="p-5">
-            <h3 className="text-sm font-semibold mb-4 flex items-center gap-1.5"><Users className="h-4 w-4" />PRO workload (open cases)</h3>
-            {data.workload.length === 0 ? <p className="text-xs text-muted-foreground">No assigned open cases.</p> : (
+            <h3 className="text-sm font-semibold mb-4 flex items-center gap-1.5"><Users className="h-4 w-4" />{t("dashboard.workload")}</h3>
+            {data.workload.length === 0 ? <p className="text-xs text-muted-foreground">{t("dashboard.noWorkload")}</p> : (
               <div className="space-y-2">
                 {data.workload.slice(0, 8).map(w => (
                   <div key={w.assignedTo} className="flex items-center gap-3">
@@ -141,10 +143,11 @@ export function VisaDashboardView() {
           <CardContent className="p-4 flex items-center gap-3">
             <FileWarning className="h-5 w-5 text-warning shrink-0" />
             <p className="text-sm">
-              <span className="font-semibold">{data.expiringVisas90}</span> visa(s) and{" "}
-              <span className="font-semibold">{data.expiringPassports90}</span> passport(s) expiring within 90 days,{" "}
-              plus <span className="font-semibold">{data.expiringDocuments30}</span> document(s) within 30 days —
-              see the <span className="font-medium">Renewals</span> page.
+              {t("dashboard.expiryBanner", {
+                visas:     data.expiringVisas90,
+                passports: data.expiringPassports90,
+                documents: data.expiringDocuments30,
+              })}
             </p>
           </CardContent>
         </Card>

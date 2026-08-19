@@ -16,15 +16,19 @@ internal sealed class GetAccountByIdHandler(FinanceDbContext db)
     {
         var acc = await db.Accounts
             .AsNoTracking()
-            .Where(x => x.Id == q.Id)
-            .Select(x => new AccountDto(
-                x.Id, x.AccountNumber, x.Name, x.AccountType,
-                x.Description, x.ParentId, x.IsActive, x.Balance,
-                x.CreatedAt, x.UpdatedAt, x.AccountTypeId))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(x => x.Id == q.Id, ct);
 
-        return acc is null
-            ? Result.Failure<AccountDto>(Error.NotFoundById(nameof(Account), q.Id))
-            : Result.Success(acc);
+        if (acc is null)
+            return Result.Failure<AccountDto>(Error.NotFoundById(nameof(Account), q.Id));
+
+        // Current balance = opening + posted movements (see AccountBalances).
+        var movements      = await AccountBalances.LoadMovementsAsync(db, ct);
+        var normalBalances = await AccountBalances.LoadNormalBalancesAsync(db, ct);
+
+        return Result.Success(new AccountDto(
+            acc.Id, acc.AccountNumber, acc.Name, acc.AccountType,
+            acc.Description, acc.ParentId, acc.IsActive,
+            AccountBalances.Current(acc, movements, normalBalances),
+            acc.CreatedAt, acc.UpdatedAt, acc.AccountTypeId));
     }
 }

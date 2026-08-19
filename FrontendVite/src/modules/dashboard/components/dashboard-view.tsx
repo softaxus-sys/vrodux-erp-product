@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Users, Clock, ArrowUpRight, UserCheck, UserX, Coffee, Banknote,
   TrendingUp, FileText, Activity, Target, DollarSign, UserPlus,
@@ -9,7 +10,7 @@ import {
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
-import { cn, formatCurrency, formatNumber } from "@/lib/utils";
+import { cn, formatCurrency, formatNumber, activeLocale } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrency } from "@/hooks/use-currency";
 import { useUsers } from "@/hooks/identity/use-users";
@@ -93,26 +94,27 @@ function StatSkeleton() {
 // ── Attendance / Payroll (HR) ───────────────────────────────────────────────────
 
 function AttendanceCard({ summary, leaveSummary }: { summary?: AttendanceSummaryDto; leaveSummary?: LeaveSummaryDto }) {
+  const { t } = useTranslation("dashboard");
   const total = summary?.totalEmployees ?? 0;
   const present = summary?.presentToday ?? 0;
   const pct = total > 0 ? Math.round((present / total) * 100) : 0;
   const rows = [
-    { label: "Present",  value: present,                       Icon: UserCheck, color: "text-success",     bg: "bg-success/10" },
-    { label: "Absent",   value: summary?.absentToday ?? 0,     Icon: UserX,     color: "text-destructive", bg: "bg-destructive/10" },
-    { label: "Late",     value: summary?.lateToday ?? 0,       Icon: Clock,     color: "text-warning",     bg: "bg-warning/10" },
-    { label: "On Leave", value: summary?.onLeaveToday ?? leaveSummary?.onLeaveToday ?? 0, Icon: Coffee, color: "text-primary", bg: "bg-primary/10" },
+    { label: t("attendance.present"),  value: present,                       Icon: UserCheck, color: "text-success",     bg: "bg-success/10" },
+    { label: t("attendance.absent"),   value: summary?.absentToday ?? 0,     Icon: UserX,     color: "text-destructive", bg: "bg-destructive/10" },
+    { label: t("attendance.late"),     value: summary?.lateToday ?? 0,       Icon: Clock,     color: "text-warning",     bg: "bg-warning/10" },
+    { label: t("attendance.onLeave"), value: summary?.onLeaveToday ?? leaveSummary?.onLeaveToday ?? 0, Icon: Coffee, color: "text-primary", bg: "bg-primary/10" },
   ];
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">Today's Attendance</CardTitle>
-            <CardDescription>{total > 0 ? `${pct}% of ${total} employees` : "Loading attendance…"}</CardDescription>
+            <CardTitle className="text-base">{t("attendance.title")}</CardTitle>
+            <CardDescription>{total > 0 ? t("attendance.ofEmployees", { pct, total }) : t("attendance.loading")}</CardDescription>
           </div>
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold",
             pct >= 90 ? "bg-success/10 text-success" : pct >= 70 ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive")}>
-            {pct}% present
+            {t("attendance.percentPresent", { pct })}
           </span>
         </div>
       </CardHeader>
@@ -137,19 +139,20 @@ function AttendanceCard({ summary, leaveSummary }: { summary?: AttendanceSummary
 }
 
 function PayrollCard({ summary, currency }: { summary?: PayrollSummaryDto; currency: string }) {
-  const monthLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const { t } = useTranslation("dashboard");
+  const monthLabel = new Date().toLocaleDateString(activeLocale(), { month: "long", year: "numeric" });
   const rows = [
-    { label: "Net Payroll (This Month)", value: formatCurrency(summary?.thisMonth?.totalNetSalary ?? 0, currency), Icon: Banknote,   color: "text-success" },
-    { label: "Employees Paid",           value: formatNumber(summary?.thisMonth?.employeeCount ?? 0),               Icon: TrendingUp, color: "text-primary" },
-    { label: "Paid Runs",                value: formatNumber(summary?.allTime?.paid ?? 0),                          Icon: FileText,   color: "text-info" },
-    { label: "Total Runs",               value: formatNumber(summary?.allTime?.total ?? 0),                         Icon: Activity,   color: "text-warning" },
+    { label: t("payroll.netThisMonth"), value: formatCurrency(summary?.thisMonth?.totalNetSalary ?? 0, currency), Icon: Banknote,   color: "text-success" },
+    { label: t("payroll.employeesPaid"), value: formatNumber(summary?.thisMonth?.employeeCount ?? 0),             Icon: TrendingUp, color: "text-primary" },
+    { label: t("payroll.paidRuns"),     value: formatNumber(summary?.allTime?.paid ?? 0),                          Icon: FileText,   color: "text-info" },
+    { label: t("payroll.totalRuns"),    value: formatNumber(summary?.allTime?.total ?? 0),                         Icon: Activity,   color: "text-warning" },
   ];
   const pending = (summary?.allTime?.draft ?? 0) + (summary?.allTime?.processed ?? 0);
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Payroll — {monthLabel}</CardTitle>
-        <CardDescription>{summary ? `${summary.allTime.paid} paid · ${pending} pending` : "Loading payroll data…"}</CardDescription>
+        <CardTitle className="text-base">{t("payroll.title", { month: monthLabel })}</CardTitle>
+        <CardDescription>{summary ? t("payroll.summary", { paid: summary.allTime.paid, pending }) : t("payroll.loading")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {rows.map(({ label, value, Icon, color }) => (
@@ -166,11 +169,12 @@ function PayrollCard({ summary, currency }: { summary?: PayrollSummaryDto; curre
 // ── Quick actions ───────────────────────────────────────────────────────────────
 
 function QuickActions({ actions }: { actions: { label: string; to: string; icon: React.ElementType; accent: Accent }[] }) {
+  const { t } = useTranslation("dashboard");
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Quick Actions</CardTitle>
-        <CardDescription>Jump straight into your day</CardDescription>
+        <CardTitle className="text-base">{t("quickActions.title")}</CardTitle>
+        <CardDescription>{t("quickActions.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2.5">
         {actions.map(({ label, to, icon: Icon, accent }) => {
@@ -196,6 +200,7 @@ function QuickActions({ actions }: { actions: { label: string; to: string; icon:
 // ── Main ─────────────────────────────────────────────────────────────────────────
 
 export function DashboardView() {
+  const { t } = useTranslation("dashboard");
   const { user, isRole, hasModuleAccess, tenant } = useAuthStore();
   const currency = useCurrency();
 
@@ -220,55 +225,55 @@ export function DashboardView() {
   const { data: invoices } = useInvoiceSummary();
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const firstName = user?.name?.split(" ")[0] ?? "there";
+  const greeting = t(hour < 12 ? "greeting.morning" : hour < 17 ? "greeting.afternoon" : "greeting.evening");
+  const firstName = user?.name?.split(" ")[0] ?? "";
 
   // ── Adaptive KPI set — pick the 4 most relevant for the tenant's modules ──────
   const stats: Stat[] = React.useMemo(() => {
     const s: Stat[] = [];
     if (canCrm) {
       s.push(
-        { id: "leads", label: "Total Leads", value: formatNumber(leads?.total ?? 0), sub: `${leads?.newThisWeek ?? 0} new this week`, icon: Target, accent: "blue" },
-        { id: "pipeline", label: "Pipeline Value", value: formatCurrency(deals?.totalValue ?? 0, currency), sub: `${deals?.totalDeals ?? 0} open deals`, icon: TrendingUp, accent: "violet" },
-        { id: "customers", label: "Customers", value: formatNumber(customers?.total ?? 0), sub: `${customers?.active ?? 0} active`, icon: Users, accent: "emerald" },
-        { id: "conv", label: "Conversion Rate", value: `${Math.round(leads?.conversionRate ?? 0)}%`, sub: `${leads?.converted ?? 0} leads converted`, icon: Sparkles, accent: "amber" },
+        { id: "leads", label: t("stat.totalLeads"), value: formatNumber(leads?.total ?? 0), sub: t("stat.newThisWeek", { count: leads?.newThisWeek ?? 0 }), icon: Target, accent: "blue" },
+        { id: "pipeline", label: t("stat.pipelineValue"), value: formatCurrency(deals?.totalValue ?? 0, currency), sub: t("stat.openDeals", { count: deals?.totalDeals ?? 0 }), icon: TrendingUp, accent: "violet" },
+        { id: "customers", label: t("stat.customers"), value: formatNumber(customers?.total ?? 0), sub: t("stat.activeCount", { count: customers?.active ?? 0 }), icon: Users, accent: "emerald" },
+        { id: "conv", label: t("stat.conversionRate"), value: `${Math.round(leads?.conversionRate ?? 0)}%`, sub: t("stat.leadsConverted", { count: leads?.converted ?? 0 }), icon: Sparkles, accent: "amber" },
       );
     }
     if (canFinance) {
       s.push(
-        { id: "revenue", label: "Revenue (Paid)", value: formatCurrency(invoices?.totalPaid ?? 0, currency), sub: `of ${formatCurrency(invoices?.totalAmount ?? 0, currency)} billed`, icon: DollarSign, accent: "emerald" },
-        { id: "outstanding", label: "Outstanding", value: formatCurrency(invoices?.totalOutstanding ?? 0, currency), sub: `${formatCurrency(invoices?.totalOverdue ?? 0, currency)} overdue`, icon: Receipt, accent: "rose" },
+        { id: "revenue", label: t("stat.revenuePaid"), value: formatCurrency(invoices?.totalPaid ?? 0, currency), sub: t("stat.ofBilled", { amount: formatCurrency(invoices?.totalAmount ?? 0, currency) }), icon: DollarSign, accent: "emerald" },
+        { id: "outstanding", label: t("stat.outstanding"), value: formatCurrency(invoices?.totalOutstanding ?? 0, currency), sub: t("stat.overdue", { amount: formatCurrency(invoices?.totalOverdue ?? 0, currency) }), icon: Receipt, accent: "rose" },
       );
     }
     if (canHr) {
       s.push(
-        { id: "emp", label: "Employees", value: formatNumber(hrSummary?.total ?? 0), sub: `${hrSummary?.active ?? 0} active`, icon: Briefcase, accent: "sky" },
-        { id: "present", label: "Present Today", value: formatNumber(attSummary?.presentToday ?? 0), sub: `${attSummary?.absentToday ?? 0} absent · ${leaveSummary?.pending ?? 0} leave requests`, icon: UserCheck, accent: "emerald" },
+        { id: "emp", label: t("stat.employees"), value: formatNumber(hrSummary?.total ?? 0), sub: t("stat.activeCount", { count: hrSummary?.active ?? 0 }), icon: Briefcase, accent: "sky" },
+        { id: "present", label: t("stat.presentToday"), value: formatNumber(attSummary?.presentToday ?? 0), sub: t("stat.absentLeave", { absent: attSummary?.absentToday ?? 0, leave: leaveSummary?.pending ?? 0 }), icon: UserCheck, accent: "emerald" },
       );
     }
     // Fallback / admin filler so there are always ≥4 tiles
     s.push(
-      { id: "users", label: "Team Members", value: formatNumber(usersData?.totalCount ?? 0), sub: `${rolesData?.items?.length ?? 0} roles`, icon: Users, accent: "sky" },
-      { id: "perms", label: "Your Permissions", value: formatNumber(user?.permissions?.length ?? 0), sub: user?.roleName ?? (user?.role ?? "").replace(/_/g, " "), icon: Sparkles, accent: "violet" },
+      { id: "users", label: t("stat.teamMembers"), value: formatNumber(usersData?.totalCount ?? 0), sub: t("stat.rolesCount", { count: rolesData?.items?.length ?? 0 }), icon: Users, accent: "sky" },
+      { id: "perms", label: t("stat.yourPermissions"), value: formatNumber(user?.permissions?.length ?? 0), sub: user?.roleName ?? (user?.role ?? "").replace(/_/g, " "), icon: Sparkles, accent: "violet" },
     );
     return s.slice(0, 4);
-  }, [canCrm, canFinance, canHr, leads, deals, customers, invoices, hrSummary, attSummary, leaveSummary, usersData, rolesData, user, currency]);
+  }, [t, canCrm, canFinance, canHr, leads, deals, customers, invoices, hrSummary, attSummary, leaveSummary, usersData, rolesData, user, currency]);
 
   // ── Quick actions by module ───────────────────────────────────────────────────
   const actions = React.useMemo(() => {
     const list: { label: string; to: string; icon: React.ElementType; accent: Accent }[] = [];
     if (canCrm) list.push(
-      { label: "New Lead", to: "/crm/leads", icon: UserPlus, accent: "blue" },
-      { label: "Add Deal", to: "/crm/pipeline", icon: TrendingUp, accent: "violet" },
-      { label: "New Customer", to: "/crm/customers", icon: Users, accent: "emerald" },
+      { label: t("quickActions.newLead"), to: "/crm/leads", icon: UserPlus, accent: "blue" },
+      { label: t("quickActions.addDeal"), to: "/crm/pipeline", icon: TrendingUp, accent: "violet" },
+      { label: t("quickActions.newCustomer"), to: "/crm/customers", icon: Users, accent: "emerald" },
     );
-    if (canSales) list.push({ label: "New Order", to: "/sales/orders", icon: ShoppingCart, accent: "sky" });
-    if (canFinance) list.push({ label: "New Invoice", to: "/finance/invoicing", icon: Receipt, accent: "amber" });
-    if (canInventory) list.push({ label: "Add Product", to: "/inventory/products", icon: Package, accent: "rose" });
-    if (canHr) list.push({ label: "Add Employee", to: "/hr/employees", icon: Briefcase, accent: "sky" });
-    if (list.length === 0) list.push({ label: "Settings", to: "/settings/general", icon: Plus, accent: "blue" });
+    if (canSales) list.push({ label: t("quickActions.newOrder"), to: "/sales/orders", icon: ShoppingCart, accent: "sky" });
+    if (canFinance) list.push({ label: t("quickActions.newInvoice"), to: "/finance/invoicing", icon: Receipt, accent: "amber" });
+    if (canInventory) list.push({ label: t("quickActions.addProduct"), to: "/inventory/products", icon: Package, accent: "rose" });
+    if (canHr) list.push({ label: t("quickActions.addEmployee"), to: "/hr/employees", icon: Briefcase, accent: "sky" });
+    if (list.length === 0) list.push({ label: t("quickActions.settings"), to: "/settings/general", icon: Plus, accent: "blue" });
     return list.slice(0, 6);
-  }, [canCrm, canSales, canFinance, canInventory, canHr]);
+  }, [t, canCrm, canSales, canFinance, canInventory, canHr]);
 
   const activities: ActivityItem[] = React.useMemo(() =>
     (auditData?.items ?? []).slice(0, 12).map((log) => ({
@@ -281,7 +286,7 @@ export function DashboardView() {
       module: "settings" as const,
     })), [auditData?.items]);
 
-  const dateStr = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const dateStr = new Date().toLocaleDateString(activeLocale(), { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="space-y-6">
@@ -300,13 +305,13 @@ export function DashboardView() {
           <div>
             <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium backdrop-blur">
               <Sparkles className="h-3.5 w-3.5" />
-              {tenant?.name ?? "Your workspace"}
+              {tenant?.name ?? t("hero.workspace")}
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">{greeting}, {firstName}</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">{firstName ? `${greeting}، ${firstName}` : greeting}</h1>
             <p className="mt-1 max-w-xl text-sm text-white/80">
-              {isAdmin ? "Here's a live overview of your business today."
-                : canCrm ? "Your leads, pipeline, and customers at a glance."
-                : "Here's what's happening in your workspace today."}
+              {isAdmin ? t("hero.subtitleAdmin")
+                : canCrm ? t("hero.subtitleCrm")
+                : t("hero.subtitleDefault")}
             </p>
           </div>
           <div className="shrink-0 rounded-xl bg-white/10 px-4 py-3 text-right backdrop-blur">
@@ -343,7 +348,7 @@ export function DashboardView() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {auditLoading ? (
-            <Card><CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>System audit trail</CardDescription></CardHeader>
+            <Card><CardHeader><CardTitle>{t("activity.title")}</CardTitle><CardDescription>{t("activity.subtitle")}</CardDescription></CardHeader>
               <CardContent className="space-y-3 p-4">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="flex animate-pulse gap-3">
@@ -357,8 +362,8 @@ export function DashboardView() {
             <ActivityFeed activities={activities} />
           ) : (
             <Card>
-              <CardHeader><CardTitle>Recent Activity</CardTitle><CardDescription>System audit trail</CardDescription></CardHeader>
-              <CardContent className="py-12 text-center text-sm text-muted-foreground">No recent activity yet.</CardContent>
+              <CardHeader><CardTitle>{t("activity.title")}</CardTitle><CardDescription>{t("activity.subtitle")}</CardDescription></CardHeader>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">{t("activity.empty")}</CardContent>
             </Card>
           )}
         </div>
@@ -366,21 +371,21 @@ export function DashboardView() {
         {/* Pipeline / snapshot */}
         <Card className="h-full">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{canCrm ? "Sales Pipeline" : "Snapshot"}</CardTitle>
-            <CardDescription>{canCrm ? "Deal health this period" : "Key numbers"}</CardDescription>
+            <CardTitle className="text-base">{canCrm ? t("pipeline.title") : t("pipeline.snapshotTitle")}</CardTitle>
+            <CardDescription>{canCrm ? t("pipeline.subtitle") : t("pipeline.snapshotSubtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {canCrm ? (
               <>
                 <div className="rounded-xl border border-border bg-gradient-to-br from-violet-500/10 to-transparent p-4">
-                  <p className="text-xs text-muted-foreground">Open pipeline value</p>
+                  <p className="text-xs text-muted-foreground">{t("pipeline.openValue")}</p>
                   <p className="mt-1 text-2xl font-bold tabular-nums">{formatCurrency(deals?.totalValue ?? 0, currency)}</p>
                 </div>
                 {[
-                  { label: "Won value", value: formatCurrency(deals?.wonValue ?? 0, currency), color: "text-success" },
-                  { label: "Win rate", value: `${Math.round(deals?.winRate ?? 0)}%`, color: "text-primary" },
-                  { label: "Avg deal size", value: formatCurrency(deals?.avgDealSize ?? 0, currency), color: "text-foreground" },
-                  { label: "Qualified leads", value: formatNumber(leads?.qualified ?? 0), color: "text-blue-600 dark:text-blue-400" },
+                  { label: t("pipeline.wonValue"), value: formatCurrency(deals?.wonValue ?? 0, currency), color: "text-success" },
+                  { label: t("pipeline.winRate"), value: `${Math.round(deals?.winRate ?? 0)}%`, color: "text-primary" },
+                  { label: t("pipeline.avgDealSize"), value: formatCurrency(deals?.avgDealSize ?? 0, currency), color: "text-foreground" },
+                  { label: t("pipeline.qualifiedLeads"), value: formatNumber(leads?.qualified ?? 0), color: "text-blue-600 dark:text-blue-400" },
                 ].map((r) => (
                   <div key={r.label} className="flex items-center justify-between border-b border-border/30 py-1.5 last:border-0">
                     <span className="text-xs text-muted-foreground">{r.label}</span>
@@ -388,14 +393,14 @@ export function DashboardView() {
                   </div>
                 ))}
                 <Link to="/crm/pipeline" className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-border py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5">
-                  View pipeline <ArrowUpRight className="h-3.5 w-3.5" />
+                  {t("pipeline.viewPipeline")} <ArrowUpRight className="h-3.5 w-3.5" />
                 </Link>
               </>
             ) : (
               [
-                { label: "Team members", value: formatNumber(usersData?.totalCount ?? 0) },
-                { label: "Roles", value: formatNumber(rolesData?.items?.length ?? 0) },
-                { label: "Your permissions", value: formatNumber(user?.permissions?.length ?? 0) },
+                { label: t("pipeline.teamMembers"), value: formatNumber(usersData?.totalCount ?? 0) },
+                { label: t("pipeline.roles"), value: formatNumber(rolesData?.items?.length ?? 0) },
+                { label: t("pipeline.yourPermissions"), value: formatNumber(user?.permissions?.length ?? 0) },
               ].map((r) => (
                 <div key={r.label} className="flex items-center justify-between border-b border-border/30 py-2 last:border-0">
                   <span className="text-xs text-muted-foreground">{r.label}</span>

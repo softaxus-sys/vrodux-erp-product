@@ -102,7 +102,9 @@ function useInvalidateAll() {
 export function useCreateTable() {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: (p: { tableNumber: string; section: string; capacity: number }) => restaurantApi.createTable(p),
+    // Mirrors restaurantApi.createTable / backend CreateTableCommand — branchId + diningAreaId
+    // are both optional and are persisted by CreateTableHandler.
+    mutationFn: (p: { tableNumber: string; section: string; capacity: number; branchId?: string | null; diningAreaId?: string | null }) => restaurantApi.createTable(p),
     onSuccess: () => { invalidate(); toast.success("Table added."); },
     onError: (e: Error) => toast.error(e.message),
   });

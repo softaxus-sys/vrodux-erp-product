@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Building2, CheckCircle2, AlertCircle, Ban, DollarSign,
@@ -14,17 +15,17 @@ import { VendorDrawer } from "./vendor-drawer";
 import { AddVendorForm } from "./add-vendor-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  active:   { label: "Active",   color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
-  inactive: { label: "Inactive", color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
-  blocked:  { label: "Blocked",  color: "text-destructive",      bg: "bg-destructive/10", dot: "bg-destructive" },
-};
+const getStatusConfig = (t: any): Record<string, { label: string; color: string; bg: string; dot: string }> => ({
+  active:   { label: t("common.active"),     color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
+  inactive: { label: t("common.inactive"),   color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
+  blocked:  { label: t("common.blocked"),    color: "text-destructive",      bg: "bg-destructive/10", dot: "bg-destructive" },
+});
 
-const STATUS_FILTERS = [
-  { key: "",         label: "All" },
-  { key: "active",   label: "Active" },
-  { key: "inactive", label: "Inactive" },
-  { key: "blocked",  label: "Blocked" },
+const getStatusFilters = (t: any) => [
+  { key: "",         label: t("common.all") },
+  { key: "active",   label: t("common.active") },
+  { key: "inactive", label: t("common.inactive") },
+  { key: "blocked",  label: t("common.blocked") },
 ];
 
 function StarRating({ rating }: { rating: number }) {
@@ -38,6 +39,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export function VendorsView() {
+  const { t } = useTranslation("purchase");
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [viewMode, setViewMode]       = React.useState<"list" | "grid">("list");
@@ -54,6 +56,8 @@ export function VendorsView() {
   });
 
   const items = data?.items ?? [];
+  const STATUS_CONFIG = getStatusConfig(t);
+  const STATUS_FILTERS = getStatusFilters(t);
 
   const stats = React.useMemo(() => ({
     total:    data?.totalCount ?? 0,
@@ -63,10 +67,10 @@ export function VendorsView() {
   }), [data?.totalCount, items]);
 
   const STAT_CARDS = [
-    { label: "Total Vendors", value: stats.total,    icon: Building2,    color: "text-slate-600",        bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Active",        value: stats.active,   icon: CheckCircle2, color: "text-success",          bg: "bg-success/10" },
-    { label: "Inactive",      value: stats.inactive, icon: AlertCircle,  color: "text-muted-foreground", bg: "bg-muted" },
-    { label: "Total POs",     value: stats.orders,   icon: TrendingDown, color: "text-primary",          bg: "bg-primary/10" },
+    { label: t("common.totalVendors"), value: stats.total,    icon: Building2,    color: "text-slate-600",        bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("common.active"),       value: stats.active,   icon: CheckCircle2, color: "text-success",          bg: "bg-success/10" },
+    { label: t("common.inactive"),     value: stats.inactive, icon: AlertCircle,  color: "text-muted-foreground", bg: "bg-muted" },
+    { label: t("common.totalPOs"),     value: stats.orders,   icon: TrendingDown, color: "text-primary",          bg: "bg-primary/10" },
   ];
 
   return (
@@ -74,8 +78,8 @@ export function VendorsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Vendors</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage supplier profiles, contracts, and payment terms</p>
+          <h1 className="text-2xl font-bold">{t("vendors.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("vendors.description")}</p>
         </div>
         <Can permission="purchase.vendors.create">
           <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>

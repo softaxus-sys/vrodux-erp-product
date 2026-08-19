@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Briefcase, Users, Clock,
@@ -7,6 +8,7 @@ import {
   ExternalLink, FileDown
 } from "lucide-react";
 import { toast } from "sonner";
+import i18n from "@/i18n";
 import { useAuthStore } from "@/store/auth.store";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,23 +32,23 @@ import { AddJobPostingForm } from "./add-job-posting-form";
 import { AddApplicantForm } from "./add-applicant-form";
 import { Can } from "@/components/auth/can";
 
-const JOB_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  open:     { label: "Open",     color: "text-success",          bg: "bg-success/10" },
-  closed:   { label: "Closed",   color: "text-muted-foreground", bg: "bg-muted" },
-  on_hold:  { label: "On Hold",  color: "text-warning",          bg: "bg-warning/10" },
-  draft:    { label: "Draft",    color: "text-info",             bg: "bg-info/10" },
+const JOB_STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
+  open:     { key: "open",    color: "text-success",          bg: "bg-success/10" },
+  closed:   { key: "closed",  color: "text-muted-foreground", bg: "bg-muted" },
+  on_hold:  { key: "on_hold", color: "text-warning",          bg: "bg-warning/10" },
+  draft:    { key: "draft",   color: "text-info",             bg: "bg-info/10" },
 };
-const JOB_STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
+const JOB_STATUS_FALLBACK = { key: "unknown", color: "text-muted-foreground", bg: "bg-muted" };
 
-const STAGE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  applied:    { label: "Applied",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50" },
-  screening:  { label: "Screening",  color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20" },
-  interview:  { label: "Interview",  color: "text-violet-600",  bg: "bg-violet-50 dark:bg-violet-900/20" },
-  offer:      { label: "Offer",      color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-900/20" },
-  hired:      { label: "Hired",      color: "text-success",     bg: "bg-success/10" },
-  rejected:   { label: "Rejected",   color: "text-destructive", bg: "bg-destructive/10" },
+const STAGE_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
+  applied:    { key: "applied",   color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50" },
+  screening:  { key: "screening", color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20" },
+  interview:  { key: "interview", color: "text-violet-600",  bg: "bg-violet-50 dark:bg-violet-900/20" },
+  offer:      { key: "offer",     color: "text-amber-600",   bg: "bg-amber-50 dark:bg-amber-900/20" },
+  hired:      { key: "hired",     color: "text-success",     bg: "bg-success/10" },
+  rejected:   { key: "rejected",  color: "text-destructive", bg: "bg-destructive/10" },
 };
-const STAGE_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
+const STAGE_FALLBACK = { key: "unknown", color: "text-muted-foreground", bg: "bg-muted" };
 
 const STAGE_ORDER: ApplicantStage[] = ["applied", "screening", "interview", "offer", "hired", "rejected"];
 
@@ -81,11 +83,12 @@ async function downloadApplicantResume(applicant: Applicant) {
     a.click();
     URL.revokeObjectURL(url);
   } catch {
-    toast.error("Failed to download resume.");
+    toast.error(i18n.t("recruitment.drawer.downloadFailed", { ns: "hr" }));
   }
 }
 
 function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | null; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("hr");
   const updateStage = useUpdateApplicantStage();
 
   if (!applicant) return null;
@@ -106,7 +109,7 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
             className="fixed top-0 right-0 h-full w-full max-w-md bg-background border-l border-border shadow-2xl z-50 flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <p className="font-bold text-base">Applicant Profile</p>
+              <p className="font-bold text-base">{t("recruitment.drawer.title")}</p>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -121,14 +124,14 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                   <div className="flex items-center gap-2 mt-1">
                     <Globe className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">{applicant.nationality}</span>
-                    <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+                    <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{t(`applicantStage.${sc.key}`)}</span>
                   </div>
                 </div>
               </div>
 
               {/* Applied for */}
               <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl">
-                <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-1">Applied For</p>
+                <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-1">{t("recruitment.drawer.appliedFor")}</p>
                 <p className="text-sm font-medium">{applicant.jobTitle}</p>
               </div>
 
@@ -140,19 +143,19 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                   onClick={() => downloadApplicantResume(applicant)}
                 >
                   <FileDown className="h-3.5 w-3.5" />
-                  Download Resume / CV
+                  {t("recruitment.drawer.downloadResume")}
                 </Button>
               )}
 
               {/* Details */}
               <div className="space-y-2.5">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact & Details</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.drawer.contactDetails")}</h4>
                 {[
-                  { icon: Mail,     label: "Email",      value: applicant.email },
-                  { icon: Phone,    label: "Phone",      value: applicant.phone },
-                  { icon: Briefcase,label: "Experience", value: `${applicant.experience} year${applicant.experience > 1 ? "s" : ""}` },
-                  { icon: Calendar, label: "Applied",    value: formatDate(applicant.appliedDate, "medium") },
-                  { icon: Globe,    label: "Source",     value: applicant.source },
+                  { icon: Mail,     label: t("recruitment.drawer.email"),      value: applicant.email },
+                  { icon: Phone,    label: t("recruitment.drawer.phone"),      value: applicant.phone },
+                  { icon: Briefcase,label: t("recruitment.drawer.experience"), value: t("recruitment.drawer.years", { count: applicant.experience }) },
+                  { icon: Calendar, label: t("recruitment.drawer.applied"),    value: formatDate(applicant.appliedDate, "medium") },
+                  { icon: Globe,    label: t("recruitment.drawer.source"),     value: applicant.source },
                 ].map(row => (
                   <div key={row.label} className="flex items-center gap-3 py-2 border-b border-border/40">
                     <row.icon className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -165,7 +168,7 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                 <div className="flex items-center gap-3 py-2">
                   <Star className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Rating</span>
+                    <span className="text-xs text-muted-foreground">{t("recruitment.drawer.rating")}</span>
                     <RatingStars rating={applicant.rating} />
                   </div>
                 </div>
@@ -173,14 +176,14 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
 
               {applicant.notes && (
                 <div>
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Notes</h4>
+                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("recruitment.drawer.notes")}</h4>
                   <p className="text-sm text-muted-foreground bg-muted/30 rounded-xl p-3 leading-relaxed">{applicant.notes}</p>
                 </div>
               )}
 
               {/* Stage pipeline */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Hiring Pipeline</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("recruitment.drawer.hiringPipeline")}</h4>
                 <div className="flex items-center gap-1">
                   {STAGE_ORDER.filter(s => s !== "rejected").map((stage, i) => {
                     const idx = STAGE_ORDER.filter(s => s !== "rejected").indexOf(applicant.stage as "applied" | "screening" | "interview" | "offer" | "hired");
@@ -189,8 +192,8 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                     return (
                       <div key={stage} className="flex-1 text-center">
                         <div className={cn("h-1.5 rounded-full mb-1.5", isPast ? "bg-primary" : isActive ? "bg-primary/70" : "bg-muted")} />
-                        <p className={cn("text-[9px] font-medium capitalize", isActive ? "text-primary" : "text-muted-foreground")}>
-                          {(STAGE_CONFIG[stage] ?? STAGE_FALLBACK).label}
+                        <p className={cn("text-[9px] font-medium", isActive ? "text-primary" : "text-muted-foreground")}>
+                          {t(`applicantStage.${(STAGE_CONFIG[stage] ?? STAGE_FALLBACK).key}`)}
                         </p>
                       </div>
                     );
@@ -206,7 +209,7 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                   disabled={!nextStage || updateStage.isPending}
                   onClick={() => nextStage && updateStage.mutate({ id: applicant.id, stage: nextStage })}
                 >
-                  Move to Next Stage
+                  {t("recruitment.drawer.moveToNext")}
                 </Button>
                 <Button
                   variant="outline"
@@ -215,7 +218,7 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
                   disabled={updateStage.isPending}
                   onClick={() => updateStage.mutate({ id: applicant.id, stage: "rejected" })}
                 >
-                  Reject
+                  {t("recruitment.drawer.reject")}
                 </Button>
               </div>
             )}
@@ -227,6 +230,7 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
 }
 
 export function RecruitmentView() {
+  const { t } = useTranslation("hr");
   const [search, setSearch] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<"jobs" | "applicants">("jobs");
   const [stageFilter, setStageFilter] = React.useState("all");
@@ -289,8 +293,8 @@ export function RecruitmentView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Recruitment</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage job postings and applicant pipeline</p>
+          <h1 className="text-2xl font-bold">{t("recruitment.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("recruitment.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {tenantSlug && (
@@ -300,23 +304,23 @@ export function RecruitmentView() {
               className="h-9 gap-1.5 text-sm"
               onClick={() => window.open(`/careers/${tenantSlug}`, "_blank", "noopener,noreferrer")}
             >
-              <ExternalLink className="h-4 w-4" />Careers Page
+              <ExternalLink className="h-4 w-4" />{t("recruitment.careersPage")}
             </Button>
           )}
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Can permission="hr.recruitment.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Post Job</Button></Can>
+          <Can permission="hr.recruitment.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("recruitment.postJob")}</Button></Can>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: "Open Positions",    value: recruitmentSummary?.openPositions    ?? jobPostings.filter(j => j.status === "open").length,           color: "text-primary bg-primary/10",         icon: Briefcase },
-          { label: "Total Applicants",  value: recruitmentSummary?.totalApplicants  ?? applicants.length,                                           color: "text-info bg-info/10",               icon: Users },
-          { label: "In Interview",      value: recruitmentSummary?.inInterview      ?? applicants.filter(a => a.stage === "interview").length,       color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20", icon: Users },
-          { label: "Pending Offers",    value: recruitmentSummary?.offers           ?? applicants.filter(a => a.stage === "offer").length,           color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20", icon: Award },
-          { label: "Hired This Month",  value: recruitmentSummary?.hiredThisMonth   ?? applicants.filter(a => a.stage === "hired").length,           color: "text-success bg-success/10",         icon: CheckCircle2 },
-          { label: "Avg Time to Hire",  value: `${recruitmentSummary?.avgTimeToHire ?? 0}d`,                                                        color: "text-muted-foreground bg-muted",     icon: Clock },
+          { label: t("recruitment.stat.openPositions"),   value: recruitmentSummary?.openPositions    ?? jobPostings.filter(j => j.status === "open").length,           color: "text-primary bg-primary/10",         icon: Briefcase },
+          { label: t("recruitment.stat.totalApplicants"), value: recruitmentSummary?.totalApplicants  ?? applicants.length,                                           color: "text-info bg-info/10",               icon: Users },
+          { label: t("recruitment.stat.inInterview"),     value: recruitmentSummary?.inInterview      ?? applicants.filter(a => a.stage === "interview").length,       color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20", icon: Users },
+          { label: t("recruitment.stat.pendingOffers"),   value: recruitmentSummary?.offers           ?? applicants.filter(a => a.stage === "offer").length,           color: "text-amber-600 bg-amber-100 dark:bg-amber-900/20", icon: Award },
+          { label: t("recruitment.stat.hiredThisMonth"),  value: recruitmentSummary?.hiredThisMonth   ?? applicants.filter(a => a.stage === "hired").length,           color: "text-success bg-success/10",         icon: CheckCircle2 },
+          { label: t("recruitment.stat.avgTimeToHire"),   value: `${recruitmentSummary?.avgTimeToHire ?? 0}d`,                                                        color: "text-muted-foreground bg-muted",     icon: Clock },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -331,11 +335,11 @@ export function RecruitmentView() {
 
       {/* Tabs */}
       <div className="flex items-center gap-0 border-b border-border">
-        {(["jobs","applicants"] as const).map(t => (
-          <button key={t} onClick={() => setActiveTab(t)}
-            className={cn("px-5 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
-              activeTab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            {t === "jobs" ? "Job Postings" : "Applicants"}
+        {(["jobs","applicants"] as const).map(tk => (
+          <button key={tk} onClick={() => setActiveTab(tk)}
+            className={cn("px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
+              activeTab === tk ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {t(`recruitment.tab.${tk}`)}
           </button>
         ))}
       </div>
@@ -344,15 +348,15 @@ export function RecruitmentView() {
       <div className="flex items-center gap-3">
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input placeholder={activeTab === "jobs" ? "Search jobs..." : "Search applicants..."} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+          <Input placeholder={activeTab === "jobs" ? t("recruitment.searchJobs") : t("recruitment.searchApplicants")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
         </div>
         {activeTab === "applicants" && (
           <div className="flex items-center gap-1 flex-wrap">
             {["all", ...STAGE_ORDER].map(s => (
               <button key={s} onClick={() => setStageFilter(s)}
-                className={cn("px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors",
+                className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                   stageFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                {s === "all" ? "All" : STAGE_CONFIG[s as ApplicantStage].label}
+                {s === "all" ? t("recruitment.filterAll") : t(`applicantStage.${s}`)}
               </button>
             ))}
           </div>
@@ -376,7 +380,7 @@ export function RecruitmentView() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+                        <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{t(`jobStatus.${sc.key}`)}</span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -388,7 +392,7 @@ export function RecruitmentView() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => setApplicantFormJob({ id: job.id, title: job.title })}>
-                              <UserPlus className="h-3.5 w-3.5 mr-2" />Add Applicant
+                              <UserPlus className="h-3.5 w-3.5 mr-2" />{t("recruitment.job.addApplicant")}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {JOB_STATUSES.map(st => (
@@ -397,7 +401,7 @@ export function RecruitmentView() {
                                 disabled={job.status === st}
                                 onClick={() => updateJobStatus.mutate({ id: job.id, status: st })}
                               >
-                                {(JOB_STATUS_CONFIG[st] ?? JOB_STATUS_FALLBACK).label}
+                                {t(`jobStatus.${(JOB_STATUS_CONFIG[st] ?? JOB_STATUS_FALLBACK).key}`)}
                               </DropdownMenuItem>
                             ))}
                           </DropdownMenuContent>
@@ -410,13 +414,13 @@ export function RecruitmentView() {
                         <DollarSign className="h-3 w-3" />
                         {formatCurrency(job.salaryMin, job.currency)} – {formatCurrency(job.salaryMax, job.currency)}
                       </div>
-                      <div className="flex items-center gap-1.5"><Calendar className="h-3 w-3" />Closes {formatDate(job.closingDate, "medium")}</div>
+                      <div className="flex items-center gap-1.5"><Calendar className="h-3 w-3" />{t("recruitment.job.closes", { date: formatDate(job.closingDate, "medium") })}</div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
                       <div className="flex items-center gap-1.5 text-xs">
                         <Users className="h-3.5 w-3.5 text-muted-foreground" />
                         <span className="font-semibold">{job.applicants}</span>
-                        <span className="text-muted-foreground">applicants</span>
+                        <span className="text-muted-foreground">{t("recruitment.job.applicants")}</span>
                       </div>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <span className="capitalize">{job.experienceLevel}</span>
@@ -440,14 +444,18 @@ export function RecruitmentView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Applicant","Applied For","Experience","Rating","Applied On","Stage",""].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    {[
+                      ["applicant", t("recruitment.applicantsTable.applicant")], ["appliedFor", t("recruitment.applicantsTable.appliedFor")],
+                      ["experience", t("recruitment.applicantsTable.experience")], ["rating", t("recruitment.applicantsTable.rating")],
+                      ["appliedOn", t("recruitment.applicantsTable.appliedOn")], ["stage", t("recruitment.applicantsTable.stage")], ["actions", ""],
+                    ].map(([k, h]) => (
+                      <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filteredApplicants.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">No applicants found.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-16 text-muted-foreground text-sm">{t("recruitment.emptyApplicants")}</td></tr>
                   ) : filteredApplicants.map((app, i) => {
                     const sc = STAGE_CONFIG[app.stage] ?? STAGE_FALLBACK;
                     return (
@@ -470,7 +478,7 @@ export function RecruitmentView() {
                         <td className="px-4 py-3"><RatingStars rating={app.rating} /></td>
                         <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{formatDate(app.appliedDate, "medium")}</td>
                         <td className="px-4 py-3">
-                          <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{sc.label}</span>
+                          <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>{t(`applicantStage.${sc.key}`)}</span>
                         </td>
                         <td className="px-4 py-3">
                           <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
@@ -482,7 +490,7 @@ export function RecruitmentView() {
               </table>
             </div>
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {filteredApplicants.length} of {applicants.length} applicants
+              {t("recruitment.showingApplicants", { shown: filteredApplicants.length, total: applicants.length })}
             </div>
           </CardContent>
         </Card>

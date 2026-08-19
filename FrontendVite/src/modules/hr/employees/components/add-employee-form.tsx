@@ -1,8 +1,10 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Upload, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCreateEmployee } from "@/hooks/hr/use-hr";
 
 const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management", "Procurement", "Legal"];
@@ -17,6 +19,8 @@ interface AddEmployeeFormProps {
 }
 
 export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormProps) {
+  const { t } = useTranslation("hr");
+  const currency = useCurrency();
   const createEmployee = useCreateEmployee();
 
   const [firstName, setFirstName]           = React.useState("");
@@ -88,8 +92,8 @@ export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormPro
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Employee</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Add a new employee to the system</p>
+                <h2 className="text-base font-bold text-foreground">{t("employees.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("employees.form.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -113,37 +117,37 @@ export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormPro
                 </div>
                 <div>
                   <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-border hover:border-primary/40 hover:text-primary transition-colors text-muted-foreground">
-                    <Upload className="w-3 h-3" /> Upload Photo
+                    <Upload className="w-3 h-3" /> {t("employees.form.uploadPhoto")}
                   </button>
-                  <p className="text-[11px] text-muted-foreground mt-1">JPG or PNG, max 2MB</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">{t("employees.form.photoHint")}</p>
                 </div>
               </div>
 
               {/* Personal Info */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Personal Information</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("employees.form.personalInformation")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">First Name *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.firstName")}</label>
                     <Input value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="John" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Name *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.lastName")}</label>
                     <Input value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Smith" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.email")}</label>
                     <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john.smith@company.com" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.phone")}</label>
                     <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+971 50 000 0000" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nationality</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.nationality")}</label>
                     <select value={nationality} onChange={e => setNationality(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select…</option>
+                      <option value="">{t("employees.form.select")}</option>
                       {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
@@ -152,60 +156,60 @@ export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormPro
 
               {/* Job Info */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Job Information</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("employees.form.jobInformation")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Department *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.department")}</label>
                     <select value={department} onChange={e => setDepartment(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select…</option>
+                      <option value="">{t("employees.form.select")}</option>
                       {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Job Title *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.jobTitle")}</label>
                     <select value={jobTitle} onChange={e => setJobTitle(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select…</option>
-                      {JOB_TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+                      <option value="">{t("employees.form.select")}</option>
+                      {JOB_TITLES.map(jt => <option key={jt} value={jt}>{jt}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employment Type</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.employmentType")}</label>
                     <select value={employmentType} onChange={e => setEmploymentType(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {EMPLOYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      {EMPLOYMENT_TYPES.map(et => <option key={et} value={et}>{et}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Start Date *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.startDate")}</label>
                     <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Basic Salary (AED)</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.basicSalary", { currency })}</label>
                     <Input type="number" min={0} step={100} value={salary} onChange={e => setSalary(e.target.value)} placeholder="0.00" className="h-9 text-sm text-right" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reporting To</label>
-                    <Input value={reportingTo} onChange={e => setReportingTo(e.target.value)} placeholder="Manager name…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.reportingTo")}</label>
+                    <Input value={reportingTo} onChange={e => setReportingTo(e.target.value)} placeholder={t("employees.form.reportingToPlaceholder")} className="h-9 text-sm" />
                   </div>
                 </div>
               </div>
 
               {/* Documents */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Documents & Compliance</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("employees.form.documentsCompliance")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Emirates ID</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.emiratesId")}</label>
                     <Input value={emiratesId} onChange={e => setEmiratesId(e.target.value)} placeholder="784-XXXX-XXXXXXX-X" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Passport No.</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.passportNo")}</label>
                     <Input value={passportNo} onChange={e => setPassportNo(e.target.value)} placeholder="A12345678" className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5 col-span-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Visa Expiry</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.visaExpiry")}</label>
                     <Input type="date" value={visaExpiry} onChange={e => setVisaExpiry(e.target.value)} className="h-9 text-sm" />
                   </div>
                 </div>
@@ -213,9 +217,9 @@ export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormPro
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("employees.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Offer letter details, onboarding notes…" rows={2}
+                  placeholder={t("employees.form.notesPlaceholder")} rows={2}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -223,9 +227,9 @@ export function AddEmployeeForm({ open, onClose, onSuccess }: AddEmployeeFormPro
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose} disabled={createEmployee.isPending}>Cancel</Button>
+              <Button variant="outline" onClick={onClose} disabled={createEmployee.isPending}>{t("employees.form.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || createEmployee.isPending}>
-                {createEmployee.isPending ? "Saving…" : "Save Employee"}
+                {createEmployee.isPending ? t("employees.form.saving") : t("employees.form.saveEmployee")}
               </Button>
             </div>
           </motion.div>

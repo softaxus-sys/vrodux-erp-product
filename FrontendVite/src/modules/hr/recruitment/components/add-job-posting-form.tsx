@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ interface AddJobPostingFormProps {
 }
 
 export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
+  const { t } = useTranslation("hr");
   const [title, setTitle]               = React.useState("");
   const [department, setDepartment]     = React.useState("");
   const [jobType, setJobType]           = React.useState("Full-Time");
@@ -102,8 +104,8 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Job Posting</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Create a new recruitment listing</p>
+                <h2 className="text-base font-bold text-foreground">{t("recruitment.jobForm.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("recruitment.jobForm.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -114,78 +116,78 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Basic Info */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Basic Information</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("recruitment.jobForm.basicInformation")}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Job Title *</label>
-                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Senior Software Engineer" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.jobTitle")}</label>
+                    <Input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("recruitment.jobForm.jobTitlePlaceholder")} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Department *</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.department")}</label>
                     <select value={department} onChange={e => setDepartment(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      <option value="">Select…</option>
+                      <option value="">{t("recruitment.jobForm.select")}</option>
                       {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employment Type</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.employmentType")}</label>
                     <select value={jobType} onChange={e => setJobType(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {JOB_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      {JOB_TYPES.map(jt => <option key={jt} value={jt}>{jt}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.location")}</label>
                     <select value={location} onChange={e => setLocation(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Experience Level</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.experienceLevel")}</label>
                     <select value={experienceLevel} onChange={e => setExperience(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {EXPERIENCE_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Headcount</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.headcount")}</label>
                     <Input type="number" min={1} value={headcount} onChange={e => setHeadcount(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Closing Date</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.closingDate")}</label>
                     <Input type="date" value={closingDate} onChange={e => setClosingDate(e.target.value)} className="h-9 text-sm" />
                   </div>
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hiring Manager</label>
-                    <Input value={hiringManager} onChange={e => setHiringManager(e.target.value)} placeholder="Name of hiring manager…" className="h-9 text-sm" />
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.hiringManager")}</label>
+                    <Input value={hiringManager} onChange={e => setHiringManager(e.target.value)} placeholder={t("recruitment.jobForm.hiringManagerPlaceholder")} className="h-9 text-sm" />
                   </div>
                 </div>
               </div>
 
               {/* Salary Range */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Salary Range</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("recruitment.jobForm.salaryRange")}</p>
                 <div className="flex items-center gap-2">
                   <select value={salaryCurrency} onChange={e => setSalaryCurrency(e.target.value)}
                     className="h-9 px-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {SALARY_CURRENCIES.map(c => <option key={c}>{c}</option>)}
                   </select>
                   <Input type="number" min={0} step={500} value={salaryMin} onChange={e => setSalaryMin(e.target.value)}
-                    placeholder="Min" className="h-9 text-sm flex-1" />
+                    placeholder={t("recruitment.jobForm.min")} className="h-9 text-sm flex-1" />
                   <span className="text-muted-foreground text-sm">—</span>
                   <Input type="number" min={0} step={500} value={salaryMax} onChange={e => setSalaryMax(e.target.value)}
-                    placeholder="Max" className="h-9 text-sm flex-1" />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">/ month</span>
+                    placeholder={t("recruitment.jobForm.max")} className="h-9 text-sm flex-1" />
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{t("recruitment.jobForm.perMonth")}</span>
                 </div>
               </div>
 
               {/* Description */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Job Description *</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.jobDescription")}</label>
                 <textarea value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="Describe the role, team, and expectations…" rows={4}
+                  placeholder={t("recruitment.jobForm.jobDescriptionPlaceholder")} rows={4}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -193,9 +195,9 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
               {/* Requirements */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Requirements</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.requirements")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setRequirements(p => [...p, ""])} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add
+                    <Plus className="w-3 h-3" /> {t("recruitment.jobForm.add")}
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -203,7 +205,7 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
                     <div key={i} className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-4 shrink-0">{i + 1}.</span>
                       <Input value={r} onChange={e => updateRequirement(i, e.target.value)}
-                        placeholder="e.g. 5+ years of experience in React…" className="h-8 text-xs flex-1" />
+                        placeholder={t("recruitment.jobForm.requirementPlaceholder")} className="h-8 text-xs flex-1" />
                       <button onClick={() => setRequirements(p => p.filter((_, idx) => idx !== i))}
                         disabled={requirements.length <= 1}
                         className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30">
@@ -217,9 +219,9 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
               {/* Responsibilities */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Key Responsibilities</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("recruitment.jobForm.keyResponsibilities")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setResponsibilities(p => [...p, ""])} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add
+                    <Plus className="w-3 h-3" /> {t("recruitment.jobForm.add")}
                   </Button>
                 </div>
                 <div className="space-y-2">
@@ -227,7 +229,7 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
                     <div key={i} className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground w-4 shrink-0">{i + 1}.</span>
                       <Input value={r} onChange={e => updateResponsibility(i, e.target.value)}
-                        placeholder="e.g. Lead frontend architecture decisions…" className="h-8 text-xs flex-1" />
+                        placeholder={t("recruitment.jobForm.responsibilityPlaceholder")} className="h-8 text-xs flex-1" />
                       <button onClick={() => setResponsibilities(p => p.filter((_, idx) => idx !== i))}
                         disabled={responsibilities.length <= 1}
                         className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-30">
@@ -241,20 +243,20 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button variant="outline" onClick={onClose}>{t("recruitment.jobForm.cancel")}</Button>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   disabled={!isValid || createJobPosting.isPending}
                   onClick={() => handleSubmit("draft")}
                 >
-                  Save as Draft
+                  {t("recruitment.jobForm.saveAsDraft")}
                 </Button>
                 <Button
                   disabled={!isValid || createJobPosting.isPending}
                   onClick={() => handleSubmit("open")}
                 >
-                  Publish Job
+                  {t("recruitment.jobForm.publishJob")}
                 </Button>
               </div>
             </div>

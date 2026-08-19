@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
@@ -268,3 +269,19 @@ export function needsBusinessType(selected: Set<ModuleId>): boolean {
     return def?.triggersBusinessType ?? false;
   });
 }
+
+// ── Translated display labels ────────────────────────────────────────────────
+// The English `label`/`description` fields above stay as the source of truth and as the
+// i18n fallback, so a module added here renders before its key is translated.
+
+export const moduleLabel = (m: ModuleDef) =>
+  i18n.t(`onboarding:module.${m.id}.label`, { defaultValue: m.label });
+
+export const moduleDesc = (m: ModuleDef) =>
+  i18n.t(`onboarding:module.${m.id}.desc`, { defaultValue: m.description });
+
+export const moduleCategoryLabel = (c: { id: string; label: string }) =>
+  i18n.t(`onboarding:moduleCategory.${c.id}`, { defaultValue: c.label });
+
+export const businessTypeLabel = (bt: BusinessType) =>
+  i18n.t(`onboarding:businessType.${bt.id}`, { defaultValue: bt.label });

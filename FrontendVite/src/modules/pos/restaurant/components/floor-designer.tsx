@@ -16,14 +16,9 @@ import type { RestaurantTable, DiningAreaType, TableShape } from "@/lib/restaura
 import { Can, useCan } from "@/components/auth/can";
 import { useRestaurantRealtime } from "@/hooks/restaurant/use-restaurant-realtime";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
-const AREA_TYPES: { value: DiningAreaType; label: string }[] = [
-  { value: "indoor", label: "Indoor" },
-  { value: "outdoor", label: "Outdoor" },
-  { value: "vip", label: "VIP" },
-  { value: "bar", label: "Bar" },
-  { value: "rooftop", label: "Rooftop" },
-];
+const AREA_TYPES: DiningAreaType[] = ["indoor", "outdoor", "vip", "bar", "rooftop"];
 
 const SHAPES: { value: TableShape; label: string }[] = [
   { value: "square", label: "Square" },
@@ -43,6 +38,7 @@ function defaultPos(index: number) {
 }
 
 export function FloorDesignerView() {
+  const { t } = useTranslation("restaurant");
   const { data: layout = [], isLoading } = useFloorLayout();
   useRestaurantRealtime();
   const { data: allTables = [] } = useTables();
@@ -129,18 +125,18 @@ export function FloorDesignerView() {
 
   const selectedTable = tablesInFloor.find(t => t.id === selectedTableId);
 
-  if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading floor layout…</div>;
+  if (isLoading) return <div className="p-8 text-center text-muted-foreground">{t("floorDesigner.loading")}</div>;
 
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><LayoutGrid className="w-5 h-5" /> Floor & Table Designer</h1>
-          <p className="text-sm text-muted-foreground">Drag tables to arrange your floor plan. Click a table to edit it.</p>
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><LayoutGrid className="w-5 h-5" /> {t("floorDesigner.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("floorDesigner.subtitle")}</p>
         </div>
         {dirty && (
           <Button size="sm" onClick={handleSaveLayout} disabled={saveLayout.isPending}>
-            {saveLayout.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Save Layout
+            {saveLayout.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} {t("floorDesigner.saveLayout")}
           </Button>
         )}
       </div>
@@ -148,7 +144,7 @@ export function FloorDesignerView() {
       <div className="flex gap-4">
         {/* Floors sidebar */}
         <div className="w-56 shrink-0 space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase">Floors</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase">{t("floorDesigner.floors")}</p>
           {layout.map(f => (
             <div key={f.id}
               className={cn("group flex items-center gap-1 rounded-lg border px-2 py-2 cursor-pointer",
@@ -176,7 +172,7 @@ export function FloorDesignerView() {
           ))}
           <Can permission="restaurant.tables.create">
             <div className="flex gap-1">
-              <Input value={newFloorName} onChange={e => setNewFloorName(e.target.value)} placeholder="New floor…" className="h-8 text-xs" />
+              <Input value={newFloorName} onChange={e => setNewFloorName(e.target.value)} placeholder={t("floorDesigner.newFloorPlaceholder")} className="h-8 text-xs" />
               <Button size="sm" variant="outline" className="h-8 px-2"
                 disabled={!newFloorName.trim()}
                 onClick={() => { createFloor.mutate({ name: newFloorName.trim(), sortOrder: layout.length }); setNewFloorName(""); }}>
@@ -188,11 +184,11 @@ export function FloorDesignerView() {
           {floor && (
             <>
               <button onClick={() => setShowAreas(true)} className="text-xs text-primary hover:underline mt-3">
-                Manage dining areas ({floor.diningAreas.length})
+                {t("floorDesigner.manageAreas", { n: floor.diningAreas.length })}
               </button>
               <Can permission="restaurant.tables.create">
                 <Button size="sm" variant="outline" className="w-full mt-1" onClick={() => setShowAddTable(true)}>
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Table
+                  <Plus className="w-3.5 h-3.5 mr-1" /> {t("floorDesigner.addTable")}
                 </Button>
               </Can>
             </>
@@ -200,8 +196,8 @@ export function FloorDesignerView() {
 
           {unassigned.length > 0 && (
             <div className="mt-4 pt-3 border-t border-border">
-              <p className="text-xs font-semibold text-amber-500 uppercase mb-1">Unassigned ({unassigned.length})</p>
-              <p className="text-[11px] text-muted-foreground mb-2">Legacy tables not yet placed on a floor.</p>
+              <p className="text-xs font-semibold text-amber-500 uppercase mb-1">{t("floorDesigner.unassignedHeading", { n: unassigned.length })}</p>
+              <p className="text-[11px] text-muted-foreground mb-2">{t("floorDesigner.unassignedHint")}</p>
               {unassigned.map(t => (
                 <button key={t.id} onClick={() => setSelectedTableId(t.id)}
                   className="w-full text-left text-xs px-2 py-1 rounded hover:bg-muted/30 text-foreground">
@@ -215,7 +211,7 @@ export function FloorDesignerView() {
         {/* Canvas */}
         <div className="flex-1 overflow-auto border border-border rounded-xl bg-muted/10">
           {!floor ? (
-            <div className="p-10 text-center text-muted-foreground text-sm">Create a floor to start designing your layout.</div>
+            <div className="p-10 text-center text-muted-foreground text-sm">{t("floorDesigner.emptyCanvas")}</div>
           ) : (
             <div ref={canvasRef} className="relative" style={{ width: CANVAS_W, height: CANVAS_H }}
               onPointerMove={onPointerMove}>
@@ -302,6 +298,7 @@ function TableDetailPanel({ table, allTablesOnFloor, areas, onClose, onUpdate, o
   onMerge: (targetId: string) => void;
   onUnmerge: () => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [tableNumber, setTableNumber] = React.useState(table.tableNumber);
   const [section, setSection] = React.useState(table.section);
   const [capacity, setCapacity] = React.useState(table.capacity);
@@ -316,59 +313,59 @@ function TableDetailPanel({ table, allTablesOnFloor, areas, onClose, onUpdate, o
   return (
     <div className="w-72 shrink-0 bg-card border border-border rounded-xl p-4 space-y-3 h-fit">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Table {table.tableNumber}</p>
+        <p className="text-sm font-semibold text-foreground">{t("floorDesigner.detail.heading", { number: table.tableNumber })}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
 
       <Button size="sm" variant="outline" className="w-full" onClick={() => setShowQr(true)}>
-        <QrCode className="w-3.5 h-3.5 mr-1" /> QR Ordering Code
+        <QrCode className="w-3.5 h-3.5 mr-1" /> {t("floorDesigner.detail.qrButton")}
       </Button>
       {showQr && <QrCodeModal tableId={table.id} onClose={() => setShowQr(false)} />}
 
       <Can permission="restaurant.tables.edit" fallback={
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>Section: {table.section}</p><p>Capacity: {table.capacity}</p>
+          <p>{t("floorDesigner.detail.readOnlySection", { value: table.section })}</p><p>{t("floorDesigner.detail.readOnlyCapacity", { value: table.capacity })}</p>
         </div>
       }>
         <div className="space-y-2">
           <div>
-            <label className="text-xs text-muted-foreground">Table Number</label>
+            <label className="text-xs text-muted-foreground">{t("floorDesigner.field.tableNumber")}</label>
             <Input value={tableNumber} onChange={e => setTableNumber(e.target.value)} className="h-8 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Section</label>
+            <label className="text-xs text-muted-foreground">{t("floorDesigner.field.section")}</label>
             <Input value={section} onChange={e => setSection(e.target.value)} className="h-8 text-sm" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Capacity</label>
+            <label className="text-xs text-muted-foreground">{t("floorDesigner.field.capacity")}</label>
             <Input type="number" min={1} value={capacity} onChange={e => setCapacity(Number(e.target.value))} className="h-8 text-sm" />
           </div>
           {areas.length > 0 && (
             <div>
-              <label className="text-xs text-muted-foreground">Dining Area</label>
+              <label className="text-xs text-muted-foreground">{t("floorDesigner.field.diningArea")}</label>
               <select value={areaId} onChange={e => setAreaId(e.target.value)}
                 className="w-full h-8 text-sm rounded-md border border-border bg-card px-2">
-                <option value="">Unassigned</option>
+                <option value="">{t("floorDesigner.field.unassignedOption")}</option>
                 {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
           )}
           <Button size="sm" className="w-full"
             onClick={() => onUpdate({ tableNumber, section, capacity, diningAreaId: areaId || null })}>
-            Save Changes
+            {t("floorDesigner.detail.save")}
           </Button>
         </div>
 
         <div className="pt-2 border-t border-border space-y-2">
           {table.isMerged ? (
             <Button size="sm" variant="outline" className="w-full" onClick={onUnmerge}>
-              <Unlink className="w-3.5 h-3.5 mr-1" /> Unmerge Table
+              <Unlink className="w-3.5 h-3.5 mr-1" /> {t("floorDesigner.detail.unmerge")}
             </Button>
           ) : allTablesOnFloor.length > 0 && (
             <div className="flex gap-1">
               <select value={mergeTarget} onChange={e => setMergeTarget(e.target.value)}
                 className="flex-1 h-8 text-xs rounded-md border border-border bg-card px-2">
-                <option value="">Merge into…</option>
+                <option value="">{t("floorDesigner.detail.mergeInto")}</option>
                 {allTablesOnFloor.map(t => <option key={t.id} value={t.id}>{t.tableNumber}</option>)}
               </select>
               <Button size="sm" variant="outline" className="h-8 px-2" disabled={!mergeTarget}
@@ -378,7 +375,7 @@ function TableDetailPanel({ table, allTablesOnFloor, areas, onClose, onUpdate, o
             </div>
           )}
           <Button size="sm" variant="outline" className="w-full text-destructive hover:bg-destructive/10" onClick={onDelete}>
-            <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Table
+            <Trash2 className="w-3.5 h-3.5 mr-1" /> {t("floorDesigner.detail.delete")}
           </Button>
         </div>
       </Can>
@@ -394,6 +391,7 @@ function AreasModal({ floorId, areas, onClose, onCreate, onUpdate, onDelete }: {
   onUpdate: (id: string, p: { name: string; type: DiningAreaType; sortOrder: number }) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState("");
   const [type, setType] = React.useState<DiningAreaType>("indoor");
   const canEdit = useCan("restaurant.tables.edit");
@@ -402,7 +400,7 @@ function AreasModal({ floorId, areas, onClose, onCreate, onUpdate, onDelete }: {
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-md">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Dining Areas</p>
+        <p className="text-sm font-semibold text-foreground">{t("floorDesigner.areas.title")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
 
@@ -413,22 +411,22 @@ function AreasModal({ floorId, areas, onClose, onCreate, onUpdate, onDelete }: {
               onBlur={e => e.target.value.trim() && e.target.value !== a.name && onUpdate(a.id, { name: e.target.value.trim(), type: a.type, sortOrder: a.sortOrder })} />
             <select defaultValue={a.type} disabled={!canEdit} className="h-7 text-xs rounded-md border border-border bg-card px-1"
               onChange={e => onUpdate(a.id, { name: a.name, type: e.target.value as DiningAreaType, sortOrder: a.sortOrder })}>
-              {AREA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {AREA_TYPES.map(at => <option key={at} value={at}>{t(`floorDesigner.areaType.${at}`)}</option>)}
             </select>
             {canEdit && (
               <button onClick={() => onDelete(a.id)}><Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" /></button>
             )}
           </div>
         ))}
-        {areas.length === 0 && <p className="text-xs text-muted-foreground">No dining areas yet — add one below.</p>}
+        {areas.length === 0 && <p className="text-xs text-muted-foreground">{t("floorDesigner.areas.empty")}</p>}
       </div>
 
       {canCreate && (
         <div className="flex gap-2 pt-2 border-t border-border">
-          <Input value={name} onChange={e => setName(e.target.value)} placeholder="Area name…" className="h-8 text-sm flex-1" />
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("floorDesigner.areas.namePlaceholder")} className="h-8 text-sm flex-1" />
           <select value={type} onChange={e => setType(e.target.value as DiningAreaType)}
             className="h-8 text-sm rounded-md border border-border bg-card px-2">
-            {AREA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            {AREA_TYPES.map(at => <option key={at} value={at}>{t(`floorDesigner.areaType.${at}`)}</option>)}
           </select>
           <Button size="sm" disabled={!name.trim()}
             onClick={() => { onCreate({ name: name.trim(), type, sortOrder: areas.length }); setName(""); }}>
@@ -445,6 +443,7 @@ function AddTableModal({ areas, onClose, onCreate }: {
   onClose: () => void;
   onCreate: (p: { tableNumber: string; section: string; capacity: number; diningAreaId?: string | null }) => void;
 }) {
+  const { t } = useTranslation("restaurant");
   const [tableNumber, setTableNumber] = React.useState("");
   const [section, setSection] = React.useState("indoor");
   const [capacity, setCapacity] = React.useState(4);
@@ -453,24 +452,24 @@ function AddTableModal({ areas, onClose, onCreate }: {
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-sm">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">Add Table</p>
+        <p className="text-sm font-semibold text-foreground">{t("floorDesigner.addTableModal.title")}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Table Number</label>
-        <Input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder="T-12" className="h-9 text-sm" />
+        <label className="text-xs text-muted-foreground">{t("floorDesigner.field.tableNumber")}</label>
+        <Input value={tableNumber} onChange={e => setTableNumber(e.target.value)} placeholder={t("floorDesigner.addTableModal.tableNumberPlaceholder")} className="h-9 text-sm" />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Section</label>
+        <label className="text-xs text-muted-foreground">{t("floorDesigner.field.section")}</label>
         <Input value={section} onChange={e => setSection(e.target.value)} className="h-9 text-sm" />
       </div>
       <div>
-        <label className="text-xs text-muted-foreground">Capacity</label>
+        <label className="text-xs text-muted-foreground">{t("floorDesigner.field.capacity")}</label>
         <Input type="number" min={1} value={capacity} onChange={e => setCapacity(Number(e.target.value))} className="h-9 text-sm" />
       </div>
       {areas.length > 0 && (
         <div>
-          <label className="text-xs text-muted-foreground">Dining Area</label>
+          <label className="text-xs text-muted-foreground">{t("floorDesigner.field.diningArea")}</label>
           <select value={areaId} onChange={e => setAreaId(e.target.value)}
             className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
             {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -479,13 +478,14 @@ function AddTableModal({ areas, onClose, onCreate }: {
       )}
       <Button className="w-full" disabled={!tableNumber.trim() || !section.trim()}
         onClick={() => onCreate({ tableNumber: tableNumber.trim(), section: section.trim(), capacity, diningAreaId: areaId || null })}>
-        <Plus className="w-4 h-4 mr-1" /> Add Table
+        <Plus className="w-4 h-4 mr-1" /> {t("floorDesigner.addTableModal.title")}
       </Button>
     </LeftDrawer>
   );
 }
 
 function QrCodeModal({ tableId, onClose }: { tableId: string; onClose: () => void }) {
+  const { t } = useTranslation("restaurant");
   const { data, isLoading } = useTableQrCode(tableId);
   const [kioskMode, setKioskMode] = React.useState(false);
   const url = data ? (kioskMode ? `${data.url}?kiosk=1` : data.url) : "";
@@ -494,26 +494,26 @@ function QrCodeModal({ tableId, onClose }: { tableId: string; onClose: () => voi
     <LeftDrawer onClose={onClose} widthClassName="max-w-xs">
       <div className="text-center space-y-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">QR Ordering Code</p>
+          <p className="text-sm font-semibold text-foreground">{t("floorDesigner.qr.title")}</p>
           <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
         {isLoading || !data ? (
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mx-auto my-8" />
         ) : (
           <>
-            <img src={data.qrImageDataUri} alt="Table QR code" className="mx-auto w-48 h-48" />
+            <img src={data.qrImageDataUri} alt={t("floorDesigner.qr.imageAlt")} className="mx-auto w-48 h-48" />
             <label className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               <input type="checkbox" checked={kioskMode} onChange={e => setKioskMode(e.target.checked)} />
-              Kiosk mode (for a self-order kiosk device, not a guest's phone)
+              {t("floorDesigner.qr.kioskMode")}
             </label>
             <p className="text-xs text-muted-foreground break-all">{url}</p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" className="flex-1"
-                onClick={() => { navigator.clipboard.writeText(url); toast.success("Link copied."); }}>
-                Copy Link
+                onClick={() => { navigator.clipboard.writeText(url); toast.success(t("floorDesigner.qr.copied")); }}>
+                {t("floorDesigner.qr.copyLink")}
               </Button>
               <Button size="sm" className="flex-1" onClick={() => window.open(url, "_blank")}>
-                Preview
+                {t("floorDesigner.qr.preview")}
               </Button>
             </div>
           </>

@@ -18,7 +18,7 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("finance")
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -85,14 +85,17 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountNumber")
-                        .IsUnique();
+                    b.HasIndex("AccountNumber");
 
                     b.HasIndex("AccountType");
 
                     b.HasIndex("AccountTypeId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "AccountNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL");
 
                     b.ToTable("accounts", "finance");
                 });
@@ -139,12 +142,15 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
+                    b.HasIndex("Code");
 
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ParentId", "SortOrder");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL");
 
                     b.ToTable("account_types", "finance");
                 });
@@ -735,6 +741,9 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("PaymentJournalEntryId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
                         .IsRequired()

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -39,22 +40,23 @@ interface ClientPaginationProps {
   hasNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  /** Plural noun for the count label, e.g. "brands". Default "items". */
+  /** Already-translated plural noun for the count label, e.g. "brands". Defaults to a localized "items". */
   label?: string;
 }
 
 export function ClientPagination({
-  page, totalPages, totalCount, hasPrev, hasNext, onPrev, onNext, label = "items",
+  page, totalPages, totalCount, hasPrev, hasNext, onPrev, onNext, label,
 }: ClientPaginationProps) {
+  const { t } = useTranslation("common");
   if (totalPages <= 1) return null;
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground text-xs">
-        Page {page} of {totalPages} ({totalCount} {label})
+        {t("pagination.info", { page, totalPages, count: totalCount, label: label ?? t("pagination.items") })}
       </span>
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" className="h-8" disabled={!hasPrev} onClick={onPrev}>Prev</Button>
-        <Button variant="outline" size="sm" className="h-8" disabled={!hasNext} onClick={onNext}>Next</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={!hasPrev} onClick={onPrev}>{t("pagination.prev")}</Button>
+        <Button variant="outline" size="sm" className="h-8" disabled={!hasNext} onClick={onNext}>{t("pagination.next")}</Button>
       </div>
     </div>
   );

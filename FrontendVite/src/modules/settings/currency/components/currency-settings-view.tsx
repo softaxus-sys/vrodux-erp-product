@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { RefreshCw, Coins, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const CURRENCY_OPTIONS = [
 ];
 
 export function CurrencySettingsView() {
+  const { t } = useTranslation("settings");
   const operating = useCurrency();
   const { data: rates = [], isLoading } = useExchangeRates();
   const refresh = useRefreshRates();
@@ -50,16 +52,16 @@ export function CurrencySettingsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Currency & Exchange Rates</h1>
+          <h1 className="text-2xl font-bold">{t("currency.title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            USD is the base currency. Rates are fetched live and used to convert amounts across currencies.
+            {t("currency.description")}
           </p>
         </div>
         <Can permission="finance.accounting.edit">
           <Button size="sm" variant="outline" className="gap-1.5 h-9"
             onClick={() => refresh.mutate()} disabled={refresh.isPending}>
             <RefreshCw className={cn("h-4 w-4", refresh.isPending && "animate-spin")} />
-            Refresh now
+            {t("currency.refreshNow")}
           </Button>
         </Can>
       </div>
@@ -68,7 +70,7 @@ export function CurrencySettingsView() {
       <div className="bg-card border border-border rounded-xl p-5">
         <div className="flex items-center gap-2 mb-3">
           <Coins className="h-4 w-4 text-primary" />
-          <h2 className="font-semibold text-sm">Operating currency</h2>
+          <h2 className="font-semibold text-sm">{t("currency.operating")}</h2>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
           The currency your amounts are displayed in across the app. Base for exchange rates is always USD.
@@ -81,15 +83,15 @@ export function CurrencySettingsView() {
           <Button size="sm" className="h-9"
             disabled={selected === operating || updateCurrency.isPending}
             onClick={() => updateCurrency.mutate(selected)}>
-            {updateCurrency.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            {updateCurrency.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("currency.save")}
           </Button>
-          <span className="text-xs text-muted-foreground ml-1">Current: <b className="text-foreground">{operating}</b></span>
+          <span className="text-xs text-muted-foreground ml-1">{t("currency.current")} <b className="text-foreground">{operating}</b></span>
         </div>
       </div>
 
       {/* Converter preview */}
       <div className="bg-card border border-border rounded-xl p-5">
-        <h2 className="font-semibold text-sm mb-3">Converter</h2>
+        <h2 className="font-semibold text-sm mb-3">{t("currency.converter")}</h2>
         <div className="flex flex-wrap items-center gap-2">
           <Input type="number" value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
@@ -108,15 +110,15 @@ export function CurrencySettingsView() {
           </span>
         </div>
         {!rateMap[from] || !rateMap[to] ? (
-          <p className="text-[11px] text-warning mt-2">Rate unavailable for one of these currencies — showing the input amount.</p>
+          <p className="text-[11px] text-warning mt-2">{t("currency.rateUnavailable")}</p>
         ) : null}
       </div>
 
       {/* Rates table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-          <h2 className="font-semibold text-sm">Exchange rates <span className="text-muted-foreground font-normal">(USD base)</span></h2>
-          {asOf && <span className="text-xs text-muted-foreground">As of {formatDate(asOf)}</span>}
+          <h2 className="font-semibold text-sm">{t("currency.rates")} <span className="text-muted-foreground font-normal">{t("currency.usdBase")}</span></h2>
+          {asOf && <span className="text-xs text-muted-foreground">{t("currency.asOf", { date: formatDate(asOf) })}</span>}
         </div>
         {isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -124,9 +126,9 @@ export function CurrencySettingsView() {
           <table className="w-full text-sm">
             <thead className="bg-muted/30 border-b border-border">
               <tr>
-                <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</th>
-                <th className="px-5 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">USD per 1 unit</th>
-                <th className="px-5 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Units per 1 USD</th>
+                <th className="px-5 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("currency.colCurrency")}</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("currency.colUsdPerUnit")}</th>
+                <th className="px-5 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("currency.colUnitsPerUsd")}</th>
               </tr>
             </thead>
             <tbody>
@@ -143,7 +145,7 @@ export function CurrencySettingsView() {
                 </tr>
               ))}
               {latest.length === 0 && (
-                <tr><td colSpan={3} className="px-5 py-10 text-center text-muted-foreground text-sm">No rates yet — click “Refresh now”.</td></tr>
+                <tr><td colSpan={3} className="px-5 py-10 text-center text-muted-foreground text-sm">{t("currency.noRates")}</td></tr>
               )}
             </tbody>
           </table>

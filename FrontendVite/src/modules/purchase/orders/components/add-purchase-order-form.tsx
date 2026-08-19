@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,12 +9,6 @@ import { useCurrency } from "@/hooks/use-currency";
 import { useCreatePurchaseOrder } from "@/hooks/purchase/use-purchase-orders";
 import { useAllPurchaseVendors } from "@/hooks/purchase/use-vendors";
 import { ProductPicker } from "./product-picker";
-
-const TAX_OPTIONS = [
-  { label: "Standard (17%)", rate: 17 },
-  { label: "Zero Rated (0%)", rate: 0 },
-  { label: "Exempt", rate: 0 },
-];
 
 interface POLine {
   id: string;
@@ -34,7 +29,14 @@ interface AddPurchaseOrderFormProps {
 }
 
 export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProps) {
+  const { t } = useTranslation("purchase");
   const currency = useCurrency();
+
+  const TAX_OPTIONS = [
+    { label: t("orders.form.tax") + " (17%)", rate: 17 },
+    { label: "Zero Rated (0%)", rate: 0 },
+    { label: t("orders.form.tax") + " (Exempt)", rate: 0 },
+  ];
   const [vendorId, setVendorId]         = React.useState("");
   const [expectedDate, setExpectedDate] = React.useState("");
   const [taxRate, setTaxRate]           = React.useState(17);
@@ -105,8 +107,8 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-bold text-foreground">New Purchase Order</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Create a purchase order to send to a vendor</p>
+                <h2 className="text-base font-bold text-foreground">{t("orders.form.title")}</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("orders.form.description")}</p>
               </div>
               <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -118,24 +120,24 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
               {/* Header fields */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2 space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vendor *</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.vendor")}</label>
                   <select
                     value={vendorId}
                     onChange={e => setVendorId(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
-                    <option value="">{vendorsLoading ? "Loading vendors…" : "Select vendor…"}</option>
+                    <option value="">{vendorsLoading ? t("common.loading") : t("common.select")}</option>
                     {vendors.map(v => (
                       <option key={v.id} value={v.id}>{v.name}{v.code ? ` (${v.code})` : ""}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expected Date</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.expectedDelivery")}</label>
                   <Input type="date" value={expectedDate} onChange={e => setExpectedDate(e.target.value)} className="h-9 text-sm" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tax Rate</label>
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.tax")}</label>
                   <select value={taxRate} onChange={e => setTaxRate(+e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {TAX_OPTIONS.map(v => <option key={v.label} value={v.rate}>{v.label}</option>)}
@@ -146,19 +148,19 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
               {/* Purchase Lines */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Purchase Lines</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.lineItems")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setLines(p => [...p, newLine(taxRate)])} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> Add Line
+                    <Plus className="w-3 h-3" /> {t("common.add")}
                   </Button>
                 </div>
                 <div className="border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-sm">
                     <thead className="bg-muted/30 border-b border-border">
                       <tr>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">Description</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-16">Qty</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">Unit Cost</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">Total</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("orders.form.description")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-16">{t("orders.form.qty")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("orders.form.unitPrice")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("orders.form.subtotal")}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -199,17 +201,17 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                     </tbody>
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
-                        <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">Subtotal</td>
+                        <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">{t("orders.form.subtotal")}</td>
                         <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(subtotal, currency)}</td>
                         <td />
                       </tr>
                       <tr>
-                        <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">Tax ({taxRate}%)</td>
+                        <td colSpan={3} className="px-3 py-2 text-right text-muted-foreground font-medium">{t("orders.form.tax")} ({taxRate}%)</td>
                         <td className="px-3 py-2 text-right font-semibold text-foreground">{formatCurrency(taxAmount, currency)}</td>
                         <td />
                       </tr>
                       <tr className="border-t border-border">
-                        <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">Total</td>
+                        <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">{t("orders.form.total")}</td>
                         <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                         <td />
                       </tr>
@@ -220,9 +222,9 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes & Instructions</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder="Delivery instructions, quality requirements, special conditions…" rows={3}
+                  placeholder={t("common.placeholder.notes")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -230,9 +232,9 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={handleClose} disabled={isPending}>Cancel</Button>
+              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("common.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />Saving…</> : "Create Purchase Order"}
+                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common.saving")}</> : t("orders.form.button.confirm")}
               </Button>
             </div>
           </motion.div>

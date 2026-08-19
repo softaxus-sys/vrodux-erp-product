@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import { Loader2, Mail, ArrowLeft, CheckCircle, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { authApi } from "@/lib/identity/auth.api";
@@ -42,7 +43,7 @@ function getInitialMode(): "light" | "dark" {
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-  email: z.string().email("Enter a valid email address"),
+  email: z.string().email("forgot.invalidEmail"),
 });
 type Form = z.infer<typeof schema>;
 type SubmitError = string | null;
@@ -50,6 +51,7 @@ type SubmitError = string | null;
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation("auth");
   const navigate   = useNavigate();
   const [mode, setMode]         = React.useState<"light" | "dark">(getInitialMode);
   const [sent, setSent]         = React.useState(false);
@@ -76,7 +78,7 @@ export default function ForgotPasswordPage() {
     } catch (err) {
       const msg = err instanceof ApiError
         ? err.message
-        : "Something went wrong. Please try again.";
+        : t("shared.genericError");
       setSubmitError(msg);
     }
   };
@@ -98,7 +100,7 @@ export default function ForgotPasswordPage() {
         <button
           type="button"
           onClick={toggleMode}
-          aria-label="Toggle theme"
+          aria-label={t("shared.toggleTheme")}
           className="flex items-center justify-center h-7 w-7 rounded-full border transition-colors"
           style={{ color: D.muted, borderColor: D.border, background: D.faint }}
         >
@@ -129,10 +131,10 @@ export default function ForgotPasswordPage() {
                     <Mail className="h-6 w-6" style={{ color: D.accent }} />
                   </div>
                   <h1 className="text-xl font-bold mb-1" style={{ color: D.white }}>
-                    Forgot your password?
+                    {t("forgot.title")}
                   </h1>
                   <p className="text-sm" style={{ color: D.muted }}>
-                    Enter your account email and we'll send you a link to reset your password.
+                    {t("forgot.subtitle")}
                   </p>
                 </div>
 
@@ -143,7 +145,7 @@ export default function ForgotPasswordPage() {
                       className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-2"
                       style={{ color: D.muted }}
                     >
-                      Email address
+                      {t("forgot.emailLabel")}
                     </label>
                     <div className="relative">
                       <Mail
@@ -152,7 +154,7 @@ export default function ForgotPasswordPage() {
                       />
                       <input
                         type="email"
-                        placeholder="you@company.com"
+                        placeholder={t("forgot.emailPlaceholder")}
                         autoComplete="email"
                         autoFocus
                         {...register("email")}
@@ -167,7 +169,7 @@ export default function ForgotPasswordPage() {
                     </div>
                     {errors.email && (
                       <p className="mt-1.5 text-[11px]" style={{ color: "#ef4444" }}>
-                        {errors.email.message}
+                        {t(errors.email.message as string)}
                       </p>
                     )}
                   </div>
@@ -189,8 +191,8 @@ export default function ForgotPasswordPage() {
                     style={{ background: D.accent, color: "#fff" }}
                   >
                     {isSubmitting
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-                      : "Send reset link"}
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("shared.sending")}</>
+                      : t("forgot.submit")}
                   </button>
                 </form>
 
@@ -202,7 +204,7 @@ export default function ForgotPasswordPage() {
                     style={{ color: D.muted }}
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
-                    Back to login
+                    {t("shared.backToLogin")}
                   </Link>
                 </div>
               </>
@@ -219,17 +221,17 @@ export default function ForgotPasswordPage() {
                   <CheckCircle className="h-8 w-8 text-green-500" />
                 </motion.div>
                 <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>
-                  Password reset link sent!
+                  {t("forgot.sentTitle")}
                 </h2>
                 <p className="text-sm mb-1" style={{ color: D.muted }}>
-                  We sent a password reset link to
+                  {t("forgot.sentTo")}
                 </p>
                 <p className="text-sm font-semibold mb-3" style={{ color: D.white }}>
                   {sentEmail}
                 </p>
                 <p className="text-xs mb-8" style={{ color: D.muted }}>
-                  Click the link in the email to reset your password. It expires in 60 minutes.<br />
-                  Check your spam folder if you don't see it.
+                  {t("forgot.sentHint")}<br />
+                  {t("forgot.sentSpam")}
                 </p>
                 <div className="flex flex-col gap-3">
                   <button
@@ -238,14 +240,14 @@ export default function ForgotPasswordPage() {
                     className="w-full h-10 rounded-lg text-sm font-medium border transition-colors"
                     style={{ borderColor: D.border, color: D.muted, background: D.faint }}
                   >
-                    Resend email
+                    {t("forgot.resend")}
                   </button>
                   <Link
                     to="/auth/login"
                     className="w-full h-10 rounded-lg text-sm font-semibold flex items-center justify-center transition-opacity"
                     style={{ background: D.accent, color: "#fff" }}
                   >
-                    Back to login
+                    {t("shared.backToLogin")}
                   </Link>
                 </div>
               </div>

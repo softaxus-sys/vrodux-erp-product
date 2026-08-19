@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
+import { Trans, useTranslation } from "react-i18next";
 import { Loader2, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { authApi } from "@/lib/identity/auth.api";
@@ -42,10 +43,10 @@ function getInitialMode(): "light" | "dark" {
 // ── Schema ────────────────────────────────────────────────────────────────────
 
 const schema = z.object({
-  newPassword: z.string().min(8, "Minimum 8 characters"),
+  newPassword: z.string().min(8, "reset.minLength"),
   confirmPassword: z.string(),
 }).refine(d => d.newPassword === d.confirmPassword, {
-  message: "Passwords do not match",
+  message: "reset.mismatch",
   path: ["confirmPassword"],
 });
 type Form = z.infer<typeof schema>;
@@ -53,6 +54,7 @@ type Form = z.infer<typeof schema>;
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation("auth");
   const navigate            = useNavigate();
   const [params]            = useSearchParams();
   const [mode, setMode]     = React.useState<"light" | "dark">(getInitialMode);
@@ -80,7 +82,7 @@ export default function ResetPasswordPage() {
       await authApi.resetPassword(email, token, data.newPassword);
       setDone(true);
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
+      const msg = err instanceof ApiError ? err.message : t("shared.genericError");
       toast.error(msg);
     }
   };
@@ -102,7 +104,7 @@ export default function ResetPasswordPage() {
         <button
           type="button"
           onClick={toggleMode}
-          aria-label="Toggle theme"
+          aria-label={t("shared.toggleTheme")}
           className="flex items-center justify-center h-7 w-7 rounded-full border transition-colors"
           style={{ color: D.muted, borderColor: D.border, background: D.faint }}
         >
@@ -131,16 +133,16 @@ export default function ResetPasswordPage() {
                 >
                   <AlertCircle className="h-8 w-8 text-red-500" />
                 </div>
-                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>Invalid reset link</h2>
+                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>{t("reset.invalidTitle")}</h2>
                 <p className="text-sm mb-6" style={{ color: D.muted }}>
-                  This link is missing required parameters. Please request a new password reset.
+                  {t("reset.invalidBody")}
                 </p>
                 <Link
                   to="/auth/forgot-password"
                   className="inline-flex h-10 px-6 rounded-lg text-sm font-semibold items-center justify-center"
                   style={{ background: D.accent, color: "#fff" }}
                 >
-                  Request new link
+                  {t("reset.requestNew")}
                 </Link>
               </div>
             )}
@@ -157,9 +159,9 @@ export default function ResetPasswordPage() {
                 >
                   <CheckCircle className="h-8 w-8 text-green-500" />
                 </motion.div>
-                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>Password updated!</h2>
+                <h2 className="text-lg font-bold mb-2" style={{ color: D.white }}>{t("reset.doneTitle")}</h2>
                 <p className="text-sm mb-8" style={{ color: D.muted }}>
-                  Your password has been reset successfully. You can now log in with your new password.
+                  {t("reset.doneBody")}
                 </p>
                 <button
                   type="button"
@@ -167,7 +169,7 @@ export default function ResetPasswordPage() {
                   className="w-full h-11 rounded-lg text-sm font-semibold"
                   style={{ background: D.accent, color: "#fff" }}
                 >
-                  Go to login
+                  {t("shared.goToLogin")}
                 </button>
               </div>
             )}
@@ -183,10 +185,11 @@ export default function ResetPasswordPage() {
                     <Lock className="h-6 w-6" style={{ color: D.accent }} />
                   </div>
                   <h1 className="text-xl font-bold mb-1" style={{ color: D.white }}>
-                    Set new password
+                    {t("reset.title")}
                   </h1>
                   <p className="text-sm" style={{ color: D.muted }}>
-                    Choose a strong password for <span style={{ color: D.white }}>{email}</span>
+                    <Trans t={t} i18nKey="reset.subtitle" values={{ email }}
+                      components={{ s: <span style={{ color: D.white }} /> }} />
                   </p>
                 </div>
 
@@ -197,7 +200,7 @@ export default function ResetPasswordPage() {
                       className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-2"
                       style={{ color: D.muted }}
                     >
-                      New password
+                      {t("reset.newPassword")}
                     </label>
                     <div className="relative">
                       <Lock
@@ -228,7 +231,7 @@ export default function ResetPasswordPage() {
                     </div>
                     {errors.newPassword && (
                       <p className="mt-1.5 text-[11px]" style={{ color: "#ef4444" }}>
-                        {errors.newPassword.message}
+                        {t(errors.newPassword.message as string)}
                       </p>
                     )}
                   </div>
@@ -239,7 +242,7 @@ export default function ResetPasswordPage() {
                       className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-2"
                       style={{ color: D.muted }}
                     >
-                      Confirm password
+                      {t("reset.confirmPassword")}
                     </label>
                     <div className="relative">
                       <Lock
@@ -269,7 +272,7 @@ export default function ResetPasswordPage() {
                     </div>
                     {errors.confirmPassword && (
                       <p className="mt-1.5 text-[11px]" style={{ color: "#ef4444" }}>
-                        {errors.confirmPassword.message}
+                        {t(errors.confirmPassword.message as string)}
                       </p>
                     )}
                   </div>
@@ -281,8 +284,8 @@ export default function ResetPasswordPage() {
                     style={{ background: D.accent, color: "#fff" }}
                   >
                     {isSubmitting
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Updating…</>
-                      : "Update password"}
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("reset.updating")}</>
+                      : t("reset.submit")}
                   </button>
                 </form>
 
@@ -292,7 +295,7 @@ export default function ResetPasswordPage() {
                     className="text-sm transition-colors hover:underline"
                     style={{ color: D.muted }}
                   >
-                    Back to login
+                    {t("shared.backToLogin")}
                   </Link>
                 </div>
               </>

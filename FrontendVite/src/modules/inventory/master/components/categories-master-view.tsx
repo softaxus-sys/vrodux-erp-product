@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Search, Pencil, Trash2, FolderTree, ChevronRight, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ interface CategoryDialogProps {
 }
 
 function CategoryDialog({ open, onClose, categories, editing }: CategoryDialogProps) {
+  const { t } = useTranslation("inventory");
   const [name, setName]         = React.useState("");
   const [code, setCode]         = React.useState("");
   const [description, setDesc]  = React.useState("");
@@ -77,21 +79,21 @@ function CategoryDialog({ open, onClose, categories, editing }: CategoryDialogPr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h2 className="text-base font-bold">{editing ? "Edit Category" : "New Category"}</h2>
+        <h2 className="text-base font-bold">{editing ? t("categories.editTitle") : t("categories.newTitle")}</h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="Category name" required className="h-9 text-sm" />
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("master.name")}</label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("categories.namePlaceholder")} required className="h-9 text-sm" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Code</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("master.code")}</label>
             <Input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="CAT-001" className="h-9 text-sm font-mono" />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Parent Category</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("categories.parentCategory")}</label>
             <select value={parentId} onChange={e => setParentId(e.target.value)}
               className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-              <option value="">— None (top-level) —</option>
+              <option value="">{t("categories.topLevelNone")}</option>
               {parentOptions.filter(c => !c.parentId).map(c => (
                 <React.Fragment key={c.id}>
                   <option value={c.id}>{c.name}</option>
@@ -103,21 +105,21 @@ function CategoryDialog({ open, onClose, categories, editing }: CategoryDialogPr
             </select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("master.description")}</label>
             <textarea value={description} onChange={e => setDesc(e.target.value)} rows={2}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Optional description…" />
+              placeholder={t("master.optionalDescription")} />
           </div>
           {editing && (
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="rounded" />
-              <span className="text-sm">Active</span>
+              <span className="text-sm">{t("master.active")}</span>
             </label>
           )}
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>{t("master.cancel")}</Button>
             <Button type="submit" disabled={!name.trim() || isPending}>
-              {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Saving…</> : (editing ? "Save Changes" : "Create")}
+              {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{t("master.saving")}</> : (editing ? t("master.saveChanges") : t("master.create"))}
             </Button>
           </div>
         </form>
@@ -129,6 +131,7 @@ function CategoryDialog({ open, onClose, categories, editing }: CategoryDialogPr
 // ── Main View ─────────────────────────────────────────────────────────────────
 
 export function CategoriesMasterView() {
+  const { t } = useTranslation("inventory");
   const [search, setSearch]       = React.useState("");
   const [dialogOpen, setDialog]   = React.useState(false);
   const [editing, setEditing]     = React.useState<ProductCategoryDto | null>(null);
@@ -145,7 +148,7 @@ export function CategoriesMasterView() {
   const handleCreate = () => { setEditing(null); setDialog(true); };
   const handleDelete = (c: ProductCategoryDto) => {
     if (c.productCount > 0) {
-      toast.error("Cannot delete a category that has products.");
+      toast.error(t("categories.cannotDelete"));
       return;
     }
     setPendingDelete(c);
@@ -163,13 +166,13 @@ export function CategoriesMasterView() {
         <div className="flex items-center gap-2">
           <FolderTree className="w-5 h-5 text-primary" />
           <div>
-            <h1 className="text-lg font-bold">Item Categories</h1>
-            <p className="text-xs text-muted-foreground">Hierarchical product classification</p>
+            <h1 className="text-lg font-bold">{t("categories.title")}</h1>
+            <p className="text-xs text-muted-foreground">{t("categories.subtitle")}</p>
           </div>
         </div>
         <Can permission="inventory.stock.create">
           <Button size="sm" onClick={handleCreate}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Category
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> {t("categories.newCategory")}
           </Button>
         </Can>
       </div>
@@ -177,14 +180,14 @@ export function CategoriesMasterView() {
       {/* Search */}
       <div className="relative w-72">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search categories…" className="pl-8 h-9 text-sm" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("categories.search")} className="pl-8 h-9 text-sm" />
       </div>
 
       {/* Tree */}
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
       ) : categories.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground text-sm">No categories found. Create the first one.</div>
+        <div className="text-center py-16 text-muted-foreground text-sm">{t("categories.empty")}</div>
       ) : (
         <div className="border border-border rounded-xl overflow-hidden divide-y divide-border">
           {pg.pageItems.map(cat => {
@@ -198,9 +201,9 @@ export function CategoriesMasterView() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{cat.name}</span>
                       {cat.code && <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{cat.code}</span>}
-                      {!cat.isActive && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Inactive</span>}
+                      {!cat.isActive && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">{t("master.inactive")}</span>}
                     </div>
-                    <p className="text-[11px] text-muted-foreground">{cat.productCount} product{cat.productCount !== 1 ? "s" : ""}{children.length > 0 ? ` · ${children.length} subcategori${children.length !== 1 ? "es" : "y"}` : ""}</p>
+                    <p className="text-[11px] text-muted-foreground">{t("categories.productCount", { count: cat.productCount })}{children.length > 0 ? ` · ${t("categories.subcategoryCount", { count: children.length })}` : ""}</p>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => handleEdit(cat)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
@@ -215,9 +218,9 @@ export function CategoriesMasterView() {
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{child.name}</span>
                         {child.code && <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{child.code}</span>}
-                        {!child.isActive && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Inactive</span>}
+                        {!child.isActive && <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">{t("master.inactive")}</span>}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{child.productCount} product{child.productCount !== 1 ? "s" : ""}</p>
+                      <p className="text-[11px] text-muted-foreground">{t("categories.productCount", { count: child.productCount })}</p>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => handleEdit(child)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil className="w-3.5 h-3.5" /></button>
@@ -235,7 +238,7 @@ export function CategoriesMasterView() {
         page={pg.page} totalPages={pg.totalPages} totalCount={pg.totalCount}
         hasPrev={pg.hasPrev} hasNext={pg.hasNext}
         onPrev={() => pg.setPage(p => p - 1)} onNext={() => pg.setPage(p => p + 1)}
-        label="top-level categories"
+        label={t("categories.label")}
       />
 
       <CategoryDialog
@@ -254,14 +257,14 @@ export function CategoriesMasterView() {
                 <AlertTriangle className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <p className="font-semibold text-sm">Delete Category?</p>
-                <p className="text-xs text-muted-foreground mt-0.5">"{pendingDelete.name}" will be permanently removed.</p>
+                <p className="font-semibold text-sm">{t("categories.deleteTitle")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("master.willBeRemoved", { name: pendingDelete.name })}</p>
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setPendingDelete(null)}>Cancel</Button>
+              <Button variant="outline" size="sm" onClick={() => setPendingDelete(null)}>{t("master.cancel")}</Button>
               <Button variant="destructive" size="sm" onClick={confirmDelete} disabled={deleteCategory.isPending}>
-                {deleteCategory.isPending ? "Deleting…" : "Delete"}
+                {deleteCategory.isPending ? t("master.deleting") : t("master.delete")}
               </Button>
             </div>
           </div>

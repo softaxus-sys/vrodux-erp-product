@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Check, XCircle, Plane,
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
-import type { LeaveRequestDto as LeaveRequest, LeaveStatus, LeaveType } from "@/lib/hr/hr.api";
+import type { LeaveRequestDto as LeaveRequest, LeaveStatus } from "@/lib/hr/hr.api";
 import { useLeaveRequests, useLeaveBalances, useLeaveSummary, useApproveLeave, useRejectLeave } from "@/hooks/hr/use-hr";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
@@ -17,18 +18,15 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { AddLeaveForm } from "./add-leave-form";
 import { Can } from "@/components/auth/can";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
-  pending:   { label: "Pending",   color: "text-warning",          bg: "bg-warning/10",     icon: Clock },
-  approved:  { label: "Approved",  color: "text-success",          bg: "bg-success/10",     icon: CheckCircle2 },
-  rejected:  { label: "Rejected",  color: "text-destructive",      bg: "bg-destructive/10", icon: XCircle },
-  cancelled: { label: "Cancelled", color: "text-muted-foreground", bg: "bg-muted",          icon: XCircle },
+const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+  pending:   { color: "text-warning",          bg: "bg-warning/10",     icon: Clock },
+  approved:  { color: "text-success",          bg: "bg-success/10",     icon: CheckCircle2 },
+  rejected:  { color: "text-destructive",      bg: "bg-destructive/10", icon: XCircle },
+  cancelled: { color: "text-muted-foreground", bg: "bg-muted",          icon: XCircle },
 };
-const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted", icon: FileText };
+const STATUS_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted", icon: FileText };
 
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  annual: "Annual Leave", sick: "Sick Leave", unpaid: "Unpaid Leave",
-  maternity: "Maternity", paternity: "Paternity", emergency: "Emergency", hajj: "Hajj",
-};
+const LEAVE_TYPE_KEYS = ["annual", "sick", "unpaid", "maternity", "paternity", "emergency", "hajj"];
 
 const LEAVE_TYPE_COLORS: Record<string, string> = {
   annual:    "bg-primary/10 text-primary",
@@ -41,16 +39,19 @@ const LEAVE_TYPE_COLORS: Record<string, string> = {
 };
 
 function LeaveStatusBadge({ status }: { status: LeaveStatus }) {
+  const { t } = useTranslation("hr");
   const c = STATUS_CONFIG[status] ?? STATUS_FALLBACK;
   const Icon = c.icon;
+  const label = STATUS_CONFIG[status] ? t(`leaveStatus.${status}`) : t("employeeStatus.unknown");
   return (
     <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
-      <Icon className="h-3 w-3" />{c.label}
+      <Icon className="h-3 w-3" />{label}
     </span>
   );
 }
 
 function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null; open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("hr");
   const [showReject, setShowReject] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
   const approveLeave = useApproveLeave();
@@ -80,7 +81,7 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
             className="fixed top-0 right-0 h-full w-full max-w-md bg-background border-l border-border shadow-2xl z-50 flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <p className="font-bold text-base">Leave Request</p>
+              <p className="font-bold text-base">{t("leaves.drawer.title")}</p>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
             </div>
 
@@ -99,20 +100,20 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
 
               {/* Status */}
               <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
-                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-sm text-muted-foreground">{t("leaves.drawer.status")}</span>
                 <LeaveStatusBadge status={request.status} />
               </div>
 
               {/* Details */}
               <div className="space-y-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Request Details</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.drawer.requestDetails")}</h4>
                 {[
-                  { icon: FileText,   label: "Leave Type",    value: LEAVE_TYPE_LABELS[request.leaveType] ?? request.leaveType },
-                  { icon: Calendar,   label: "From",          value: formatDate(request.fromDate, "medium") },
-                  { icon: Calendar,   label: "To",            value: formatDate(request.toDate, "medium") },
-                  { icon: Clock,      label: "Duration",      value: `${request.days} day${request.days > 1 ? "s" : ""}` },
-                  { icon: Calendar,   label: "Applied On",    value: formatDate(request.appliedOn, "medium") },
-                  ...(request.coveringEmployee ? [{ icon: User, label: "Covered By", value: request.coveringEmployee }] : []),
+                  { icon: FileText,   label: t("leaves.drawer.leaveType"),  value: t(`leaveType.${request.leaveType}`, { defaultValue: request.leaveType }) },
+                  { icon: Calendar,   label: t("leaves.drawer.from"),       value: formatDate(request.fromDate, "medium") },
+                  { icon: Calendar,   label: t("leaves.drawer.to"),         value: formatDate(request.toDate, "medium") },
+                  { icon: Clock,      label: t("leaves.drawer.duration"),   value: t("leaves.drawer.days", { count: request.days }) },
+                  { icon: Calendar,   label: t("leaves.drawer.appliedOn"),  value: formatDate(request.appliedOn, "medium") },
+                  ...(request.coveringEmployee ? [{ icon: User, label: t("leaves.drawer.coveredBy"), value: request.coveringEmployee }] : []),
                 ].map(row => (
                   <div key={row.label} className="flex items-start gap-3 py-2 border-b border-border/40">
                     <row.icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -126,7 +127,7 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
 
               {/* Reason */}
               <div>
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Reason</h4>
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("leaves.drawer.reason")}</h4>
                 <p className="text-sm text-muted-foreground bg-muted/30 rounded-xl p-3 leading-relaxed">{request.reason}</p>
               </div>
 
@@ -135,9 +136,9 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
                 <div className="bg-success/5 border border-success/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                    <span className="text-xs font-semibold text-success">Approved</span>
+                    <span className="text-xs font-semibold text-success">{t("leaves.drawer.approved")}</span>
                   </div>
-                  <p className="text-sm">by <span className="font-medium">{request.approvedBy}</span></p>
+                  <p className="text-sm">{t("leaves.drawer.approvedBy", { name: request.approvedBy })}</p>
                   <p className="text-xs text-muted-foreground">{formatDate(request.approvedOn!, "medium")}</p>
                 </div>
               )}
@@ -145,7 +146,7 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
                 <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-1">
                     <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-                    <span className="text-xs font-semibold text-destructive">Rejection Reason</span>
+                    <span className="text-xs font-semibold text-destructive">{t("leaves.drawer.rejectionReason")}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">{request.rejectionReason}</p>
                 </div>
@@ -158,19 +159,19 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
                     exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
                     className="overflow-hidden">
                     <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 space-y-3">
-                      <p className="text-xs font-semibold text-destructive">Rejection Reason (optional)</p>
+                      <p className="text-xs font-semibold text-destructive">{t("leaves.drawer.rejectionReasonOptional")}</p>
                       <textarea
                         value={rejectReason}
                         onChange={e => setRejectReason(e.target.value)}
-                        placeholder="Provide a reason for rejection..."
+                        placeholder={t("leaves.drawer.rejectPlaceholder")}
                         rows={3}
                         className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-destructive"
                       />
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowReject(false)}>Cancel</Button>
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setShowReject(false)}>{t("leaves.drawer.cancel")}</Button>
                         <Button size="sm" className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                           onClick={handleReject} disabled={rejectLeave.isPending}>
-                          {rejectLeave.isPending ? "Rejecting…" : "Confirm Reject"}
+                          {rejectLeave.isPending ? t("leaves.drawer.rejecting") : t("leaves.drawer.confirmReject")}
                         </Button>
                       </div>
                     </div>
@@ -184,11 +185,11 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
               <div className="border-t border-border px-6 py-4 flex items-center gap-3">
                 <Button className="flex-1 gap-1.5 bg-success hover:bg-success/90 text-white"
                   onClick={handleApprove} disabled={approveLeave.isPending}>
-                  <Check className="h-4 w-4" />{approveLeave.isPending ? "Approving…" : "Approve"}
+                  <Check className="h-4 w-4" />{approveLeave.isPending ? t("leaves.drawer.approving") : t("leaves.drawer.approve")}
                 </Button>
                 <Button variant="outline" className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
                   onClick={() => setShowReject(true)}>
-                  <X className="h-4 w-4" />Reject
+                  <X className="h-4 w-4" />{t("leaves.drawer.reject")}
                 </Button>
               </div>
             )}
@@ -200,6 +201,7 @@ function LeaveDrawer({ request, open, onClose }: { request: LeaveRequest | null;
 }
 
 export function LeavesView() {
+  const { t } = useTranslation("hr");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [typeFilter, setTypeFilter] = React.useState("all");
@@ -254,24 +256,24 @@ export function LeavesView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Leave Management</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage leave requests and employee balances</p>
+          <h1 className="text-2xl font-bold">{t("leaves.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("leaves.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
-          <Can permission="hr.leaves.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />Apply Leave</Button></Can>
+          <Can permission="hr.leaves.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("leaves.applyLeave")}</Button></Can>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: "Total Requests",    value: leaveSummary?.totalRequests ?? leaveRequests.length,                                            color: "text-primary bg-primary/10",          icon: FileText },
-          { label: "Pending Approval",  value: leaveSummary?.pending       ?? leaveRequests.filter(r => r.status === "pending").length,    color: "text-warning bg-warning/10",          icon: Clock },
-          { label: "Approved",          value: leaveSummary?.approved      ?? leaveRequests.filter(r => r.status === "approved").length,   color: "text-success bg-success/10",          icon: CheckCircle2 },
-          { label: "Rejected",          value: leaveSummary?.rejected      ?? leaveRequests.filter(r => r.status === "rejected").length,   color: "text-destructive bg-destructive/10",  icon: XCircle },
-          { label: "On Leave Today",    value: leaveSummary?.onLeaveToday  ?? 0,                                                           color: "text-info bg-info/10",                icon: Plane },
-          { label: "Avg Duration",      value: `${leaveSummary?.avgLeaveDays ?? 0}d`,                                                      color: "text-muted-foreground bg-muted",      icon: Calendar },
+          { label: t("leaves.stat.totalRequests"),   value: leaveSummary?.totalRequests ?? leaveRequests.length,                                            color: "text-primary bg-primary/10",          icon: FileText },
+          { label: t("leaves.stat.pendingApproval"), value: leaveSummary?.pending       ?? leaveRequests.filter(r => r.status === "pending").length,    color: "text-warning bg-warning/10",          icon: Clock },
+          { label: t("leaves.stat.approved"),        value: leaveSummary?.approved      ?? leaveRequests.filter(r => r.status === "approved").length,   color: "text-success bg-success/10",          icon: CheckCircle2 },
+          { label: t("leaves.stat.rejected"),        value: leaveSummary?.rejected      ?? leaveRequests.filter(r => r.status === "rejected").length,   color: "text-destructive bg-destructive/10",  icon: XCircle },
+          { label: t("leaves.stat.onLeaveToday"),    value: leaveSummary?.onLeaveToday  ?? 0,                                                           color: "text-info bg-info/10",                icon: Plane },
+          { label: t("leaves.stat.avgDuration"),     value: `${leaveSummary?.avgLeaveDays ?? 0}d`,                                                      color: "text-muted-foreground bg-muted",      icon: Calendar },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -291,11 +293,11 @@ export function LeavesView() {
 
       {/* Tabs */}
       <div className="flex items-center gap-0 border-b border-border">
-        {(["requests","balances"] as const).map(t => (
-          <button key={t} onClick={() => setActiveTab(t)}
-            className={cn("px-5 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
-              activeTab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            {t === "requests" ? "Leave Requests" : "Leave Balances"}
+        {(["requests","balances"] as const).map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={cn("px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
+              activeTab === tab ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {t(`leaves.tab.${tab}`)}
           </button>
         ))}
       </div>
@@ -306,22 +308,22 @@ export function LeavesView() {
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input placeholder="Search employees..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
+                <Input placeholder={t("leaves.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex items-center gap-1">
                   {["all","pending","approved","rejected"].map(s => (
                     <button key={s} onClick={() => setStatusFilter(s)}
-                      className={cn("px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors",
+                      className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors",
                         statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-                      {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+                      {s === "all" ? t("leaves.filterAll") : t(`leaveStatus.${s}`)}
                     </button>
                   ))}
                 </div>
                 <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
                   className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring">
-                  <option value="all">All Types</option>
-                  {(Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  <option value="all">{t("leaves.allTypes")}</option>
+                  {LEAVE_TYPE_KEYS.map(k => <option key={k} value={k}>{t(`leaveType.${k}`)}</option>)}
                 </select>
               </div>
             </div>
@@ -331,14 +333,18 @@ export function LeavesView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    {["Employee","Leave Type","From","To","Days","Applied On","Status",""].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    {[
+                      ["employee", t("leaves.table.employee")], ["leaveType", t("leaves.table.leaveType")],
+                      ["from", t("leaves.table.from")], ["to", t("leaves.table.to")], ["days", t("leaves.table.days")],
+                      ["appliedOn", t("leaves.table.appliedOn")], ["status", t("leaves.table.status")], ["actions", ""],
+                    ].map(([k, h]) => (
+                      <th key={k} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">No requests found.</td></tr>
+                    <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">{t("leaves.empty")}</td></tr>
                   ) : filtered.map((req, i) => (
                     <motion.tr key={req.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: i * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(req)}>
@@ -355,7 +361,7 @@ export function LeavesView() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold", LEAVE_TYPE_COLORS[req.leaveType] ?? "bg-muted text-muted-foreground")}>
-                          {LEAVE_TYPE_LABELS[req.leaveType] ?? req.leaveType}
+                          {t(`leaveType.${req.leaveType}`, { defaultValue: req.leaveType })}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{formatDate(req.fromDate, "medium")}</td>
@@ -385,7 +391,7 @@ export function LeavesView() {
               </table>
             </div>
             <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              Showing {filtered.length} of {leaveRequests.length} requests
+              {t("leaves.showing", { shown: filtered.length, total: leaveRequests.length })}
             </div>
           </CardContent>
         </Card>
@@ -398,18 +404,18 @@ export function LeavesView() {
               <table className="w-full text-sm">
                 <thead className="border-y border-border bg-muted/30">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employee</th>
-                    {["Annual Leave", "Sick Leave", "Unpaid Leave"].map(h => (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.balances.employee")}</th>
+                    {[t("leaves.balances.annualLeave"), t("leaves.balances.sickLeave"), t("leaves.balances.unpaidLeave")].map(h => (
                       <th key={h} colSpan={3} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide border-l border-border/50">{h}</th>
                     ))}
                   </tr>
                   <tr className="border-b border-border bg-muted/10">
                     <th className="px-4 py-2" />
-                    {["Annual","Sick","Unpaid"].map(lt => (
+                    {["annual","sick","unpaid"].map(lt => (
                       <React.Fragment key={lt}>
-                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground border-l border-border/50">Entitled</th>
-                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">Taken</th>
-                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">Balance</th>
+                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground border-l border-border/50">{t("leaves.balances.entitled")}</th>
+                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">{t("leaves.balances.taken")}</th>
+                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">{t("leaves.balances.balance")}</th>
                       </React.Fragment>
                     ))}
                   </tr>

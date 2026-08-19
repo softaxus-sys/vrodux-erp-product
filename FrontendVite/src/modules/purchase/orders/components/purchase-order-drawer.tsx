@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, FileText, Send, CheckCircle2, Package, Ban,
@@ -12,24 +13,25 @@ import type { PurchaseOrderSummaryDto } from "@/lib/pos/types";
 
 interface Props { order: PurchaseOrderSummaryDto | null; open: boolean; onClose: () => void; }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType; step: number }> = {
-  draft:    { label: "Draft",    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", icon: FileText,    step: 0 },
-  sent:     { label: "Sent",     color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    icon: Send,        step: 1 },
-  partial:  { label: "Partial",  color: "text-primary",     bg: "bg-primary/10",                     icon: Package,     step: 2 },
-  received: { label: "Received", color: "text-success",     bg: "bg-success/10",                     icon: CheckCircle2,step: 3 },
-  cancelled:{ label: "Cancelled",color: "text-destructive", bg: "bg-destructive/10",                 icon: Ban,         step: -1 },
-};
-
-const STEPS = [
-  { key: "sent",     label: "Sent" },
-  { key: "partial",  label: "Partial" },
-  { key: "received", label: "Received" },
-];
-
 type Tab = "overview" | "items";
 
 export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
+  const { t } = useTranslation("purchase");
   const currency = useCurrency();
+
+  const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType; step: number }> = {
+    draft:    { label: t("orders.status.draft"),    color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", icon: FileText,    step: 0 },
+    sent:     { label: t("orders.status.sent"),     color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    icon: Send,        step: 1 },
+    partial:  { label: t("orders.status.partial"),  color: "text-primary",     bg: "bg-primary/10",                     icon: Package,     step: 2 },
+    received: { label: t("orders.status.received"), color: "text-success",     bg: "bg-success/10",                     icon: CheckCircle2,step: 3 },
+    cancelled:{ label: t("orders.status.cancelled"),color: "text-destructive", bg: "bg-destructive/10",                 icon: Ban,         step: -1 },
+  };
+
+  const STEPS = [
+    { key: "sent",     label: t("orders.status.sent") },
+    { key: "partial",  label: t("orders.status.partial") },
+    { key: "received", label: t("orders.status.received") },
+  ];
   const [tab, setTab] = React.useState<Tab>("overview");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   React.useEffect(() => { if (open) { setTab("overview"); setConfirmDelete(false); } }, [open]);
@@ -71,11 +73,11 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
 
             {/* Tabs */}
             <div className="flex border-b border-border px-6">
-              {(["overview", "items"] as Tab[]).map(t => (
-                <button key={t} onClick={() => setTab(t)}
+              {(["overview", "items"] as Tab[]).map(tabName => (
+                <button key={tabName} onClick={() => setTab(tabName)}
                   className={cn("px-4 py-3 text-sm font-medium capitalize transition-colors border-b-2 -mb-px",
-                    tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                  {t === "items" ? `Line Items (${full?.items.length ?? order.itemCount})` : "Overview"}
+                    tab === tabName ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                  {tabName === "items" ? t("orders.drawer.items", { count: full?.items.length ?? order.itemCount }) : t("orders.drawer.overview")}
                 </button>
               ))}
             </div>
@@ -83,7 +85,7 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
             {/* Content */}
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">Loading…</span>
+                <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("common.loading")}</span>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -91,18 +93,18 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
                   <>
                     {/* Total */}
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-5">
-                      <p className="text-xs text-muted-foreground mb-1">Purchase Total</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t("orders.drawer.total")}</p>
                       <p className="text-3xl font-bold text-primary">{formatCurrency(full.total, currency)}</p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                        <span>Subtotal: {formatCurrency(full.subTotal, currency)}</span>
-                        <span>Tax: {formatCurrency(full.taxAmount, currency)}</span>
+                        <span>{t("orders.drawer.subtotal")}: {formatCurrency(full.subTotal, currency)}</span>
+                        <span>{t("orders.drawer.tax")}: {formatCurrency(full.taxAmount, currency)}</span>
                       </div>
                     </div>
 
                     {/* Pipeline */}
                     {order.status !== "cancelled" && (
                       <div>
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Delivery Progress</h4>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("orders.drawer.expectedDelivery")}</h4>
                         <div className="bg-muted/30 rounded-xl p-4 flex items-center gap-2">
                           {STEPS.map((step, i) => {
                             const cfg = STATUS_CONFIG[step.key];
@@ -127,26 +129,26 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
                     {/* Details */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Building2 className="h-3 w-3" />Vendor</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Building2 className="h-3 w-3" />{t("orders.drawer.vendor")}</p>
                         <p className="text-xs font-semibold">{full.vendorName}</p>
                       </div>
                       <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />Created</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />{t("orders.drawer.date")}</p>
                         <p className="text-xs font-semibold">{formatDate(full.createdAt)}</p>
                       </div>
                       <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />Expected</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />{t("orders.drawer.expectedDelivery")}</p>
                         <p className="text-xs font-semibold">{full.expectedDate ?? "—"}</p>
                       </div>
                       <div className="bg-muted/30 rounded-xl p-3 border border-border">
-                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />Received</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1"><Calendar className="h-3 w-3" />{t("orders.table.expected")}</p>
                         <p className="text-xs font-semibold">{full.receivedDate ?? "—"}</p>
                       </div>
                     </div>
 
                     {full.notes && (
                       <div className="bg-muted/30 rounded-xl p-4 border border-border">
-                        <p className="text-xs text-muted-foreground font-semibold mb-1">Notes</p>
+                        <p className="text-xs text-muted-foreground font-semibold mb-1">{t("orders.drawer.notes")}</p>
                         <p className="text-sm text-muted-foreground">{full.notes}</p>
                       </div>
                     )}
@@ -172,13 +174,13 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
                     {/* Summary */}
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-2 mt-3">
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Subtotal</span><span>{formatCurrency(full.subTotal, currency)}</span>
+                        <span>{t("orders.drawer.subtotal")}</span><span>{formatCurrency(full.subTotal, currency)}</span>
                       </div>
                       <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Tax</span><span>{formatCurrency(full.taxAmount, currency)}</span>
+                        <span>{t("orders.drawer.tax")}</span><span>{formatCurrency(full.taxAmount, currency)}</span>
                       </div>
                       <div className="flex justify-between text-sm font-bold border-t border-primary/20 pt-2">
-                        <span>Total</span><span className="text-primary">{formatCurrency(full.total, currency)}</span>
+                        <span>{t("orders.form.total")}</span><span className="text-primary">{formatCurrency(full.total, currency)}</span>
                       </div>
                     </div>
                   </div>
@@ -188,21 +190,21 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
 
             {/* Footer */}
             <div className="p-4 border-t border-border flex items-center gap-2">
-              <Button variant="outline" className="h-9" onClick={onClose}>Close</Button>
+              <Button variant="outline" className="h-9" onClick={onClose}>{t("orders.drawer.button.close")}</Button>
               {order.status === "draft" && (
                 confirmDelete ? (
                   <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-xs text-destructive font-medium">Delete this PO?</span>
+                    <span className="text-xs text-destructive font-medium">{t("orders.drawer.deleteConfirm")}</span>
                     <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={deleteMutation.isPending}
                       onClick={() => deleteMutation.mutate(order.id, { onSuccess: onClose })}>
-                      {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Confirm"}
+                      {deleteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : t("orders.drawer.button.confirm")}
                     </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                    <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmDelete(false)}>{t("orders.drawer.button.cancel")}</Button>
                   </div>
                 ) : (
                   <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:text-destructive hover:bg-destructive/10 ml-auto"
                     onClick={() => setConfirmDelete(true)}>
-                    <Trash2 className="h-3.5 w-3.5" />Delete
+                    <Trash2 className="h-3.5 w-3.5" />{t("orders.drawer.button.delete")}
                   </Button>
                 )
               )}

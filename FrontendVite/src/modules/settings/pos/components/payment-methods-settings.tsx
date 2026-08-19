@@ -12,6 +12,8 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
   CreditCard, Plus, RotateCcw, Save, Loader2,
   ChevronUp, ChevronDown, Trash2, GripVertical,
@@ -31,23 +33,36 @@ import type { PaymentMethodDto, PaymentMethodSaveItem } from "@/lib/pos/payment-
 
 // ─── Country options ──────────────────────────────────────────────────────────
 
-const COUNTRY_OPTIONS: { code: string; flag: string; name: string }[] = [
-  { code: "pk", flag: "🇵🇰", name: "Pakistan"       },
-  { code: "ae", flag: "🇦🇪", name: "UAE"            },
-  { code: "sa", flag: "🇸🇦", name: "Saudi Arabia"   },
-  { code: "in", flag: "🇮🇳", name: "India"          },
-  { code: "gb", flag: "🇬🇧", name: "United Kingdom" },
-  { code: "us", flag: "🇺🇸", name: "United States"  },
-  { code: "om", flag: "🇴🇲", name: "Oman"           },
-  { code: "qa", flag: "🇶🇦", name: "Qatar"          },
-  { code: "kw", flag: "🇰🇼", name: "Kuwait"         },
-  { code: "bh", flag: "🇧🇭", name: "Bahrain"        },
+const COUNTRY_OPTIONS: { code: string; flag: string }[] = [
+  { code: "pk", flag: "🇵🇰" }, { code: "ae", flag: "🇦🇪" }, { code: "sa", flag: "🇸🇦" },
+  { code: "in", flag: "🇮🇳" }, { code: "gb", flag: "🇬🇧" }, { code: "us", flag: "🇺🇸" },
+  { code: "om", flag: "🇴🇲" }, { code: "qa", flag: "🇶🇦" }, { code: "kw", flag: "🇰🇼" },
+  { code: "bh", flag: "🇧🇭" },
 ];
 
-function countryInfo(code: string) {
-  return COUNTRY_OPTIONS.find(c => c.code === code)
-    ?? { code, flag: "🌐", name: code.toUpperCase() };
+function countryInfo(code: string, t: TFunction) {
+  const opt = COUNTRY_OPTIONS.find(c => c.code === code);
+  return {
+    code,
+    flag: opt?.flag ?? "🌐",
+    name: t(`paymentMethods.country.${code}`, { defaultValue: code.toUpperCase() }),
+  };
 }
+
+/**
+ * Display label / description for a payment method.
+ * The registry (lib/pos/payment-methods.config.ts) is shared with the POS charge screen and
+ * still holds the English defaults; they are used as the fallback so a method added there
+ * renders before it is translated. Brand names (EasyPaisa, Tabby, Zelle…) stay untranslated.
+ * NOTE: only the DISPLAY label is translated — `m.label` (the value persisted via `save()`)
+ * is untouched.
+ */
+const defLabel = (def: PaymentMethodDef, t: TFunction) =>
+  t(`paymentMethods.method.${def.id}.label`, { defaultValue: def.label });
+const defDesc = (def: PaymentMethodDef, t: TFunction) =>
+  def.description
+    ? t(`paymentMethods.method.${def.id}.desc`, { defaultValue: def.description })
+    : "";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,9 +105,10 @@ function CountryPicker({
   autoDetected:  string;
   onChange:      (code: string) => void;
 }) {
+  const { t } = useTranslation("settings");
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
-  const current = countryInfo(value);
+  const current = countryInfo(value, t);
   const isOverridden = value !== autoDetected;
 
   React.useEffect(() => {
@@ -118,9 +134,9 @@ function CountryPicker({
         <span className="text-base leading-none">{current.flag}</span>
         <span className="font-semibold">{current.name}</span>
         {isOverridden ? (
-          <span className="text-primary text-[10px] font-medium">overridden</span>
+          <span className="text-primary text-[10px] font-medium">{t("paymentMethods.overridden")}</span>
         ) : (
-          <span className="text-muted-foreground text-[10px]">auto-detected</span>
+          <span className="text-muted-foreground text-[10px]">{t("paymentMethods.autoDetected")}</span>
         )}
         <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
@@ -140,9 +156,9 @@ function CountryPicker({
                 onClick={() => { onChange(autoDetected); setOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-muted/50 transition-colors border-b border-border"
               >
-                <span className="text-sm">{countryInfo(autoDetected).flag}</span>
-                <span className="flex-1 text-left font-medium">{countryInfo(autoDetected).name}</span>
-                <span className="text-[10px] text-primary font-semibold">auto</span>
+                <span className="text-sm">{countryInfo(autoDetected, t).flag}</span>
+                <span className="flex-1 text-left font-medium">{countryInfo(autoDetected, t).name}</span>
+                <span className="text-[10px] text-primary font-semibold">{t("paymentMethods.auto")}</span>
               </button>
             )}
             {COUNTRY_OPTIONS.map(opt => (
@@ -155,7 +171,7 @@ function CountryPicker({
                 )}
               >
                 <span className="text-sm">{opt.flag}</span>
-                <span className="flex-1 text-left">{opt.name}</span>
+                <span className="flex-1 text-left">{countryInfo(opt.code, t).name}</span>
                 {opt.code === value && <CheckCircle2 className="h-3 w-3 text-primary" />}
               </button>
             ))}
@@ -182,6 +198,7 @@ function MethodRow({
   onMoveDown:  () => void;
   onDelete:    () => void;
 }) {
+  const { t } = useTranslation("settings");
   const Icon = def.icon;
   const isUniversal = !method.countries || method.countries === "*";
 
@@ -209,16 +226,16 @@ function MethodRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground">{def.label}</p>
+        <p className="text-sm font-semibold text-foreground">{defLabel(def, t)}</p>
         {def.description && (
-          <p className="text-[11px] text-muted-foreground truncate">{def.description}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{defDesc(def, t)}</p>
         )}
       </div>
 
       {/* Country scope badge */}
       {isUniversal ? (
         <span className="hidden sm:flex items-center gap-1 text-[9px] font-bold text-muted-foreground shrink-0">
-          <Globe className="h-2.5 w-2.5" />Universal
+          <Globe className="h-2.5 w-2.5" />{t("paymentMethods.universal")}
         </span>
       ) : (
         <div className="hidden sm:flex items-center gap-1 shrink-0">
@@ -253,7 +270,7 @@ function MethodRow({
         {!method.isSystem && (
           <button onClick={onDelete}
             className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-            title="Delete custom method">
+            title={t("paymentMethods.deleteCustom")}>
             <Trash2 className="h-3.5 w-3.5" />
           </button>
         )}
@@ -263,7 +280,7 @@ function MethodRow({
             "relative w-11 h-6 rounded-full transition-colors shrink-0",
             method.isEnabled ? "bg-primary" : "bg-muted border border-border",
           )}
-          title={method.isEnabled ? "Disable" : "Enable"}
+          title={method.isEnabled ? t("paymentMethods.disable") : t("paymentMethods.enable")}
         >
           <span className={cn(
             "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform",
@@ -282,6 +299,7 @@ function AddCustomForm({ onAdd, onCancel, existingCodes }: {
   onCancel:      () => void;
   existingCodes: string[];
 }) {
+  const { t } = useTranslation("settings");
   const [label, setLabel] = React.useState("");
   const code = `custom_${label.trim().toLowerCase().replace(/\s+/g, "_")}`;
   const alreadyExists = existingCodes.includes(code);
@@ -309,14 +327,14 @@ function AddCustomForm({ onAdd, onCancel, existingCodes }: {
           value={label}
           onChange={e => setLabel(e.target.value)}
           onKeyDown={e => { if (e.key === "Enter") submit(); if (e.key === "Escape") onCancel(); }}
-          placeholder="Custom method name, e.g. Gift Card"
+          placeholder={t("paymentMethods.customPlaceholder")}
           className="h-8 text-sm flex-1"
         />
         {alreadyExists && (
-          <span className="text-[11px] text-destructive shrink-0">Already exists</span>
+          <span className="text-[11px] text-destructive shrink-0">{t("paymentMethods.alreadyExists")}</span>
         )}
         <Button size="sm" onClick={submit} disabled={!label.trim() || alreadyExists} className="h-8 gap-1">
-          <Plus className="h-3 w-3" />Add
+          <Plus className="h-3 w-3" />{t("paymentMethods.add")}
         </Button>
         <button onClick={onCancel} className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
           <X className="h-3.5 w-3.5" />
@@ -329,6 +347,7 @@ function AddCustomForm({ onAdd, onCancel, existingCodes }: {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PaymentMethodsSettings() {
+  const { t } = useTranslation("settings");
   const {
     isLoading, isSaving,
     countryCode,
@@ -425,9 +444,9 @@ export function PaymentMethodsSettings() {
     try {
       if (m.backendId) await deleteCustom(m.backendId);
       setLocalMethods(prev => prev.filter(x => x.code !== m.code));
-      toast.success(`"${m.label}" removed`);
+      toast.success(t("paymentMethods.removed", { label: m.label }));
     } catch {
-      toast.error("Failed to delete method");
+      toast.error(t("paymentMethods.deleteFailed"));
     }
   };
 
@@ -440,13 +459,13 @@ export function PaymentMethodsSettings() {
       isCustom:  !m.isSystem,
     }));
     await save(items);
-    toast.success("Payment methods saved");
+    toast.success(t("paymentMethods.savedToast"));
     setDirty(false);
   };
 
   const handleReset = async () => {
     await reset();
-    toast.success("Reset to country defaults");
+    toast.success(t("paymentMethods.resetToast"));
     setDirty(false);
   };
 
@@ -468,10 +487,9 @@ export function PaymentMethodsSettings() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-bold text-foreground">Payment Methods</h2>
+          <h2 className="text-base font-bold text-foreground">{t("paymentMethods.title")}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Choose which payment methods appear on the POS charge screen.
-            Showing methods available in your region.
+            {t("paymentMethods.description")}
           </p>
         </div>
         <CountryPicker
@@ -485,14 +503,14 @@ export function PaymentMethodsSettings() {
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-            Enabled ({enabledRelevant.length})
+            {t("paymentMethods.enabled", { count: enabledRelevant.length })}
           </p>
-          <p className="text-[11px] text-muted-foreground">Use arrows to reorder</p>
+          <p className="text-[11px] text-muted-foreground">{t("paymentMethods.reorderHint")}</p>
         </div>
 
         {enabledRelevant.length === 0 ? (
           <div className="py-8 text-center text-sm text-muted-foreground border border-dashed border-border rounded-xl">
-            No methods enabled — enable at least one below.
+            {t("paymentMethods.noneEnabled")}
           </div>
         ) : (
           <div className="space-y-1.5">
@@ -519,7 +537,7 @@ export function PaymentMethodsSettings() {
       {disabledRelevant.length > 0 && (
         <div>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-            Available — not enabled ({disabledRelevant.length})
+            {t("paymentMethods.availableNotEnabled", { count: disabledRelevant.length })}
           </p>
           <div className="space-y-1.5">
             <AnimatePresence mode="popLayout">
@@ -549,9 +567,9 @@ export function PaymentMethodsSettings() {
             className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors mb-2"
           >
             <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", showOther && "rotate-90")} />
-            Other Regions ({otherMethods.length})
+            {t("paymentMethods.otherRegions", { count: otherMethods.length })}
             <span className="text-[10px] normal-case font-normal text-muted-foreground/60 ml-1">
-              — not available in {countryInfo(selectedCountry).name}
+              {t("paymentMethods.notAvailableIn", { country: countryInfo(selectedCountry, t).name })}
             </span>
           </button>
 
@@ -599,7 +617,7 @@ export function PaymentMethodsSettings() {
             onClick={() => setShowAddForm(true)}
             className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 font-medium transition-colors mt-1">
             <Plus className="h-4 w-4" />
-            Add Custom Method
+            {t("paymentMethods.addCustom")}
           </button>
         )}
       </div>
@@ -611,20 +629,20 @@ export function PaymentMethodsSettings() {
           disabled={isSaving}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
           <RotateCcw className="h-3.5 w-3.5" />
-          Reset to Defaults
+          {t("paymentMethods.resetDefaults")}
         </button>
 
         <div className="flex items-center gap-3">
           {dirty && (
-            <p className="text-xs text-warning font-medium">Unsaved changes</p>
+            <p className="text-xs text-warning font-medium">{t("paymentMethods.unsaved")}</p>
           )}
           <Button
             onClick={handleSave}
             disabled={isSaving || !dirty}
             className="gap-2 min-w-[120px]">
             {isSaving
-              ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</>
-              : <><Save className="h-4 w-4" />Save Methods</>
+              ? <><Loader2 className="h-4 w-4 animate-spin" />{t("common:action.saving")}</>
+              : <><Save className="h-4 w-4" />{t("paymentMethods.saveMethods")}</>
             }
           </Button>
         </div>
@@ -636,7 +654,7 @@ export function PaymentMethodsSettings() {
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle2 className="h-3.5 w-3.5 text-success" />
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              POS Preview — charge screen
+              {t("paymentMethods.posPreview")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -649,7 +667,7 @@ export function PaymentMethodsSettings() {
                   def.bg, def.color,
                 )}>
                   <Icon className="h-3.5 w-3.5 shrink-0" />
-                  {def.label}
+                  {defLabel(def, t)}
                 </div>
               );
             })}

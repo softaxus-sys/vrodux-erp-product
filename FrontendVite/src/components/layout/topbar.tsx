@@ -1,10 +1,12 @@
 import * as React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Bell, Search, Sun, Moon, Monitor, ChevronDown,
   LogOut, Settings, User, Sparkles, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useUiStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useNotificationsStore } from "@/store/notifications.store";
@@ -26,6 +28,7 @@ function getBreadcrumbs(pathname: string) {
 }
 
 function ThemeToggle() {
+  const { t } = useTranslation("common");
   const { darkMode, toggleDarkMode } = useThemeStore();
   return (
     <DropdownMenu>
@@ -39,15 +42,15 @@ function ThemeToggle() {
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={toggleDarkMode}>
           {darkMode
-            ? <><Sun className="mr-2 h-4 w-4" />Light Mode</>
-            : <><Moon className="mr-2 h-4 w-4" />Dark Mode</>}
+            ? <><Sun className="me-2 h-4 w-4" />{t("theme.lightMode")}</>
+            : <><Moon className="me-2 h-4 w-4" />{t("theme.darkMode")}</>}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => {
           const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
           if (prefersDark !== darkMode) toggleDarkMode();
         }}>
-          <Monitor className="mr-2 h-4 w-4" />Match System
+          <Monitor className="me-2 h-4 w-4" />{t("theme.matchSystem")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -73,6 +76,7 @@ function NotificationsButton() {
 export function Topbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation("topbar");
   const { user, tenant, logout } = useAuthStore();
   const { toggleCommandPalette, toggleAiAssistant } = useUiStore();
   const breadcrumbs = getBreadcrumbs(pathname);
@@ -119,7 +123,7 @@ export function Topbar() {
           className="hidden md:flex items-center gap-2.5 h-8 pl-3 pr-2 rounded-lg border border-border/80 bg-muted/30 hover:bg-muted/60 hover:border-border text-muted-foreground text-sm transition-all duration-150 group"
         >
           <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="hidden lg:block text-xs">Search…</span>
+          <span className="hidden lg:block text-xs">{t("search")}</span>
           <kbd className="hidden lg:flex ml-1 h-5 select-none items-center gap-0.5 rounded border border-border/60 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground/60">
             ⌘K
           </kbd>
@@ -134,6 +138,7 @@ export function Topbar() {
         </button>
 
         <NotificationsButton />
+        <LanguageSwitcher />
         <ThemeToggle />
 
         {/* Divider */}
@@ -185,17 +190,17 @@ export function Topbar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => navigate("/profile")}>
-              <User className="mr-2 h-4 w-4" />My Profile
+              <User className="me-2 h-4 w-4" />{t("myProfile")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings/appearance")}>
-              <Settings className="mr-2 h-4 w-4" />Appearance
+              <Settings className="me-2 h-4 w-4" />{t("appearance")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings/general")}>
-              <Settings className="mr-2 h-4 w-4" />Settings
+              <Settings className="me-2 h-4 w-4" />{t("settings")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />Sign out
+              <LogOut className="me-2 h-4 w-4" />{t("signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

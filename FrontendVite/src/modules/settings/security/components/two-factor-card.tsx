@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { ShieldCheck, ShieldOff, Loader2, Copy, Check, KeyRound, Smartphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 type Mode = "idle" | "enrolling" | "backup" | "disabling";
 
 function CopyButton({ text, label }: { text: string; label?: string }) {
+  const { t } = useTranslation("settings");
   const [copied, setCopied] = React.useState(false);
   return (
     <button
@@ -24,12 +26,13 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
       className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted transition-colors"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : (label ?? "Copy")}
+      {copied ? t("twoFactor.copied") : (label ?? t("twoFactor.copy"))}
     </button>
   );
 }
 
 export function TwoFactorCard() {
+  const { t } = useTranslation("settings");
   const { data: status, isLoading } = useTwoFactorStatus();
   const setup   = useSetupTwoFactor();
   const enable  = useEnableTwoFactor();
@@ -70,7 +73,7 @@ export function TwoFactorCard() {
 
   const downloadCodes = () =>
     downloadFile(`vrodux-backup-codes-${new Date().toISOString().split("T")[0]}.txt`,
-      `Vrodux ERP — two-factor backup codes\nEach code works once. Keep them somewhere safe.\n\n${backupCodes.join("\n")}\n`);
+      `${t("twoFactor.fileHeader")}\n${t("twoFactor.fileNote")}\n\n${backupCodes.join("\n")}\n`);
 
   return (
     <Card>
@@ -81,14 +84,14 @@ export function TwoFactorCard() {
               {enabled ? <ShieldCheck className="h-5 w-5 text-success" /> : <ShieldOff className="h-5 w-5 text-muted-foreground" />}
             </div>
             <div>
-              <CardTitle className="text-base">Two-Factor Authentication</CardTitle>
+              <CardTitle className="text-base">{t("twoFactor.title")}</CardTitle>
               <CardDescription>
-                Require a code from an authenticator app (Google Authenticator, Authy, 1Password…) at sign-in.
+                {t("twoFactor.description")}
               </CardDescription>
             </div>
           </div>
           <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${enabled ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-            {isLoading ? "…" : enabled ? "Enabled" : "Disabled"}
+            {isLoading ? "…" : enabled ? t("twoFactor.enabled") : t("twoFactor.disabled")}
           </span>
         </div>
       </CardHeader>
@@ -101,7 +104,7 @@ export function TwoFactorCard() {
               <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-sm">
                 <KeyRound className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="text-muted-foreground">
-                  {status?.backupCodesRemaining ?? 0} backup code{(status?.backupCodesRemaining ?? 0) === 1 ? "" : "s"} remaining
+                  {t("twoFactor.backupRemaining", { count: status?.backupCodesRemaining ?? 0 })}
                 </span>
               </div>
               <button
@@ -109,7 +112,7 @@ export function TwoFactorCard() {
                 onClick={() => { setCode(""); setMode("disabling"); }}
                 className="rounded-lg border border-destructive/40 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/5 transition-colors"
               >
-                Disable 2FA
+                {t("twoFactor.disable2fa")}
               </button>
             </div>
           ) : (
@@ -120,7 +123,7 @@ export function TwoFactorCard() {
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
             >
               {setup.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
-              Enable 2FA
+              {t("twoFactor.enable2fa")}
             </button>
           )
         )}
@@ -129,8 +132,8 @@ export function TwoFactorCard() {
         {mode === "enrolling" && setupData && (
           <div className="space-y-4">
             <ol className="space-y-1 text-sm text-muted-foreground list-decimal list-inside">
-              <li>Scan this QR code in your authenticator app.</li>
-              <li>Enter the 6-digit code it shows to confirm.</li>
+              <li>{t("twoFactor.stepScan")}</li>
+              <li>{t("twoFactor.stepEnter")}</li>
             </ol>
             <div className="flex flex-col sm:flex-row gap-4 items-start">
               <img
@@ -139,7 +142,7 @@ export function TwoFactorCard() {
                 className="h-40 w-40 rounded-lg border border-border bg-white p-2"
               />
               <div className="space-y-2 min-w-0">
-                <p className="text-xs text-muted-foreground">Can't scan? Enter this key manually:</p>
+                <p className="text-xs text-muted-foreground">{t("twoFactor.cantScan")}</p>
                 <div className="flex items-center gap-2">
                   <code className="rounded-md bg-muted px-2 py-1 text-xs break-all">{setupData.secret}</code>
                   <CopyButton text={setupData.secret} />
@@ -152,7 +155,7 @@ export function TwoFactorCard() {
                 onChange={(e) => setCode(e.target.value)}
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="123456"
+                placeholder={t("twoFactor.codePlaceholder")}
                 className="w-40 rounded-lg border border-border bg-card px-3 py-2 text-center text-lg tracking-[0.3em] font-semibold outline-none focus:border-primary"
               />
               <div className="flex gap-2">
@@ -163,7 +166,7 @@ export function TwoFactorCard() {
                   className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition disabled:opacity-50"
                 >
                   {enable.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Verify &amp; enable
+                  {t("twoFactor.verifyEnable")}
                 </button>
                 <button
                   type="button"
@@ -181,9 +184,9 @@ export function TwoFactorCard() {
         {mode === "backup" && (
           <div className="space-y-3">
             <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
-              <p className="font-semibold text-warning">Save your backup codes</p>
+              <p className="font-semibold text-warning">{t("twoFactor.saveCodes")}</p>
               <p className="text-muted-foreground mt-0.5">
-                Each code works once if you lose access to your authenticator. They won't be shown again.
+                {t("twoFactor.saveCodesHint")}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -192,20 +195,20 @@ export function TwoFactorCard() {
               ))}
             </div>
             <div className="flex gap-2">
-              <CopyButton text={backupCodes.join("\n")} label="Copy all" />
+              <CopyButton text={backupCodes.join("\n")} label={t("twoFactor.copyAll")} />
               <button
                 type="button"
                 onClick={downloadCodes}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted transition-colors"
               >
-                Download .txt
+                {t("twoFactor.downloadTxt")}
               </button>
               <button
                 type="button"
-                onClick={() => { setMode("idle"); setBackupCodes([]); toast.success("Two-factor authentication is now active."); }}
+                onClick={() => { setMode("idle"); setBackupCodes([]); toast.success(t("twoFactor.nowActive")); }}
                 className="ml-auto rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition"
               >
-                Done
+                {t("twoFactor.done")}
               </button>
             </div>
           </div>
@@ -215,14 +218,14 @@ export function TwoFactorCard() {
         {mode === "disabling" && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Enter a current authenticator or backup code to turn off 2FA.
+              {t("twoFactor.disableHint")}
             </p>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
               inputMode="text"
               autoComplete="one-time-code"
-              placeholder="Authenticator or backup code"
+              placeholder={t("twoFactor.disablePlaceholder")}
               className="w-full max-w-xs rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <div className="flex gap-2">
@@ -233,7 +236,7 @@ export function TwoFactorCard() {
                 className="inline-flex items-center gap-2 rounded-lg border border-destructive/50 px-4 py-2 text-sm font-semibold text-destructive hover:bg-destructive/5 transition disabled:opacity-50"
               >
                 {disable.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Confirm disable
+                {t("twoFactor.confirmDisable")}
               </button>
               <button
                 type="button"

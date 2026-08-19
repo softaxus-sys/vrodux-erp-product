@@ -157,6 +157,29 @@ internal sealed class ActivityConfiguration : IEntityTypeConfiguration<Activity>
     }
 }
 
+internal sealed class CrmDocumentConfiguration : IEntityTypeConfiguration<CrmDocument>
+{
+    public void Configure(EntityTypeBuilder<CrmDocument> builder)
+    {
+        builder.ToTable("crm_documents");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.RelatedToType).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.RelatedToName).HasMaxLength(200);
+        builder.Property(x => x.FileName).IsRequired().HasMaxLength(300);
+        builder.Property(x => x.ContentType).IsRequired().HasMaxLength(150);
+        builder.Property(x => x.Data).IsRequired();
+        builder.Property(x => x.DocumentType).IsRequired().HasMaxLength(40);
+        builder.Property(x => x.Description).HasMaxLength(1000);
+        builder.Property(x => x.UploadedByName).HasMaxLength(200);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.HasIndex(x => new { x.RelatedToType, x.RelatedToId });
+        // NOTE: the tenant filter applied in CrmDbContext replaces this one (EF9 allows a single
+        // filter per entity), so read handlers must also filter !IsDeleted manually — the existing
+        // CRM convention.
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
+
 internal sealed class DealConfiguration : IEntityTypeConfiguration<Deal>
 {
     public void Configure(EntityTypeBuilder<Deal> builder)

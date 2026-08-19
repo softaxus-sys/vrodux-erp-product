@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   Receipt, FileText, CheckCircle2, Ban, Clock, Search, Plus,
@@ -14,24 +15,16 @@ import {
 import type { PurchaseBillStatus } from "@/lib/finance/finance.api";
 import { CreatePurchaseBillForm } from "./create-purchase-bill-form";
 
-const STATUS_CONFIG: Record<PurchaseBillStatus, { label: string; color: string; bg: string; dot: string }> = {
-  draft:           { label: "Draft",          color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
-  approved:        { label: "Approved",       color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
-  partially_paid:  { label: "Partially Paid", color: "text-primary",     bg: "bg-primary/10",                     dot: "bg-primary" },
-  paid:            { label: "Paid",           color: "text-success",     bg: "bg-success/10",                     dot: "bg-success" },
-  cancelled:       { label: "Cancelled",      color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
-};
-
-const STATUS_FILTERS = [
-  { key: "",               label: "All" },
-  { key: "draft",          label: "Draft" },
-  { key: "approved",       label: "Approved" },
-  { key: "partially_paid", label: "Partially Paid" },
-  { key: "paid",           label: "Paid" },
-  { key: "cancelled",      label: "Cancelled" },
-];
+const getStatusConfig = (t: any): Record<PurchaseBillStatus, { label: string; color: string; bg: string; dot: string }> => ({
+  draft:           { label: t("bills.status.draft"),           color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
+  approved:        { label: t("bills.status.approved"),        color: "text-blue-600",    bg: "bg-blue-50 dark:bg-blue-900/20",    dot: "bg-blue-500" },
+  partially_paid:  { label: t("bills.status.paid"),            color: "text-primary",     bg: "bg-primary/10",                     dot: "bg-primary" },
+  paid:            { label: t("bills.status.paid"),            color: "text-success",     bg: "bg-success/10",                     dot: "bg-success" },
+  cancelled:       { label: t("bills.status.cancelled"),       color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
+});
 
 export function PurchaseBillsView() {
+  const { t } = useTranslation("purchase");
   const [search, setSearch]             = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]                 = React.useState(1);
@@ -49,14 +42,24 @@ export function PurchaseBillsView() {
   const cancel  = useCancelPurchaseBill();
 
   const items = data?.items ?? [];
+  const STATUS_CONFIG = getStatusConfig(t);
+
+  const STATUS_FILTERS = [
+    { key: "",               label: t("common.all") },
+    { key: "draft",          label: t("bills.status.draft") },
+    { key: "approved",       label: t("bills.status.approved") },
+    { key: "partially_paid", label: t("common.partiallyPaid") },
+    { key: "paid",           label: t("bills.status.paid") },
+    { key: "cancelled",      label: t("bills.status.cancelled") },
+  ];
 
   const STAT_CARDS = [
-    { label: "Total Invoices", value: summary?.totalBills ?? 0,                           icon: Receipt,      color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Draft",          value: summary?.draftCount ?? 0,                           icon: FileText,     color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Outstanding",    value: summary?.outstandingCount ?? 0,                     icon: Clock,        color: "text-primary",   bg: "bg-primary/10" },
-    { label: "Total Amount",   value: formatCurrency(summary?.totalAmount ?? 0, "AED"),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
-    { label: "Paid",           value: formatCurrency(summary?.totalPaid ?? 0, "AED"),     icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
-    { label: "Due",            value: formatCurrency(summary?.totalOutstanding ?? 0, "AED"), icon: Ban,       color: "text-destructive", bg: "bg-destructive/10" },
+    { label: t("common.totalInvoices"), value: summary?.totalBills ?? 0,                           icon: Receipt,      color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("bills.status.draft"),          value: summary?.draftCount ?? 0,                           icon: FileText,     color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("common.outstanding"),    value: summary?.outstandingCount ?? 0,                     icon: Clock,        color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("common.totalAmount"),   value: formatCurrency(summary?.totalAmount ?? 0, "AED"),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("common.paid"),           value: formatCurrency(summary?.totalPaid ?? 0, "AED"),     icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
+    { label: t("common.due"),            value: formatCurrency(summary?.totalOutstanding ?? 0, "AED"), icon: Ban,       color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
   return (

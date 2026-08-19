@@ -4,12 +4,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Loader2, Eye, EyeOff, ArrowRight,
   DollarSign, Users, Package, BarChart3,
   Mail, Lock, ShieldCheck, Globe, Clock, Sun, Moon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/identity/auth.api";
 import { ApiError } from "@/lib/api-client";
@@ -65,9 +67,10 @@ function getInitialMode(): "light" | "dark" {
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
+// Messages are i18n keys (in the "auth" namespace), resolved with t() at render.
 const schema = z.object({
-  email:    z.string().email("Enter a valid email address"),
-  password: z.string().min(6, "Minimum 6 characters"),
+  email:    z.string().email("validation.emailInvalid"),
+  password: z.string().min(6, "validation.passwordMin"),
   remember: z.boolean().optional(),
 });
 type Form = z.infer<typeof schema>;
@@ -80,6 +83,7 @@ const MODULES_STATUS = [
 ];
 
 function TopBar({ D, mode, onToggle }: { D: Palette; mode: "light" | "dark"; onToggle: () => void }) {
+  const { t } = useTranslation("auth");
   return (
     <div
       className="h-10 flex items-center justify-between px-8 shrink-0 border-b"
@@ -88,7 +92,7 @@ function TopBar({ D, mode, onToggle }: { D: Palette; mode: "light" | "dark"; onT
       {/* Module chips — scrolling on small screens */}
       <div className="flex items-center gap-3 overflow-hidden">
         <span className="text-[10px] font-bold uppercase tracking-widest shrink-0" style={{ color: D.muted }}>
-          Active Modules
+          {t("activeModules")}
         </span>
         <div className="flex items-center gap-2 overflow-hidden">
           {MODULES_STATUS.map(m => (
@@ -103,13 +107,16 @@ function TopBar({ D, mode, onToggle }: { D: Palette; mode: "light" | "dark"; onT
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0 ml-4">
+      <div className="flex items-center gap-3 shrink-0 ms-4">
+        {/* Language switcher (pre-login) */}
+        <LanguageSwitcher variant="full" />
+
         {/* Theme toggle (persisted) */}
         <button
           type="button"
           onClick={onToggle}
           aria-label="Toggle theme"
-          title={mode === "dark" ? "Switch to light" : "Switch to dark"}
+          title={mode === "dark" ? t("switchToLight") : t("switchToDark")}
           className="flex items-center justify-center h-7 w-7 rounded-full border transition-colors"
           style={{ color: D.muted, borderColor: D.border, background: D.faint }}
         >
@@ -128,7 +135,7 @@ function TopBar({ D, mode, onToggle }: { D: Palette; mode: "light" | "dark"; onT
             animate={{ opacity: [1, 0.3, 1] }}
             transition={{ duration: 1.8, repeat: Infinity }}
           />
-          All systems operational
+          {t("allSystemsOperational")}
         </div>
       </div>
     </div>
@@ -138,50 +145,31 @@ function TopBar({ D, mode, onToggle }: { D: Palette; mode: "light" | "dark"; onT
 // ─── Feature cards ────────────────────────────────────────────────────────────
 
 const FEATURES = [
-  {
-    icon:  DollarSign,
-    color: "#4f7df3",
-    title: "Finance & Accounting",
-    desc:  "General ledger, invoicing, tax, budgeting, and bank reconciliation in one place.",
-  },
-  {
-    icon:  Users,
-    color: "#8b5cf6",
-    title: "HR & Payroll",
-    desc:  "Employee records, attendance tracking, leave management, and automated payroll.",
-  },
-  {
-    icon:  Package,
-    color: "#f59e0b",
-    title: "Inventory & Procurement",
-    desc:  "Multi-warehouse stock control, purchase orders, and vendor management.",
-  },
-  {
-    icon:  BarChart3,
-    color: "#22c55e",
-    title: "Analytics & Reporting",
-    desc:  "Real-time KPI dashboards and cross-module reports for data-driven decisions.",
-  },
+  { icon: DollarSign, color: "#4f7df3", titleKey: "feature.financeTitle",   descKey: "feature.financeDesc" },
+  { icon: Users,      color: "#8b5cf6", titleKey: "feature.hrTitle",        descKey: "feature.hrDesc" },
+  { icon: Package,    color: "#f59e0b", titleKey: "feature.inventoryTitle", descKey: "feature.inventoryDesc" },
+  { icon: BarChart3,  color: "#22c55e", titleKey: "feature.analyticsTitle", descKey: "feature.analyticsDesc" },
 ];
 
 const COMPLIANCE_TAGS = [
-  "Role-based access control",
-  "Full audit trail",
-  "Multi-currency support",
-  "UAE VAT compliant",
+  "compliance.rbac",
+  "compliance.auditTrail",
+  "compliance.multiCurrency",
+  "compliance.uaeVat",
 ];
 
 // ─── Greeting ─────────────────────────────────────────────────────────────────
 
-function greeting() {
+function greetingKey() {
   const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+  return h < 12 ? "greeting.morning" : h < 17 ? "greeting.afternoon" : "greeting.evening";
 }
 
 // ─── Login page ───────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
   const navigate     = useNavigate();
+  const { t } = useTranslation("auth");
   const { loginFromApi } = useAuthStore();
   const [showPwd, setShowPwd] = React.useState(false);
   const [focus,   setFocus]   = React.useState<string | null>(null);
@@ -217,27 +205,27 @@ export default function LoginPage() {
         return;
       }
       loginFromApi(res.accessToken, res.refreshToken, res.user!);
-      toast.success(`Welcome back, ${res.user!.firstName}!`);
+      toast.success(t("toast.welcomeBack", { name: res.user!.firstName }));
       navigate("/dashboard", { replace: true });
     } catch (err) {
       // ApiError = server responded with an error envelope → show its message.
       // Anything else (TypeError: Failed to fetch, etc.) = couldn't reach server.
       if (!(err instanceof ApiError)) {
-        toast.error("Unable to reach server. Please try again.");
+        toast.error(t("toast.unreachable"));
         return;
       }
 
-      const msg = err.message || "Invalid email or password.";
+      const msg = err.message || t("toast.invalidCredentials");
       // Unverified account → offer a one-click resend of the verification link.
       if (msg.toLowerCase().includes("verify your email")) {
         toast.error(msg, {
           duration: 8000,
           action: {
-            label: "Resend link",
+            label: t("toast.resendLink"),
             onClick: () => {
               authApi.resendVerification(data.email)
-                .then(() => toast.success("Verification email sent. Please check your inbox."))
-                .catch(() => toast.error("Could not send the verification email."));
+                .then(() => toast.success(t("toast.verificationSent")))
+                .catch(() => toast.error(t("toast.verificationFailed")));
             },
           },
         });
@@ -254,10 +242,10 @@ export default function LoginPage() {
     try {
       const res = await authApi.verifyTwoFactor(mfaToken, mfaCode.trim());
       loginFromApi(res.accessToken, res.refreshToken, res.user!);
-      toast.success(`Welcome back, ${res.user!.firstName}!`);
+      toast.success(t("toast.welcomeBack", { name: res.user!.firstName }));
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not verify the code. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : t("toast.verifyFailed"));
     } finally {
       setVerifying(false);
     }
@@ -321,19 +309,18 @@ export default function LoginPage() {
                 className="text-[11px] font-bold uppercase tracking-[0.2em] mb-4"
                 style={{ color: D.accent }}
               >
-                Enterprise Resource Planning
+                {t("erpTag")}
               </p>
               <h1
                 className="text-[2.5rem] font-extrabold leading-[1.08] tracking-tight"
                 style={{ color: D.white }}
               >
-                The Central <span style={{ color: D.accent }}>Axis</span> of<br />
-                Your Business Operations.
+                {t("headlineBefore")}
+                <span style={{ color: D.accent }}>{t("headlineHighlight")}</span>
+                {t("headlineAfter")}
               </h1>
               <p className="mt-4 text-[14px] leading-relaxed max-w-[440px]" style={{ color: D.muted }}>
-                Finance, HR &amp; payroll, inventory, sales, purchasing, CRM, POS and
-                industry packs — unified in a secure, multi-tenant workspace with
-                role-based access and a full audit trail.
+                {t("subhead")}
               </p>
 
               {/* Enterprise metrics band — reads like an ERP system overview */}
@@ -342,10 +329,10 @@ export default function LoginPage() {
                 style={{ borderColor: D.border, background: D.border }}
               >
                 {[
-                  { value: "13", label: "Modules" },
-                  { value: "6",  label: "Industries" },
-                  { value: "Multi", label: "Tenant" },
-                  { value: "99.9%", label: "Uptime" },
+                  { value: "13", label: t("metric.modules") },
+                  { value: "6",  label: t("metric.industries") },
+                  { value: t("metric.tenantValue"), label: t("metric.tenant") },
+                  { value: "99.9%", label: t("metric.uptime") },
                 ].map(s => (
                   <div key={s.label} className="px-3 py-3 text-center" style={{ background: D.card }}>
                     <p className="text-[20px] font-extrabold leading-none" style={{ color: D.white }}>{s.value}</p>
@@ -359,7 +346,7 @@ export default function LoginPage() {
             <div className="grid grid-cols-2 gap-3 mt-10">
               {FEATURES.map((f, i) => (
                 <motion.div
-                  key={f.title}
+                  key={f.titleKey}
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: 0.22 + i * 0.07 }}
@@ -375,10 +362,10 @@ export default function LoginPage() {
                   </div>
                   <div>
                     <p className="text-[13px] font-semibold leading-tight" style={{ color: D.white }}>
-                      {f.title}
+                      {t(f.titleKey)}
                     </p>
                     <p className="text-[12px] mt-1 leading-relaxed" style={{ color: D.muted }}>
-                      {f.desc}
+                      {t(f.descKey)}
                     </p>
                   </div>
                 </motion.div>
@@ -399,7 +386,7 @@ export default function LoginPage() {
                   style={{ color: D.muted, borderColor: D.border, background: D.faint }}
                 >
                   <ShieldCheck className="h-3 w-3" style={{ color: D.accent }} />
-                  {tag}
+                  {t(tag)}
                 </span>
               ))}
             </motion.div>
@@ -413,13 +400,13 @@ export default function LoginPage() {
               style={{ borderColor: D.border }}
             >
               <p className="text-[11px]" style={{ color: D.muted + "60" }}>
-                © 2026 Softaxis Technologies LLC · All rights reserved
+                {t("footer.copyright")}
               </p>
               <div className="flex items-center gap-4">
                 {[
-                  { icon: Globe,       text: "Multi-currency" },
-                  { icon: Clock,       text: "99.9% Uptime"   },
-                  { icon: ShieldCheck, text: "SOC 2 Ready"    },
+                  { icon: Globe,       text: t("footer.multiCurrency") },
+                  { icon: Clock,       text: t("footer.uptime")   },
+                  { icon: ShieldCheck, text: t("footer.soc2")    },
                 ].map(b => (
                   <div key={b.text} className="flex items-center gap-1.5" style={{ color: D.muted + "60" }}>
                     <b.icon className="h-3 w-3" />
@@ -469,10 +456,10 @@ export default function LoginPage() {
                   <ShieldCheck className="h-5 w-5" style={{ color: D.accent }} />
                 </div>
                 <h2 className="text-[1.6rem] font-bold tracking-tight" style={{ color: D.white }}>
-                  Two-factor authentication
+                  {t("mfa.title")}
                 </h2>
                 <p className="text-[13px] mt-1" style={{ color: D.muted }}>
-                  Enter the 6-digit code from your authenticator app — or a backup code.
+                  {t("mfa.subtitle")}
                 </p>
               </div>
               <form onSubmit={(e) => { e.preventDefault(); onVerify2fa(); }} className="space-y-5">
@@ -494,7 +481,7 @@ export default function LoginPage() {
                   className="w-full h-12 rounded-lg flex items-center justify-center gap-2 text-[13px] font-bold tracking-wide transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: D.accent, color: "#fff", boxShadow: `0 4px 20px ${D.accentGlow}` }}
                 >
-                  {verifying ? (<><Loader2 className="h-4 w-4 animate-spin" />Verifying…</>) : (<>Verify &amp; sign in<ArrowRight className="h-4 w-4" /></>)}
+                  {verifying ? (<><Loader2 className="h-4 w-4 animate-spin" />{t("mfa.verifying")}</>) : (<>{t("mfa.verify")}<ArrowRight className="h-4 w-4" /></>)}
                 </motion.button>
                 <button
                   type="button"
@@ -502,7 +489,7 @@ export default function LoginPage() {
                   className="w-full text-center text-[12px] hover:underline"
                   style={{ color: D.muted }}
                 >
-                  ← Back to sign in
+                  {t("mfa.back")}
                 </button>
               </form>
             </div>
@@ -511,10 +498,10 @@ export default function LoginPage() {
             {/* Heading */}
             <div className="mb-7">
               <h2 className="text-[1.6rem] font-bold tracking-tight" style={{ color: D.white }}>
-                Sign in to your workspace
+                {t("form.title")}
               </h2>
               <p className="text-[13px] mt-1" style={{ color: D.muted }}>
-                {greeting()} — access your organization's ERP
+                {t(greetingKey())} {t("greeting.suffix")}
               </p>
             </div>
 
@@ -527,7 +514,7 @@ export default function LoginPage() {
                   className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-2"
                   style={{ color: D.muted }}
                 >
-                  Email address
+                  {t("form.emailLabel")}
                 </label>
                 <div className="relative">
                   <Mail
@@ -536,7 +523,7 @@ export default function LoginPage() {
                   />
                   <input
                     type="email"
-                    placeholder="you@company.com"
+                    placeholder={t("form.emailPlaceholder")}
                     autoComplete="email"
                     autoFocus
                     {...register("email")}
@@ -556,7 +543,7 @@ export default function LoginPage() {
                   />
                 </div>
                 {errors.email && (
-                  <p className="text-red-400 text-xs mt-1.5">{errors.email.message}</p>
+                  <p className="text-red-400 text-xs mt-1.5">{t(errors.email.message as string)}</p>
                 )}
               </div>
 
@@ -567,14 +554,14 @@ export default function LoginPage() {
                     className="text-[10px] font-bold uppercase tracking-[0.14em]"
                     style={{ color: D.muted }}
                   >
-                    Password
+                    {t("form.passwordLabel")}
                   </label>
                   <Link
                     to="/auth/forgot-password"
                     className="text-[11px] font-medium transition-colors hover:underline"
                     style={{ color: D.accent }}
                   >
-                    Forgot password?
+                    {t("form.forgotPassword")}
                   </Link>
                 </div>
                 <div className="relative">
@@ -612,7 +599,7 @@ export default function LoginPage() {
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="text-red-400 text-xs mt-1.5">{errors.password.message}</p>
+                  <p className="text-red-400 text-xs mt-1.5">{t(errors.password.message as string)}</p>
                 )}
               </div>
 
@@ -626,7 +613,7 @@ export default function LoginPage() {
                   style={{ accentColor: D.accent }}
                 />
                 <span className="text-[12px]" style={{ color: D.muted }}>
-                  Keep me signed in for 30 days
+                  {t("form.rememberMe")}
                 </span>
               </label>
 
@@ -644,10 +631,10 @@ export default function LoginPage() {
                 }}
               >
                 {isSubmitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" />Signing in…</>
+                  <><Loader2 className="h-4 w-4 animate-spin" />{t("form.signingIn")}</>
                 ) : (
                   <>
-                    Sign in
+                    {t("form.signIn")}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                   </>
                 )}
@@ -659,20 +646,20 @@ export default function LoginPage() {
               className="text-center text-[11px] mt-5 leading-relaxed"
               style={{ color: D.muted + "70" }}
             >
-              Access is restricted to authorised personnel only.
+              {t("form.securityNote1")}
               <br />
-              Unauthorised use is strictly prohibited.
+              {t("form.securityNote2")}
             </p>
 
             {/* Trial CTA */}
             <p className="text-center text-[12px] mt-3" style={{ color: D.muted }}>
-              Don't have an account?{" "}
+              {t("form.noAccount")}{" "}
               <Link
                 to="/trial"
                 className="font-semibold hover:underline"
                 style={{ color: D.accent }}
               >
-                Start free trial →
+                {t("form.startTrial")}
               </Link>
             </p>
             </>

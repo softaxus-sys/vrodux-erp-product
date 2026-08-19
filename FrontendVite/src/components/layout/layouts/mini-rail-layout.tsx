@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { BrandMark } from "@/components/brand/brand-logo";
 import { cn } from "@/lib/utils";
-import { navigationConfig } from "@/config/navigation";
+import { useNavigation } from "@/hooks/use-navigation";
 import type { NavItem } from "@/types";
 import { NavIcon, NavBadge } from "@/components/layout/nav/nav-utils";
 
@@ -118,6 +118,7 @@ function RailItem({ item }: RailItemProps) {
 }
 
 export function MiniRailLayout({ children }: { children: React.ReactNode }) {
+  const navigationConfig = useNavigation();
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mini Rail (64px) */}

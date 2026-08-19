@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { PanelLeft, PanelRight, PanelTop, LayoutGrid, Check, Sun, Moon, Palette, Layout, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ const layoutIcons: Record<string, React.ReactNode> = {
 };
 
 export function AppearanceView() {
+  const { t } = useTranslation("settings");
   const { paletteId, layoutVariant, darkMode, radius, setPalette, setLayoutVariant, setDarkMode, setRadius } = useThemeStore();
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -29,9 +31,9 @@ export function AppearanceView() {
         darkMode:  String(darkMode),
         radius:    String(radius),
       });
-      toast.success("Appearance saved.");
+      toast.success(t("appearance.saved"));
     } catch {
-      toast.error("Failed to save appearance.");
+      toast.error(t("appearance.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -40,9 +42,9 @@ export function AppearanceView() {
   return (
     <div className="max-w-4xl mx-auto space-y-10">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Appearance</h1>
+        <h1 className="text-2xl font-bold text-foreground">{t("appearance.title")}</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Customize the look and feel of Vrodux. Changes are saved to your profile.
+          {t("appearance.description")}
         </p>
       </div>
 
@@ -53,8 +55,8 @@ export function AppearanceView() {
             <Palette className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold">Color Palette</h2>
-            <p className="text-xs text-muted-foreground">Choose a brand color for the sidebar and primary actions</p>
+            <h2 className="text-sm font-semibold">{t("appearance.palette")}</h2>
+            <p className="text-xs text-muted-foreground">{t("appearance.paletteHint")}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
@@ -83,8 +85,8 @@ export function AppearanceView() {
             <Layout className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold">Navigation Layout</h2>
-            <p className="text-xs text-muted-foreground">Choose how the navigation menu is displayed</p>
+            <h2 className="text-sm font-semibold">{t("appearance.layout")}</h2>
+            <p className="text-xs text-muted-foreground">{t("appearance.layoutHint")}</p>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -116,9 +118,9 @@ export function AppearanceView() {
 
       {/* Dark Mode */}
       <section>
-        <h2 className="text-sm font-semibold mb-4">Color Mode</h2>
+        <h2 className="text-sm font-semibold mb-4">{t("appearance.colorMode")}</h2>
         <div className="grid grid-cols-2 gap-3 max-w-sm">
-          {[{ mode: false, label: "Light", icon: <Sun className="h-5 w-5" /> }, { mode: true, label: "Dark", icon: <Moon className="h-5 w-5" /> }].map(({ mode, label, icon }) => (
+          {[{ mode: false, label: t("appearance.light"), icon: <Sun className="h-5 w-5" /> }, { mode: true, label: t("appearance.dark"), icon: <Moon className="h-5 w-5" /> }].map(({ mode, label, icon }) => (
             <motion.button key={label} whileTap={{ scale: 0.97 }} onClick={() => setDarkMode(mode)}
               className={cn("flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 transition-all",
                 darkMode === mode ? "border-primary bg-primary/5 text-primary font-medium" : "border-border bg-card text-muted-foreground")}>
@@ -134,14 +136,14 @@ export function AppearanceView() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-semibold">Corner Radius</h2>
-            <p className="text-xs text-muted-foreground">Roundness of cards, buttons, and inputs</p>
+            <h2 className="text-sm font-semibold">{t("appearance.radius")}</h2>
+            <p className="text-xs text-muted-foreground">{t("appearance.radiusHint")}</p>
           </div>
           <span className="text-xs font-mono text-muted-foreground">{radius}rem</span>
         </div>
         <div className="max-w-sm">
           <Slider min={0} max={1.2} step={0.1} value={[radius]} onValueChange={([v]: number[]) => setRadius(v)} className="w-full" />
-          <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground"><span>Sharp</span><span>Rounded</span><span>Pill</span></div>
+          <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground"><span>{t("appearance.sharp")}</span><span>{t("appearance.rounded")}</span><span>{t("appearance.pill")}</span></div>
         </div>
       </section>
 

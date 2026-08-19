@@ -1,5 +1,6 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Search, ShieldAlert, AlertTriangle, Activity, Calendar,
   LogIn, LogOut, FilePlus, FileEdit, Trash2, Download,
@@ -17,19 +18,19 @@ import type { AuditLogDto } from "@/lib/identity/types";
 
 type ActionKey = "login" | "logout" | "create" | "update" | "delete" | "export" | "approve" | "reject" | "view" | "unknown";
 
-interface ActionConfig { label: string; color: string; bg: string; icon: React.ElementType }
+interface ActionConfig { labelKey: string; color: string; bg: string; icon: React.ElementType }
 
 const ACTION_CONFIG: Record<ActionKey, ActionConfig> = {
-  login:   { label: "Login",   color: "text-primary",           bg: "bg-primary/10",     icon: LogIn },
-  logout:  { label: "Logout",  color: "text-muted-foreground",  bg: "bg-muted",           icon: LogOut },
-  create:  { label: "Create",  color: "text-emerald-600",       bg: "bg-emerald-50 dark:bg-emerald-950/30", icon: FilePlus },
-  update:  { label: "Update",  color: "text-amber-600",         bg: "bg-amber-50 dark:bg-amber-950/30",     icon: FileEdit },
-  delete:  { label: "Delete",  color: "text-destructive",       bg: "bg-destructive/10",  icon: Trash2 },
-  export:  { label: "Export",  color: "text-amber-600",         bg: "bg-amber-50 dark:bg-amber-950/30",     icon: Download },
-  approve: { label: "Approve", color: "text-emerald-600",       bg: "bg-emerald-50 dark:bg-emerald-950/30", icon: CheckCircle },
-  reject:  { label: "Reject",  color: "text-destructive",       bg: "bg-destructive/10",  icon: XCircle },
-  view:    { label: "View",    color: "text-muted-foreground",  bg: "bg-muted",           icon: Eye },
-  unknown: { label: "Action",  color: "text-muted-foreground",  bg: "bg-muted",           icon: Activity },
+  login:   { labelKey: "audit.action.login",   color: "text-primary",           bg: "bg-primary/10",     icon: LogIn },
+  logout:  { labelKey: "audit.action.logout",  color: "text-muted-foreground",  bg: "bg-muted",           icon: LogOut },
+  create:  { labelKey: "audit.action.create",  color: "text-emerald-600",       bg: "bg-emerald-50 dark:bg-emerald-950/30", icon: FilePlus },
+  update:  { labelKey: "audit.action.update",  color: "text-amber-600",         bg: "bg-amber-50 dark:bg-amber-950/30",     icon: FileEdit },
+  delete:  { labelKey: "audit.action.delete",  color: "text-destructive",       bg: "bg-destructive/10",  icon: Trash2 },
+  export:  { labelKey: "audit.action.export",  color: "text-amber-600",         bg: "bg-amber-50 dark:bg-amber-950/30",     icon: Download },
+  approve: { labelKey: "audit.action.approve", color: "text-emerald-600",       bg: "bg-emerald-50 dark:bg-emerald-950/30", icon: CheckCircle },
+  reject:  { labelKey: "audit.action.reject",  color: "text-destructive",       bg: "bg-destructive/10",  icon: XCircle },
+  view:    { labelKey: "audit.action.view",    color: "text-muted-foreground",  bg: "bg-muted",           icon: Eye },
+  unknown: { labelKey: "audit.action.unknown", color: "text-muted-foreground",  bg: "bg-muted",           icon: Activity },
 };
 
 function getActionConfig(action: string): ActionConfig {
@@ -51,11 +52,11 @@ function avatarColorFor(userId: string | null): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, locale: string) {
   const d = new Date(iso);
   return {
-    date: d.toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" }),
-    time: d.toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit", hour12: true }),
+    date: d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" }),
+    time: d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: true }),
   };
 }
 
@@ -66,11 +67,13 @@ function todayIso() {
 // ── Audit Log Row ─────────────────────────────────────────────────────────────
 
 function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
+  const { t, i18n } = useTranslation("settings");
+  const locale = i18n.language?.startsWith("ar") ? "ar" : "en-PK";
   const actionCfg = getActionConfig(log.action);
   const ActionIcon = actionCfg.icon;
   const avatarColor = avatarColorFor(log.userId);
-  const { date, time } = formatDateTime(log.occurredOn);
-  const displayName = log.userName ?? "System";
+  const { date, time } = formatDateTime(log.occurredOn, locale);
+  const displayName = log.userName ?? t("audit.system");
   const isFailed = !log.succeeded;
 
   return (
@@ -115,7 +118,7 @@ function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
           actionCfg.color, actionCfg.bg
         )}>
           <ActionIcon className="h-3 w-3" />
-          {actionCfg.label}
+          {t(actionCfg.labelKey)}
         </span>
       </td>
 
@@ -135,7 +138,7 @@ function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
             ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30"
             : "bg-destructive/10 text-destructive"
         )}>
-          {log.succeeded ? "Success" : "Failed"}
+          {log.succeeded ? t("audit.success") : t("audit.failed")}
         </span>
       </td>
 
@@ -170,6 +173,8 @@ const KNOWN_ACTIONS = [
 ];
 
 export function AuditView() {
+  const { t } = useTranslation("settings");
+  const { t: tc } = useTranslation("common");
   const [page,           setPage]           = React.useState(1);
   const [search,         setSearch]         = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
@@ -213,30 +218,32 @@ export function AuditView() {
   const todayCount = logs.filter(l => l.occurredOn.startsWith(todayStr)).length;
   const failedCount = logs.filter(l => !l.succeeded).length;
 
+  const actionLabel = (a: string) => t(`audit.action.${a.toLowerCase()}`, { defaultValue: a });
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Audit Log</h1>
+          <h1 className="text-2xl font-bold">{t("audit.title")}</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Track all user actions, system changes, and security events.
+            {t("audit.description")}
           </p>
         </div>
         <Button variant="outline" size="sm" className="gap-2 h-9"
           onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-          Refresh
+          {tc("action.refresh")}
         </Button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Events (page)", value: totalCount,   icon: Activity,      color: "bg-primary/10 text-primary" },
-          { label: "Failed Events",       value: failedCount,  icon: ShieldAlert,   color: "bg-destructive/10 text-destructive" },
-          { label: "Today's Events",      value: todayCount,   icon: Calendar,      color: "bg-muted text-muted-foreground" },
-          { label: "Current Page",        value: `${page}/${totalPages}`, icon: AlertTriangle, color: "bg-amber-50 text-amber-600 dark:bg-amber-950/30" },
+          { label: t("audit.statTotal"),  value: totalCount,   icon: Activity,      color: "bg-primary/10 text-primary" },
+          { label: t("audit.statFailed"), value: failedCount,  icon: ShieldAlert,   color: "bg-destructive/10 text-destructive" },
+          { label: t("audit.statToday"),  value: todayCount,   icon: Calendar,      color: "bg-muted text-muted-foreground" },
+          { label: t("audit.statPage"),   value: `${page}/${totalPages}`, icon: AlertTriangle, color: "bg-amber-50 text-amber-600 dark:bg-amber-950/30" },
         ].map((s) => (
           <div key={s.label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
             <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", s.color)}>
@@ -255,7 +262,7 @@ export function AuditView() {
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search user, entity, IP…" className="pl-9" value={search}
+          <Input placeholder={t("audit.searchPlaceholder")} className="pl-9" value={search}
             onChange={(e) => setSearch(e.target.value)} />
         </div>
 
@@ -263,7 +270,7 @@ export function AuditView() {
         <div className="relative">
           <Button variant="outline" className="gap-2 min-w-[150px]"
             onClick={() => setActionOpen(o => !o)}>
-            {actionFilter || "All Actions"}
+            {actionFilter ? actionLabel(actionFilter) : t("audit.allActions")}
             <ChevronDown className="h-4 w-4" />
           </Button>
           {actionOpen && (
@@ -271,14 +278,14 @@ export function AuditView() {
               <button className={cn("w-full text-left px-4 py-2 text-sm hover:bg-muted",
                 !actionFilter && "bg-primary/10 text-primary")}
                 onClick={() => { setActionFilter(""); setActionOpen(false); setPage(1); }}>
-                All Actions
+                {t("audit.allActions")}
               </button>
               {KNOWN_ACTIONS.map(a => (
                 <button key={a}
                   className={cn("w-full text-left px-4 py-2 text-sm hover:bg-muted",
                     actionFilter === a && "bg-primary/10 text-primary")}
                   onClick={() => { setActionFilter(a); setActionOpen(false); setPage(1); }}>
-                  {a}
+                  {actionLabel(a)}
                 </button>
               ))}
             </div>
@@ -289,13 +296,13 @@ export function AuditView() {
         <div className="flex items-center gap-2">
           <Input type="date" className="h-10 text-sm w-36"
             value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} />
-          <span className="text-muted-foreground text-sm">to</span>
+          <span className="text-muted-foreground text-sm">{t("audit.to")}</span>
           <Input type="date" className="h-10 text-sm w-36"
             value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} />
           {(fromDate || toDate) && (
             <button onClick={() => { setFromDate(""); setToDate(""); setPage(1); }}
               className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2">
-              Clear
+              {tc("action.clear")}
             </button>
           )}
         </div>
@@ -306,12 +313,12 @@ export function AuditView() {
         <Calendar className="h-3.5 w-3.5" />
         <span>
           {fromDate || toDate
-            ? <>Filtering: <strong>{fromDate || "earliest"}</strong> → <strong>{toDate || "latest"}</strong></>
-            : "Showing all events (most recent first)"
+            ? <>{t("audit.filtering")}: <strong>{fromDate || t("audit.earliest")}</strong> → <strong>{toDate || t("audit.latest")}</strong></>
+            : t("audit.showingAll")
           }
         </span>
         <span className="ml-auto">
-          {isLoading ? "Loading…" : `${totalCount} total · showing ${filtered.length} on this page`}
+          {isLoading ? tc("message.loading") : t("audit.countSummary", { total: totalCount, shown: filtered.length })}
         </span>
       </div>
 
@@ -321,13 +328,13 @@ export function AuditView() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">Timestamp</th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">User</th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Action</th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Entity</th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">IP Address</th>
-                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Changes</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">{t("audit.colTimestamp")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("audit.colUser")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("audit.colAction")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("audit.colEntity")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("audit.colStatus")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">{t("audit.colIp")}</th>
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground">{t("audit.colChanges")}</th>
               </tr>
             </thead>
             <tbody>
@@ -340,7 +347,7 @@ export function AuditView() {
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-sm text-muted-foreground">
-                    No audit events found. Try adjusting your filters.
+                    {t("audit.empty")}
                   </td>
                 </tr>
               ) : (
@@ -357,16 +364,16 @@ export function AuditView() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            Page {page} of {totalPages} · {totalCount} events
+            {t("audit.pageOf", { page, total: totalPages, n: totalCount })}
           </p>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" className="gap-1.5 h-8"
               onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1 || isFetching}>
-              <ChevronLeft className="h-4 w-4" />Previous
+              <ChevronLeft className="h-4 w-4" />{tc("action.previous")}
             </Button>
             <Button variant="outline" size="sm" className="gap-1.5 h-8"
               onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages || isFetching}>
-              Next<ChevronRight className="h-4 w-4" />
+              {tc("action.next")}<ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -374,4 +381,3 @@ export function AuditView() {
     </div>
   );
 }
-

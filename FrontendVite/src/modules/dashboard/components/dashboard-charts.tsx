@@ -1,5 +1,6 @@
 import * as React from "react";
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -160,6 +161,7 @@ function ChartSection({ children, delay = 0 }: { children: React.ReactNode; dela
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FinanceCharts() {
+  const { t } = useTranslation("dashboard");
   const currency = useCurrency();
   const invoices = (useInvoices().data ?? []) as InvoiceDto[];
   const expenses = (useExpenses().data ?? []) as ExpenseDto[];
@@ -205,17 +207,17 @@ function FinanceCharts() {
     <ChartSection delay={0.05}>
       <SectionHeader
         icon={DollarSign}
-        title="Finance Overview"
+        title={t("charts.finance.title")}
         color={P.blue}
-        description={`YTD · Revenue ${fmt(totalRevenue)} · Net Profit ${margin}%`}
+        description={t("charts.finance.desc", { revenue: fmt(totalRevenue), margin })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Revenue vs Expenses — Area */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Revenue vs Expenses</CardTitle>
-            <CardDescription className="text-xs">Monthly trend · {currency}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.finance.revVsExp")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.finance.revVsExpDesc", { currency })}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -235,8 +237,8 @@ function FinanceCharts() {
                 <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
                 <Tooltip content={<ChartTooltip currency />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="revenue"  name="Revenue"  stroke={P.blue} fill="url(#gradRev)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                <Area type="monotone" dataKey="expenses" name="Expenses" stroke={P.red}  fill="url(#gradExp)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                <Area type="monotone" dataKey="revenue"  name={t("charts.series.revenue")}  stroke={P.blue} fill="url(#gradRev)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                <Area type="monotone" dataKey="expenses" name={t("charts.series.expenses")} stroke={P.red}  fill="url(#gradExp)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -245,8 +247,8 @@ function FinanceCharts() {
         {/* Expense breakdown — Donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Expense Breakdown</CardTitle>
-            <CardDescription className="text-xs">By category · this year</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.finance.breakdown")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.finance.breakdownDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasExpenseCats ? (
@@ -274,7 +276,7 @@ function FinanceCharts() {
               </>
             ) : (
               <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
-                No expenses recorded yet.
+                {t("charts.finance.breakdownEmpty")}
               </div>
             )}
           </CardContent>
@@ -285,8 +287,8 @@ function FinanceCharts() {
       {/* Net Profit trend */}
       <Card className="mt-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Net Profit Trend</CardTitle>
-          <CardDescription className="text-xs">Monthly profit (revenue − expenses)</CardDescription>
+          <CardTitle className="text-sm font-semibold">{t("charts.finance.netProfit")}</CardTitle>
+          <CardDescription className="text-xs">{t("charts.finance.netProfitDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={150}>
@@ -295,7 +297,7 @@ function FinanceCharts() {
               <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
               <Tooltip content={<ChartTooltip currency />} />
-              <Bar dataKey="profit" name="Net Profit" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="profit" name={t("charts.series.netProfit")} radius={[4, 4, 0, 0]}>
                 {financeMonthly.map((d, i) => {
                   const palette = [P.blue, P.green, P.violet, P.amber, P.teal];
                   return (
@@ -316,6 +318,7 @@ function FinanceCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function HrCharts() {
+  const { t } = useTranslation("dashboard");
   const { data: employees = [] } = useEmployees();
   const { data: leaves = [] }    = useLeaveRequests();
   const { data: attendance = [] } = useAttendance();
@@ -374,17 +377,17 @@ function HrCharts() {
     <ChartSection delay={0.1}>
       <SectionHeader
         icon={Users}
-        title="HR Overview"
+        title={t("charts.hr.title")}
         color={P.teal}
-        description={`${employees.length} employees · ${leaves.length} leave requests`}
+        description={t("charts.hr.desc", { employees: employees.length, leaves: leaves.length })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Department headcount — bar */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Department Headcount</CardTitle>
-            <CardDescription className="text-xs">Employees per department</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.hr.headcount")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.hr.headcountDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasDept ? (
@@ -394,11 +397,11 @@ function HrCharts() {
                   <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis dataKey="dept" type="category" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={58} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="count" name="Employees" fill={P.teal} radius={[0, 4, 4, 0]} barSize={12} />
+                  <Bar dataKey="count" name={t("charts.series.employees")} fill={P.teal} radius={[0, 4, 4, 0]} barSize={12} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart label="No employees yet." height={220} />
+              <EmptyChart label={t("charts.hr.headcountEmpty")} height={220} />
             )}
           </CardContent>
         </Card>
@@ -406,8 +409,8 @@ function HrCharts() {
         {/* Leave distribution — donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Leave Types</CardTitle>
-            <CardDescription className="text-xs">Requests by leave type</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.hr.leaveTypes")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.hr.leaveTypesDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasLeaves ? (
@@ -434,7 +437,7 @@ function HrCharts() {
                 <DonutLegend data={leaveTypes} colors={leaveColors} total={leaveTypes.reduce((s, d) => s + d.value, 0)} />
               </>
             ) : (
-              <EmptyChart label="No leave requests yet." />
+              <EmptyChart label={t("charts.hr.leaveTypesEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -444,8 +447,8 @@ function HrCharts() {
       {/* Weekly attendance stacked */}
       <Card className="mt-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Weekly Attendance</CardTitle>
-          <CardDescription className="text-xs">Present / Absent / Late breakdown this week</CardDescription>
+          <CardTitle className="text-sm font-semibold">{t("charts.hr.weekly")}</CardTitle>
+          <CardDescription className="text-xs">{t("charts.hr.weeklyDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           {hasAtt ? (
@@ -456,13 +459,13 @@ function HrCharts() {
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
                 <Tooltip content={<ChartTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="present" name="Present" stackId="a" fill={P.green}  radius={[0, 0, 0, 0]} />
-                <Bar dataKey="absent"  name="Absent"  stackId="a" fill={P.red}    radius={[0, 0, 0, 0]} />
-                <Bar dataKey="late"    name="Late"    stackId="a" fill={P.amber}  radius={[4, 4, 0, 0]} />
+                <Bar dataKey="present" name={t("charts.series.present")} stackId="a" fill={P.green}  radius={[0, 0, 0, 0]} />
+                <Bar dataKey="absent"  name={t("charts.series.absent")}  stackId="a" fill={P.red}    radius={[0, 0, 0, 0]} />
+                <Bar dataKey="late"    name={t("charts.series.late")}    stackId="a" fill={P.amber}  radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <EmptyChart label="No attendance recorded this week." height={150} />
+            <EmptyChart label={t("charts.hr.weeklyEmpty")} height={150} />
           )}
         </CardContent>
       </Card>
@@ -475,6 +478,7 @@ function HrCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SalesCharts() {
+  const { t } = useTranslation("dashboard");
   const currency = useCurrency();
   const { data } = useSalesOrders({ pageSize: 500 });
   const orders = data?.items ?? [];
@@ -510,17 +514,17 @@ function SalesCharts() {
     <ChartSection delay={0.15}>
       <SectionHeader
         icon={ShoppingCart}
-        title="Sales Overview"
+        title={t("charts.sales.title")}
         color={P.violet}
-        description={`${orders.length} orders · ${fmt(totalValue)} this year`}
+        description={t("charts.sales.desc", { orders: orders.length, value: fmt(totalValue) })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Monthly sales — area */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Monthly Sales</CardTitle>
-            <CardDescription className="text-xs">Order value by month · {currency}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.sales.monthly")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.sales.monthlyDesc", { currency })}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasOrders ? (
@@ -536,11 +540,11 @@ function SalesCharts() {
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={42} />
                   <Tooltip content={<ChartTooltip currency />} />
-                  <Area type="monotone" dataKey="value" name="Order Value" stroke={P.violet} fill="url(#gradSalesVal)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <Area type="monotone" dataKey="value" name={t("charts.series.orderValue")} stroke={P.violet} fill="url(#gradSalesVal)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart label="No sales orders yet." height={220} />
+              <EmptyChart label={t("charts.sales.monthlyEmpty")} height={220} />
             )}
           </CardContent>
         </Card>
@@ -548,8 +552,8 @@ function SalesCharts() {
         {/* Order status — donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Order Status</CardTitle>
-            <CardDescription className="text-xs">Orders by current status</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.sales.status")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.sales.statusDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasOrders ? (
@@ -576,7 +580,7 @@ function SalesCharts() {
                 <DonutLegend data={statusDist} colors={statusColors} total={statusDist.reduce((s, d) => s + d.value, 0)} />
               </>
             ) : (
-              <EmptyChart label="No sales orders yet." />
+              <EmptyChart label={t("charts.sales.monthlyEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -590,6 +594,7 @@ function SalesCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function CrmCharts() {
+  const { t } = useTranslation("dashboard");
   const { data: leads = [] } = useLeads();
   const { data: deals = [] } = useDeals();
 
@@ -630,17 +635,17 @@ function CrmCharts() {
     <ChartSection delay={0.2}>
       <SectionHeader
         icon={TrendingUp}
-        title="CRM Overview"
+        title={t("charts.crm.title")}
         color={P.pink}
-        description={`${leads.length} leads · ${deals.length} deals · ${fmt(totalPipeline)} open pipeline`}
+        description={t("charts.crm.desc", { leads: leads.length, deals: deals.length, pipeline: fmt(totalPipeline) })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* CRM monthly area */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Lead Acquisition & Conversion</CardTitle>
-            <CardDescription className="text-xs">Monthly new leads vs converted · {new Date().getFullYear()}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.crm.acquisition")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.crm.acquisitionDesc", { year: new Date().getFullYear() })}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={220}>
@@ -660,8 +665,8 @@ function CrmCharts() {
                 <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
                 <Tooltip content={<ChartTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="newLeads"  name="New Leads" stroke={P.pink}  fill="url(#gradNewL)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                <Area type="monotone" dataKey="converted" name="Converted" stroke={P.green} fill="url(#gradConv)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                <Area type="monotone" dataKey="newLeads"  name={t("charts.series.newLeads")} stroke={P.pink}  fill="url(#gradNewL)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                <Area type="monotone" dataKey="converted" name={t("charts.series.converted")} stroke={P.green} fill="url(#gradConv)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
               </AreaChart>
             </ResponsiveContainer>
           </CardContent>
@@ -670,8 +675,8 @@ function CrmCharts() {
         {/* Lead stage donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Lead Stage Distribution</CardTitle>
-            <CardDescription className="text-xs">Leads by current status</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.crm.stages")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.crm.stagesDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasStages ? (
@@ -703,7 +708,7 @@ function CrmCharts() {
               </>
             ) : (
               <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
-                No leads yet.
+                {t("charts.crm.stagesEmpty")}
               </div>
             )}
           </CardContent>
@@ -718,6 +723,7 @@ function CrmCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function InventoryCharts() {
+  const { t } = useTranslation("dashboard");
   const currency = useCurrency();
   const { data } = useInventoryProducts({ pageSize: 1000 });
   const products = data?.items ?? [];
@@ -763,17 +769,17 @@ function InventoryCharts() {
     <ChartSection delay={0.25}>
       <SectionHeader
         icon={Package}
-        title="Inventory Overview"
+        title={t("charts.inventory.title")}
         color={P.orange}
-        description={`${products.length} products tracked`}
+        description={t("charts.inventory.desc", { count: products.length })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Stock by category */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Stock Levels by Category</CardTitle>
-            <CardDescription className="text-xs">In stock · Low stock · Out of stock</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.inventory.stockLevels")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.inventory.stockLevelsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasStock ? (
@@ -784,13 +790,13 @@ function InventoryCharts() {
                   <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={32} />
                   <Tooltip content={<ChartTooltip />} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="inStock"    name="In Stock"     fill={P.green}  radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="lowStock"   name="Low Stock"    fill={P.amber}  radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="outOfStock" name="Out of Stock" fill={P.red}    radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="inStock"    name={t("charts.series.inStock")}     fill={P.green}  radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="lowStock"   name={t("charts.series.lowStock")}    fill={P.amber}  radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="outOfStock" name={t("charts.series.outOfStock")} fill={P.red}    radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart label="No products yet." height={220} />
+              <EmptyChart label={t("charts.inventory.stockLevelsEmpty")} height={220} />
             )}
           </CardContent>
         </Card>
@@ -798,8 +804,8 @@ function InventoryCharts() {
         {/* Inventory valuation donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Inventory Valuation</CardTitle>
-            <CardDescription className="text-xs">At cost · by category · {currency}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.inventory.valuation")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.inventory.valuationDesc", { currency })}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasVal ? (
@@ -830,7 +836,7 @@ function InventoryCharts() {
                 />
               </>
             ) : (
-              <EmptyChart label="No stock valuation yet." />
+              <EmptyChart label={t("charts.inventory.valuationEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -844,6 +850,7 @@ function InventoryCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PosCharts() {
+  const { t } = useTranslation("dashboard");
   const currency = useCurrency();
   const { data } = useTransactions({ pageSize: 500 });
   const txns = data?.items ?? [];
@@ -894,17 +901,17 @@ function PosCharts() {
     <ChartSection delay={0.3}>
       <SectionHeader
         icon={CreditCard}
-        title="POS Overview"
+        title={t("charts.pos.title")}
         color={P.sky}
-        description={`Today · ${todays.length} transactions · ${formatCurrency(totalSales, currency)} sales`}
+        description={t("charts.pos.desc", { count: todays.length, sales: formatCurrency(totalSales, currency) })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Hourly sales */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Hourly Sales (Today)</CardTitle>
-            <CardDescription className="text-xs">Sales amount by hour · {currency}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.pos.hourly")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.pos.hourlyDesc", { currency })}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasHourly ? (
@@ -920,11 +927,11 @@ function PosCharts() {
                   <XAxis dataKey="hour" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis tickFormatter={fmt} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={38} />
                   <Tooltip content={<ChartTooltip currency />} />
-                  <Area type="monotone" dataKey="sales" name="Sales" stroke={P.sky} fill="url(#gradPos)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <Area type="monotone" dataKey="sales" name={t("charts.series.sales")} stroke={P.sky} fill="url(#gradPos)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart label="No sales recorded today." height={220} />
+              <EmptyChart label={t("charts.pos.hourlyEmpty")} height={220} />
             )}
           </CardContent>
         </Card>
@@ -932,8 +939,8 @@ function PosCharts() {
         {/* Payment methods donut */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Payment Methods</CardTitle>
-            <CardDescription className="text-xs">Transaction split by method</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.pos.methods")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.pos.methodsDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasMethods ? (
@@ -960,7 +967,7 @@ function PosCharts() {
                 <DonutLegend data={methods} colors={methodColors} total={methods.reduce((s, d) => s + d.value, 0)} />
               </>
             ) : (
-              <EmptyChart label="No transactions yet." />
+              <EmptyChart label={t("charts.pos.methodsEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -974,6 +981,7 @@ function PosCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function PurchaseCharts() {
+  const { t } = useTranslation("dashboard");
   const currency = useCurrency();
   const { data } = usePurchaseOrders({ pageSize: 500 });
   const orders = data?.items ?? [];
@@ -1012,17 +1020,17 @@ function PurchaseCharts() {
     <ChartSection delay={0.35}>
       <SectionHeader
         icon={Truck}
-        title="Purchase Overview"
+        title={t("charts.purchase.title")}
         color={P.lime}
-        description={`${orders.length} purchase orders`}
+        description={t("charts.purchase.desc", { count: orders.length })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
         {/* Monthly purchase trend */}
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Monthly Purchase Orders</CardTitle>
-            <CardDescription className="text-xs">Order count & total amount · {currency}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.purchase.monthly")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.purchase.monthlyDesc", { currency })}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasOrders ? (
@@ -1034,12 +1042,12 @@ function PurchaseCharts() {
                   <YAxis yAxisId="right" orientation="right" allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip currency />} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar yAxisId="left"  dataKey="amount" name={`Amount (${currency})`} fill={P.lime}   fillOpacity={0.85} radius={[4, 4, 0, 0]} />
-                  <Bar yAxisId="right" dataKey="orders" name="Orders"                 fill={P.violet} fillOpacity={0.7}  radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left"  dataKey="amount" name={t("charts.series.amount", { currency })} fill={P.lime}   fillOpacity={0.85} radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="orders" name={t("charts.series.orders")}             fill={P.violet} fillOpacity={0.7}  radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart label="No purchase orders yet." height={220} />
+              <EmptyChart label={t("charts.purchase.monthlyEmpty")} height={220} />
             )}
           </CardContent>
         </Card>
@@ -1047,8 +1055,8 @@ function PurchaseCharts() {
         {/* Top vendors */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Top Vendors</CardTitle>
-            <CardDescription className="text-xs">By purchase amount · {currency}</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.purchase.topVendors")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.purchase.topVendorsDesc", { currency })}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasVendors ? (
@@ -1076,7 +1084,7 @@ function PurchaseCharts() {
                 })}
               </div>
             ) : (
-              <EmptyChart label="No vendor spend yet." />
+              <EmptyChart label={t("charts.purchase.topVendorsEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -1090,6 +1098,7 @@ function PurchaseCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function HospitalityCharts() {
+  const { t } = useTranslation("dashboard");
   const { data: rooms = [] }    = useRooms();
   const { data: bookings = [] } = useBookings();
 
@@ -1116,15 +1125,15 @@ function HospitalityCharts() {
     <ChartSection delay={0.4}>
       <SectionHeader
         icon={Building2}
-        title="Hospitality Overview"
+        title={t("charts.hospitality.title")}
         color={P.teal}
-        description={`${rooms.length} rooms · ${bookings.length} bookings`}
+        description={t("charts.hospitality.desc", { rooms: rooms.length, bookings: bookings.length })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="xl:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Rooms by Status</CardTitle>
-            <CardDescription className="text-xs">Current room availability</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.hospitality.roomsByStatus")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.hospitality.roomsByStatusDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasRooms ? (
@@ -1134,18 +1143,18 @@ function HospitalityCharts() {
                   <XAxis dataKey="status" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="count" name="Rooms" fill={P.teal} radius={[4, 4, 0, 0]} barSize={28} />
+                  <Bar dataKey="count" name={t("charts.series.rooms")} fill={P.teal} radius={[4, 4, 0, 0]} barSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyChart label="No rooms yet." height={220} />
+              <EmptyChart label={t("charts.hospitality.roomsEmpty")} height={220} />
             )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Bookings by Status</CardTitle>
-            <CardDescription className="text-xs">Reservation status split</CardDescription>
+            <CardTitle className="text-sm font-semibold">{t("charts.hospitality.bookingsByStatus")}</CardTitle>
+            <CardDescription className="text-xs">{t("charts.hospitality.bookingsByStatusDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {hasBookings ? (
@@ -1163,7 +1172,7 @@ function HospitalityCharts() {
                 <DonutLegend data={bookingStatus} colors={bookingColors} total={bookingStatus.reduce((s, d) => s + d.value, 0)} />
               </>
             ) : (
-              <EmptyChart label="No bookings yet." />
+              <EmptyChart label={t("charts.hospitality.bookingsEmpty")} />
             )}
           </CardContent>
         </Card>
@@ -1177,12 +1186,13 @@ function HospitalityCharts() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function NoCharts() {
+  const { t } = useTranslation("dashboard");
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <BarChart2 className="h-12 w-12 text-muted-foreground/20 mb-4" />
-      <p className="text-sm font-medium text-muted-foreground">No chart data available</p>
+      <p className="text-sm font-medium text-muted-foreground">{t("charts.none.title")}</p>
       <p className="text-xs text-muted-foreground/60 mt-1 max-w-xs">
-        Charts appear when your role has access to Finance, HR, Sales, Inventory, POS, or other modules.
+        {t("charts.none.desc")}
       </p>
     </div>
   );
