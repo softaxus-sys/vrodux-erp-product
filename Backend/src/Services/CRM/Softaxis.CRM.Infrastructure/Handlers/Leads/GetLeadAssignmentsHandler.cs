@@ -15,7 +15,7 @@ internal sealed class GetLeadAssignmentsHandler(CrmDbContext db, ILeadAccessGuar
     {
         // Only reveal the handoff trail for a lead the user is allowed to see.
         var lead = await db.Leads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == query.LeadId, ct);
-        if (lead is null || !access.CanRead(lead))
+        if (lead is null || !await access.CanReadAsync(lead, ct))
             return Result.Failure<IReadOnlyList<LeadAssignmentDto>>(Error.NotFoundById("Lead", query.LeadId));
 
         var rows = await db.LeadAssignments.AsNoTracking()

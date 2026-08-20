@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, isVisaLead, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
 import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments } from "@/hooks/crm/use-crm";
-import { useUsers } from "@/hooks/identity/use-users";
+import { useAssignableUsers } from "@/hooks/identity/use-teams";
 import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
@@ -65,8 +65,10 @@ function ReassignPanel({
 }: { lead: Lead; onClose: () => void }) {
   const { t } = useTranslation("crm");
   const assign = useAssignLead();
-  const { data: usersPage } = useUsers({ pageSize: 200 });
-  const users = (usersPage?.items ?? []).filter(u => u.status?.toLowerCase() === "active");
+  // Server decides the pool from the caller's tier: admins get everyone, a team lead only
+  // their own members. So a lead can hand work onward but never outside their team.
+  const { data: assignable = [] } = useAssignableUsers();
+  const users = assignable.map(u => ({ id: u.userId, fullName: u.fullName }));
   const [toUserId, setToUserId] = React.useState(lead.assignedToUserId ?? "");
   const [note, setNote] = React.useState("");
 
@@ -133,13 +135,16 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
   const [showVisa, setShowVisa] = React.useState(false);
   React.useEffect(() => { if (!open) { setConfirmDelete(false); setShowReassign(false); setShowVisa(false); } }, [open]);
 
-  // Role + ownership gating: full-edit roles can act on any lead; assigned-edit roles only on their own.
+  // Role + ownership gating. The list is already scoped server-side, so a team-tier user can edit
+  // anything they can see — team membership isn't resolvable on the client, and the backend
+  // re-checks ownership on every write anyway.
   const hasRaw = useAuthStore(s => s.hasRawPermission);
   const myUserId = useAuthStore(s => s.user?.id);
   const canEditAll = hasRaw("crm.leads.edit");
+  const canEditTeam = hasRaw("crm.leads-team.edit");
   const canEditAssigned = hasRaw("crm.leads-assigned.edit");
   const isMine = !!lead?.assignedToUserId && lead.assignedToUserId === myUserId;
-  const canEditThis = canEditAll || (canEditAssigned && isMine);
+  const canEditThis = canEditAll || canEditTeam || (canEditAssigned && isMine);
 
   const assignments = useLeadAssignments(open && lead ? lead.id : null);
 

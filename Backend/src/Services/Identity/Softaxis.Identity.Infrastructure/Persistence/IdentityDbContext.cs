@@ -18,6 +18,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<RefreshToken>   RefreshTokens   => Set<RefreshToken>();
     public DbSet<AuditLog>       AuditLogs       => Set<AuditLog>();
     public DbSet<Branch>         Branches        => Set<Branch>();
+    public DbSet<Team>           Teams           => Set<Team>();
+    public DbSet<TeamMember>     TeamMembers     => Set<TeamMember>();
     public DbSet<AppSetting>     AppSettings     => Set<AppSetting>();
     public DbSet<Tenant>         Tenants         => Set<Tenant>();
 

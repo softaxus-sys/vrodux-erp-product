@@ -134,6 +134,7 @@ const CheckoutResultPage   = React.lazy(() => import("@/pages/billing/checkout-r
 const UsersPage            = React.lazy(() => import("@/pages/settings/users"));
 const SecurityPage         = React.lazy(() => import("@/pages/settings/security"));
 const RolesPage            = React.lazy(() => import("@/pages/settings/roles"));
+const TeamsPage            = React.lazy(() => import("@/pages/settings/teams"));
 const BranchesPage         = React.lazy(() => import("@/pages/settings/branches"));
 const IntegrationsPage     = React.lazy(() => import("@/pages/settings/integrations"));
 const AuditPage            = React.lazy(() => import("@/pages/settings/audit"));
@@ -468,6 +469,7 @@ export function App() {
             <Route path="/settings/users"                 element={<UsersPage />} />
             <Route path="/settings/security"              element={<SecurityPage />} />
             <Route path="/settings/roles"                 element={<RolesPage />} />
+            <Route path="/settings/teams"                 element={<TeamsPage />} />
             <Route path="/settings/branches"              element={<BranchesPage />} />
             <Route path="/settings/integrations"          element={<IntegrationsPage />} />
             <Route path="/settings/audit"                 element={<AuditPage />} />

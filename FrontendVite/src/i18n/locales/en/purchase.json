@@ -1,0 +1,401 @@
+{
+  "orders": {
+    "title": "Purchase Orders",
+    "description": "Manage supplier orders from draft through receipt",
+    "search": "Search PO or vendor…",
+    "new": "New PO",
+    "noResults": "No purchase orders found.",
+    "loading": "Loading purchase orders…",
+    "emptyState": "No purchase orders yet",
+    "pagination": "Page {{page}} of {{total}} ({{count}} orders)",
+    "filters": {
+      "all": "All Orders",
+      "draft": "Draft",
+      "sent": "Sent",
+      "partial": "Partial Receipt",
+      "received": "Received",
+      "cancelled": "Cancelled"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "partial": "Partial Receipt",
+      "received": "Received",
+      "cancelled": "Cancelled"
+    },
+    "table": {
+      "poNumber": "PO #",
+      "vendor": "Vendor",
+      "created": "Created",
+      "expected": "Expected",
+      "date": "Date",
+      "amount": "Total",
+      "items": "Items",
+      "status": "Status",
+      "action": "Action",
+      "actions": "Actions"
+    },
+    "button": {
+      "send": "Send",
+      "receive": "Receive",
+      "return": "Return",
+      "addLine": "Add Line"
+    },
+    "drawer": {
+      "title": "Purchase Order",
+      "overview": "Overview",
+      "items": "Items ({{count}})",
+      "total": "Total Amount",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "vendor": "Vendor",
+      "date": "Order Date",
+      "expectedDelivery": "Expected Delivery",
+      "paymentTerms": "Payment Terms",
+      "notes": "Notes",
+      "button": {
+        "close": "Close",
+        "delete": "Delete",
+        "confirm": "Confirm",
+        "cancel": "Cancel"
+      },
+      "deleteConfirm": "Delete this PO?"
+    },
+    "form": {
+      "title": "New Purchase Order",
+      "description": "Description",
+      "vendor": "Vendor *",
+      "date": "Order Date",
+      "expectedDelivery": "Expected Delivery Date",
+      "paymentTerms": "Payment Terms",
+      "orderLines": "Order Lines",
+      "lineItems": "Line Items",
+      "qty": "Qty",
+      "unitPrice": "Unit Price",
+      "discount": "Discount %",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "total": "Total",
+      "notes": "Notes",
+      "button": {
+        "addItem": "Add Item",
+        "cancel": "Cancel",
+        "confirm": "Create PO"
+      }
+    },
+    "picker": {
+      "search": "Search products…",
+      "searching": "Searching…",
+      "empty": "No products found. Free text will be used."
+    }
+  },
+  "grn": {
+    "title": "Goods Receipt Notes",
+    "description": "Track goods received against purchase orders",
+    "search": "Search GRN, PO or vendor…",
+    "loading": "Loading goods receipt notes…",
+    "noResults": "No goods receipt notes found.",
+    "emptyState": "No GRNs yet",
+    "status": {
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "table": {
+      "grnNumber": "GRN Number",
+      "poNumber": "PO Number",
+      "vendor": "Vendor",
+      "date": "Date",
+      "items": "Items",
+      "status": "Status"
+    },
+    "drawer": {
+      "overview": "Overview",
+      "items": "Items ({{count}})",
+      "details": "Details",
+      "poRef": "PO Reference",
+      "vendor": "Vendor",
+      "date": "GRN Date",
+      "driver": "Driver/Carrier"
+    },
+    "form": {
+      "title": "New Goods Receipt",
+      "description": "Record goods received against a purchase order",
+      "poRef": "PO Reference *",
+      "date": "GRN Date",
+      "driver": "Driver Name",
+      "items": "Received Items",
+      "receivedQty": "Received Qty",
+      "notes": "Notes",
+      "button": {
+        "addItem": "Add Item",
+        "cancel": "Cancel",
+        "confirm": "Create GRN"
+      }
+    }
+  },
+  "returns": {
+    "title": "Purchase Returns",
+    "description": "Goods returned to vendors against purchase orders",
+    "search": "Search return, PO or vendor…",
+    "loading": "Loading purchase returns…",
+    "noResults": "No purchase returns found.",
+    "emptyState": "No returns yet",
+    "reasons": {
+      "defective": "Defective / Damaged",
+      "wrongItem": "Wrong Item Delivered",
+      "qualityIssue": "Quality Issue",
+      "missingParts": "Missing Parts",
+      "lateDelivery": "Late Delivery",
+      "other": "Other"
+    },
+    "status": {
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "table": {
+      "returnNumber": "Return Number",
+      "poNumber": "PO Number",
+      "vendor": "Vendor",
+      "date": "Date",
+      "items": "Items",
+      "reason": "Reason",
+      "status": "Status"
+    },
+    "drawer": {
+      "overview": "Overview",
+      "items": "Items ({{count}})",
+      "details": "Details",
+      "poRef": "PO Reference",
+      "vendor": "Vendor",
+      "date": "Return Date",
+      "reason": "Reason"
+    },
+    "form": {
+      "title": "New Purchase Return",
+      "description": "Record returned goods to vendor",
+      "poRef": "PO Reference *",
+      "vendor": "Vendor *",
+      "date": "Return Date",
+      "reason": "Reason for Return *",
+      "returnItems": "Return Items",
+      "returnQty": "Return Qty",
+      "unitPrice": "Unit Price",
+      "notes": "Notes",
+      "button": {
+        "addItem": "Add Item",
+        "cancel": "Cancel",
+        "confirm": "Create Return"
+      }
+    }
+  },
+  "bills": {
+    "title": "Purchase Invoices",
+    "emptyState": "No invoices yet",
+    "types": {
+      "standard": "Standard",
+      "nonTax": "Non-Tax",
+      "import": "Import"
+    },
+    "status": {
+      "draft": "Draft",
+      "approved": "Approved",
+      "cancelled": "Cancelled"
+    },
+    "table": {
+      "billNumber": "Bill Number",
+      "poNumber": "PO Number",
+      "supplier": "Supplier",
+      "date": "Date",
+      "amount": "Amount",
+      "type": "Type",
+      "status": "Status"
+    },
+    "drawer": {
+      "overview": "Overview",
+      "items": "Items ({{count}})",
+      "details": "Details",
+      "supplier": "Supplier",
+      "date": "Invoice Date",
+      "poRef": "PO Reference",
+      "taxRate": "Tax Rate",
+      "invoiceType": "Invoice Type"
+    },
+    "form": {
+      "title": "New Purchase Invoice",
+      "description": "Record a vendor bill (AP)",
+      "supplier": "Supplier *",
+      "poRef": "PO Reference",
+      "date": "Invoice Date",
+      "invoiceType": "Invoice Type",
+      "taxRate": "Tax Rate (%)",
+      "currency": "Currency",
+      "lineItems": "Line Items",
+      "qty": "Qty",
+      "unitPrice": "Unit Price",
+      "subtotal": "Subtotal",
+      "tax": "Tax ({{rate}}%)",
+      "total": "Total",
+      "notes": "Notes",
+      "button": {
+        "addItem": "Add Item",
+        "cancel": "Cancel",
+        "confirm": "Create Invoice"
+      },
+      "selectSupplier": "Select supplier…",
+      "billDate": "Bill Date *",
+      "dueDate": "Due Date *",
+      "taxed": "Tax",
+      "nonTaxed": "Non-Tax",
+      "reference": "Reference",
+      "referencePh": "Vendor invoice #",
+      "items": "Items",
+      "addLine": "Add Line",
+      "colDescription": "Description",
+      "colQty": "Qty",
+      "colUnitPrice": "Unit Price",
+      "colLineTotal": "Line Total",
+      "itemPh": "Item description",
+      "notesPh": "Additional details about this invoice…",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "submit": "Create Invoice"
+    }
+  },
+  "vendors": {
+    "title": "Vendors",
+    "emptyState": "No vendors yet",
+    "table": {
+      "name": "Vendor Name",
+      "contact": "Contact Person",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status",
+      "totalOrders": "Total Orders"
+    },
+    "drawer": {
+      "details": "Details",
+      "name": "Vendor Name",
+      "contact": "Contact Person",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "paymentTerms": "Payment Terms",
+      "taxId": "Tax ID",
+      "rating": "Rating",
+      "purchaseOrders": "Purchase Orders",
+      "contactInfo": "Contact Information",
+      "noContact": "No contact information on file.",
+      "taxNumber": "Tax Number",
+      "added": "Added",
+      "updated": "Updated",
+      "notes": "Notes",
+      "edit": "Edit",
+      "deleteConfirm": "Delete this vendor?",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "form": {
+      "title": "New Vendor",
+      "description": "Add a new vendor to your supplier list",
+      "name": "Company Name *",
+      "contact": "Contact Person",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "paymentTerms": "Payment Terms",
+      "taxId": "Tax / NTN Number",
+      "button": {
+        "cancel": "Cancel",
+        "confirm": "Add Vendor"
+      },
+      "editTitle": "Edit Vendor",
+      "companyInfo": "Company Information",
+      "financialTerms": "Financial Terms",
+      "namePh": "Vendor company name…",
+      "code": "Vendor Code",
+      "codePh": "VND-001",
+      "category": "Category",
+      "selectPh": "Select…",
+      "contactPh": "Primary contact…",
+      "emailPh": "vendor@company.com",
+      "phonePh": "+92 3XX XXX XXXX",
+      "addressPh": "Building, street, city…",
+      "taxIdPh": "0000000-0",
+      "currency": "Currency",
+      "notes": "Notes",
+      "notesPh": "Special terms, compliance notes, approved products…",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "save": "Save Changes",
+      "create": "Save Vendor"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "blocked": "Blocked"
+    }
+  },
+  "approvals": {
+    "title": "Purchase Approvals",
+    "emptyState": "No approvals pending",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled"
+    },
+    "table": {
+      "number": "Request #",
+      "vendor": "Vendor",
+      "amount": "Amount",
+      "requester": "Requested By",
+      "status": "Status",
+      "date": "Date"
+    },
+    "drawer": {
+      "overview": "Overview",
+      "items": "Items ({{count}})",
+      "details": "Request Details",
+      "vendor": "Vendor",
+      "amount": "Amount",
+      "requester": "Requested By",
+      "requestDate": "Request Date",
+      "notes": "Notes",
+      "button": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "cancel": "Cancel"
+      },
+      "overdue": "Overdue",
+      "requestedBudget": "Requested Budget",
+      "justification": "Business Justification",
+      "requestedBy": "Requested By",
+      "department": "Department",
+      "requiredBy": "Required By",
+      "category": "Category",
+      "preferredVendor": "Preferred Vendor",
+      "reviewedBy": "Reviewed By",
+      "reviewedOn": "Reviewed On",
+      "poCreated": "PO Created",
+      "rejectionReason": "Rejection Reason",
+      "colDescription": "Description",
+      "colQty": "Qty",
+      "colUnit": "Est. Unit",
+      "colTotal": "Total",
+      "estimatedTotal": "Estimated Total",
+      "rejectPlaceholder": "Rejection reason…",
+      "cancel": "Cancel",
+      "approve": "Approve",
+      "reject": "Reject",
+      "createPO": "Create PO",
+      "export": "Export",
+      "priorityLabel": "{{priority}} Priority"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    }
+  }
+}

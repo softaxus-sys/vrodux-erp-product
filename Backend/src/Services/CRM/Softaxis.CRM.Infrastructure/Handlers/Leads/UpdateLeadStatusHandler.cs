@@ -11,7 +11,7 @@ internal sealed class UpdateLeadStatusHandler(CrmDbContext db, ILeadAccessGuard 
     public async Task<Result> Handle(UpdateLeadStatusCommand cmd, CancellationToken ct)
     {
         var l = await db.Leads.FindAsync([cmd.Id], ct);
-        if (l is null || !access.CanEdit(l))
+        if (l is null || !await access.CanEditAsync(l, ct))
             return Result.Failure(Error.NotFoundById("Lead", cmd.Id));
 
         l.UpdateStatus(cmd.Status);

@@ -6,8 +6,8 @@ namespace Softaxis.CRM.Application.Customers.Commands;
 
 public sealed record CreateCrmCustomerCommand(
     string Name, string Industry, string Country, string City, string Address,
-    string Phone, string Email, string Tier, string AccountManager, string Description)
-    : ICommand<CrmCustomerDto>;
+    string Phone, string Email, string Tier, string AccountManager, string Description,
+    Guid? AccountManagerUserId = null) : ICommand<CrmCustomerDto>;
 
 public sealed class CreateCrmCustomerValidator : AbstractValidator<CreateCrmCustomerCommand>
 {
@@ -23,7 +23,7 @@ public sealed record UpdateCrmCustomerCommand(
     Guid Id, string Name, string Industry, string Country, string City, string Address,
     string Phone, string Email, string Status, string Tier, string AccountManager, string Description,
     string? Website, string? TradeName, string? Employees, int? NpsScore, string? ContractRenewal,
-    List<string>? Tags) : ICommand;
+    List<string>? Tags, Guid? AccountManagerUserId = null) : ICommand;
 
 public sealed class UpdateCrmCustomerValidator : AbstractValidator<UpdateCrmCustomerCommand>
 {

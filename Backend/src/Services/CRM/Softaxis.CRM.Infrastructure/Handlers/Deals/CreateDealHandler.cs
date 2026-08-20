@@ -21,7 +21,7 @@ internal sealed class CreateDealHandler(CrmDbContext db) : ICommandHandler<Creat
 
         var d = new Deal(cmd.Title, company, cmd.Value, cmd.Stage, cmd.Priority,
             cmd.Probability, cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
-            cmd.ForecastCategory, cmd.CustomerId);
+            cmd.ForecastCategory, cmd.CustomerId, cmd.AssignedToUserId);
 
         db.Deals.Add(d);
         await db.SaveChangesAsync(ct);

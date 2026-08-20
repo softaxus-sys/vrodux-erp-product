@@ -70,6 +70,12 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
             // Operating/display currency — drives formatCurrency across the app (USD default).
             claims.Add(new Claim("currency", string.IsNullOrWhiteSpace(tenant.Currency) ? "USD" : tenant.Currency));
 
+            // Country chosen at signup. Without this claim the frontend had no way to know the
+            // tenant's country and fell back to a hardcoded "Pakistan", so a UAE tenant saw a
+            // Pakistani tax regime in Settings while its currency said AED.
+            if (!string.IsNullOrWhiteSpace(tenant.Country))
+                claims.Add(new Claim("country", tenant.Country));
+
             // Subscription gate. SubscriptionGuardMiddleware reads this to 402 every non-billing
             // request from a lapsed tenant, and the frontend uses it to show the reactivate screen.
             // Lowercase to match the frontend's string comparisons.

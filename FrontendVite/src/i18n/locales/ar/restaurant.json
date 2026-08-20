@@ -1,0 +1,870 @@
+{
+  "orders": {
+    "title": "طلبات المطعم",
+    "description": "إدارة طلبات تناول الطعام والتوصيل",
+    "new": "طلب جديد",
+    "table": {
+      "orderNum": "رقم الطلب",
+      "table": "الطاولة",
+      "customer": "العميل",
+      "time": "الوقت",
+      "total": "الإجمالي",
+      "status": "الحالة"
+    },
+    "status": {
+      "pending": "معلق",
+      "confirmed": "مؤكد",
+      "cooking": "قيد الطهي",
+      "ready": "جاهز",
+      "served": "تم التقديم",
+      "paid": "مدفوع",
+      "split": "منقسم",
+      "held": "محتفظ به",
+      "cancelled": "ملغى",
+      "open": "مفتوح",
+      "sent": "في المطبخ"
+    },
+    "button": {
+      "confirm": "تأكيد",
+      "cook": "إرسال للمطبخ",
+      "ready": "وضع علامة جاهز",
+      "serve": "تقديم",
+      "split": "تقسيم الفاتورة",
+      "hold": "الاحتفاظ",
+      "recall": "استرجاع",
+      "discount": "تطبيق خصم",
+      "tip": "إضافة إكرامية"
+    }
+  },
+  "branch": {
+    "allBranches": "جميع الفروع"
+  },
+  "pay": {
+    "title": "الفاتورة والدفع",
+    "total": "الإجمالي",
+    "paid": "المدفوع",
+    "outstanding": "المتبقي",
+    "fullyPaid": "تم الدفع بالكامل",
+    "tip": "الإكرامية",
+    "tipNone": "بدون",
+    "tipCustom": "مبلغ مخصص",
+    "tipSet": "تعيين",
+    "splitBetween": "التقسيم بين",
+    "guestsShare": "ضيوف · الحصة",
+    "guestLabel": "الضيف {{n}} (تسمية اختيارية)",
+    "addPayment": "إضافة {{amount}} ({{method}})",
+    "mode": {
+      "full": "كامل",
+      "split-type": "دفع مقسّم",
+      "members": "الأفراد"
+    },
+    "method": {
+      "Cash": "نقدًا",
+      "Card": "بطاقة",
+      "Bank Transfer": "تحويل بنكي",
+      "Wallet": "المحفظة",
+      "House Account": "حساب المنشأة"
+    },
+    "issue": {
+      "linkCustomer": "اربط عميلًا أولاً",
+      "walletOnly": "يتوفر {{amount}} فقط في المحفظة",
+      "creditOnly": "يتوفر {{amount}} فقط"
+    },
+    "customer": {
+      "none": "لا يوجد عميل مرتبط",
+      "balances": "المحفظة {{wallet}} · الائتمان {{credit}}",
+      "walletOnly": "المحفظة {{amount}}",
+      "new": "عميل جديد",
+      "name": "الاسم *",
+      "phone": "الهاتف (اختياري)",
+      "back": "رجوع",
+      "create": "إنشاء",
+      "search": "البحث عن عملاء…",
+      "addNew": "إضافة عميل جديد",
+      "loading": "جاري التحميل…",
+      "noResults": "لم يتم العثور على عملاء."
+    }
+  },
+  "delivery": {
+    "title": "إدارة التوصيل",
+    "description": "المناطق والسائقون وتتبع التوصيل المباشر.",
+    "loading": "جاري التحميل…",
+    "empty": "لا توجد عمليات توصيل هنا.",
+    "all": "الكل",
+    "via": "عبر {{provider}}",
+    "copyTracking": "نسخ رابط التتبع",
+    "trackingCopied": "تم نسخ رابط التتبع.",
+    "assignDriver": "تعيين سائق…",
+    "markNext": "تحديد كـ {{status}}",
+    "failed": "فشل",
+    "tabs": {
+      "board": "لوحة التوصيل",
+      "zones": "مناطق التوصيل",
+      "drivers": "السائقون"
+    },
+    "status": {
+      "assigned": "مُسند",
+      "picked_up": "تم الاستلام",
+      "enroute": "في الطريق",
+      "delivered": "تم التوصيل",
+      "failed": "فشل"
+    },
+    "stats": {
+      "total": "الإجمالي",
+      "assigned": "مُسندة",
+      "pickedUp": "تم الاستلام",
+      "enroute": "في الطريق",
+      "delivered": "تم التوصيل"
+    },
+    "zones": {
+      "add": "إضافة منطقة",
+      "edit": "تعديل",
+      "empty": "لا توجد مناطق توصيل بعد.",
+      "fee": "رسوم {{amount}}",
+      "meta": "أقل طلب {{min}} · ~{{minutes}} د",
+      "inactiveSuffix": " · غير مفعّلة",
+      "addTitle": "إضافة منطقة توصيل",
+      "editTitle": "تعديل منطقة التوصيل",
+      "name": "الاسم",
+      "namePlaceholder": "وسط المدينة",
+      "postalCodes": "الرموز البريدية (اختياري، مفصولة بفواصل)",
+      "feeLabel": "الرسوم",
+      "minOrder": "أقل طلب",
+      "eta": "الوقت المتوقع (دقيقة)",
+      "active": "مفعّلة",
+      "save": "حفظ المنطقة"
+    },
+    "drivers": {
+      "add": "إضافة سائق",
+      "edit": "تعديل",
+      "empty": "لا يوجد سائقون بعد.",
+      "addTitle": "إضافة سائق",
+      "editTitle": "تعديل السائق",
+      "name": "الاسم",
+      "phone": "الهاتف",
+      "vehicle": "المركبة (اختياري)",
+      "vehiclePlaceholder": "دراجة نارية — ABC 123",
+      "active": "مفعّل",
+      "save": "حفظ السائق"
+    }
+  },
+  "reports": {
+    "title": "التقارير",
+    "description": "تقارير المبيعات والمطبخ والطاولات والضرائب وتسوية الورديات.",
+    "loading": "جاري التحميل…",
+    "from": "من",
+    "to": "إلى",
+    "noData": "لا توجد بيانات في هذه الفترة.",
+    "rangeSubtitle": "من {{from}} إلى {{to}}",
+    "tabs": {
+      "sales-daily": "المبيعات (يومي)",
+      "sales-category": "حسب الفئة",
+      "sales-employee": "حسب الموظف",
+      "voids-discounts": "الإلغاءات والخصومات",
+      "kitchen-prep": "أوقات تحضير المطبخ",
+      "table-turnover": "معدل دوران الطاولات",
+      "tax-summary": "ملخص الضرائب",
+      "z-x-report": "تقرير Z / X"
+    },
+    "pdfTitle": {
+      "salesDaily": "المبيعات — يومي",
+      "salesCategory": "المبيعات — حسب الفئة",
+      "salesEmployee": "المبيعات — حسب الموظف",
+      "voidsDiscounts": "الإلغاءات والخصومات — مؤشر الاحتيال",
+      "kitchenPrep": "أوقات تحضير المطبخ",
+      "tableTurnover": "معدل دوران الطاولات",
+      "taxSummary": "ملخص الضرائب"
+    },
+    "col": {
+      "date": "التاريخ",
+      "orders": "الطلبات",
+      "gross": "الإجمالي",
+      "discounts": "الخصومات",
+      "tax": "الضريبة",
+      "net": "الصافي",
+      "category": "الفئة",
+      "qty": "الكمية",
+      "qtySold": "الكمية المباعة",
+      "revenue": "الإيراد",
+      "waiter": "النادل",
+      "tips": "الإكراميات",
+      "user": "المستخدم",
+      "voids": "الإلغاءات",
+      "voidValue": "قيمة الإلغاء",
+      "discountValue": "قيمة الخصم",
+      "item": "الصنف",
+      "avgMin": "المتوسط (دقيقة)",
+      "p90Min": "الشريحة 90 (دقيقة)",
+      "table": "الطاولة",
+      "turns": "الدورات",
+      "avgOccupiedMin": "متوسط الإشغال (دقيقة)",
+      "taxable": "الخاضع للضريبة",
+      "taxableAmount": "المبلغ الخاضع للضريبة",
+      "taxCollected": "الضريبة المحصلة"
+    },
+    "kitchenPrepHint": "لا توجد بيانات توقيت للمطبخ بعد — تظهر الأصناف فقط عند تقديمها عبر مسار يسجّل وقت الجاهزية.",
+    "session": {
+      "sessionId": "معرّف الوردية",
+      "sessionIdPlaceholder": "معرّف وردية نقاط البيع",
+      "xReport": "تقرير X (مفتوح)",
+      "zReport": "تقرير Z (إغلاق)",
+      "enterId": "أدخل معرّف وردية نقاط البيع لعرض تقرير التسوية.",
+      "enterIdPrefilled": "أدخل معرّف وردية نقاط البيع لعرض تقرير التسوية (تم ملء معرّف ورديتك الحالية مسبقًا).",
+      "status": "الحالة",
+      "orders": "الطلبات",
+      "grossSales": "إجمالي المبيعات",
+      "netSales": "صافي المبيعات",
+      "discounts": "الخصومات",
+      "tax": "الضريبة",
+      "tips": "الإكراميات",
+      "refunds": "المستردات",
+      "voids": "الإلغاءات",
+      "voidsValue": "{{count}} ({{amount}})",
+      "paymentBreakdown": "توزيع طرق الدفع",
+      "noPayments": "لم يتم تسجيل مدفوعات."
+    }
+  },
+  "dashboards": {
+    "title": "لوحات التحكم",
+    "description": "لقطات حسب الدور — المالك، الفرع، المطبخ، الكاشير، المخزون.",
+    "tabs": {
+      "owner": "المالك",
+      "branch": "الفرع",
+      "kitchen": "المطبخ",
+      "cashier": "الكاشير",
+      "inventory": "المخزون"
+    },
+    "empty": {
+      "categorySales": "لا توجد مبيعات حسب الفئة بعد",
+      "prepTime": "لا توجد بيانات أوقات تحضير بعد"
+    },
+    "owner": {
+      "todaySales": "مبيعات اليوم",
+      "todayOrders": "طلبات اليوم",
+      "weekSales": "مبيعات 7 أيام",
+      "weekVoid": "قيمة الإلغاءات (7 أيام)",
+      "net": "الصافي {{amount}}",
+      "discounts": "الخصومات {{amount}}",
+      "topCategories": "أعلى الفئات (7 أيام)"
+    },
+    "branch": {
+      "activeOrders": "الطلبات النشطة",
+      "tables": "الطاولات",
+      "tablesFree": "{{count}} متاحة",
+      "tablesSub": "{{occupied}} مشغولة · {{reserved}} محجوزة · {{cleaning}} قيد التنظيف"
+    },
+    "kitchen": {
+      "activeTickets": "التذاكر النشطة",
+      "pendingItems": "أصناف معلقة",
+      "preparingItems": "أصناف قيد التحضير",
+      "avgPrep": "متوسط التحضير اليوم",
+      "readyNow": "{{count}} جاهزة الآن",
+      "slowestItems": "أبطأ الأصناف اليوم",
+      "minutesShort": "{{count}} دقيقة"
+    },
+    "cashier": {
+      "mySales": "مبيعاتي اليوم",
+      "myOrders": "طلباتي اليوم",
+      "currentShift": "الوردية الحالية ({{status}})",
+      "orders": "الطلبات",
+      "grossSales": "إجمالي المبيعات",
+      "netSales": "صافي المبيعات",
+      "tips": "الإكراميات",
+      "noShift": "لا توجد وردية نشطة — افتح وردية لعرض التسوية المباشرة هنا."
+    },
+    "inventory": {
+      "lowStock": "مكوّنات منخفضة المخزون",
+      "eightySixed": "أصناف غير متوفرة",
+      "lowStockTitle": "مخزون منخفض (مرتبط بالوصفات)",
+      "nothingLow": "لا يوجد نقص في المخزون.",
+      "reorderLevel": "{{qty}} / {{level}} حد إعادة الطلب",
+      "currentlyEightySixed": "غير متوفر حاليًا",
+      "allAvailable": "كل الأصناف متوفرة."
+    }
+  },
+  "waitlist": {
+    "title": "قائمة الانتظار",
+    "description": "المجموعات الزائرة بانتظار طاولة.",
+    "add": "إضافة زائر",
+    "loading": "جاري التحميل…",
+    "empty": "لا توجد إدخالات هنا.",
+    "quoted": "الوقت المقدّر {{count}} د",
+    "waited": "انتظر {{count}} د",
+    "seat": "إجلاس",
+    "noShow": "لم يحضر",
+    "filters": {
+      "waiting": "بالانتظار",
+      "seated": "تم الجلوس",
+      "no_show": "لم يحضروا",
+      "cancelled": "ملغاة",
+      "all": "الكل"
+    },
+    "stats": {
+      "total": "الإجمالي",
+      "waiting": "بالانتظار",
+      "seated": "تم الجلوس",
+      "noShows": "لم يحضروا",
+      "avgWait": "متوسط الانتظار المقدّر"
+    },
+    "form": {
+      "title": "إضافة زائر",
+      "guestName": "اسم الضيف",
+      "phone": "الهاتف",
+      "partySize": "عدد الأفراد",
+      "quotedWait": "الانتظار المقدّر (دقيقة)",
+      "notes": "الملاحظات",
+      "optional": "اختياري",
+      "submit": "إضافة إلى قائمة الانتظار"
+    },
+    "seatModal": {
+      "title": "على أي طاولة؟",
+      "noTables": "لا توجد طاولات متاحة حاليًا.",
+      "seats": "{{count}} مقعد"
+    }
+  },
+  "branchAccess": {
+    "title": "صلاحيات الفروع",
+    "description": "عيّن الموظفين إلى فروع محددة — المستخدم بدون تعيين يرى طاولات وطلبات وحجوزات وقوائم انتظار جميع الفروع.",
+    "noPermission": "ليس لديك صلاحية لإدارة صلاحيات الفروع.",
+    "loading": "جاري تحميل الفروع…",
+    "noBranches": "لا توجد فروع مهيأة لهذا المستأجر بعد — أضف فرعًا من الإعدادات ← الفروع أولاً.",
+    "roster": "{{branch}} — الموظفون المعيَّنون",
+    "emptyRoster": "لم يتم تعيين أحد لهذا الفرع بعد.",
+    "searchUsers": "ابحث عن مستخدمين لتعيينهم…",
+    "noMatches": "لم يتم العثور على مستخدمين مطابقين.",
+    "role": {
+      "owner": "مالك",
+      "manager": "مدير",
+      "staff": "موظف"
+    }
+  },
+  "tableForm": {
+    "title": "إضافة طاولة",
+    "description": "أضف طاولة جديدة إلى مخطط الصالة",
+    "section": "القسم",
+    "details": "تفاصيل الطاولة",
+    "tableNumber": "رقم الطاولة *",
+    "tableNumberPlaceholder": "مثال: T-01",
+    "maxCapacity": "السعة القصوى *",
+    "minGuests": "أقل عدد ضيوف",
+    "shape": "شكل الطاولة",
+    "location": "الموقع / الوصف",
+    "locationPlaceholder": "مثال: بجانب النافذة، في الزاوية…",
+    "options": "الخيارات",
+    "joinable": "طاولة قابلة للدمج",
+    "joinableHint": "يمكن دمجها مع الطاولات المجاورة",
+    "premium": "طاولة مميزة",
+    "premiumHint": "تُعرض كطاولة مميزة / VIP",
+    "notes": "الملاحظات",
+    "notesPlaceholder": "إعداد خاص، احتياجات الوصول…",
+    "sections": {
+      "indoor": "داخلي",
+      "indoorDesc": "صالة الطعام الرئيسية",
+      "outdoor": "خارجي",
+      "outdoorDesc": "تراس في الهواء الطلق",
+      "terrace": "تراس",
+      "terraceDesc": "جلسات التراس المرتفع",
+      "private": "طعام خاص",
+      "privateDesc": "غرف طعام خاصة"
+    },
+    "shapes": {
+      "Round": "دائرية",
+      "Square": "مربعة",
+      "Rectangle": "مستطيلة",
+      "Booth": "مقصورة"
+    },
+    "button": {
+      "cancel": "إلغاء",
+      "adding": "جاري الإضافة…",
+      "submit": "إضافة الطاولة"
+    }
+  },
+  "menu": {
+    "title": "عناصر القائمة",
+    "description": "إدارة قائمة المطعم والأسعار",
+    "new": "عنصر جديد",
+    "search": "البحث عن عناصر القائمة…",
+    "category": "الفئة",
+    "available": "متاح",
+    "outOfStock": "غير متوفر"
+  },
+  "kitchen": {
+    "title": "عرض المطبخ",
+    "description": "تتبع الطلبات قيد التحضير",
+    "noOrders": "لا توجد طلبات",
+    "time": "الوقت",
+    "items": "العناصر",
+    "summary": "{{new}} جديد · {{ready}} جاهز",
+    "allStations": "جميع المحطات",
+    "columnNew": "جديد / قيد التحضير",
+    "columnReady": "جاهز للتقديم",
+    "tableLabel": "طاولة {{number}}",
+    "covers": "{{count}} فرد",
+    "course": "الطبق {{number}}",
+    "minutes": "{{count}} د",
+    "button": {
+      "markReady": "تحديد كجاهز",
+      "markServed": "تحديد كمقدّم"
+    }
+  },
+  "reservations": {
+    "title": "الحجوزات",
+    "description": "إدارة حجوزات الطاولات",
+    "new": "حجز جديد",
+    "table": {
+      "name": "اسم الضيف",
+      "date": "التاريخ",
+      "time": "الوقت",
+      "seats": "المقاعد",
+      "status": "الحالة"
+    },
+    "status": {
+      "confirmed": "مؤكد",
+      "seated": "تم الجلوس",
+      "completed": "اكتمل",
+      "cancelled": "ملغى",
+      "no_show": "لم يحضر"
+    },
+    "policy": "السياسة",
+    "date": "التاريخ",
+    "loading": "جاري التحميل…",
+    "empty": "لا توجد حجوزات في هذا التاريخ.",
+    "tableLabel": "طاولة {{number}}",
+    "seat": "إجلاس",
+    "stats": {
+      "today": "اليوم",
+      "todayCovers": "أفراد اليوم",
+      "confirmed": "مؤكدة",
+      "noShows": "لم يحضروا"
+    },
+    "form": {
+      "title": "حجز جديد",
+      "guestName": "اسم الضيف",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني (اختياري)",
+      "date": "التاريخ",
+      "time": "الوقت",
+      "covers": "عدد الأفراد",
+      "table": "الطاولة (اختياري)",
+      "notAssigned": "لم يتم التعيين بعد",
+      "tableOption": "{{number}} ({{seats}} مقعد)",
+      "specialRequests": "طلبات خاصة",
+      "optional": "اختياري",
+      "submit": "إنشاء الحجز"
+    },
+    "rules": {
+      "title": "سياسة الحجز",
+      "hint": "يتم تحديد الحجز المؤكد كـ«لم يحضر» تلقائيًا بعد هذا العدد من الدقائق من موعده. اضبطه على 0 للتعطيل.",
+      "slotDuration": "مدة الفترة (دقيقة)",
+      "maxCovers": "أقصى عدد أفراد / فترة",
+      "maxAdvance": "أقصى حجز مسبق (أيام)",
+      "minNotice": "أدنى إشعار (دقيقة)",
+      "autoNoShow": "عدم الحضور التلقائي (دقيقة)",
+      "depositAmount": "مبلغ العربون",
+      "requireDeposit": "اشتراط عربون",
+      "submit": "حفظ السياسة"
+    }
+  },
+  "kitchenConfig": {
+    "title": "إعدادات المطبخ والقائمة",
+    "subtitle": "المحطات والطابعات وعروض الوجبات وأسعار الساعة السعيدة.",
+    "tab": {
+      "stations": "محطات المطبخ",
+      "printers": "الطابعات",
+      "combos": "الوجبات المدمجة",
+      "happyhour": "الساعة السعيدة"
+    },
+    "day": {
+      "sun": "أحد",
+      "mon": "إثنين",
+      "tue": "ثلاثاء",
+      "wed": "أربعاء",
+      "thu": "خميس",
+      "fri": "جمعة",
+      "sat": "سبت"
+    },
+    "edit": "تعديل",
+    "stations": {
+      "add": "إضافة محطة",
+      "noPrinter": "لا توجد طابعة معيّنة",
+      "empty": "لا توجد محطات مطبخ بعد.",
+      "editTitle": "تعديل المحطة",
+      "addTitle": "إضافة محطة",
+      "name": "الاسم",
+      "namePlaceholder": "الشواء",
+      "displayName": "الاسم المعروض (اختياري)",
+      "color": "اللون",
+      "printer": "الطابعة",
+      "none": "بدون",
+      "save": "حفظ المحطة"
+    },
+    "printers": {
+      "add": "إضافة طابعة",
+      "empty": "لا توجد ملفات طابعات بعد.",
+      "defaultSuffix": " · افتراضية",
+      "editTitle": "تعديل الطابعة",
+      "addTitle": "إضافة طابعة",
+      "name": "الاسم",
+      "namePlaceholder": "طابعة المطبخ 1",
+      "type": "النوع",
+      "typeKitchen": "مطبخ",
+      "typeReceipt": "إيصال",
+      "connection": "الاتصال",
+      "connNetwork": "شبكة",
+      "connUsb": "USB",
+      "connBluetooth": "بلوتوث",
+      "ip": "عنوان IP",
+      "ipPlaceholder": "192.168.1.50",
+      "port": "المنفذ",
+      "isDefault": "الطابعة الافتراضية",
+      "save": "حفظ الطابعة"
+    },
+    "combos": {
+      "add": "إضافة وجبة مدمجة",
+      "empty": "لا توجد وجبات مدمجة بعد.",
+      "slots": "{{n}} خانة",
+      "inactiveSuffix": " · غير مفعّلة",
+      "editTitle": "تعديل الوجبة المدمجة",
+      "addTitle": "إضافة وجبة مدمجة",
+      "name": "الاسم",
+      "namePlaceholder": "وجبة البرغر",
+      "price": "سعر الوجبة",
+      "active": "مفعّلة",
+      "slotsLabel": "الخانات",
+      "modeFixed": "صنف ثابت",
+      "modeChoice": "الاختيار من فئة",
+      "selectItem": "اختر صنفاً…",
+      "selectCategory": "اختر فئة…",
+      "addSlot": "إضافة خانة",
+      "save": "حفظ الوجبة"
+    },
+    "happyHour": {
+      "add": "إضافة قاعدة",
+      "empty": "لا توجد قواعد ساعة سعيدة بعد.",
+      "percentOff": "خصم {{value}}%",
+      "flatOff": "خصم {{value}}",
+      "categoryFallback": "فئة",
+      "wholeOrderSuffix": " · الطلب بالكامل",
+      "inactiveSuffix": " · غير مفعّلة",
+      "editTitle": "تعديل قاعدة الساعة السعيدة",
+      "addTitle": "إضافة قاعدة ساعة سعيدة",
+      "name": "الاسم",
+      "namePlaceholder": "الساعة السعيدة المسائية",
+      "days": "الأيام",
+      "start": "البداية",
+      "end": "النهاية",
+      "discountType": "نوع الخصم",
+      "percentage": "نسبة مئوية",
+      "flat": "مبلغ ثابت",
+      "value": "القيمة",
+      "appliesTo": "يُطبَّق على",
+      "wholeOrder": "الطلب بالكامل",
+      "active": "مفعّلة",
+      "save": "حفظ القاعدة"
+    }
+  },
+  "floorDesigner": {
+    "loading": "جارٍ تحميل مخطط الطابق…",
+    "title": "مصمّم الطوابق والطاولات",
+    "subtitle": "اسحب الطاولات لترتيب مخطط الطابق. اضغط على طاولة لتعديلها.",
+    "saveLayout": "حفظ المخطط",
+    "floors": "الطوابق",
+    "newFloorPlaceholder": "طابق جديد…",
+    "manageAreas": "إدارة مناطق تناول الطعام ({{n}})",
+    "addTable": "إضافة طاولة",
+    "unassignedHeading": "غير مُعيّنة ({{n}})",
+    "unassignedHint": "طاولات قديمة لم تُوضع بعد على أي طابق.",
+    "emptyCanvas": "أنشئ طابقاً لتبدأ تصميم المخطط.",
+    "areaType": {
+      "indoor": "داخلي",
+      "outdoor": "خارجي",
+      "vip": "كبار الشخصيات",
+      "bar": "البار",
+      "rooftop": "السطح"
+    },
+    "field": {
+      "tableNumber": "رقم الطاولة",
+      "section": "القسم",
+      "capacity": "السعة",
+      "diningArea": "منطقة تناول الطعام",
+      "unassignedOption": "غير مُعيّنة"
+    },
+    "detail": {
+      "heading": "الطاولة {{number}}",
+      "qrButton": "رمز QR للطلب",
+      "readOnlySection": "القسم: {{value}}",
+      "readOnlyCapacity": "السعة: {{value}}",
+      "save": "حفظ التغييرات",
+      "unmerge": "إلغاء دمج الطاولة",
+      "mergeInto": "الدمج مع…",
+      "delete": "حذف الطاولة"
+    },
+    "areas": {
+      "title": "مناطق تناول الطعام",
+      "empty": "لا توجد مناطق تناول طعام بعد — أضف واحدة أدناه.",
+      "namePlaceholder": "اسم المنطقة…"
+    },
+    "addTableModal": {
+      "title": "إضافة طاولة",
+      "tableNumberPlaceholder": "T-12"
+    },
+    "qr": {
+      "title": "رمز QR للطلب",
+      "imageAlt": "رمز QR الخاص بالطاولة",
+      "kioskMode": "وضع الكشك (لجهاز طلب ذاتي، وليس هاتف الضيف)",
+      "copyLink": "نسخ الرابط",
+      "preview": "معاينة",
+      "copied": "تم نسخ الرابط."
+    }
+  },
+  "menuMgmt": {
+    "title": "إدارة القائمة",
+    "subtitle": "الفئات والأصناف والأسعار ومجموعات الإضافات.",
+    "tabMenu": "القائمة",
+    "tabModifiers": "مجموعات الإضافات",
+    "loading": "جارٍ التحميل…",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "stat": {
+      "categories": "الفئات",
+      "totalItems": "إجمالي الأصناف",
+      "available": "متوفر",
+      "unavailable": "غير متوفر",
+      "avgPrice": "متوسط السعر",
+      "priceRange": "نطاق السعر"
+    },
+    "recipeWarning": "{{unlinked}} من أصل {{total}} صنفاً في القائمة بلا وصفة مرتبطة — لن يُخصم المخزون تلقائياً عند التقديم. إدارة الوصفات ←",
+    "addCategory": "إضافة فئة",
+    "emptyCategories": "لا توجد فئات في القائمة بعد. أضف واحدة للبدء.",
+    "addItemShort": "صنف",
+    "emptyItems": "لا توجد أصناف في هذه الفئة بعد.",
+    "modifierCount_zero": "لا توجد إضافات",
+    "modifierCount_one": "إضافة واحدة",
+    "modifierCount_two": "إضافتان",
+    "modifierCount_few": "{{count}} إضافات",
+    "modifierCount_many": "{{count}} إضافة",
+    "modifierCount_other": "{{count}} إضافة",
+    "recipeLinked": "وصفة مرتبطة — يُخصم المخزون تلقائياً عند التقديم",
+    "recipeMissing": "لا توجد وصفة مرتبطة — لن يُخصم المخزون تلقائياً عند التقديم",
+    "prepMinutes": "{{n}} دقيقة",
+    "available86": "متوفر",
+    "unavailable86": "نفد",
+    "confirm": {
+      "deleteCategoryTitle": "حذف الفئة؟",
+      "deleteItemTitle": "حذف الصنف؟",
+      "deleteMessage": "سيتم حذف \"{{name}}\". لا يمكن التراجع عن هذا الإجراء.",
+      "deleteGroupTitle": "حذف مجموعة الإضافات؟",
+      "deleteGroupMessage": "سيتم حذف \"{{name}}\" من جميع أصناف القائمة التي تستخدمها."
+    },
+    "field": {
+      "name": "الاسم",
+      "description": "الوصف (اختياري)",
+      "sortOrder": "ترتيب الفرز",
+      "kitchenStation": "محطة المطبخ",
+      "none": "بدون",
+      "price": "السعر",
+      "prepTime": "زمن التحضير (دقيقة)",
+      "allergens": "مسبّبات الحساسية (اختياري)",
+      "useCategoryDefault": "استخدام إعداد الفئة الافتراضي",
+      "minSelect": "الحد الأدنى للاختيار (0 = اختياري)",
+      "maxSelect": "الحد الأقصى للاختيار",
+      "active": "مفعّل"
+    },
+    "category": {
+      "editTitle": "تعديل الفئة",
+      "addTitle": "إضافة فئة",
+      "namePlaceholder": "المقبلات",
+      "save": "حفظ الفئة"
+    },
+    "item": {
+      "editTitle": "تعديل صنف القائمة",
+      "addTitle": "إضافة صنف للقائمة",
+      "namePlaceholder": "دجاج مشوي",
+      "allergensPlaceholder": "مكسرات، ألبان",
+      "onlineOrderable": "قابل للطلب عبر QR / الكشك / الإنترنت",
+      "modifierGroups": "مجموعات الإضافات",
+      "save": "حفظ الصنف"
+    },
+    "modifiers": {
+      "intro": "مجموعات مثل \"الحجم\" أو \"الإضافات\" يختار منها العملاء عند طلب صنف — عيّنها لكل صنف من تبويب القائمة.",
+      "add": "إضافة مجموعة إضافات",
+      "empty": "لا توجد مجموعات إضافات بعد.",
+      "optional": "اختياري",
+      "requires": "يتطلب {{n}}",
+      "max": "الحد الأقصى {{n}}",
+      "noModifiers": "لا توجد إضافات",
+      "editTitle": "تعديل مجموعة الإضافات",
+      "addTitle": "إضافة مجموعة إضافات",
+      "namePlaceholder": "الحجم",
+      "listLabel": "الإضافات",
+      "rowNamePlaceholder": "صغير",
+      "rowPricePlaceholder": "+0.00",
+      "addRow": "إضافة عنصر",
+      "save": "حفظ مجموعة الإضافات"
+    }
+  },
+  "posView": {
+    "title": "نقطة بيع المطعم",
+    "headerSummary": "{{tables}} طاولة · {{occupied}} مشغولة · {{inKitchen}} في المطبخ",
+    "floorPlan": "مخطط الصالة",
+    "ordersTab": "الطلبات",
+    "takeaway": "طلب خارجي",
+    "delivery": "توصيل",
+    "addTable": "إضافة طاولة",
+    "allSections": "كل الأقسام",
+    "sectionTableCount": "{{n}} طاولة",
+    "ordersHeading": "الطلبات",
+    "noOrders": "لا توجد طلبات بعد.",
+    "view": "عرض",
+    "tableStatus": {
+      "available": "متاحة",
+      "occupied": "مشغولة",
+      "reserved": "محجوزة",
+      "cleaning": "قيد التنظيف"
+    },
+    "section": {
+      "indoor": "داخلي",
+      "outdoor": "خارجي",
+      "terrace": "التراس",
+      "private": "خاص",
+      "vip": "كبار الشخصيات",
+      "bar": "البار"
+    },
+    "stat": {
+      "totalTables": "إجمالي الطاولات",
+      "occupied": "مشغولة",
+      "available": "متاحة",
+      "reserved": "محجوزة",
+      "inKitchen": "في المطبخ",
+      "todaySales": "مبيعات اليوم"
+    },
+    "ordersTable": {
+      "orderNum": "رقم الطلب",
+      "table": "الطاولة",
+      "items": "الأصناف",
+      "total": "الإجمالي",
+      "status": "الحالة",
+      "waiter": "النادل"
+    },
+    "card": {
+      "capacity": "{{n}} مقعد"
+    },
+    "common": {
+      "cancel": "إلغاء",
+      "confirm": "تأكيد",
+      "apply": "تطبيق",
+      "add": "إضافة",
+      "pay": "دفع",
+      "send": "إرسال",
+      "total": "الإجمالي"
+    },
+    "reason": {
+      "placeholder": "السبب (مطلوب)…"
+    },
+    "refund": {
+      "title": "استرداد الطلب",
+      "amountLabel": "المبلغ — بحد أقصى {{max}}",
+      "method": "الطريقة",
+      "submit": "استرداد"
+    },
+    "modifier": {
+      "chooseOne": "(اختر واحداً)",
+      "chooseUpTo": "(اختر حتى {{max}})",
+      "chooseUpToMin": "(اختر حتى {{max}}، وواحداً على الأقل {{min}})",
+      "addWithPrice": "إضافة — {{price}}"
+    },
+    "split": {
+      "title": "تقسيم الفاتورة",
+      "guests": "{{n}} ضيوف",
+      "assignHint": "عيّن كل صنف لضيف.",
+      "guestLabel": "الضيف {{n}}",
+      "mustAssignAll": "يجب تعيين كل صنف لضيف.",
+      "minTwoGuests": "استخدم ضيفين على الأقل لتقسيم الفاتورة.",
+      "submit": "تقسيم الفاتورة"
+    },
+    "combo": {
+      "chooseOne": "اختر واحداً — {{category}}",
+      "select": "اختر…",
+      "add": "إضافة {{name}}",
+      "deals": "الوجبات المدمجة"
+    },
+    "drawer": {
+      "tableHeading": "الطاولة {{number}}",
+      "takeawayHeading": "طلب خارجي",
+      "takeawayBadge": "طلب خارجي",
+      "tableSubtitle": "{{section}} · سعة {{capacity}}",
+      "counterPickup": "الكاونتر / الاستلام",
+      "tabOrder": "الطلب الحالي",
+      "tabMenu": "إضافة أصناف",
+      "noActiveOrder": "لا يوجد طلب نشط",
+      "addItemsToStart": "أضف أصنافاً للبدء",
+      "coversWaiter": "{{covers}} ضيوف · {{waiter}}",
+      "splitInto_zero": "لم تُقسَّم هذه الفاتورة.",
+      "splitInto_one": "قُسِّمت هذه الفاتورة إلى جزء واحد.",
+      "splitInto_two": "قُسِّمت هذه الفاتورة إلى جزأين.",
+      "splitInto_few": "قُسِّمت هذه الفاتورة إلى {{count}} أجزاء.",
+      "splitInto_many": "قُسِّمت هذه الفاتورة إلى {{count}} جزءاً.",
+      "splitInto_other": "قُسِّمت هذه الفاتورة إلى {{count}} جزء.",
+      "dueSuffix": "{{amount}} مستحق",
+      "paid": "مدفوع",
+      "eachPrice": "{{price}} للوحدة",
+      "discount": "خصم",
+      "discountPercent": "نسبة",
+      "discountAmount": "مبلغ",
+      "discountVoucher": "قسيمة",
+      "voucherPlaceholder": "الرمز",
+      "removing": "جارٍ الإزالة…",
+      "removeDiscount": "إزالة الخصم",
+      "subtotal": "المجموع الفرعي",
+      "vat": "ضريبة القيمة المضافة (5%)",
+      "total": "الإجمالي",
+      "paidSoFar": "المدفوع حتى الآن",
+      "paidSoFarValue": "{{paid}} · متبقٍ {{left}}",
+      "searchMenu": "ابحث في القائمة…",
+      "toggleAvailability": "تبديل تحرير التوفر",
+      "all": "الكل",
+      "prepMinutes": "{{n}} د",
+      "available": "متوفر",
+      "unavailable": "نفد",
+      "noItemsFound": "لم يتم العثور على أصناف.",
+      "toAdd": "للإضافة ({{count}} صنف · {{total}})",
+      "guests": "الضيوف:",
+      "openOrder": "فتح الطلب",
+      "addItemsCount": "إضافة {{count}} صنف",
+      "sendToKitchen": "إرسال إلى المطبخ",
+      "markServed": "تحديد كمُقدَّم",
+      "billAndPay": "الفاتورة والدفع",
+      "fireNextCourse": "إرسال الطبق التالي",
+      "recallOrder": "استعادة الطلب",
+      "refund": "استرداد",
+      "recipeLinked": "وصفة مرتبطة — اعرضها في الوصفات",
+      "recipeMissing": "لا توجد وصفة مرتبطة بعد — لن يُخصم المخزون تلقائياً عند التقديم",
+      "voidItemTitle": "إلغاء الصنف",
+      "cancelOrderTitle": "إلغاء الطلب",
+      "billSettled": "تمت تسوية الفاتورة.",
+      "discountReasonRequired": "يلزم إدخال سبب لتطبيق الخصم.",
+      "removeReasonRequired": "يلزم إدخال سبب لإزالة الخصم.",
+      "voucherApplied": "طُبِّق — خصم {{amount}}",
+      "voucherInvalid": "القسيمة غير صالحة.",
+      "validationFailed": "فشل التحقق."
+    },
+    "receipt": {
+      "title": "إرسال الإيصال",
+      "email": "بريد إلكتروني",
+      "sms": "رسالة نصية",
+      "whatsapp": "واتساب",
+      "emailPlaceholder": "guest@example.com",
+      "phonePlaceholder": "+971 5xxxxxxxx"
+    },
+    "newDelivery": {
+      "title": "طلب توصيل جديد",
+      "guestName": "اسم الضيف",
+      "phone": "الهاتف",
+      "address": "عنوان التوصيل",
+      "zone": "منطقة التوصيل",
+      "noZone": "بدون منطقة (رسوم مخصصة)",
+      "items": "الأصناف",
+      "submit": "إنشاء طلب توصيل"
+    }
+  }
+}

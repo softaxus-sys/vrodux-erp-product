@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { useAssignableUsers } from "@/hooks/identity/use-teams";
 import { toast } from "sonner";
 import { StagedDocumentPicker, uploadStagedDocuments } from "@/modules/crm/shared/components/staged-document-picker";
 import type { StagedDocument } from "@/modules/crm/shared/components/staged-document-picker";
@@ -41,7 +42,10 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   const [address, setAddress]           = React.useState("");
   const [city, setCity]                 = React.useState("Dubai");
   const [country, setCountry]           = React.useState("UAE");
-  const [assignedTo, setAssignedTo]     = React.useState("");
+  const [assignedTo, setAssignedTo]     = React.useState("");           // display name
+  const [assignedToUserId, setAssignedToUserId] = React.useState("");   // owning user ("" = unassigned)
+  // See the deal form: the id is what the assigned-only / my-team tiers scope on.
+  const { data: assignable = [] } = useAssignableUsers(open);
   const [notes, setNotes]               = React.useState("");
   const [staged, setStaged]             = React.useState<StagedDocument[]>([]);
 
@@ -55,7 +59,8 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       setName(editing.name); setEmail(editing.email); setPhone(editing.phone);
       setIndustry(editing.industry); setWebsite(editing.website ?? "");
       setAddress(editing.address); setCity(editing.city); setCountry(editing.country);
-      setAssignedTo(editing.accountManager); setNotes(editing.description);
+      setAssignedTo(editing.accountManager); setAssignedToUserId(editing.accountManagerUserId ?? "");
+      setNotes(editing.description);
     }
   }, [open, editing]);
 
@@ -66,7 +71,8 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       updateCustomer.mutate({ id: editing.id, data: {
         name: name.trim(), industry, country, city, address: address.trim(),
         phone: phone.trim(), email: email.trim(), status: editing.status, tier: editing.tier,
-        accountManager: assignedTo.trim(), description, website: website.trim() || null,
+        accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null,
+        description, website: website.trim() || null,
         tradeName: editing.tradeName ?? null, employees: editing.employees ?? null,
         npsScore: editing.npsScore ?? null, contractRenewal: editing.contractRenewal ?? null, tags: editing.tags,
       } }, { onSuccess: onClose });
@@ -74,7 +80,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       createCustomer.mutate({
         name: name.trim(), industry, country, city, address: address.trim(),
         phone: phone.trim(), email: email.trim(), tier: "standard",
-        accountManager: assignedTo.trim(), description,
+        accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null, description,
       }, {
         onSuccess: async (created: any) => {
           if (staged.length && created?.id) {
@@ -230,7 +236,18 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
               <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.accountManager")}</label>
-                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder={t("customerForm.accountManagerPlaceholder")} className="h-9 text-sm" />
+                  <select
+                    value={assignedToUserId}
+                    onChange={e => {
+                      const id = e.target.value;
+                      setAssignedToUserId(id);
+                      setAssignedTo(assignable.find(u => u.userId === id)?.fullName ?? "");
+                    }}
+                    className="w-full h-9 rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">{t("customerForm.unassigned", { defaultValue: "Unassigned" })}</option>
+                    {assignable.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
+                  </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.notes")}</label>

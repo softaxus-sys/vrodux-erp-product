@@ -319,6 +319,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<Guid?>("AccountManagerUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -433,6 +436,8 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AccountManagerUserId");
+
                     b.HasIndex("TenantId");
 
                     b.ToTable("customers", "crm");
@@ -520,6 +525,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("AssignedToUserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Company")
                         .IsRequired()
@@ -628,6 +636,8 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
 
                     b.HasIndex("CustomerId");
 
@@ -2024,6 +2034,41 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("treatment_plans", "healthcare");
+                });
+
+            modelBuilder.Entity("Softaxis.CRM.Infrastructure.Persistence.IdentityTeamMemberView", b =>
+                {
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("team_members", "identity");
+                });
+
+            modelBuilder.Entity("Softaxis.CRM.Infrastructure.Persistence.IdentityTeamView", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("TeamLeadUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.ToTable((string)null);
+
+                    b.ToView("teams", "identity");
                 });
 
             modelBuilder.Entity("Softaxis.CRM.Domain.Entities.Integrations.FieldMapping", b =>

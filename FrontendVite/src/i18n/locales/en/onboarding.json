@@ -1,0 +1,285 @@
+{
+  "brand": {
+    "name": "Vrodux ERP",
+    "suite": "Business Suite"
+  },
+  "aside": {
+    "setupSteps": "Setup in 4 steps",
+    "included": "What's included",
+    "inc1": "Enterprise-grade security & audit trail",
+    "inc2": "Up and running in under 5 minutes",
+    "inc3": "Unlimited users during trial",
+    "inc4": "Real-time dashboards & reports",
+    "inc5": "Dedicated onboarding support",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in →",
+    "s1": "Create account",
+    "s1d": "Your personal login credentials for the workspace.",
+    "s2": "Set up organization",
+    "s2d": "Country, currency, fiscal year and industry.",
+    "s3": "Pick your modules",
+    "s3d": "Choose only the features your business needs.",
+    "s4": "Business type",
+    "s4d": "We'll pre-configure defaults to match your ops."
+  },
+  "stepper": {
+    "s1": "Your Account",
+    "s1d": "Login credentials",
+    "s2": "Organization",
+    "s2d": "Location & regional info",
+    "s3": "Modules",
+    "s3d": "Pick what you need",
+    "s4": "Business Type",
+    "s4d": "Configure your profile"
+  },
+  "chip": {
+    "c1": "Up & running in minutes",
+    "c2": "Enterprise-grade security",
+    "c3": "Real-time analytics",
+    "c4": "Multi-user & roles",
+    "c5": "Dedicated support"
+  },
+  "theme": {
+    "light": "Light mode",
+    "dark": "Dark mode"
+  },
+  "search": {
+    "placeholder": "Search…",
+    "noResults": "No results"
+  },
+  "pw": {
+    "weak": "Weak",
+    "fair": "Fair",
+    "good": "Good",
+    "strong": "Strong"
+  },
+  "badge": {
+    "required": "Req",
+    "recommended": "Rec",
+    "popular": "Hot"
+  },
+  "nav": {
+    "back": "Back",
+    "continue": "Continue",
+    "settingUp": "Setting up…"
+  },
+  "step1": {
+    "title": "Create your account",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "John Smith",
+    "companyName": "Company Name",
+    "companyNamePlaceholder": "Acme Corp",
+    "workEmail": "Work Email",
+    "password": "Password",
+    "passwordPlaceholder": "Min 8 chars",
+    "confirm": "Confirm Password",
+    "confirmPlaceholder": "Repeat password",
+    "agree": "I agree to the <a>Terms of Service</a> and <b>Privacy Policy</b>",
+    "next": "Continue to Organization",
+    "statTrial": "Day Trial",
+    "statModules": "Modules",
+    "statUsers": "Users",
+    "statUptime": "Uptime",
+    "trustedIn": "Trusted in",
+    "signInToAccount": "Sign in to account",
+    "changeEmail": "Change email"
+  },
+  "step2": {
+    "title": "Set up your organization",
+    "subtitle": "Configure your workspace — you can change anything later in Settings.",
+    "orgDetails": "Organization Details",
+    "orgName": "Organization Name",
+    "orgNamePlaceholder": "Acme Corp",
+    "industry": "Industry",
+    "selectIndustry": "Select industry",
+    "manualModules": "Manual module selection next",
+    "preSelected": "{{count}} modules will be pre-selected",
+    "country": "Country",
+    "selectCountry": "Select country",
+    "stateDefault": "State / Province",
+    "selectState": "Select {{label}}",
+    "selectCountryFirst": "Select country first",
+    "regional": "Regional & Operational Settings",
+    "currency": "Currency",
+    "auto": "(auto)",
+    "language": "Language",
+    "timezone": "Time Zone",
+    "timezoneAuto": "(auto-filled from country)",
+    "timezoneEmpty": "Select a country to auto-fill",
+    "startDate": "Inventory Start Date",
+    "fiscalYear": "Fiscal Year",
+    "note": "Language applies to email templates & payment modes. All settings can be changed anytime from Settings.",
+    "next": "Continue to Modules"
+  },
+  "preview": {
+    "title": "Modules Preview",
+    "manual": "You'll pick modules manually.",
+    "forIndustry": "For <1>{{industry}}</1>",
+    "selectIndustry": "Select an industry to preview.",
+    "chooseIndustry": "Choose an industry to see suggested modules.",
+    "adjustable": "Adjustable in the next step."
+  },
+  "step3": {
+    "title": "Choose your modules",
+    "preSelectedFor": "Pre-selected for <1>{{industry}}</1>. Adjust as needed.",
+    "subtitle": "Select the features your business needs.",
+    "willActivate": "Will be activated",
+    "selectOne": "Select at least one module.",
+    "nextBt": "Continue to Business Type",
+    "getStarted": "Get Started"
+  },
+  "step4": {
+    "title": "What type of business are you?",
+    "subtitle": "We'll pre-configure your workspace to match your business category.",
+    "alsoRecommended": "Also recommended for {{label}}:",
+    "selectType": "Select your business type.",
+    "agree": "By continuing you agree to our <a>Privacy Policy</a>",
+    "getStarted": "Get Started"
+  },
+  "done": {
+    "title": "You're all set! 🎉",
+    "workspaceReady": "Your <1>{{org}}</1> workspace is ready.",
+    "checkEmail": "Check <1>{{email}}</1> to verify."
+  },
+  "error": {
+    "generic": "Something went wrong. Please try again."
+  },
+  "validation": {
+    "min2": "At least 2 characters",
+    "companyRequired": "Company name required",
+    "validEmail": "Enter a valid work email",
+    "min8": "Min 8 characters",
+    "needsUpper": "Needs uppercase",
+    "needsNumber": "Needs a number",
+    "acceptTerms": "You must accept the terms",
+    "passwordMismatch": "Passwords do not match",
+    "required": "Required"
+  },
+  "industry": {
+    "All Industries": "All Industries",
+    "Retail & E-Commerce": "Retail & E-Commerce",
+    "Real Estate": "Real Estate",
+    "Construction": "Construction",
+    "Hospitality & Tourism": "Hospitality & Tourism",
+    "Healthcare": "Healthcare",
+    "Education": "Education",
+    "Manufacturing": "Manufacturing",
+    "Finance & Banking": "Finance & Banking",
+    "Logistics & Supply Chain": "Logistics & Supply Chain",
+    "Food & Beverage": "Food & Beverage",
+    "Technology & IT": "Technology & IT",
+    "Wholesale & Distribution": "Wholesale & Distribution",
+    "Professional Services": "Professional Services",
+    "Agriculture": "Agriculture",
+    "Other": "Other"
+  },
+  "language": {
+    "English": "English",
+    "Arabic": "Arabic",
+    "French": "French",
+    "German": "German",
+    "Spanish": "Spanish",
+    "Urdu": "Urdu",
+    "Hindi": "Hindi",
+    "Turkish": "Turkish",
+    "Malay": "Malay",
+    "Indonesian": "Indonesian",
+    "Portuguese": "Portuguese",
+    "Dutch": "Dutch",
+    "Italian": "Italian",
+    "Russian": "Russian",
+    "Chinese (Simplified)": "Chinese (Simplified)"
+  },
+  "fiscalYear": {
+    "January - December": "January - December",
+    "April - March": "April - March",
+    "July - June": "July - June",
+    "October - September": "October - September"
+  },
+  "module": {
+    "pos": {
+      "label": "Point of Sale",
+      "desc": "Retail & restaurant sales, cash register, sessions"
+    },
+    "inventory": {
+      "label": "Inventory",
+      "desc": "Items, warehouses, movements & transfers"
+    },
+    "sales": {
+      "label": "Sales",
+      "desc": "Quotations, sales orders & returns"
+    },
+    "purchase": {
+      "label": "Purchase",
+      "desc": "Vendors, purchase orders & receiving"
+    },
+    "finance": {
+      "label": "Finance",
+      "desc": "Accounting, invoicing, expenses & banking"
+    },
+    "hr": {
+      "label": "HR & Payroll",
+      "desc": "Employees, attendance, leaves & payroll"
+    },
+    "crm": {
+      "label": "CRM",
+      "desc": "Leads, pipeline, customers & activities"
+    },
+    "hospitality": {
+      "label": "Hospitality",
+      "desc": "Rooms, bookings & housekeeping"
+    },
+    "real-estate": {
+      "label": "Real Estate",
+      "desc": "Properties, tenants & lease contracts"
+    },
+    "construction": {
+      "label": "Construction",
+      "desc": "Projects, BOQ & contractors"
+    },
+    "healthcare": {
+      "label": "Healthcare",
+      "desc": "Patients, appointments & treatment plans"
+    },
+    "education": {
+      "label": "Education",
+      "desc": "Admissions, students & enrollments"
+    },
+    "visa": {
+      "label": "Visa Services",
+      "desc": "Visa cases, documents & renewals"
+    }
+  },
+  "businessType": {
+    "apparel": "apparel",
+    "arts": "arts",
+    "baby": "baby",
+    "beauty": "beauty",
+    "salon": "salon",
+    "books": "books",
+    "electronics": "electronics",
+    "fnb": "fnb",
+    "hardware": "hardware",
+    "home-decor": "home-decor",
+    "hypermarket": "hypermarket",
+    "pet": "pet",
+    "pharma": "pharma",
+    "services": "services",
+    "sports": "sports",
+    "supermarket": "supermarket",
+    "vehicle": "vehicle",
+    "restaurant": "restaurant",
+    "pharmacy": "pharmacy",
+    "mobile-telecom": "mobile-telecom",
+    "optical": "optical",
+    "office-supplies": "office-supplies",
+    "others": "others"
+  },
+  "moduleCategory": {
+    "commerce": "Commerce & Retail",
+    "finance": "Finance & Accounting",
+    "operations": "HR & Operations",
+    "industry": "Industry Packs"
+  },
+  "trialBadge": "30-day free trial · No credit card"
+}

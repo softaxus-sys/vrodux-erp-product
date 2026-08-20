@@ -1,0 +1,356 @@
+{
+  "orders": {
+    "title": "أوامر المبيعات",
+    "description": "تتبع وإدارة أوامر العملاء حتى التسليم",
+    "new": "أمر جديد",
+    "table": {
+      "orderNum": "رقم الأمر",
+      "customer": "العميل",
+      "date": "التاريخ",
+      "expected": "الموعد المتوقع",
+      "total": "الإجمالي",
+      "items": "العناصر",
+      "status": "الحالة",
+      "action": "الإجراء"
+    },
+    "stats": {
+      "total": "إجمالي الأوامر",
+      "pending": "قيد الانتظار",
+      "shipped": "تم الشحن",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغى",
+      "revenue": "الإيرادات"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "shipped": "تم الشحن",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغى"
+    },
+    "filters": {
+      "all": "الكل",
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "shipped": "تم الشحن",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغى"
+    },
+    "search": "البحث في الأوامر…",
+    "noResults": "لم يتم العثور على أوامر.",
+    "loading": "جاري تحميل الأوامر…",
+    "walkIn": "زبون حاضر",
+    "pagination": "الصفحة {{page}} من {{total}} ({{count}} أمر)",
+    "button": {
+      "confirm": "تأكيد",
+      "delivery": "وثيقة التسليم",
+      "prev": "السابق",
+      "next": "التالي",
+      "close": "إغلاق"
+    },
+    "drawer": {
+      "tab": {
+        "overview": "نظرة عامة",
+        "items": "بنود الأمر"
+      },
+      "total": "إجمالي الأمر",
+      "subtotal": "الإجمالي الجزئي",
+      "tax": "الضريبة",
+      "fulfillment": "تنفيذ الأمر",
+      "details": "التفاصيل",
+      "created": "تم الإنشاء",
+      "expected": "الموعد المتوقع",
+      "customer": "العميل",
+      "statusField": "الحالة",
+      "notes": "ملاحظات"
+    }
+  },
+  "quotations": {
+    "title": "عروض الأسعار",
+    "description": "إنشاء وتتبع عروض الأسعار للعملاء من خلال مسار المبيعات",
+    "new": "عرض سعر جديد",
+    "table": {
+      "quoteNum": "رقم العرض",
+      "customer": "العميل",
+      "created": "تم الإنشاء",
+      "validUntil": "صحيح حتى",
+      "total": "الإجمالي",
+      "items": "العناصر",
+      "status": "الحالة",
+      "action": "الإجراء"
+    },
+    "stats": {
+      "total": "إجمالي العروض",
+      "draft": "مسودة",
+      "sent": "تم الإرسال",
+      "approved": "موافق عليه",
+      "converted": "تم التحويل",
+      "pipeline": "قيمة المسار"
+    },
+    "status": {
+      "draft": "مسودة",
+      "sent": "تم الإرسال",
+      "approved": "موافق عليه",
+      "rejected": "مرفوض",
+      "expired": "انتهت صلاحيته",
+      "converted": "تم التحويل"
+    },
+    "filters": {
+      "all": "الكل",
+      "draft": "مسودة",
+      "sent": "تم الإرسال",
+      "approved": "موافق عليه",
+      "rejected": "مرفوض",
+      "expired": "انتهت صلاحيته",
+      "converted": "تم التحويل"
+    },
+    "search": "البحث في العروض…",
+    "noResults": "لم يتم العثور على عروض.",
+    "loading": "جاري تحميل العروض…",
+    "walkIn": "زبون حاضر",
+    "pagination": "الصفحة {{page}} من {{total}} ({{count}} عرض)",
+    "button": {
+      "convert": "تحويل",
+      "prev": "السابق",
+      "next": "التالي",
+      "close": "إغلاق"
+    },
+    "drawer": {
+      "tab": {
+        "overview": "نظرة عامة",
+        "items": "بنود العرض"
+      },
+      "totalValue": "القيمة الإجمالية (شامل الضريبة)",
+      "subtotal": "الإجمالي الجزئي",
+      "discount": "الخصم",
+      "tax": "الضريبة",
+      "details": "التفاصيل",
+      "customer": "العميل",
+      "created": "تم الإنشاء",
+      "validUntil": "صحيح حتى",
+      "discountField": "الخصم",
+      "itemsField": "العناصر",
+      "notes": "ملاحظات",
+      "converted": "تم التحويل إلى أمر مبيعات",
+      "convertedId": "معرف الأمر",
+      "expiringAlert": "على وشك الانتهاء",
+      "lineItems": "بنود الأمر",
+      "none": "لا شيء"
+    }
+  },
+  "returns": {
+    "title": "المرتجعات",
+    "description": "معالجة طلبات المرتجعات والمبالغ المستردة والملاحظات الائتمانية",
+    "new": "مرتجع جديد",
+    "table": {
+      "returnNum": "رقم المرتجع",
+      "customer": "العميل",
+      "orderRef": "مرجع الأمر",
+      "reason": "السبب",
+      "date": "التاريخ",
+      "refundAmt": "مبلغ المسترد",
+      "status": "الحالة",
+      "action": "الإجراء"
+    },
+    "stats": {
+      "total": "إجمالي المرتجعات",
+      "pending": "قيد المراجعة",
+      "approved": "موافق عليه",
+      "refunded": "تم استرداد المبلغ",
+      "totalValue": "إجمالي قيمة المسترد"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "approved": "موافق عليه",
+      "rejected": "مرفوض",
+      "refunded": "تم استرداد المبلغ",
+      "completed": "مكتمل"
+    },
+    "reason": {
+      "defective": "معيب",
+      "wrong_item": "عنصر خاطئ",
+      "not_as_described": "غير مطابق للوصف",
+      "duplicate_order": "أمر مكرر",
+      "changed_mind": "غير الرأي",
+      "other": "آخر"
+    },
+    "filters": {
+      "all": "الكل",
+      "pending": "قيد الانتظار",
+      "approved": "موافق عليه",
+      "refunded": "تم استرداد المبلغ",
+      "completed": "مكتمل",
+      "rejected": "مرفوض"
+    },
+    "search": "البحث في المرتجعات…",
+    "noResults": "لم يتم العثور على مرتجعات.",
+    "loading": "جاري تحميل المرتجعات…",
+    "pagination": "الصفحة {{page}} من {{total}} ({{count}} مرتجع)",
+    "button": {
+      "approve": "موافقة",
+      "reject": "رفض",
+      "refund": "استرجاع",
+      "close": "إغلاق"
+    },
+    "drawer": {
+      "refundAmount": "مبلغ المسترد",
+      "returnReason": "سبب المرتجع",
+      "details": "التفاصيل",
+      "customer": "العميل",
+      "orderRef": "مرجع الأمر",
+      "requestDate": "تاريخ الطلب",
+      "processedBy": "تمت المعالجة بواسطة",
+      "processedDate": "تمت المعالجة في",
+      "creditNote": "ملاحظة الائتمان",
+      "returnItems": "عناصر المرتجع",
+      "description": "الوصف",
+      "qty": "الكمية",
+      "unitPrice": "سعر الوحدة",
+      "total": "الإجمالي",
+      "refundTotal": "إجمالي المسترد (شامل الضريبة)",
+      "refundMethod": "طريقة الاسترجاع",
+      "button": {
+        "approveReturn": "الموافقة على المرتجع",
+        "processRefund": "معالجة الاسترجاع",
+        "creditNote": "ملاحظة الائتمان"
+      }
+    }
+  },
+  "deliveryChallans": {
+    "title": "وثائق التسليم",
+    "description": "تتبع البضائع المسلمة مقابل أوامر المبيعات",
+    "table": {
+      "challanNum": "رقم الوثيقة",
+      "salesOrder": "أمر المبيعات",
+      "customer": "العميل",
+      "challanDate": "تاريخ الوثيقة",
+      "driver": "السائق",
+      "items": "العناصر",
+      "status": "الحالة"
+    },
+    "status": {
+      "posted": "تم النشر",
+      "cancelled": "ملغى"
+    },
+    "search": "البحث في الوثيقة أو الأمر أو العميل…",
+    "noResults": "لم يتم العثور على وثائق التسليم.",
+    "loading": "جاري تحميل وثائق التسليم…"
+  },
+  "forms": {
+    "newOrder": {
+      "title": "أمر مبيعات جديد",
+      "description": "إنشاء أمر مبيعات مؤكد للعميل",
+      "customer": "العميل *",
+      "customerPlaceholder": "اسم العميل أو الشركة…",
+      "expectedDate": "الموعد المتوقع",
+      "taxRate": "معدل الضريبة",
+      "vatStandard": "معياري (17%)",
+      "vatZero": "صفر (0%)",
+      "vatExempt": "معفى",
+      "orderLines": "بنود الأمر",
+      "addItem": "إضافة عنصر",
+      "table": {
+        "description": "الوصف",
+        "qty": "الكمية",
+        "unitPrice": "سعر الوحدة",
+        "discPercent": "نسبة الخصم %",
+        "subtotal": "الإجمالي الجزئي"
+      },
+      "summary": {
+        "subtotal": "الإجمالي الجزئي",
+        "tax": "الضريبة",
+        "total": "الإجمالي",
+        "create": "إنشاء الأمر"
+      },
+      "notes": "ملاحظات"
+    },
+    "newQuotation": {
+      "title": "عرض سعر جديد",
+      "description": "إنشاء عرض سعر للعميل للمراجعة",
+      "customer": "العميل *",
+      "customerPlaceholder": "اسم العميل أو الشركة…",
+      "validUntil": "صحيح حتى",
+      "discountPercent": "نسبة الخصم %",
+      "taxRate": "معدل الضريبة",
+      "vatStandard": "معياري (17%)",
+      "vatZero": "صفر (0%)",
+      "vatExempt": "معفى",
+      "quotationLines": "بنود العرض",
+      "addItem": "إضافة عنصر",
+      "table": {
+        "description": "الوصف",
+        "qty": "الكمية",
+        "unitPrice": "سعر الوحدة",
+        "discPercent": "نسبة الخصم %",
+        "subtotal": "الإجمالي الجزئي"
+      },
+      "summary": {
+        "subtotal": "الإجمالي الجزئي",
+        "discount": "الخصم",
+        "tax": "الضريبة",
+        "total": "الإجمالي",
+        "create": "إنشاء العرض"
+      },
+      "notes": "ملاحظات"
+    },
+    "newReturn": {
+      "title": "مرتجع جديد",
+      "description": "تسجيل مرتجع وعملية استرجاع من العميل",
+      "orderNumber": "رقم الأمر",
+      "customer": "العميل *",
+      "reason": "سبب المرتجع *",
+      "selectReason": "اختر السبب…",
+      "reasonDetail": "تفاصيل السبب",
+      "refundAmount": "مبلغ المسترد *",
+      "refundMethod": "طريقة الاسترجاع",
+      "selectMethod": "اختر الطريقة…",
+      "returnDate": "تاريخ المرتجع",
+      "returnLines": "عناصر المرتجع",
+      "addItem": "إضافة عنصر",
+      "table": {
+        "description": "الوصف",
+        "qty": "الكمية",
+        "unitPrice": "سعر الوحدة",
+        "total": "الإجمالي"
+      },
+      "summary": {
+        "total": "الإجمالي",
+        "create": "إنشاء المرتجع"
+      }
+    },
+    "createDeliveryChallan": {
+      "title": "إنشاء وثيقة تسليم",
+      "description": "تسجيل البضائع المسلمة مقابل أمر المبيعات",
+      "order": "أمر المبيعات",
+      "orderPlaceholder": "اختر الأمر…",
+      "driverName": "اسم السائق",
+      "challanDate": "تاريخ الوثيقة",
+      "items": "العناصر المراد تسليمها",
+      "description": "الوصف",
+      "ordered": "مطلوب",
+      "delivered": "تم التسليم",
+      "summary": {
+        "totalItems": "إجمالي العناصر",
+        "create": "إنشاء الوثيقة"
+      }
+    },
+    "button": {
+      "cancel": "إلغاء",
+      "save": "حفظ",
+      "create": "إنشاء",
+      "delete": "حذف",
+      "close": "إغلاق"
+    },
+    "validation": {
+      "customerRequired": "العميل مطلوب",
+      "itemsRequired": "عنصر واحد على الأقل مطلوب",
+      "reasonRequired": "السبب مطلوب",
+      "refundRequired": "مبلغ المسترد مطلوب"
+    }
+  },
+  "common": {
+    "unknown": "غير معروف",
+    "prev": "السابق",
+    "next": "التالي"
+  }
+}

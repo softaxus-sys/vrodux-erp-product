@@ -5,7 +5,8 @@ public sealed class Deal
     private Deal() { }
     public Deal(string title, string company, decimal value, string stage, string priority,
         int probability, string expectedCloseDate, string assignedTo, string source,
-        string industry, string description, string? forecastCategory = null, Guid? customerId = null)
+        string industry, string description, string? forecastCategory = null, Guid? customerId = null,
+        Guid? assignedToUserId = null)
     {
         Id               = Guid.NewGuid();
         Title            = title.Trim(); Company = company.Trim();
@@ -13,7 +14,7 @@ public sealed class Deal
         Value            = value; Currency = "AED"; Stage = stage; Priority = priority;
         Probability      = probability; ExpectedCloseDate = expectedCloseDate;
         CreatedDate      = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        AssignedTo       = assignedTo.Trim(); Source = source;
+        AssignedTo       = assignedTo.Trim(); AssignedToUserId = assignedToUserId; Source = source;
         Industry         = industry; Description = description.Trim();
         ForecastCategory = Normalize(forecastCategory) ?? DeriveForecastCategory(stage, probability);
         Tags             = []; CreatedAt = DateTime.UtcNow;
@@ -31,6 +32,8 @@ public sealed class Deal
     public string    ExpectedCloseDate{ get; private set; } = string.Empty;
     public string    CreatedDate      { get; private set; } = string.Empty;
     public string    AssignedTo       { get; private set; } = string.Empty;
+    /// <summary>Owning user. Drives the assigned-only / my-team visibility tiers; null = unassigned.</summary>
+    public Guid?     AssignedToUserId { get; private set; }
     public string    Source           { get; private set; } = string.Empty;
     public string    Industry         { get; private set; } = string.Empty;
     public string    Description      { get; private set; } = string.Empty;
@@ -58,12 +61,13 @@ public sealed class Deal
     public void Update(string title, string company, decimal value, string stage, string priority,
         int probability, string expectedCloseDate, string assignedTo, string source, string industry,
         string description, string? nextAction, string? nextActionDate, List<string>? tags,
-        string? forecastCategory = null, Guid? customerId = null)
+        string? forecastCategory = null, Guid? customerId = null, Guid? assignedToUserId = null)
     {
         Title = title.Trim(); Company = company.Trim(); Value = value;
         CustomerId = customerId;
         Stage = stage; Priority = priority; Probability = probability;
         ExpectedCloseDate = expectedCloseDate; AssignedTo = assignedTo.Trim();
+        AssignedToUserId = assignedToUserId;
         Source = source; Industry = industry; Description = description.Trim();
         NextAction = nextAction; NextActionDate = nextActionDate;
         ForecastCategory = Normalize(forecastCategory) ?? DeriveForecastCategory(stage, probability);

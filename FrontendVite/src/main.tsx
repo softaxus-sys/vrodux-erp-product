@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { Toaster } from "sonner";
 import { BrowserRouter, HashRouter } from "react-router-dom";
 import { AppProviders } from "@/components/providers/app-providers";
 import { App } from "./App";
@@ -63,6 +64,9 @@ async function boot() {
           </AppProviders>
         </Router>
       </ErrorBoundary>
+      {/* Outside the boundary on purpose — see AppProviders. visibleToasts caps how many
+          nodes sonner manages at once, which also keeps a burst of errors from thrashing the DOM. */}
+      <Toaster richColors position="top-right" visibleToasts={3} toastOptions={{ duration: 4000 }} />
     </React.StrictMode>
   );
 }

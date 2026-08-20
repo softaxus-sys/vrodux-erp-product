@@ -14,7 +14,7 @@ internal sealed class GetLeadByIdHandler(CrmDbContext db, ILeadAccessGuard acces
     {
         var l = await db.Leads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == query.Id, ct);
         // Treat a lead the user can't see as non-existent (don't leak that it exists).
-        if (l is null || !access.CanRead(l))
+        if (l is null || !await access.CanReadAsync(l, ct))
             return Result.Failure<LeadDto>(Error.NotFoundById("Lead", query.Id));
 
         return Result.Success(LeadMappings.ToDto(l));

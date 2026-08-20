@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.Identity.Application.Abstractions;
+using Softaxis.Identity.Application.Seed;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Infrastructure.Persistence;
 
@@ -8,26 +9,6 @@ namespace Softaxis.Identity.Infrastructure.Services;
 /// <inheritdoc />
 public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRoleProvisioner
 {
-    // module prefix → seeded "Manager" role name. Settings is intentionally excluded
-    // (admin-only); the Administrator role already covers it.
-    private static readonly Dictionary<string, string> ModuleManagerLabels = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["crm"]                = "CRM Manager",
-        ["sales"]              = "Sales Manager",
-        ["purchase"]           = "Purchase Manager",
-        ["finance"]            = "Finance Manager",
-        ["hr"]                 = "HR Manager",
-        ["inventory"]          = "Inventory Manager",
-        ["pos"]                = "POS Manager",
-        ["project-management"] = "Project Manager",
-        ["b2b"]                = "B2B Manager",
-        ["education"]          = "Education Manager",
-        ["healthcare"]         = "Healthcare Manager",
-        ["insurance"]          = "Insurance Manager",
-        ["visa"]               = "Visa Manager",
-        ["restaurant"]         = "Restaurant Manager",
-    };
-
     public async Task<Role> ProvisionAsync(Guid tenantId, IReadOnlyList<string> enabledModules, CancellationToken ct = default)
     {
         var allPerms = await db.Permissions.AsNoTracking().ToListAsync(ct);
@@ -38,59 +19,72 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
         admin.SetPermissions(allPerms.Select(p => p.Id));
         db.Roles.Add(admin);
 
-        // One Manager role per enabled module (falls back to all known modules if none resolved).
-        var modules = (enabledModules is { Count: > 0 } ? enabledModules : ModuleManagerLabels.Keys.ToList())
+        await AddMissingModuleRolesAsync(tenantId, enabledModules, allPerms, existing: [], ct);
+        return admin;
+    }
+
+    /// <inheritdoc />
+    public async Task<int> EnsureModuleRolesAsync(Guid tenantId, IReadOnlyList<string> enabledModules, CancellationToken ct = default)
+    {
+        // No resolvable modules → do nothing. ProvisionAsync falls back to "every known module" for a
+        // brand-new tenant, but applying that fallback to an EXISTING tenant on every startup would
+        // bury it in roles for modules it doesn't own.
+        if (enabledModules is not { Count: > 0 }) return 0;
+
+        var allPerms = await db.Permissions.AsNoTracking().ToListAsync(ct);
+
+        // Match on name so a role the tenant already has — whether seeded earlier or created by
+        // hand — is never duplicated, and its permissions are never overwritten.
+        var existing = await db.Roles
+            .Where(r => r.TenantId == tenantId && !r.IsDeleted)
+            .Select(r => r.Name)
+            .ToListAsync(ct);
+
+        return await AddMissingModuleRolesAsync(tenantId, enabledModules, allPerms,
+            existing.ToHashSet(StringComparer.OrdinalIgnoreCase), ct);
+    }
+
+    /// <summary>
+    /// Adds every catalogue role for the tenant's enabled modules that does not already exist.
+    /// A template granting no permissions at all is skipped — that means the module's permission
+    /// keys aren't seeded yet, and an empty role would just be confusing clutter.
+    /// </summary>
+    private Task<int> AddMissingModuleRolesAsync(
+        Guid tenantId,
+        IReadOnlyList<string> enabledModules,
+        List<Permission> allPerms,
+        HashSet<string> existing,
+        CancellationToken ct)
+    {
+        // Fall back to every known module when a tenant has none resolved, matching prior behaviour.
+        var modules = (enabledModules is { Count: > 0 } ? enabledModules : [.. ModuleRoleCatalogue.ModuleLabels.Keys])
             .Select(m => m.Trim())
             .Where(m => m.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase);
 
-        var modList = modules.ToList();
+        var added = 0;
 
-        foreach (var mod in modList)
+        foreach (var module in modules)
+        foreach (var template in ModuleRoleCatalogue.For(module))
         {
-            if (!ModuleManagerLabels.TryGetValue(mod, out var label)) continue;
+            if (existing.Contains(template.Name)) continue;
 
             var perms = allPerms
-                .Where(p => string.Equals(p.ModuleId.Split('.')[0], mod, StringComparison.OrdinalIgnoreCase))
-                .Select(p => p.Id).ToList();
+                .Where(p => template.Includes(p.ModuleId, p.Action))
+                .Select(p => p.Id)
+                .ToList();
             if (perms.Count == 0) continue;
 
-            var mgr = Role.Create(label, $"Full access to the {label.Replace(" Manager", string.Empty)} module.",
-                isSystem: false, tenantId: tenantId).Value;
-            mgr.SetPermissions(perms);
-            db.Roles.Add(mgr);
+            var role = Role.Create(template.Name, template.Description, isSystem: false, tenantId: tenantId).Value;
+            role.SetPermissions(perms);
+            db.Roles.Add(role);
+
+            // Guards against two modules contributing the same role name in one pass.
+            existing.Add(template.Name);
+            added++;
         }
 
-        // POS operational tiers (Cashier / Supervisor) — only for POS-enabled tenants. POS Manager
-        // (full) already comes from the per-module set above; these add the limited/shift roles that
-        // used to be seeded globally and shared across all tenants.
-        if (modList.Any(m => string.Equals(m, "pos", StringComparison.OrdinalIgnoreCase)))
-        {
-            Guid[] PermsFor(string moduleId, params string[] actions) =>
-                [.. allPerms.Where(p => p.ModuleId == moduleId && actions.Contains(p.Action)).Select(p => p.Id)];
-
-            var cashier = Role.Create("Cashier",
-                "Process sales at the POS terminal. View products and print receipts.",
-                isSystem: false, tenantId: tenantId).Value;
-            cashier.SetPermissions([
-                .. PermsFor("pos.sessions",     "view"),
-                .. PermsFor("pos.transactions", "view", "create", "print"),
-                .. PermsFor("pos.products",     "view"),
-            ]);
-            db.Roles.Add(cashier);
-
-            var supervisor = Role.Create("Supervisor",
-                "Full POS operations — open/close shifts, void transactions, apply discounts, manage refunds.",
-                isSystem: false, tenantId: tenantId).Value;
-            supervisor.SetPermissions([
-                .. PermsFor("pos.sessions",     "view", "create", "approve"),
-                .. PermsFor("pos.transactions", "view", "create", "print", "void", "refund", "discount"),
-                .. PermsFor("pos.products",     "view", "create", "edit"),
-                .. PermsFor("pos.reports",      "view", "print"),
-            ]);
-            db.Roles.Add(supervisor);
-        }
-
-        return admin;
+        _ = ct;
+        return Task.FromResult(added);
     }
 }

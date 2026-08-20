@@ -1,0 +1,340 @@
+{
+  "cases": {
+    "title": "Visa Cases",
+    "description": "Manage visa case processing and applications",
+    "new": "New Case",
+    "search": "Search cases, applicants…",
+    "loading": "Loading cases…",
+    "noResults": "No visa cases yet. Create your first case.",
+    "filterAll": "All",
+    "board": "Board",
+    "list": "List",
+    "showMore": "Show {{count}} more",
+    "loadMore": "Load more",
+    "showing": "Showing {{shown}} of {{total}} cases",
+    "dropHere": "Drop here",
+    "noCases": "No cases",
+    "overdue": "overdue",
+    "docs": "docs",
+    "invalidTransition": "A {{from}} case can't move to {{to}}.",
+    "table": {
+      "caseNum": "Case #",
+      "applicant": "Applicant",
+      "visaType": "Visa Type",
+      "emirate": "Emirate",
+      "docs": "Docs",
+      "fees": "Fees",
+      "slaDue": "SLA Due",
+      "assignedTo": "Assigned To",
+      "status": "Status"
+    },
+    "status": {
+      "draft": "Draft",
+      "docs_pending": "Docs Pending",
+      "docs_complete": "Docs Complete",
+      "submitted": "Submitted",
+      "in_review": "In Review",
+      "rfi_required": "RFI Required",
+      "approved": "Approved",
+      "issued": "Issued",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "closed": "Closed"
+    },
+    "stats": {
+      "total": "Total Cases",
+      "totalSub": "All time",
+      "open": "Open",
+      "openSub": "In progress",
+      "docsPending": "Docs Pending",
+      "docsPendingSub": "Awaiting papers",
+      "submitted": "Submitted",
+      "submittedSub": "With government",
+      "approvedMonth": "Approved (mo.)",
+      "approvedMonthSub": "This month",
+      "openFees": "Open Fees",
+      "openFeesSub": "Service + govt"
+    }
+  },
+  "drawer": {
+    "tab": {
+      "overview": "Overview",
+      "applicants": "Applicants",
+      "documents": "Documents",
+      "submissions": "Submissions",
+      "timeline": "Timeline"
+    },
+    "govtRef": "Govt ref",
+    "rejected": "Rejected",
+    "serviceFee": "Service Fee",
+    "govtFee": "Government Fee",
+    "billing": "Billing",
+    "invoiceNumber": "Invoice {{number}}",
+    "viewInFinance": "{{amount}} · view in Finance",
+    "noInvoice": "No invoice raised yet.",
+    "generateInvoice": "Generate draft invoice — {{amount}}",
+    "notes": "Notes",
+    "field": {
+      "emirate": "Emirate",
+      "channel": "Channel",
+      "priority": "Priority",
+      "assignedTo": "Assigned To",
+      "slaDue": "SLA Due",
+      "visaExpiry": "Visa Expiry",
+      "created": "Created"
+    },
+    "applicant": {
+      "passport": "Passport",
+      "nationality": "Nationality",
+      "expiry": "Expiry",
+      "dob": "DOB",
+      "eid": "EID",
+      "uid": "UID"
+    },
+    "addDocPlaceholder": "Add a document requirement…",
+    "caseLevel": "Case-level",
+    "expires": "expires",
+    "noDocuments": "No document requirements on this case.",
+    "notePlaceholder": "Log a note…",
+    "docStatus": {
+      "pending": "Pending",
+      "received": "Received",
+      "verified": "Verified",
+      "rejected": "Rejected",
+      "expired": "Expired"
+    },
+    "submissions": {
+      "title": "Government submissions",
+      "record": "Record",
+      "refPlaceholder": "Government reference (optional)…",
+      "empty": "No government submissions recorded yet.",
+      "type": {
+        "entry_permit": "Entry permit",
+        "status_change": "Status change",
+        "emirates_id": "Emirates ID",
+        "stamping": "Stamping",
+        "medical": "Medical",
+        "other": "Other"
+      },
+      "status": {
+        "submitted": "Submitted",
+        "in_review": "In review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "completed": "Completed"
+      }
+    },
+    "prompt": {
+      "submittedTitle": "Mark as submitted",
+      "issuedTitle": "Issue visa",
+      "rejectedTitle": "Reject case",
+      "submittedHint": "Enter the reference number from the government portal (optional).",
+      "issuedHint": "Enter the issued visa's expiry date so it surfaces on Renewals (optional).",
+      "rejectedHint": "Why was this application rejected?",
+      "submittedPlaceholder": "e.g. eDNRD application number…",
+      "rejectedPlaceholder": "Rejection reason…",
+      "submitConfirm": "Mark Submitted",
+      "issueConfirm": "Issue Visa",
+      "rejectConfirm": "Reject"
+    },
+    "deleteTitle": "Delete case?",
+    "deleteBodyPrefix": "This will delete",
+    "deleteBodySuffix": "and its checklist. This cannot be undone.",
+    "button": {
+      "add": "Add",
+      "delete": "Delete",
+      "cancel": "Cancel"
+    }
+  },
+  "wizard": {
+    "title": "New Visa Case",
+    "stepLabel": "Step {{step}} of 2 — {{name}}",
+    "step1": "Visa type & details",
+    "step2": "Applicants",
+    "visaType": "Visa Type *",
+    "selectType": "Select visa type…",
+    "processingTime": "Processing time",
+    "processingDays": "~{{count}} days",
+    "docsHint": "{{count}} required documents per applicant — the checklist is generated automatically.",
+    "emirate": "Emirate",
+    "priority": "Priority",
+    "account": "Account / Client",
+    "accountPlaceholder": "Search CRM accounts or type a client name…",
+    "linked": "Linked",
+    "unlink": "Unlink account",
+    "assignedPro": "Assigned PRO",
+    "proPlaceholder": "PRO name…",
+    "serviceFee": "Service Fee ({{currency}})",
+    "govtFee": "Govt Fee ({{currency}})",
+    "notes": "Notes",
+    "notesPlaceholder": "Case background, sponsor details…",
+    "invoiceTitle": "Create a draft invoice in Finance",
+    "invoiceHint": "Service + government fees as line items, linked to this case.",
+    "removeApplicant": "Remove applicant",
+    "firstName": "First name *",
+    "lastName": "Last name",
+    "nationality": "Nationality *",
+    "passportNumber": "Passport number *",
+    "passportExpiry": "Passport expiry",
+    "dateOfBirth": "Date of birth",
+    "priorityValue": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "relationship": {
+      "primary": "Primary",
+      "spouse": "Spouse",
+      "child": "Child",
+      "parent": "Parent",
+      "other": "Other"
+    },
+    "button": {
+      "cancel": "Cancel",
+      "back": "Back",
+      "next": "Applicants",
+      "addDependent": "Add dependent",
+      "create": "Create Case — {{total}}"
+    }
+  },
+  "dashboard": {
+    "title": "Visa Dashboard",
+    "description": "Case pipeline, workload, revenue and upcoming expiries",
+    "loading": "Loading visa dashboard…",
+    "byStatus": "Cases by status",
+    "byType": "Cases by visa type",
+    "revenueByType": "Revenue by visa type",
+    "workload": "PRO workload (open cases)",
+    "noCases": "No cases yet.",
+    "noRevenue": "No revenue yet.",
+    "noWorkload": "No assigned open cases.",
+    "expiryBanner": "{{visas}} visa(s) and {{passports}} passport(s) expiring within 90 days, plus {{documents}} document(s) within 30 days — see the Renewals page.",
+    "stats": {
+      "total": "Total Cases",
+      "totalSub": "All time",
+      "open": "Open",
+      "openSub": "In progress",
+      "overdue": "Overdue",
+      "overdueSub": "Past SLA",
+      "dueThisWeek": "Due This Week",
+      "dueThisWeekSub": "Next 7 days",
+      "expiringVisas": "Expiring Visas",
+      "expiringVisasSub": "Within 90 days",
+      "openFees": "Open Fees",
+      "openFeesSub": "Service + govt"
+    }
+  },
+  "renewals": {
+    "title": "Renewals & Expiries",
+    "description": "Passports and documents coming due — act before they block processing",
+    "search": "Search applicant, case, type…",
+    "loading": "Loading…",
+    "loadingMore": "Loading more…",
+    "emptyState": "Nothing expiring within {{days}} days. 🎉",
+    "showing": "Showing {{shown}} of {{total}}",
+    "daysOverdue": "{{count}}d overdue",
+    "daysLeft": "{{count}}d left",
+    "stats": {
+      "expiring": "Expiring Items",
+      "overdue": "Overdue",
+      "visas": "Visas",
+      "passports": "Passports"
+    },
+    "table": {
+      "item": "Item",
+      "case": "Case",
+      "visaType": "Visa Type",
+      "expiry": "Expiry",
+      "urgency": "Urgency",
+      "caseStatus": "Case Status",
+      "assignedTo": "Assigned To"
+    }
+  },
+  "types": {
+    "title": "Visa Types",
+    "description": "Your visa catalogue — fees, processing time and required documents",
+    "search": "Search types or documents…",
+    "loading": "Loading visa types…",
+    "emptyState": "No visa types found.",
+    "filterAll": "All",
+    "processingDays": "~{{count}} days",
+    "govtFee": "Govt {{amount}}",
+    "serviceFee": "Service {{amount}}",
+    "documentCount": "{{count}} documents",
+    "requiredDocs": "Required documents (per applicant)",
+    "toggleDocs": "Toggle documents",
+    "deleteTitle": "Remove visa type?",
+    "deleteBody": "will no longer be selectable for new cases. Existing cases keep their type.",
+    "category": {
+      "employment": "Employment",
+      "family": "Family",
+      "visit": "Visit",
+      "golden": "Golden",
+      "student": "Student",
+      "freelance": "Freelance",
+      "other": "Other"
+    },
+    "button": {
+      "new": "New Type",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "remove": "Remove"
+    },
+    "form": {
+      "titleNew": "New Visa Type",
+      "titleEdit": "Edit Visa Type",
+      "subtitle": "Fees, processing time and the document checklist",
+      "name": "Name *",
+      "namePlaceholder": "e.g. Employment Visa — New",
+      "category": "Category",
+      "channel": "Channel",
+      "govtFee": "Govt Fee ({{currency}})",
+      "serviceFee": "Service Fee ({{currency}})",
+      "processingDays": "Processing Days",
+      "requiredDocs": "Required documents (per applicant)",
+      "addDocPlaceholder": "Add a document…",
+      "noDocs": "No documents yet — add the checklist items applicants must provide.",
+      "button": {
+        "add": "Add",
+        "remove": "Remove",
+        "cancel": "Cancel",
+        "save": "Save Changes",
+        "create": "Create Type"
+      }
+    }
+  },
+  "channels": {
+    "title": "Government Channels",
+    "description": "Connect the submission channels your consultancy is onboarded to. UAE has no open visa APIs — Manual works today; the rest activate as partnerships land.",
+    "loading": "Loading channels…",
+    "connected": "Connected",
+    "comingSoonHint": "Available once a channel partnership is onboarded.",
+    "readyHint": "Ready — no setup needed.",
+    "askAdmin": "Ask an admin to connect this channel.",
+    "status": {
+      "active": "Available",
+      "beta": "Beta",
+      "coming_soon": "Coming soon"
+    },
+    "button": {
+      "connect": "Connect",
+      "reconfigure": "Reconfigure",
+      "disconnect": "Disconnect",
+      "cancel": "Cancel",
+      "save": "Save connection"
+    },
+    "drawer": {
+      "title": "Connect {{name}}",
+      "subtitle": "Credentials are encrypted at rest",
+      "establishmentCard": "Establishment card",
+      "establishmentCardPlaceholder": "Establishment / trade licence no.",
+      "accountRef": "Account reference / user",
+      "accountRefPlaceholder": "Channel account / user id",
+      "secret": "Secret / API key",
+      "secretKeep": "(leave blank to keep)",
+      "secretPlaceholderUnchanged": "•••••• (unchanged)",
+      "secretPlaceholder": "Token or API key"
+    }
+  }
+}

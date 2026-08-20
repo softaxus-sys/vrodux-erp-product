@@ -52,6 +52,8 @@ export interface DealDto {
   expectedCloseDate:  string;
   createdDate:        string;
   assignedTo:         string;
+  /** Owning user — drives the assigned-only / my-team visibility tiers. */
+  assignedToUserId?:  string | null;
   source:             string;
   industry:           string;
   description:        string;
@@ -327,6 +329,8 @@ export interface CustomerDto {
   status:            CustomerStatus;
   tier:              CustomerTier;
   accountManager:    string;
+  /** Owning user — drives the assigned-only / my-team visibility tiers. */
+  accountManagerUserId?: string | null;
   since:             string;
   lastActivity?:     string;
   totalRevenue:      number;
@@ -438,7 +442,7 @@ export const IMPORT_TARGET_FIELDS = [
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 export interface CreateDealRequest {
   title: string; company: string; value: number; stage: string; priority: string;
-  probability: number; expectedCloseDate: string; assignedTo: string; source: string;
+  probability: number; expectedCloseDate: string; assignedTo: string; assignedToUserId?: string | null; source: string;
   industry: string; description: string; forecastCategory?: string; customerId?: string | null;
 }
 export interface UpdateDealRequest extends CreateDealRequest {
@@ -446,11 +450,11 @@ export interface UpdateDealRequest extends CreateDealRequest {
 }
 export interface CreateCustomerRequest {
   name: string; industry: string; country: string; city: string; address: string;
-  phone: string; email: string; tier: string; accountManager: string; description: string;
+  phone: string; email: string; tier: string; accountManager: string; accountManagerUserId?: string | null; description: string;
 }
 export interface UpdateCustomerRequest {
   name: string; industry: string; country: string; city: string; address: string;
-  phone: string; email: string; status: string; tier: string; accountManager: string;
+  phone: string; email: string; status: string; tier: string; accountManager: string; accountManagerUserId?: string | null;
   description: string; website?: string | null; tradeName?: string | null; employees?: string | null;
   npsScore?: number | null; contractRenewal?: string | null; tags?: string[];
 }

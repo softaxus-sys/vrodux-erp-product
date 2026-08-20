@@ -17,10 +17,11 @@ export const roleKeys = {
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
-export function useRoles(params: { page?: number; pageSize?: number; search?: string } = {}) {
+export function useRoles(params: { page?: number; pageSize?: number; search?: string } = {}, enabled = true) {
   return useQuery<PagedResult<RoleSummaryDto>>({
     queryKey: roleKeys.list(params),
     queryFn:  () => rolesApi.getAll(params),
+    enabled,
   });
 }
 

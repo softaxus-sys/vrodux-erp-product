@@ -13,6 +13,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useThemeStore } from "@/store/theme.store";
 import { toast } from "sonner";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
+import { findCountry } from "@/lib/onboarding/geo-data";
 
 // Keep for potential future use — avoids dead-import warnings
 void MapPin; void ChevronRight;
@@ -53,30 +54,37 @@ const MODULE_KEYS = [
 ] as const;
 
 // ─── Default values (used as fallback when backend has no data yet) ───────────
+//
+// The company block is intentionally EMPTY. It used to carry a sample company (Softaxis
+// Technologies LLC, its address, TRN, registration number and email addresses), which every tenant
+// with no saved settings then displayed as if it were their own. Showing a real-looking legal
+// identity that belongs to someone else is worse than showing nothing, so these are blank and the
+// inputs carry placeholders instead. `name`/`legalName` fall back to the tenant's own name below.
 const DEFAULTS = {
   company: {
-    name: "Softaxis Technologies LLC",
-    legalName: "Softaxis Technologies LLC",
-    industry: "IT Services / SaaS",
-    website: "www.softaxis.io",
-    companySize: "50-200",
-    registrationNo: "UAE-LLC-2019-84721",
-    phone: "+971 4 123 4567",
-    email: "info@softaxis.io",
-    supportEmail: "support@softaxis.io",
-    address: "Dubai Internet City, Building 10, Office 402, Dubai, UAE",
-    poBox: "73912, Dubai, UAE",
+    name: "",
+    legalName: "",
+    industry: "",
+    website: "",
+    companySize: "",
+    registrationNo: "",
+    phone: "",
+    email: "",
+    supportEmail: "",
+    address: "",
+    poBox: "",
   },
   regional: {
-    country: "ae",              // ISO country code — source of truth for POS/reports/receipt
-    currency: "AED",
-    timezone: "Asia/Dubai",
-    dateFormat: "DD/MM/YYYY",
+    country: "",                // ISO country code — source of truth for POS/reports/receipt
+    currency: "",               // falls back to the tenant's own currency (see loader)
+    timezone: "",
+    dateFormat: "DD/MM/YYYY",   // formatting defaults are functional, not identity — safe to keep
     language: "en-US",
     numberFormat: "1,234,567.89",
-    vatRate: "5",
+    vatRate: "",
     fiscalYearStart: "January",
-    vatTrn: "100254876300003",
+    // A TRN is a legal identifier printed on tax invoices and VAT returns — never invent one.
+    vatTrn: "",
   },
   appearance: {
     theme: "system" as "light" | "dark" | "system",
@@ -139,15 +147,9 @@ function toStr(val: string | undefined, fallback: string): string {
   return val !== undefined && val !== null && val !== "" ? val : fallback;
 }
 
-/** Derive ISO country code from a currency code — fallback when country not yet stored. */
-function currencyToCountry(currency: string): string {
-  const map: Record<string, string> = {
-    AED: "ae", PKR: "pk", SAR: "sa", OMR: "om",
-    INR: "in", GBP: "gb", USD: "us", EUR: "eu",
-    QAR: "qa", KWD: "kw", BHD: "bh",
-  };
-  return map[currency?.toUpperCase()] ?? "pk";
-}
+// NOTE: a currencyToCountry() helper used to live here, deriving the country from the currency
+// with an arbitrary "pk" fallback. Country is now taken from the tenant itself (findCountry), so
+// an unknown value yields no country rather than silently picking one.
 
 /** Convert "light" | "dark" | "system" → boolean for useThemeStore */
 function resolveThemeDark(theme: string): boolean {
@@ -360,12 +362,25 @@ export function GeneralSettingsView() {
         poBox:          toStr(c.poBox,          D.company.poBox),
       };
 
-      const resolvedCurrency = toStr(r.currency, D.regional.currency);
+      // The country chosen during onboarding is the source of truth here — it is stored on the
+      // tenant and now travels in the JWT. Currency and timezone are derived FROM it when the
+      // tenant has nothing saved yet, which is what keeps this panel internally consistent: it
+      // previously showed a country derived from the currency (with an arbitrary "pk" fallback)
+      // alongside a hardcoded AED/Asia-Dubai, so a UAE tenant could read "Pakistan · AED · Dubai".
+      const tenantCountry  = tenant?.country ? findCountry(tenant.country) : undefined;
+      const resolvedCountry = toStr(r.country, tenantCountry?.code.toLowerCase() ?? D.regional.country);
+
+      // Prefer what the resolved country implies; only fall back to the tenant's currency claim.
+      const countryMeta      = findCountry(resolvedCountry) ?? tenantCountry;
+      const resolvedCurrency = toStr(
+        r.currency,
+        countryMeta?.currencyCode ?? tenant?.currency?.trim() ?? D.regional.currency,
+      );
+
       const newRegional: typeof DEFAULTS.regional = {
-        // country is the primary key — fall back to currency-derived if not yet stored
-        country:         toStr(r.country, currencyToCountry(resolvedCurrency)),
+        country:         resolvedCountry,
         currency:        resolvedCurrency,
-        timezone:        toStr(r.timezone,        D.regional.timezone),
+        timezone:        toStr(r.timezone,        countryMeta?.timezone ?? D.regional.timezone),
         dateFormat:      toStr(r.dateFormat,      D.regional.dateFormat),
         language:        toStr(r.language,        D.regional.language),
         numberFormat:    toStr(r.numberFormat,    D.regional.numberFormat),
@@ -619,12 +634,17 @@ export function GeneralSettingsView() {
           <div className="flex-1">
             <p className="text-sm font-semibold text-foreground">{company.name}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{company.industry}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 text-success text-xs font-semibold">
-                <CheckCircle className="h-3 w-3" /> {t("general.company.verified")}
-              </span>
-              <span className="text-xs text-muted-foreground">{t("general.company.idLabel")} SXT-2019-001</span>
-            </div>
+            {/* The "Verified" badge and a hardcoded company id (SXT-2019-001) used to render here
+                unconditionally. There is no verification concept in the product, so the badge was a
+                false trust signal, and the id belonged to the sample company. Show the tenant's own
+                registration number instead, and only once they have entered one. */}
+            {company.registrationNo.trim() && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground">
+                  {t("general.company.idLabel")} {company.registrationNo}
+                </span>
+              </div>
+            )}
             <Button variant="outline" size="sm" className="mt-3 h-7 text-xs">{t("general.company.uploadLogo")}</Button>
           </div>
         </div>
@@ -654,23 +674,23 @@ export function GeneralSettingsView() {
             <Input value={company.website} onChange={e => updateCompany("website", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.websitePlaceholder")} />
           </FormField>
           <FormField label={t("general.company.registrationNo")}>
-            <Input value={company.registrationNo} onChange={e => updateCompany("registrationNo", e.target.value)} className="h-9 text-sm font-mono" />
+            <Input value={company.registrationNo} onChange={e => updateCompany("registrationNo", e.target.value)} className="h-9 text-sm font-mono" placeholder={t("general.company.registrationNoPlaceholder", { defaultValue: "e.g. UAE-LLC-2024-00000" })} />
           </FormField>
           <FormField label={t("general.company.phone")}>
-            <Input value={company.phone} onChange={e => updateCompany("phone", e.target.value)} className="h-9 text-sm" />
+            <Input value={company.phone} onChange={e => updateCompany("phone", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.phonePlaceholder", { defaultValue: "+971 4 000 0000" })} />
           </FormField>
           <FormField label={t("general.company.email")}>
-            <Input value={company.email} onChange={e => updateCompany("email", e.target.value)} className="h-9 text-sm" />
+            <Input value={company.email} onChange={e => updateCompany("email", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.emailPlaceholder", { defaultValue: "info@yourcompany.com" })} />
           </FormField>
           <FormField label={t("general.company.supportEmail")}>
-            <Input value={company.supportEmail} onChange={e => updateCompany("supportEmail", e.target.value)} className="h-9 text-sm" />
+            <Input value={company.supportEmail} onChange={e => updateCompany("supportEmail", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.supportEmailPlaceholder", { defaultValue: "support@yourcompany.com" })} />
           </FormField>
           <FormField label={t("general.company.poBox")}>
-            <Input value={company.poBox} onChange={e => updateCompany("poBox", e.target.value)} className="h-9 text-sm" />
+            <Input value={company.poBox} onChange={e => updateCompany("poBox", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.poBoxPlaceholder", { defaultValue: "P.O. Box, City" })} />
           </FormField>
           <div className="md:col-span-2">
             <FormField label={t("general.company.address")}>
-              <Input value={company.address} onChange={e => updateCompany("address", e.target.value)} className="h-9 text-sm" />
+              <Input value={company.address} onChange={e => updateCompany("address", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.addressPlaceholder", { defaultValue: "Street, building, city, country" })} />
             </FormField>
           </div>
         </div>

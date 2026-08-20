@@ -9,10 +9,11 @@ export const auditKeys = {
   list:  (params: GetAuditLogsParams) => [...auditKeys.lists(), params] as const,
 };
 
-export function useAuditLogs(params: GetAuditLogsParams = {}) {
+export function useAuditLogs(params: GetAuditLogsParams = {}, enabled = true) {
   return useQuery<PagedResult<AuditLogDto>>({
     queryKey: auditKeys.list(params),
     queryFn:  () => auditApi.getAll(params),
     staleTime: 30_000,
+    enabled,
   });
 }

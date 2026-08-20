@@ -12,25 +12,27 @@ public sealed class AppSetting
 {
     private AppSetting() { }
 
-    /// <summary>Company-wide setting (UserId = null).</summary>
-    public AppSetting(string category, string key, string value, string? updatedBy = null)
+    /// <summary>Company-wide setting for one tenant (UserId = null).</summary>
+    public AppSetting(string category, string key, string value, Guid? tenantId, string? updatedBy = null)
     {
         Id        = Guid.NewGuid();
         Category  = category.Trim().ToLowerInvariant();
         Key       = key.Trim();
         Value     = value;
+        TenantId  = tenantId;
         UserId    = null;   // company-wide
         UpdatedAt = DateTime.UtcNow;
         UpdatedBy = updatedBy ?? "system";
     }
 
     /// <summary>Per-user setting (UserId = caller's identity).</summary>
-    public AppSetting(string category, string key, string value, string userId, string? updatedBy = null)
+    public AppSetting(string category, string key, string value, string userId, Guid? tenantId, string? updatedBy = null)
     {
         Id        = Guid.NewGuid();
         Category  = category.Trim().ToLowerInvariant();
         Key       = key.Trim();
         Value     = value;
+        TenantId  = tenantId;
         UserId    = userId;
         UpdatedAt = DateTime.UtcNow;
         UpdatedBy = updatedBy ?? userId;
@@ -43,6 +45,11 @@ public sealed class AppSetting
     public string   Value     { get; private set; } = string.Empty;
     /// <summary>Null = company-wide. Non-null = per-user (e.g. appearance).</summary>
     public string?  UserId    { get; private set; }
+    /// <summary>
+    /// Owning tenant. Null only on legacy rows written before settings were tenant-scoped — those
+    /// are ignored for tenant users, so one tenant's company profile can no longer surface in another's.
+    /// </summary>
+    public Guid?    TenantId  { get; private set; }
     public DateTime UpdatedAt { get; private set; }
     public string   UpdatedBy { get; private set; } = "system";
 

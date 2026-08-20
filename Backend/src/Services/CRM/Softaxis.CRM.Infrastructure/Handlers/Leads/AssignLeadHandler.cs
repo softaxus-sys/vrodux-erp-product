@@ -16,7 +16,7 @@ internal sealed class AssignLeadHandler(CrmDbContext db, ILeadAccessGuard access
         var l = await db.Leads.FindAsync([cmd.Id], ct);
         // Reassigning requires edit rights on the lead — full-edit users can assign any lead;
         // assigned-edit users can only hand on a lead they currently own.
-        if (l is null || !access.CanEdit(l))
+        if (l is null || !await access.CanEditAsync(l, ct))
             return Result.Failure(Error.NotFoundById("Lead", cmd.Id));
 
         var prevUserId = l.AssignedToUserId;

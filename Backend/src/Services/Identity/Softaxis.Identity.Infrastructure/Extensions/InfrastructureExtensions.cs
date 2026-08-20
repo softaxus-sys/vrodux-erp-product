@@ -39,6 +39,7 @@ public static class InfrastructureExtensions
         services.AddScoped<IAppSettingRepository,   AppSettingRepository>();
         services.AddScoped<IBranchRepository,       BranchRepository>();
         services.AddScoped<ITenantRepository,       TenantRepository>();
+        services.AddScoped<ITeamRepository,         TeamRepository>();
         services.AddScoped<IUnitOfWork,             UnitOfWork>();
 
         // ── Services ──────────────────────────────────────────────────────────
@@ -317,11 +318,18 @@ public static class InfrastructureExtensions
             // 1) Ensure this tenant owns an Administrator (and per-module Managers).
             var tenantAdmin = await db.Set<Identity.Domain.Entities.Role>()
                 .FirstOrDefaultAsync(r => r.TenantId == tenant.Id && r.Name == "Administrator");
+            IReadOnlyList<string> modules;
+            try { modules = tenant.ResolvedModules; } catch { modules = []; }
+
             if (tenantAdmin is null)
             {
-                IReadOnlyList<string> modules;
-                try { modules = tenant.ResolvedModules; } catch { modules = []; }
                 tenantAdmin = await provisioner.ProvisionAsync(tenant.Id, modules);
+                changed = true;
+            }
+            else if (await provisioner.EnsureModuleRolesAsync(tenant.Id, modules) > 0)
+            {
+                // Tenant predates a module or a role template — top up what's missing. Never
+                // modifies or removes a role that already exists.
                 changed = true;
             }
 

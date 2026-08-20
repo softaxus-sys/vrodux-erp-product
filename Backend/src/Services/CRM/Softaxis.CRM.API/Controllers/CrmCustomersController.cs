@@ -13,7 +13,7 @@ namespace Softaxis.CRM.API.Controllers;
 public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
 {
     [HttpGet("summary")]
-    [RequirePermission("crm.customers.view")]
+    [RequireAnyPermission("crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetCrmCustomersSummaryQuery(), ct);
@@ -21,7 +21,7 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet]
-    [RequirePermission("crm.customers.view")]
+    [RequireAnyPermission("crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await sender.Send(new GetCrmCustomersQuery(), ct);
@@ -29,7 +29,7 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [RequirePermission("crm.customers.view")]
+    [RequireAnyPermission("crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetCrmCustomerByIdQuery(id), ct);
@@ -38,7 +38,7 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
 
     // Rolled-up account timeline (account + its opportunities + its converted lead).
     [HttpGet("{id:guid}/timeline")]
-    [RequirePermission("crm.customers.view")]
+    [RequireAnyPermission("crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> GetTimeline(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetCustomerTimelineQuery(id), ct);
@@ -54,12 +54,13 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequirePermission("crm.customers.edit")]
+    [RequireAnyPermission("crm.customers.edit", "crm.customers-team.edit", "crm.customers-assigned.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCrmCustomerRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateCrmCustomerCommand(id, req.Name, req.Industry, req.Country, req.City,
             req.Address, req.Phone, req.Email, req.Status, req.Tier, req.AccountManager, req.Description,
-            req.Website, req.TradeName, req.Employees, req.NpsScore, req.ContractRenewal, req.Tags), ct);
+            req.Website, req.TradeName, req.Employees, req.NpsScore, req.ContractRenewal, req.Tags,
+            req.AccountManagerUserId), ct);
         return NoContentOrError(result);
     }
 
@@ -74,5 +75,5 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
     public sealed record UpdateCrmCustomerRequest(string Name, string Industry, string Country, string City,
         string Address, string Phone, string Email, string Status, string Tier, string AccountManager,
         string Description, string? Website, string? TradeName, string? Employees, int? NpsScore,
-        string? ContractRenewal, List<string>? Tags);
+        string? ContractRenewal, List<string>? Tags, Guid? AccountManagerUserId = null);
 }

@@ -1,0 +1,862 @@
+{
+  "orders": {
+    "title": "Restaurant Orders",
+    "description": "Manage dine-in, takeout, and delivery orders",
+    "new": "New Order",
+    "table": {
+      "orderNum": "Order #",
+      "table": "Table",
+      "customer": "Customer",
+      "time": "Time",
+      "total": "Total",
+      "status": "Status"
+    },
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "cooking": "Cooking",
+      "ready": "Ready",
+      "served": "Served",
+      "paid": "Paid",
+      "split": "Split",
+      "held": "Held",
+      "cancelled": "Cancelled",
+      "open": "Open",
+      "sent": "In Kitchen"
+    },
+    "button": {
+      "confirm": "Confirm",
+      "cook": "Send to Kitchen",
+      "ready": "Mark Ready",
+      "serve": "Serve",
+      "split": "Split Bill",
+      "hold": "Hold",
+      "recall": "Recall",
+      "discount": "Apply Discount",
+      "tip": "Add Tip"
+    }
+  },
+  "branch": {
+    "allBranches": "All Branches"
+  },
+  "pay": {
+    "title": "Bill & Payment",
+    "total": "Total",
+    "paid": "Paid",
+    "outstanding": "Outstanding",
+    "fullyPaid": "Fully paid",
+    "tip": "Tip",
+    "tipNone": "None",
+    "tipCustom": "Custom amount",
+    "tipSet": "Set",
+    "splitBetween": "Split between",
+    "guestsShare": "guests · share",
+    "guestLabel": "Guest {{n}} (optional label)",
+    "addPayment": "Add {{amount}} ({{method}})",
+    "mode": {
+      "full": "Full",
+      "split-type": "Split Pay",
+      "members": "Members"
+    },
+    "method": {
+      "Cash": "Cash",
+      "Card": "Card",
+      "Bank Transfer": "Bank Transfer",
+      "Wallet": "Wallet",
+      "House Account": "House Account"
+    },
+    "issue": {
+      "linkCustomer": "Link a customer first",
+      "walletOnly": "Only {{amount}} in wallet",
+      "creditOnly": "Only {{amount}} available"
+    },
+    "customer": {
+      "none": "No customer linked",
+      "balances": "Wallet {{wallet}} · Credit {{credit}}",
+      "walletOnly": "Wallet {{amount}}",
+      "new": "New Customer",
+      "name": "Name *",
+      "phone": "Phone (optional)",
+      "back": "Back",
+      "create": "Create",
+      "search": "Search customers…",
+      "addNew": "Add new customer",
+      "loading": "Loading…",
+      "noResults": "No customers found."
+    }
+  },
+  "delivery": {
+    "title": "Delivery Management",
+    "description": "Zones, drivers, and live delivery tracking.",
+    "loading": "Loading…",
+    "empty": "No deliveries here.",
+    "all": "All",
+    "via": "via {{provider}}",
+    "copyTracking": "Copy tracking link",
+    "trackingCopied": "Tracking link copied.",
+    "assignDriver": "Assign driver…",
+    "markNext": "Mark {{status}}",
+    "failed": "Failed",
+    "tabs": {
+      "board": "Delivery Board",
+      "zones": "Delivery Zones",
+      "drivers": "Drivers"
+    },
+    "status": {
+      "assigned": "Assigned",
+      "picked_up": "Picked Up",
+      "enroute": "Enroute",
+      "delivered": "Delivered",
+      "failed": "Failed"
+    },
+    "stats": {
+      "total": "Total",
+      "assigned": "Assigned",
+      "pickedUp": "Picked Up",
+      "enroute": "Enroute",
+      "delivered": "Delivered"
+    },
+    "zones": {
+      "add": "Add Zone",
+      "edit": "Edit",
+      "empty": "No delivery zones yet.",
+      "fee": "{{amount}} fee",
+      "meta": "Min order {{min}} · ~{{minutes}}m",
+      "inactiveSuffix": " · Inactive",
+      "addTitle": "Add Delivery Zone",
+      "editTitle": "Edit Delivery Zone",
+      "name": "Name",
+      "namePlaceholder": "Downtown",
+      "postalCodes": "Postal Codes (optional, comma-separated)",
+      "feeLabel": "Fee",
+      "minOrder": "Min Order",
+      "eta": "ETA (min)",
+      "active": "Active",
+      "save": "Save Zone"
+    },
+    "drivers": {
+      "add": "Add Driver",
+      "edit": "Edit",
+      "empty": "No drivers yet.",
+      "addTitle": "Add Driver",
+      "editTitle": "Edit Driver",
+      "name": "Name",
+      "phone": "Phone",
+      "vehicle": "Vehicle (optional)",
+      "vehiclePlaceholder": "Motorbike — ABC 123",
+      "active": "Active",
+      "save": "Save Driver"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "description": "Sales, kitchen, table, tax, and shift reconciliation reports.",
+    "loading": "Loading…",
+    "from": "From",
+    "to": "To",
+    "noData": "No data in this range.",
+    "rangeSubtitle": "{{from}} to {{to}}",
+    "tabs": {
+      "sales-daily": "Sales (Daily)",
+      "sales-category": "By Category",
+      "sales-employee": "By Employee",
+      "voids-discounts": "Voids & Discounts",
+      "kitchen-prep": "Kitchen Prep Times",
+      "table-turnover": "Table Turnover",
+      "tax-summary": "Tax Summary",
+      "z-x-report": "Z / X Report"
+    },
+    "pdfTitle": {
+      "salesDaily": "Sales — Daily",
+      "salesCategory": "Sales — By Category",
+      "salesEmployee": "Sales — By Employee",
+      "voidsDiscounts": "Voids & Discounts — Fraud Signal",
+      "kitchenPrep": "Kitchen Prep Times",
+      "tableTurnover": "Table Turnover",
+      "taxSummary": "Tax Summary"
+    },
+    "col": {
+      "date": "Date",
+      "orders": "Orders",
+      "gross": "Gross",
+      "discounts": "Discounts",
+      "tax": "Tax",
+      "net": "Net",
+      "category": "Category",
+      "qty": "Qty",
+      "qtySold": "Qty Sold",
+      "revenue": "Revenue",
+      "waiter": "Waiter",
+      "tips": "Tips",
+      "user": "User",
+      "voids": "Voids",
+      "voidValue": "Void Value",
+      "discountValue": "Discount Value",
+      "item": "Item",
+      "avgMin": "Avg (min)",
+      "p90Min": "P90 (min)",
+      "table": "Table",
+      "turns": "Turns",
+      "avgOccupiedMin": "Avg Occupied (min)",
+      "taxable": "Taxable",
+      "taxableAmount": "Taxable Amount",
+      "taxCollected": "Tax Collected"
+    },
+    "kitchenPrepHint": "No kitchen timing data yet — items only appear once served through a flow that stamps a ready time.",
+    "session": {
+      "sessionId": "Session ID",
+      "sessionIdPlaceholder": "POS session id",
+      "xReport": "X-Report (open)",
+      "zReport": "Z-Report (close)",
+      "enterId": "Enter a POS session id to view its reconciliation report.",
+      "enterIdPrefilled": "Enter a POS session id to view its reconciliation report (your current shift's id is pre-filled).",
+      "status": "Status",
+      "orders": "Orders",
+      "grossSales": "Gross Sales",
+      "netSales": "Net Sales",
+      "discounts": "Discounts",
+      "tax": "Tax",
+      "tips": "Tips",
+      "refunds": "Refunds",
+      "voids": "Voids",
+      "voidsValue": "{{count}} ({{amount}})",
+      "paymentBreakdown": "Payment Method Breakdown",
+      "noPayments": "No payments recorded."
+    }
+  },
+  "dashboards": {
+    "title": "Dashboards",
+    "description": "Role-scoped snapshots — Owner, Branch, Kitchen, Cashier, Inventory.",
+    "tabs": {
+      "owner": "Owner",
+      "branch": "Branch",
+      "kitchen": "Kitchen",
+      "cashier": "Cashier",
+      "inventory": "Inventory"
+    },
+    "empty": {
+      "categorySales": "No category sales yet",
+      "prepTime": "No prep-time data yet"
+    },
+    "owner": {
+      "todaySales": "Today's Sales",
+      "todayOrders": "Today's Orders",
+      "weekSales": "7-Day Sales",
+      "weekVoid": "7-Day Void Value",
+      "net": "Net {{amount}}",
+      "discounts": "Discounts {{amount}}",
+      "topCategories": "Top Categories (7 days)"
+    },
+    "branch": {
+      "activeOrders": "Active Orders",
+      "tables": "Tables",
+      "tablesFree": "{{count}} free",
+      "tablesSub": "{{occupied}} occupied · {{reserved}} reserved · {{cleaning}} cleaning"
+    },
+    "kitchen": {
+      "activeTickets": "Active Tickets",
+      "pendingItems": "Pending Items",
+      "preparingItems": "Preparing Items",
+      "avgPrep": "Avg Prep Today",
+      "readyNow": "{{count}} ready now",
+      "slowestItems": "Slowest Items Today",
+      "minutesShort": "{{count}} min"
+    },
+    "cashier": {
+      "mySales": "My Sales Today",
+      "myOrders": "My Orders Today",
+      "currentShift": "Current Shift ({{status}})",
+      "orders": "Orders",
+      "grossSales": "Gross Sales",
+      "netSales": "Net Sales",
+      "tips": "Tips",
+      "noShift": "No active shift — open a shift to see live reconciliation here."
+    },
+    "inventory": {
+      "lowStock": "Low Stock Ingredients",
+      "eightySixed": "86'd Items",
+      "lowStockTitle": "Low Stock (recipe-linked)",
+      "nothingLow": "Nothing low on stock.",
+      "reorderLevel": "{{qty}} / {{level}} reorder level",
+      "currentlyEightySixed": "Currently 86'd",
+      "allAvailable": "Everything is available."
+    }
+  },
+  "waitlist": {
+    "title": "Waitlist",
+    "description": "Walk-in parties waiting for a table.",
+    "add": "Add Walk-in",
+    "loading": "Loading…",
+    "empty": "No entries here.",
+    "quoted": "Quoted {{count}}m",
+    "waited": "Waited {{count}}m",
+    "seat": "Seat",
+    "noShow": "No-show",
+    "filters": {
+      "waiting": "Waiting",
+      "seated": "Seated",
+      "no_show": "No-shows",
+      "cancelled": "Cancelled",
+      "all": "All"
+    },
+    "stats": {
+      "total": "Total",
+      "waiting": "Waiting",
+      "seated": "Seated",
+      "noShows": "No-shows",
+      "avgWait": "Avg Quoted Wait"
+    },
+    "form": {
+      "title": "Add Walk-in",
+      "guestName": "Guest Name",
+      "phone": "Phone",
+      "partySize": "Party Size",
+      "quotedWait": "Quoted Wait (min)",
+      "notes": "Notes",
+      "optional": "Optional",
+      "submit": "Add to Waitlist"
+    },
+    "seatModal": {
+      "title": "Seat at which table?",
+      "noTables": "No available tables right now.",
+      "seats": "{{count}} seats"
+    }
+  },
+  "branchAccess": {
+    "title": "Branch Access",
+    "description": "Assign staff to specific branches — a user with no assignment sees every branch's tables, orders, reservations, and waitlist.",
+    "noPermission": "You don't have permission to manage branch access.",
+    "loading": "Loading branches…",
+    "noBranches": "No branches configured for this tenant yet — add one in Settings → Branches first.",
+    "roster": "{{branch}} — Assigned Staff",
+    "emptyRoster": "No one is scoped to this branch yet.",
+    "searchUsers": "Search users to assign…",
+    "noMatches": "No matching users found.",
+    "role": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "staff": "Staff"
+    }
+  },
+  "tableForm": {
+    "title": "Add Table",
+    "description": "Add a new table to the floor plan",
+    "section": "Section",
+    "details": "Table Details",
+    "tableNumber": "Table Number *",
+    "tableNumberPlaceholder": "e.g. T-01",
+    "maxCapacity": "Max Capacity *",
+    "minGuests": "Min. Guests",
+    "shape": "Table Shape",
+    "location": "Location / Description",
+    "locationPlaceholder": "e.g. Near window, corner…",
+    "options": "Options",
+    "joinable": "Joinable Table",
+    "joinableHint": "Can be combined with adjacent tables",
+    "premium": "Premium Table",
+    "premiumHint": "Highlighted as a premium/VIP table",
+    "notes": "Notes",
+    "notesPlaceholder": "Special setup, accessibility needs…",
+    "sections": {
+      "indoor": "Indoor",
+      "indoorDesc": "Main dining area",
+      "outdoor": "Outdoor",
+      "outdoorDesc": "Open air terrace",
+      "terrace": "Terrace",
+      "terraceDesc": "Elevated terrace seating",
+      "private": "Private Dining",
+      "privateDesc": "Private dining rooms"
+    },
+    "shapes": {
+      "Round": "Round",
+      "Square": "Square",
+      "Rectangle": "Rectangle",
+      "Booth": "Booth"
+    },
+    "button": {
+      "cancel": "Cancel",
+      "adding": "Adding…",
+      "submit": "Add Table"
+    }
+  },
+  "menu": {
+    "title": "Menu Items",
+    "description": "Manage restaurant menu and pricing",
+    "new": "New Item",
+    "search": "Search menu items…",
+    "category": "Category",
+    "available": "Available",
+    "outOfStock": "Out of Stock"
+  },
+  "kitchen": {
+    "title": "Kitchen Display",
+    "description": "Track orders in preparation",
+    "noOrders": "No orders",
+    "time": "Time",
+    "items": "Items",
+    "summary": "{{new}} new · {{ready}} ready",
+    "allStations": "All Stations",
+    "columnNew": "New / Preparing",
+    "columnReady": "Ready to Serve",
+    "tableLabel": "Table {{number}}",
+    "covers": "{{count}} cov",
+    "course": "Course {{number}}",
+    "minutes": "{{count}}m",
+    "button": {
+      "markReady": "Mark Ready",
+      "markServed": "Mark Served"
+    }
+  },
+  "reservations": {
+    "title": "Reservations",
+    "description": "Manage table reservations",
+    "new": "New Reservation",
+    "table": {
+      "name": "Guest Name",
+      "date": "Date",
+      "time": "Time",
+      "seats": "Seats",
+      "status": "Status"
+    },
+    "status": {
+      "confirmed": "Confirmed",
+      "seated": "Seated",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No-show"
+    },
+    "policy": "Policy",
+    "date": "Date",
+    "loading": "Loading…",
+    "empty": "No reservations for this date.",
+    "tableLabel": "Table {{number}}",
+    "seat": "Seat",
+    "stats": {
+      "today": "Today",
+      "todayCovers": "Today's Covers",
+      "confirmed": "Confirmed",
+      "noShows": "No-shows"
+    },
+    "form": {
+      "title": "New Reservation",
+      "guestName": "Guest Name",
+      "phone": "Phone",
+      "email": "Email (optional)",
+      "date": "Date",
+      "time": "Time",
+      "covers": "Covers",
+      "table": "Table (optional)",
+      "notAssigned": "Not assigned yet",
+      "tableOption": "{{number}} ({{seats}} seats)",
+      "specialRequests": "Special Requests",
+      "optional": "Optional",
+      "submit": "Create Reservation"
+    },
+    "rules": {
+      "title": "Reservation Policy",
+      "hint": "Auto-no-show flags a confirmed reservation once it's this many minutes past its time. Set to 0 to disable.",
+      "slotDuration": "Slot Duration (min)",
+      "maxCovers": "Max Covers / Slot",
+      "maxAdvance": "Max Advance (days)",
+      "minNotice": "Min Notice (min)",
+      "autoNoShow": "Auto No-Show (min)",
+      "depositAmount": "Deposit Amount",
+      "requireDeposit": "Require a deposit",
+      "submit": "Save Policy"
+    }
+  },
+  "kitchenConfig": {
+    "title": "Kitchen & Menu Configuration",
+    "subtitle": "Stations, printers, combo deals, and happy-hour pricing.",
+    "tab": {
+      "stations": "Kitchen Stations",
+      "printers": "Printers",
+      "combos": "Combos",
+      "happyhour": "Happy Hour"
+    },
+    "day": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "edit": "Edit",
+    "stations": {
+      "add": "Add Station",
+      "noPrinter": "No printer assigned",
+      "empty": "No kitchen stations yet.",
+      "editTitle": "Edit Station",
+      "addTitle": "Add Station",
+      "name": "Name",
+      "namePlaceholder": "Grill",
+      "displayName": "Display Name (optional)",
+      "color": "Color",
+      "printer": "Printer",
+      "none": "None",
+      "save": "Save Station"
+    },
+    "printers": {
+      "add": "Add Printer",
+      "empty": "No printer profiles yet.",
+      "defaultSuffix": " · Default",
+      "editTitle": "Edit Printer",
+      "addTitle": "Add Printer",
+      "name": "Name",
+      "namePlaceholder": "Kitchen Printer 1",
+      "type": "Type",
+      "typeKitchen": "Kitchen",
+      "typeReceipt": "Receipt",
+      "connection": "Connection",
+      "connNetwork": "Network",
+      "connUsb": "USB",
+      "connBluetooth": "Bluetooth",
+      "ip": "IP Address",
+      "ipPlaceholder": "192.168.1.50",
+      "port": "Port",
+      "isDefault": "Default printer",
+      "save": "Save Printer"
+    },
+    "combos": {
+      "add": "Add Combo",
+      "empty": "No combos yet.",
+      "slots": "{{n}} slot(s)",
+      "inactiveSuffix": " · Inactive",
+      "editTitle": "Edit Combo",
+      "addTitle": "Add Combo",
+      "name": "Name",
+      "namePlaceholder": "Burger Combo",
+      "price": "Combo Price",
+      "active": "Active",
+      "slotsLabel": "Slots",
+      "modeFixed": "Fixed item",
+      "modeChoice": "Choose from category",
+      "selectItem": "Select item…",
+      "selectCategory": "Select category…",
+      "addSlot": "Add Slot",
+      "save": "Save Combo"
+    },
+    "happyHour": {
+      "add": "Add Rule",
+      "empty": "No happy-hour rules yet.",
+      "percentOff": "{{value}}% off",
+      "flatOff": "{{value}} off",
+      "categoryFallback": "category",
+      "wholeOrderSuffix": " · whole order",
+      "inactiveSuffix": " · Inactive",
+      "editTitle": "Edit Happy Hour Rule",
+      "addTitle": "Add Happy Hour Rule",
+      "name": "Name",
+      "namePlaceholder": "Evening Happy Hour",
+      "days": "Days",
+      "start": "Start",
+      "end": "End",
+      "discountType": "Discount Type",
+      "percentage": "Percentage",
+      "flat": "Flat Amount",
+      "value": "Value",
+      "appliesTo": "Applies To",
+      "wholeOrder": "Whole order",
+      "active": "Active",
+      "save": "Save Rule"
+    }
+  },
+  "floorDesigner": {
+    "loading": "Loading floor layout…",
+    "title": "Floor & Table Designer",
+    "subtitle": "Drag tables to arrange your floor plan. Click a table to edit it.",
+    "saveLayout": "Save Layout",
+    "floors": "Floors",
+    "newFloorPlaceholder": "New floor…",
+    "manageAreas": "Manage dining areas ({{n}})",
+    "addTable": "Add Table",
+    "unassignedHeading": "Unassigned ({{n}})",
+    "unassignedHint": "Legacy tables not yet placed on a floor.",
+    "emptyCanvas": "Create a floor to start designing your layout.",
+    "areaType": {
+      "indoor": "Indoor",
+      "outdoor": "Outdoor",
+      "vip": "VIP",
+      "bar": "Bar",
+      "rooftop": "Rooftop"
+    },
+    "field": {
+      "tableNumber": "Table Number",
+      "section": "Section",
+      "capacity": "Capacity",
+      "diningArea": "Dining Area",
+      "unassignedOption": "Unassigned"
+    },
+    "detail": {
+      "heading": "Table {{number}}",
+      "qrButton": "QR Ordering Code",
+      "readOnlySection": "Section: {{value}}",
+      "readOnlyCapacity": "Capacity: {{value}}",
+      "save": "Save Changes",
+      "unmerge": "Unmerge Table",
+      "mergeInto": "Merge into…",
+      "delete": "Delete Table"
+    },
+    "areas": {
+      "title": "Dining Areas",
+      "empty": "No dining areas yet — add one below.",
+      "namePlaceholder": "Area name…"
+    },
+    "addTableModal": {
+      "title": "Add Table",
+      "tableNumberPlaceholder": "T-12"
+    },
+    "qr": {
+      "title": "QR Ordering Code",
+      "imageAlt": "Table QR code",
+      "kioskMode": "Kiosk mode (for a self-order kiosk device, not a guest's phone)",
+      "copyLink": "Copy Link",
+      "preview": "Preview",
+      "copied": "Link copied."
+    }
+  },
+  "menuMgmt": {
+    "title": "Menu Management",
+    "subtitle": "Categories, items, pricing, and modifier groups.",
+    "tabMenu": "Menu",
+    "tabModifiers": "Modifier Groups",
+    "loading": "Loading…",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "stat": {
+      "categories": "Categories",
+      "totalItems": "Total Items",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "avgPrice": "Avg Price",
+      "priceRange": "Price Range"
+    },
+    "recipeWarning": "{{unlinked}} of {{total}} menu items have no recipe linked — stock won't auto-deduct when served. Manage recipes →",
+    "addCategory": "Add Category",
+    "emptyCategories": "No menu categories yet. Add one to get started.",
+    "addItemShort": "Item",
+    "emptyItems": "No items in this category yet.",
+    "modifierCount_one": "{{count}} modifier",
+    "modifierCount_other": "{{count}} modifiers",
+    "recipeLinked": "Recipe linked — stock auto-deducts when served",
+    "recipeMissing": "No recipe linked — stock won't auto-deduct when served",
+    "prepMinutes": "{{n}} min",
+    "available86": "Available",
+    "unavailable86": "86'd",
+    "confirm": {
+      "deleteCategoryTitle": "Delete category?",
+      "deleteItemTitle": "Delete item?",
+      "deleteMessage": "\"{{name}}\" will be removed. This can't be undone.",
+      "deleteGroupTitle": "Delete modifier group?",
+      "deleteGroupMessage": "\"{{name}}\" will be removed from all menu items using it."
+    },
+    "field": {
+      "name": "Name",
+      "description": "Description (optional)",
+      "sortOrder": "Sort Order",
+      "kitchenStation": "Kitchen Station",
+      "none": "None",
+      "price": "Price",
+      "prepTime": "Prep Time (min)",
+      "allergens": "Allergens (optional)",
+      "useCategoryDefault": "Use category default",
+      "minSelect": "Min Select (0 = optional)",
+      "maxSelect": "Max Select",
+      "active": "Active"
+    },
+    "category": {
+      "editTitle": "Edit Category",
+      "addTitle": "Add Category",
+      "namePlaceholder": "Starters",
+      "save": "Save Category"
+    },
+    "item": {
+      "editTitle": "Edit Menu Item",
+      "addTitle": "Add Menu Item",
+      "namePlaceholder": "Grilled Chicken",
+      "allergensPlaceholder": "Nuts, Dairy",
+      "onlineOrderable": "Orderable via QR / kiosk / online",
+      "modifierGroups": "Modifier Groups",
+      "save": "Save Item"
+    },
+    "modifiers": {
+      "intro": "Groups like \"Size\" or \"Add-ons\" that customers pick from when ordering an item — assign them per item from the Menu tab.",
+      "add": "Add Modifier Group",
+      "empty": "No modifier groups yet.",
+      "optional": "Optional",
+      "requires": "Requires {{n}}",
+      "max": "Max {{n}}",
+      "noModifiers": "No modifiers",
+      "editTitle": "Edit Modifier Group",
+      "addTitle": "Add Modifier Group",
+      "namePlaceholder": "Size",
+      "listLabel": "Modifiers",
+      "rowNamePlaceholder": "Small",
+      "rowPricePlaceholder": "+0.00",
+      "addRow": "Add Modifier",
+      "save": "Save Modifier Group"
+    }
+  },
+  "posView": {
+    "title": "Restaurant POS",
+    "headerSummary": "{{tables}} tables · {{occupied}} occupied · {{inKitchen}} in kitchen",
+    "floorPlan": "Floor Plan",
+    "ordersTab": "Orders",
+    "takeaway": "Takeaway",
+    "delivery": "Delivery",
+    "addTable": "Add Table",
+    "allSections": "All Sections",
+    "sectionTableCount": "{{n}} tables",
+    "ordersHeading": "Orders",
+    "noOrders": "No orders yet.",
+    "view": "View",
+    "tableStatus": {
+      "available": "Available",
+      "occupied": "Occupied",
+      "reserved": "Reserved",
+      "cleaning": "Cleaning"
+    },
+    "section": {
+      "indoor": "Indoor",
+      "outdoor": "Outdoor",
+      "terrace": "Terrace",
+      "private": "Private",
+      "vip": "VIP",
+      "bar": "Bar"
+    },
+    "stat": {
+      "totalTables": "Total Tables",
+      "occupied": "Occupied",
+      "available": "Available",
+      "reserved": "Reserved",
+      "inKitchen": "In Kitchen",
+      "todaySales": "Today Sales"
+    },
+    "ordersTable": {
+      "orderNum": "Order #",
+      "table": "Table",
+      "items": "Items",
+      "total": "Total",
+      "status": "Status",
+      "waiter": "Waiter"
+    },
+    "card": {
+      "capacity": "{{n}} cap"
+    },
+    "common": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "apply": "Apply",
+      "add": "Add",
+      "pay": "Pay",
+      "send": "Send",
+      "total": "Total"
+    },
+    "reason": {
+      "placeholder": "Reason (required)…"
+    },
+    "refund": {
+      "title": "Refund order",
+      "amountLabel": "Amount — max {{max}}",
+      "method": "Method",
+      "submit": "Refund"
+    },
+    "modifier": {
+      "chooseOne": "(choose 1)",
+      "chooseUpTo": "(choose up to {{max}})",
+      "chooseUpToMin": "(choose up to {{max}}, at least {{min}})",
+      "addWithPrice": "Add — {{price}}"
+    },
+    "split": {
+      "title": "Split Bill",
+      "guests": "{{n}} guests",
+      "assignHint": "Assign every item to a guest.",
+      "guestLabel": "Guest {{n}}",
+      "mustAssignAll": "Every item must be assigned to a guest.",
+      "minTwoGuests": "Use at least 2 guests to split the bill.",
+      "submit": "Split Bill"
+    },
+    "combo": {
+      "chooseOne": "Choose one — {{category}}",
+      "select": "Select…",
+      "add": "Add {{name}}",
+      "deals": "Combo Deals"
+    },
+    "drawer": {
+      "tableHeading": "Table {{number}}",
+      "takeawayHeading": "Takeaway Order",
+      "takeawayBadge": "Takeaway",
+      "tableSubtitle": "{{section}} · {{capacity}} capacity",
+      "counterPickup": "Counter / pickup",
+      "tabOrder": "Current Order",
+      "tabMenu": "Add Items",
+      "noActiveOrder": "No active order",
+      "addItemsToStart": "Add items to start",
+      "coversWaiter": "{{covers}} covers · {{waiter}}",
+      "splitInto_one": "This bill was split into {{count}} part.",
+      "splitInto_other": "This bill was split into {{count}} parts.",
+      "dueSuffix": "{{amount}} due",
+      "paid": "Paid",
+      "eachPrice": "{{price}} each",
+      "discount": "Discount",
+      "discountPercent": "Percent",
+      "discountAmount": "Amount",
+      "discountVoucher": "Voucher",
+      "voucherPlaceholder": "CODE",
+      "removing": "Removing…",
+      "removeDiscount": "Remove discount",
+      "subtotal": "Subtotal",
+      "vat": "VAT (5%)",
+      "total": "Total",
+      "paidSoFar": "Paid so far",
+      "paidSoFarValue": "{{paid}} · {{left}} left",
+      "searchMenu": "Search menu…",
+      "toggleAvailability": "Toggle availability editing",
+      "all": "All",
+      "prepMinutes": "{{n}}min",
+      "available": "Available",
+      "unavailable": "86'd",
+      "noItemsFound": "No items found.",
+      "toAdd": "To add ({{count}} items · {{total}})",
+      "guests": "Guests:",
+      "openOrder": "Open Order",
+      "addItemsCount": "Add {{count}} items",
+      "sendToKitchen": "Send to Kitchen",
+      "markServed": "Mark Served",
+      "billAndPay": "Bill & Pay",
+      "fireNextCourse": "Fire next course",
+      "recallOrder": "Recall Order",
+      "refund": "Refund",
+      "recipeLinked": "Recipe linked — view in Recipes",
+      "recipeMissing": "No recipe linked yet — stock won't auto-deduct when served",
+      "voidItemTitle": "Void item",
+      "cancelOrderTitle": "Cancel order",
+      "billSettled": "Bill settled.",
+      "discountReasonRequired": "A reason is required to apply a discount.",
+      "removeReasonRequired": "A reason is required to remove a discount.",
+      "voucherApplied": "Applied — {{amount}} off",
+      "voucherInvalid": "Voucher not valid.",
+      "validationFailed": "Validation failed."
+    },
+    "receipt": {
+      "title": "Send Receipt",
+      "email": "Email",
+      "sms": "SMS",
+      "whatsapp": "WhatsApp",
+      "emailPlaceholder": "guest@example.com",
+      "phonePlaceholder": "+971 5xxxxxxxx"
+    },
+    "newDelivery": {
+      "title": "New Delivery Order",
+      "guestName": "Guest Name",
+      "phone": "Phone",
+      "address": "Delivery Address",
+      "zone": "Delivery Zone",
+      "noZone": "No zone (custom fee)",
+      "items": "Items",
+      "submit": "Create Delivery Order"
+    }
+  }
+}

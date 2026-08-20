@@ -292,7 +292,30 @@ export function RolesPermissionsView() {
     return significant.every(m => hasModuleAccess(m as ModuleKey));
   }, [isSuperAdmin, hasModuleAccess]);
 
-  const rolesList = (rolesData?.items ?? []).filter(roleIsRelevant);
+  const relevantRoles = (rolesData?.items ?? []).filter(roleIsRelevant);
+
+  // ── Module filter ─────────────────────────────────────────────────────────────
+  // Each module seeds its own default roles, so the list grows quickly on a multi-module
+  // tenant. Filtering by module makes "show me the CRM roles" a one-click question.
+  const [moduleFilter, setModuleFilter] = React.useState<string>("all");
+
+  const moduleOptions = React.useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of relevantRoles)
+      for (const m of r.modules ?? [])
+        if (!UBIQUITOUS_MODULES.has(m.toLowerCase())) seen.add(m.toLowerCase());
+    return [...seen].sort((a, b) => moduleGroupLabel(a).localeCompare(moduleGroupLabel(b)));
+  }, [relevantRoles]);
+
+  const rolesList = React.useMemo(
+    () => moduleFilter === "all"
+      ? relevantRoles
+      // A full-access role (Administrator) grants every module, so it stays visible under any
+      // filter rather than looking like it doesn't apply to the module being inspected.
+      : relevantRoles.filter(r => (r.modules ?? []).some(m => m.toLowerCase() === moduleFilter)),
+    [relevantRoles, moduleFilter],
+  );
+
   const allPerms  = allPermsData ?? [];
 
   // ── Selected role state ───────────────────────────────────────────────────────
@@ -489,10 +512,26 @@ export function RolesPermissionsView() {
       <div className="flex gap-4" style={{ minHeight: 620 }}>
         {/* Left — Role list */}
         <div className="w-56 shrink-0 space-y-1">
+          {moduleOptions.length > 1 && (
+            <select
+              value={moduleFilter}
+              onChange={e => setModuleFilter(e.target.value)}
+              className="w-full h-8 mb-2 rounded-lg border border-border bg-card px-2 text-xs"
+            >
+              <option value="all">{t("roles.allModules", { defaultValue: "All modules" })}</option>
+              {moduleOptions.map(m => (
+                <option key={m} value={m}>{moduleGroupLabel(m)}</option>
+              ))}
+            </select>
+          )}
           {rolesLoading ? (
             <div className="flex justify-center pt-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
+          ) : rolesList.length === 0 ? (
+            <p className="px-3 py-4 text-xs text-muted-foreground">
+              {t("roles.noneForModule", { defaultValue: "No roles for this module yet." })}
+            </p>
           ) : rolesList.map((role, i) => {
             const icon  = ROLE_ICONS[i % ROLE_ICONS.length];
             const color = ROLE_COLORS[i % ROLE_COLORS.length];

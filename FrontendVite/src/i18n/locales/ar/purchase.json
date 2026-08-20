@@ -1,0 +1,401 @@
+{
+  "orders": {
+    "title": "أوامر الشراء",
+    "description": "إدارة أوامر الموردين من المسودة إلى الاستقبال",
+    "search": "البحث عن أمر أو مورد…",
+    "new": "أمر جديد",
+    "noResults": "لم يتم العثور على أوامر شراء.",
+    "loading": "جاري تحميل أوامر الشراء…",
+    "emptyState": "لا توجد أوامر شراء بعد",
+    "pagination": "الصفحة {{page}} من {{total}} ({{count}} أمر)",
+    "filters": {
+      "all": "جميع الأوامر",
+      "draft": "مسودة",
+      "sent": "مرسل",
+      "partial": "استلام جزئي",
+      "received": "تم الاستلام",
+      "cancelled": "ملغاة"
+    },
+    "status": {
+      "draft": "مسودة",
+      "sent": "مرسل",
+      "partial": "استلام جزئي",
+      "received": "تم الاستلام",
+      "cancelled": "ملغاة"
+    },
+    "table": {
+      "poNumber": "رقم #",
+      "vendor": "المورد",
+      "created": "تم الإنشاء",
+      "expected": "المتوقع",
+      "date": "التاريخ",
+      "amount": "الإجمالي",
+      "items": "البنود",
+      "status": "الحالة",
+      "action": "الإجراء",
+      "actions": "الإجراءات"
+    },
+    "button": {
+      "send": "إرسال",
+      "receive": "استقبال",
+      "return": "مرتجع",
+      "addLine": "إضافة سطر"
+    },
+    "drawer": {
+      "title": "أمر الشراء",
+      "overview": "نظرة عامة",
+      "items": "البنود ({{count}})",
+      "total": "المبلغ الإجمالي",
+      "subtotal": "المجموع الفرعي",
+      "tax": "الضريبة",
+      "vendor": "المورد",
+      "date": "تاريخ الطلب",
+      "expectedDelivery": "التسليم المتوقع",
+      "paymentTerms": "شروط الدفع",
+      "notes": "الملاحظات",
+      "button": {
+        "close": "إغلاق",
+        "delete": "حذف",
+        "confirm": "تأكيد",
+        "cancel": "إلغاء"
+      },
+      "deleteConfirm": "حذف أمر الشراء هذا؟"
+    },
+    "form": {
+      "title": "أمر شراء جديد",
+      "description": "الوصف",
+      "vendor": "المورد *",
+      "date": "تاريخ الطلب",
+      "expectedDelivery": "تاريخ التسليم المتوقع",
+      "paymentTerms": "شروط الدفع",
+      "orderLines": "بنود الطلب",
+      "lineItems": "بنود السطر",
+      "qty": "الكمية",
+      "unitPrice": "سعر الوحدة",
+      "discount": "الخصم %",
+      "subtotal": "المجموع الفرعي",
+      "tax": "الضريبة",
+      "total": "الإجمالي",
+      "notes": "الملاحظات",
+      "button": {
+        "addItem": "إضافة بند",
+        "cancel": "إلغاء",
+        "confirm": "إنشاء الطلب"
+      }
+    },
+    "picker": {
+      "search": "البحث عن منتجات…",
+      "searching": "جاري البحث…",
+      "empty": "لم يتم العثور على منتجات. سيتم استخدام النص الحر."
+    }
+  },
+  "grn": {
+    "title": "إشعارات الاستقبال",
+    "description": "تتبع البضائع المستلمة مقابل أوامر الشراء",
+    "search": "البحث عن إشعار أو طلب أو مورد…",
+    "loading": "جاري تحميل إشعارات الاستقبال…",
+    "noResults": "لم يتم العثور على إشعارات استقبال.",
+    "emptyState": "لا توجد إشعارات استقبال بعد",
+    "status": {
+      "posted": "مرسل",
+      "cancelled": "ملغى"
+    },
+    "table": {
+      "grnNumber": "رقم الإشعار",
+      "poNumber": "رقم الطلب",
+      "vendor": "المورد",
+      "date": "التاريخ",
+      "items": "البنود",
+      "status": "الحالة"
+    },
+    "drawer": {
+      "overview": "نظرة عامة",
+      "items": "البنود ({{count}})",
+      "details": "التفاصيل",
+      "poRef": "إشارة الطلب",
+      "vendor": "المورد",
+      "date": "تاريخ الإشعار",
+      "driver": "السائق/الناقل"
+    },
+    "form": {
+      "title": "إشعار استقبال جديد",
+      "description": "تسجيل البضائع المستلمة مقابل أمر الشراء",
+      "poRef": "إشارة الطلب *",
+      "date": "تاريخ الإشعار",
+      "driver": "اسم السائق",
+      "items": "البضائع المستلمة",
+      "receivedQty": "الكمية المستلمة",
+      "notes": "الملاحظات",
+      "button": {
+        "addItem": "إضافة بند",
+        "cancel": "إلغاء",
+        "confirm": "إنشاء الإشعار"
+      }
+    }
+  },
+  "returns": {
+    "title": "مرتجعات الشراء",
+    "description": "البضائع المرتجعة للموردين مقابل أوامر الشراء",
+    "search": "البحث عن مرتجع أو طلب أو مورد…",
+    "loading": "جاري تحميل مرتجعات الشراء…",
+    "noResults": "لم يتم العثور على مرتجعات شراء.",
+    "emptyState": "لا توجد مرتجعات بعد",
+    "reasons": {
+      "defective": "معيب / تالف",
+      "wrongItem": "بند خاطئ",
+      "qualityIssue": "مشكلة الجودة",
+      "missingParts": "أجزاء مفقودة",
+      "lateDelivery": "تسليم متأخر",
+      "other": "أخرى"
+    },
+    "status": {
+      "posted": "مرسل",
+      "cancelled": "ملغى"
+    },
+    "table": {
+      "returnNumber": "رقم المرتجع",
+      "poNumber": "رقم الطلب",
+      "vendor": "المورد",
+      "date": "التاريخ",
+      "items": "البنود",
+      "reason": "السبب",
+      "status": "الحالة"
+    },
+    "drawer": {
+      "overview": "نظرة عامة",
+      "items": "البنود ({{count}})",
+      "details": "التفاصيل",
+      "poRef": "إشارة الطلب",
+      "vendor": "المورد",
+      "date": "تاريخ المرتجع",
+      "reason": "سبب المرتجع"
+    },
+    "form": {
+      "title": "مرتجع شراء جديد",
+      "description": "تسجيل البضائع المرتجعة للمورد",
+      "poRef": "إشارة الطلب *",
+      "vendor": "المورد *",
+      "date": "تاريخ المرتجع",
+      "reason": "سبب المرتجع *",
+      "returnItems": "البنود المرتجعة",
+      "returnQty": "كمية المرتجع",
+      "unitPrice": "سعر الوحدة",
+      "notes": "الملاحظات",
+      "button": {
+        "addItem": "إضافة بند",
+        "cancel": "إلغاء",
+        "confirm": "إنشاء المرتجع"
+      }
+    }
+  },
+  "bills": {
+    "title": "فواتير الشراء",
+    "emptyState": "لا توجد فواتير بعد",
+    "types": {
+      "standard": "قياسي",
+      "nonTax": "بدون ضريبة",
+      "import": "استيراد"
+    },
+    "status": {
+      "draft": "مسودة",
+      "approved": "معتمد",
+      "cancelled": "ملغى"
+    },
+    "table": {
+      "billNumber": "رقم الفاتورة",
+      "poNumber": "رقم الطلب",
+      "supplier": "المورد",
+      "date": "التاريخ",
+      "amount": "المبلغ",
+      "type": "النوع",
+      "status": "الحالة"
+    },
+    "drawer": {
+      "overview": "نظرة عامة",
+      "items": "البنود ({{count}})",
+      "details": "التفاصيل",
+      "supplier": "المورد",
+      "date": "تاريخ الفاتورة",
+      "poRef": "إشارة الطلب",
+      "taxRate": "معدل الضريبة",
+      "invoiceType": "نوع الفاتورة"
+    },
+    "form": {
+      "title": "فاتورة شراء جديدة",
+      "description": "تسجيل فاتورة مورد (ذمم دائنة)",
+      "supplier": "المورد *",
+      "poRef": "إشارة الطلب",
+      "date": "تاريخ الفاتورة",
+      "invoiceType": "نوع الفاتورة",
+      "taxRate": "معدل الضريبة (%)",
+      "currency": "العملة",
+      "lineItems": "بنود السطر",
+      "qty": "الكمية",
+      "unitPrice": "سعر الوحدة",
+      "subtotal": "المجموع الفرعي",
+      "tax": "الضريبة ({{rate}}%)",
+      "total": "الإجمالي",
+      "notes": "الملاحظات",
+      "button": {
+        "addItem": "إضافة بند",
+        "cancel": "إلغاء",
+        "confirm": "إنشاء الفاتورة"
+      },
+      "selectSupplier": "اختر موردًا…",
+      "billDate": "تاريخ الفاتورة *",
+      "dueDate": "تاريخ الاستحقاق *",
+      "taxed": "خاضعة للضريبة",
+      "nonTaxed": "بدون ضريبة",
+      "reference": "المرجع",
+      "referencePh": "رقم فاتورة المورد",
+      "items": "البنود",
+      "addLine": "إضافة سطر",
+      "colDescription": "الوصف",
+      "colQty": "الكمية",
+      "colUnitPrice": "سعر الوحدة",
+      "colLineTotal": "إجمالي السطر",
+      "itemPh": "وصف الصنف",
+      "notesPh": "تفاصيل إضافية عن هذه الفاتورة…",
+      "cancel": "إلغاء",
+      "saving": "جاري الحفظ…",
+      "submit": "إنشاء الفاتورة"
+    }
+  },
+  "vendors": {
+    "title": "الموردون",
+    "emptyState": "لا يوجد موردون بعد",
+    "table": {
+      "name": "اسم المورد",
+      "contact": "جهة الاتصال",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "status": "الحالة",
+      "totalOrders": "إجمالي الطلبات"
+    },
+    "drawer": {
+      "details": "التفاصيل",
+      "name": "اسم المورد",
+      "contact": "جهة الاتصال",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "address": "العنوان",
+      "paymentTerms": "شروط الدفع",
+      "taxId": "رقم الضريبة",
+      "rating": "التقييم",
+      "purchaseOrders": "أوامر الشراء",
+      "contactInfo": "معلومات الاتصال",
+      "noContact": "لا توجد معلومات اتصال مسجلة.",
+      "taxNumber": "الرقم الضريبي",
+      "added": "تاريخ الإضافة",
+      "updated": "آخر تحديث",
+      "notes": "الملاحظات",
+      "edit": "تعديل",
+      "deleteConfirm": "حذف هذا المورد؟",
+      "cancel": "إلغاء",
+      "delete": "حذف"
+    },
+    "form": {
+      "title": "مورد جديد",
+      "description": "أضف موردًا جديدًا إلى قائمة الموردين",
+      "name": "اسم الشركة *",
+      "contact": "جهة الاتصال",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "address": "العنوان",
+      "paymentTerms": "شروط الدفع",
+      "taxId": "الرقم الضريبي / NTN",
+      "button": {
+        "cancel": "إلغاء",
+        "confirm": "إضافة المورد"
+      },
+      "editTitle": "تعديل المورد",
+      "companyInfo": "معلومات الشركة",
+      "financialTerms": "الشروط المالية",
+      "namePh": "اسم شركة المورد…",
+      "code": "رمز المورد",
+      "codePh": "VND-001",
+      "category": "الفئة",
+      "selectPh": "اختر…",
+      "contactPh": "جهة الاتصال الرئيسية…",
+      "emailPh": "vendor@company.com",
+      "phonePh": "+92 3XX XXX XXXX",
+      "addressPh": "المبنى، الشارع، المدينة…",
+      "taxIdPh": "0000000-0",
+      "currency": "العملة",
+      "notes": "الملاحظات",
+      "notesPh": "شروط خاصة، ملاحظات الامتثال، المنتجات المعتمدة…",
+      "cancel": "إلغاء",
+      "saving": "جاري الحفظ…",
+      "save": "حفظ التغييرات",
+      "create": "حفظ المورد"
+    },
+    "status": {
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "blocked": "محظور"
+    }
+  },
+  "approvals": {
+    "title": "موافقات الشراء",
+    "emptyState": "لا توجد موافقات معلقة",
+    "status": {
+      "pending": "معلق",
+      "approved": "معتمد",
+      "rejected": "مرفوض",
+      "cancelled": "ملغى"
+    },
+    "table": {
+      "number": "الطلب #",
+      "vendor": "المورد",
+      "amount": "المبلغ",
+      "requester": "طلب من",
+      "status": "الحالة",
+      "date": "التاريخ"
+    },
+    "drawer": {
+      "overview": "نظرة عامة",
+      "items": "البنود ({{count}})",
+      "details": "تفاصيل الطلب",
+      "vendor": "المورد",
+      "amount": "المبلغ",
+      "requester": "طلب من",
+      "requestDate": "تاريخ الطلب",
+      "notes": "الملاحظات",
+      "button": {
+        "approve": "الموافقة",
+        "reject": "الرفض",
+        "cancel": "إلغاء"
+      },
+      "overdue": "متأخر",
+      "requestedBudget": "الميزانية المطلوبة",
+      "justification": "المبرر التجاري",
+      "requestedBy": "مقدم الطلب",
+      "department": "القسم",
+      "requiredBy": "مطلوب بحلول",
+      "category": "الفئة",
+      "preferredVendor": "المورد المفضل",
+      "reviewedBy": "تمت المراجعة بواسطة",
+      "reviewedOn": "تاريخ المراجعة",
+      "poCreated": "تم إنشاء الطلب",
+      "rejectionReason": "سبب الرفض",
+      "colDescription": "الوصف",
+      "colQty": "الكمية",
+      "colUnit": "سعر الوحدة التقديري",
+      "colTotal": "الإجمالي",
+      "estimatedTotal": "الإجمالي التقديري",
+      "rejectPlaceholder": "سبب الرفض…",
+      "cancel": "إلغاء",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "createPO": "إنشاء أمر شراء",
+      "export": "تصدير",
+      "priorityLabel": "أولوية {{priority}}"
+    },
+    "priority": {
+      "low": "منخفضة",
+      "medium": "متوسطة",
+      "high": "عالية",
+      "urgent": "عاجلة"
+    }
+  }
+}

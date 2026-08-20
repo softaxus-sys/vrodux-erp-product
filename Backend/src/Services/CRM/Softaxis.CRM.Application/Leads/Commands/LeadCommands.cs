@@ -16,11 +16,15 @@ public sealed class CreateLeadValidator : AbstractValidator<CreateLeadCommand>
 {
     public CreateLeadValidator()
     {
+        // A lead is a person we can contact. Company, surname and any one contact channel are all
+        // routinely missing on real captures (a portal enquiry often arrives as a first name plus a
+        // phone number), and the intake pipeline already creates such leads directly — requiring them
+        // here only made a manually-entered lead stricter than an imported one.
         RuleFor(x => x.FirstName).NotEmpty();
-        RuleFor(x => x.LastName).NotEmpty();
-        RuleFor(x => x.Company).NotEmpty();
-        RuleFor(x => x.Email).NotEmpty();
-        RuleFor(x => x.Phone).NotEmpty();
+        RuleFor(x => x)
+            .Must(x => !string.IsNullOrWhiteSpace(x.Email) || !string.IsNullOrWhiteSpace(x.Phone))
+            .WithName("Contact")
+            .WithMessage("Enter an email address or a phone number.");
     }
 }
 
@@ -37,9 +41,8 @@ public sealed class UpdateLeadValidator : AbstractValidator<UpdateLeadCommand>
 {
     public UpdateLeadValidator()
     {
+        // Mirrors CreateLeadValidator — see the note there.
         RuleFor(x => x.FirstName).NotEmpty();
-        RuleFor(x => x.LastName).NotEmpty();
-        RuleFor(x => x.Company).NotEmpty();
     }
 }
 

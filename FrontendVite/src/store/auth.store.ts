@@ -1,3 +1,4 @@
+import { findCountry } from "@/lib/onboarding/geo-data";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { User, Tenant, Permission, ModuleKey, UserRole } from "@/types";
@@ -207,6 +208,12 @@ function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
     }
   }
 
+  // Self-administration is never a plan feature: without Settings and Users an admin cannot invite
+  // a colleague or assign a role. The backend forces these into every tenant's module set too —
+  // adding them here as well means tokens issued before that change still grant access.
+  keys.add("settings");
+  keys.add("users");
+
   return [...keys];
 }
 
@@ -221,8 +228,20 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
   const modulesCsv = (claims["modules"]     as string | undefined) ?? "";
 
   const plan = planRaw.toLowerCase() as Tenant["plan"];
-  // Operating/display currency from the JWT (set at signup from the browser locale); USD default.
-  const currency = ((claims["currency"] as string | undefined) ?? "USD").toUpperCase();
+
+  // Country chosen at signup, straight from the JWT. `country` and `timezone` used to be hardcoded
+  // to Pakistan / Asia-Karachi here, so a UAE tenant saw a Pakistani tax regime in Settings.
+  const country = (claims["country"] as string | undefined)?.trim() || "";
+  const countryMeta = country ? findCountry(country) : undefined;
+
+  // Operating/display currency from the JWT (set at signup from the browser locale). When the
+  // tenant never got one persisted, derive it from their country rather than defaulting to USD —
+  // that is what produced "UAE country, USD currency" mismatches.
+  const currencyClaim = (claims["currency"] as string | undefined)?.trim().toUpperCase();
+  const currency = (currencyClaim && currencyClaim !== "USD" ? currencyClaim : null)
+    ?? countryMeta?.currencyCode
+    ?? currencyClaim
+    ?? "USD";
 
   const backendModules = modulesCsv
     ? modulesCsv.split(",").map(s => s.trim()).filter(Boolean)
@@ -241,8 +260,8 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     slug,
     industry:       "retail",
     currency,
-    country:        "Pakistan",
-    timezone:       "Asia/Karachi",
+    country:        countryMeta?.name ?? country,
+    timezone:       countryMeta?.timezone ?? "",
     plan,
     status:         "active",
     vertical:       (claims["industry"] as string | undefined) ?? undefined,

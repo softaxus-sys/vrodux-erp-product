@@ -1,0 +1,356 @@
+{
+  "orders": {
+    "title": "Sales Orders",
+    "description": "Track and manage customer orders through fulfillment",
+    "new": "New Order",
+    "table": {
+      "orderNum": "Order #",
+      "customer": "Customer",
+      "date": "Date",
+      "expected": "Expected",
+      "total": "Total",
+      "items": "Items",
+      "status": "Status",
+      "action": "Action"
+    },
+    "stats": {
+      "total": "Total Orders",
+      "pending": "Pending",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled",
+      "revenue": "Revenue"
+    },
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "search": "Search orders…",
+    "noResults": "No orders found.",
+    "loading": "Loading orders…",
+    "walkIn": "Walk-in",
+    "pagination": "Page {{page}} of {{total}} ({{count}} orders)",
+    "button": {
+      "confirm": "Confirm",
+      "delivery": "Delivery Challan",
+      "prev": "Prev",
+      "next": "Next",
+      "close": "Close"
+    },
+    "drawer": {
+      "tab": {
+        "overview": "Overview",
+        "items": "Line Items"
+      },
+      "total": "Order Total",
+      "subtotal": "Subtotal",
+      "tax": "Tax",
+      "fulfillment": "Fulfillment",
+      "details": "Details",
+      "created": "Created",
+      "expected": "Expected",
+      "customer": "Customer",
+      "statusField": "Status",
+      "notes": "Notes"
+    }
+  },
+  "quotations": {
+    "title": "Sales Quotations",
+    "description": "Create and track customer quotations through the sales pipeline",
+    "new": "New Quotation",
+    "table": {
+      "quoteNum": "Quote #",
+      "customer": "Customer",
+      "created": "Created",
+      "validUntil": "Valid Until",
+      "total": "Total",
+      "items": "Items",
+      "status": "Status",
+      "action": "Action"
+    },
+    "stats": {
+      "total": "Total Quotes",
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "converted": "Converted",
+      "pipeline": "Pipeline Value"
+    },
+    "status": {
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "converted": "Converted"
+    },
+    "filters": {
+      "all": "All",
+      "draft": "Draft",
+      "sent": "Sent",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "converted": "Converted"
+    },
+    "search": "Search quotations…",
+    "noResults": "No quotations found.",
+    "loading": "Loading quotations…",
+    "walkIn": "Walk-in Customer",
+    "pagination": "Page {{page}} of {{total}} ({{count}} quotations)",
+    "button": {
+      "convert": "Convert",
+      "prev": "Prev",
+      "next": "Next",
+      "close": "Close"
+    },
+    "drawer": {
+      "tab": {
+        "overview": "Overview",
+        "items": "Line Items"
+      },
+      "totalValue": "Total Value (incl. Tax)",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "tax": "Tax",
+      "details": "Details",
+      "customer": "Customer",
+      "created": "Created",
+      "validUntil": "Valid Until",
+      "discountField": "Discount",
+      "itemsField": "Items",
+      "notes": "Notes",
+      "converted": "Converted to Sales Order",
+      "convertedId": "Order ID",
+      "expiringAlert": "Expiring Soon",
+      "lineItems": "Line Items",
+      "none": "None"
+    }
+  },
+  "returns": {
+    "title": "Sales Returns",
+    "description": "Handle return requests, refunds, and credit notes",
+    "new": "New Return",
+    "table": {
+      "returnNum": "Return #",
+      "customer": "Customer",
+      "orderRef": "Order Ref",
+      "reason": "Reason",
+      "date": "Date",
+      "refundAmt": "Refund Amt",
+      "status": "Status",
+      "action": "Action"
+    },
+    "stats": {
+      "total": "Total Returns",
+      "pending": "Pending Review",
+      "approved": "Approved",
+      "refunded": "Refunded",
+      "totalValue": "Total Refund Value"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "refunded": "Refunded",
+      "completed": "Completed"
+    },
+    "reason": {
+      "defective": "Defective",
+      "wrong_item": "Wrong Item",
+      "not_as_described": "Not As Described",
+      "duplicate_order": "Duplicate Order",
+      "changed_mind": "Changed Mind",
+      "other": "Other"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "approved": "Approved",
+      "refunded": "Refunded",
+      "completed": "Completed",
+      "rejected": "Rejected"
+    },
+    "search": "Search returns…",
+    "noResults": "No returns found.",
+    "loading": "Loading returns…",
+    "pagination": "Page {{page}} of {{total}} ({{count}} returns)",
+    "button": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "refund": "Refund",
+      "close": "Close"
+    },
+    "drawer": {
+      "refundAmount": "Refund Amount",
+      "returnReason": "Return Reason",
+      "details": "Details",
+      "customer": "Customer",
+      "orderRef": "Order Ref",
+      "requestDate": "Request Date",
+      "processedBy": "Processed By",
+      "processedDate": "Processed On",
+      "creditNote": "Credit Note",
+      "returnItems": "Return Items",
+      "description": "Description",
+      "qty": "Qty",
+      "unitPrice": "Unit Price",
+      "total": "Total",
+      "refundTotal": "Refund Total (incl. VAT)",
+      "refundMethod": "Refund Method",
+      "button": {
+        "approveReturn": "Approve Return",
+        "processRefund": "Process Refund",
+        "creditNote": "Credit Note"
+      }
+    }
+  },
+  "deliveryChallans": {
+    "title": "Delivery Challans",
+    "description": "Track goods delivered against sales orders",
+    "table": {
+      "challanNum": "Challan #",
+      "salesOrder": "Sales Order",
+      "customer": "Customer",
+      "challanDate": "Challan Date",
+      "driver": "Driver",
+      "items": "Items",
+      "status": "Status"
+    },
+    "status": {
+      "posted": "Posted",
+      "cancelled": "Cancelled"
+    },
+    "search": "Search challan, order or customer…",
+    "noResults": "No delivery challans found.",
+    "loading": "Loading delivery challans…"
+  },
+  "forms": {
+    "newOrder": {
+      "title": "New Sales Order",
+      "description": "Create a confirmed customer sales order",
+      "customer": "Customer *",
+      "customerPlaceholder": "Customer / Company name…",
+      "expectedDate": "Expected Date",
+      "taxRate": "Tax Rate",
+      "vatStandard": "Standard (17%)",
+      "vatZero": "Zero Rated (0%)",
+      "vatExempt": "Exempt",
+      "orderLines": "Order Lines",
+      "addItem": "Add Item",
+      "table": {
+        "description": "Description",
+        "qty": "Qty",
+        "unitPrice": "Unit Price",
+        "discPercent": "Disc %",
+        "subtotal": "Subtotal"
+      },
+      "summary": {
+        "subtotal": "Subtotal",
+        "tax": "Tax",
+        "total": "Total",
+        "create": "Create Order"
+      },
+      "notes": "Notes"
+    },
+    "newQuotation": {
+      "title": "New Sales Quotation",
+      "description": "Create a sales quotation for customer review",
+      "customer": "Customer *",
+      "customerPlaceholder": "Customer / Company name…",
+      "validUntil": "Valid Until",
+      "discountPercent": "Discount %",
+      "taxRate": "Tax Rate",
+      "vatStandard": "Standard (17%)",
+      "vatZero": "Zero Rated (0%)",
+      "vatExempt": "Exempt",
+      "quotationLines": "Quotation Lines",
+      "addItem": "Add Item",
+      "table": {
+        "description": "Description",
+        "qty": "Qty",
+        "unitPrice": "Unit Price",
+        "discPercent": "Disc %",
+        "subtotal": "Subtotal"
+      },
+      "summary": {
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "tax": "Tax",
+        "total": "Total",
+        "create": "Create Quotation"
+      },
+      "notes": "Notes"
+    },
+    "newReturn": {
+      "title": "New Sales Return",
+      "description": "Record a customer return and refund",
+      "orderNumber": "Order Number",
+      "customer": "Customer *",
+      "reason": "Return Reason *",
+      "selectReason": "Select reason…",
+      "reasonDetail": "Reason Details",
+      "refundAmount": "Refund Amount *",
+      "refundMethod": "Refund Method",
+      "selectMethod": "Select method…",
+      "returnDate": "Return Date",
+      "returnLines": "Return Items",
+      "addItem": "Add Item",
+      "table": {
+        "description": "Description",
+        "qty": "Qty",
+        "unitPrice": "Unit Price",
+        "total": "Total"
+      },
+      "summary": {
+        "total": "Total",
+        "create": "Create Return"
+      }
+    },
+    "createDeliveryChallan": {
+      "title": "Create Delivery Challan",
+      "description": "Record goods delivered against sales order",
+      "order": "Sales Order",
+      "orderPlaceholder": "Select order…",
+      "driverName": "Driver Name",
+      "challanDate": "Challan Date",
+      "items": "Items to Deliver",
+      "description": "Description",
+      "ordered": "Ordered",
+      "delivered": "Delivered",
+      "summary": {
+        "totalItems": "Total Items",
+        "create": "Create Challan"
+      }
+    },
+    "button": {
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "delete": "Delete",
+      "close": "Close"
+    },
+    "validation": {
+      "customerRequired": "Customer is required",
+      "itemsRequired": "At least one item is required",
+      "reasonRequired": "Reason is required",
+      "refundRequired": "Refund amount is required"
+    }
+  },
+  "common": {
+    "unknown": "Unknown",
+    "prev": "Prev",
+    "next": "Next"
+  }
+}

@@ -12,7 +12,7 @@ namespace Softaxis.CRM.API.Controllers;
 public sealed class PipelineController(ISender sender) : CrmControllerBase
 {
     [HttpGet("summary")]
-    [RequirePermission("crm.pipeline.view")]
+    [RequireAnyPermission("crm.pipeline.view", "crm.pipeline-team.view", "crm.pipeline-assigned.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetDealsSummaryQuery(), ct);
@@ -20,7 +20,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet]
-    [RequirePermission("crm.pipeline.view")]
+    [RequireAnyPermission("crm.pipeline.view", "crm.pipeline-team.view", "crm.pipeline-assigned.view")]
     public async Task<IActionResult> GetAll([FromQuery] Guid? customerId, CancellationToken ct)
     {
         var result = await sender.Send(new GetDealsQuery(customerId), ct);
@@ -28,7 +28,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [RequirePermission("crm.pipeline.view")]
+    [RequireAnyPermission("crm.pipeline.view", "crm.pipeline-team.view", "crm.pipeline-assigned.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetDealByIdQuery(id), ct);
@@ -44,17 +44,18 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequirePermission("crm.pipeline.edit")]
+    [RequireAnyPermission("crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDealRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateDealCommand(id, req.Title, req.Company, req.Value, req.Stage,
             req.Priority, req.Probability, req.ExpectedCloseDate, req.AssignedTo, req.Source, req.Industry,
-            req.Description, req.NextAction, req.NextActionDate, req.Tags, req.ForecastCategory, req.CustomerId), ct);
+            req.Description, req.NextAction, req.NextActionDate, req.Tags, req.ForecastCategory, req.CustomerId,
+            req.AssignedToUserId), ct);
         return NoContentOrError(result);
     }
 
     [HttpPatch("{id:guid}/stage")]
-    [RequirePermission("crm.pipeline.edit")]
+    [RequireAnyPermission("crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit")]
     public async Task<IActionResult> MoveStage(Guid id, [FromBody] StageReq req, CancellationToken ct)
     {
         var result = await sender.Send(new MoveDealStageCommand(id, req.Stage, req.Probability, req.ForecastCategory, req.LossReason), ct);
@@ -63,7 +64,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
 
     // No crm.pipeline.delete key seeded — gate delete on the nearest key (edit).
     [HttpDelete("{id:guid}")]
-    [RequirePermission("crm.pipeline.edit")]
+    [RequireAnyPermission("crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteDealCommand(id), ct);
@@ -73,6 +74,6 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     public sealed record UpdateDealRequest(string Title, string Company, decimal Value, string Stage, string Priority,
         int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry, string Description,
         string? NextAction, string? NextActionDate, List<string>? Tags, string? ForecastCategory = null,
-        Guid? CustomerId = null);
+        Guid? CustomerId = null, Guid? AssignedToUserId = null);
     public sealed record StageReq(string Stage, int Probability, string? ForecastCategory = null, string? LossReason = null);
 }

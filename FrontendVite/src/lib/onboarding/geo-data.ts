@@ -278,3 +278,17 @@ export function detectCountry(): CountryMeta | undefined {
 
   return undefined;
 }
+
+/**
+ * Resolve a country by name or ISO code, case-insensitively.
+ *
+ * The tenant's country is stored as a display name ("United Arab Emirates") while the settings
+ * dropdown works in ISO codes ("ae"), so lookups have to accept either. Returns undefined for an
+ * unknown value — callers must not substitute an arbitrary country, which is exactly how a UAE
+ * tenant ended up showing a Pakistani tax regime.
+ */
+export function findCountry(nameOrCode: string): CountryMeta | undefined {
+  const q = nameOrCode.trim().toLowerCase();
+  if (!q) return undefined;
+  return COUNTRIES.find(c => c.name.toLowerCase() === q || c.code.toLowerCase() === q);
+}

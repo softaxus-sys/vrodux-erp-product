@@ -1,0 +1,193 @@
+{
+  "greeting": {
+    "morning": "صباح الخير",
+    "afternoon": "مساء الخير",
+    "evening": "مساء الخير"
+  },
+  "hero": {
+    "workspace": "مساحة عملك",
+    "subtitleAdmin": "إليك نظرة حية على أعمالك اليوم.",
+    "subtitleCrm": "عملاؤك المحتملون وخط الأنابيب وعملاؤك في لمحة.",
+    "subtitleDefault": "إليك ما يحدث في مساحة عملك اليوم."
+  },
+  "stat": {
+    "totalLeads": "إجمالي العملاء المحتملين",
+    "newThisWeek": "{{count}} جديد هذا الأسبوع",
+    "pipelineValue": "قيمة خط الأنابيب",
+    "openDeals": "{{count}} صفقة مفتوحة",
+    "customers": "العملاء",
+    "activeCount": "{{count}} نشط",
+    "conversionRate": "معدل التحويل",
+    "leadsConverted": "{{count}} عميل محتمل تم تحويله",
+    "revenuePaid": "الإيرادات (المدفوعة)",
+    "ofBilled": "من {{amount}} مفوترة",
+    "outstanding": "المستحقات",
+    "overdue": "{{amount}} متأخرة",
+    "employees": "الموظفون",
+    "presentToday": "الحاضرون اليوم",
+    "absentLeave": "{{absent}} غائب · {{leave}} طلب إجازة",
+    "teamMembers": "أعضاء الفريق",
+    "rolesCount": "{{count}} دور",
+    "yourPermissions": "صلاحياتك"
+  },
+  "attendance": {
+    "title": "حضور اليوم",
+    "ofEmployees": "{{pct}}% من {{total}} موظف",
+    "loading": "جارٍ تحميل الحضور…",
+    "percentPresent": "{{pct}}% حاضرون",
+    "present": "حاضر",
+    "absent": "غائب",
+    "late": "متأخر",
+    "onLeave": "في إجازة"
+  },
+  "payroll": {
+    "title": "الرواتب — {{month}}",
+    "summary": "{{paid}} مدفوعة · {{pending}} قيد الانتظار",
+    "loading": "جارٍ تحميل بيانات الرواتب…",
+    "netThisMonth": "صافي الرواتب (هذا الشهر)",
+    "employeesPaid": "الموظفون المدفوعون",
+    "paidRuns": "دورات مدفوعة",
+    "totalRuns": "إجمالي الدورات"
+  },
+  "quickActions": {
+    "title": "إجراءات سريعة",
+    "subtitle": "ابدأ يومك مباشرةً",
+    "newLead": "عميل محتمل جديد",
+    "addDeal": "إضافة صفقة",
+    "newCustomer": "عميل جديد",
+    "newOrder": "طلب جديد",
+    "newInvoice": "فاتورة جديدة",
+    "addProduct": "إضافة منتج",
+    "addEmployee": "إضافة موظف",
+    "settings": "الإعدادات"
+  },
+  "activity": {
+    "title": "النشاط الأخير",
+    "subtitle": "سجل تدقيق النظام",
+    "liveFeed": "بث مباشر عبر جميع الوحدات",
+    "by": "بواسطة {{user}}",
+    "empty": "لا يوجد نشاط حديث بعد."
+  },
+  "pipeline": {
+    "title": "مسار المبيعات",
+    "snapshotTitle": "لمحة سريعة",
+    "subtitle": "صحة الصفقات هذه الفترة",
+    "snapshotSubtitle": "أرقام رئيسية",
+    "openValue": "قيمة خط الأنابيب المفتوح",
+    "wonValue": "قيمة الصفقات المكسوبة",
+    "winRate": "معدل الفوز",
+    "avgDealSize": "متوسط حجم الصفقة",
+    "qualifiedLeads": "العملاء المؤهلون",
+    "viewPipeline": "عرض خط الأنابيب",
+    "teamMembers": "أعضاء الفريق",
+    "roles": "الأدوار",
+    "yourPermissions": "صلاحياتك"
+  },
+  "charts": {
+    "series": {
+      "revenue": "الإيرادات",
+      "expenses": "المصروفات",
+      "netProfit": "صافي الربح",
+      "employees": "الموظفون",
+      "present": "حاضر",
+      "absent": "غائب",
+      "late": "متأخر",
+      "orderValue": "قيمة الطلب",
+      "newLeads": "عملاء محتملون جدد",
+      "converted": "تم تحويلهم",
+      "inStock": "متوفر",
+      "lowStock": "مخزون منخفض",
+      "outOfStock": "نفد المخزون",
+      "sales": "المبيعات",
+      "orders": "الطلبات",
+      "amount": "المبلغ ({{currency}})",
+      "rooms": "الغرف"
+    },
+    "finance": {
+      "title": "نظرة عامة على المالية",
+      "desc": "منذ بداية العام · الإيرادات {{revenue}} · صافي الربح {{margin}}%",
+      "revVsExp": "الإيرادات مقابل المصروفات",
+      "revVsExpDesc": "الاتجاه الشهري · {{currency}}",
+      "breakdown": "توزيع المصروفات",
+      "breakdownDesc": "حسب الفئة · هذا العام",
+      "breakdownEmpty": "لا توجد مصروفات مسجلة بعد.",
+      "netProfit": "اتجاه صافي الربح",
+      "netProfitDesc": "الربح الشهري (الإيرادات − المصروفات)"
+    },
+    "hr": {
+      "title": "نظرة عامة على الموارد البشرية",
+      "desc": "{{employees}} موظف · {{leaves}} طلب إجازة",
+      "headcount": "عدد الموظفين حسب القسم",
+      "headcountDesc": "الموظفون لكل قسم",
+      "headcountEmpty": "لا يوجد موظفون بعد.",
+      "leaveTypes": "أنواع الإجازات",
+      "leaveTypesDesc": "الطلبات حسب نوع الإجازة",
+      "leaveTypesEmpty": "لا توجد طلبات إجازة بعد.",
+      "weekly": "الحضور الأسبوعي",
+      "weeklyDesc": "توزيع الحاضر / الغائب / المتأخر هذا الأسبوع",
+      "weeklyEmpty": "لا يوجد حضور مسجل هذا الأسبوع."
+    },
+    "sales": {
+      "title": "نظرة عامة على المبيعات",
+      "desc": "{{orders}} طلب · {{value}} هذا العام",
+      "monthly": "المبيعات الشهرية",
+      "monthlyDesc": "قيمة الطلبات حسب الشهر · {{currency}}",
+      "monthlyEmpty": "لا توجد أوامر بيع بعد.",
+      "status": "حالة الطلب",
+      "statusDesc": "الطلبات حسب الحالة الحالية"
+    },
+    "crm": {
+      "title": "نظرة عامة على إدارة علاقات العملاء",
+      "desc": "{{leads}} عميل محتمل · {{deals}} صفقة · {{pipeline}} خط أنابيب مفتوح",
+      "acquisition": "اكتساب العملاء وتحويلهم",
+      "acquisitionDesc": "العملاء الجدد مقابل المحوّلين شهرياً · {{year}}",
+      "stages": "توزيع مراحل العملاء المحتملين",
+      "stagesDesc": "العملاء المحتملون حسب الحالة الحالية",
+      "stagesEmpty": "لا يوجد عملاء محتملون بعد."
+    },
+    "inventory": {
+      "title": "نظرة عامة على المخزون",
+      "desc": "{{count}} منتج متتبع",
+      "stockLevels": "مستويات المخزون حسب الفئة",
+      "stockLevelsDesc": "متوفر · منخفض · نافد",
+      "stockLevelsEmpty": "لا توجد منتجات بعد.",
+      "valuation": "تقييم المخزون",
+      "valuationDesc": "بسعر التكلفة · حسب الفئة · {{currency}}",
+      "valuationEmpty": "لا يوجد تقييم مخزون بعد."
+    },
+    "pos": {
+      "title": "نظرة عامة على نقطة البيع",
+      "desc": "اليوم · {{count}} معاملة · {{sales}} مبيعات",
+      "hourly": "المبيعات بالساعة (اليوم)",
+      "hourlyDesc": "قيمة المبيعات حسب الساعة · {{currency}}",
+      "hourlyEmpty": "لا توجد مبيعات مسجلة اليوم.",
+      "methods": "طرق الدفع",
+      "methodsDesc": "توزيع المعاملات حسب الطريقة",
+      "methodsEmpty": "لا توجد معاملات بعد."
+    },
+    "purchase": {
+      "title": "نظرة عامة على المشتريات",
+      "desc": "{{count}} أمر شراء",
+      "monthly": "أوامر الشراء الشهرية",
+      "monthlyDesc": "عدد الطلبات والمبلغ الإجمالي · {{currency}}",
+      "monthlyEmpty": "لا توجد أوامر شراء بعد.",
+      "topVendors": "أهم الموردين",
+      "topVendorsDesc": "حسب مبلغ الشراء · {{currency}}",
+      "topVendorsEmpty": "لا يوجد إنفاق على الموردين بعد."
+    },
+    "hospitality": {
+      "title": "نظرة عامة على الضيافة",
+      "desc": "{{rooms}} غرفة · {{bookings}} حجز",
+      "roomsByStatus": "الغرف حسب الحالة",
+      "roomsByStatusDesc": "توفر الغرف الحالي",
+      "roomsEmpty": "لا توجد غرف بعد.",
+      "bookingsByStatus": "الحجوزات حسب الحالة",
+      "bookingsByStatusDesc": "توزيع حالة الحجوزات",
+      "bookingsEmpty": "لا توجد حجوزات بعد."
+    },
+    "none": {
+      "title": "لا توجد بيانات رسوم بيانية",
+      "desc": "تظهر الرسوم البيانية عندما يكون لدورك صلاحية الوصول إلى المالية أو الموارد البشرية أو المبيعات أو المخزون أو نقطة البيع أو وحدات أخرى."
+    }
+  }
+}

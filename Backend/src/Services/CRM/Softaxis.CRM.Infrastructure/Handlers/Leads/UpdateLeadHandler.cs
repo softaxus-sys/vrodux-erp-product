@@ -15,7 +15,7 @@ internal sealed class UpdateLeadHandler(CrmDbContext db, ILeadAccessGuard access
     {
         var l = await db.Leads.FindAsync([cmd.Id], ct);
         // Not found, or not editable by this user (assigned-only user editing someone else's lead).
-        if (l is null || !access.CanEdit(l))
+        if (l is null || !await access.CanEditAsync(l, ct))
             return Result.Failure(Error.NotFoundById("Lead", cmd.Id));
 
         var prevUserId = l.AssignedToUserId;

@@ -201,7 +201,7 @@ function QuickActions({ actions }: { actions: { label: string; to: string; icon:
 
 export function DashboardView() {
   const { t } = useTranslation("dashboard");
-  const { user, isRole, hasModuleAccess, tenant } = useAuthStore();
+  const { user, isRole, hasModuleAccess, tenant, hasRawPermission } = useAuthStore();
   const currency = useCurrency();
 
   const isAdmin = isRole(["super_admin", "tenant_admin"]);
@@ -211,10 +211,18 @@ export function DashboardView() {
   const canSales = hasModuleAccess("sales");
   const canInventory = hasModuleAccess("inventory");
 
+  // User counts, role counts and the audit trail are ADMIN data. They were fetched for every role,
+  // so a restricted user (e.g. a Real Estate Agent with no settings permissions) saw the tenant's
+  // headcount, role count and a live feed of other people's logins and user-creation events.
+  // Gate on the same permissions the Settings screens require; the tiles hide when absent.
+  const canSeeUsers = hasRawPermission("settings.users.view");
+  const canSeeRoles = hasRawPermission("settings.roles.view");
+  const canSeeAudit = hasRawPermission("settings.audit.view");
+
   // Data (React Query caches; modules the tenant lacks simply resolve empty)
-  const { data: usersData, isLoading: usersLoading } = useUsers({ pageSize: 1 });
-  const { data: rolesData } = useRoles();
-  const { data: auditData, isLoading: auditLoading } = useAuditLogs({ pageSize: 15 });
+  const { data: usersData, isLoading: usersLoading } = useUsers({ pageSize: 1 }, canSeeUsers);
+  const { data: rolesData } = useRoles({}, canSeeRoles);
+  const { data: auditData, isLoading: auditLoading } = useAuditLogs({ pageSize: 15 }, canSeeAudit);
   const { data: hrSummary } = useHrSummary();
   const { data: attSummary } = useAttendanceSummary();
   const { data: leaveSummary } = useLeaveSummary();
@@ -251,13 +259,16 @@ export function DashboardView() {
         { id: "present", label: t("stat.presentToday"), value: formatNumber(attSummary?.presentToday ?? 0), sub: t("stat.absentLeave", { absent: attSummary?.absentToday ?? 0, leave: leaveSummary?.pending ?? 0 }), icon: UserCheck, accent: "emerald" },
       );
     }
-    // Fallback / admin filler so there are always ≥4 tiles
+    // Fallback filler so there are always ≥4 tiles. Headcount/roles are admin numbers, so that
+    // tile only appears for users allowed to see them; "your permissions" is about the viewer
+    // themselves and is always safe to show.
+    if (canSeeUsers)
+      s.push({ id: "users", label: t("stat.teamMembers"), value: formatNumber(usersData?.totalCount ?? 0), sub: t("stat.rolesCount", { count: rolesData?.items?.length ?? 0 }), icon: Users, accent: "sky" });
     s.push(
-      { id: "users", label: t("stat.teamMembers"), value: formatNumber(usersData?.totalCount ?? 0), sub: t("stat.rolesCount", { count: rolesData?.items?.length ?? 0 }), icon: Users, accent: "sky" },
       { id: "perms", label: t("stat.yourPermissions"), value: formatNumber(user?.permissions?.length ?? 0), sub: user?.roleName ?? (user?.role ?? "").replace(/_/g, " "), icon: Sparkles, accent: "violet" },
     );
     return s.slice(0, 4);
-  }, [t, canCrm, canFinance, canHr, leads, deals, customers, invoices, hrSummary, attSummary, leaveSummary, usersData, rolesData, user, currency]);
+  }, [t, canCrm, canFinance, canHr, leads, deals, customers, invoices, hrSummary, attSummary, leaveSummary, usersData, rolesData, user, currency, canSeeUsers]);
 
   // ── Quick actions by module ───────────────────────────────────────────────────
   const actions = React.useMemo(() => {
@@ -398,8 +409,8 @@ export function DashboardView() {
               </>
             ) : (
               [
-                { label: t("pipeline.teamMembers"), value: formatNumber(usersData?.totalCount ?? 0) },
-                { label: t("pipeline.roles"), value: formatNumber(rolesData?.items?.length ?? 0) },
+                ...(canSeeUsers ? [{ label: t("pipeline.teamMembers"), value: formatNumber(usersData?.totalCount ?? 0) }] : []),
+                ...(canSeeRoles ? [{ label: t("pipeline.roles"), value: formatNumber(rolesData?.items?.length ?? 0) }] : []),
                 { label: t("pipeline.yourPermissions"), value: formatNumber(user?.permissions?.length ?? 0) },
               ].map((r) => (
                 <div key={r.label} className="flex items-center justify-between border-b border-border/30 py-2 last:border-0">

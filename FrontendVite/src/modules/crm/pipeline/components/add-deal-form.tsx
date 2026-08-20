@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { useAssignableUsers } from "@/hooks/identity/use-teams";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,11 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   const currency = useCurrency();
   const [forecast, setForecast]       = React.useState("auto");
   const [closeDate, setCloseDate]     = React.useState("");
-  const [assignedTo, setAssignedTo]   = React.useState("");
+  const [assignedTo, setAssignedTo]   = React.useState("");           // display name
+  const [assignedToUserId, setAssignedToUserId] = React.useState(""); // owning user ("" = unassigned)
+  // Server decides the pool from the caller's tier: admins get everyone, a team lead only their
+  // own members. Storing the id is what makes the pipeline visibility tiers work at all.
+  const { data: assignable = [] } = useAssignableUsers(open);
   const [description, setDescription] = React.useState("");
 
   const createDeal = useCreateDeal();
@@ -80,7 +85,8 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
       setStage(KEY_LABEL[editing.stage] ?? "Qualified"); setDealType(editing.source || "New Business");
       setProbability(`${editing.probability}%`); setCloseDate(editing.expectedCloseDate);
       setForecast(MANUAL_FORECASTS.includes(editing.forecastCategory) ? editing.forecastCategory : "auto");
-      setAssignedTo(editing.assignedTo); setDescription(editing.description);
+      setAssignedTo(editing.assignedTo); setAssignedToUserId(editing.assignedToUserId ?? "");
+      setDescription(editing.description);
     }
   }, [open, editing]);
 
@@ -90,7 +96,8 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
       title: dealName.trim(), company: company.trim(), value: parseFloat(value) || 0,
       stage: STAGE_KEY[stage] ?? "qualified", priority: editing?.priority ?? "medium",
       probability: parseInt(probability, 10) || 50, expectedCloseDate: closeDate,
-      assignedTo: assignedTo.trim(), source: dealType, industry: editing?.industry ?? "",
+      assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null,
+      source: dealType, industry: editing?.industry ?? "",
       description: description.trim(),
       forecastCategory: forecast === "auto" ? undefined : forecast,
       customerId: customerId ?? null,
@@ -246,7 +253,18 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.assignedTo")}</label>
-                  <Input value={assignedTo} onChange={e => setAssignedTo(e.target.value)} placeholder={t("dealForm.assignedToPlaceholder")} className="h-9 text-sm" />
+                  <select
+                    value={assignedToUserId}
+                    onChange={e => {
+                      const id = e.target.value;
+                      setAssignedToUserId(id);
+                      setAssignedTo(assignable.find(u => u.userId === id)?.fullName ?? "");
+                    }}
+                    className="w-full h-9 rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">{t("dealForm.unassigned", { defaultValue: "Unassigned" })}</option>
+                    {assignable.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
+                  </select>
                 </div>
               </div>
 

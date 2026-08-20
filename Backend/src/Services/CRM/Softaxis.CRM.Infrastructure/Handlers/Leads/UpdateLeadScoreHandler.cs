@@ -11,7 +11,7 @@ internal sealed class UpdateLeadScoreHandler(CrmDbContext db, ILeadAccessGuard a
     public async Task<Result> Handle(UpdateLeadScoreCommand cmd, CancellationToken ct)
     {
         var l = await db.Leads.FindAsync([cmd.Id], ct);
-        if (l is null || !access.CanEdit(l))
+        if (l is null || !await access.CanEditAsync(l, ct))
             return Result.Failure(Error.NotFoundById("Lead", cmd.Id));
 
         l.UpdateScore(cmd.Score);

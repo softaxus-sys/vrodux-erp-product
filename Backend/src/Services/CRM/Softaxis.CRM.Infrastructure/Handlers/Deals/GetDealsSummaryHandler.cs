@@ -4,14 +4,16 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Deals.Dtos;
 using Softaxis.CRM.Application.Deals.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Deals;
 
-internal sealed class GetDealsSummaryHandler(CrmDbContext db) : IQueryHandler<GetDealsSummaryQuery, DealsSummaryDto>
+internal sealed class GetDealsSummaryHandler(CrmDbContext db, ILeadAccessGuard access) : IQueryHandler<GetDealsSummaryQuery, DealsSummaryDto>
 {
     public async Task<Result<DealsSummaryDto>> Handle(GetDealsSummaryQuery query, CancellationToken ct)
     {
-        var all = await db.Deals.AsNoTracking().Where(x => !x.IsDeleted)
+        // Totals follow the caller's pipeline tier, so the stat cards agree with the board below them.
+        var all = await access.ScopeDeals(db.Deals.AsNoTracking()).Where(x => !x.IsDeleted)
             .Select(x => new { x.Stage, x.Value, x.Probability, x.ForecastCategory }).ToListAsync(ct);
 
         var won = all.Where(x => x.Stage == "won").ToList();

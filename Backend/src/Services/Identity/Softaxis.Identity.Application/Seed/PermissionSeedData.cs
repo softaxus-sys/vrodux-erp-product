@@ -52,6 +52,17 @@ public static class PermissionSeedData
         // Assigned-only lead scope: a role granted these (but NOT crm.leads.view/edit) sees & works
         // ONLY the leads assigned to that user. "edit" here also covers reassigning the user's own lead.
         ["crm.leads-assigned"]   = ["view","edit"],
+        // Middle tier of admin -> team lead -> member: sees the leads of every team this user
+        // leads, plus their own. Grant INSTEAD of crm.leads.* (which is tenant-wide).
+        ["crm.leads-team"]       = ["view","edit"],
+
+        // Same three-tier model for opportunities and accounts, so a rep sees only their own book
+        // and a team lead only their team's. Grant these INSTEAD of crm.pipeline.* / crm.customers.*,
+        // which stay tenant-wide.
+        ["crm.pipeline-assigned"]  = ["view","edit"],
+        ["crm.pipeline-team"]      = ["view","edit"],
+        ["crm.customers-assigned"] = ["view","edit"],
+        ["crm.customers-team"]     = ["view","edit"],
         ["crm.pipeline"]         = ["view","create","edit","export"],
         ["crm.customers"]        = ["view","create","edit","delete","export"],
 

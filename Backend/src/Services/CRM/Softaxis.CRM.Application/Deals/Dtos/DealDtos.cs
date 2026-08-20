@@ -5,7 +5,7 @@ public sealed record DealContactDto(string Name, string Title, string Email, str
 public sealed record DealDto(
     Guid Id, string Title, string Company, decimal Value, string Currency, string Stage,
     string Priority, int Probability, string ExpectedCloseDate, string CreatedDate,
-    string AssignedTo, string Source, string Industry, string Description,
+    string AssignedTo, Guid? AssignedToUserId, string Source, string Industry, string Description,
     IReadOnlyList<string> Tags, DealContactDto Contact, IReadOnlyList<object> Activities,
     string? NextAction, string? NextActionDate,
     string ForecastCategory, decimal WeightedValue, string? LossReason,

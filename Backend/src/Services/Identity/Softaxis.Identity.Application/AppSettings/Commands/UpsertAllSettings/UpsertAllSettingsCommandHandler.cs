@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Repositories;
 
@@ -7,7 +8,8 @@ namespace Softaxis.Identity.Application.AppSettings.Commands.UpsertAllSettings;
 
 public sealed class UpsertAllSettingsCommandHandler(
     IAppSettingRepository settingRepo,
-    IUnitOfWork           uow)
+    IUnitOfWork           uow,
+    ITenantContext        tenant)
     : ICommandHandler<UpsertAllSettingsCommand>
 {
     private static readonly HashSet<string> UserScopedCategories =
@@ -31,11 +33,11 @@ public sealed class UpsertAllSettingsCommandHandler(
         // Load existing rows for each scope
         var existingGlobal = new List<AppSetting>();
         foreach (var cat in globalCats)
-            existingGlobal.AddRange(await settingRepo.GetByCategoryAsync(cat, null, ct));
+            existingGlobal.AddRange(await settingRepo.GetByCategoryAsync(cat, null, tenant.TenantId, ct));
 
         var existingUser = new List<AppSetting>();
         foreach (var cat in userCats)
-            existingUser.AddRange(await settingRepo.GetByCategoryAsync(cat, cmd.CurrentUserId, ct));
+            existingUser.AddRange(await settingRepo.GetByCategoryAsync(cat, cmd.CurrentUserId, tenant.TenantId, ct));
 
         // Upsert company-wide categories
         foreach (var (cat, kvp) in cmd.CategoryMap.Where(kv => !UserScopedCategories.Contains(kv.Key)))
@@ -45,7 +47,7 @@ public sealed class UpsertAllSettingsCommandHandler(
             {
                 var row = existingGlobal.FirstOrDefault(s => s.Category == normalCat && s.Key == key);
                 if (row is null)
-                    settingRepo.Add(new AppSetting(normalCat, key, value, cmd.CurrentUserEmail));
+                    settingRepo.Add(new AppSetting(normalCat, key, value, tenant.TenantId, cmd.CurrentUserEmail));
                 else
                     row.SetValue(value, cmd.CurrentUserEmail);
             }
@@ -59,7 +61,7 @@ public sealed class UpsertAllSettingsCommandHandler(
             {
                 var row = existingUser.FirstOrDefault(s => s.Category == normalCat && s.Key == key);
                 if (row is null)
-                    settingRepo.Add(new AppSetting(normalCat, key, value, cmd.CurrentUserId, cmd.CurrentUserEmail));
+                    settingRepo.Add(new AppSetting(normalCat, key, value, cmd.CurrentUserId, tenant.TenantId, cmd.CurrentUserEmail));
                 else
                     row.SetValue(value, cmd.CurrentUserEmail);
             }

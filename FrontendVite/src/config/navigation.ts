@@ -600,6 +600,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "vouchers", label: "Vouchers & Coupons", href: "/settings/vouchers", icon: "Ticket", module: "pos" },
           { id: "users", label: "Users", href: "/settings/users", icon: "Users" },
           { id: "roles", label: "Roles & Permissions", href: "/settings/roles", icon: "ShieldCheck" },
+          { id: "teams", label: "Teams", labelAr: "الفرق", href: "/settings/teams", icon: "Users" },
           { id: "security", label: "Security (2FA)", href: "/settings/security", icon: "ShieldCheck" },
           { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch" },
           { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug" },

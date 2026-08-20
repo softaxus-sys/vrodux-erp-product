@@ -14,7 +14,7 @@ namespace Softaxis.CRM.API.Controllers;
 public sealed class ActivitiesController(ISender sender) : CrmControllerBase
 {
     [HttpGet]
-    [RequireAnyPermission("crm.leads.view", "crm.leads-assigned.view")]
+    [RequireAnyPermission("crm.leads.view", "crm.leads-team.view", "crm.leads-assigned.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? relatedToType, [FromQuery] Guid? relatedToId,
         [FromQuery] bool? completed, [FromQuery] string? type, CancellationToken ct)
@@ -33,7 +33,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
 
     // Assigned-only lead users may log/manage activities on the leads they own (handler enforces ownership).
     [HttpPost]
-    [RequireAnyPermission("crm.leads.create", "crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission("crm.leads.create", "crm.leads.edit", "crm.leads-team.edit", "crm.leads-assigned.edit")]
     public async Task<IActionResult> Create([FromBody] CreateActivityCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -41,7 +41,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [RequireAnyPermission("crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission("crm.leads.edit", "crm.leads-team.edit", "crm.leads-assigned.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateActivityRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateActivityCommand(id, req.Type, req.Subject, req.Description, req.DueDate, req.AssignedTo), ct);
@@ -49,7 +49,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("{id:guid}/complete")]
-    [RequireAnyPermission("crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission("crm.leads.edit", "crm.leads-team.edit", "crm.leads-assigned.edit")]
     public async Task<IActionResult> Complete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new CompleteActivityCommand(id), ct);
@@ -57,7 +57,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     }
 
     [HttpPost("{id:guid}/reopen")]
-    [RequireAnyPermission("crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission("crm.leads.edit", "crm.leads-team.edit", "crm.leads-assigned.edit")]
     public async Task<IActionResult> Reopen(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new ReopenActivityCommand(id), ct);

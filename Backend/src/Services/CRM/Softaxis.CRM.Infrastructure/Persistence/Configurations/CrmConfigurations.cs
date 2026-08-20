@@ -76,6 +76,7 @@ internal sealed class CrmCustomerConfiguration : IEntityTypeConfiguration<CrmCus
     public void Configure(EntityTypeBuilder<CrmCustomer> builder)
     {
         builder.ToTable("customers");
+        builder.HasIndex(x => x.AccountManagerUserId);
         builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
         builder.Property(x => x.TradeName).HasMaxLength(200);
@@ -185,6 +186,7 @@ internal sealed class DealConfiguration : IEntityTypeConfiguration<Deal>
     public void Configure(EntityTypeBuilder<Deal> builder)
     {
         builder.ToTable("deals");
+        builder.HasIndex(x => x.AssignedToUserId);
         builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
         builder.Property(x => x.Company).IsRequired().HasMaxLength(200);

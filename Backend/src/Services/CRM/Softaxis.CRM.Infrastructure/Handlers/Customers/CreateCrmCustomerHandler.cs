@@ -14,7 +14,7 @@ internal sealed class CreateCrmCustomerHandler(CrmDbContext db, IAiEventBus aiEv
     public async Task<Result<CrmCustomerDto>> Handle(CreateCrmCustomerCommand cmd, CancellationToken ct)
     {
         var c = new CrmCustomer(cmd.Name, cmd.Industry, cmd.Country, cmd.City, cmd.Address,
-            cmd.Phone, cmd.Email, cmd.Tier, cmd.AccountManager, cmd.Description);
+            cmd.Phone, cmd.Email, cmd.Tier, cmd.AccountManager, cmd.Description, cmd.AccountManagerUserId);
 
         db.Customers.Add(c);
         await db.SaveChangesAsync(ct);

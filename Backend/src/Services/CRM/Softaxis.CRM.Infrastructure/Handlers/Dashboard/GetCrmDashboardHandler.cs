@@ -4,16 +4,20 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Dashboard.Dtos;
 using Softaxis.CRM.Application.Dashboard.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Dashboard;
 
-internal sealed class GetCrmDashboardHandler(CrmDbContext db) : IQueryHandler<GetCrmDashboardQuery, CrmDashboardDto>
+internal sealed class GetCrmDashboardHandler(CrmDbContext db, ILeadAccessGuard access) : IQueryHandler<GetCrmDashboardQuery, CrmDashboardDto>
 {
     public async Task<Result<CrmDashboardDto>> Handle(GetCrmDashboardQuery query, CancellationToken ct)
     {
         // Exclude soft-deleted rows so the dashboard counts match the Leads/Deals list + summary
         // (the tenant global filter overwrites any !IsDeleted entity filter, so filter manually).
-        var leads = await db.Leads.AsNoTracking().Where(l => !l.IsDeleted).Select(l => new { l.Status, l.Source, l.EstimatedValue }).ToListAsync(ct);
+        // Lead figures follow the caller's tier (all / their team / their own) so the dashboard
+        // cannot be used to infer totals for leads the user is not allowed to open.
+        // NOTE: deals are NOT lead-scoped — they have no per-tier model of their own yet.
+        var leads = await access.ScopeReadable(db.Leads.AsNoTracking()).Where(l => !l.IsDeleted).Select(l => new { l.Status, l.Source, l.EstimatedValue }).ToListAsync(ct);
         var deals = await db.Deals.AsNoTracking().Where(d => !d.IsDeleted).Select(d => new { d.Stage, d.Value }).ToListAsync(ct);
 
         string[] leadStages = ["new", "contacted", "qualified", "converted"];

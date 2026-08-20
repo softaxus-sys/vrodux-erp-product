@@ -21,10 +21,11 @@ export const userKeys = {
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
-export function useUsers(params: GetUsersParams = {}) {
+export function useUsers(params: GetUsersParams = {}, enabled = true) {
   return useQuery<PagedResult<UserSummaryDto>>({
     queryKey: userKeys.list(params),
     queryFn:  () => usersApi.getAll(params),
+    enabled,
   });
 }
 

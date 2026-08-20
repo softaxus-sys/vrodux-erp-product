@@ -4,14 +4,16 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Customers.Dtos;
 using Softaxis.CRM.Application.Customers.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Customers;
 
-internal sealed class GetCrmCustomersSummaryHandler(CrmDbContext db) : IQueryHandler<GetCrmCustomersSummaryQuery, CrmCustomersSummaryDto>
+internal sealed class GetCrmCustomersSummaryHandler(CrmDbContext db, ILeadAccessGuard access) : IQueryHandler<GetCrmCustomersSummaryQuery, CrmCustomersSummaryDto>
 {
     public async Task<Result<CrmCustomersSummaryDto>> Handle(GetCrmCustomersSummaryQuery query, CancellationToken ct)
     {
-        var all = await db.Customers.AsNoTracking().Where(x => !x.IsDeleted)
+        // Totals follow the caller's customers tier, so the stat cards agree with the list below.
+        var all = await access.ScopeCustomers(db.Customers.AsNoTracking()).Where(x => !x.IsDeleted)
             .Select(x => new { x.Status, x.Tier, x.TotalRevenue, x.OpenDeals, x.NpsScore }).ToListAsync(ct);
 
         var withNps = all.Where(x => x.NpsScore.HasValue).ToList();

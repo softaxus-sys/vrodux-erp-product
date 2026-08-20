@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
-import { useUsers } from "@/hooks/identity/use-users";
+import { useAssignableUsers } from "@/hooks/identity/use-teams";
 import { TIMEFRAME_OPTIONS, type LeadDto } from "@/lib/crm/crm.api";
 
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -29,11 +29,12 @@ interface AddLeadFormProps {
 export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const { t } = useTranslation("crm");
   const isEdit = !!editing;
-  // Real tenant users this lead can be assigned to. The Identity /users endpoint is
-  // tenant-scoped server-side (non-super-admins only get their own tenant's users);
-  // here we further limit to active accounts so you can't assign to a disabled user.
-  const { data: usersPage } = useUsers({ pageSize: 200 });
-  const assignableUsers = (usersPage?.items ?? []).filter(u => u.status?.toLowerCase() === "active");
+  // Who may be assigned is resolved by the server from the caller's tier: an admin gets every
+  // active user in the tenant, a team lead gets only their own team members, a plain member gets
+  // nobody. That keeps admin -> team lead -> member as the real routing path rather than a
+  // convention the UI merely suggests.
+  const { data: assignable = [] } = useAssignableUsers(open);
+  const assignableUsers = assignable.map(u => ({ id: u.userId, fullName: u.fullName }));
   const [firstName, setFirstName]     = React.useState("");
   const [lastName, setLastName]       = React.useState("");
   const [email, setEmail]             = React.useState("");

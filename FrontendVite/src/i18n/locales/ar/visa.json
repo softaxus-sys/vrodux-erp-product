@@ -1,0 +1,340 @@
+{
+  "cases": {
+    "title": "حالات التأشيرة",
+    "description": "إدارة معالجة طلبات التأشيرة",
+    "new": "حالة جديدة",
+    "search": "البحث برقم الحالة أو المتقدم أو النوع…",
+    "loading": "جاري تحميل حالات التأشيرة…",
+    "noResults": "لم يتم العثور على حالات تأشيرة.",
+    "filterAll": "الكل",
+    "board": "لوحة",
+    "list": "قائمة",
+    "showMore": "عرض {{count}} إضافية",
+    "loadMore": "تحميل المزيد",
+    "showing": "عرض {{shown}} من {{total}} حالة",
+    "dropHere": "أفلت هنا",
+    "noCases": "لا توجد حالات",
+    "overdue": "متأخرة",
+    "docs": "مستندات",
+    "invalidTransition": "لا يمكن نقل حالة {{from}} إلى {{to}}.",
+    "table": {
+      "caseNum": "رقم الحالة",
+      "applicant": "المتقدم",
+      "visaType": "نوع التأشيرة",
+      "emirate": "الإمارة",
+      "docs": "المستندات",
+      "fees": "الرسوم",
+      "slaDue": "موعد الاستحقاق",
+      "assignedTo": "مُسند إلى",
+      "status": "الحالة"
+    },
+    "status": {
+      "draft": "مسودة",
+      "docs_pending": "بانتظار المستندات",
+      "docs_complete": "المستندات مكتملة",
+      "submitted": "مقدمة",
+      "in_review": "قيد المراجعة",
+      "rfi_required": "مطلوب معلومات إضافية",
+      "approved": "معتمدة",
+      "issued": "صادرة",
+      "rejected": "مرفوضة",
+      "cancelled": "ملغاة",
+      "closed": "مغلقة"
+    },
+    "stats": {
+      "total": "إجمالي الحالات",
+      "totalSub": "كل الأوقات",
+      "open": "مفتوحة",
+      "openSub": "قيد التنفيذ",
+      "docsPending": "بانتظار المستندات",
+      "docsPendingSub": "بانتظار الأوراق",
+      "submitted": "مقدمة",
+      "submittedSub": "لدى الحكومة",
+      "approvedMonth": "معتمدة (الشهر)",
+      "approvedMonthSub": "هذا الشهر",
+      "openFees": "الرسوم المفتوحة",
+      "openFeesSub": "خدمة + حكومية"
+    }
+  },
+  "drawer": {
+    "tab": {
+      "overview": "نظرة عامة",
+      "applicants": "المتقدمون",
+      "documents": "المستندات",
+      "submissions": "التقديمات",
+      "timeline": "الجدول الزمني"
+    },
+    "govtRef": "المرجع الحكومي",
+    "rejected": "مرفوضة",
+    "serviceFee": "رسوم الخدمة",
+    "govtFee": "الرسوم الحكومية",
+    "billing": "الفوترة",
+    "invoiceNumber": "فاتورة {{number}}",
+    "viewInFinance": "{{amount}} · عرض في المالية",
+    "noInvoice": "لم يتم إصدار فاتورة بعد.",
+    "generateInvoice": "إنشاء فاتورة مسودة — {{amount}}",
+    "notes": "الملاحظات",
+    "field": {
+      "emirate": "الإمارة",
+      "channel": "القناة",
+      "priority": "الأولوية",
+      "assignedTo": "مُسند إلى",
+      "slaDue": "موعد الاستحقاق",
+      "visaExpiry": "انتهاء التأشيرة",
+      "created": "تاريخ الإنشاء"
+    },
+    "applicant": {
+      "passport": "جواز السفر",
+      "nationality": "الجنسية",
+      "expiry": "انتهاء الصلاحية",
+      "dob": "تاريخ الميلاد",
+      "eid": "الهوية الإماراتية",
+      "uid": "الرقم الموحد"
+    },
+    "addDocPlaceholder": "أضف مستندًا مطلوبًا…",
+    "caseLevel": "على مستوى الحالة",
+    "expires": "تنتهي في",
+    "noDocuments": "لا توجد مستندات مطلوبة في هذه الحالة.",
+    "notePlaceholder": "سجّل ملاحظة…",
+    "docStatus": {
+      "pending": "معلق",
+      "received": "مستلم",
+      "verified": "موثّق",
+      "rejected": "مرفوض",
+      "expired": "منتهي الصلاحية"
+    },
+    "submissions": {
+      "title": "التقديمات الحكومية",
+      "record": "تسجيل",
+      "refPlaceholder": "المرجع الحكومي (اختياري)…",
+      "empty": "لم يتم تسجيل تقديمات حكومية بعد.",
+      "type": {
+        "entry_permit": "تصريح دخول",
+        "status_change": "تغيير الوضع",
+        "emirates_id": "الهوية الإماراتية",
+        "stamping": "الختم",
+        "medical": "الفحص الطبي",
+        "other": "أخرى"
+      },
+      "status": {
+        "submitted": "مقدم",
+        "in_review": "قيد المراجعة",
+        "approved": "معتمد",
+        "rejected": "مرفوض",
+        "completed": "مكتمل"
+      }
+    },
+    "prompt": {
+      "submittedTitle": "وضع علامة كمقدمة",
+      "issuedTitle": "إصدار التأشيرة",
+      "rejectedTitle": "رفض الحالة",
+      "submittedHint": "أدخل الرقم المرجعي من البوابة الحكومية (اختياري).",
+      "issuedHint": "أدخل تاريخ انتهاء التأشيرة الصادرة ليظهر في التجديدات (اختياري).",
+      "rejectedHint": "لماذا تم رفض هذا الطلب؟",
+      "submittedPlaceholder": "مثال: رقم طلب eDNRD…",
+      "rejectedPlaceholder": "سبب الرفض…",
+      "submitConfirm": "تأكيد التقديم",
+      "issueConfirm": "إصدار التأشيرة",
+      "rejectConfirm": "رفض"
+    },
+    "deleteTitle": "حذف الحالة؟",
+    "deleteBodyPrefix": "سيؤدي هذا إلى حذف",
+    "deleteBodySuffix": "وقائمة مستنداتها. لا يمكن التراجع عن هذا الإجراء.",
+    "button": {
+      "add": "إضافة",
+      "delete": "حذف",
+      "cancel": "إلغاء"
+    }
+  },
+  "wizard": {
+    "title": "حالة تأشيرة جديدة",
+    "stepLabel": "الخطوة {{step}} من 2 — {{name}}",
+    "step1": "نوع التأشيرة والتفاصيل",
+    "step2": "المتقدمون",
+    "visaType": "نوع التأشيرة *",
+    "selectType": "اختر نوع التأشيرة…",
+    "processingTime": "مدة المعالجة",
+    "processingDays": "~{{count}} يوم",
+    "docsHint": "{{count}} مستند مطلوب لكل متقدم — يتم إنشاء القائمة تلقائيًا.",
+    "emirate": "الإمارة",
+    "priority": "الأولوية",
+    "account": "الحساب / العميل",
+    "accountPlaceholder": "ابحث في حسابات CRM أو اكتب اسم العميل…",
+    "linked": "مرتبط",
+    "unlink": "إلغاء ربط الحساب",
+    "assignedPro": "المندوب المسؤول",
+    "proPlaceholder": "اسم المندوب…",
+    "serviceFee": "رسوم الخدمة ({{currency}})",
+    "govtFee": "الرسوم الحكومية ({{currency}})",
+    "notes": "الملاحظات",
+    "notesPlaceholder": "خلفية الحالة، تفاصيل الكفيل…",
+    "invoiceTitle": "إنشاء فاتورة مسودة في المالية",
+    "invoiceHint": "رسوم الخدمة والرسوم الحكومية كبنود، مرتبطة بهذه الحالة.",
+    "removeApplicant": "إزالة المتقدم",
+    "firstName": "الاسم الأول *",
+    "lastName": "اسم العائلة",
+    "nationality": "الجنسية *",
+    "passportNumber": "رقم جواز السفر *",
+    "passportExpiry": "انتهاء جواز السفر",
+    "dateOfBirth": "تاريخ الميلاد",
+    "priorityValue": {
+      "low": "منخفضة",
+      "medium": "متوسطة",
+      "high": "عالية"
+    },
+    "relationship": {
+      "primary": "أساسي",
+      "spouse": "الزوج/الزوجة",
+      "child": "ابن/ابنة",
+      "parent": "أحد الوالدين",
+      "other": "أخرى"
+    },
+    "button": {
+      "cancel": "إلغاء",
+      "back": "رجوع",
+      "next": "المتقدمون",
+      "addDependent": "إضافة معال",
+      "create": "إنشاء الحالة — {{total}}"
+    }
+  },
+  "dashboard": {
+    "title": "لوحة تحكم التأشيرات",
+    "description": "مسار الحالات وعبء العمل والإيرادات وانتهاء الصلاحية القادم",
+    "loading": "جاري تحميل لوحة التأشيرات…",
+    "byStatus": "الحالات حسب الوضع",
+    "byType": "الحالات حسب نوع التأشيرة",
+    "revenueByType": "الإيرادات حسب نوع التأشيرة",
+    "workload": "عبء عمل المندوبين (الحالات المفتوحة)",
+    "noCases": "لا توجد حالات بعد.",
+    "noRevenue": "لا توجد إيرادات بعد.",
+    "noWorkload": "لا توجد حالات مفتوحة مُسندة.",
+    "expiryBanner": "{{visas}} تأشيرة و{{passports}} جواز سفر تنتهي صلاحيتها خلال 90 يومًا، بالإضافة إلى {{documents}} مستند خلال 30 يومًا — راجع صفحة التجديدات.",
+    "stats": {
+      "total": "إجمالي الحالات",
+      "totalSub": "كل الأوقات",
+      "open": "مفتوحة",
+      "openSub": "قيد التنفيذ",
+      "overdue": "متأخرة",
+      "overdueSub": "تجاوزت الموعد",
+      "dueThisWeek": "مستحقة هذا الأسبوع",
+      "dueThisWeekSub": "الأيام السبعة القادمة",
+      "expiringVisas": "تأشيرات منتهية",
+      "expiringVisasSub": "خلال 90 يومًا",
+      "openFees": "الرسوم المفتوحة",
+      "openFeesSub": "خدمة + حكومية"
+    }
+  },
+  "renewals": {
+    "title": "التجديدات وانتهاء الصلاحية",
+    "description": "جوازات السفر والمستندات المستحقة — تصرّف قبل أن تعيق المعالجة",
+    "search": "البحث عن متقدم أو حالة أو نوع…",
+    "loading": "جاري التحميل…",
+    "loadingMore": "جاري تحميل المزيد…",
+    "emptyState": "لا شيء تنتهي صلاحيته خلال {{days}} يوم. 🎉",
+    "showing": "عرض {{shown}} من {{total}}",
+    "daysOverdue": "متأخر {{count}} يوم",
+    "daysLeft": "متبقٍ {{count}} يوم",
+    "stats": {
+      "expiring": "العناصر المنتهية",
+      "overdue": "متأخرة",
+      "visas": "التأشيرات",
+      "passports": "جوازات السفر"
+    },
+    "table": {
+      "item": "العنصر",
+      "case": "الحالة",
+      "visaType": "نوع التأشيرة",
+      "expiry": "انتهاء الصلاحية",
+      "urgency": "الإلحاح",
+      "caseStatus": "حالة الملف",
+      "assignedTo": "مُسند إلى"
+    }
+  },
+  "types": {
+    "title": "أنواع التأشيرات",
+    "description": "كتالوج التأشيرات — الرسوم ومدة المعالجة والمستندات المطلوبة",
+    "search": "البحث في الأنواع أو المستندات…",
+    "loading": "جاري تحميل أنواع التأشيرات…",
+    "emptyState": "لم يتم العثور على أنواع تأشيرات.",
+    "filterAll": "الكل",
+    "processingDays": "~{{count}} يوم",
+    "govtFee": "حكومية {{amount}}",
+    "serviceFee": "خدمة {{amount}}",
+    "documentCount": "{{count}} مستند",
+    "requiredDocs": "المستندات المطلوبة (لكل متقدم)",
+    "toggleDocs": "إظهار/إخفاء المستندات",
+    "deleteTitle": "إزالة نوع التأشيرة؟",
+    "deleteBody": "لن يكون متاحًا للاختيار في الحالات الجديدة. تحتفظ الحالات الحالية بنوعها.",
+    "category": {
+      "employment": "عمل",
+      "family": "عائلية",
+      "visit": "زيارة",
+      "golden": "ذهبية",
+      "student": "دراسية",
+      "freelance": "عمل حر",
+      "other": "أخرى"
+    },
+    "button": {
+      "new": "نوع جديد",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "cancel": "إلغاء",
+      "remove": "إزالة"
+    },
+    "form": {
+      "titleNew": "نوع تأشيرة جديد",
+      "titleEdit": "تعديل نوع التأشيرة",
+      "subtitle": "الرسوم ومدة المعالجة وقائمة المستندات",
+      "name": "الاسم *",
+      "namePlaceholder": "مثال: تأشيرة عمل — جديدة",
+      "category": "الفئة",
+      "channel": "القناة",
+      "govtFee": "الرسوم الحكومية ({{currency}})",
+      "serviceFee": "رسوم الخدمة ({{currency}})",
+      "processingDays": "أيام المعالجة",
+      "requiredDocs": "المستندات المطلوبة (لكل متقدم)",
+      "addDocPlaceholder": "أضف مستندًا…",
+      "noDocs": "لا توجد مستندات بعد — أضف عناصر القائمة التي يجب على المتقدمين تقديمها.",
+      "button": {
+        "add": "إضافة",
+        "remove": "إزالة",
+        "cancel": "إلغاء",
+        "save": "حفظ التغييرات",
+        "create": "إنشاء النوع"
+      }
+    }
+  },
+  "channels": {
+    "title": "القنوات الحكومية",
+    "description": "اربط قنوات التقديم التي تم تسجيل شركتك فيها. لا توجد واجهات برمجية حكومية مفتوحة للتأشيرات في الإمارات — الوضع اليدوي متاح اليوم، والباقي يُفعَّل عند إتمام الشراكات.",
+    "loading": "جاري تحميل القنوات…",
+    "connected": "متصل",
+    "comingSoonHint": "سيكون متاحًا بمجرد إتمام شراكة القناة.",
+    "readyHint": "جاهز — لا يحتاج إعدادًا.",
+    "askAdmin": "اطلب من المسؤول ربط هذه القناة.",
+    "status": {
+      "active": "متاح",
+      "beta": "تجريبي",
+      "coming_soon": "قريباً"
+    },
+    "button": {
+      "connect": "ربط",
+      "reconfigure": "إعادة التهيئة",
+      "disconnect": "قطع الاتصال",
+      "cancel": "إلغاء",
+      "save": "حفظ الاتصال"
+    },
+    "drawer": {
+      "title": "ربط {{name}}",
+      "subtitle": "بيانات الاعتماد مشفّرة عند التخزين",
+      "establishmentCard": "بطاقة المنشأة",
+      "establishmentCardPlaceholder": "رقم المنشأة / الرخصة التجارية",
+      "accountRef": "مرجع الحساب / المستخدم",
+      "accountRefPlaceholder": "حساب القناة / معرّف المستخدم",
+      "secret": "المفتاح السري / مفتاح API",
+      "secretKeep": "(اتركه فارغًا للإبقاء عليه)",
+      "secretPlaceholderUnchanged": "•••••• (دون تغيير)",
+      "secretPlaceholder": "رمز أو مفتاح API"
+    }
+  }
+}

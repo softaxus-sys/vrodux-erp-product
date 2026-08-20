@@ -1,16 +1,17 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Application.AppSettings.Queries.GetAllSettings;
 
-public sealed class GetAllSettingsQueryHandler(IAppSettingRepository settingRepo)
+public sealed class GetAllSettingsQueryHandler(IAppSettingRepository settingRepo, ITenantContext tenant)
     : IQueryHandler<GetAllSettingsQuery, Dictionary<string, Dictionary<string, string>>>
 {
     public async Task<Result<Dictionary<string, Dictionary<string, string>>>> Handle(
         GetAllSettingsQuery query, CancellationToken ct)
     {
-        var rows = await settingRepo.GetAllForUserAsync(query.CurrentUserId, ct);
+        var rows = await settingRepo.GetAllForUserAsync(query.CurrentUserId, tenant.TenantId, ct);
 
         // Per category, user-specific rows override company-wide defaults.
         // GroupBy key within each category to prevent ArgumentException on duplicate keys.

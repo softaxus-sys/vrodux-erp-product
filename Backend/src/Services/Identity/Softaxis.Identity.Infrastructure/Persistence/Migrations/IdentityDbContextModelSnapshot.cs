@@ -38,6 +38,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -1165,6 +1168,76 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit crm leads-assigned",
                             ModuleId = "crm.leads-assigned"
+                        },
+                        new
+                        {
+                            Id = new Guid("f3f30678-7be8-0d95-429f-9f09c063f315"),
+                            Action = "view",
+                            Description = "View crm leads-team",
+                            ModuleId = "crm.leads-team"
+                        },
+                        new
+                        {
+                            Id = new Guid("09302f28-cee0-2e66-0aa0-1fbefda7c563"),
+                            Action = "edit",
+                            Description = "Edit crm leads-team",
+                            ModuleId = "crm.leads-team"
+                        },
+                        new
+                        {
+                            Id = new Guid("55782c45-9440-a19a-e23c-8707dc070cc7"),
+                            Action = "view",
+                            Description = "View crm pipeline-assigned",
+                            ModuleId = "crm.pipeline-assigned"
+                        },
+                        new
+                        {
+                            Id = new Guid("1e2be0c0-79c2-c14b-a19b-039c153b6628"),
+                            Action = "edit",
+                            Description = "Edit crm pipeline-assigned",
+                            ModuleId = "crm.pipeline-assigned"
+                        },
+                        new
+                        {
+                            Id = new Guid("c715d2f9-ddb8-750e-499f-ead5e3157eee"),
+                            Action = "view",
+                            Description = "View crm pipeline-team",
+                            ModuleId = "crm.pipeline-team"
+                        },
+                        new
+                        {
+                            Id = new Guid("f85dcbd8-c106-a1e9-35d5-4936769cb0b4"),
+                            Action = "edit",
+                            Description = "Edit crm pipeline-team",
+                            ModuleId = "crm.pipeline-team"
+                        },
+                        new
+                        {
+                            Id = new Guid("687257f1-ed91-e4ad-c30c-fbeb8d916cec"),
+                            Action = "view",
+                            Description = "View crm customers-assigned",
+                            ModuleId = "crm.customers-assigned"
+                        },
+                        new
+                        {
+                            Id = new Guid("652a770e-899d-06c3-f5fd-ed669afd9707"),
+                            Action = "edit",
+                            Description = "Edit crm customers-assigned",
+                            ModuleId = "crm.customers-assigned"
+                        },
+                        new
+                        {
+                            Id = new Guid("21661683-765b-ba41-8ac9-ec2031d5a40e"),
+                            Action = "view",
+                            Description = "View crm customers-team",
+                            ModuleId = "crm.customers-team"
+                        },
+                        new
+                        {
+                            Id = new Guid("bd393bcb-131c-928e-7ccb-4c4f77a443cb"),
+                            Action = "edit",
+                            Description = "Edit crm customers-team",
+                            ModuleId = "crm.customers-team"
                         },
                         new
                         {
@@ -2605,6 +2678,73 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("subscription_invoices", "identity");
                 });
 
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.Team", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid?>("TeamLeadUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeamLeadUserId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL");
+
+                    b.ToTable("teams", "identity");
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.TeamMember", b =>
+                {
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("TeamId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("team_members", "identity");
+                });
+
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2951,6 +3091,15 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.TeamMember", b =>
+                {
+                    b.HasOne("Softaxis.Identity.Domain.Entities.Team", null)
+                        .WithMany("Members")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.User", b =>
                 {
                     b.HasOne("Softaxis.Identity.Domain.Entities.Tenant", null)
@@ -3002,6 +3151,11 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.Navigation("RolePermissions");
 
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.Team", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.User", b =>

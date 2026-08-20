@@ -161,6 +161,9 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// live vertical tenant.
     /// </para>
     /// </summary>
+    /// <summary>Modules every tenant always has, regardless of plan or onboarding choices.</summary>
+    public static readonly IReadOnlyList<string> AlwaysOnModules = ["settings", "users"];
+
     public IReadOnlyList<string> ResolvedModules
     {
         get
@@ -182,6 +185,14 @@ public sealed class Tenant : AuditableEntity<Guid>
                 if (!list.Contains("crm"))  list.Add("crm");
                 if (!list.Contains(pack))   list.Add(pack);
             }
+
+            // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
+            // manage billing. Locking them behind a plan or an onboarding checkbox would leave an
+            // admin unable to add a single user, so they are on for every tenant on every plan and
+            // cannot be switched off.
+            foreach (var m in AlwaysOnModules)
+                if (!list.Contains(m, StringComparer.OrdinalIgnoreCase)) list.Add(m);
+
             return list;
         }
     }

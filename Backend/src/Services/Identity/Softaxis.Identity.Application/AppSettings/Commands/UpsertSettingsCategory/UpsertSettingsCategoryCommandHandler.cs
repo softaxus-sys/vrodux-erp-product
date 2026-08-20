@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Repositories;
 
@@ -7,7 +8,8 @@ namespace Softaxis.Identity.Application.AppSettings.Commands.UpsertSettingsCateg
 
 public sealed class UpsertSettingsCategoryCommandHandler(
     IAppSettingRepository settingRepo,
-    IUnitOfWork           uow)
+    IUnitOfWork           uow,
+    ITenantContext        tenant)
     : ICommandHandler<UpsertSettingsCategoryCommand, Dictionary<string, string>>
 {
     private static readonly HashSet<string> UserScopedCategories =
@@ -23,7 +25,7 @@ public sealed class UpsertSettingsCategoryCommandHandler(
         var cat    = cmd.Category.Trim().ToLowerInvariant();
         var userId = UserScopedCategories.Contains(cat) ? cmd.CurrentUserId : null;
 
-        var existing = await settingRepo.GetByCategoryAsync(cat, userId, ct);
+        var existing = await settingRepo.GetByCategoryAsync(cat, userId, tenant.TenantId, ct);
 
         foreach (var (key, value) in cmd.KeyValues)
         {
@@ -31,8 +33,8 @@ public sealed class UpsertSettingsCategoryCommandHandler(
             if (row is null)
             {
                 settingRepo.Add(userId is null
-                    ? new AppSetting(cat, key, value, cmd.CurrentUserEmail)
-                    : new AppSetting(cat, key, value, userId, cmd.CurrentUserEmail));
+                    ? new AppSetting(cat, key, value, tenant.TenantId, cmd.CurrentUserEmail)
+                    : new AppSetting(cat, key, value, userId, tenant.TenantId, cmd.CurrentUserEmail));
             }
             else
             {
@@ -43,7 +45,7 @@ public sealed class UpsertSettingsCategoryCommandHandler(
         await uow.SaveChangesAsync(ct);
 
         // Return updated category
-        var updated = await settingRepo.GetByCategoryAsync(cat, userId, ct);
+        var updated = await settingRepo.GetByCategoryAsync(cat, userId, tenant.TenantId, ct);
         var result  = updated.ToDictionary(r => r.Key, r => r.Value);
 
         return Result.Success(result);

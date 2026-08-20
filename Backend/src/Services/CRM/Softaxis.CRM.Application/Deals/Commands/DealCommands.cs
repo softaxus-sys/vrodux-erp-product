@@ -8,7 +8,7 @@ public sealed record CreateDealCommand(
     string Title, string Company, decimal Value, string Stage, string Priority,
     int Probability, string ExpectedCloseDate, string AssignedTo, string Source,
     string Industry, string Description, string? ForecastCategory = null,
-    Guid? CustomerId = null) : ICommand<DealDto>;
+    Guid? CustomerId = null, Guid? AssignedToUserId = null) : ICommand<DealDto>;
 
 public sealed class CreateDealValidator : AbstractValidator<CreateDealCommand>
 {
@@ -24,7 +24,7 @@ public sealed record UpdateDealCommand(
     Guid Id, string Title, string Company, decimal Value, string Stage, string Priority,
     int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry,
     string Description, string? NextAction, string? NextActionDate, List<string>? Tags,
-    string? ForecastCategory = null, Guid? CustomerId = null) : ICommand;
+    string? ForecastCategory = null, Guid? CustomerId = null, Guid? AssignedToUserId = null) : ICommand;
 
 public sealed class UpdateDealValidator : AbstractValidator<UpdateDealCommand>
 {

@@ -55,6 +55,11 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
             .ToList();
         TenantIsolation.ApplyTenantId(modelBuilder, this, tenantOwned);
 
+        // Read-only cross-schema views of Identity's teams, used by LeadAccessGuard for the
+        // team-lead visibility tier. Mapped after ApplyTenantId and outside the CRM.Domain
+        // namespace, so they get no shadow TenantId and no tenant query filter.
+        modelBuilder.MapIdentityTeamViews();
+
         base.OnModelCreating(modelBuilder);
     }
 

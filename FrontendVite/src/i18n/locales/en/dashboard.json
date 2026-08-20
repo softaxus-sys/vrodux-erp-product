@@ -1,0 +1,193 @@
+{
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening"
+  },
+  "hero": {
+    "workspace": "Your workspace",
+    "subtitleAdmin": "Here's a live overview of your business today.",
+    "subtitleCrm": "Your leads, pipeline, and customers at a glance.",
+    "subtitleDefault": "Here's what's happening in your workspace today."
+  },
+  "stat": {
+    "totalLeads": "Total Leads",
+    "newThisWeek": "{{count}} new this week",
+    "pipelineValue": "Pipeline Value",
+    "openDeals": "{{count}} open deals",
+    "customers": "Customers",
+    "activeCount": "{{count}} active",
+    "conversionRate": "Conversion Rate",
+    "leadsConverted": "{{count}} leads converted",
+    "revenuePaid": "Revenue (Paid)",
+    "ofBilled": "of {{amount}} billed",
+    "outstanding": "Outstanding",
+    "overdue": "{{amount}} overdue",
+    "employees": "Employees",
+    "presentToday": "Present Today",
+    "absentLeave": "{{absent}} absent · {{leave}} leave requests",
+    "teamMembers": "Team Members",
+    "rolesCount": "{{count}} roles",
+    "yourPermissions": "Your Permissions"
+  },
+  "attendance": {
+    "title": "Today's Attendance",
+    "ofEmployees": "{{pct}}% of {{total}} employees",
+    "loading": "Loading attendance…",
+    "percentPresent": "{{pct}}% present",
+    "present": "Present",
+    "absent": "Absent",
+    "late": "Late",
+    "onLeave": "On Leave"
+  },
+  "payroll": {
+    "title": "Payroll — {{month}}",
+    "summary": "{{paid}} paid · {{pending}} pending",
+    "loading": "Loading payroll data…",
+    "netThisMonth": "Net Payroll (This Month)",
+    "employeesPaid": "Employees Paid",
+    "paidRuns": "Paid Runs",
+    "totalRuns": "Total Runs"
+  },
+  "quickActions": {
+    "title": "Quick Actions",
+    "subtitle": "Jump straight into your day",
+    "newLead": "New Lead",
+    "addDeal": "Add Deal",
+    "newCustomer": "New Customer",
+    "newOrder": "New Order",
+    "newInvoice": "New Invoice",
+    "addProduct": "Add Product",
+    "addEmployee": "Add Employee",
+    "settings": "Settings"
+  },
+  "activity": {
+    "title": "Recent Activity",
+    "subtitle": "System audit trail",
+    "liveFeed": "Live feed across all modules",
+    "by": "by {{user}}",
+    "empty": "No recent activity yet."
+  },
+  "pipeline": {
+    "title": "Sales Pipeline",
+    "snapshotTitle": "Snapshot",
+    "subtitle": "Deal health this period",
+    "snapshotSubtitle": "Key numbers",
+    "openValue": "Open pipeline value",
+    "wonValue": "Won value",
+    "winRate": "Win rate",
+    "avgDealSize": "Avg deal size",
+    "qualifiedLeads": "Qualified leads",
+    "viewPipeline": "View pipeline",
+    "teamMembers": "Team members",
+    "roles": "Roles",
+    "yourPermissions": "Your permissions"
+  },
+  "charts": {
+    "series": {
+      "revenue": "Revenue",
+      "expenses": "Expenses",
+      "netProfit": "Net Profit",
+      "employees": "Employees",
+      "present": "Present",
+      "absent": "Absent",
+      "late": "Late",
+      "orderValue": "Order Value",
+      "newLeads": "New Leads",
+      "converted": "Converted",
+      "inStock": "In Stock",
+      "lowStock": "Low Stock",
+      "outOfStock": "Out of Stock",
+      "sales": "Sales",
+      "orders": "Orders",
+      "amount": "Amount ({{currency}})",
+      "rooms": "Rooms"
+    },
+    "finance": {
+      "title": "Finance Overview",
+      "desc": "YTD · Revenue {{revenue}} · Net Profit {{margin}}%",
+      "revVsExp": "Revenue vs Expenses",
+      "revVsExpDesc": "Monthly trend · {{currency}}",
+      "breakdown": "Expense Breakdown",
+      "breakdownDesc": "By category · this year",
+      "breakdownEmpty": "No expenses recorded yet.",
+      "netProfit": "Net Profit Trend",
+      "netProfitDesc": "Monthly profit (revenue − expenses)"
+    },
+    "hr": {
+      "title": "HR Overview",
+      "desc": "{{employees}} employees · {{leaves}} leave requests",
+      "headcount": "Department Headcount",
+      "headcountDesc": "Employees per department",
+      "headcountEmpty": "No employees yet.",
+      "leaveTypes": "Leave Types",
+      "leaveTypesDesc": "Requests by leave type",
+      "leaveTypesEmpty": "No leave requests yet.",
+      "weekly": "Weekly Attendance",
+      "weeklyDesc": "Present / Absent / Late breakdown this week",
+      "weeklyEmpty": "No attendance recorded this week."
+    },
+    "sales": {
+      "title": "Sales Overview",
+      "desc": "{{orders}} orders · {{value}} this year",
+      "monthly": "Monthly Sales",
+      "monthlyDesc": "Order value by month · {{currency}}",
+      "monthlyEmpty": "No sales orders yet.",
+      "status": "Order Status",
+      "statusDesc": "Orders by current status"
+    },
+    "crm": {
+      "title": "CRM Overview",
+      "desc": "{{leads}} leads · {{deals}} deals · {{pipeline}} open pipeline",
+      "acquisition": "Lead Acquisition & Conversion",
+      "acquisitionDesc": "Monthly new leads vs converted · {{year}}",
+      "stages": "Lead Stage Distribution",
+      "stagesDesc": "Leads by current status",
+      "stagesEmpty": "No leads yet."
+    },
+    "inventory": {
+      "title": "Inventory Overview",
+      "desc": "{{count}} products tracked",
+      "stockLevels": "Stock Levels by Category",
+      "stockLevelsDesc": "In stock · Low stock · Out of stock",
+      "stockLevelsEmpty": "No products yet.",
+      "valuation": "Inventory Valuation",
+      "valuationDesc": "At cost · by category · {{currency}}",
+      "valuationEmpty": "No stock valuation yet."
+    },
+    "pos": {
+      "title": "POS Overview",
+      "desc": "Today · {{count}} transactions · {{sales}} sales",
+      "hourly": "Hourly Sales (Today)",
+      "hourlyDesc": "Sales amount by hour · {{currency}}",
+      "hourlyEmpty": "No sales recorded today.",
+      "methods": "Payment Methods",
+      "methodsDesc": "Transaction split by method",
+      "methodsEmpty": "No transactions yet."
+    },
+    "purchase": {
+      "title": "Purchase Overview",
+      "desc": "{{count}} purchase orders",
+      "monthly": "Monthly Purchase Orders",
+      "monthlyDesc": "Order count & total amount · {{currency}}",
+      "monthlyEmpty": "No purchase orders yet.",
+      "topVendors": "Top Vendors",
+      "topVendorsDesc": "By purchase amount · {{currency}}",
+      "topVendorsEmpty": "No vendor spend yet."
+    },
+    "hospitality": {
+      "title": "Hospitality Overview",
+      "desc": "{{rooms}} rooms · {{bookings}} bookings",
+      "roomsByStatus": "Rooms by Status",
+      "roomsByStatusDesc": "Current room availability",
+      "roomsEmpty": "No rooms yet.",
+      "bookingsByStatus": "Bookings by Status",
+      "bookingsByStatusDesc": "Reservation status split",
+      "bookingsEmpty": "No bookings yet."
+    },
+    "none": {
+      "title": "No chart data available",
+      "desc": "Charts appear when your role has access to Finance, HR, Sales, Inventory, POS, or other modules."
+    }
+  }
+}
