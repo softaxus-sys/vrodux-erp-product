@@ -21,6 +21,7 @@ using Softaxis.Hospitality.Infrastructure.Extensions;
 using Softaxis.Restaurant.Infrastructure.Extensions;
 using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
+using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
@@ -72,12 +73,6 @@ try
     ]);
 
     // ── Infrastructure — all 5 services ──────────────────────────────────────
-    // AI event bus: no-op fallback so producers (CRM lead/customer handlers, intake
-    // service) can always be constructed even though the AI Assistant module isn't
-    // wired into the gateway. The real durable bus (AiAssistant) would override this.
-    builder.Services.AddSingleton<
-        Softaxis.BuildingBlocks.Application.AiEvents.IAiEventBus,
-        Softaxis.BuildingBlocks.Application.AiEvents.NullAiEventBus>();
     // Identity: registers DbContext, repos, JWT auth, BCrypt, JwtSettings
     builder.Services.AddIdentityInfrastructure(builder.Configuration);
     // POS: registers DbContext, repos, ReportService
@@ -88,6 +83,10 @@ try
         builder.Configuration.GetSection("PrinterSettings"));
     builder.Services.Configure<Softaxis.POS.Application.Abstractions.DiscountSettings>(
         builder.Configuration.GetSection("DiscountSettings"));
+    // AI event bus fallback (M4b): a no-op so producers can always inject IAiEventBus. The AI Assistant
+    // service registers the real durable-inbox implementation later (last registration wins).
+    builder.Services.AddScoped<Softaxis.BuildingBlocks.Application.AiEvents.IAiEventBus,
+                               Softaxis.BuildingBlocks.Application.AiEvents.NullAiEventBus>();
     // Simple services: just DbContext registration
     builder.Services.AddInventoryInfrastructure(builder.Configuration);
     builder.Services.AddSalesInfrastructure(builder.Configuration);
@@ -101,6 +100,8 @@ try
     builder.Services.AddRestaurantInfrastructure(builder.Configuration);
     builder.Services.AddRecipeInfrastructure(builder.Configuration);
     builder.Services.AddProjectManagementInfrastructure(builder.Configuration);
+    // AI Assistant: DbContext, provider abstraction (Claude/Groq), orchestrator, tools
+    builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
     builder.Services.AddVisaServicesInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
@@ -135,6 +136,11 @@ try
         Softaxis.ProjectManagement.Application.Abstractions.ICurrentUser,
         Softaxis.ProjectManagement.API.Middleware.CurrentUserService>();
 
+    // AiAssistant.Application.Abstractions.ICurrentUser  →  AiAssistant CurrentUserService
+    builder.Services.AddScoped<
+        Softaxis.AiAssistant.Application.Abstractions.ICurrentUser,
+        Softaxis.AiAssistant.API.Middleware.CurrentUserService>();
+
     // CRM.Application.Abstractions.ICurrentUser  →  CRM CurrentUserService (lead access scoping)
     builder.Services.AddScoped<
         Softaxis.CRM.Application.Abstractions.ICurrentUser,
@@ -167,6 +173,7 @@ try
         .AddApplicationPart(typeof(Softaxis.Restaurant.API.Controllers.TablesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Recipe.API.Controllers.RecipesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly);
 
     // ── Authorization + OpenAPI ───────────────────────────────────────────────
@@ -214,6 +221,7 @@ try
         await app.Services.MigrateAndSeedRestaurantAsync();     // Restaurant POS
         await app.Services.MigrateAndSeedRecipeAsync();         // Recipe
         await app.Services.MigrateAndSeedProjectManagementAsync(); // Project Management
+        await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
         await app.Services.MigrateAndSeedVisaServicesAsync();       // Visa Services
     }
 
