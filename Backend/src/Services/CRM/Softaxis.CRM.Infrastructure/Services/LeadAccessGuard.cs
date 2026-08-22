@@ -54,6 +54,14 @@ public interface ILeadAccessGuard
     /// rather than a team they have no business seeing.
     /// </summary>
     Task<IReadOnlyList<VisibleTeam>> VisibleTeamsAsync(CancellationToken ct);
+
+    /// <summary>
+    /// The caller's team when that is unambiguous — i.e. they belong to exactly one active team.
+    /// Null when they belong to none, or to several (filing then needs an explicit choice, since
+    /// guessing would hide the record from a team lead who legitimately had it). Used to file a
+    /// record the caller just created without asking them a question they usually can't answer wrong.
+    /// </summary>
+    Task<Guid?> SoleTeamOfCurrentUserAsync(CancellationToken ct);
 }
 
 /// <summary>One team the caller may report on, with the user ids belonging to it.</summary>
@@ -74,8 +82,19 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
     public bool CanEditTeam     => Team("leads", "edit");
     public bool CanEditAssigned => Assigned("leads", "edit");
 
-    private bool CanManageActivitiesFreely =>
-        user.IsSuperAdmin || user.HasPermission("crm.leads.create") || user.HasPermission("crm.leads.edit");
+    /// <summary>
+    /// Tenant-wide authority over one CRM area. Used as a fast path before the per-record checks.
+    /// <para>
+    /// Deliberately takes the AREA. It used to be a single lead-only check applied to every target
+    /// type, which meant anyone holding <c>crm.leads.edit</c> could manage activities and documents on
+    /// opportunities and accounts they had no permission to see — the wrong module's key granting
+    /// access to another module's records.
+    /// </para>
+    /// </summary>
+    private bool CanManageFreely(string area) =>
+        user.IsSuperAdmin
+        || user.HasPermission($"crm.{area}.create")
+        || user.HasPermission($"crm.{area}.edit");
 
     private bool CanSeeAllActivities => user.IsSuperAdmin || user.HasPermission("crm.leads.view");
 
@@ -212,7 +231,6 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
     // ── Activities ───────────────────────────────────────────────────────────
     public async Task<bool> CanManageActivityAsync(string? relatedToType, Guid relatedToId, CancellationToken ct)
     {
-        if (CanManageActivitiesFreely) return true;
         if (user.Id is not { } uid) return false;
 
         var type = relatedToType?.Trim().ToLowerInvariant();
@@ -220,6 +238,7 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
         // An activity or document inherits the permissions of the record it hangs off.
         if (type == "deal")
         {
+            if (CanManageFreely("pipeline")) return true;
             var rec = await db.Deals.AsNoTracking().Where(d => d.Id == relatedToId)
                 .Select(d => new { d.AssignedToUserId, d.TeamId }).FirstOrDefaultAsync(ct);
             return await OwnerAllowedAsync("pipeline", "edit", rec?.AssignedToUserId, rec?.TeamId, ct);
@@ -227,12 +246,14 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
 
         if (type == "customer" || type == "contact")
         {
+            if (CanManageFreely("customers")) return true;
             var rec = await db.Customers.AsNoTracking().Where(c => c.Id == relatedToId)
                 .Select(c => new { c.AccountManagerUserId, c.TeamId }).FirstOrDefaultAsync(ct);
             return await OwnerAllowedAsync("customers", "edit", rec?.AccountManagerUserId, rec?.TeamId, ct);
         }
 
         if (type != "lead") return false;
+        if (CanManageFreely("leads")) return true;
 
         if (CanEditAssigned &&
             await db.Leads.AsNoTracking().AnyAsync(l => l.Id == relatedToId && l.AssignedToUserId == uid, ct))
@@ -253,6 +274,22 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
         }
 
         return false;
+    }
+
+    public async Task<Guid?> SoleTeamOfCurrentUserAsync(CancellationToken ct)
+    {
+        if (user.Id is not { } uid) return null;
+
+        // Take two: enough to tell "exactly one" from "more than one" without loading every row.
+        var teamIds = await db.Set<IdentityTeamMemberView>()
+            .Where(m => m.UserId == uid
+                     && db.Set<IdentityTeamView>().Any(t => t.Id == m.TeamId && t.IsActive && !t.IsDeleted))
+            .Select(m => m.TeamId)
+            .Distinct()
+            .Take(2)
+            .ToListAsync(ct);
+
+        return teamIds.Count == 1 ? teamIds[0] : null;
     }
 
     public async Task<IReadOnlyList<VisibleTeam>> VisibleTeamsAsync(CancellationToken ct)

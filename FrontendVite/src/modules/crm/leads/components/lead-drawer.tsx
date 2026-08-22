@@ -425,6 +425,25 @@ export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
                         <span className="text-sm font-semibold text-primary">{t("drawer.convertedToDeal")}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">{t("drawer.convertedDescription")}</p>
+                      {/* The lead's own story ends at "converted" — win and loss are outcomes of the
+                          opportunity it became. Show that result here so the lead is not a dead end. */}
+                      {(lead.convertedDealStage === "won" || lead.convertedDealStage === "lost") && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[11px] font-bold",
+                            lead.convertedDealStage === "won"
+                              ? "text-success bg-success/10"
+                              : "text-destructive bg-destructive/10",
+                          )}>
+                            {t(`stage.${lead.convertedDealStage}`)}
+                          </span>
+                          {lead.convertedDealValue != null && lead.convertedDealValue > 0 && (
+                            <span className="text-xs font-semibold">
+                              {formatCurrency(lead.convertedDealValue, currency)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

@@ -69,12 +69,18 @@ export function FileManagerView() {
   const hasModuleAccess = useAuthStore(s => s.hasModuleAccess);
   const currentUserId = useAuthStore(s => s.user?.id);
 
-  // Reading the library needs CRM view rights at any tier. Without them the query is never issued,
-  // so a restricted user gets the empty state instead of a 403 and an error toast.
-  const canViewAll      = useCan("crm.leads.view");
-  const canViewTeam     = useCan("crm.leads-team.view");
-  const canViewAssigned = useCan("crm.leads-assigned.view");
-  const canRead = (canViewAll || canViewTeam || canViewAssigned) && hasModuleAccess("crm");
+  // Opening File Manager requires only its OWN permission — `file-manager.view`, enforced by the
+  // route guard. It must never demand CRM permissions: it is a separate module, and a tenant or user
+  // without CRM should still get a working (empty) file browser rather than a permission error.
+  //
+  // What it *shows* is a different question: today the only document store in the product is CRM's,
+  // so the query is issued only when the user has some CRM view tier. Without one there is simply
+  // nothing to list — an empty state, not "you don't have permission".
+  const canReadCrmDocs =
+    (useCan("crm.leads.view") || useCan("crm.leads-team.view") || useCan("crm.leads-assigned.view") ||
+     useCan("crm.pipeline.view") || useCan("crm.pipeline-team.view") || useCan("crm.pipeline-assigned.view") ||
+     useCan("crm.customers.view") || useCan("crm.customers-team.view") || useCan("crm.customers-assigned.view"))
+    && hasModuleAccess("crm");
   const canExport = useCan("file-manager.export");
 
   React.useEffect(() => {
@@ -84,7 +90,7 @@ export function FileManagerView() {
 
   const { data: documents = [], isLoading } = useCrmDocumentLibrary(
     { search: debounced || undefined },
-    canRead,
+    canReadCrmDocs,
   );
   const download = useDownloadCrmDocument();
 
@@ -233,9 +239,11 @@ export function FileManagerView() {
           <HardDrive className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-sm font-semibold text-foreground">No files yet</p>
           <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-            {canRead
+            {canReadCrmDocs
               ? "Files appear here once you attach documents to a lead, opportunity or account — open a record and use its Documents tab."
-              : "You don't have permission to view stored documents."}
+              // Not a permission failure for File Manager itself — there is simply no document store
+              // this user can read, since CRM is currently the only module that stores files.
+              : "There are no document libraries available to you yet."}
           </p>
         </div>
       ) : (

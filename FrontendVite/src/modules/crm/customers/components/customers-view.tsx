@@ -16,6 +16,8 @@ import { type CustomerDto as Customer, type CustomerStatus, type CustomerTier } 
 import { useCustomers, useCustomersSummary } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 import { useLazyList } from "@/hooks/use-lazy-list";
+import { useBulkFileCustomersToTeam } from "@/hooks/crm/use-crm";
+import { TeamFilingBar, useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -170,6 +172,13 @@ export function CustomersView() {
   }, [customers, search, statusFilter, tierFilter]);
 
   const listLazy = useLazyList(filtered, 24);
+
+  // Accounts need filing too — the Account Revenue report and every account-scoped document read
+  // through the same guard, so an unfiled account is invisible to a team lead.
+  const selection = useRowSelection(listLazy.visible.map(c => c.id));
+  const bulkFile = useBulkFileCustomersToTeam();
+  const fileSelected = (teamId: string | null) =>
+    bulkFile.mutateAsync({ customerIds: [...selection.picked], teamId });
   const openDrawer = (c: Customer) => { setSelectedCustomer(c); setDrawerOpen(true); };
 
   return (
@@ -296,7 +305,7 @@ export function CustomersView() {
                 </thead>
                 <tbody>
                   {listLazy.total === 0 ? (
-                    <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("customers.noCustomers")}</td></tr>
+                    <tr><td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">{t("customers.noCustomers")}</td></tr>
                   ) : listLazy.visible.map((c, i) => (
                     <motion.tr key={c.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(c)}>

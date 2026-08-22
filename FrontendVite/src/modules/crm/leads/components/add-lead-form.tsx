@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
-import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
+import { useAssignableByTeam, useDefaultAssignee, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { TIMEFRAME_OPTIONS, type LeadDto } from "@/lib/crm/crm.api";
 
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -35,6 +35,10 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   // convention the UI merely suggests.
   // Same grouped picker as the reassign dialog, so the two never disagree about who sits where.
   const { groups: assignableGroups, options: assignableUsers } = useAssignableByTeam(open);
+  // Creating a lead should leave it owned by the creator and filed to their team — an unfiled record
+  // is invisible to every team lead. When the creator is in several teams the team half is left for
+  // them to pick rather than guessed.
+  const defaultAssignee = useDefaultAssignee(open);
   const [firstName, setFirstName]     = React.useState("");
   const [lastName, setLastName]       = React.useState("");
   const [email, setEmail]             = React.useState("");
@@ -63,6 +67,17 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const updateLead = useUpdateLead();
   const saving = createLead.isPending || updateLead.isPending;
   const isValid = firstName.trim() && (email.trim() || phone.trim()) && source;
+
+  // On create, start on the creator (+ their team when unambiguous).
+  React.useEffect(() => {
+    if (!open || editing) return;
+    const { userId, teamId } = decodeAssignee(defaultAssignee.value);
+    if (!userId) return;
+    setAssignedToUserId(userId);
+    setAssignedTeamId(teamId);
+    setAssignedTo(assignableUsers.find(u => u.id === userId)?.fullName ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing, defaultAssignee.value]);
 
   // Prefill when editing
   React.useEffect(() => {
@@ -248,6 +263,13 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                       ))}
                     </select>
                     <p className="text-[11px] text-muted-foreground">{t("form.assignedToHint")}</p>
+                    {!isEdit && defaultAssignee.needsTeamChoice && !assignedTeamId && (
+                      <p className="text-[11px] text-warning">
+                        {t("form.pickTeamHint", {
+                          defaultValue: "You belong to more than one team — pick yourself under a team so that team’s lead can see this lead.",
+                        })}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

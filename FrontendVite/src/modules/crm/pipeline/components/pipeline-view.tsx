@@ -177,11 +177,20 @@ import { DealPriorityBadge } from "./deal-status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { useLazyList } from "@/hooks/use-lazy-list";
+import { useBulkFileDealsToTeam } from "@/hooks/crm/use-crm";
+import { TeamFilingBar, useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 
 function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: (d: Deal) => void }) {
   const { t } = useTranslation("crm");
   const currency = useCurrency();
   const { visible, hasMore, loadMore, sentinelRef, shown, total } = useLazyList(deals, 25);
+
+  // Opportunities must be filed to a team too, not just leads — every pipeline/forecast report reads
+  // deals, so unfiled deals leave a team lead's reports empty.
+  const selection = useRowSelection(visible.map(d => d.id));
+  const bulkFile = useBulkFileDealsToTeam();
+  const fileSelected = (teamId: string | null) =>
+    bulkFile.mutateAsync({ dealIds: [...selection.picked], teamId });
   const stageStyle = (stage: Deal["stage"]) => {
     const s = PIPELINE_STAGES.find(x => x.key === stage);
     return s ? `${s.color} ${s.bg} px-2 py-0.5 rounded-full text-[11px] font-semibold` : "";
@@ -208,7 +217,7 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
             </thead>
             <tbody>
               {visible.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">{t("pipeline.noDeals")}</td></tr>
+                <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("pipeline.noDeals")}</td></tr>
               ) : visible.map((deal, i) => (
                 <motion.tr
                   key={deal.id}

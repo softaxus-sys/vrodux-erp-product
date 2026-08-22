@@ -17,12 +17,12 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, type LeadDto as Lead, type LeadStatus, type LeadSource } from "@/lib/crm/crm.api";
+import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, type LeadDto as Lead, type LeadStatus, type LeadSource, type DealStage } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
 import { toast } from "sonner";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { useBulkFileLeadsToTeam } from "@/hooks/crm/use-crm";
-import { useTeamsForFiling } from "@/hooks/identity/use-assignable-by-team";
+import { TeamFilingBar, useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -78,12 +78,28 @@ const STATUS_CONFIG: Record<LeadStatus, { color: string; bg: string; dot: string
 
 const KANBAN_COLS: LeadStatus[] = ["new", "contacted", "qualified", "converted"];
 
-function StatusBadge({ status }: { status: LeadStatus }) {
+/** Statuses that end a lead's life. Converted is an outcome, not a stage still being worked. */
+const CLOSED_LEAD_STATUSES: LeadStatus[] = ["converted", "unqualified", "lost"];
+
+function StatusBadge({ status, outcome }: { status: LeadStatus; outcome?: DealStage | null }) {
   const { t } = useTranslation("crm");
   const c = STATUS_CONFIG[status];
   return (
-    <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
-      <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{t(`status.${status}`)}
+    <span className="inline-flex items-center gap-1.5">
+      <span className={cn("inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold", c.color, c.bg)}>
+        <span className={cn("h-1.5 w-1.5 rounded-full", c.dot)} />{t(`status.${status}`)}
+      </span>
+      {/* A converted lead is not itself won or lost — that happens on the opportunity it became — so
+          the deal's result is shown next to the status rather than folded into it. Without this the
+          lead is a dead end that never says how the story finished. */}
+      {status === "converted" && (outcome === "won" || outcome === "lost") && (
+        <span className={cn(
+          "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+          outcome === "won" ? "text-success bg-success/10" : "text-destructive bg-destructive/10",
+        )}>
+          {t(`stage.${outcome}`)}
+        </span>
+      )}
     </span>
   );
 }
@@ -311,7 +327,10 @@ export function LeadsView() {
   const { data: leadsSummary }          = useLeadsSummary();
   const currentUserName = useAuthStore(s => s.user?.name) ?? "";
   const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("all");
+  // Defaults to the leads still being worked. Converted and unqualified/lost leads are kept (they are
+  // history, not deletions — their documents and activity hang off them) but they are not the working
+  // list, and with them mixed in the page reads as though closed leads are still open.
+  const [statusFilter, setStatusFilter] = React.useState("open");
   const [sourceFilter, setSourceFilter] = React.useState("all");
   const [mineOnly, setMineOnly] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
@@ -350,7 +369,10 @@ export function LeadsView() {
           l.source,
           sourceLabel(l.source),
         ].some(v => (v ?? "").toString().toLowerCase().includes(q));
-        const matchStatus = statusFilter === "all" || l.status === statusFilter;
+        const matchStatus =
+          statusFilter === "all"  ? true
+          : statusFilter === "open" ? !CLOSED_LEAD_STATUSES.includes(l.status)
+          : l.status === statusFilter;
         const matchSource = sourceFilter === "all" || l.source === sourceFilter;
         const matchMine   = !mineOnly || l.assignedTo === currentUserName;
         return matchSearch && matchStatus && matchSource && matchMine;
@@ -361,58 +383,13 @@ export function LeadsView() {
   const listLazy = useLazyList(filtered, 25);
 
   // ── Bulk filing to a team ────────────────────────────────────────────────
-  // Records only become visible to a team lead once they are filed to that lead's team, so tagging
-  // existing leads one at a time is impractical. Selection is by id and survives filtering; ids that
-  // scroll out of view stay selected until the user clears them.
-  const [picked, setPicked] = React.useState<Set<string>>(new Set());
-  const [fileTeamId, setFileTeamId] = React.useState("");
+  // A record is only visible to a team lead once it is filed to a team they lead, so filing existing
+  // records has to be possible in bulk. Selection + the bar are shared with Pipeline and Accounts.
+  const selection = useRowSelection(listLazy.visible.map(l => l.id));
   const bulkFile = useBulkFileLeadsToTeam();
-  const { teams: filingTeams } = useTeamsForFiling();
 
-  const togglePicked = (id: string) =>
-    setPicked(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-
-  const visibleIds = listLazy.visible.map(l => l.id);
-  const allVisiblePicked = visibleIds.length > 0 && visibleIds.every(id => picked.has(id));
-
-  const toggleAllVisible = () =>
-    setPicked(prev => {
-      const next = new Set(prev);
-      // Acts on what is on screen only — silently selecting rows the user cannot see would make the
-      // count meaningless and the action surprising.
-      if (allVisiblePicked) visibleIds.forEach(id => next.delete(id));
-      else visibleIds.forEach(id => next.add(id));
-      return next;
-    });
-
-  const applyFiling = () => {
-    if (picked.size === 0) return;
-    bulkFile.mutate(
-      { leadIds: [...picked], teamId: fileTeamId || null },
-      {
-        onSuccess: (res: { filed: number; skipped: number }) => {
-          const team = filingTeams.find(x => x.id === fileTeamId)?.name;
-          toast.success(
-            fileTeamId
-              ? t("leads.filedToTeam", { count: res.filed, team, defaultValue: "{{count}} lead(s) filed to {{team}}." })
-              : t("leads.unfiled", { count: res.filed, defaultValue: "{{count}} lead(s) un-filed." })
-          );
-          // Skipped means "you may not edit that one" — reported rather than silently dropped.
-          if (res.skipped > 0) {
-            toast.info(t("leads.filingSkipped", {
-              count: res.skipped,
-              defaultValue: "{{count}} skipped — you don't have permission to change them.",
-            }));
-          }
-          setPicked(new Set());
-        },
-      },
-    );
-  };
+  const fileSelected = (teamId: string | null) =>
+    bulkFile.mutateAsync({ leadIds: [...selection.picked], teamId });
 
   const openDrawer = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
 
@@ -481,6 +458,7 @@ export function LeadsView() {
           {/* Status filter */}
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="open">{t("leads.openStatuses", { defaultValue: "Open leads" })}</option>
             <option value="all">{t("leads.allStatuses")}</option>
             {(["new","contacted","qualified","converted","unqualified","lost"] as LeadStatus[]).map(s => (
               <option key={s} value={s}>{t(`status.${s}`)}</option>
@@ -536,32 +514,13 @@ export function LeadsView() {
       {/* Kanban */}
       {viewMode === "kanban" && <LeadsKanban leads={filtered} onLeadClick={openDrawer} />}
 
-      {/* Bulk filing bar — only while something is selected, so it never occupies space idly. */}
-      {viewMode === "list" && picked.size > 0 && (
-        <div className="flex items-center gap-3 flex-wrap rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-          <span className="text-sm font-medium">
-            {t("leads.selectedCount", { count: picked.size, defaultValue: "{{count}} selected" })}
-          </span>
-          <select
-            value={fileTeamId}
-            onChange={e => setFileTeamId(e.target.value)}
-            className="h-8 rounded-md border border-border bg-card px-2 text-sm"
-          >
-            <option value="">{t("leads.noTeamOption", { defaultValue: "No team (owner only)" })}</option>
-            {filingTeams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
-          </select>
-          <Button size="sm" className="h-8" onClick={applyFiling} disabled={bulkFile.isPending}>
-            {bulkFile.isPending
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : t("leads.fileToTeam", { defaultValue: "File to team" })}
-          </Button>
-          <Button variant="ghost" size="sm" className="h-8" onClick={() => setPicked(new Set())}>
-            {t("leads.clearSelection", { defaultValue: "Clear" })}
-          </Button>
-          <p className="text-[11px] text-muted-foreground w-full">
-            {t("leads.filingHint", { defaultValue: "A team lead only sees leads filed to a team they lead. Unfiled leads stay visible to their owner and to admins." })}
-          </p>
-        </div>
+      {viewMode === "list" && (
+        <TeamFilingBar
+          selectedCount={selection.picked.size}
+          onFile={fileSelected}
+          onClear={selection.clear}
+          isPending={bulkFile.isPending}
+        />
       )}
 
       {/* List */}
@@ -575,8 +534,8 @@ export function LeadsView() {
                     <th className="px-4 py-3 w-10">
                       <input
                         type="checkbox"
-                        checked={allVisiblePicked}
-                        onChange={toggleAllVisible}
+                        checked={selection.allVisiblePicked}
+                        onChange={selection.toggleAllVisible}
                         aria-label="Select all visible leads"
                         className="h-3.5 w-3.5 cursor-pointer accent-primary"
                       />
@@ -607,8 +566,8 @@ export function LeadsView() {
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          checked={picked.has(lead.id)}
-                          onChange={() => togglePicked(lead.id)}
+                          checked={selection.picked.has(lead.id)}
+                          onChange={() => selection.toggle(lead.id)}
                           aria-label={`Select ${lead.fullName}`}
                           className="h-3.5 w-3.5 cursor-pointer accent-primary"
                         />
@@ -668,7 +627,7 @@ export function LeadsView() {
                           <span className="text-sm text-muted-foreground whitespace-nowrap">{lead.assignedTo}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3"><StatusBadge status={lead.status} /></td>
+                      <td className="px-4 py-3"><StatusBadge status={lead.status} outcome={lead.convertedDealStage} /></td>
                       <td className="px-4 py-3">
                         {lead.status === "qualified" && (
                           <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-success hover:text-success hover:bg-success/10"

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { useAssignableUsers } from "@/hooks/identity/use-teams";
+import { useAuthStore } from "@/store/auth.store";
 
 export interface AssignableOption {
   id:       string;
@@ -119,4 +120,39 @@ export function useTeamsForFiling(enabled = true) {
   }, [assignable]);
 
   return { teams, isLoading: query.isLoading };
+}
+
+/**
+ * The option a create form should start on: the current user, under their team when that is
+ * unambiguous.
+ *
+ * <p>Why this matters: an unfiled record is invisible to every team lead, and the server only
+ * auto-files when the creator belongs to exactly one team. Someone in several teams would otherwise
+ * produce unfiled records forever — so the form pre-selects them with a team when it can, and
+ * returns `needsTeamChoice` when it cannot, so the UI can ask instead of guessing. Guessing is the
+ * one thing we must not do: filing to the wrong team shows the record to a lead who should not
+ * see it and hides it from the one who should.</p>
+ */
+export function useDefaultAssignee(enabled = true) {
+  const { groups, options } = useAssignableByTeam(enabled);
+  const currentUserId = useAuthStore(s => s.user?.id);
+
+  return React.useMemo(() => {
+    if (!currentUserId) return { value: "", needsTeamChoice: false };
+
+    // Every group this user appears under = every team they belong to.
+    const mine = groups.filter(g => g.members.some(m => m.id === currentUserId));
+
+    if (mine.length === 1) {
+      const opt = mine[0].members.find(m => m.id === currentUserId)!;
+      return { value: encodeAssignee(opt.id, opt.teamId), needsTeamChoice: false };
+    }
+
+    // In several teams (or none): own it, but leave the team for them to choose.
+    const self = options.find(o => o.id === currentUserId);
+    return {
+      value: self ? encodeAssignee(self.id, null) : "",
+      needsTeamChoice: mine.length > 1,
+    };
+  }, [groups, options, currentUserId]);
 }

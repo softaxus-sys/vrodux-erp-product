@@ -49,7 +49,23 @@ export function DocumentsPanel({ relatedToType, relatedToId }: Props) {
   const update = useUpdateCrmDocument();
   const del = useDeleteCrmDocument();
   const download = useDownloadCrmDocument();
-  const canEdit = useCan("crm.leads.edit");
+
+  // Which permission area governs THIS panel. It is shared by the lead, opportunity and account
+  // drawers, so gating on crm.leads.edit was wrong twice over: it demanded the LEAD key for
+  // opportunity and account attachments, and it checked only the tenant-wide tier — so an owner
+  // holding crm.leads-assigned.edit (a rep, on their own lead) had the entire upload UI hidden and
+  // uploading simply appeared not to work.
+  const area =
+    relatedToType === "deal" ? "pipeline"
+    : relatedToType === "customer" || relatedToType === "contact" ? "customers"
+    : "leads";
+
+  // Called unconditionally — hooks must never sit behind a `||` short-circuit.
+  const canEditAll      = useCan(`crm.${area}.edit`);
+  const canEditTeam     = useCan(`crm.${area}-team.edit`);
+  const canEditAssigned = useCan(`crm.${area}-assigned.edit`);
+  // Any tier may attach; the server still decides per record whether this one is actually theirs.
+  const canEdit = canEditAll || canEditTeam || canEditAssigned;
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [queue, setQueue] = React.useState<QueuedFile[]>([]);
@@ -103,7 +119,7 @@ export function DocumentsPanel({ relatedToType, relatedToId }: Props) {
 
   return (
     <div className="space-y-3">
-      <Can permission="crm.leads.edit">
+      <Can anyOf={[`crm.${area}.edit`, `crm.${area}-team.edit`, `crm.${area}-assigned.edit`]}>
         <div
           onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
           onDragLeave={() => setDragging(false)}
@@ -259,7 +275,7 @@ export function DocumentsPanel({ relatedToType, relatedToId }: Props) {
                   >
                     <Download className="h-3.5 w-3.5" />
                   </button>
-                  <Can permission="crm.leads.edit">
+                  <Can anyOf={[`crm.${area}.edit`, `crm.${area}-team.edit`, `crm.${area}-assigned.edit`]}>
                     <button
                       onClick={() => setEditing(isEditing ? null : {
                         id: doc.id, documentType: doc.documentType, description: doc.description ?? "",

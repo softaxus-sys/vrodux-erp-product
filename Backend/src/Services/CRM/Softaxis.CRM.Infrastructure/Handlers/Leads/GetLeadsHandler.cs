@@ -16,6 +16,14 @@ internal sealed class GetLeadsHandler(CrmDbContext db, ILeadAccessGuard access) 
         var scoped = access.ScopeReadable(db.Leads.AsNoTracking().Where(x => !x.IsDeleted));
         var items = await scoped.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
 
-        return Result.Success<IReadOnlyList<LeadDto>>(items.Select(LeadMappings.ToDto).ToList());
+        // One batched lookup for the whole page, so a converted lead can show what became of it
+        // instead of being a dead end at "converted".
+        var outcomes = await ConvertedDealOutcomes.LoadAsync(db, items, ct);
+
+        return Result.Success<IReadOnlyList<LeadDto>>(items.Select(l =>
+        {
+            var (stage, value) = ConvertedDealOutcomes.For(outcomes, l);
+            return LeadMappings.ToDto(l, stage, value);
+        }).ToList());
     }
 }

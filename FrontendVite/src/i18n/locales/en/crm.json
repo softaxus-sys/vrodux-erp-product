@@ -99,7 +99,8 @@
     "filedToTeam": "{{count}} lead(s) filed to {{team}}.",
     "unfiled": "{{count}} lead(s) un-filed.",
     "filingSkipped": "{{count}} skipped — you don’t have permission to change them.",
-    "filingHint": "A team lead only sees leads filed to a team they lead. Unfiled leads stay visible to their owner and to admins."
+    "filingHint": "A team lead only sees leads filed to a team they lead. Unfiled leads stay visible to their owner and to admins.",
+    "openStatuses": "Open leads"
   },
   "priority": {
     "high": "High",
@@ -212,7 +213,8 @@
     "cancel": "Cancel",
     "saving": "Saving…",
     "saveChanges": "Save Changes",
-    "saveLead": "Save Lead"
+    "saveLead": "Save Lead",
+    "pickTeamHint": "You belong to more than one team — pick yourself under a team so that team’s lead can see this lead."
   },
   "pipeline": {
     "title": "Sales Pipeline",

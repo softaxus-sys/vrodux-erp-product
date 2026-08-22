@@ -72,6 +72,15 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
         return NoContentOrError(result);
     }
 
+    /// <summary>File many accounts to a team at once (null un-files). Each is permission-checked
+    /// individually; ones the caller may not edit are skipped and reported.</summary>
+    [HttpPost("bulk-file-to-team")]
+    [RequireAnyPermission("crm.customers.edit", "crm.customers-team.edit", "crm.customers-assigned.edit")]
+    public async Task<IActionResult> BulkFileToTeam([FromBody] BulkFileCustomersReq req, CancellationToken ct)
+        => OkOrError(await sender.Send(new BulkFileCustomersToTeamCommand(req.CustomerIds ?? [], req.TeamId), ct));
+
+    public sealed record BulkFileCustomersReq(List<Guid>? CustomerIds, Guid? TeamId);
+
     public sealed record UpdateCrmCustomerRequest(string Name, string Industry, string Country, string City,
         string Address, string Phone, string Email, string Status, string Tier, string AccountManager,
         string Description, string? Website, string? TradeName, string? Employees, int? NpsScore,

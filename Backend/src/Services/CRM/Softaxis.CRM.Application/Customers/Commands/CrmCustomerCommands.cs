@@ -1,6 +1,7 @@
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.CRM.Application.Customers.Dtos;
+using Softaxis.CRM.Application.Leads.Commands;
 
 namespace Softaxis.CRM.Application.Customers.Commands;
 
@@ -35,3 +36,7 @@ public sealed class UpdateCrmCustomerValidator : AbstractValidator<UpdateCrmCust
 }
 
 public sealed record DeleteCrmCustomerCommand(Guid Id) : ICommand;
+
+/// <summary>File several accounts to a team at once. See BulkFileLeadsToTeamCommand.</summary>
+public sealed record BulkFileCustomersToTeamCommand(IReadOnlyList<Guid> CustomerIds, Guid? TeamId)
+    : ICommand<BulkFileResultDto>;
