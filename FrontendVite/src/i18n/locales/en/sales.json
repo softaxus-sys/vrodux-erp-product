@@ -214,6 +214,11 @@
         "processRefund": "Process Refund",
         "creditNote": "Credit Note"
       }
+    },
+    "refundMethodLabel": {
+      "bank_transfer": "Bank Transfer",
+      "credit_note": "Credit Note",
+      "cash": "Cash"
     }
   },
   "deliveryChallans": {
@@ -320,13 +325,12 @@
     },
     "createDeliveryChallan": {
       "title": "Create Delivery Challan",
-      "description": "Record goods delivered against sales order",
+      "description": "Description",
       "order": "Sales Order",
       "orderPlaceholder": "Select order…",
       "driverName": "Driver Name",
       "challanDate": "Challan Date",
       "items": "Items to Deliver",
-      "description": "Description",
       "ordered": "Ordered",
       "delivered": "Delivered",
       "summary": {

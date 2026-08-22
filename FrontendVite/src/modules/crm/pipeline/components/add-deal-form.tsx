@@ -1,6 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { useAssignableUsers } from "@/hooks/identity/use-teams";
+import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,9 +56,11 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   const [closeDate, setCloseDate]     = React.useState("");
   const [assignedTo, setAssignedTo]   = React.useState("");           // display name
   const [assignedToUserId, setAssignedToUserId] = React.useState(""); // owning user ("" = unassigned)
+  const [assignedTeamId, setAssignedTeamId] = React.useState<string | null>(null); // team the work belongs to
   // Server decides the pool from the caller's tier: admins get everyone, a team lead only their
   // own members. Storing the id is what makes the pipeline visibility tiers work at all.
-  const { data: assignable = [] } = useAssignableUsers(open);
+  // Grouped by team so a multi-team owner can be filed to the right team (see Module 30).
+  const { groups: assignableGroups, options: assignableUsers } = useAssignableByTeam(open);
   const [description, setDescription] = React.useState("");
 
   const createDeal = useCreateDeal();
@@ -86,6 +88,7 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
       setProbability(`${editing.probability}%`); setCloseDate(editing.expectedCloseDate);
       setForecast(MANUAL_FORECASTS.includes(editing.forecastCategory) ? editing.forecastCategory : "auto");
       setAssignedTo(editing.assignedTo); setAssignedToUserId(editing.assignedToUserId ?? "");
+      setAssignedTeamId(editing.teamId ?? null);
       setDescription(editing.description);
     }
   }, [open, editing]);
@@ -96,7 +99,7 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
       title: dealName.trim(), company: company.trim(), value: parseFloat(value) || 0,
       stage: STAGE_KEY[stage] ?? "qualified", priority: editing?.priority ?? "medium",
       probability: parseInt(probability, 10) || 50, expectedCloseDate: closeDate,
-      assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null,
+      assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null, teamId: assignedTeamId,
       source: dealType, industry: editing?.industry ?? "",
       description: description.trim(),
       forecastCategory: forecast === "auto" ? undefined : forecast,
@@ -254,16 +257,26 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                 <div className="col-span-2 space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.assignedTo")}</label>
                   <select
-                    value={assignedToUserId}
+                    value={assignedToUserId ? encodeAssignee(assignedToUserId, assignedTeamId) : ""}
                     onChange={e => {
-                      const id = e.target.value;
-                      setAssignedToUserId(id);
-                      setAssignedTo(assignable.find(u => u.userId === id)?.fullName ?? "");
+                      const { userId, teamId } = decodeAssignee(e.target.value);
+                      setAssignedToUserId(userId ?? "");
+                      setAssignedTeamId(teamId);
+                      setAssignedTo(assignableUsers.find(u => u.id === userId)?.fullName ?? "");
                     }}
                     className="w-full h-9 rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">{t("dealForm.unassigned", { defaultValue: "Unassigned" })}</option>
-                    {assignable.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
+                    {assignableGroups.map(g => (
+                      <optgroup key={g.team} label={g.team}>
+                        {/* Keyed AND valued by team + user — someone in two teams appears under each. */}
+                        {g.members.map(u => (
+                          <option key={`${g.team}-${u.id}`} value={encodeAssignee(u.id, u.teamId)}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
               </div>

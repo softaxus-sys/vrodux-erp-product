@@ -10,5 +10,5 @@ internal static class CrmCustomerMappings
         c.Phone, c.Email, c.Status, c.Tier, c.AccountManager, c.AccountManagerUserId, c.Since, c.LastActivity,
         c.TotalRevenue, c.OpenDeals, c.Currency, c.Employees, c.Description,
         Array.Empty<object>(), Array.Empty<object>(), Array.Empty<object>(),
-        c.Tags, c.ContractRenewal, c.NpsScore);
+        c.Tags, c.ContractRenewal, c.NpsScore, c.TeamId);
 }

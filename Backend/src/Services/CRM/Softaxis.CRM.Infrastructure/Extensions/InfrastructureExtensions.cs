@@ -44,6 +44,7 @@ public static class InfrastructureExtensions
 
         // ── Role-based lead access scoping (full vs assigned-only) ───────────
         services.AddScoped<Services.ILeadAccessGuard, Services.LeadAccessGuard>();
+        services.AddScoped<Services.IDealStageRecorder, Services.DealStageRecorder>();
 
         // ── Integration platform (lead sources) ──────────────────────────────
         // Secret encryption over ASP.NET Core Data Protection (host calls AddDataProtection()).
@@ -132,6 +133,18 @@ public static class InfrastructureExtensions
         // the background (own scope) rather than blocking startup readiness / the deploy health check.
         _ = Task.Run(() => RecomputeLeadValueAndScoreInBackgroundAsync(services));
 
+        // Give already-closed opportunities and already-converted leads a date, so the reports have
+        // history to show on day one instead of an empty chart. Also potentially large — background.
+        _ = Task.Run(() => BackfillReportingDatesInBackgroundAsync(services));
+
+        // File untagged records under their owner's team, but only where that is unambiguous.
+        _ = Task.Run(() => BackfillRecordTeamsInBackgroundAsync(services));
+
+        // Opportunities and accounts created by lead conversion before ConvertLeadHandler carried the
+        // owner across are unowned, which makes them invisible to every tier except full access — a
+        // rep converts a lead and loses the result. Idempotent: only ever fills a NULL owner.
+        await BackfillConvertedRecordOwnersAsync(db);
+
         // Demo CRM data (leads/customers/deals with no tenant) is dev scaffolding only. The old
         // ASPNETCORE_ENVIRONMENT != "Production" gate was ineffective — prod runs as "Docker" — so
         // it seeded into real deployments. Now gated by the explicit Seeding:DemoData flag (off by
@@ -140,6 +153,66 @@ public static class InfrastructureExtensions
             await DemoTenantSeeder.RunAsync(() => CrmSeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await CrmSeedData.SeedAsync(db);
+    }
+
+    /// <summary>
+    /// Gives converted opportunities and accounts the owner of the lead they came from, wherever that
+    /// owner is still NULL. Keyed off Lead.ConvertedDealId / ConvertedCustomerId, so it only ever
+    /// touches records that conversion actually produced. Runs every startup; a no-op once clean, and
+    /// never overwrites an owner someone has since set. Best-effort — a failure here must not stop
+    /// the service booting.
+    /// </summary>
+    private static async Task BackfillConvertedRecordOwnersAsync(CrmDbContext db)
+    {
+        try
+        {
+            // IgnoreQueryFilters: there is no ambient tenant during startup, so the global filter
+            // would match nothing at all.
+            var converted = await db.Leads.IgnoreQueryFilters()
+                .Where(l => l.AssignedToUserId != null
+                         && (l.ConvertedDealId != null || l.ConvertedCustomerId != null))
+                .Select(l => new { l.AssignedToUserId, l.AssignedTo, l.ConvertedDealId, l.ConvertedCustomerId })
+                .ToListAsync();
+
+            if (converted.Count == 0) return;
+
+            var dealOwner = new Dictionary<Guid, (Guid User, string Name)>();
+            var custOwner = new Dictionary<Guid, (Guid User, string Name)>();
+
+            foreach (var c in converted)
+            {
+                if (Guid.TryParse(c.ConvertedDealId, out var dealId))
+                    dealOwner[dealId] = (c.AssignedToUserId!.Value, c.AssignedTo);
+                if (c.ConvertedCustomerId is { } custId)
+                    custOwner[custId] = (c.AssignedToUserId!.Value, c.AssignedTo);
+            }
+
+            var changed = 0;
+
+            var dealIds = dealOwner.Keys.ToList();
+            foreach (var deal in await db.Deals.IgnoreQueryFilters()
+                         .Where(d => d.AssignedToUserId == null && dealIds.Contains(d.Id)).ToListAsync())
+            {
+                var (user, name) = dealOwner[deal.Id];
+                deal.AssignTo(user, string.IsNullOrWhiteSpace(deal.AssignedTo) ? name : deal.AssignedTo);
+                changed++;
+            }
+
+            var custIds = custOwner.Keys.ToList();
+            foreach (var cust in await db.Customers.IgnoreQueryFilters()
+                         .Where(c => c.AccountManagerUserId == null && custIds.Contains(c.Id)).ToListAsync())
+            {
+                var (user, name) = custOwner[cust.Id];
+                cust.AssignAccountManager(user, string.IsNullOrWhiteSpace(cust.AccountManager) ? name : cust.AccountManager);
+                changed++;
+            }
+
+            if (changed > 0) await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // Never crash-loop startup over a data repair.
+        }
     }
 
     /// <summary>Recover budget/timeframe/interest/whatsapp/message that were captured under a custom
@@ -188,6 +261,115 @@ public static class InfrastructureExtensions
         {
             // Best-effort background repair — swallow everything.
         }
+    }
+
+    /// <summary>
+    /// Fills <c>Deal.ClosedAt</c> and <c>Lead.ConvertedAt</c> on rows that predate reporting, so the
+    /// win/loss, conversion and velocity reports have usable history the day this ships instead of
+    /// starting from empty.
+    /// <para>
+    /// <b>The dates are approximate and that is deliberate.</b> The true close/convert moment was never
+    /// recorded, so the best available proxy is <c>UpdatedAt</c> (the last write to the row, which for a
+    /// closed deal is usually the close itself), falling back to <c>CreatedAt</c>. Backfilled rows are
+    /// therefore directionally right but not exact; reporting is accurate from deploy onward. The
+    /// alternative — leaving them null — would silently drop all historic deals out of every report,
+    /// which reads as "we never sold anything" and is worse than an approximate date.
+    /// </para>
+    /// Idempotent: only ever fills a NULL, so re-running on every startup is a no-op once complete.
+    /// </summary>
+    private static async Task BackfillReportingDatesInBackgroundAsync(IServiceProvider services)
+    {
+        try
+        {
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+
+            // No ambient tenant during startup, so span every tenant explicitly.
+            var deals = await db.Deals.IgnoreQueryFilters()
+                .Where(d => d.ClosedAt == null && (d.Stage == "won" || d.Stage == "lost"))
+                .ToListAsync();
+            foreach (var d in deals) d.BackfillClosedAt(d.UpdatedAt ?? d.CreatedAt);
+
+            var leads = await db.Leads.IgnoreQueryFilters()
+                .Where(l => l.ConvertedAt == null && l.Status == "converted")
+                .ToListAsync();
+            foreach (var l in leads) l.BackfillConvertedAt(l.UpdatedAt ?? l.CreatedAt);
+
+            if (deals.Count > 0 || leads.Count > 0) await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // Best-effort background repair — never let it surface or crash-loop startup.
+        }
+    }
+
+    /// <summary>
+    /// Files existing leads / opportunities / accounts under a team, so a team lead's view narrows
+    /// from "everything my members own" to "my team's work".
+    /// <para>
+    /// <b>Only where it is unambiguous.</b> A record is tagged only when its owner belongs to exactly
+    /// ONE active team. Owners in several teams — the very case that made ownership an unreliable
+    /// signal — are left untagged, because picking one would be a guess, and a wrong guess silently
+    /// removes a record from a team lead who legitimately had it. Untagged records keep the previous
+    /// owner-membership behaviour until someone assigns them a team explicitly.
+    /// </para>
+    /// Idempotent: only ever fills a NULL, so re-running each startup is a no-op once complete.
+    /// </summary>
+    private static async Task BackfillRecordTeamsInBackgroundAsync(IServiceProvider services)
+    {
+        try
+        {
+            using var scope = services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
+
+            // Users whose team membership is unambiguous → their single team id.
+            // Raw cross-schema read: Identity owns these tables and lives in the same database.
+            var soleTeamRows = await db.Database
+                .SqlQueryRaw<SoleTeamRow>(@"
+                    SELECT m.UserId, MIN(CAST(t.Id AS NVARCHAR(50))) AS TeamId
+                    FROM [identity].[team_members] m
+                    JOIN [identity].[teams] t ON t.Id = m.TeamId AND t.IsActive = 1 AND t.IsDeleted = 0
+                    GROUP BY m.UserId
+                    HAVING COUNT(DISTINCT t.Id) = 1")
+                .ToListAsync();
+
+            if (soleTeamRows.Count == 0) return;
+
+            var soleTeam = soleTeamRows
+                .Where(r => Guid.TryParse(r.TeamId, out _))
+                .ToDictionary(r => r.UserId, r => Guid.Parse(r.TeamId));
+
+            // No ambient tenant at startup, so span every tenant explicitly. The owner→team map is
+            // itself tenant-consistent (a user belongs to one tenant), so this cannot cross tenants.
+            var leads = await db.Leads.IgnoreQueryFilters()
+                .Where(l => l.TeamId == null && l.AssignedToUserId != null).ToListAsync();
+            foreach (var l in leads)
+                if (soleTeam.TryGetValue(l.AssignedToUserId!.Value, out var tid)) l.BackfillTeam(tid);
+
+            var deals = await db.Deals.IgnoreQueryFilters()
+                .Where(d => d.TeamId == null && d.AssignedToUserId != null).ToListAsync();
+            foreach (var d in deals)
+                if (soleTeam.TryGetValue(d.AssignedToUserId!.Value, out var tid)) d.BackfillTeam(tid);
+
+            var customers = await db.Customers.IgnoreQueryFilters()
+                .Where(c => c.TeamId == null && c.AccountManagerUserId != null).ToListAsync();
+            foreach (var c in customers)
+                if (soleTeam.TryGetValue(c.AccountManagerUserId!.Value, out var tid)) c.BackfillTeam(tid);
+
+            await db.SaveChangesAsync();
+        }
+        catch
+        {
+            // Best-effort background repair — never let it surface or crash-loop startup.
+        }
+    }
+
+    /// <summary>Row shape for the sole-team lookup. TeamId is read as a string because
+    /// <c>MIN()</c> cannot be applied to uniqueidentifier in SQL Server.</summary>
+    private sealed class SoleTeamRow
+    {
+        public Guid   UserId { get; set; }
+        public string TeamId { get; set; } = string.Empty;
     }
 
     private static async Task RecomputeLeadValueAndScoreAsync(CrmDbContext db)

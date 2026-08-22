@@ -9,6 +9,12 @@ export interface TeamMemberDto {
   fullName: string;
   email: string;
   isLead: boolean;
+  /**
+   * Every team this user belongs to. Many-to-many, so a picker grouping by team must expect the
+   * same user under more than one heading. Absent/empty when they are in no team, or on responses
+   * where team context doesn't apply (e.g. a single team's own member list).
+   */
+  teams?: { teamId: string; name: string }[];
 }
 
 export interface TeamDto {

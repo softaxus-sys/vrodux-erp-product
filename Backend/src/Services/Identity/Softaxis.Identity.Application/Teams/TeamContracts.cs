@@ -1,11 +1,18 @@
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Application.Teams;
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 
-public sealed record TeamMemberDto(Guid UserId, string FullName, string Email, bool IsLead);
+/// <summary>
+/// A user in a picker. <paramref name="Teams"/> lists every team they belong to — membership is
+/// many-to-many, so an assigner can see that someone sits in more than one. Empty when the user is
+/// in no team, or when the caller is looking at a list where team context does not apply.
+/// </summary>
+public sealed record TeamMemberDto(
+    Guid UserId, string FullName, string Email, bool IsLead, IReadOnlyList<UserTeamRef>? Teams = null);
 
 public sealed record TeamDto(
     Guid    Id,

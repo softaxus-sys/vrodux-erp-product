@@ -16,9 +16,11 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db, ILeadAccessGuard a
         // (the tenant global filter overwrites any !IsDeleted entity filter, so filter manually).
         // Lead figures follow the caller's tier (all / their team / their own) so the dashboard
         // cannot be used to infer totals for leads the user is not allowed to open.
-        // NOTE: deals are NOT lead-scoped — they have no per-tier model of their own yet.
+        // Deals and activities are scoped too. They were not, which was survivable only while this
+        // endpoint required the tenant-wide crm.leads.view; now that every view tier can reach it, an
+        // unscoped deal query would hand a team lead the whole tenant's pipeline value.
         var leads = await access.ScopeReadable(db.Leads.AsNoTracking()).Where(l => !l.IsDeleted).Select(l => new { l.Status, l.Source, l.EstimatedValue }).ToListAsync(ct);
-        var deals = await db.Deals.AsNoTracking().Where(d => !d.IsDeleted).Select(d => new { d.Stage, d.Value }).ToListAsync(ct);
+        var deals = await access.ScopeDeals(db.Deals.AsNoTracking()).Where(d => !d.IsDeleted).Select(d => new { d.Stage, d.Value }).ToListAsync(ct);
 
         string[] leadStages = ["new", "contacted", "qualified", "converted"];
         var funnel = leadStages.Select(s => new LeadFunnelStageDto(s, leads.Count(l => l.Status == s))).ToList();
@@ -37,7 +39,8 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db, ILeadAccessGuard a
         var totalClosed = won.Count + lost;
 
         var todayStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        var openActs = await db.Activities.AsNoTracking().Where(a => !a.IsDeleted && !a.Completed).Select(a => a.DueDate).ToListAsync(ct);
+        var openActs = await access.ScopeActivities(db.Activities.AsNoTracking())
+            .Where(a => !a.IsDeleted && !a.Completed).Select(a => a.DueDate).ToListAsync(ct);
 
         return Result.Success(new CrmDashboardDto(
             funnel, bySource, pipeline,

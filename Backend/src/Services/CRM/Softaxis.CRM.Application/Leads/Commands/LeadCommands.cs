@@ -9,7 +9,7 @@ public sealed record CreateLeadCommand(
     string Email, string Phone, string Country, string City, string Source, string Priority,
     decimal EstimatedValue, string AssignedTo, string? Notes,
     string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
-    Guid? AssignedToUserId = null, string? PurchaseTimeframe = null)
+    Guid? AssignedToUserId = null, string? PurchaseTimeframe = null, Guid? TeamId = null)
     : ICommand<LeadDto>;
 
 public sealed class CreateLeadValidator : AbstractValidator<CreateLeadCommand>
@@ -34,7 +34,7 @@ public sealed record UpdateLeadCommand(
     decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes,
     List<string>? Tags,
     string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
-    Guid? AssignedToUserId = null, string? PurchaseTimeframe = null)
+    Guid? AssignedToUserId = null, string? PurchaseTimeframe = null, Guid? TeamId = null)
     : ICommand;
 
 public sealed class UpdateLeadValidator : AbstractValidator<UpdateLeadCommand>
@@ -50,7 +50,13 @@ public sealed record UpdateLeadStatusCommand(Guid Id, string Status) : ICommand;
 
 /// <summary>Assign or reassign a lead to a user (or clear the owner when ToUserId is null),
 /// recording a handoff row in the lead's assignment history.</summary>
-public sealed record AssignLeadCommand(Guid Id, Guid? ToUserId, string ToUserName, string? Note) : ICommand;
+/// <summary>
+/// Hand a lead to another user. <paramref name="TeamId"/> records WHICH TEAM the work belongs to —
+/// an owner can sit in several teams, so without it every one of their team leads would see the
+/// lead. Null leaves it untagged (falls back to owner membership).
+/// </summary>
+public sealed record AssignLeadCommand(
+    Guid Id, Guid? ToUserId, string ToUserName, string? Note, Guid? TeamId = null) : ICommand;
 
 public sealed record UpdateLeadScoreCommand(Guid Id, int Score) : ICommand;
 
@@ -58,3 +64,14 @@ public sealed record ConvertLeadCommand(Guid Id, string? DealTitle, decimal? Dea
     : ICommand<ConvertLeadResultDto>;
 
 public sealed record DeleteLeadCommand(Guid Id) : ICommand;
+
+/// <summary>
+/// File several leads to a team in one action. Exists because tagging existing records one at a time
+/// is impractical at any real volume — and until a record is filed, a team lead cannot see it.
+/// A null <paramref name="TeamId"/> un-files them (back to owner + full-access only).
+/// </summary>
+public sealed record BulkFileLeadsToTeamCommand(IReadOnlyList<Guid> LeadIds, Guid? TeamId)
+    : ICommand<BulkFileResultDto>;
+
+/// <summary>Outcome of a bulk filing — <paramref name="Skipped"/> counts ids the caller may not edit.</summary>
+public sealed record BulkFileResultDto(int Filed, int Skipped);

@@ -60,6 +60,52 @@ internal sealed class TeamRepository(IdentityDbContext db) : ITeamRepository
             .ToList();
     }
 
+    public async Task<Dictionary<Guid, List<UserTeamRef>>> GetTeamsByUserAsync(
+        IReadOnlyCollection<Guid> userIds, Guid? tenantScope, CancellationToken ct = default)
+    {
+        if (userIds.Count == 0) return [];
+
+        // Joined through the tenant-scoped team query so a membership row can never surface a team
+        // from another tenant.
+        var rows = await Scoped(tenantScope)
+            .Where(t => t.IsActive)
+            .SelectMany(t => db.TeamMembers
+                .Where(m => m.TeamId == t.Id && userIds.Contains(m.UserId))
+                .Select(m => new { m.UserId, TeamId = t.Id, t.Name }))
+            .ToListAsync(ct);
+
+        return rows
+            .GroupBy(r => r.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(r => new UserTeamRef(r.TeamId, r.Name))
+                      .DistinctBy(x => x.TeamId).OrderBy(x => x.Name).ToList());
+    }
+
+    public Task<List<Guid>> GetAllTeamLeadIdsAsync(Guid? tenantScope, CancellationToken ct = default) =>
+        Scoped(tenantScope)
+            .Where(t => t.IsActive && t.TeamLeadUserId != null)
+            .Select(t => t.TeamLeadUserId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+    public async Task<List<Guid>> GetLeadIdsOfTeamsContainingAsync(
+        Guid userId, Guid? tenantScope, CancellationToken ct = default)
+    {
+        var teamIds = await db.TeamMembers
+            .Where(m => m.UserId == userId)
+            .Select(m => m.TeamId)
+            .ToListAsync(ct);
+
+        if (teamIds.Count == 0) return [];
+
+        return await Scoped(tenantScope)
+            .Where(t => t.IsActive && teamIds.Contains(t.Id) && t.TeamLeadUserId != null)
+            .Select(t => t.TeamLeadUserId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     public async Task<List<Guid>> GetMemberIdsOfTeamsLedByAsync(
         Guid teamLeadUserId, Guid? tenantScope, CancellationToken ct = default)
     {

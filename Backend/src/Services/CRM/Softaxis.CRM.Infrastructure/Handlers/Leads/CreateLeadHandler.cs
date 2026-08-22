@@ -19,6 +19,11 @@ internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, I
             cmd.EstimatedValue, cmd.AssignedTo, cmd.Notes,
             cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId, cmd.PurchaseTimeframe);
 
+        // The ctor does not take a team, so stamp it here. Only meaningful with an owner — AssignTo
+        // clears the team when the owner is null.
+        if (cmd.AssignedToUserId is not null)
+            l.AssignTo(cmd.AssignedToUserId, cmd.AssignedTo, cmd.TeamId);
+
         // Derive value from the budget when none was entered, detect an urgency tag from the message
         // when no explicit timeframe was given, then score (no activity yet → 0).
         l.DeriveEstimatedValueFromBudget();

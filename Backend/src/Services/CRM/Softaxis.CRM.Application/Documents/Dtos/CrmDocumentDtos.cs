@@ -15,7 +15,15 @@ public sealed record CrmDocumentDto(
     string   DocumentType,
     string?  Description,
     string?  UploadedByName,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    /// <summary>
+    /// Owner of the record the document hangs off — the rep whose lead/opportunity/account this is,
+    /// not whoever uploaded the file. This is what the File Manager groups folders by: a manager
+    /// uploading a contract onto a rep's deal must still file under that rep, or the rep's folder
+    /// understates their own book. Null when the linked record is unassigned.
+    /// </summary>
+    Guid?    OwnerUserId = null,
+    string?  OwnerName   = null);
 
 /// <summary>The bytes plus what a browser needs to render/save them.</summary>
 public sealed record CrmDocumentContentDto(

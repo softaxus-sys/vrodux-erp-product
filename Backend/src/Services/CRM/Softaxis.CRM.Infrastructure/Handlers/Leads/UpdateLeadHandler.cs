@@ -26,6 +26,10 @@ internal sealed class UpdateLeadHandler(CrmDbContext db, ILeadAccessGuard access
             cmd.EstimatedValue, cmd.AssignedTo, cmd.Score, cmd.NextFollowUp, cmd.Notes, cmd.Tags,
             cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId, cmd.PurchaseTimeframe);
 
+        // Update() does not carry the team, so re-stamp owner + team together — an edit that changes
+        // the owner must not leave the record filed under the previous owner's team.
+        l.AssignTo(cmd.AssignedToUserId, cmd.AssignedTo, cmd.TeamId);
+
         // Value & score are computed, not free-form — derive value from budget when unset, then
         // recompute the score from the edited signals + engagement.
         l.DeriveEstimatedValueFromBudget();

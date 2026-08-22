@@ -4,10 +4,11 @@ using Softaxis.CRM.Application.Deals.Commands;
 using Softaxis.CRM.Application.Deals.Dtos;
 using Softaxis.CRM.Domain.Entities;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Deals;
 
-internal sealed class CreateDealHandler(CrmDbContext db) : ICommandHandler<CreateDealCommand, DealDto>
+internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stageRecorder) : ICommandHandler<CreateDealCommand, DealDto>
 {
     public async Task<Result<DealDto>> Handle(CreateDealCommand cmd, CancellationToken ct)
     {
@@ -23,7 +24,13 @@ internal sealed class CreateDealHandler(CrmDbContext db) : ICommandHandler<Creat
             cmd.Probability, cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
             cmd.ForecastCategory, cmd.CustomerId, cmd.AssignedToUserId);
 
+        // The ctor takes no team, so stamp owner + team together. AssignTo clears the team when the
+        // owner is null, so an unassigned deal cannot end up filed under one.
+        if (cmd.AssignedToUserId is not null)
+            d.AssignTo(cmd.AssignedToUserId, cmd.AssignedTo, cmd.TeamId);
+
         db.Deals.Add(d);
+        stageRecorder.RecordCreated(d);   // opens the stage-history trail the velocity reports read
         await db.SaveChangesAsync(ct);
 
         return Result.Success(DealMappings.ToDto(d));

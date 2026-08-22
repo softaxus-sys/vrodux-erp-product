@@ -16,6 +16,10 @@ internal sealed class CreateCrmCustomerHandler(CrmDbContext db, IAiEventBus aiEv
         var c = new CrmCustomer(cmd.Name, cmd.Industry, cmd.Country, cmd.City, cmd.Address,
             cmd.Phone, cmd.Email, cmd.Tier, cmd.AccountManager, cmd.Description, cmd.AccountManagerUserId);
 
+        // Same as leads/deals: the ctor takes no team, so stamp manager + team together.
+        if (cmd.AccountManagerUserId is not null)
+            c.AssignAccountManager(cmd.AccountManagerUserId, cmd.AccountManager, cmd.TeamId);
+
         db.Customers.Add(c);
         await db.SaveChangesAsync(ct);
 

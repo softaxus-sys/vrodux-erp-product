@@ -61,18 +61,68 @@ internal sealed class GetCrmDocumentsHandler(CrmDbContext db, ILeadAccessGuard a
 }
 
 /// <summary>
-/// Tenant-wide document library.
+/// Tenant-wide document library, backing the File Manager.
 ///
-/// <para>Lead-scoped users see only the documents of leads assigned to them; documents on
-/// accounts/opportunities/contacts stay visible to anyone with the CRM view permission, matching
-/// how <c>ScopeActivities</c> treats the activity list. Filtering happens after the query because
-/// the per-lead check is not expressible in SQL.</para>
+/// <para>Every document is scoped by the access tier of the record it hangs off — leads via
+/// <c>ScopeReadable</c>, opportunities via <c>ScopeDeals</c>, accounts via <c>ScopeCustomers</c>,
+/// and contacts through their account. So an admin sees every rep's files, a team lead sees their
+/// team's, and a rep sees only their own.</para>
+///
+/// <para>Each row also carries the <b>owner of the linked record</b> (not the uploader), which is
+/// what the File Manager groups its folders by.</para>
 /// </summary>
 internal sealed class SearchCrmDocumentsHandler(CrmDbContext db, ILeadAccessGuard access)
     : IQueryHandler<SearchCrmDocumentsQuery, IReadOnlyList<CrmDocumentDto>>
 {
     public async Task<Result<IReadOnlyList<CrmDocumentDto>>> Handle(SearchCrmDocumentsQuery q, CancellationToken ct)
     {
+        // ── Visible records, per target type ──────────────────────────────────────────────────
+        //
+        // Previously only LEAD documents were access-checked here; deal, account and contact
+        // documents were returned to anyone who could open the library, so a rep saw files from
+        // other reps' opportunities. Every type is now scoped through its own guard, and the owner
+        // of each record is carried through so the File Manager can group by rep.
+        //
+        // Done as four set queries rather than a per-row permission call: the old row-by-row
+        // CanManageActivityAsync hit the database once per document (up to 500 round-trips).
+
+        var leads = await access.ScopeReadable(db.Leads.AsNoTracking())
+            .Where(l => !l.IsDeleted)
+            .Select(l => new { l.Id, OwnerId = l.AssignedToUserId, OwnerName = l.AssignedTo })
+            .ToListAsync(ct);
+
+        var deals = await access.ScopeDeals(db.Deals.AsNoTracking())
+            .Where(d => !d.IsDeleted)
+            .Select(d => new { d.Id, OwnerId = d.AssignedToUserId, OwnerName = d.AssignedTo })
+            .ToListAsync(ct);
+
+        var customers = await access.ScopeCustomers(db.Customers.AsNoTracking())
+            .Where(c => !c.IsDeleted)
+            .Select(c => new { c.Id, OwnerId = c.AccountManagerUserId, OwnerName = c.AccountManager })
+            .ToListAsync(ct);
+
+        // A contact has no owner of its own — it inherits the account manager of the account it
+        // belongs to, so a contact's files land in the same folder as that account's.
+        var customerOwners = customers.ToDictionary(c => c.Id, c => (c.OwnerId, c.OwnerName));
+        var visibleCustomerIds = customerOwners.Keys.ToList();
+
+        var contacts = await db.Contacts.AsNoTracking()
+            .Where(c => !c.IsDeleted && visibleCustomerIds.Contains(c.CustomerId))
+            .Select(c => new { c.Id, c.CustomerId })
+            .ToListAsync(ct);
+
+        var owners = new Dictionary<(string Type, Guid Id), (Guid? OwnerId, string? OwnerName)>();
+        foreach (var l in leads)     owners[(CrmDocumentTargets.Lead, l.Id)]     = (l.OwnerId, l.OwnerName);
+        foreach (var d in deals)     owners[(CrmDocumentTargets.Deal, d.Id)]     = (d.OwnerId, d.OwnerName);
+        foreach (var c in customers) owners[(CrmDocumentTargets.Customer, c.Id)] = (c.OwnerId, c.OwnerName);
+        foreach (var c in contacts)
+        {
+            if (customerOwners.TryGetValue(c.CustomerId, out var o))
+                owners[(CrmDocumentTargets.Contact, c.Id)] = o;
+        }
+
+        // ── Documents ─────────────────────────────────────────────────────────────────────────
+
         var query = db.Documents.AsNoTracking().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(q.Search))
@@ -98,25 +148,38 @@ internal sealed class SearchCrmDocumentsHandler(CrmDbContext db, ILeadAccessGuar
 
         // MUST project before materialising: selecting the entity would pull every row's Data blob
         // (up to 10 MB each) into memory. Only metadata is needed here.
+        //
+        // Two bounds, on purpose. The old code took 500 rows and *then* filtered, so a restricted
+        // user got only the visible remainder of the newest 500 overall — often almost nothing. The
+        // fetch bound is now wider than the result bound so their own files fill a page, while the
+        // query stays bounded rather than materialising an unbounded table.
+        const int fetchLimit = 2_000;
+        const int resultLimit = 500;
+
         var rows = await query
             .OrderByDescending(x => x.CreatedAt)
-            .Take(500)
-            .Select(x => new CrmDocumentDto(
+            .Take(fetchLimit)
+            .Select(x => new
+            {
                 x.Id, x.RelatedToType, x.RelatedToId, x.RelatedToName,
                 x.FileName, x.ContentType, x.SizeBytes,
-                x.DocumentType, x.Description, x.UploadedByName, x.CreatedAt))
+                x.DocumentType, x.Description, x.UploadedByName, x.CreatedAt,
+            })
             .ToListAsync(ct);
 
-        // Drop lead documents the caller may not see. Only lead access is record-scoped, so the
-        // other target types need no per-row check.
-        var visible = new List<CrmDocumentDto>(rows.Count);
+        var visible = new List<CrmDocumentDto>();
         foreach (var x in rows)
         {
-            if (x.RelatedToType == CrmDocumentTargets.Lead &&
-                !await access.CanManageActivityAsync(x.RelatedToType, x.RelatedToId, ct))
-                continue;
+            // Not in the owner map = the linked record is outside the caller's tier (or deleted).
+            if (!owners.TryGetValue((x.RelatedToType, x.RelatedToId), out var owner)) continue;
 
-            visible.Add(x);
+            visible.Add(new CrmDocumentDto(
+                x.Id, x.RelatedToType, x.RelatedToId, x.RelatedToName,
+                x.FileName, x.ContentType, x.SizeBytes,
+                x.DocumentType, x.Description, x.UploadedByName, x.CreatedAt,
+                owner.OwnerId, string.IsNullOrWhiteSpace(owner.OwnerName) ? null : owner.OwnerName));
+
+            if (visible.Count >= resultLimit) break;
         }
 
         return Result.Success<IReadOnlyList<CrmDocumentDto>>(visible);

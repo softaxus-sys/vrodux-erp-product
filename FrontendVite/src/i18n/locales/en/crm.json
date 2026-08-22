@@ -91,7 +91,15 @@
       "nextFollowUp": "Next Follow-up",
       "assignedTo": "Assigned To",
       "status": "Status"
-    }
+    },
+    "selectedCount": "{{count}} selected",
+    "fileToTeam": "File to team",
+    "clearSelection": "Clear",
+    "noTeamOption": "No team (owner only)",
+    "filedToTeam": "{{count}} lead(s) filed to {{team}}.",
+    "unfiled": "{{count}} lead(s) un-filed.",
+    "filingSkipped": "{{count}} skipped — you don’t have permission to change them.",
+    "filingHint": "A team lead only sees leads filed to a team they lead. Unfiled leads stay visible to their owner and to admins."
   },
   "priority": {
     "high": "High",
@@ -156,7 +164,9 @@
     "reassignDescription": "Hand this lead to another team member. They'll see it under “Assigned to me” and can act on it; the change is recorded in the lead's history.",
     "assignTo": "Assign to",
     "noteOptional": "Note (optional)",
-    "notePlaceholder": "e.g. Contacted — please arrange a site visit"
+    "notePlaceholder": "e.g. Contacted — please arrange a site visit",
+    "noTeam": "No team",
+    "multiTeamHint": "Someone listed under several teams belongs to all of them."
   },
   "form": {
     "editTitle": "Edit Lead",
@@ -344,7 +354,10 @@
     "leadFunnel": "Lead Funnel",
     "wonLost": "Won / Lost",
     "leadsBySource": "Leads by Source",
-    "noLeads": "No leads yet."
+    "noLeads": "No leads yet.",
+    "loadFailed": "Couldn’t load the CRM dashboard.",
+    "noData": "The server returned no data.",
+    "retry": "Try again"
   },
   "funnel": {
     "new": "New",
@@ -710,5 +723,216 @@
     },
     "optional": "(optional)",
     "someFailed": "{{count}} document(s) could not be attached."
+  },
+  "reports": {
+    "title": "CRM Reports",
+    "subtitle": "Pipeline, conversion, performance and revenue analysis.",
+    "loading": "Loading report…",
+    "errorTitle": "Could not load this report.",
+    "empty": "No data for this period.",
+    "noAccessTitle": "You don't have access to CRM reports.",
+    "noAccessHint": "Ask an administrator to grant the \"CRM Reports — view\" permission.",
+    "groups": {
+      "Sales": "Sales",
+      "Leads": "Leads",
+      "Accounts": "Accounts"
+    },
+    "filters": {
+      "from": "From",
+      "to": "To",
+      "owner": "Owner",
+      "everyone": "Everyone",
+      "stage": "Stage",
+      "allStages": "All stages",
+      "reset": "Reset",
+      "datedBy": "Date range applies to {{basis}}.",
+      "allTime": "All time",
+      "last30": "Last 30 days",
+      "last90": "Last 90 days",
+      "thisMonth": "This month",
+      "thisYear": "This year"
+    },
+    "basis": {
+      "pipeline": "deal created",
+      "win-loss": "deal closed",
+      "performance": "closed deals + lead/activity created",
+      "lead-sources": "lead created",
+      "conversion": "lead created",
+      "velocity": "stage change",
+      "activities": "activity created",
+      "accounts": "deal closed"
+    },
+    "catalogue": {
+      "pipeline": {
+        "title": "Sales Pipeline",
+        "description": "Open opportunities by stage and forecast category, with weighted value."
+      },
+      "win-loss": {
+        "title": "Win / Loss Analysis",
+        "description": "Won vs lost over time, win rate, and why deals are being lost."
+      },
+      "velocity": {
+        "title": "Sales Velocity",
+        "description": "How long deals sit in each stage and how long a full cycle takes."
+      },
+      "performance": {
+        "title": "Team Performance",
+        "description": "Per-owner scorecard across leads, opportunities and activities."
+      },
+      "conversion": {
+        "title": "Lead Conversion",
+        "description": "Funnel drop-off, conversion trend and time to convert."
+      },
+      "lead-sources": {
+        "title": "Lead Source ROI",
+        "description": "Which sources deliver leads that actually become revenue."
+      },
+      "activities": {
+        "title": "Activity Report",
+        "description": "Call, meeting and task volume, completion rate and overdue load."
+      },
+      "accounts": {
+        "title": "Account Revenue",
+        "description": "Revenue and open pipeline rolled up per account."
+      }
+    },
+    "common": {
+      "stage": "Stage",
+      "deals": "Deals",
+      "value": "Value",
+      "weighted": "Weighted",
+      "avgSize": "Avg size",
+      "owner": "Owner",
+      "total": "Total",
+      "completed": "Completed",
+      "open": "Open",
+      "overdue": "Overdue",
+      "leads": "Leads",
+      "converted": "Converted",
+      "source": "Source",
+      "account": "Account",
+      "tier": "Tier",
+      "manager": "Manager",
+      "won": "Won",
+      "lost": "Lost",
+      "winRate": "Win rate",
+      "avgScore": "Avg score",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "none": "—"
+    },
+    "pipeline": {
+      "openDeals": "Open deals",
+      "openPipeline": "Open pipeline",
+      "weightedForecast": "Weighted forecast",
+      "weightedHint": "Value × probability",
+      "commit": "Commit",
+      "avgDeal": "Avg deal size",
+      "valueByStage": "Value by stage",
+      "valueByStageSub": "All opportunities in the period",
+      "forecastCategory": "Forecast category",
+      "forecastCategorySub": "Open opportunities only",
+      "noForecast": "No open opportunities to forecast.",
+      "stageDetail": "Stage detail"
+    },
+    "winLoss": {
+      "avgWonDeal": "Avg won deal",
+      "avgTimeToClose": "Avg time to close",
+      "overTime": "Won vs lost over time",
+      "overTimeSub": "By the month the deal closed",
+      "noClosed": "No deals closed in this period.",
+      "lossReasons": "Why deals are lost",
+      "lossReasonsSub": "Loss reasons captured when a deal moves to Lost",
+      "noLost": "No lost deals in this period."
+    },
+    "performance": {
+      "people": "People with activity",
+      "dealsWon": "Deals won",
+      "revenueWon": "Revenue won",
+      "topPerformer": "Top performer",
+      "scorecard": "Scorecard",
+      "scorecardSub": "Sorted by revenue won",
+      "noOwned": "No owned records in this period.",
+      "revenueByOwner": "Revenue won by owner",
+      "noRevenue": "No revenue won in this period.",
+      "openPipeline": "Open pipeline",
+      "activities": "Activities",
+      "leadConv": "Lead conv.",
+      "teams": "Teams",
+      "team": "Team",
+      "teamLead": "Team lead",
+      "members": "members",
+      "noTeams": "You do not lead any team yet.",
+      "noTeamsAdmin": "No teams have been set up yet.",
+      "unassignedTeam": "Not in a team",
+      "teamTotals": "Team total",
+      "membersWithActivity": "{{count}} with activity"
+    },
+    "leadSources": {
+      "conversionRate": "Conversion rate",
+      "bestSource": "Best source",
+      "leadsBySource": "Leads by source",
+      "revenueBySource": "Revenue won by source",
+      "revenueBySourceSub": "Traced from each converted lead to its opportunity",
+      "noAttributable": "No won revenue attributable to a source yet.",
+      "detail": "Source detail",
+      "convPct": "Conv %",
+      "wonValue": "Won value",
+      "avgToConvert": "Avg to convert"
+    },
+    "conversion": {
+      "conversionRate": "Conversion rate",
+      "avgTimeToConvert": "Avg time to convert",
+      "funnel": "Funnel",
+      "funnelSub": "Leads reaching each step, and the drop-off between steps",
+      "noLeads": "No leads in this period.",
+      "ofAll": "{{pct}} of all",
+      "fromPrevious": "({{pct}} from previous)",
+      "trend": "Conversion trend",
+      "trendSub": "Each month's leads and how many of them converted",
+      "scoreQuality": "Score quality",
+      "scoreQualitySub": "Does the lead score actually predict conversion?",
+      "convertedLeads": "Converted leads",
+      "notConverted": "Not converted",
+      "avgScoreLabel": "avg score {{score}}",
+      "scoreHint": "A healthy gap here means the score is doing its job. If the two are close, the scoring rules are not separating good leads from bad."
+    },
+    "velocity": {
+      "avgCycle": "Avg sales cycle",
+      "avgToWin": "Avg time to win",
+      "avgToLose": "Avg time to lose",
+      "closedAnalysed": "Closed deals analysed",
+      "timeInStage": "Time spent in each stage",
+      "timeInStageSub": "Average days a deal sits in a stage before moving on. Long stages are where deals stall.",
+      "noMovements": "No stage movements recorded yet.",
+      "detail": "Stage detail",
+      "dealsHere": "Deals here now",
+      "transitions": "Transitions",
+      "avgDays": "Avg days",
+      "medianDays": "Median days",
+      "median": "median {{days}}"
+    },
+    "activities": {
+      "activities": "Activities",
+      "completionRate": "Completion rate",
+      "byType": "By type",
+      "byOwner": "By owner",
+      "overdueByOwner": "Overdue load by owner",
+      "overdueByOwnerSub": "Who is falling behind on follow-ups",
+      "nothingOverdue": "Nothing overdue.",
+      "overdueCount": "{{count}} overdue",
+      "completion": "Completion"
+    },
+    "accounts": {
+      "accounts": "Accounts",
+      "revenueWon": "Revenue won",
+      "openPipeline": "Open pipeline",
+      "topAccount": "Top account",
+      "topAccounts": "Top accounts by revenue won",
+      "noLinkedWon": "No won opportunities linked to an account yet.",
+      "detail": "Account detail",
+      "note": "Won value is summed from linked opportunities. Recorded revenue is the figure stored on the account record itself — shown separately because the two are maintained independently and often disagree.",
+      "recordedRevenue": "Recorded revenue"
+    }
   }
 }

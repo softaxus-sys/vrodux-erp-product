@@ -47,6 +47,13 @@ public sealed class Lead
     /// <summary>Identity user id of the current owner. Drives role-based "my assigned leads" scoping.
     /// Null = unassigned / legacy free-text-only assignment.</summary>
     public Guid?     AssignedToUserId { get; private set; }
+    /// <summary>
+    /// The team this record belongs to. Owners can sit in several teams, so ownership alone cannot
+    /// say whose work this is — without it, every lead of every team the owner belongs to would see
+    /// the record. Null = untagged: falls back to the owner-membership rule so legacy rows stay
+    /// visible rather than vanishing from a team lead the day this shipped.
+    /// </summary>
+    public Guid?     TeamId          { get; private set; }
     public string    CreatedDate     { get; private set; } = string.Empty;
     public string?   LastContactDate { get; private set; }
     public string?   NextFollowUp    { get; private set; }
@@ -54,6 +61,9 @@ public sealed class Lead
     public string?   ConvertedDealId { get; private set; }
     // Relational link to the account created on conversion (mirrors ConvertedDealId).
     public Guid?     ConvertedCustomerId { get; private set; }
+    /// <summary>When the lead was converted; null while unconverted. Paired with <see cref="CreatedAt"/>
+    /// this gives time-to-convert, which the conversion + source-effectiveness reports are built on.</summary>
+    public DateTime? ConvertedAt     { get; private set; }
 
     // ── Requirements (from a lead-gen form or entered manually) ──────────────
     public string?   WhatsApp        { get; private set; }
@@ -156,17 +166,34 @@ public sealed class Lead
         Message           ??= Trim(message);
         PurchaseTimeframe ??= Trim(purchaseTimeframe);
     }
-    public void Convert(string dealId, Guid? customerId = null) { Status = "converted"; ConvertedDealId = dealId; ConvertedCustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
+    public void Convert(string dealId, Guid? customerId = null)
+    {
+        Status = "converted"; ConvertedDealId = dealId; ConvertedCustomerId = customerId;
+        ConvertedAt ??= DateTime.UtcNow;   // keep the original date if a lead is somehow re-converted
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Backfill hook for leads converted before <see cref="ConvertedAt"/> existed. Only ever
+    /// fills a null on an already-converted lead.</summary>
+    public void BackfillConvertedAt(DateTime convertedAt)
+    {
+        if (ConvertedAt is null && Status == "converted") ConvertedAt = convertedAt;
+    }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     /// <summary>Reassign the lead to a user (records the current owner on the entity; handoff history is
     /// written separately by the handler which knows the acting user).</summary>
-    public void AssignTo(Guid? userId, string name)
+    public void AssignTo(Guid? userId, string name, Guid? teamId = null)
     {
         AssignedToUserId = userId;
         AssignedTo = (name ?? string.Empty).Trim();
+        // Unassigning clears the team too — a record with no owner belongs to no team.
+        TeamId = userId is null ? null : teamId;
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>Backfill hook: only ever fills an untagged record, never overwrites a real choice.</summary>
+    public void BackfillTeam(Guid teamId) { if (TeamId is null) TeamId = teamId; }
 
     public void Update(string firstName, string lastName, string title, string company, string industry,
         string email, string phone, string country, string city, string source, string priority,

@@ -32,6 +32,10 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(x => x.Notes).HasMaxLength(2000);
         builder.Property(x => x.ConvertedDealId).HasMaxLength(50);
         builder.HasIndex(x => x.ConvertedCustomerId);
+        // Team-scoped reads filter on this constantly.
+        builder.HasIndex(x => x.TeamId);
+        // Conversion + source-effectiveness reports slice leads by conversion date.
+        builder.HasIndex(x => x.ConvertedAt);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         // Requirements (lead-gen form / manual entry)
         builder.Property(x => x.WhatsApp).HasMaxLength(50);
@@ -71,12 +75,29 @@ internal sealed class LeadAssignmentConfiguration : IEntityTypeConfiguration<Lea
     }
 }
 
+internal sealed class DealStageHistoryConfiguration : IEntityTypeConfiguration<DealStageHistory>
+{
+    public void Configure(EntityTypeBuilder<DealStageHistory> builder)
+    {
+        builder.ToTable("deal_stage_history");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.FromStage).HasMaxLength(30);
+        builder.Property(x => x.ToStage).IsRequired().HasMaxLength(30);
+        builder.Property(x => x.ChangedByName).HasMaxLength(200);
+        builder.Property(x => x.ValueAtChange).HasPrecision(18, 2);
+        builder.HasIndex(x => x.DealId);
+        // Reports slice by period first, then group by stage — this is the covering shape for that.
+        builder.HasIndex(x => new { x.CreatedAt, x.ToStage });
+    }
+}
+
 internal sealed class CrmCustomerConfiguration : IEntityTypeConfiguration<CrmCustomer>
 {
     public void Configure(EntityTypeBuilder<CrmCustomer> builder)
     {
         builder.ToTable("customers");
         builder.HasIndex(x => x.AccountManagerUserId);
+        builder.HasIndex(x => x.TeamId);
         builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
         builder.Property(x => x.TradeName).HasMaxLength(200);
@@ -187,6 +208,9 @@ internal sealed class DealConfiguration : IEntityTypeConfiguration<Deal>
     {
         builder.ToTable("deals");
         builder.HasIndex(x => x.AssignedToUserId);
+        builder.HasIndex(x => x.TeamId);
+        // Won/lost reports filter on the close date across the whole deals table.
+        builder.HasIndex(x => x.ClosedAt);
         builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
         builder.Property(x => x.Company).IsRequired().HasMaxLength(200);

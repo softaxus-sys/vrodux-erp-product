@@ -20,7 +20,8 @@ internal sealed class ConvertLeadHandler(CrmDbContext db, ILeadAccessGuard acces
             return Result.Failure<ConvertLeadResultDto>(Error.Custom("Lead.AlreadyConverted", "Lead is already converted."));
 
         var customer = new CrmCustomer(l.Company, l.Industry, l.Country, l.City, "",
-            l.Phone, l.Email, "standard", l.AssignedTo, l.Notes ?? "");
+            l.Phone, l.Email, "standard", l.AssignedTo, l.Notes ?? "",
+            accountManagerUserId: l.AssignedToUserId);
         db.Customers.Add(customer);
 
         // Carry the lead's person across as the account's primary contact (SFDC-style
@@ -42,7 +43,21 @@ internal sealed class ConvertLeadHandler(CrmDbContext db, ILeadAccessGuard acces
             string.IsNullOrWhiteSpace(cmd.DealTitle) ? autoTitle : cmd.DealTitle!,
             l.Company, cmd.DealValue ?? l.EstimatedValue, "qualified", l.Priority,
             20, cmd.ExpectedCloseDate ?? DateTime.UtcNow.AddDays(30).ToString("yyyy-MM-dd"),
-            l.AssignedTo, l.Source, l.Industry, l.Notes ?? "", forecastCategory: null, customerId: customer.Id);
+            l.AssignedTo, l.Source, l.Industry, l.Notes ?? "", forecastCategory: null, customerId: customer.Id,
+            // Carry the lead's owner onto the opportunity and the account. Without this the deal is
+            // unowned, and a rep on the team or assigned tier converts a lead into something they
+            // can no longer see.
+            assignedToUserId: l.AssignedToUserId);
+        // Carry the lead's TEAM onto both records too, not just the owner. Without this, converting
+        // a lead that was filed to a specific team produces an untagged account and opportunity —
+        // which fall back to the owner-membership rule and become visible to every team lead the
+        // owner reports to, quietly undoing the conversion's team context.
+        if (l.AssignedToUserId is not null && l.TeamId is not null)
+        {
+            customer.AssignAccountManager(l.AssignedToUserId, l.AssignedTo, l.TeamId);
+            deal.AssignTo(l.AssignedToUserId, l.AssignedTo, l.TeamId);
+        }
+
         db.Deals.Add(deal);
 
         // Attach the primary contact to the opportunity as the decision maker.

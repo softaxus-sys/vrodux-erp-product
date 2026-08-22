@@ -1,6 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { useAssignableUsers } from "@/hooks/identity/use-teams";
+import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { toast } from "sonner";
 import { StagedDocumentPicker, uploadStagedDocuments } from "@/modules/crm/shared/components/staged-document-picker";
 import type { StagedDocument } from "@/modules/crm/shared/components/staged-document-picker";
@@ -44,8 +44,10 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   const [country, setCountry]           = React.useState("UAE");
   const [assignedTo, setAssignedTo]     = React.useState("");           // display name
   const [assignedToUserId, setAssignedToUserId] = React.useState("");   // owning user ("" = unassigned)
+  const [assignedTeamId, setAssignedTeamId] = React.useState<string | null>(null); // team the account belongs to
   // See the deal form: the id is what the assigned-only / my-team tiers scope on.
-  const { data: assignable = [] } = useAssignableUsers(open);
+  // Grouped by team so a multi-team manager can be filed to the right team (see Module 30).
+  const { groups: assignableGroups, options: assignableUsers } = useAssignableByTeam(open);
   const [notes, setNotes]               = React.useState("");
   const [staged, setStaged]             = React.useState<StagedDocument[]>([]);
 
@@ -60,6 +62,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       setIndustry(editing.industry); setWebsite(editing.website ?? "");
       setAddress(editing.address); setCity(editing.city); setCountry(editing.country);
       setAssignedTo(editing.accountManager); setAssignedToUserId(editing.accountManagerUserId ?? "");
+      setAssignedTeamId(editing.teamId ?? null);
       setNotes(editing.description);
     }
   }, [open, editing]);
@@ -71,7 +74,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       updateCustomer.mutate({ id: editing.id, data: {
         name: name.trim(), industry, country, city, address: address.trim(),
         phone: phone.trim(), email: email.trim(), status: editing.status, tier: editing.tier,
-        accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null,
+        accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null, teamId: assignedTeamId,
         description, website: website.trim() || null,
         tradeName: editing.tradeName ?? null, employees: editing.employees ?? null,
         npsScore: editing.npsScore ?? null, contractRenewal: editing.contractRenewal ?? null, tags: editing.tags,
@@ -80,7 +83,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       createCustomer.mutate({
         name: name.trim(), industry, country, city, address: address.trim(),
         phone: phone.trim(), email: email.trim(), tier: "standard",
-        accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null, description,
+        accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null, teamId: assignedTeamId, description,
       }, {
         onSuccess: async (created: any) => {
           if (staged.length && created?.id) {
@@ -237,16 +240,26 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.accountManager")}</label>
                   <select
-                    value={assignedToUserId}
+                    value={assignedToUserId ? encodeAssignee(assignedToUserId, assignedTeamId) : ""}
                     onChange={e => {
-                      const id = e.target.value;
-                      setAssignedToUserId(id);
-                      setAssignedTo(assignable.find(u => u.userId === id)?.fullName ?? "");
+                      const { userId, teamId } = decodeAssignee(e.target.value);
+                      setAssignedToUserId(userId ?? "");
+                      setAssignedTeamId(teamId);
+                      setAssignedTo(assignableUsers.find(u => u.id === userId)?.fullName ?? "");
                     }}
                     className="w-full h-9 rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="">{t("customerForm.unassigned", { defaultValue: "Unassigned" })}</option>
-                    {assignable.map(u => <option key={u.userId} value={u.userId}>{u.fullName}</option>)}
+                    {assignableGroups.map(g => (
+                      <optgroup key={g.team} label={g.team}>
+                        {/* Keyed AND valued by team + user — someone in two teams appears under each. */}
+                        {g.members.map(u => (
+                          <option key={`${g.team}-${u.id}`} value={encodeAssignee(u.id, u.teamId)}>
+                            {u.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">

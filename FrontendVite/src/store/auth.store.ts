@@ -80,12 +80,15 @@ export function mapUserDto(dto: UserDto): User {
   const primaryRole = dto.roles[0];
   const allPermissions: Permission[] = [];
 
-  for (const role of dto.roles) {
-    for (const perm of role.permissions) {
-      const mapped = toFrontendPermission(perm.key);
-      if (mapped && !allPermissions.includes(mapped)) {
-        allPermissions.push(mapped);
-      }
+  // Derive from the EFFECTIVE key set — (roles ∪ user grants) − user denies — the same set
+  // hasRawPermission uses. Reading dto.roles directly ignored per-user permission overrides, so a
+  // permission granted to a single user (rather than through a role) satisfied hasRawPermission but
+  // not hasModuleAccess: the button unlocked while the module stayed hidden. A deny had the mirror
+  // problem — revoked at the button, still granting module access.
+  for (const key of extractRawPermissions(dto)) {
+    const mapped = toFrontendPermission(key);
+    if (mapped && !allPermissions.includes(mapped)) {
+      allPermissions.push(mapped);
     }
   }
 
@@ -526,8 +529,13 @@ export const useAuthStore = create<AuthState>()(
         if (!tenant) return false;
 
         // ── 2. Always-on UI modules (not part of plan/module entitlements) ──────
+        //    file-manager was here too, which is why it could never be granted or withheld: it was
+        //    open to every authenticated user regardless of role. It now carries real permission
+        //    keys (file-manager.view/export) and falls through to the normal checks below, so a
+        //    tenant can decide who browses stored documents. Admins/managers still pass at step 4,
+        //    and every legacy role in ROLE_DEFAULTS lists it, so only custom roles need the grant.
         if (module === "dashboard" || module === "notifications" ||
-            module === "file-manager" || module === "ai-assistant") return true;
+            module === "ai-assistant") return true;
 
         // ── 3. Tenant must have the module enabled — applies to EVERYONE,
         //       including tenant_admin. A tenant admin can only ever see the

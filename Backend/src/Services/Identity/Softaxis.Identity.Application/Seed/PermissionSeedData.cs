@@ -65,6 +65,10 @@ public static class PermissionSeedData
         ["crm.customers-team"]     = ["view","edit"],
         ["crm.pipeline"]         = ["view","create","edit","export"],
         ["crm.customers"]        = ["view","create","edit","delete","export"],
+        // CRM reporting. Separate from the record permissions on purpose: reports aggregate across
+        // leads, opportunities, accounts and activities, so seeing them is its own decision. The data
+        // is still scoped by each area's access tier, so granting this to a rep shows their own numbers.
+        ["crm.reports"]          = ["view","export"],
 
         // CRM industry packs — B2B (Proposals → Contracts → Support Tickets)
         ["b2b.proposals"]        = ["view","create","edit","delete"],
@@ -95,6 +99,20 @@ public static class PermissionSeedData
         ["purchase.vendors"]     = ["view","create","edit","delete","export"],
         ["purchase.orders"]      = ["view","create","edit","approve","export","print"],
         ["purchase.approvals"]   = ["view","approve"],
+
+        // Reports module (the cross-module hub at /reports). Distinct from the per-module report
+        // permissions above (pos.reports / crm.reports / restaurant.reports), which govern that
+        // module's own report DATA. This one governs access to the hub itself: without it there was
+        // no permission key a role could be granted to unlock the Reports module at all, so only
+        // tenant admins and a handful of legacy role names could ever reach it.
+        ["reports"]              = ["view","export"],
+
+        // File Manager (the cross-module document browser at /file-manager). Like `reports` above,
+        // this module had no permission key at all, so it could not be granted or withheld — it was
+        // hardcoded as always-on for every authenticated user. `view` opens the browser; `export`
+        // covers downloading a file. The documents themselves stay scoped by their own module's
+        // access tier, so this key controls the door, not what is behind it.
+        ["file-manager"]         = ["view","export"],
 
         // Settings
         ["settings.general"]     = ["view","edit"],

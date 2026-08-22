@@ -22,7 +22,7 @@ internal sealed class AssignLeadHandler(CrmDbContext db, ILeadAccessGuard access
         var prevUserId = l.AssignedToUserId;
         var prevName   = l.AssignedTo;
 
-        l.AssignTo(cmd.ToUserId, cmd.ToUserName);
+        l.AssignTo(cmd.ToUserId, cmd.ToUserName, cmd.TeamId);
 
         db.LeadAssignments.Add(new LeadAssignment(l.Id, prevUserId, prevName,
             cmd.ToUserId, cmd.ToUserName, currentUser.Id, currentUser.Username, cmd.Note));

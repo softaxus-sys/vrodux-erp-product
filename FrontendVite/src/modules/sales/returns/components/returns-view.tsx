@@ -140,7 +140,7 @@ export function ReturnsView() {
             {filtered.length === 0 ? (
               <tr><td colSpan={8} className="text-center py-12 text-sm text-muted-foreground">{t("returns.noResults")}</td></tr>
             ) : filtered.map((r, i) => {
-              const sc = STATUS_CONFIG[r.status] ?? STATUS_FALLBACK;
+              const sc = STATUS_STYLES[r.status] ?? STATUS_FALLBACK;
               return (
                 <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                   transition={{ delay: i * 0.04 }}

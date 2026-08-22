@@ -54,6 +54,8 @@ export interface DealDto {
   assignedTo:         string;
   /** Owning user — drives the assigned-only / my-team visibility tiers. */
   assignedToUserId?:  string | null;
+  /** Team the record belongs to — null = untagged (visibility falls back to owner membership). */
+  teamId?:            string | null;
   source:             string;
   industry:           string;
   description:        string;
@@ -130,6 +132,7 @@ export interface LeadDto {
   assignedTo:       string;
   /** Identity user id of the current owner (drives "my assigned leads" scoping). */
   assignedToUserId?: string | null;
+  teamId?: string | null;
   createdDate:      string;
   lastContactDate?: string;
   nextFollowUp?:    string;
@@ -331,6 +334,8 @@ export interface CustomerDto {
   accountManager:    string;
   /** Owning user — drives the assigned-only / my-team visibility tiers. */
   accountManagerUserId?: string | null;
+  /** Team the account belongs to — null = untagged. */
+  teamId?: string | null;
   since:             string;
   lastActivity?:     string;
   totalRevenue:      number;
@@ -398,6 +403,8 @@ export interface CreateLeadRequest {
   purchaseTimeframe?: string | null;
   /** Identity user id of the owner picked in the assignee dropdown. */
   assignedToUserId?: string | null;
+  /** Team the record belongs to — null = untagged (falls back to owner membership). */
+  teamId?: string | null;
 }
 export interface UpdateLeadRequest extends CreateLeadRequest {
   score: number; nextFollowUp?: string | null; tags?: string[];
@@ -442,7 +449,8 @@ export const IMPORT_TARGET_FIELDS = [
 export type ImportTargetField = (typeof IMPORT_TARGET_FIELDS)[number];
 export interface CreateDealRequest {
   title: string; company: string; value: number; stage: string; priority: string;
-  probability: number; expectedCloseDate: string; assignedTo: string; assignedToUserId?: string | null; source: string;
+  probability: number; expectedCloseDate: string; assignedTo: string; assignedToUserId?: string | null;
+  teamId?: string | null; source: string;
   industry: string; description: string; forecastCategory?: string; customerId?: string | null;
 }
 export interface UpdateDealRequest extends CreateDealRequest {
@@ -450,11 +458,11 @@ export interface UpdateDealRequest extends CreateDealRequest {
 }
 export interface CreateCustomerRequest {
   name: string; industry: string; country: string; city: string; address: string;
-  phone: string; email: string; tier: string; accountManager: string; accountManagerUserId?: string | null; description: string;
+  phone: string; email: string; tier: string; accountManager: string; accountManagerUserId?: string | null; teamId?: string | null; description: string;
 }
 export interface UpdateCustomerRequest {
   name: string; industry: string; country: string; city: string; address: string;
-  phone: string; email: string; status: string; tier: string; accountManager: string; accountManagerUserId?: string | null;
+  phone: string; email: string; status: string; tier: string; accountManager: string; accountManagerUserId?: string | null; teamId?: string | null;
   description: string; website?: string | null; tradeName?: string | null; employees?: string | null;
   npsScore?: number | null; contractRenewal?: string | null; tags?: string[];
 }
@@ -466,6 +474,8 @@ export interface CrmDashboardDto {
   openPipelineValue: number; wonValue: number; wonCount: number; lostCount: number;
   winRate: number; totalLeads: number; totalDeals: number; openTasks: number; overdueTasks: number;
 }
+
+export interface BulkFileResult { filed: number; skipped: number }
 
 export const crmApi = {
   // Deals
@@ -486,8 +496,11 @@ export const crmApi = {
   setLeadStatus:  (id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/leads/${id}/status`, { status }),
   setLeadScore:   (id: string, score: number): Promise<void> => rawApiClient.patch(`${BASE}/leads/${id}/score`, { score }),
   convertLead:    (id: string, body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string }): Promise<{ customerId: string; dealId: string }> => rawApiClient.post(`${BASE}/leads/${id}/convert`, body),
-  assignLead:     (id: string, body: { toUserId?: string | null; toUserName: string; note?: string | null }): Promise<void> => rawApiClient.post(`${BASE}/leads/${id}/assign`, body),
+  assignLead:     (id: string, body: { toUserId?: string | null; toUserName: string; note?: string | null; teamId?: string | null }): Promise<void> => rawApiClient.post(`${BASE}/leads/${id}/assign`, body),
   getLeadAssignments: (id: string): Promise<LeadAssignmentDto[]> => rawApiClient.get(`${BASE}/leads/${id}/assignments`),
+  /** File many leads to a team at once; null teamId un-files them. Returns filed/skipped counts. */
+  bulkFileLeadsToTeam: (leadIds: string[], teamId: string | null): Promise<BulkFileResult> =>
+    rawApiClient.post(`${BASE}/leads/bulk-file-to-team`, { leadIds, teamId }),
   deleteLead:     (id: string): Promise<void> => rawApiClient.delete(`${BASE}/leads/${id}`),
   importLeads:    (leads: ImportLeadInput[]): Promise<ImportLeadsResult> => rawApiClient.post(`${INTERNAL}/leads/import`, { leads }),
 

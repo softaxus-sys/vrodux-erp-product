@@ -222,7 +222,10 @@
       "expiringVisasSub": "Within 90 days",
       "openFees": "Open Fees",
       "openFeesSub": "Service + govt"
-    }
+    },
+    "loadFailed": "Couldn’t load the dashboard.",
+    "noData": "The server returned no data.",
+    "retry": "Try again"
   },
   "renewals": {
     "title": "Renewals & Expiries",

@@ -214,6 +214,11 @@
         "processRefund": "معالجة الاسترجاع",
         "creditNote": "ملاحظة الائتمان"
       }
+    },
+    "refundMethodLabel": {
+      "bank_transfer": "تحويل بنكي",
+      "credit_note": "إشعار دائن",
+      "cash": "نقدًا"
     }
   },
   "deliveryChallans": {
@@ -320,13 +325,12 @@
     },
     "createDeliveryChallan": {
       "title": "إنشاء وثيقة تسليم",
-      "description": "تسجيل البضائع المسلمة مقابل أمر المبيعات",
+      "description": "الوصف",
       "order": "أمر المبيعات",
       "orderPlaceholder": "اختر الأمر…",
       "driverName": "اسم السائق",
       "challanDate": "تاريخ الوثيقة",
       "items": "العناصر المراد تسليمها",
-      "description": "الوصف",
       "ordered": "مطلوب",
       "delivered": "تم التسليم",
       "summary": {

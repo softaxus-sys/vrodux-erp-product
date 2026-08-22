@@ -18,6 +18,7 @@ public sealed class Deal
         Industry         = industry; Description = description.Trim();
         ForecastCategory = Normalize(forecastCategory) ?? DeriveForecastCategory(stage, probability);
         Tags             = []; CreatedAt = DateTime.UtcNow;
+        StampClosedAt();   // a deal can be created directly in a closed stage (e.g. logging a past win)
     }
     public Guid      Id               { get; private set; }
     public string    Title            { get; private set; } = string.Empty;
@@ -34,6 +35,8 @@ public sealed class Deal
     public string    AssignedTo       { get; private set; } = string.Empty;
     /// <summary>Owning user. Drives the assigned-only / my-team visibility tiers; null = unassigned.</summary>
     public Guid?     AssignedToUserId { get; private set; }
+    /// <summary>Owning team — see Lead.TeamId. Null = untagged, falls back to the membership rule.</summary>
+    public Guid?     TeamId           { get; private set; }
     public string    Source           { get; private set; } = string.Empty;
     public string    Industry         { get; private set; } = string.Empty;
     public string    Description      { get; private set; } = string.Empty;
@@ -42,20 +45,57 @@ public sealed class Deal
     // Forecasting: pipeline | best_case | commit | closed | omitted
     public string    ForecastCategory { get; private set; } = "pipeline";
     public string?   LossReason       { get; private set; }
+    /// <summary>When the opportunity actually reached a terminal stage (won/lost); null while open.
+    /// Every time-based sales report keys off this — <see cref="ExpectedCloseDate"/> is a forecast,
+    /// not an outcome, so it can never answer "what did we close in July?".</summary>
+    public DateTime? ClosedAt         { get; private set; }
     public List<string> Tags          { get; private set; } = [];
     // Contact stored as JSON
     public string    ContactJson      { get; private set; } = "{}";
     public bool      IsDeleted        { get; private set; }
     public DateTime  CreatedAt        { get; private set; }
     public DateTime? UpdatedAt        { get; private set; }
+    /// <summary>Set the owning user (and the denormalized display name). Mirrors Lead.AssignTo.</summary>
+    public void AssignTo(Guid? userId, string name, Guid? teamId = null)
+    {
+        AssignedToUserId = userId;
+        AssignedTo = (name ?? string.Empty).Trim();
+        TeamId = userId is null ? null : teamId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Backfill hook: only ever fills an untagged record.</summary>
+    public void BackfillTeam(Guid teamId) { if (TeamId is null) TeamId = teamId; }
+
     public void MoveStage(string stage, int probability, string? forecastCategory = null, string? lossReason = null)
     {
         Stage = stage; Probability = probability;
         ForecastCategory = Normalize(forecastCategory) ?? DeriveForecastCategory(stage, probability);
         if (stage == "lost") LossReason = lossReason?.Trim();
         else if (stage != "lost") LossReason = null;
+        StampClosedAt();
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>Stages the opportunity can no longer move forward from.</summary>
+    public static bool IsClosedStage(string stage) => stage is "won" or "lost";
+
+    /// <summary>Stamps <see cref="ClosedAt"/> the first time the deal enters a closed stage and clears it
+    /// if the deal is reopened. Re-saving an already-closed deal keeps the original close date, so an
+    /// edit to a won deal never silently moves it into a different reporting period.</summary>
+    private void StampClosedAt()
+    {
+        if (IsClosedStage(Stage)) ClosedAt ??= DateTime.UtcNow;
+        else ClosedAt = null;
+    }
+
+    /// <summary>Backfill hook for rows created before <see cref="ClosedAt"/> existed. Only ever fills a
+    /// null on an already-closed deal; never overwrites a genuine close date.</summary>
+    public void BackfillClosedAt(DateTime closedAt)
+    {
+        if (ClosedAt is null && IsClosedStage(Stage)) ClosedAt = closedAt;
+    }
+
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public void Update(string title, string company, decimal value, string stage, string priority,
@@ -73,6 +113,9 @@ public sealed class Deal
         ForecastCategory = Normalize(forecastCategory) ?? DeriveForecastCategory(stage, probability);
         if (stage != "lost") LossReason = null;
         if (tags is not null) Tags = tags;
+        // Update() can change Stage too, so it must keep ClosedAt consistent — otherwise a deal closed
+        // via the edit form (rather than the board) would never get a close date.
+        StampClosedAt();
         UpdatedAt = DateTime.UtcNow;
     }
 

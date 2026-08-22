@@ -9,7 +9,9 @@ public sealed record DealDto(
     IReadOnlyList<string> Tags, DealContactDto Contact, IReadOnlyList<object> Activities,
     string? NextAction, string? NextActionDate,
     string ForecastCategory, decimal WeightedValue, string? LossReason,
-    Guid? CustomerId);
+    Guid? CustomerId,
+    /// <summary>Team the record belongs to — null = untagged (falls back to owner membership).</summary>
+    Guid? TeamId = null);
 
 public sealed record DealsSummaryDto(
     int TotalDeals, decimal TotalValue, decimal WonValue, int LostDeals,

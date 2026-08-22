@@ -204,23 +204,45 @@ public sealed class GetAssignableUsersQueryHandler(
 
         if (isAdmin)
         {
+            // Everyone, with team leads flagged and listed first — an admin routing work usually
+            // wants to hand it to a lead, who then distributes it within their team.
             var all = await repo.GetActiveTenantUsersAsync(scope, ct);
+            var allLeads = (await repo.GetAllTeamLeadIdsAsync(scope, ct)).ToHashSet();
+            var allTeams = await repo.GetTeamsByUserAsync(all.Select(u => u.Id).ToList(), scope, ct);
             return Result.Success<IReadOnlyList<TeamMemberDto>>(
-                all.Select(u => new TeamMemberDto(u.Id, u.FullName, u.Email, false)).ToList());
+                all.Select(u => new TeamMemberDto(
+                        u.Id, u.FullName, u.Email, allLeads.Contains(u.Id),
+                        allTeams.TryGetValue(u.Id, out var names) ? names : []))
+                   .OrderByDescending(u => u.IsLead)
+                   .ThenBy(u => u.FullName)
+                   .ToList());
         }
 
         if (currentUser.Id is not { } uid)
             return Result.Success<IReadOnlyList<TeamMemberDto>>([]);
 
-        // Team lead → their own members. Anyone else gets an empty list rather than an error: the
-        // picker simply has nobody to offer, which is the correct outcome for a plain member.
-        var memberIds = await repo.GetMemberIdsOfTeamsLedByAsync(uid, scope, ct);
-        if (memberIds.Count == 0)
+        // Team lead → their own members (downward). A plain member → the lead(s) of the teams they
+        // belong to (upward), so work can be handed back up the hierarchy instead of leaving them
+        // with an empty picker. Both always include the user themselves.
+        var ids = await repo.GetMemberIdsOfTeamsLedByAsync(uid, scope, ct);
+        var leadIds = await repo.GetLeadIdsOfTeamsContainingAsync(uid, scope, ct);
+
+        foreach (var id in leadIds)
+            if (!ids.Contains(id)) ids.Add(id);
+
+        if (ids.Count == 0)
             return Result.Success<IReadOnlyList<TeamMemberDto>>([]);
 
-        var users = await repo.GetUsersAsync(memberIds, ct);
+        if (!ids.Contains(uid)) ids.Add(uid);
+
+        // IsLead marks the team's lead(s) so the picker can label them — not the caller.
+        var leadSet = leadIds.ToHashSet();
+        var users = await repo.GetUsersAsync(ids, ct);
+        var teamNames = await repo.GetTeamsByUserAsync(ids, scope, ct);
         return Result.Success<IReadOnlyList<TeamMemberDto>>(
-            users.Select(u => new TeamMemberDto(u.Id, u.FullName, u.Email, u.Id == uid))
+            users.Select(u => new TeamMemberDto(
+                     u.Id, u.FullName, u.Email, leadSet.Contains(u.Id),
+                     teamNames.TryGetValue(u.Id, out var names) ? names : []))
                  .OrderByDescending(u => u.IsLead)
                  .ThenBy(u => u.FullName)
                  .ToList());

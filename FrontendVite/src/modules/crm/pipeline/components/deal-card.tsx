@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DealPriorityBadge } from "./deal-status-badge";
 import { formatCurrency, getInitials, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { type DealDto as Deal } from "@/lib/crm/crm.api";
+import { FORECAST_META, type DealDto as Deal } from "@/lib/crm/crm.api";
 
 interface Props {
   deal: Deal;
@@ -25,6 +25,8 @@ export function DealCard({ deal, index, onClick }: Props) {
   );
   const isOverdue = daysUntilClose < 0 && deal.stage !== "won" && deal.stage !== "lost";
   const isOpen = deal.stage !== "won" && deal.stage !== "lost";
+  const forecastCategory = deal.forecastCategory ?? "pipeline";
+  const forecast = FORECAST_META[forecastCategory] ?? FORECAST_META.pipeline;
 
   return (
     <motion.div
@@ -65,7 +67,7 @@ export function DealCard({ deal, index, onClick }: Props) {
           )}
         </div>
         <span className={cn("shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold", forecast.color, forecast.bg)}>
-          {t(`forecast.${deal.forecastCategory ?? "pipeline"}`)}
+          {t(`forecast.${forecastCategory}`, { defaultValue: forecast.label })}
         </span>
       </div>
 

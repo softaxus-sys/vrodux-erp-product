@@ -69,7 +69,8 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
         var result = await sender.Send(new UpdateLeadCommand(id, req.FirstName, req.LastName, req.Title,
             req.Company, req.Industry, req.Email, req.Phone, req.Country, req.City, req.Source, req.Priority,
             req.EstimatedValue, req.AssignedTo, req.Score, req.NextFollowUp, req.Notes, req.Tags,
-            req.WhatsApp, req.InterestedIn, req.Budget, req.Message, req.AssignedToUserId, req.PurchaseTimeframe), ct);
+            req.WhatsApp, req.InterestedIn, req.Budget, req.Message, req.AssignedToUserId, req.PurchaseTimeframe,
+            req.TeamId), ct);
         return NoContentOrError(result);
     }
 
@@ -94,8 +95,20 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     [RequireAnyPermission(EditAny, EditTeam, EditAssigned)]
     public async Task<IActionResult> Assign(Guid id, [FromBody] AssignReq req, CancellationToken ct)
     {
-        var result = await sender.Send(new AssignLeadCommand(id, req.ToUserId, req.ToUserName, req.Note), ct);
+        var result = await sender.Send(new AssignLeadCommand(id, req.ToUserId, req.ToUserName, req.Note, req.TeamId), ct);
         return NoContentOrError(result);
+    }
+
+    /// <summary>
+    /// File many leads to a team at once (null team un-files them). Each lead is still permission-
+    /// checked individually; ones the caller may not edit are skipped and reported, not rejected.
+    /// </summary>
+    [HttpPost("bulk-file-to-team")]
+    [RequireAnyPermission(EditAny, EditTeam, EditAssigned)]
+    public async Task<IActionResult> BulkFileToTeam([FromBody] BulkFileReq req, CancellationToken ct)
+    {
+        var result = await sender.Send(new BulkFileLeadsToTeamCommand(req.LeadIds ?? [], req.TeamId), ct);
+        return OkOrError(result);
     }
 
     /// <summary>Convert a lead into a customer + an open deal, then mark the lead converted.</summary>
@@ -120,9 +133,12 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
         string Email, string Phone, string Country, string City, string Source, string Priority,
         decimal EstimatedValue, string AssignedTo, int Score, string? NextFollowUp, string? Notes, List<string>? Tags,
         string? WhatsApp = null, string? InterestedIn = null, string? Budget = null, string? Message = null,
-        Guid? AssignedToUserId = null, string? PurchaseTimeframe = null);
+        Guid? AssignedToUserId = null, string? PurchaseTimeframe = null,
+        // Must round-trip: UpdateLeadHandler re-stamps owner + team, so omitting it un-files the lead.
+        Guid? TeamId = null);
     public sealed record StatusReq(string Status);
     public sealed record ScoreReq(int Score);
-    public sealed record AssignReq(Guid? ToUserId, string ToUserName, string? Note);
+    public sealed record AssignReq(Guid? ToUserId, string ToUserName, string? Note, Guid? TeamId);
+    public sealed record BulkFileReq(List<Guid>? LeadIds, Guid? TeamId);
     public sealed record ConvertReq(string? DealTitle, decimal? DealValue, string? ExpectedCloseDate);
 }

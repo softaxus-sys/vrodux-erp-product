@@ -59,11 +59,11 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Category", "Key")
+                    b.HasIndex("TenantId", "Category", "Key")
                         .IsUnique()
                         .HasFilter("[UserId] IS NULL");
 
-                    b.HasIndex("Category", "Key", "UserId")
+                    b.HasIndex("TenantId", "Category", "Key", "UserId")
                         .IsUnique()
                         .HasFilter("[UserId] IS NOT NULL");
 
@@ -1304,6 +1304,20 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("acab9f0a-34bc-3fd8-a78a-348e7df0f9cd"),
+                            Action = "view",
+                            Description = "View crm reports",
+                            ModuleId = "crm.reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("f1e3f9e9-52d0-07a0-e9bc-52614acc3617"),
+                            Action = "export",
+                            Description = "Export crm reports",
+                            ModuleId = "crm.reports"
+                        },
+                        new
+                        {
                             Id = new Guid("76517e22-f5b9-67e7-41de-abffd24b49ad"),
                             Action = "view",
                             Description = "View b2b proposals",
@@ -1861,6 +1875,34 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "approve",
                             Description = "Approve purchase approvals",
                             ModuleId = "purchase.approvals"
+                        },
+                        new
+                        {
+                            Id = new Guid("f5d6ff33-b330-1586-1090-119609bb94a8"),
+                            Action = "view",
+                            Description = "View reports",
+                            ModuleId = "reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("4cdd0e15-99f2-163d-bf02-7f9c7085639b"),
+                            Action = "export",
+                            Description = "Export reports",
+                            ModuleId = "reports"
+                        },
+                        new
+                        {
+                            Id = new Guid("16a89769-d725-fe6b-d53b-c82653bc41f4"),
+                            Action = "view",
+                            Description = "View file-manager",
+                            ModuleId = "file-manager"
+                        },
+                        new
+                        {
+                            Id = new Guid("c308e191-9a7c-2f8d-1b2c-66e36c2dbb9c"),
+                            Action = "export",
+                            Description = "Export file-manager",
+                            ModuleId = "file-manager"
                         },
                         new
                         {

@@ -22,6 +22,9 @@ internal sealed class UpdateCrmCustomerHandler(CrmDbContext db, ILeadAccessGuard
             cmd.Status, cmd.Tier, cmd.AccountManager, cmd.Description,
             cmd.Website, cmd.TradeName, cmd.Employees, cmd.NpsScore, cmd.ContractRenewal, cmd.Tags, cmd.AccountManagerUserId);
 
+        // Update() does not carry the team — re-stamp manager + team together.
+        c.AssignAccountManager(cmd.AccountManagerUserId, cmd.AccountManager, cmd.TeamId);
+
         await db.SaveChangesAsync(ct);
 
         return Result.Success();
