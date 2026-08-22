@@ -33,6 +33,8 @@ public sealed class CrmCustomer
     public string    AccountManager { get; private set; } = string.Empty;
     /// <summary>Owning user. Drives the assigned-only / my-team visibility tiers; null = unassigned.</summary>
     public Guid?     AccountManagerUserId { get; private set; }
+    /// <summary>Owning team — see Lead.TeamId. Null = untagged, falls back to the membership rule.</summary>
+    public Guid?     TeamId         { get; private set; }
     public string    Since          { get; private set; } = string.Empty;
     public string?   LastActivity   { get; private set; }
     public decimal   TotalRevenue   { get; private set; }
@@ -48,6 +50,18 @@ public sealed class CrmCustomer
     public DateTime? UpdatedAt      { get; private set; }
     public void UpdateRevenue(decimal amount) { TotalRevenue = amount; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Set the owning account manager (and the denormalized display name).</summary>
+    public void AssignAccountManager(Guid? userId, string name, Guid? teamId = null)
+    {
+        AccountManagerUserId = userId;
+        AccountManager = (name ?? string.Empty).Trim();
+        TeamId = userId is null ? null : teamId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Backfill hook: only ever fills an untagged record.</summary>
+    public void BackfillTeam(Guid teamId) { if (TeamId is null) TeamId = teamId; }
 
     public void Update(string name, string industry, string country, string city, string address,
         string phone, string email, string status, string tier, string accountManager, string description,

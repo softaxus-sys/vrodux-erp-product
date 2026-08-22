@@ -60,7 +60,7 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
         var result = await sender.Send(new UpdateCrmCustomerCommand(id, req.Name, req.Industry, req.Country, req.City,
             req.Address, req.Phone, req.Email, req.Status, req.Tier, req.AccountManager, req.Description,
             req.Website, req.TradeName, req.Employees, req.NpsScore, req.ContractRenewal, req.Tags,
-            req.AccountManagerUserId), ct);
+            req.AccountManagerUserId, req.TeamId), ct);
         return NoContentOrError(result);
     }
 
@@ -75,5 +75,5 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
     public sealed record UpdateCrmCustomerRequest(string Name, string Industry, string Country, string City,
         string Address, string Phone, string Email, string Status, string Tier, string AccountManager,
         string Description, string? Website, string? TradeName, string? Employees, int? NpsScore,
-        string? ContractRenewal, List<string>? Tags, Guid? AccountManagerUserId = null);
+        string? ContractRenewal, List<string>? Tags, Guid? AccountManagerUserId = null, Guid? TeamId = null);
 }

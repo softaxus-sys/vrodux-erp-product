@@ -18,11 +18,12 @@ namespace Softaxis.CRM.Infrastructure.Persistence;
 /// </summary>
 internal sealed class IdentityTeamView
 {
-    public Guid  Id             { get; set; }
-    public Guid? TeamLeadUserId { get; set; }
-    public Guid? TenantId       { get; set; }
-    public bool  IsActive       { get; set; }
-    public bool  IsDeleted      { get; set; }
+    public Guid   Id             { get; set; }
+    public string Name           { get; set; } = string.Empty;
+    public Guid?  TeamLeadUserId { get; set; }
+    public Guid?  TenantId       { get; set; }
+    public bool   IsActive       { get; set; }
+    public bool   IsDeleted      { get; set; }
 }
 
 internal sealed class IdentityTeamMemberView

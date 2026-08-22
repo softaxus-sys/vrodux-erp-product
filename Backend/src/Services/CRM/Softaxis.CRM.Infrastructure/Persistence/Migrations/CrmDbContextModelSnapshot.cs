@@ -409,6 +409,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -437,6 +440,8 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AccountManagerUserId");
+
+                    b.HasIndex("TeamId");
 
                     b.HasIndex("TenantId");
 
@@ -529,6 +534,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AssignedToUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Company")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -620,6 +628,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -639,7 +650,11 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AssignedToUserId");
 
+                    b.HasIndex("ClosedAt");
+
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("TeamId");
 
                     b.HasIndex("TenantId");
 
@@ -683,6 +698,57 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("deal_contacts", "crm");
+                });
+
+            modelBuilder.Entity("Softaxis.CRM.Domain.Entities.DealStageHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChangedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("DaysInFromStage")
+                        .HasColumnType("float");
+
+                    b.Property<Guid>("DealId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FromStage")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Probability")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ToStage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("ValueAtChange")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DealId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("CreatedAt", "ToStage");
+
+                    b.ToTable("deal_stage_history", "crm");
                 });
 
             modelBuilder.Entity("Softaxis.CRM.Domain.Entities.Enrollment", b =>
@@ -1237,6 +1303,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<DateTime?>("ConvertedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<Guid?>("ConvertedCustomerId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1364,6 +1433,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("TeamId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1383,7 +1455,11 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AssignedToUserId");
 
+                    b.HasIndex("ConvertedAt");
+
                     b.HasIndex("ConvertedCustomerId");
+
+                    b.HasIndex("TeamId");
 
                     b.HasIndex("TenantId");
 
@@ -2059,6 +2135,10 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("TeamLeadUserId")
                         .HasColumnType("uniqueidentifier");

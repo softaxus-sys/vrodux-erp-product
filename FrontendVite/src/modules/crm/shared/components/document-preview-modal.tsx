@@ -8,7 +8,8 @@ import type { CrmDocumentDto } from "@/lib/crm/documents.api";
 interface Props {
   doc: CrmDocumentDto;
   onClose: () => void;
-  onDownload: () => void;
+  /** Omit to hide the download button — used when the viewer lacks the export permission. */
+  onDownload?: () => void;
 }
 
 /**
@@ -61,10 +62,12 @@ export function DocumentPreviewModal({ doc, onClose, onDownload }: Props) {
       >
         <div className="flex items-center gap-2 border-b border-border px-4 py-3">
           <p className="flex-1 truncate text-sm font-semibold text-foreground">{doc.fileName}</p>
-          <Button size="sm" variant="outline" onClick={onDownload}>
-            <Download className="h-3.5 w-3.5 mr-1.5" />
-            {t("documents.download", { defaultValue: "Download" })}
-          </Button>
+          {onDownload && (
+            <Button size="sm" variant="outline" onClick={onDownload}>
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              {t("documents.download", { defaultValue: "Download" })}
+            </Button>
+          )}
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
             <X className="h-4 w-4" />
           </button>

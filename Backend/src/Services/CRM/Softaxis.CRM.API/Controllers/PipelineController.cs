@@ -50,7 +50,7 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
         var result = await sender.Send(new UpdateDealCommand(id, req.Title, req.Company, req.Value, req.Stage,
             req.Priority, req.Probability, req.ExpectedCloseDate, req.AssignedTo, req.Source, req.Industry,
             req.Description, req.NextAction, req.NextActionDate, req.Tags, req.ForecastCategory, req.CustomerId,
-            req.AssignedToUserId), ct);
+            req.AssignedToUserId, req.TeamId), ct);
         return NoContentOrError(result);
     }
 
@@ -74,6 +74,6 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
     public sealed record UpdateDealRequest(string Title, string Company, decimal Value, string Stage, string Priority,
         int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry, string Description,
         string? NextAction, string? NextActionDate, List<string>? Tags, string? ForecastCategory = null,
-        Guid? CustomerId = null, Guid? AssignedToUserId = null);
+        Guid? CustomerId = null, Guid? AssignedToUserId = null, Guid? TeamId = null);
     public sealed record StageReq(string Stage, int Probability, string? ForecastCategory = null, string? LossReason = null);
 }

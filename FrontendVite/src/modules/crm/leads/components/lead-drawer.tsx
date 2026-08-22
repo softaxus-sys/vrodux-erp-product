@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, isVisaLead, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
 import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments } from "@/hooks/crm/use-crm";
-import { useAssignableUsers } from "@/hooks/identity/use-teams";
+import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
@@ -67,15 +67,19 @@ function ReassignPanel({
   const assign = useAssignLead();
   // Server decides the pool from the caller's tier: admins get everyone, a team lead only
   // their own members. So a lead can hand work onward but never outside their team.
-  const { data: assignable = [] } = useAssignableUsers();
-  const users = assignable.map(u => ({ id: u.userId, fullName: u.fullName }));
-  const [toUserId, setToUserId] = React.useState(lead.assignedToUserId ?? "");
+  // Grouped by team so the assigner can see who sits where; the pool is still decided server-side.
+  const { groups, options: users } = useAssignableByTeam();
+  // Holds "userId::teamId" — the team half is what stops a multi-team owner's record from being
+  // visible to every one of their team leads.
+  const [selection, setSelection] = React.useState(
+    lead.assignedToUserId ? encodeAssignee(lead.assignedToUserId, lead.teamId ?? null) : "");
   const [note, setNote] = React.useState("");
 
   const submit = () => {
-    const toName = users.find(u => u.id === toUserId)?.fullName ?? "";
+    const { userId, teamId } = decodeAssignee(selection);
+    const toName = users.find(u => u.id === userId)?.fullName ?? "";
     assign.mutate(
-      { id: lead.id, toUserId: toUserId || null, toUserName: toName, note: note.trim() || null },
+      { id: lead.id, toUserId: userId, toUserName: toName, note: note.trim() || null, teamId },
       { onSuccess: onClose }
     );
   };
@@ -95,11 +99,24 @@ function ReassignPanel({
         </p>
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("drawer.assignTo")}</label>
-          <select value={toUserId} onChange={e => setToUserId(e.target.value)}
+          <select value={selection} onChange={e => setSelection(e.target.value)}
             className="h-9 w-full px-2 rounded-lg border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
             <option value="">{t("drawer.unassigned")}</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            {groups.map(g => (
+              <optgroup key={g.team} label={g.team}>
+                {g.members.map(u => (
+                  // Keyed AND valued by team + user: the same person legitimately appears under each
+                  // of their teams, so the user id alone is neither unique nor sufficient.
+                  <option key={`${g.team}-${u.id}`} value={encodeAssignee(u.id, u.teamId)}>
+                    {u.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
+          {/* A person shown under more than one team is in more than one team — say so, rather than
+              leaving the assigner to wonder whether it is a duplicate. */}
+          <p className="text-[11px] text-muted-foreground">{t("drawer.multiTeamHint")}</p>
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("drawer.noteOptional")}</label>

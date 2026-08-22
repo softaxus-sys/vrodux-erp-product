@@ -7,18 +7,21 @@ import {
   Tag, RotateCcw, AlertTriangle, Warehouse, Layers, CheckSquare,
   ArrowLeftRight, Minus, TrendingDown, Shield, Calculator, FileCheck,
   Trash2, Banknote, ClipboardList, Percent, FileSearch, FileCode2,
-  FileSpreadsheet, Globe2,
+  FileSpreadsheet, Globe2, Handshake, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   COUNTRY_CONFIGS,
   getReportsForCountry,
+  CRM_REPORTS,
+  CATEGORY_MODULE,
   type ReportDefinition,
   type ReportCategory,
 } from "../config/report-registry";
 import { ReportRunnerModal } from "./report-runner-modal";
 import { useAuthStore } from "@/store/auth.store";
+import { useNavigate } from "react-router-dom";
 
 // ─── Icon Map ─────────────────────────────────────────────────────────────────
 
@@ -100,8 +103,12 @@ function ReportCard({
       )}
 
       <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+        {/* Deep-linked reports open in their own module, so the affordance says so rather than
+            promising an in-place run that isn't going to happen here. */}
         <button className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
-          <BarChart3 className="h-3 w-3" />Run Report
+          {report.href
+            ? <><ExternalLink className="h-3 w-3" />Open Report</>
+            : <><BarChart3 className="h-3 w-3" />Run Report</>}
         </button>
         <div className="flex items-center gap-1">
           {report.exportFormats.map(f => (
@@ -124,37 +131,11 @@ const CATEGORY_CONFIG: Record<ReportCategory, { icon: React.ElementType; color: 
   Sales:         { icon: TrendingUp,   color: "text-success",    bg: "bg-success/10" },
   Purchase:      { icon: ShoppingCart, color: "text-primary",    bg: "bg-primary/10" },
   HR:            { icon: Users,        color: "text-primary",    bg: "bg-primary/10" },
+  CRM:           { icon: Handshake,    color: "text-primary",    bg: "bg-primary/10" },
   "Real Estate": { icon: Building2,    color: "text-success",    bg: "bg-success/10" },
   Construction:  { icon: HardHat,      color: "text-warning",    bg: "bg-warning/10" },
 };
 
-// ─── Universal static reports (Finance / Sales / Purchase / HR / RE / Const.) ─
-
-const STATIC_REPORTS: ReportDefinition[] = [
-  // Finance
-  { id: "finance-pl",           title: "Profit & Loss Statement",      category: "Finance",      icon: "TrendingUp",   color: "text-success",    bg: "bg-success/10",    badges: ["Popular", "Universal"], description: "Income, expenses, and net profit by period",                     previewColumns: ["Account", "Current Period", "YTD", "Budget", "Variance"],                                                   filters: [{ key: "dateRange", label: "Date Range", type: "date-range", required: true }], exportFormats: ["PDF", "Excel"] },
-  { id: "finance-bs",           title: "Balance Sheet",                category: "Finance",      icon: "BarChart3",    color: "text-primary",    bg: "bg-primary/10",    badges: ["Universal"],             description: "Assets, liabilities, and equity snapshot",                       previewColumns: ["Account", "Current", "Previous", "Movement"],                                                               filters: [{ key: "dateRange", label: "As At Date", type: "date-range", required: true }], exportFormats: ["PDF", "Excel"] },
-  { id: "finance-cf",           title: "Cash Flow Statement",          category: "Finance",      icon: "DollarSign",   color: "text-warning",    bg: "bg-warning/10",    badges: ["Universal"],             description: "Operating, investing, and financing cash flows",                  previewColumns: ["Activity", "Amount", "% of Total"],                                                                         filters: [{ key: "dateRange", label: "Date Range", type: "date-range", required: true }], exportFormats: ["PDF", "Excel"] },
-  { id: "finance-ar-aging",     title: "Accounts Receivable Ageing",   category: "Finance",      icon: "FileText",     color: "text-destructive", bg: "bg-destructive/10",badges: ["Universal"],             description: "Outstanding receivables by age bucket",                          previewColumns: ["Customer", "Current", "1-30 Days", "31-60 Days", "61-90 Days", "90+ Days", "Total"],                        filters: [{ key: "dateRange", label: "As At Date", type: "date-range" }], exportFormats: ["PDF", "Excel", "CSV"] },
-  { id: "finance-vat",          title: "Tax & VAT Summary",            category: "Finance",      icon: "PieChart",     color: "text-primary",    bg: "bg-primary/10",    badges: ["Universal"],             description: "Input/output VAT and net payable by period",                     previewColumns: ["Tax Type", "Taxable Amount", "Tax Amount", "Box / Line Ref"],                                               filters: [{ key: "dateRange", label: "Date Range", type: "date-range", required: true }], exportFormats: ["PDF", "Excel", "XML"] },
-  { id: "finance-budget",       title: "Budget vs Actual",             category: "Finance",      icon: "BarChart3",    color: "text-warning",    bg: "bg-warning/10",    badges: ["Universal"],             description: "Variance analysis across all departments",                       previewColumns: ["Department", "Budget", "Actual", "Variance", "Variance %"],                                                 filters: [{ key: "dateRange", label: "Period", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  // Sales
-  { id: "sales-revenue",        title: "Sales Revenue Report",         category: "Sales",        icon: "TrendingUp",   color: "text-success",    bg: "bg-success/10",    badges: ["Popular", "Universal"],  description: "Revenue breakdown by product, customer, region",                 previewColumns: ["Product", "Qty Sold", "Revenue", "COGS", "Gross Profit", "GP %"],                                           filters: [{ key: "dateRange", label: "Date Range", type: "date-range" }], exportFormats: ["PDF", "Excel", "CSV"] },
-  { id: "sales-quotation-cr",   title: "Quotation Conversion Rate",    category: "Sales",        icon: "BarChart3",    color: "text-primary",    bg: "bg-primary/10",    badges: ["Universal"],             description: "Quote-to-order conversion funnel analysis",                      previewColumns: ["Stage", "Count", "Value", "Conversion %"],                                                                  filters: [{ key: "dateRange", label: "Date Range", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  { id: "sales-customers",      title: "Customer Sales Analysis",      category: "Sales",        icon: "Users",        color: "text-success",    bg: "bg-success/10",    badges: ["Universal"],             description: "Top customers by revenue and order frequency",                   previewColumns: ["Customer", "Orders", "Revenue", "Avg Order", "Last Order"],                                                 filters: [{ key: "dateRange", label: "Date Range", type: "date-range" }], exportFormats: ["PDF", "Excel", "CSV"] },
-  // Purchase
-  { id: "purchase-po",          title: "Purchase Order Report",        category: "Purchase",     icon: "ShoppingCart", color: "text-primary",    bg: "bg-primary/10",    badges: ["Universal"],             description: "POs by vendor, status, and delivery performance",                previewColumns: ["PO #", "Vendor", "Date", "Amount", "Status", "Delivery"],                                                   filters: [{ key: "dateRange", label: "Date Range", type: "date-range" }], exportFormats: ["PDF", "Excel", "CSV"] },
-  { id: "purchase-vendor-perf", title: "Vendor Performance",           category: "Purchase",     icon: "Users",        color: "text-warning",    bg: "bg-warning/10",    badges: ["Universal"],             description: "On-time delivery, quality, and cost metrics",                    previewColumns: ["Vendor", "POs", "On-Time %", "Quality Score", "Avg Lead Time"],                                            filters: [{ key: "dateRange", label: "Date Range", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  // HR
-  { id: "hr-headcount",         title: "Headcount & Payroll Cost",     category: "HR",           icon: "Users",        color: "text-primary",    bg: "bg-primary/10",    badges: ["Universal"],             description: "Employee count and payroll cost by department",                  previewColumns: ["Department", "Headcount", "Basic Salary", "Allowances", "Deductions", "Net Payroll"],                       filters: [{ key: "dateRange", label: "Period", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  { id: "hr-leave",             title: "Leave Utilisation",            category: "HR",           icon: "Calendar",     color: "text-warning",    bg: "bg-warning/10",    badges: ["Universal"],             description: "Leave taken vs entitlement by employee and team",                previewColumns: ["Employee", "Leave Type", "Entitled", "Taken", "Balance"],                                                   filters: [{ key: "dateRange", label: "Period", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  // Real Estate
-  { id: "re-occupancy",         title: "Occupancy Report",             category: "Real Estate",  icon: "Building2",    color: "text-success",    bg: "bg-success/10",    badges: ["Universal"],             description: "Unit occupancy rates across all properties",                     previewColumns: ["Property", "Units", "Occupied", "Vacant", "Occupancy %"],                                                   filters: [{ key: "dateRange", label: "As At", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  { id: "re-rental",            title: "Rental Income Report",         category: "Real Estate",  icon: "DollarSign",   color: "text-primary",    bg: "bg-primary/10",    badges: ["Popular", "Universal"],  description: "Rental income by property, unit, and period",                    previewColumns: ["Property", "Unit", "Tenant", "Rent", "Received", "Outstanding"],                                            filters: [{ key: "dateRange", label: "Period", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  // Construction
-  { id: "con-cost",             title: "Project Cost Report",          category: "Construction", icon: "HardHat",      color: "text-warning",    bg: "bg-warning/10",    badges: ["Universal"],             description: "Budget vs actual cost by project and phase",                     previewColumns: ["Project", "Phase", "Budget", "Actual", "Committed", "Variance"],                                            filters: [{ key: "dateRange", label: "Period", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-  { id: "con-boq",              title: "BOQ Progress Report",          category: "Construction", icon: "FileText",     color: "text-primary",    bg: "bg-primary/10",    badges: ["Universal"],             description: "Bill of quantities completion and variation summary",             previewColumns: ["Item", "Scheduled Qty", "Completed Qty", "Progress %", "Variation"],                                        filters: [{ key: "dateRange", label: "Period", type: "date-range" }], exportFormats: ["PDF", "Excel"] },
-];
 
 // ─── Resolve country code from tenant ─────────────────────────────────────────
 
@@ -196,6 +177,9 @@ function resolveCountryCode(tenantCountry?: string | null, tenantCurrency?: stri
 
 export function ReportsView() {
   const { tenant } = useAuthStore();
+  const hasModuleAccess   = useAuthStore(s => s.hasModuleAccess);
+  const hasRawPermission  = useAuthStore(s => s.hasRawPermission);
+  const navigate          = useNavigate();
 
   // ── Country — derived from tenant, not user-selectable in this view ──────
   const countryCode = React.useMemo(
@@ -214,13 +198,32 @@ export function ReportsView() {
   const [search, setSearch]                 = React.useState("");
   const [selectedReport, setSelectedReport] = React.useState<ReportDefinition | null>(null);
 
-  // ── Merge country-filtered registry reports with universal statics ────────
+  /** Deep-linked reports navigate to their own module; everything else opens the tabular runner. */
+  const openReport = React.useCallback((report: ReportDefinition) => {
+    if (report.href) navigate(report.href);
+    else setSelectedReport(report);
+  }, [navigate]);
+
+  // ── Reports the tenant can actually use ──────────────────────────────────
+  //
+  // Two filters, both deliberate:
+  //  1. Subscription — a category is shown only if the tenant has its module. Listing POS reports to
+  //     a tenant without POS advertises something they cannot use.
+  //  2. Permission — entries declaring `requiresPermission` are hidden from users lacking it, rather
+  //     than shown and then denied. This hub is a discovery surface; every card it shows should open.
+  //
+  // Reports with no backend are no longer listed at all (see Module 23b) — the hub now contains only
+  // reports that actually run.
   const allReports = React.useMemo(() => {
-    const registryReports = getReportsForCountry(countryCode);
-    const registryIds = new Set(registryReports.map(r => r.id));
-    const extras = STATIC_REPORTS.filter(r => !registryIds.has(r.id));
-    return [...registryReports, ...extras];
-  }, [countryCode]);
+    const candidates = [...getReportsForCountry(countryCode), ...CRM_REPORTS];
+
+    return candidates.filter(r => {
+      const module = r.requiresModule ?? CATEGORY_MODULE[r.category];
+      if (module && !hasModuleAccess(module)) return false;
+      if (r.requiresPermission && !hasRawPermission(r.requiresPermission)) return false;
+      return true;
+    });
+  }, [countryCode, hasModuleAccess, hasRawPermission]);
 
   // ── Unique categories ─────────────────────────────────────────────────────
   const allCategories = React.useMemo(
@@ -256,11 +259,19 @@ export function ReportsView() {
   }, [filtered, activeCategory]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
-  const totalReports      = allReports.length;
-  const posCount          = allReports.filter(r => r.category === "POS").length;
-  const invCount          = allReports.filter(r => r.category === "Inventory").length;
-  const requiredCount     = allReports.filter(r => r.badges?.includes("Required")).length;
-  const countrySpecific   = allReports.filter(r => r.countries?.includes(countryCode)).length;
+  const totalReports    = allReports.length;
+  const requiredCount   = allReports.filter(r => r.badges?.includes("Required")).length;
+  const countrySpecific = allReports.filter(r => r.countries?.includes(countryCode)).length;
+
+  // The two largest categories the tenant actually subscribes to. Previously hardcoded to POS and
+  // Inventory, which read as "0 reports" for every tenant without those modules.
+  const topCategories = React.useMemo(() => {
+    const counts = allReports.reduce<Record<string, number>>((acc, r) => {
+      acc[r.category] = (acc[r.category] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  }, [allReports]);
 
   return (
     <div className="space-y-6">
@@ -324,9 +335,16 @@ export function ReportsView() {
       {/* ── Quick Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Total Reports",      value: totalReports,    icon: FileText,      color: "text-primary",     bg: "bg-primary/10" },
-          { label: "POS Reports",        value: posCount,        icon: Receipt,       color: "text-success",     bg: "bg-success/10" },
-          { label: "Inventory Reports",  value: invCount,        icon: Package,       color: "text-warning",     bg: "bg-warning/10" },
+          { label: "Total Reports", value: totalReports, icon: FileText, color: "text-primary", bg: "bg-primary/10" },
+          // The tenant's two biggest subscribed categories, so these tiles say something real
+          // regardless of which modules they have. Placeholders keep the 4-column grid even.
+          ...topCategories.map(([category, count]) => ({
+            label: `${category} Reports`,
+            value: count,
+            icon:  CATEGORY_CONFIG[category as ReportCategory]?.icon ?? FileText,
+            color: "text-success",
+            bg:    "bg-success/10",
+          })),
           { label: `${country.regulator} Required`, value: requiredCount, icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10" },
         ].map((s, i) => {
           const Icon = s.icon;
@@ -422,19 +440,59 @@ export function ReportsView() {
                   <div className="flex-1 h-px bg-border" />
                 </div>
 
+                {/* Report-type level. Rendered only when this category declares sub-groups, so
+                    categories without them (POS, Inventory) keep their flat grid. */}
+                {reports.some(r => r.subGroup) ? (
+                  <div className="space-y-5">
+                    {[...new Set(reports.map(r => r.subGroup ?? "Other"))].map(sub => {
+                      const subReports = reports.filter(r => (r.subGroup ?? "Other") === sub);
+                      return (
+                        <div key={sub}>
+                          <div className="flex items-center gap-2 mb-2 ps-1">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              {sub}
+                            </h4>
+                            <span className="text-[11px] text-muted-foreground">
+                              {subReports.length}
+                            </span>
+                            <div className="flex-1 h-px bg-border/60" />
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {subReports.map((report, i) => (
+                              <ReportCard key={report.id} report={report} index={i} onRun={openReport} />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {reports.map((report, i) => (
-                    <ReportCard key={report.id} report={report} index={i} onRun={setSelectedReport} />
+                    <ReportCard key={report.id} report={report} index={i} onRun={openReport} />
                   ))}
                 </div>
+                )}
               </motion.div>
             );
           })}
 
           {filtered.length === 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="bg-card border border-border rounded-xl p-12 text-center text-sm text-muted-foreground">
-              No reports match your search.
+              className="bg-card border border-border rounded-xl p-12 text-center">
+              {/* Distinguish "nothing matched" from "nothing available" — telling a tenant whose plan
+                  has no reporting modules that their *search* failed sends them hunting for a typo. */}
+              {allReports.length === 0 ? (
+                <>
+                  <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm font-medium">No reports available on your plan.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Reports appear here for the modules your subscription includes.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">No reports match your search.</p>
+              )}
             </motion.div>
           )}
         </motion.div>

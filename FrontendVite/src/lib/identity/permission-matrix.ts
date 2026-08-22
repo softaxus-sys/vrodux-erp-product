@@ -31,13 +31,14 @@ export const MODULE_GROUPS: Record<string, string> = {
   crm: "CRM", sales: "Sales", purchase: "Purchase", settings: "Settings",
   "project-management": "Project Management",
   b2b: "B2B", education: "Education", healthcare: "Healthcare", insurance: "Insurance",
-  visa: "Visa Services", restaurant: "Restaurant",
+  visa: "Visa Services", restaurant: "Restaurant", reports: "Reports",
+  "file-manager": "File Manager",
 };
 
 export const GROUP_ORDER = [
   "POS", "Restaurant", "Inventory", "Finance", "Sales", "Purchase", "CRM",
   "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "HR",
-  "Project Management", "Settings",
+  "Project Management", "Reports", "File Manager", "Settings",
 ];
 
 /** Group permissions by module id, then bucket module ids under their display group. */
@@ -64,10 +65,13 @@ export function groupPermissions(perms: PermissionDto[]) {
  * permission group added on the backend still renders before its key is translated.
  */
 export function moduleLabel(moduleId: string) {
+  const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const parts = moduleId.split(".");
+  // Single-segment ids (e.g. "reports" — a module that is its own feature) were returned verbatim
+  // and rendered lowercase next to every other title-cased row.
   const derived = parts.length < 2
-    ? moduleId
-    : parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+    ? titleCase(moduleId)
+    : parts.slice(1).map(titleCase).join(" ");
   return i18n.t(`settings:permMatrix.module.${moduleId}`, { defaultValue: derived });
 }
 

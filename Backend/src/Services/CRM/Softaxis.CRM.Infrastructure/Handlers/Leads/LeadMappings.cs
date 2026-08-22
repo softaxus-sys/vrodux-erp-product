@@ -14,7 +14,7 @@ internal static class LeadMappings
         l.WhatsApp, l.InterestedIn, l.Budget, l.Message,
         l.Platform, l.FormName, l.IsOrganic, l.Campaign, l.AdName, l.AdSetName,
         l.PlatformCreatedTime, l.CustomFields, l.AssignedToUserId,
-        l.PurchaseTimeframe, PurchaseUrgency.Classify(l.PurchaseTimeframe));
+        l.PurchaseTimeframe, PurchaseUrgency.Classify(l.PurchaseTimeframe), l.TeamId);
 
     public static LeadAssignmentDto ToDto(LeadAssignment a) => new(
         a.Id, a.FromUserId, a.FromUserName, a.ToUserId, a.ToUserName,

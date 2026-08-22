@@ -19,6 +19,13 @@ export interface CrmDocumentDto {
   description: string | null;
   uploadedByName: string | null;
   createdAt: string;
+  /**
+   * Owner of the linked record — the rep whose lead/opportunity/account this is, NOT whoever
+   * uploaded the file. The File Manager groups folders by this so a manager uploading onto a rep's
+   * deal still files under that rep. Null when the linked record is unassigned.
+   */
+  ownerUserId: string | null;
+  ownerName: string | null;
 }
 
 /**

@@ -86,7 +86,16 @@ export function useSetLeadStatus() { return useCrmMutation(({ id, status }: { id
 export function useSetLeadScore()  { return useCrmMutation(({ id, score }: { id: string; score: number }) => crmApi.setLeadScore(id, score)); }
 export function useConvertLead()   { return useCrmMutation(({ id, body }: { id: string; body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string } }) => crmApi.convertLead(id, body), { msg: "Lead converted to customer + deal." }); }
 export function useDeleteLead()    { return useCrmMutation((id: string) => crmApi.deleteLead(id), { msg: "Lead deleted." }); }
-export function useAssignLead()    { return useCrmMutation(({ id, toUserId, toUserName, note }: { id: string; toUserId?: string | null; toUserName: string; note?: string | null }) => crmApi.assignLead(id, { toUserId, toUserName, note }), { msg: "Lead reassigned." }); }
+export function useAssignLead()    { return useCrmMutation(({ id, toUserId, toUserName, note, teamId }: { id: string; toUserId?: string | null; toUserName: string; note?: string | null; teamId?: string | null }) => crmApi.assignLead(id, { toUserId, toUserName, note, teamId }), { msg: "Lead reassigned." }); }
+/** Bulk-file leads to a team. No default toast — the caller reports filed/skipped counts. */
+export function useBulkFileLeadsToTeam() {
+  return useCrmMutation(
+    ({ leadIds, teamId }: { leadIds: string[]; teamId: string | null }) =>
+      crmApi.bulkFileLeadsToTeam(leadIds, teamId),
+    { invalidate: ["leads", "leads-summary", "dashboard"] },
+  );
+}
+
 export function useLeadAssignments(id: string | null) {
   return useQuery({ queryKey: [QK, "lead-assignments", id], queryFn: () => crmApi.getLeadAssignments(id!), enabled: !!id });
 }

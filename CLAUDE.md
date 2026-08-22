@@ -3528,6 +3528,720 @@ path applies, so the screen can never report "ready" for something that would fa
 
 ---
 
+## Module 23 — CRM: Reporting system (8 reports) + the historical tracking they needed
+
+**The CRM recorded current state but not when it changed**, so nothing could answer a time-based
+question. `Deal` had `ExpectedCloseDate` (a forecast) but **no actual close date**; `Lead` had
+`ConvertedDealId` but **no conversion timestamp**; and there was no stage-change history anywhere. The
+existing `/crm/dashboard` is a filter-less snapshot. This module adds the missing history, then a
+proper report section on top of it.
+
+### New history (the enabling change)
+- **`Deal.ClosedAt`** (`DateTime?`) — stamped the first time a deal enters `won`/`lost`, cleared if
+  reopened, and **kept on re-save** so editing a won deal never moves it into another reporting period.
+  Stamped from **all three** write paths: `MoveStage`, `Update` (the edit form can change stage too),
+  and the ctor (a deal can be created directly closed).
+- **`Lead.ConvertedAt`** (`DateTime?`) — set in `Convert(...)`, `??=` so a re-convert keeps the original.
+- **`DealStageHistory`** (NEW, table `deal_stage_history`) — append-only transition trail
+  `(DealId, FromStage, ToStage, Probability, ValueAtChange, DaysInFromStage, ChangedBy…)`.
+  `ValueAtChange` snapshots the value so a later re-pricing cannot rewrite history.
+  **`DaysInFromStage` is stored, not derived**: computing time-in-stage at query time needs a per-deal
+  window function, which EF cannot translate and which scales badly. The duration is knowable at write
+  time, so it is measured once. Reports then reduce to a plain `GROUP BY`/`AVG`.
+  Clamped at 0 — clock skew must never drag a stage average negative.
+- **`IDealStageRecorder`** (`Infrastructure/Services/DealStageRecorder.cs`) — the single writer, used by
+  `CreateDealHandler` / `MoveDealStageHandler` / `UpdateDealHandler`. Centralised deliberately: a gap in
+  any one path would silently corrupt the velocity reports rather than fail loudly. `RecordMoveAsync` is
+  a no-op when the stage did not actually change, so callers invoke it unconditionally.
+- Migration `AddCrmReportingHistory` (2 additive nullable columns + 1 table + indexes on
+  `Deal.ClosedAt`, `Lead.ConvertedAt`, `(CreatedAt, ToStage)`).
+
+### Backfill — approximate on purpose, and said so
+`BackfillReportingDatesInBackgroundAsync` (`InfrastructureExtensions`, fire-and-forget on its own scope
+like the lead-score repair, **never on the startup path** — a heavy job there delays `/health` and can
+trip the deploy's health window). Fills `ClosedAt`/`ConvertedAt` from `UpdatedAt ?? CreatedAt`.
+**These dates are approximate**: the true moment was never recorded, and `UpdatedAt` on a closed deal is
+usually the close itself. The alternative — leaving them null — drops every historic deal out of every
+report, which reads as "we never sold anything". Reporting is exact from deploy onward. Idempotent
+(only ever fills a NULL), fully `try/catch`-guarded.
+
+### The 8 reports (`/api/crm/reports/*`, all read-only)
+`Application/Reports/{Dtos,Queries}` + `Infrastructure/Handlers/Reports/*` + `CrmReportsController`.
+A shared `ReportFilter(From, To, OwnerUserId, Source, Stage, CustomerId)`; each report documents **which
+date** the range applies to, because "deals in July" means different things per report — surfaced in the
+UI and stamped into every export.
+
+| Report | Route | Range applies to |
+|---|---|---|
+| Sales Pipeline (stage + forecast category, weighted) | `/pipeline` | deal created (open deals have no close date) |
+| Win / Loss (trend, win rate, loss reasons) | `/win-loss` | deal closed |
+| Team Performance (per-owner scorecard) | `/performance` | closed deals + lead/activity created |
+| Lead Source ROI | `/lead-sources` | lead created |
+| Lead Conversion (funnel, trend, time-to-convert) | `/conversion` | lead created |
+| Sales Velocity (stage duration, cycle length) | `/velocity` | stage change |
+| Activity Report (volume, completion, overdue) | `/activities` | activity created |
+| Account Revenue | `/accounts` | deal closed |
+
+**Every handler runs through `ILeadAccessGuard`** (`ScopeReadable`/`ScopeDeals`/`ScopeCustomers`/
+`ScopeActivities`), so a report can never become a side channel to totals the caller could not open in
+the list screens — a rep sees their own numbers, a team lead their team's. Velocity scopes history by
+joining to the visible-deal ids (the history table has no owner of its own).
+
+**Every handler also applies `!IsDeleted` by hand** — the tenant global filter replaces any entity-level
+soft-delete filter (the recurring CRM/Visa/Restaurant gotcha), so a report that forgets it silently
+counts deleted rows and disagrees with the list screens.
+
+### Design decisions worth knowing
+- **Lead-source won-value is traced lead → `ConvertedDealId` → deal**, not matched on `Deal.Source`. A
+  deal's own source field is free-form and frequently differs from the originating lead's.
+- **Account revenue reports `WonValue` and `RecordedRevenue` side by side** rather than merging them.
+  `CrmCustomer.TotalRevenue` is manually maintained and often disagrees with the deal data; quietly
+  picking one would hide that. The UI says so.
+- **The conversion funnel is a snapshot, not a cohort**: leads have no per-status history (only
+  opportunities do), so a lead at "qualified" is counted there and not also at "contacted". Documented on
+  the handler so the step rate is not read as something it isn't.
+- **Velocity returns `HasHistory`/`HistoryNote`** — stage timings only accrue from deploy, so the UI
+  states that instead of showing an empty chart that reads as "no deals move". Cycle length works
+  immediately (created → closed), independent of the history table.
+- `Rate()` returns 0 on a zero denominator — never `NaN`, which reaches the UI as "NaN%" and breaks
+  `double.NaN` JSON serialisation.
+- **Bug caught in self-review:** the performance scorecard keyed leads/deals by owner **id** but
+  activities by owner **name** (`Activity` has no owner id), so every user appeared as two rows — one
+  with their revenue, one with their activities. Fixed with a name→bucket index so name-only records
+  join the existing id-keyed bucket.
+
+### Permissions — new `crm.reports` group
+`PermissionSeedData`: `["crm.reports"] = ["view","export"]`, migration `AddCrmReportsPermissions`
+(Identity; auto-applies + `SyncAdministratorPermissionsAsync` grants it to every Administrator on
+startup). Separate from the record permissions on purpose — reports aggregate across leads,
+opportunities, accounts and activities, so seeing them is its own decision. Data is still tier-scoped.
+Controller is class-level `[RequirePermission("crm.reports.view")]`; the frontend Export button is gated
+on `crm.reports.export`.
+
+### Frontend
+- `lib/crm/reports.api.ts` (typed client + catalogue), `hooks/crm/use-crm-reports.ts` (8 queries,
+  2-min `staleTime`, content-based cache keys so empty/undefined filter fields don't fragment the cache).
+- `modules/crm/reports/components/` — `reports-view.tsx` (catalogue hub → report, date presets computed
+  dynamically **not** hardcoded, owner/stage filters, one Export button), `report-panels.tsx` (the 8
+  panels), `report-primitives.tsx` (`StatTile`/`ReportCard`/`BarList`/`ReportTable`/empty+error states),
+  `report-export.ts` (panels register a `{title, subtitle, columns, rows}` payload; the hub's single
+  `ExportMenu` serves CSV via `toCsv` and PDF via `exportPdf`). The registration signature includes the
+  subtitle so an export is never stamped with the previous filter's scope.
+- Route `/crm/reports` inside `ModuleGuard module="crm"`, nav item "Reports" (icon `BarChart3`),
+  page-level `<Can permission="crm.reports.view">` with a clear denial message rather than 8 × 403.
+- **Fully translated (en + ar), key parity verified** — CRM is a 100 %-translated module, so an
+  English-only section would have been a regression. Reuses the existing `crm:stage.*`/`source.*`/
+  `forecast.*`/`activityType.*`/`funnel.*` label keys rather than duplicating them. `useReportFormat()`
+  handles month names + day pluralisation per locale (Arabic has six plural forms — a hand-rolled
+  `n === 1` check gets it wrong). RTL-safe (`ms-`/`me-`, `text-start`, mirrored back chevron).
+
+### Build / Verification Status
+- **Full backend solution (`Softaxis.ERP.slnx`):** 0 errors ✅ (6 pre-existing warnings — Smtp nullable +
+  NU1903 advisories). **CRM.API alone:** 0 errors, 0 warnings ✅
+- **Frontend `vite build`:** ✅ · `tsc -p tsconfig.app.json`: **0 errors in any file this module touched**
+  (279 pre-existing errors remain in 30 unrelated files — the known `tsc -b` strict-mode drift from
+  Module 12, unchanged by this work).
+- Migrations `AddCrmReportingHistory` (CRM) + `AddCrmReportsPermissions` (Identity) created — auto-apply
+  on startup.
+- **Pending (needs republish + restart per the on-prem deploy note) — not runtime-verified by the author:**
+  1. Grant `crm.reports.view`/`.export`, open **CRM → Reports**, check all 8 render.
+  2. Move a deal to Won → it appears in Win/Loss for the current month; the backfill dated historic
+     deals (approximately — see above).
+  3. Move a deal between stages twice → Velocity shows a non-zero average for the stage it left.
+  4. Convert a lead → Lead Conversion's time-to-convert and the source's won value pick it up.
+  5. Export CSV + PDF from two different reports → correct columns, and the subtitle reflects the
+     **current** filter.
+  6. Log in as a rep with only the assigned tier → the reports show only their own records.
+
+### Module 23b — Surfacing CRM reports in the central Reports hub (+ runner routing fix)
+
+The CRM reports above were initially built as their own section without checking `/reports` first —
+**a central Reports hub already existed** (`modules/reports/`). This wires CRM into it.
+
+**What the hub actually is:** a *tabular* report engine. Registry entries declare filters + preview
+columns; `ReportRunnerModal` calls an API returning `ReportResult { rows, totalCount }`, renders a
+generic table, exports it. Country-aware and regulator-tagged (built for Z-reports, VAT returns).
+
+**Why the CRM reports are deep-linked, not migrated.** They are analytical — funnels with step
+drop-off, won/lost split bars, forecast rollups, score-quality comparisons. Forcing them through
+`{ rows, totalCount }` renders a conversion funnel as a 4-row table and discards the point. So:
+- `ReportDefinition` gained **`href?`** (navigate instead of opening the runner), plus
+  `requiresModule?: ModuleKey` / `requiresPermission?` for gating.
+- `CRM_REPORTS` in `report-registry.ts` is **derived from the CRM module's own `REPORT_CATALOGUE`**, so
+  hub titles/descriptions can never drift from the CRM section's. Each entry links to
+  `/crm/reports?report=<id>`, gated on `crm` module + `crm.reports.view`. **Gated entries are hidden,
+  not shown-and-denied** — a discovery surface should only advertise what the user can open.
+- `reports-view.tsx`: `"CRM"` added to `ReportCategory` + `CATEGORY_CONFIG` (icon `Handshake`); merge
+  includes the gated CRM entries; new `openReport()` navigates when `href` is set; the card's hover
+  affordance reads **"Open Report"** (ExternalLink) instead of "Run Report" for deep links.
+- `modules/crm/reports/reports-view.tsx` reads `?report=<id>`, **validates it against the catalogue**
+  (a stale/hand-typed id falls back to the catalogue, not a blank panel) and strips the param via
+  `setSearchParams(..., { replace: true })` so "back to catalogue" isn't undone on re-render.
+
+**Runner routing fix (real bug found while integrating).** `handleRun` was
+`if (category === "Inventory") inventoryApi else posApi`. The hub also renders `STATIC_REPORTS` —
+**14 Finance/Sales/Purchase/HR/Real Estate/Construction reports defined inside `reports-view.tsx`**,
+none of which have a backend. Clicking Run on any of them POSTed to the **POS** reports endpoint and
+surfaced a confusing API error. Replaced with a `CATEGORY_RUNNERS` map (`POS` → `reportsApi`,
+`Inventory` → `inventoryReportsApi`); an unmapped category now throws a clear *"{Category} reports
+aren't connected to a data source yet"*. `CRM` is deliberately unmapped and never reaches the runner.
+
+- **Build:** `vite build` ✅ · `tsc -p tsconfig.app.json`: **279 errors, unchanged from before this work**,
+  none in any touched file. No backend change, no migration.
+- **Pending (needs the same republish + restart):** Reports hub shows a **CRM** category with 8 cards →
+  clicking one lands on that exact CRM report → the category is absent for a tenant without the CRM
+  module or a user without `crm.reports.view`.
+
+### Module 23c — Reports hub: remove unbacked reports, gate by subscribed modules
+
+Two follow-ups on 23b, both user-requested after seeing the hub.
+
+**1. The 14 static reports are deleted, not just fixed.** `STATIC_REPORTS` (Finance / Sales / Purchase /
+HR / Real Estate / Construction) was a hardcoded array inside `reports-view.tsx` with **no backend at
+all**. 23b made them fail honestly, but a report that cannot run should not be advertised at all —
+removed outright. The hub now lists **only reports that actually execute**: POS (19) + Inventory (17)
+from the registry, plus the 8 deep-linked CRM reports. The `CATEGORY_RUNNERS` map from 23b stays; it is
+the guard that stops a future unbacked category from silently hitting the wrong service.
+
+**2. Every report is gated on the tenant's subscription.** New `CATEGORY_MODULE: Record<ReportCategory,
+ModuleKey>` in the registry maps each category to its module (`POS` → `pos`, `Inventory` → `inventory`,
+`CRM` → `crm`, …). The hub filters on `hasModuleAccess(r.requiresModule ?? CATEGORY_MODULE[r.category])`.
+It is a **full `Record`, not `Partial`**, on purpose: adding a category without deciding its module is
+then a compile error rather than a category that silently shows to every tenant.
+
+This is genuine subscription gating, not merely permissions — `hasModuleAccess` step 3 hard-gates on
+`tenant.enabledModules` for **everyone, tenant admins included**, and Module 20 derives that list by
+intersecting the onboarding picks with the plan's `Limits.Modules`. A Micro-plan tenant without POS
+therefore sees no POS reports.
+
+**Knock-on UI fixes** — both were quietly wrong once filtering applied:
+- Quick Stats tiles hardcoded "POS Reports" and "Inventory Reports", which read a permanent `0` for any
+  tenant without those modules. Now the tenant's **two largest subscribed categories**, computed.
+- The empty state always said "No reports match your search". A tenant whose plan includes no reporting
+  modules was sent hunting for a typo. Now distinguishes **"No reports available on your plan"** from a
+  genuine search miss.
+
+- **Build:** `vite build` ✅ · `tsc -p tsconfig.app.json`: **279 errors, unchanged** — none in a touched
+  file. Frontend-only; no backend change, no migration.
+- **Pending:** confirm on a tenant lacking POS that no POS category or cards appear, and that the stat
+  tiles and empty state read correctly on a minimal plan.
+---
+
+## Module 24 — 🔴 Identity: app_settings unique index missing TenantId (settings save broken for every tenant)
+
+**Reported as "can't change VAT from 17% to 5%"; the actual failure was `Cannot insert duplicate key …
+IX_app_settings_Category_Key … (notifications, emailSystem)`.** VAT was incidental — Settings saves the
+whole category map in one `UpsertAllSettingsCommand`, so an unrelated key aborted the batch. **No tenant
+could save any setting, in any category.**
+
+### Root cause
+`AppSetting` is tenant-scoped (`TenantId`) and `AppSettingRepository.Scoped()` correctly filters reads by
+tenant — but the two unique indexes did **not** include `TenantId`:
+```
+IX_app_settings_Category_Key         UNIQUE (Category, Key)         WHERE UserId IS NULL
+IX_app_settings_Category_Key_UserId  UNIQUE (Category, Key, UserId) WHERE UserId IS NOT NULL
+```
+So a company-wide setting key was unique **across the entire platform**. Confirmed against the live dev DB:
+all **65** `app_settings` rows carry `TenantId = NULL` (legacy rows predating tenant scoping) while **8**
+active tenants exist. Sequence:
+1. Tenant reads settings → `Scoped(tenantId)` matches no NULL-tenant row → screen shows frontend defaults.
+2. Tenant saves → `UpsertAllSettingsCommandHandler` finds no row to update → `Add(new AppSetting(...))`.
+3. Insert hits `IX_app_settings_Category_Key`, which ignores `TenantId` → collides with the legacy row → throw.
+
+The same shape as the Module 6a `Role.TenantId` leak: an entity that is tenant-scoped in code but not in
+its database constraints.
+
+### Fix
+- `AppSettingConfiguration` — both unique indexes now lead with `TenantId`:
+  `UNIQUE (TenantId, Category, Key) WHERE UserId IS NULL` and
+  `UNIQUE (TenantId, Category, Key, UserId) WHERE UserId IS NOT NULL`.
+  SQL Server treats NULLs as equal for uniqueness, so the legacy `TenantId IS NULL` rows stay unique among
+  themselves and no longer collide with any tenant's own row.
+- Migration `FixAppSettingsTenantUniqueness` — drop + recreate. **Widening a unique index cannot fail on
+  existing data** (it only permits more rows), so it is safe to apply to a populated database.
+
+### Second, independent path to the identical error — also fixed
+`UpsertAllSettingsCommandHandler` matched existing rows with `s.Key == key`, i.e. **C# ordinal
+case-sensitive**, while the SQL indexes live under a **case-insensitive collation**. A payload sending
+`EmailSystem` where the DB holds `emailSystem` would miss the match, insert, and fail on the index with the
+same duplicate-key message. Now matched with `StringComparison.OrdinalIgnoreCase` for both Category and Key.
+Newly-added rows are also appended to the in-memory `existing*` list, so a case-variant of the same key
+later in the *same* payload updates the pending row instead of queueing a second insert.
+
+### Verified (not "pending" — actually run)
+- Migration **applied to the local dev DB** (`SHAHBAZ-QFINITY / SoftaxisErpDb`); `sys.indexes` confirms
+  `IX_app_settings_TenantId_Category_Key` and `IX_app_settings_TenantId_Category_Key_UserId`.
+- **Reproduced the exact failing insert** (`notifications` / `emailSystem` for a real tenant id) against the
+  fixed schema inside `BEGIN TRAN … ROLLBACK` → **succeeded** where it previously threw; rolled back, so no
+  data changed (row count unchanged at 1).
+- **Identity.API build:** 0 errors ✅. Full-solution build could not complete — the running
+  `Softaxis.ApiGateway` (PID 6836) holds a lock on shared BuildingBlocks DLLs; that is a file lock, not a
+  compile error, and the process was left running rather than killed.
+
+### Deploy note — the reported bug is already unblocked
+The index lives in the **database**, and the migration is applied, so the currently-running build can save
+settings now with no republish. The handler's case-insensitive matching is a hardening fix that needs the
+usual republish + restart, but is not required for the reported failure.
+
+### Flagged, NOT actioned — 65 orphaned `TenantId = NULL` rows
+Every existing `app_settings` row is a legacy NULL-tenant row. They are invisible to all 8 tenants (reads
+are tenant-scoped) and are now harmless, but they cannot be attributed to a tenant automatically and
+deleting them is a data decision for the owner. Left in place; each tenant will create its own rows from
+the next save onward. A super-admin (null tenant context) still sees them.
+
+---
+
+## Module 25 — Identity: `reports` permission group (the Reports module could not be granted to anyone)
+
+**Reported as "Roles & Permissions shows Reports under CRM, and granting it doesn't unlock the Reports
+module."** Two separate things, one of them a real gap.
+
+### Why "Reports" appeared under CRM — working as intended
+The key is `crm.reports.*`. `groupPermissions` buckets by the first segment (`crm`) and `moduleLabel`
+renders the remainder (`Reports`) as the row. That is correct: `crm.reports.view` governs the **CRM
+report data** (scoped by the CRM lead/pipeline/customer tiers), not the hub. Same shape as
+`pos.reports.*` and `restaurant.reports.*`.
+
+### The real gap — no `reports` permission group existed
+Grep confirmed the only report keys were `pos.reports`, `crm.reports`, `restaurant.reports` — all
+module-scoped. The standalone hub at `/reports` had **zero permission keys**, so no role could be
+granted access to it.
+
+`/reports` is guarded by `<ModuleGuard module="reports" />` → `hasModuleAccess("reports")`:
+- step 3 `tenant.enabledModules.includes("reports")` — passes (`reports` is in `PlanDefinitions`' base
+  module set, so every plan has it),
+- step 4 tenant_admin / manager → true,
+- step 6 `ROLE_DEFAULTS` → only legacy role names (`hr_manager`, `accountant`, `sales_rep`, …),
+- step 7 `user.permissions.some(p => p.startsWith("reports:"))`.
+
+Step 7 is the intended hook for custom roles, and it works — but `toFrontendPermission` derives the
+`reports:` prefix from a backend key's **first segment**, and no `reports.*` key existed to produce one.
+So outside tenant admins and a handful of legacy role names, **nobody could be given the Reports module**.
+
+### Fix
+- `PermissionSeedData` — new `["reports"] = ["view","export"]`, commented to distinguish it from the
+  per-module `*.reports` keys. Migration `AddReportsModulePermissions` (2 rows). Existing tenants'
+  Administrator roles gain it automatically via the idempotent `SyncAdministratorPermissionsAsync` on
+  next startup; custom roles need an explicit grant, which is the point.
+- `permission-matrix.ts` — `reports: "Reports"` in `MODULE_GROUPS`, `"Reports"` in `GROUP_ORDER`
+  (before Settings), so it renders as its **own group**, not under CRM.
+- `moduleLabel()` bug — single-segment ids were returned verbatim. `reports` is the first such id, so it
+  would have rendered lowercase beside every other title-cased row. Now title-cased.
+
+### Second bug found while verifying the chain — per-user overrides didn't affect module access
+`mapUserDto` built `user.permissions` (what `hasModuleAccess` step 7 reads) from `dto.roles[].permissions`
+**only**, ignoring the Module 5h per-user grant/deny overrides — while `extractRawPermissions` (what
+`hasRawPermission` reads) applies them. Consequence: a permission granted to a single **user** rather
+than through a role satisfied `hasRawPermission` but not `hasModuleAccess` — the button unlocked while
+the module stayed hidden. A deny had the mirror problem: revoked at the button, still granting the
+module. `mapUserDto` now derives from `extractRawPermissions(dto)`, so both paths use the same effective
+`(roles ∪ grants) − denies` set.
+
+### Verified
+- **Identity.API build:** 0 errors ✅ · **Frontend `tsc`:** 279 errors, **unchanged baseline**, none in a
+  touched file · **`vite build`:** ✅
+- Migration **applied to the local dev DB**; `identity.permissions` now contains `reports/view` and
+  `reports/export`. Confirmed **0** Administrator roles hold them yet — as expected, the sync runs at
+  startup.
+
+### To actually use it (needs restart + re-login)
+1. Restart the API → `SyncAdministratorPermissionsAsync` grants `reports.*` to all 9 Administrator roles.
+2. Settings → Roles & Permissions → the custom role → new **Reports** group → tick **View**.
+3. **The user must log out and back in** — permission keys are embedded in the JWT at login/refresh, so
+   an existing session keeps the old claim set until the token is re-issued.
+
+---
+
+## Module 26 — File Manager folder tree + Reports report-type level (owner-scoped, tier-enforced)
+
+Requested: File Manager as `Module → Team member → Document type → files`, Reports as
+`Reports → Module → Report type → Report`, both showing only what the caller is permitted to see —
+admin all teams, team lead their team, member their own.
+
+### 🔴 Security bug found and fixed first
+`SearchCrmDocumentsHandler` — the query the File Manager runs — access-checked **lead documents only**.
+Deal, account and contact documents were returned to anyone who could open the library, so a rep saw
+files attached to other reps' opportunities. The class comment even documented this as intended
+("documents on accounts/opportunities/contacts stay visible to anyone with the CRM view permission"),
+which is directly at odds with the tiering the rest of CRM enforces.
+
+Now every target type is scoped through its own guard — leads `ScopeReadable`, opportunities
+`ScopeDeals`, accounts `ScopeCustomers`, contacts through their account. Stale comment rewritten.
+
+**Also fixed two things in the same handler:**
+- **N+1 removed.** The old per-row `CanManageActivityAsync` hit the database once per document (up to
+  500 round-trips). Replaced by four set queries building an in-memory `(type, id) → owner` map.
+- **Pagination was unfair to restricted users.** It took the newest 500 rows and *then* filtered, so a
+  rep got only the visible remainder of a tenant-wide page — often almost nothing. Now a wider
+  `fetchLimit` (2,000) feeds a `resultLimit` (500) of *visible* rows, so a rep fills a page with their
+  own files while the query stays bounded.
+
+### Owner = record owner, not uploader (deliberate)
+`CrmDocumentDto` gained `OwnerUserId` / `OwnerName`, resolved from the linked record: lead →
+`AssignedToUserId`, deal → `AssignedToUserId`, account → `AccountManagerUserId`, contact → its
+account's manager. **Not** `UploadedByUserId`, which already existed: a manager uploading a contract
+onto a rep's deal must still file under that rep, or the rep's folder understates their own book.
+Documents whose record is unassigned go to an explicit "Unassigned" folder rather than being dropped.
+
+### File Manager (`file-manager-view.tsx`, rewritten)
+`Module → Owner → Document type → files`, with breadcrumbs, an "Up" control, and the existing
+grid/list toggle, preview and download preserved.
+- **Searching flattens the tree** (standard file-manager behaviour — finding a file by name shouldn't
+  require knowing its folder). Cards then name the owner, since folder context is gone.
+- **Your own folder sorts first**, then by volume.
+- Module level lists only modules that both the tenant has AND that actually store files — today just
+  CRM, so no empty drawers are advertised.
+- Stat tiles changed Categories → **Owners** (the level that now matters).
+- The client never filters for security; it only lays out what the tier-scoped API returned.
+
+### Reports hub — report-type level
+`ReportDefinition.subGroup?` added; `CRM_REPORTS` maps it from the CRM catalogue's own
+Sales / Leads / Accounts grouping, so there is one source of truth. The hub renders sub-headings
+**only for categories that declare them** — POS and Inventory keep their flat grid rather than being
+given an invented grouping to fill the level. Module gating from 23c is unchanged, so a category only
+appears if the tenant's subscription includes it.
+
+### Access tiers — already enforced, now visible
+Report *data* was already tier-scoped (Module 23). Documents now are too. Neither relies on the
+frontend: an admin sees every rep's folder, a team lead their team's, a rep only their own, because
+the API returns only those rows.
+
+### Scope boundaries — flagged, NOT built
+- **Only CRM has a document store.** Finance holds a single receipt blob per expense
+  (`Expense.ReceiptData`) — not a library; Visa's `CaseDocument` stores a **URL**, not a file; HR,
+  Purchase, Sales, Inventory and the industry packs have no file storage at all. A shared documents
+  service every module can attach to is a separate, much larger project (chosen against in scoping).
+- **Report permissions stay per module** (`crm.reports.view` covers all 8) — per-group or per-report
+  keys were considered and deliberately not taken.
+- No upload from File Manager: there is no generic upload target, files attach from a record's
+  Documents tab. Unchanged.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279 errors, **unchanged baseline**, none in
+  a touched file · **`vite build`:** ✅ · No migration (DTO/query change only).
+- **Pending (needs republish + restart):** log in as admin → every rep's folder; as a team lead → only
+  their team's; as a rep → only their own, with their own folder first. Confirm a document on a deal
+  owned by another rep is **no longer** visible to a restricted user (the security fix). Confirm the
+  CRM category in Reports shows Sales / Leads / Accounts sub-headings while POS stays flat.
+
+---
+
+## Module 27 — Identity: `file-manager` permission group (+ File Manager was ungated for everyone)
+
+Follow-up to Module 25's `reports` group. Same defect, different module: **File Manager had no
+permission keys at all**, so it could not be granted or withheld — and worse, it was not merely
+ungrantable but *unconditionally open*.
+
+### The gap
+`hasModuleAccess` step 2 listed `file-manager` alongside `dashboard` / `notifications` /
+`ai-assistant` as an "always-on UI module" and returned `true` before any role, plan or permission
+check ran. So **every authenticated user could browse the CRM document library**, regardless of role.
+Nothing in Settings → Roles & Permissions could change that, because no `file-manager.*` key existed
+for the matrix to render.
+
+### Fix
+- `PermissionSeedData` — `["file-manager"] = ["view","export"]`. `view` opens the browser; `export`
+  covers taking a copy off the system, which is a separate decision from being able to look at a
+  file. Migration `AddFileManagerPermissions`, applied.
+- `permission-matrix.ts` — `"file-manager": "File Manager"` in `MODULE_GROUPS`, placed in
+  `GROUP_ORDER` between Reports and Settings, so it renders as its own group.
+- `auth.store.ts` — `file-manager` **removed from the always-on list**, so it now falls through to
+  the normal checks. `file-manager` is in `PlanDefinitions.CoreModules` (every plan), so step 3
+  passes for all tenants and the decision lands on role/permission where it belongs.
+- `file-manager-view.tsx` — download actions gated on `file-manager.export`; `DocumentPreviewModal`'s
+  `onDownload` is now optional and its button hidden when omitted, so the preview modal cannot be
+  used as a download bypass.
+
+### ⚠️ Behaviour change — this one can lock people out
+File Manager goes from "open to everyone" to "requires a grant". Impact:
+- **tenant_admin / manager** — unaffected (step 4 passes them).
+- **Legacy role names** (`hr_manager`, `accountant`, `sales_rep`, `purchase_officer`,
+  `warehouse_manager`, `viewer`) — unaffected, `ROLE_DEFAULTS` lists `file-manager` for each.
+- **Custom roles** (e.g. "CRM Team Lead") — **lose File Manager until granted**. That is the point of
+  the change, but it is a visible regression for anyone relying on the old open access, so grant
+  `file-manager.view` to the roles that need it as part of the same deploy.
+
+### Note on the reported symptom
+The screenshot showed **REPORTS (1 module)** already present — Module 25 landed correctly; the group
+was simply collapsed, and expanding it reveals the `Reports` row with View / Export. The genuinely
+missing one was File Manager, addressed here.
+
+### Build / Verification Status
+- **Identity.API:** 0 errors ✅ · **Frontend `tsc`:** 279 errors, **unchanged baseline** · **`vite
+  build`:** ✅
+- Migration applied to the dev DB; `identity.permissions` now holds `reports/view`, `reports/export`,
+  `file-manager/view`, `file-manager/export`.
+- **Pending (restart + re-login):** `SyncAdministratorPermissionsAsync` grants all four keys to every
+  Administrator role on startup. Then grant `reports.view` and `file-manager.view` to the custom
+  roles that need them, and have those users **log out and back in** — permission keys are embedded
+  in the JWT at login, so an existing session keeps the old claim set.
+
+### Module 28 — Team Performance report grouped by team (visibility follows who leads what)
+
+The scorecard was a flat owner list, so a manager could not compare teams and a team lead saw a
+mixed list rather than "my team". Now grouped: `Reports → CRM → Team Performance → Team A … Team N`.
+
+### Visibility — derived, not configured
+New `ILeadAccessGuard.VisibleTeamsAsync()` returns the teams the caller may report on:
+- **Full access / super admin** (`crm.leads.view`) → every active team in the tenant.
+- **Anyone else** → only teams where they are the `TeamLeadUserId`. A rep who leads nothing gets an
+  empty list, so team grouping shows them nothing rather than a team they shouldn't see.
+
+**Tenant scoping had to be explicit.** `IdentityTeamView` lives in `Softaxis.CRM.Infrastructure`, not
+`.Domain`, so `TenantIsolation.ApplyTenantId` deliberately skips it — it carries Identity's own
+`TenantId`. The existing team queries never needed a tenant filter because they were inherently
+user-scoped (`TeamLeadUserId == me`); the new "all teams" branch is not, so it filters on
+`TenantAmbient.TenantId` by hand. An unresolved tenant matches **nothing** rather than everything.
+`IdentityTeamView` gained `Name` (it previously carried only ids and flags).
+
+### Shape
+`TeamPerformanceDto(TeamId, TeamName, TeamLeadName, Members[], TotalLeads, TotalWonDeals,
+TotalWonValue, TotalOpenValue)`; `SalesPerformanceReportDto` gained trailing optional `Teams` and
+`Ungrouped`. The flat `Owners` list is retained, so nothing that already consumed it breaks.
+
+Two deliberate calls:
+- **A user in several teams appears under each.** Their numbers genuinely count toward every team
+  they belong to; showing them in only one would make the other team's totals wrong.
+- **`Ungrouped` is surfaced explicitly** — visible owners in none of those teams, including legacy
+  rows keyed by owner *name* with no user id (which can never match a team). Without it, a person's
+  numbers would silently disappear the moment team grouping turned on just because nobody put them
+  in a team.
+
+### Frontend
+`PerformancePanel` renders one card per team (lead name, members-with-activity count, team revenue
+total) plus a "Not in a team" card when relevant. **Falls back to the flat table when no teams are
+visible**, so a tenant that hasn't set teams up sees the report it had rather than an empty page.
+
+Export now carries a **Team** column with one row per (team, member) so the file matches the screen;
+the team-less case exports as before with "—".
+
+The member count label reads "N with activity", not "N members" — it counts members who own records
+in the period, not the team roster, and the old wording would have been read as team size.
+
+Translations added to en + ar.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- No migration — reads Identity's existing `teams` / `team_members` through the cross-schema views.
+- **Verified against live data (Qfinity tenant):** teams are `Warsan` (lead: Aslam; members: Ahmed,
+  Aslam) and `Business Bay Team` (no lead; members: Ghafoor, Mujtaba). So an admin should see both
+  team cards; Aslam should see only **Warsan**. Ahmed's records land in Warsan.
+- **Pending (republish + restart):** confirm the above, and that a team with no producing members
+  still renders (a team producing nothing is a signal a manager wants, not noise to hide).
+
+### Module 29 — Lead assignment pickers grouped by team
+
+The reassign dropdown was a flat name list, so an assigner could not tell which team anyone belonged
+to. Now grouped with `<optgroup>` per team.
+
+### Backend — team names on the assignable pool
+`assignable-users` is the only teams endpoint a restricted user can reach (`[Authorize]` only; the
+teams list itself needs `settings.users.view`), so the team labels had to come from there rather than
+from a second call the client couldn't make.
+
+- `ITeamRepository.GetTeamNamesByUserAsync(userIds, tenantScope, ct)` → `Dictionary<Guid, List<string>>`.
+  Joined **through the tenant-scoped team query**, so a membership row can never surface a team from
+  another tenant.
+- `TeamMemberDto` gained a trailing optional `IReadOnlyList<string>? Teams` — additive, so existing
+  consumers are untouched.
+- `GetAssignableUsersQueryHandler` fills it on both branches (admin → everyone; team lead → their
+  members plus the leads they can hand work back up to).
+
+### Frontend — one shared hook, two pickers
+`useAssignableByTeam()` (`hooks/identity/use-assignable-by-team.ts`) returns `{ groups, options }`.
+Used by **both** the reassign dialog and the create/edit lead form — they already shared
+`useAssignableUsers`, and leaving one grouped and the other flat would have been an obvious
+inconsistency the moment anyone used both.
+
+**Many-to-many is handled explicitly**, as requested:
+- Someone in several teams is listed under **each** of them. Dropping them from one would make that
+  team look smaller than it is.
+- Options are keyed `${team}-${userId}` — a user id alone is **not** unique across groups once the
+  same person appears twice, and a duplicate React key silently breaks list reconciliation.
+- People in no team fall into a trailing **"No team"** group rather than being omitted.
+- The reassign dialog carries a one-line hint that a person under several teams belongs to all of
+  them, so a repeated name doesn't read as a duplicate bug.
+
+The pool itself is still decided server-side by the caller's tier — the hook only arranges, never
+filters, so grouping cannot widen who a team lead may assign to.
+
+Translations added (`drawer.noTeam`, `drawer.multiTeamHint`) in en + ar.
+
+### Build / Verification Status
+- **Identity.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline ·
+  **`vite build`:** ✅ · No migration — reads existing `teams` / `team_members`.
+- **Expected against live data (Qfinity):** an admin sees **Business Bay Team** (Ghafoor, Muhtaba) and
+  **Warsan** (Aslam 👑, Ahmed); "Qfinity" has no team so it lands under **No team**. Aslam sees only
+  Warsan.
+- **Pending (republish + restart).**
+
+---
+
+## Module 30 — 🔴 CRM: records carry their own team (ownership alone could not say whose work it is)
+
+**Reported as "why is Aslam seeing this lead — he isn't lead of that team?"** He was: the lead is owned
+by **Ahmed**, who belongs to **Warsan** (led by Aslam) *and* **Team D** (led by New CRM Team Lead Test).
+The old rule — *"is this record's owner in a team I lead?"* — answers **yes for both leads**.
+
+Not an implementation bug: a modelling gap. Records were owned by a **person**, and a person can be in
+several teams, so nothing recorded *whose work* a record was. Module 29's team-grouped picker made it
+visible — Ahmed appeared under both teams, but picking either stored the same owner and no team.
+
+### The model change
+`Lead`, `Deal` and `CrmCustomer` gained **`TeamId`** (nullable) + `AssignTo(userId, name, teamId)` and a
+`BackfillTeam` hook. Assigning now records **who** and **which team's work**. Unassigning clears the
+team — a record with no owner belongs to no team.
+
+### The visibility rule (query and per-record check, kept identical)
+```
+own it                                  → visible
+TeamId set    → only that team's lead   → visible to the lead of THAT team alone
+TeamId null   → fall back to owner membership (previous behaviour)
+```
+The null fallback is the safety net: nothing vanishes from a team lead's view on deploy day.
+`OwnerAllowedAsync` gained the same `teamId` parameter so single-record reads/edits and
+`CanManageActivityAsync` (activities + documents) cannot diverge from the list query — a lead you
+can't see in the list is one you can't manage attachments on either. New `LedTeamIdsAsync`,
+cached per request like `TeamUserIdsAsync`.
+
+### Backfill — only where unambiguous (as chosen)
+`BackfillRecordTeamsInBackgroundAsync` tags records whose owner belongs to **exactly one** active team.
+Owners in several teams — the very case that broke the model — are **left untagged**, because guessing
+one would silently remove a record from a team lead who legitimately had it. Fire-and-forget on its own
+scope (never on the startup path), idempotent, `try/catch`-guarded. Cross-schema `HAVING COUNT(DISTINCT
+t.Id) = 1` read; `TeamId` selected as string because SQL Server's `MIN()` rejects `uniqueidentifier`.
+
+**Verified against live data:** ghafoor and newteamlead have one team each → their records get tagged.
+**ahmed, mujtaba and aslam are in two** → left untagged, so **Zubair Ali stays visible to Aslam until
+someone reassigns it and picks a team.** That is the deliberate consequence of not guessing.
+
+### Assignment now submits the team
+`TeamMemberDto.Teams` changed from `string[]` to `UserTeamRef(TeamId, Name)` — a picker needs to both
+label *and* submit the team. `AssignLeadCommand`, `Create/UpdateLeadCommand`, `AssignReq` and `LeadDto`
+all carry `TeamId`.
+
+Frontend: a `<select>` holds one value, so options encode `userId::teamId` via
+`encodeAssignee`/`decodeAssignee`. Picking Ahmed under **Warsan** files the lead to Warsan; picking him
+under **Team D** files it to Team D. Wired into both the reassign dialog and the create/edit form.
+`UpdateLeadHandler` re-stamps owner **and** team together, so an edit that changes the owner cannot
+leave the record filed under the previous owner's team.
+
+### Deals and Accounts wired too (no scope gap)
+Their assignment forms use the same grouped picker and `encodeAssignee`/`decodeAssignee`, and
+`Create/UpdateDealCommand`, `Create/UpdateCrmCustomerCommand`, both controller request records and
+both DTOs carry `TeamId`. `UpdateDealHandler` / `UpdateCrmCustomerHandler` re-stamp owner + team
+together, same as leads.
+
+**`ConvertLeadHandler` also carries the team across.** Converting a team-filed lead previously
+produced an untagged account and opportunity, which fall back to the owner-membership rule —
+quietly undoing the lead's team context at the exact moment it becomes revenue. Both now inherit
+the lead's `TeamId` alongside its owner.
+
+### Build / Verification Status
+- **CRM.API + Identity.API:** 0 errors ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- Migration `AddRecordTeamOwnership` (3 nullable columns + 3 indexes) created; backfill SQL validated
+  against the live DB.
+- **Pending (republish + restart):** reassign Zubair Ali to Ahmed **under Team D** → disappears for
+  Aslam, appears for New CRM Team Lead Test; reassign under Warsan → the reverse. Confirm untagged
+  legacy leads still show for both until explicitly filed.
+
+### Module 31 — Untagged records no longer fall back to owner membership (+ bulk filing)
+
+**Correction to Module 30.** That module kept a fallback: a record with no `TeamId` stayed visible to
+every team lead the owner belonged to, so "nothing disappears on deploy day".
+
+That was the wrong trade, and the reason is structural: **the fallback only ever fires for multi-team
+owners**, because single-team owners get tagged by the backfill. So it was not a mild safety net — it
+guaranteed the reported bug survived in precisely the case that caused it, until every affected record
+was re-filed by hand. Verified on the live tenant: all three leads still `TeamId = NULL`, both team
+leads still saw all of them, and every lead owner there is multi-team, so the feature achieved nothing.
+
+### New rule
+```
+own it                → visible
+TeamId set            → visible to the lead of THAT team
+TeamId null           → owner + full-access roles only, never a team lead
+```
+Applied identically in `ScopeReadable` / `ScopeDeals` / `ScopeCustomers`, in `OwnerAllowedAsync`, and in
+`CanManageActivityAsync` — a record a team lead cannot see in the list is one they cannot manage
+activities or documents on either. Nothing becomes unreachable: owners keep their own records and
+admins keep everything. The interface doc comment was rewritten; leaving it describing the old
+membership rule would have been worse than no comment.
+
+### Bulk filing (needed for this to be usable)
+Sharpening the rule without a filing tool would just move the pain: existing records go invisible to
+team leads with no practical way to tag them.
+- `BulkFileLeadsToTeamCommand(LeadIds, TeamId)` → `BulkFileResultDto(Filed, Skipped)`;
+  `POST /api/crm/leads/bulk-file-to-team`. **Every lead is still permission-checked individually** via
+  `CanEditAsync` — a bulk action must not become a way to touch records the caller could not edit one
+  at a time. Failures are skipped and counted rather than failing the batch, so one stray id in a
+  selection does not lose the user's other work. Null `TeamId` un-files.
+- `leads-view.tsx` — a selection column (header ticks only what is **on screen**, since silently
+  selecting off-screen rows makes the count meaningless), and a filing bar that appears only while
+  something is selected. Row checkbox `stopPropagation`s so ticking doesn't also open the drawer.
+  Result toast reports filed and, separately, skipped.
+- `useTeamsForFiling` derives the team list from the **assignable-users** pool rather than
+  `/api/teams`, which needs `settings.users.view` a team lead does not have. So a lead can file to the
+  teams they lead and an admin to any team.
+
+### Bug caught while wiring this
+`LeadsController.Update` did not pass `TeamId`, and `UpdateLeadHandler` re-stamps owner + team
+together — so **editing any lead silently un-filed it**. `UpdateLeadRequest` now round-trips `TeamId`,
+with a comment saying why it must.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- No new migration (uses `AddRecordTeamOwnership`). Translations added en + ar.
+- **Pending (republish + restart):** as an admin, select the Qfinity leads → file to **Team D** → they
+  disappear for Aslam and appear for New CRM Team Lead Test; file to **Warsan** → the reverse. Confirm
+  Ahmed still sees all of his own regardless, and that editing a filed lead keeps its team.
+
+### Module 32 — 🔴 CRM dashboard 403s for every non-full-tier role (+ the UI hid it as "Loading…")
+
+**Reported as "CRM dashboard shows only Loading CRM dashboard…".** Two independent defects, one
+causing it and one hiding it.
+
+### Cause — the dashboard was gated on the tenant-wide key only
+`CrmDashboardController` carried `[RequirePermission("crm.leads.view")]`. Confirmed against the live
+tenant: **CRM Team Lead has `crm.leads-team.view` but not `crm.leads.view`** — as do Real Estate Team
+Lead and every assigned-tier role. So the endpoint 403'd for them. Only Administrator and CRM Manager
+hold the full key.
+
+Every other CRM read endpoint had already moved to `RequireAnyPermission(view, team-view,
+assigned-view)` when the tiers were introduced (`LeadsController`, `ActivitiesController`); the
+dashboard was missed. Now aligned — the handler already scopes each figure, so a team lead gets their
+team's numbers rather than a permission failure.
+
+### Leak that opening it up would have created — fixed in the same pass
+`GetCrmDashboardHandler` scoped **leads** but not deals or activities; its own comment admitted
+"deals are NOT lead-scoped". That was survivable only while the endpoint required the tenant-wide
+key. Letting team-tier users in without fixing it would have handed a team lead the whole tenant's
+pipeline value and open-task count. Both now go through `ScopeDeals` / `ScopeActivities`.
+
+### Why it looked like an infinite load
+`crm-dashboard-view.tsx` returned the loading message on `isLoading || !data`. On **error**,
+`isLoading` is false and `data` is undefined — so a failed request rendered as "Loading…" forever and
+the 403 was invisible. Replaced with a real error state: message, the server's reason, and a retry
+button. `visa-dashboard-view.tsx` had the identical pattern and got the same fix.
+
+This is why the symptom was so hard to place: the screen reported the wrong thing. A failing request
+should never be indistinguishable from a slow one.
+
+### Diagnosis notes (for next time)
+Ruled out before finding it: schema (all three `TeamId` columns present, migration applied), data (all
+three dashboard queries run clean in SQL), service health (`/health` 200, endpoint 401 unauthenticated
+as expected), and build currency (gateway started after the latest DLL). The decisive step was
+comparing `crm.leads.view` against `crm.leads-team.view` **per role** in the database.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- No migration. Error-state translations added en + ar (crm + visa).
+- **Pending (republish + restart):** open the CRM dashboard as Aslam — it renders with his team's
+  figures instead of hanging; as the Administrator, totals are unchanged. Verify a team lead's pipeline
+  value now reflects only their team's deals, not the tenant's.
+
+---
+
 ## Build Status
 - **TypeScript (frontend):** 0 errors ✅
 - **Backend Finance service:** 0 errors ✅

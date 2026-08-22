@@ -6,7 +6,7 @@ using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Deals;
 
-internal sealed class MoveDealStageHandler(CrmDbContext db, ILeadAccessGuard access) : ICommandHandler<MoveDealStageCommand>
+internal sealed class MoveDealStageHandler(CrmDbContext db, ILeadAccessGuard access, IDealStageRecorder stageRecorder) : ICommandHandler<MoveDealStageCommand>
 {
     public async Task<Result> Handle(MoveDealStageCommand cmd, CancellationToken ct)
     {
@@ -18,7 +18,9 @@ internal sealed class MoveDealStageHandler(CrmDbContext db, ILeadAccessGuard acc
         if (!await access.CanEditDealAsync(d, ct))
             return Result.Failure(Error.NotFoundById("Deal", cmd.Id));
 
+        var previousStage = d.Stage;
         d.MoveStage(cmd.Stage, cmd.Probability, cmd.ForecastCategory, cmd.LossReason);
+        await stageRecorder.RecordMoveAsync(d, previousStage, ct);
         await db.SaveChangesAsync(ct);
 
         return Result.Success();

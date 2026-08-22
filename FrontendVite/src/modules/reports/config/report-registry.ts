@@ -13,6 +13,9 @@
  *  3. The UI auto-discovers it from COUNTRY_CONFIGS — no view changes needed.
  */
 
+import { REPORT_CATALOGUE as CRM_REPORT_CATALOGUE } from "@/lib/crm/reports.api";
+import type { ModuleKey } from "@/types/global";
+
 // ─── Country Config ───────────────────────────────────────────────────────────
 
 export interface CountryConfig {
@@ -62,6 +65,25 @@ export const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
 
 // ─── Report Definition ────────────────────────────────────────────────────────
 
+/**
+ * Which subscribed module each report category belongs to. The hub only shows categories whose
+ * module the tenant actually has, so a tenant without POS never sees POS reports.
+ *
+ * Every category must appear here — the `Record` (not `Partial<Record>`) makes adding a category
+ * without deciding its module a compile error, rather than a category that silently shows to everyone.
+ */
+export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
+  POS:           "pos",
+  Inventory:     "inventory",
+  Finance:       "finance",
+  Sales:         "sales",
+  Purchase:      "purchase",
+  HR:            "hr",
+  CRM:           "crm",
+  "Real Estate": "real-estate",
+  Construction:  "construction",
+};
+
 export type ReportCategory =
   | "POS"
   | "Inventory"
@@ -69,6 +91,7 @@ export type ReportCategory =
   | "Sales"
   | "Purchase"
   | "HR"
+  | "CRM"
   | "Real Estate"
   | "Construction";
 
@@ -113,6 +136,25 @@ export interface ReportDefinition {
   filters: ReportFilter[];
   /** Supported export formats */
   exportFormats: ("PDF" | "Excel" | "CSV" | "XML")[];
+  /**
+   * Deep-link target. When set, the hub navigates here instead of opening the tabular runner.
+   *
+   * Some reports are analytical rather than table-shaped — funnels, trends, forecast rollups — and
+   * flattening them into the runner's `{ rows, totalCount }` contract would throw away the very thing
+   * that makes them readable. Those live in their own module and are listed here for discoverability,
+   * so users still find every report in one place.
+   */
+  href?: string;
+  /**
+   * Optional third level inside a category — the report *type*, e.g. CRM → "Sales" / "Leads" /
+   * "Accounts". Categories whose reports declare none render flat, so POS and Inventory are not
+   * given an invented grouping just to fill the level.
+   */
+  subGroup?: string;
+  /** Module key required to see this entry, checked with `hasModuleAccess`. */
+  requiresModule?: ModuleKey;
+  /** Raw permission key required to see this entry, checked with `hasRawPermission`. */
+  requiresPermission?: string;
 }
 
 // ─── Shared Filter Templates ──────────────────────────────────────────────────
@@ -936,3 +978,49 @@ export function getCountsByCategory(countryCode: string): Record<string, number>
     return acc;
   }, {});
 }
+
+// ─── CRM (deep-linked analytical reports) ─────────────────────────────────────
+
+/**
+ * CRM reports are analytical — funnels, trends, win-rate splits, forecast rollups — so they render in
+ * the CRM module rather than the tabular runner (see `ReportDefinition.href`). They are listed here so
+ * the hub stays the one place to find every report.
+ *
+ * Derived from the CRM module's own catalogue so the two can never drift out of sync; titles and
+ * descriptions shown in the hub come from the same source the CRM section uses.
+ */
+const CRM_ICONS: Record<string, string> = {
+  pipeline: "BarChart3", "win-loss": "TrendingUp", velocity: "Clock",
+  performance: "Users", conversion: "Filter", "lead-sources": "PieChart",
+  activities: "ClipboardList", accounts: "Building2",
+};
+
+const CRM_COLORS: Record<string, { color: string; bg: string }> = {
+  pipeline:       { color: "text-primary",     bg: "bg-primary/10" },
+  "win-loss":     { color: "text-success",     bg: "bg-success/10" },
+  velocity:       { color: "text-warning",     bg: "bg-warning/10" },
+  performance:    { color: "text-primary",     bg: "bg-primary/10" },
+  conversion:     { color: "text-success",     bg: "bg-success/10" },
+  "lead-sources": { color: "text-warning",     bg: "bg-warning/10" },
+  activities:     { color: "text-destructive", bg: "bg-destructive/10" },
+  accounts:       { color: "text-primary",     bg: "bg-primary/10" },
+};
+
+export const CRM_REPORTS: ReportDefinition[] = CRM_REPORT_CATALOGUE.map(r => ({
+  id:          `crm-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "CRM" as ReportCategory,
+  icon:        CRM_ICONS[r.id] ?? "BarChart3",
+  color:       CRM_COLORS[r.id]?.color ?? "text-primary",
+  bg:          CRM_COLORS[r.id]?.bg ?? "bg-primary/10",
+  // Filters and preview columns live in the CRM section's own UI; the hub only needs the card.
+  previewColumns: [],
+  filters:        [],
+  exportFormats:  ["PDF", "CSV"],
+  // The CRM catalogue's own grouping (Sales / Leads / Accounts) becomes the report-type level.
+  subGroup:       r.group,
+  href:               `/crm/reports?report=${r.id}`,
+  requiresModule:     "crm",
+  requiresPermission: "crm.reports.view",
+}));

@@ -10,11 +10,34 @@ const FUNNEL_KEYS = new Set(["new", "contacted", "qualified", "converted"]);
 
 export function CrmDashboardView() {
   const { t } = useTranslation("crm");
-  const { data, isLoading } = useCrmDashboard();
+  const { data, isLoading, error, refetch, isFetching } = useCrmDashboard();
   const CUR = useCurrency();
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return <div className="p-12 text-center text-sm text-muted-foreground">{t("dashboard.loading")}</div>;
+  }
+
+  // A failed request used to fall through to the same "Loading…" message, because the old condition
+  // was `isLoading || !data` — on error isLoading is false and data is undefined, so the screen sat
+  // on "loading" forever and the real cause (a 403, a 500, an unreachable API) was invisible. Show
+  // what actually happened, and offer a retry.
+  if (error || !data) {
+    return (
+      <div className="p-12 text-center">
+        <AlertTriangle className="h-8 w-8 text-destructive/60 mx-auto mb-3" />
+        <p className="text-sm font-semibold">{t("dashboard.loadFailed", { defaultValue: "Couldn't load the CRM dashboard." })}</p>
+        <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto break-words">
+          {(error as Error)?.message ?? t("dashboard.noData", { defaultValue: "The server returned no data." })}
+        </p>
+        <button
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted/40 disabled:opacity-50"
+        >
+          {isFetching ? t("dashboard.loading") : t("dashboard.retry", { defaultValue: "Try again" })}
+        </button>
+      </div>
+    );
   }
 
   const stats = [

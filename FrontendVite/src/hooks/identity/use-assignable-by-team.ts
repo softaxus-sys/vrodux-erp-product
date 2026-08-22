@@ -1,0 +1,122 @@
+import * as React from "react";
+import { useTranslation } from "react-i18next";
+import { useAssignableUsers } from "@/hooks/identity/use-teams";
+
+export interface AssignableOption {
+  id:       string;
+  /** The team this option was listed under — submitted so the record records whose work it is. */
+  teamId:   string | null;
+  /** Plain name — this is what gets stored on the record, not the decorated label. */
+  fullName: string;
+  /** Decorated for display: 👑 marks a team lead. */
+  label:    string;
+}
+
+export interface AssignableTeamGroup {
+  team:    string;
+  members: AssignableOption[];
+}
+
+/**
+ * The people the caller may assign work to, grouped by team for an `<optgroup>` picker.
+ *
+ * <p>The pool itself is decided server-side by the caller's tier — an admin gets everyone, a team
+ * lead only their own members — so this hook never filters, it only arranges.</p>
+ *
+ * <p><b>Team membership is many-to-many.</b> Someone in two teams is listed under <i>both</i>, on
+ * purpose: dropping them from one would make that team look smaller than it is. Callers rendering
+ * these groups must key options by team + user, since a user id alone is not unique across groups.
+ * People in no team fall into a trailing "No team" group rather than being omitted.</p>
+ *
+ * Shared by the reassign dialog and the create/edit lead form so the two pickers can't drift apart.
+ */
+export function useAssignableByTeam(enabled = true) {
+  const { t } = useTranslation("crm");
+  const query = useAssignableUsers(enabled);
+  const assignable = query.data ?? [];
+
+  const options = React.useMemo<AssignableOption[]>(
+    () => assignable.map(u => ({
+      id: u.userId,
+      teamId: null,
+      fullName: u.fullName,
+      label: u.isLead ? `👑 ${u.fullName}` : `👤 ${u.fullName}`,
+    })),
+    [assignable],
+  );
+
+  const groups = React.useMemo<AssignableTeamGroup[]>(() => {
+    const byTeam = new Map<string, AssignableOption[]>();
+    const noTeam: AssignableOption[] = [];
+
+    const label = (u: (typeof assignable)[number]) =>
+      u.isLead ? `👑 ${u.fullName}` : `👤 ${u.fullName}`;
+
+    for (const u of assignable) {
+      const teams = u.teams ?? [];
+      if (teams.length === 0) {
+        noTeam.push({ id: u.userId, teamId: null, fullName: u.fullName, label: label(u) });
+        continue;
+      }
+      // One entry PER TEAM, each carrying that team id — picking the person under "Warsan" files
+      // the record to Warsan, which is what makes a multi-team owner unambiguous.
+      for (const team of teams) {
+        const list = byTeam.get(team.name) ?? [];
+        list.push({ id: u.userId, teamId: team.teamId, fullName: u.fullName, label: label(u) });
+        byTeam.set(team.name, list);
+      }
+    }
+
+    const named = [...byTeam.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([team, members]) => ({ team, members }));
+
+    return noTeam.length > 0
+      ? [...named, { team: t("drawer.noTeam"), members: noTeam }]
+      : named;
+  }, [assignable, t]);
+
+  /** Flat list — for resolving a selected id back to its name. */
+  return { groups, options, isLoading: query.isLoading };
+}
+
+/**
+ * A `<select>` cannot hold two values, but an assignment needs both the person and the team they
+ * were picked under. These encode/decode that pair into a single option value.
+ *
+ * "" means unassigned. A user with no team encodes as `userId::` (empty team half).
+ */
+export function encodeAssignee(userId: string, teamId: string | null): string {
+  return `${userId}::${teamId ?? ""}`;
+}
+
+export function decodeAssignee(value: string): { userId: string | null; teamId: string | null } {
+  if (!value) return { userId: null, teamId: null };
+  const [userId, teamId] = value.split("::");
+  return { userId: userId || null, teamId: teamId || null };
+}
+
+/**
+ * Distinct teams the caller can file records to, derived from the same assignable pool.
+ *
+ * Derived rather than fetched from `/api/teams` on purpose: that endpoint requires
+ * `settings.users.view`, which a team lead does not have — but `assignable-users` is open to them
+ * and already carries their teams. So a team lead can file to the teams they lead, and an admin to
+ * every team that has a member.
+ */
+export function useTeamsForFiling(enabled = true) {
+  const query = useAssignableUsers(enabled);
+  const assignable = query.data ?? [];
+
+  const teams = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of assignable) {
+      for (const t of u.teams ?? []) map.set(t.teamId, t.name);
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [assignable]);
+
+  return { teams, isLoading: query.isLoading };
+}

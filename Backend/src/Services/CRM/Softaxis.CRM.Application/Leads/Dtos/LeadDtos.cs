@@ -16,7 +16,9 @@ public sealed record LeadDto(
     // Identity user id of the current owner (drives "my assigned leads" scoping on the client).
     Guid? AssignedToUserId = null,
     // Purchase intent: raw "when planning to buy" text + its classified urgency bucket key.
-    string? PurchaseTimeframe = null, string? PurchaseUrgency = null);
+    string? PurchaseTimeframe = null, string? PurchaseUrgency = null,
+    // Team the record belongs to. Null = untagged (visibility falls back to owner membership).
+    Guid? TeamId = null, string? TeamName = null);
 
 public sealed record LeadsSummaryDto(
     int Total, int NewThisWeek, int Qualified, int Contacted, int Converted,

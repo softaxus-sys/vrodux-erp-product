@@ -79,7 +79,7 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                 {ret.refundMethod && (
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
                     <CreditCard className="h-3 w-3" />
-                    {REFUND_METHOD_LABELS[ret.refundMethod]}
+                    {t(`returns.refundMethodLabel.${ret.refundMethod}`, { defaultValue: ret.refundMethod })}
                   </p>
                 )}
               </div>
@@ -90,7 +90,7 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                 <div className="bg-muted/30 rounded-xl p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="h-4 w-4 text-warning shrink-0" />
-                    <span className="text-sm font-semibold">{REASON_LABELS[ret.reason]}</span>
+                    <span className="text-sm font-semibold">{t(`returns.reason.${ret.reason}`, { defaultValue: ret.reason })}</span>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">{ret.reasonDetail}</p>
                 </div>

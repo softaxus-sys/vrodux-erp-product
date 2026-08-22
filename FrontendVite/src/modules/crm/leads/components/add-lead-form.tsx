@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
-import { useAssignableUsers } from "@/hooks/identity/use-teams";
+import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { TIMEFRAME_OPTIONS, type LeadDto } from "@/lib/crm/crm.api";
 
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -33,8 +33,8 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   // active user in the tenant, a team lead gets only their own team members, a plain member gets
   // nobody. That keeps admin -> team lead -> member as the real routing path rather than a
   // convention the UI merely suggests.
-  const { data: assignable = [] } = useAssignableUsers(open);
-  const assignableUsers = assignable.map(u => ({ id: u.userId, fullName: u.fullName }));
+  // Same grouped picker as the reassign dialog, so the two never disagree about who sits where.
+  const { groups: assignableGroups, options: assignableUsers } = useAssignableByTeam(open);
   const [firstName, setFirstName]     = React.useState("");
   const [lastName, setLastName]       = React.useState("");
   const [email, setEmail]             = React.useState("");
@@ -49,6 +49,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const currency = useCurrency();
   const [assignedTo, setAssignedTo]   = React.useState("");           // display name
   const [assignedToUserId, setAssignedToUserId] = React.useState(""); // Identity user id ("" = unassigned)
+  const [assignedTeamId, setAssignedTeamId] = React.useState<string | null>(null); // team the work belongs to
   const [expectedClose, setExpectedClose] = React.useState("");
   const [notes, setNotes]             = React.useState("");
   const [staged, setStaged]           = React.useState<StagedDocument[]>([]);
@@ -70,7 +71,8 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       setPhone(editing.phone); setCompany(editing.company); setJobTitle(editing.title);
       setIndustry(editing.industry); setSource(titleCase(editing.source));
       setPriority(titleCase(editing.priority)); setDealValue(String(editing.estimatedValue || ""));
-      setAssignedTo(editing.assignedTo); setAssignedToUserId(editing.assignedToUserId ?? ""); setNotes(editing.notes ?? "");
+      setAssignedTo(editing.assignedTo); setAssignedToUserId(editing.assignedToUserId ?? "");
+      setAssignedTeamId(editing.teamId ?? null); setNotes(editing.notes ?? "");
       setWhatsApp(editing.whatsApp ?? ""); setInterestedIn(editing.interestedIn ?? "");
       setBudget(editing.budget ?? ""); setMessage(editing.message ?? "");
       setTimeframe(editing.purchaseTimeframe ?? "");
@@ -85,7 +87,8 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       country: editing?.country ?? "", city: editing?.city ?? "",
       source: source.toLowerCase().replace(/\s+/g, "_"),
       priority: priority.toLowerCase(), estimatedValue: parseFloat(dealValue) || 0,
-      assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null, notes: notes.trim() || null,
+      assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null,
+      teamId: assignedTeamId, notes: notes.trim() || null,
       whatsApp: whatsApp.trim() || null, interestedIn: interestedIn.trim() || null,
       budget: budget.trim() || null, message: message.trim() || null,
       purchaseTimeframe: timeframe.trim() || null,
@@ -110,7 +113,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
     setFirstName(""); setLastName(""); setEmail(""); setPhone("");
     setCompany(""); setJobTitle(""); setIndustry(""); setSource("Website");
     setStage("New"); setPriority("Medium"); setDealValue("");
-    setAssignedTo(""); setAssignedToUserId(""); setExpectedClose(""); setNotes("");
+    setAssignedTo(""); setAssignedToUserId(""); setAssignedTeamId(null); setExpectedClose(""); setNotes("");
     setWhatsApp(""); setInterestedIn(""); setBudget(""); setMessage(""); setTimeframe("");
   };
 
@@ -223,16 +226,26 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.assignedTo")}</label>
-                    <select value={assignedToUserId}
+                    <select value={assignedToUserId ? encodeAssignee(assignedToUserId, assignedTeamId) : ""}
                       onChange={e => {
-                        const id = e.target.value;
-                        setAssignedToUserId(id);
-                        setAssignedTo(assignableUsers.find(u => u.id === id)?.fullName ?? "");
+                        const { userId, teamId } = decodeAssignee(e.target.value);
+                        setAssignedToUserId(userId ?? "");
+                        setAssignedTeamId(teamId);
+                        setAssignedTo(assignableUsers.find(u => u.id === userId)?.fullName ?? "");
                       }}
                       className="h-9 w-full px-2 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       {/* Legacy leads carry only a name — surface it so it isn't silently lost. */}
                       <option value="">{assignedTo && !assignedToUserId ? t("form.unlinked", { name: assignedTo }) : t("form.unassigned")}</option>
-                      {assignableUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+                      {assignableGroups.map(g => (
+                        <optgroup key={g.team} label={g.team}>
+                          {/* Keyed by team + user — someone in two teams appears under each. */}
+                          {g.members.map(u => (
+                            <option key={`${g.team}-${u.id}`} value={encodeAssignee(u.id, u.teamId)}>
+                              {u.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
                     <p className="text-[11px] text-muted-foreground">{t("form.assignedToHint")}</p>
                   </div>

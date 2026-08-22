@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ReportDefinition, ReportFilter, CountryConfig } from "../config/report-registry";
+import type { ReportDefinition, ReportFilter, CountryConfig, ReportCategory } from "../config/report-registry";
 import { COUNTRY_CONFIGS } from "../config/report-registry";
 import { reportsApi }          from "@/lib/pos/reports.api";
 import { inventoryReportsApi } from "@/lib/inventory/reports.api";
-import type { ReportResult }   from "@/lib/pos/reports.api";
+import type { ReportResult, ReportRunParams } from "@/lib/pos/reports.api";
 import { useAuthStore }        from "@/store/auth.store";
 import { appSettingsApi }      from "@/lib/identity/app-settings.api";
 import {
@@ -119,6 +119,24 @@ function BadgeChip({ label }: { label: string }) {
     </span>
   );
 }
+
+// ─── Category → data source ───────────────────────────────────────────────────
+
+/**
+ * Which API serves each report category. A map rather than an if/else chain so adding a category
+ * without wiring its backend fails loudly (see `handleRun`) instead of silently falling through to
+ * whichever service happened to be the `else` branch.
+ *
+ * Categories absent here are listed in the hub but not yet connected to a data source. `CRM` is
+ * deliberately absent and never reaches this code — its reports carry an `href` and open in the CRM
+ * module instead of the tabular runner.
+ */
+type CategoryRunner = (reportId: string, params: ReportRunParams) => Promise<ReportResult>;
+
+const CATEGORY_RUNNERS: Partial<Record<ReportCategory, CategoryRunner>> = {
+  POS:       (id, params) => reportsApi.run(id, params),
+  Inventory: (id, params) => inventoryReportsApi.run(id, params),
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -272,14 +290,19 @@ export function ReportRunnerModal({ report, countryCode, onClose }: ReportRunner
     setError(null);
     try {
       const apiParams = buildApiParams(filterState, report.id);
-      let data: ReportResult;
 
-      if (report.category === "Inventory") {
-        data = await inventoryReportsApi.run(report.id, apiParams);
-      } else {
-        // POS (and any future POS-like)
-        data = await reportsApi.run(report.id, apiParams);
+      const runner = CATEGORY_RUNNERS[report.category];
+      if (!runner) {
+        // Explicit, honest failure. The previous code fell through to the POS endpoint for every
+        // non-Inventory category, so a Finance or HR report silently POSTed to the wrong service and
+        // surfaced as a confusing API error rather than "this isn't built yet".
+        throw new Error(
+          `${report.category} reports aren't connected to a data source yet. ` +
+          `This report is listed but cannot be run.`,
+        );
       }
+
+      const data: ReportResult = await runner(report.id, apiParams);
 
       setResult(data);
       setHasRun(true);

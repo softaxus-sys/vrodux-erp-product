@@ -270,6 +270,13 @@ export const navigationConfig: NavGroup[] = [
             href: "/crm/documents",
             icon: "FolderOpen",
           },
+          {
+            id: "crm-reports",
+            label: "Reports",
+            labelAr: "التقارير",
+            href: "/crm/reports",
+            icon: "BarChart3",
+          },
         ],
       },
     ],
