@@ -73,8 +73,17 @@ public sealed record AuditLogDto(
     string?  NewValues,
     string?  IpAddress,
     bool     Succeeded,
+    /// <summary>
+    /// UTC instant. MUST carry <see cref="DateTimeKind.Utc"/> — SQL Server `datetime2` has no
+    /// offset, so EF materialises it as <c>Unspecified</c>, and System.Text.Json then writes it
+    /// with NO trailing "Z". A browser parses that as LOCAL time, shifting every entry by the
+    /// viewer's UTC offset. The handler stamps the kind explicitly for this reason.
+    /// </summary>
     DateTime OccurredOn
 );
+
+/// <summary>Counts across the whole filtered set — not just the page being displayed.</summary>
+public sealed record AuditLogSummaryDto(int Total, int Failed, int Today);
 
 public sealed record AuthTokenDto(
     string   AccessToken,

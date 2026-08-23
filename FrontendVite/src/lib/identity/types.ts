@@ -104,5 +104,13 @@ export interface AuditLogDto {
   newValues: string | null;
   ipAddress: string | null;
   succeeded: boolean;
+  /** UTC ISO-8601 instant (always carries the trailing "Z" — see AuditLogDto on the backend). */
   occurredOn: string;
+}
+
+/** Stat counts over the whole filtered set, not just the current page. */
+export interface AuditLogSummaryDto {
+  total: number;
+  failed: number;
+  today: number;
 }

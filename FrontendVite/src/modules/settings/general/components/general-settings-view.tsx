@@ -5,7 +5,7 @@ import {
   Building2, Globe, MapPin, Bell, Shield, Palette,
   CheckCircle, Camera, ChevronRight, Moon, Sun, Monitor,
   Mail, MessageSquare, Smartphone, Lock, Clock, KeyRound,
-  ToggleLeft, Save, RotateCcw, AlertTriangle, Loader2,
+  ToggleLeft, Save, RotateCcw, AlertTriangle, Loader2, Check, Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { useThemeStore } from "@/store/theme.store";
 import { toast } from "sonner";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
 import { findCountry } from "@/lib/onboarding/geo-data";
+import type { ModuleKey } from "@/types/global";
 
 // Keep for potential future use — avoids dead-import warnings
 void MapPin; void ChevronRight;
@@ -48,10 +49,42 @@ const SESSION_TIMEOUTS = ["30", "60", "240", "480", "1440"] as const;
 const LOGIN_ATTEMPTS = ["3", "5", "10"] as const;
 const PASSWORD_LENGTHS = ["8", "10", "12", "14", "16"] as const;
 const PASSWORD_EXPIRY = ["30", "60", "90", "180", "never"] as const;
-const MODULE_KEYS = [
-  "crm", "finance", "hr", "sales", "purchase", "inventory",
-  "realEstate", "construction", "hospitality", "pos", "aiAssistant", "fileManager",
-] as const;
+/**
+ * Business modules shown in the Module Access card, paired with their i18n key.
+ *
+ * This card used to be a grid of TOGGLES over a hardcoded list that defaulted every module to
+ * on. That was wrong twice over: it advertised modules the tenant was never licensed for (a
+ * real-estate tenant saw "Construction"), and the switches did nothing — they wrote to the
+ * `modules` app-settings category, which NOTHING reads. Module access is decided by
+ * `tenant.enabledModules` (plan ceiling ∩ provisioning, delivered in the JWT `modules` claim)
+ * and is read by hasModuleAccess. So this is now a read-only mirror of that entitlement.
+ *
+ * Always-on infrastructure (dashboard / notifications / settings / users / super-admin) is
+ * omitted: it is not an entitlement anyone chooses, and listing it is noise.
+ */
+const MODULE_CATALOGUE: readonly { key: ModuleKey; i18n: string }[] = [
+  { key: "crm",                i18n: "crm"               },
+  { key: "sales",              i18n: "sales"             },
+  { key: "purchase",           i18n: "purchase"          },
+  { key: "inventory",          i18n: "inventory"         },
+  { key: "finance",            i18n: "finance"           },
+  { key: "hr",                 i18n: "hr"                },
+  { key: "pos",                i18n: "pos"               },
+  { key: "restaurant",         i18n: "restaurant"        },
+  { key: "recipe",             i18n: "recipe"            },
+  { key: "hospitality",        i18n: "hospitality"       },
+  { key: "project-management", i18n: "projectManagement" },
+  { key: "reports",            i18n: "reports"           },
+  { key: "file-manager",       i18n: "fileManager"       },
+  { key: "ai-assistant",       i18n: "aiAssistant"       },
+  { key: "real-estate",        i18n: "realEstate"        },
+  { key: "construction",       i18n: "construction"      },
+  { key: "healthcare",         i18n: "healthcare"        },
+  { key: "education",          i18n: "education"         },
+  { key: "insurance",          i18n: "insurance"         },
+  { key: "b2b",                i18n: "b2b"               },
+  { key: "visa",               i18n: "visa"              },
+];
 
 // ─── Default values (used as fallback when backend has no data yet) ───────────
 //
@@ -118,21 +151,6 @@ const DEFAULTS = {
     maxLoginAttempts: "5",
     ipWhitelistEnabled: false,
     singleSession: false,
-  },
-  modules: {
-    crm: true,
-    finance: true,
-    hr: true,
-    sales: true,
-    purchase: true,
-    inventory: true,
-    realEstate: true,
-    construction: true,
-    hospitality: true,
-    pos: true,
-    aiAssistant: true,
-    fileManager: true,
-    reports: true,
   },
 };
 
@@ -298,6 +316,97 @@ function UnsavedBanner({
   );
 }
 
+// ─── Module Access (read-only) ───────────────────────────────────────────────
+
+/**
+ * Shows which modules this tenant actually holds, straight from `tenant.enabledModules` —
+ * the same list `hasModuleAccess` gates the sidebar and routes on.
+ *
+ * Read-only by design. A tenant cannot widen its own entitlement: the plan is the ceiling
+ * (`Tenant.ResolvedModules` on the backend intersects the provisioned selection with
+ * `PlanLimits.Modules`), and changing it is a platform-admin / billing action. Rendering
+ * switches here implied otherwise and, because nothing consumed them, silently did nothing.
+ */
+function ModuleAccessCard() {
+  const { t } = useTranslation("settings");
+  const tenant = useAuthStore(s => s.tenant);
+
+  const enabled = React.useMemo(
+    () => new Set<ModuleKey>(tenant?.enabledModules ?? []),
+    [tenant?.enabledModules],
+  );
+
+  const included = MODULE_CATALOGUE.filter(m => enabled.has(m.key));
+  const excluded = MODULE_CATALOGUE.filter(m => !enabled.has(m.key));
+
+  return (
+    <SectionCard
+      title={t("general.modules.title")}
+      description={t("general.modules.description")}
+      icon={ToggleLeft}
+      badge={tenant?.plan
+        // tenant.plan is stored lower-case ("starter"), so title-case it for display.
+        ? t("general.modules.planBadge", {
+            plan: tenant.plan.charAt(0).toUpperCase() + tenant.plan.slice(1),
+          })
+        : undefined}
+    >
+      <div className="space-y-5">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+            {t("general.modules.includedHeading", { count: included.length })}
+          </p>
+          {included.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("general.modules.noneIncluded")}</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {included.map(m => (
+                <div
+                  key={m.key}
+                  className="flex items-start gap-2.5 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2"
+                >
+                  <Check className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-tight">
+                      {t(`general.modules.${m.i18n}`)}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      {t(`general.modules.${m.i18n}Desc`)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {excluded.length > 0 && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">
+              {t("general.modules.excludedHeading")}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {excluded.map(m => (
+                <span
+                  key={m.key}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground"
+                >
+                  <Minus className="h-3 w-3 shrink-0" />
+                  {t(`general.modules.${m.i18n}`)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground border-t border-border pt-3">
+          {t("general.modules.readOnlyNote")}
+        </p>
+      </div>
+    </SectionCard>
+  );
+}
+
 // ─── Main View ────────────────────────────────────────────────────────────────
 export function GeneralSettingsView() {
   const { t } = useTranslation("settings");
@@ -307,7 +416,6 @@ export function GeneralSettingsView() {
   const [appearance,    setAppearance]    = React.useState(DEFAULTS.appearance);
   const [notifications, setNotifications] = React.useState(DEFAULTS.notifications);
   const [security,      setSecurity]      = React.useState(DEFAULTS.security);
-  const [modules,       setModules]       = React.useState(DEFAULTS.modules);
 
   // ── Request state ──────────────────────────────────────────────────────────
   const [isLoading,   setIsLoading]   = React.useState(true);
@@ -328,7 +436,6 @@ export function GeneralSettingsView() {
     setAppearance(snap.appearance);
     setNotifications(snap.notifications);
     setSecurity(snap.security);
-    setModules(snap.modules);
   }, []);
 
   const loadSettings = React.useCallback(async () => {
@@ -340,7 +447,6 @@ export function GeneralSettingsView() {
       const a   = data.appearance    ?? {};
       const n   = data.notifications ?? {};
       const sec = data.security      ?? {};
-      const m   = data.modules       ?? {};
       const D   = DEFAULTS;
 
       // Fall back to the CURRENT tenant's own identity (from the JWT/auth store) instead of the
@@ -427,29 +533,12 @@ export function GeneralSettingsView() {
         singleSession:           toBool(sec.singleSession,           D.security.singleSession),
       };
 
-      const newModules: typeof DEFAULTS.modules = {
-        crm:          toBool(m.crm,          D.modules.crm),
-        finance:      toBool(m.finance,      D.modules.finance),
-        hr:           toBool(m.hr,           D.modules.hr),
-        sales:        toBool(m.sales,        D.modules.sales),
-        purchase:     toBool(m.purchase,     D.modules.purchase),
-        inventory:    toBool(m.inventory,    D.modules.inventory),
-        realEstate:   toBool(m.realEstate,   D.modules.realEstate),
-        construction: toBool(m.construction, D.modules.construction),
-        hospitality:  toBool(m.hospitality,  D.modules.hospitality),
-        pos:          toBool(m.pos,          D.modules.pos),
-        aiAssistant:  toBool(m.aiAssistant,  D.modules.aiAssistant),
-        fileManager:  toBool(m.fileManager,  D.modules.fileManager),
-        reports:      toBool(m.reports,      D.modules.reports),
-      };
-
       const snap: Snapshot = {
         company:       newCompany,
         regional:      newRegional,
         appearance:    newAppearance,
         notifications: newNotifications,
         security:      newSecurity,
-        modules:       newModules,
       };
 
       applySnapshot(snap);
@@ -482,7 +571,6 @@ export function GeneralSettingsView() {
           if (saved.appearance)    setAppearance(a => ({ ...a, ...saved.appearance }));
           if (saved.notifications) setNotifications(n => ({ ...n, ...saved.notifications }));
           if (saved.security)      setSecurity(s => ({ ...s, ...saved.security }));
-          if (saved.modules)       setModules(m => ({ ...m, ...saved.modules }));
           toast.warning(t("general.toastCached"));
         }
       } catch { /* ignore */ }
@@ -513,11 +601,10 @@ export function GeneralSettingsView() {
         appearance:    appearancePayload,
         notifications: Object.fromEntries(Object.entries(notifications).map(([k, v]) => [k, String(v)])),
         security:      Object.fromEntries(Object.entries(security).map(([k, v]) => [k, String(v)])),
-        modules:       Object.fromEntries(Object.entries(modules).map(([k, v]) => [k, String(v)])),
       });
 
       // Update server ref so Discard can revert instantly
-      serverRef.current = { company, regional, appearance, notifications, security, modules };
+      serverRef.current = { company, regional, appearance, notifications, security };
 
       // Update localStorage cache
       try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(serverRef.current)); } catch { /* ignore */ }
@@ -582,7 +669,6 @@ export function GeneralSettingsView() {
   };
   const updateNotifications = (key: string, value: boolean | string) => { setNotifications(p => ({ ...p, [key]: value })); setIsDirty(true); };
   const updateSecurity      = (key: string, value: boolean | string) => { setSecurity(p => ({ ...p, [key]: value }));     setIsDirty(true); };
-  const updateModules       = (key: string, value: boolean)          => { setModules(p => ({ ...p, [key]: value }));      setIsDirty(true); };
 
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (isLoading) {
@@ -987,20 +1073,8 @@ export function GeneralSettingsView() {
         </div>
       </SectionCard>
 
-      {/* ── Module Access ── */}
-      <SectionCard title={t("general.modules.title")} description={t("general.modules.description")} icon={ToggleLeft} badge={t("general.modules.badge")}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-          {MODULE_KEYS.map(key => (
-            <ToggleRow
-              key={key}
-              label={t(`general.modules.${key}`)}
-              description={t(`general.modules.${key}Desc`)}
-              checked={modules[key as keyof typeof modules]}
-              onChange={v => updateModules(key, v)}
-            />
-          ))}
-        </div>
-      </SectionCard>
+      {/* ── Module Access (read-only mirror of the tenant's entitlement) ── */}
+      <ModuleAccessCard />
 
       {/* Sticky save footer */}
       {isDirty && (

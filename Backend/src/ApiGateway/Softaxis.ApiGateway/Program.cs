@@ -23,6 +23,7 @@ using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
+using Softaxis.BuildingBlocks.Application.Serialization;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -174,7 +175,22 @@ try
         .AddApplicationPart(typeof(Softaxis.Recipe.API.Controllers.RecipesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
-        .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly);
+        .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
+        .AddJsonOptions(o =>
+        {
+            // Emit every DateTime as an explicit UTC instant ("…Z").
+            //
+            // Instants are persisted as DateTime.UtcNow, but SQL Server datetime2 carries no
+            // offset, so EF returns them as DateTimeKind.Unspecified and System.Text.Json wrote
+            // them with NO zone designator. The browser parses a zone-less date-TIME as LOCAL, so
+            // every timestamp in the product was displayed shifted by the viewer's UTC offset.
+            //
+            // Calendar dates (batch expiry, voucher validity) opt out per-property with
+            // [JsonConverter(typeof(NullableCalendarDateJsonConverter))] — a property-level
+            // converter takes precedence over these.
+            o.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+            o.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeConverter());
+        });
 
     // ── Authorization + OpenAPI ───────────────────────────────────────────────
     builder.Services.AddAuthorization();

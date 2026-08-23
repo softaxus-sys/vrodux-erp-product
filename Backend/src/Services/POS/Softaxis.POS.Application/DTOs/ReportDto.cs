@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using Softaxis.BuildingBlocks.Application.Serialization;
 namespace Softaxis.POS.Application.DTOs;
 
 // ── Generic report result (all tabular reports) ───────────────────────────────
@@ -23,7 +25,8 @@ public sealed record ReportParams(
 // ── Daily summary (existing) ──────────────────────────────────────────────────
 
 public sealed record DailySummaryDto(
-    DateTime Date,
+    // The report's DAY, not a moment in it.
+    [property: JsonConverter(typeof(CalendarDateJsonConverter))] DateTime Date,
     int      TotalTransactions,
     int      TotalSales,
     int      TotalRefunds,

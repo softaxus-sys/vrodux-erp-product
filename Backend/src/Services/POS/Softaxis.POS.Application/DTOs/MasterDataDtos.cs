@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using Softaxis.BuildingBlocks.Application.Serialization;
 namespace Softaxis.POS.Application.DTOs;
 
 public sealed record CurrencyDto(
@@ -58,8 +60,10 @@ public sealed record VoucherDto(
     decimal  Value,
     decimal  MinSpend,
     decimal? MaxDiscountAmount,
-    DateTime? ValidFrom,
-    DateTime? ValidUntil,
+    // Calendar dates, not instants — a voucher is valid for a DAY. Opting out of the global
+    // UTC converter keeps them from rendering a day early west of Greenwich.
+    [property: JsonConverter(typeof(NullableCalendarDateJsonConverter))] DateTime? ValidFrom,
+    [property: JsonConverter(typeof(NullableCalendarDateJsonConverter))] DateTime? ValidUntil,
     int?     UsageLimit,
     int      UsageCount,
     bool     IsActive,

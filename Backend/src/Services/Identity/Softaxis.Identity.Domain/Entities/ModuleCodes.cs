@@ -41,6 +41,15 @@ public static class ModuleCodes
     // ── Manufacturing / Construction ─────────────────────────────────────────
     public const string Manufacturing = "manufacturing";
 
+    // ── Project Management ───────────────────────────────────────────────────
+    public const string ProjectManagement = "project-management";
+
+    // ── Hospitality ──────────────────────────────────────────────────────────
+    public const string Hospitality = "hospitality";
+
+    // ── Visa Services ────────────────────────────────────────────────────────
+    public const string Visa = "visa";
+
     // ── Industry Packs (activated by tenant.Industry) ─────────────────────────
     public const string RealEstate   = "real-estate";
     public const string Construction = "construction";

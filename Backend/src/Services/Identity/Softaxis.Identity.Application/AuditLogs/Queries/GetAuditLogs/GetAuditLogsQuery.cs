@@ -10,6 +10,13 @@ public sealed record GetAuditLogsQuery(
     Guid?     UserId   = null,
     string?   Action   = null,
     DateTime? From     = null,
-    DateTime? To       = null
+    DateTime? To       = null,
+    string?   Search   = null,
+    /// <summary>
+    /// Caller's UTC offset in minutes (JS `-new Date().getTimezoneOffset()`), e.g. 240 for GST.
+    /// Used to turn the date-only From/To — which the user picked on THEIR calendar — into the
+    /// right UTC instants, and to count "today" in the caller's day rather than the server's.
+    /// </summary>
+    int       TzOffsetMinutes = 0
 ) : IQuery<PagedResult<AuditLogDto>>;
 

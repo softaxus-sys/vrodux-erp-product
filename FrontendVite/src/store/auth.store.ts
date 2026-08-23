@@ -150,66 +150,77 @@ export function extractRawPermissions(dto: UserDto): string[] {
 }
 
 /**
- * Map a backend module code (e.g. "inventory.basic", "hr") to one or more
- * frontend ModuleKey values.  Unknown codes are silently ignored.
+ * Every valid frontend module key, as a runtime lookup.
+ *
+ * Declared as `Record<ModuleKey, true>` on purpose: adding a key to the `ModuleKey` union without
+ * adding it here is a COMPILE ERROR. The previous hand-written switch had no such guard and had
+ * silently drifted out of step with the backend catalogue.
+ */
+const KNOWN_MODULES: Record<ModuleKey, true> = {
+  "dashboard": true, "finance": true, "hr": true, "crm": true, "sales": true,
+  "purchase": true, "inventory": true, "real-estate": true, "construction": true,
+  "hospitality": true, "healthcare": true, "pos": true, "recipe": true, "reports": true,
+  "settings": true, "users": true, "ai-assistant": true, "notifications": true,
+  "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
+  "insurance": true, "b2b": true, "project-management": true, "visa": true,
+};
+
+/** Legacy stored code → canonical ModuleKey. Mirrors `Tenant.LegacyModuleAliases` (backend). */
+const LEGACY_MODULE_ALIASES: Record<string, ModuleKey> = { purchasing: "purchase" };
+
+/** Codes that are no longer modules. Mirrors `Tenant.RetiredModuleCodes` (backend). */
+const RETIRED_MODULE_CODES = new Set(["api", "custom-reports", "manufacturing"]);
+
+/**
+ * Normalise one backend module code to a canonical ModuleKey, or null to drop it.
+ * Mirrors `Tenant.CanonicalModuleCode` (backend) exactly: strip a `.basic`-style suffix,
+ * drop retired codes, then apply the legacy alias table.
+ */
+function canonicalModuleCode(code: string): ModuleKey | null {
+  let c = code.trim().toLowerCase();
+  if (!c) return null;
+
+  const dot = c.indexOf(".");
+  if (dot > 0) c = c.slice(0, dot);
+
+  if (RETIRED_MODULE_CODES.has(c)) return null;
+
+  const aliased = LEGACY_MODULE_ALIASES[c] ?? c;
+  return (aliased in KNOWN_MODULES) ? (aliased as ModuleKey) : null;
+}
+
+/**
+ * Map the JWT `modules` claim to the tenant's enabled frontend modules.
+ *
+ * The claim comes from `Tenant.ResolvedModules`, which has ALREADY resolved everything:
+ * the onboarding selection intersected with the plan ceiling, plus the industry pack (and the
+ * `crm` it builds on), plus the always-on self-administration modules. So this is a
+ * straight canonical pass-through — it must NOT re-derive entitlement.
+ *
+ * It used to be a hand-written switch that both under- and over-granted:
+ *   • `project-management` (and `file-manager`) were seeded unconditionally, so a tenant that was
+ *     never given Project Management still saw it in the sidebar — `hasModuleAccess` step 3 reads
+ *     this list, so seeding a module here bypasses the tenant's entitlement entirely.
+ *   • there was no `case "purchase"`, only the pre-rename `case "purchasing"`, so the Purchase
+ *     module was silently dropped for every tenant provisioned under the current catalogue.
+ *   • `restaurant` / `recipe` were inferred from `pos` and `hospitality` was unmapped, so
+ *     deselecting them had no effect while Hospitality could never be granted at all.
  */
 function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
-  // These are always visible regardless of plan
-  const keys = new Set<ModuleKey>([
-    "dashboard", "notifications", "file-manager", "project-management",
-  ]);
+  // Pure UI surfaces, never part of plan entitlement. These match hasModuleAccess step 2, which
+  // short-circuits before the enabledModules check — listed here only for consistency.
+  const keys = new Set<ModuleKey>(["dashboard", "notifications"]);
 
   for (const m of backendModules) {
-    // Normalise: "inventory.basic" → base "inventory"
-    const base = m.split(".")[0].toLowerCase();
-    switch (base) {
-      case "pos":
-        keys.add("pos");
-        keys.add("restaurant");
-        keys.add("recipe");
-        break;
-      case "inventory":
-        keys.add("inventory");
-        break;
-      case "purchasing":
-        keys.add("purchase");
-        break;
-      case "reports":
-        keys.add("reports");
-        break;
-      case "settings":
-        keys.add("settings");
-        keys.add("users");
-        break;
-      case "hr":
-        keys.add("hr");
-        break;
-      case "crm":
-        keys.add("crm");
-        break;
-      case "sales":
-        keys.add("sales");
-        break;
-      case "finance":
-        keys.add("finance");
-        break;
-      case "manufacturing":
-        keys.add("construction");
-        break;
-      case "custom-reports":
-        keys.add("reports");
-        break;
-      // ── Industry Packs (activated by tenant industry) ────────────────────
-      case "real-estate": keys.add("real-estate"); keys.add("crm"); break;
-      case "construction":keys.add("construction"); keys.add("crm"); break;
-      case "healthcare":  keys.add("healthcare");  keys.add("crm"); break;
-      case "education":   keys.add("education");   keys.add("crm"); break;
-      case "insurance":   keys.add("insurance");   keys.add("crm"); break;
-      case "b2b":         keys.add("b2b");         keys.add("crm"); break;
-      case "visa":        keys.add("visa");        keys.add("crm"); break;
-      // no default — unknown module codes are silently skipped
-    }
+    const key = canonicalModuleCode(m);
+    if (key) keys.add(key);
   }
+
+  // NOTE: `file-manager` is deliberately NOT seeded from the claim alone yet — the super-admin
+  // module selector (module-selector.tsx ALL_MODULES) does not expose it, so a tenant whose
+  // modules were saved from that screen has no `file-manager` entry to pass through. Until the
+  // selector lists it, keep it on for every tenant rather than silently removing File Manager.
+  keys.add("file-manager");
 
   // Self-administration is never a plan feature: without Settings and Users an admin cannot invite
   // a colleague or assign a role. The backend forces these into every tenant's module set too —
@@ -252,7 +263,10 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
 
   const enabledModules = backendModules.length > 0
     ? backendModulesToFrontend(backendModules)
-    // No modules claim in JWT (old token) — fall back to enterprise for super-admin
+    // No modules claim in JWT (old token) — fall back to enterprise for super-admin.
+    // NOTE: this over-grants (Project Management included). It is unreachable for any current
+    // token: ResolvedModules always contains at least settings+users, so the claim is never
+    // empty. Left permissive on purpose — tightening it would log out live legacy sessions.
     : (["dashboard", "pos", "inventory", "finance", "hr", "crm",
         "sales", "purchase", "reports", "settings", "users",
         "notifications", "file-manager", "project-management", "visa"] as ModuleKey[]);

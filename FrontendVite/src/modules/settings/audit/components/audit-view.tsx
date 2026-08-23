@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, getInitials } from "@/lib/utils";
-import { useAuditLogs } from "@/hooks/identity/use-audit-logs";
+import { useAuditLogs, useAuditLogSummary } from "@/hooks/identity/use-audit-logs";
 import type { AuditLogDto } from "@/lib/identity/types";
 
 // ── Action display config ─────────────────────────────────────────────────────
@@ -33,9 +33,48 @@ const ACTION_CONFIG: Record<ActionKey, ActionConfig> = {
   unknown: { labelKey: "audit.action.unknown", color: "text-muted-foreground",  bg: "bg-muted",           icon: Activity },
 };
 
+/**
+ * Stored actions are `{FAMILY}_{SUBJECT}` — CREATE_USER, DELETE_USER, TRIAL_REGISTER,
+ * LOGIN_2FA_FAILED. This used to do an exact lowercase lookup, so everything except a bare
+ * "LOGIN" fell through to the grey "Unknown" pill: in practice almost every row was unlabelled.
+ *
+ * Resolution order: exact match → leading family segment → known aliases (REGISTER and
+ * PASSWORD_RESET are creates/updates, not their own visual category).
+ */
+const ACTION_ALIASES: Record<string, ActionKey> = {
+  register:  "create",
+  trial:     "create",   // TRIAL_REGISTER
+  password:  "update",   // PASSWORD_RESET
+  reset:     "update",
+  signin:    "login",
+  signout:   "logout",
+  remove:    "delete",
+  edit:      "update",
+  add:       "create",
+};
+
+export function actionFamily(action: string): ActionKey {
+  const norm = (action ?? "").toLowerCase().trim();
+  if (norm in ACTION_CONFIG) return norm as ActionKey;
+
+  const head = norm.split("_")[0];
+  if (head in ACTION_CONFIG)  return head as ActionKey;
+  if (head in ACTION_ALIASES) return ACTION_ALIASES[head];
+
+  return "unknown";
+}
+
 function getActionConfig(action: string): ActionConfig {
-  const key = action.toLowerCase() as ActionKey;
-  return ACTION_CONFIG[key] ?? ACTION_CONFIG.unknown;
+  return ACTION_CONFIG[actionFamily(action)];
+}
+
+/**
+ * Humanise the raw action for display next to the family pill, so a row still shows WHICH
+ * create/delete it was: "CREATE_USER" → "Create user".
+ */
+function humaniseAction(action: string): string {
+  const words = (action ?? "").replace(/_/g, " ").trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -52,27 +91,43 @@ function avatarColorFor(userId: string | null): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function formatDateTime(iso: string, locale: string) {
-  const d = new Date(iso);
-  return {
-    date: d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" }),
-    time: d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: true }),
-  };
+/**
+ * Render a UTC instant in the VIEWER's local timezone.
+ *
+ * The backend sends `occurredOn` as UTC with a trailing "Z". It previously serialised the same
+ * instant WITHOUT the "Z" (SQL Server `datetime2` loses DateTimeKind), which `new Date()` reads as
+ * local time — so every entry appeared shifted by the viewer's UTC offset. That is fixed on the
+ * server; the defensive `Z` below keeps this correct if an old build is still serving.
+ */
+function parseUtc(iso: string): Date {
+  if (!iso) return new Date(NaN);
+  // Has an explicit zone (Z or ±hh:mm)? Trust it. Otherwise treat as UTC, which is what it is.
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso);
+  return new Date(hasZone ? iso : `${iso}Z`);
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+function formatDateTime(iso: string, locale: string) {
+  const d = parseUtc(iso);
+  if (Number.isNaN(d.getTime())) return { date: "—", time: "", title: "" };
+  return {
+    date: d.toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" }),
+    time: d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true }),
+    // Full precision + zone name on hover — an audit trail should let you pin down the exact instant.
+    title: d.toLocaleString(locale, { dateStyle: "full", timeStyle: "long" }),
+  };
 }
 
 // ── Audit Log Row ─────────────────────────────────────────────────────────────
 
 function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
   const { t, i18n } = useTranslation("settings");
-  const locale = i18n.language?.startsWith("ar") ? "ar" : "en-PK";
+  // Follow the active UI language rather than a hardcoded en-PK, which rendered Pakistani date
+  // conventions for every tenant regardless of where they are.
+  const locale = i18n.language || "en";
   const actionCfg = getActionConfig(log.action);
   const ActionIcon = actionCfg.icon;
   const avatarColor = avatarColorFor(log.userId);
-  const { date, time } = formatDateTime(log.occurredOn, locale);
+  const { date, time, title } = formatDateTime(log.occurredOn, locale);
   const displayName = log.userName ?? t("audit.system");
   const isFailed = !log.succeeded;
 
@@ -88,7 +143,7 @@ function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
     >
       {/* Timestamp */}
       <td className="px-4 py-3 whitespace-nowrap">
-        <div className="text-xs">
+        <div className="text-xs" title={title}>
           <p className="font-medium">{date}</p>
           <p className="text-muted-foreground">{time}</p>
         </div>
@@ -120,6 +175,13 @@ function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
           <ActionIcon className="h-3 w-3" />
           {t(actionCfg.labelKey)}
         </span>
+        {/* The family pill alone loses the detail — CREATE_USER and CREATE_ROLE both read
+            "Create". Show the specific action when it carries more than the family. */}
+        {log.action.includes("_") && (
+          <p className="text-[10px] text-muted-foreground mt-0.5 whitespace-nowrap">
+            {humaniseAction(log.action)}
+          </p>
+        )}
       </td>
 
       {/* Entity */}
@@ -167,10 +229,17 @@ function AuditRow({ log, index }: { log: AuditLogDto; index: number }) {
 
 const PAGE_SIZE = 25;
 
-const KNOWN_ACTIONS = [
-  "Login", "Logout", "Create", "Update", "Delete",
-  "Export", "Approve", "Reject", "View",
-];
+/**
+ * Action FAMILIES offered in the filter. Sent to the backend, which matches
+ * `Action == "{FAMILY}"` OR `Action LIKE "{FAMILY}_%"` — so "CREATE" finds CREATE_USER.
+ *
+ * These were previously title-cased words matched EXACTLY against the stored value, so eight of
+ * the nine options could never match anything and silently returned an empty table.
+ * Kept to families the backend actually writes (LOGIN, LOGIN_2FA_FAILED, REGISTER,
+ * TRIAL_REGISTER, CREATE_USER, DELETE_USER, PASSWORD_RESET) — offering filters for actions that
+ * are never recorded just reproduces the same empty-result confusion.
+ */
+const KNOWN_ACTIONS = ["LOGIN", "REGISTER", "TRIAL_REGISTER", "CREATE_USER", "DELETE_USER", "PASSWORD_RESET"];
 
 export function AuditView() {
   const { t } = useTranslation("settings");
@@ -189,36 +258,36 @@ export function AuditView() {
     return () => clearTimeout(id);
   }, [search]);
 
+  // Filters shared by the list and the summary, so the tiles always describe the rows shown.
+  const filters = React.useMemo(() => ({
+    action: actionFilter    || undefined,
+    from:   fromDate        || undefined,
+    to:     toDate          || undefined,
+    search: debouncedSearch || undefined,
+  }), [actionFilter, fromDate, toDate, debouncedSearch]);
+
   const { data, isLoading, isFetching, refetch } = useAuditLogs({
     page,
     pageSize: PAGE_SIZE,
-    action:   actionFilter || undefined,
-    from:     fromDate     || undefined,
-    to:       toDate       || undefined,
+    ...filters,
   });
 
+  // Search is applied SERVER-side now. It used to filter only the 25 rows already loaded, so a
+  // match on any other page was unreachable and the search box looked broken.
   const logs        = data?.items ?? [];
-  const totalCount  = data?.totalCount ?? 0;
   const totalPages  = data?.totalPages ?? 1;
 
-  // Client-side filter by username / entityType (backend may not support search)
-  const filtered = React.useMemo(() => {
-    if (!debouncedSearch) return logs;
-    const q = debouncedSearch.toLowerCase();
-    return logs.filter(l =>
-      l.userName?.toLowerCase().includes(q) ||
-      (l.entityType ?? "").toLowerCase().includes(q) ||
-      (l.action ?? "").toLowerCase().includes(q) ||
-      l.ipAddress?.toLowerCase().includes(q)
-    );
-  }, [logs, debouncedSearch]);
+  const { data: summary } = useAuditLogSummary(filters);
 
-  // Stats from current page (rough; ideally backend would aggregate)
-  const todayStr = todayIso();
-  const todayCount = logs.filter(l => l.occurredOn.startsWith(todayStr)).length;
-  const failedCount = logs.filter(l => !l.succeeded).length;
+  // Counts over the whole filtered set. Deriving "Failed" from the current page meant a screen of
+  // successes reported "Failed: 0" while failures sat on another page — the opposite of what a
+  // security log is for. Fall back to the page count only until the summary lands.
+  const totalCount  = summary?.total  ?? data?.totalCount ?? 0;
+  const failedCount = summary?.failed ?? logs.filter(l => !l.succeeded).length;
+  const todayCount  = summary?.today  ?? 0;
 
-  const actionLabel = (a: string) => t(`audit.action.${a.toLowerCase()}`, { defaultValue: a });
+  const actionLabel = (a: string) =>
+    t(`audit.action.${actionFamily(a)}`, { defaultValue: humaniseAction(a) });
 
   return (
     <div className="space-y-6">
@@ -318,7 +387,7 @@ export function AuditView() {
           }
         </span>
         <span className="ml-auto">
-          {isLoading ? tc("message.loading") : t("audit.countSummary", { total: totalCount, shown: filtered.length })}
+          {isLoading ? tc("message.loading") : t("audit.countSummary", { total: totalCount, shown: logs.length })}
         </span>
       </div>
 
@@ -344,14 +413,14 @@ export function AuditView() {
                     <Loader2 className="h-7 w-7 animate-spin text-muted-foreground mx-auto" />
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : logs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-16 text-center text-sm text-muted-foreground">
                     {t("audit.empty")}
                   </td>
                 </tr>
               ) : (
-                filtered.map((log, i) => (
+                logs.map((log, i) => (
                   <AuditRow key={log.id} log={log} index={i} />
                 ))
               )}

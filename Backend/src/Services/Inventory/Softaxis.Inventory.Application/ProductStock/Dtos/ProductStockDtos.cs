@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using Softaxis.BuildingBlocks.Application.Serialization;
 namespace Softaxis.Inventory.Application.ProductStock.Dtos;
 
 public sealed record WarehouseStockDto(
@@ -18,7 +20,9 @@ public sealed record ProductBatchDto(
     Guid      Id,
     string    WarehouseName,
     string    BatchNumber,
-    DateTime? ExpiryDate,
+    // Calendar date, not an instant — the frontend sends/reads it as yyyy-MM-dd. See
+    // CalendarDateJsonConverter for why it must not be stamped UTC.
+    [property: JsonConverter(typeof(NullableCalendarDateJsonConverter))] DateTime? ExpiryDate,
     int?      DaysToExpiry,
     decimal   Quantity,
     string    Status);

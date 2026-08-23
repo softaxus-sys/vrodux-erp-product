@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Building2, Loader2, Layers, Cloud, Server,
-  Factory, UserCog, Mail, CheckCircle2,
+  Factory, UserCog, Mail, CheckCircle2, Eye, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,7 @@ export function CreateTenantPage() {
   const [adminEmail,    setAdminEmail]    = React.useState("");
   const [adminUsername, setAdminUsername] = React.useState("");
   const [adminPassword, setAdminPassword] = React.useState("");
+  const [showAdminPassword, setShowAdminPassword] = React.useState(false);
 
   const [selectedModules, setSelectedModules] = React.useState<string[]>(() => PLAN_DEFAULTS["Starter"]);
 
@@ -268,7 +269,25 @@ export function CreateTenantPage() {
                 </div>
                 <div className="sm:col-span-2 space-y-1">
                   <label className="text-xs font-medium text-foreground">Password <span className="text-muted-foreground font-normal">(optional)</span></label>
-                  <Input value={adminPassword} onChange={e => setAdminPassword(e.target.value)} placeholder="Leave blank to email an activation link" type="password" className="h-10" />
+                  <div className="relative">
+                    <Input
+                      value={adminPassword}
+                      onChange={e => setAdminPassword(e.target.value)}
+                      placeholder="Leave blank to email an activation link"
+                      type={showAdminPassword ? "text" : "password"}
+                      className="h-10 pe-10"
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowAdminPassword(v => !v)}
+                      aria-label={showAdminPassword ? "Hide password" : "Show password"}
+                      title={showAdminPassword ? "Hide password" : "Show password"}
+                      className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {showAdminPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
                     {adminPassword
                       ? "The owner logs in with this password (you'll need to share it)."

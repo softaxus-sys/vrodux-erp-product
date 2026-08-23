@@ -35,6 +35,22 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
             ["/api/restaurant/"]   = ModuleCodes.Pos,
             ["/api/recipes"]       = ModuleCodes.Pos,
 
+            // POS-service endpoints that live outside the /api/pos/ prefix. Without these the
+            // POS module could be bypassed simply by calling the sibling routes directly.
+            ["/api/purchase-orders"]    = ModuleCodes.Pos,
+            ["/api/sales-orders"]       = ModuleCodes.Pos,
+            ["/api/sales-quotations"]   = ModuleCodes.Pos,
+            ["/api/stock-movements"]    = ModuleCodes.Pos,
+            ["/api/vouchers"]           = ModuleCodes.Pos,
+
+            // ── Standalone licensed modules ───────────────────────────────────
+            // These whole services were absent from this map, so their APIs were reachable by ANY
+            // authenticated tenant regardless of entitlement — the frontend sidebar was the only
+            // thing gating them, which is not a security boundary.
+            ["/api/projectmanagement/"] = ModuleCodes.ProjectManagement,
+            ["/api/hospitality/"]       = ModuleCodes.Hospitality,
+            ["/api/visa/"]              = ModuleCodes.Visa,
+
             // ── Industry packs (tenant.Industry → pack code, folded into modules) ──
             ["/api/real-estate/"]  = ModuleCodes.RealEstate,
             ["/api/construction/"] = ModuleCodes.Construction,

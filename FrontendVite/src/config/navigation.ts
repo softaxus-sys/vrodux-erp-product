@@ -121,8 +121,10 @@ export const navigationConfig: NavGroup[] = [
             labelAr: "الفواتير",
             href: "/finance/invoicing",
             icon: "Receipt",
-            badge: 12,
-            badgeVariant: "warning",
+            // No badge: this was a hardcoded `badge: 12` that every tenant saw regardless of how
+            // many invoices they had — a workspace with zero invoices still showed "12". A count
+            // badge that isn't a count is worse than none: it sends people looking for work that
+            // does not exist. Restore only when wired to a real unpaid-invoice count.
           },
           {
             id: "recurring-invoices",
@@ -194,8 +196,8 @@ export const navigationConfig: NavGroup[] = [
             labelAr: "الرواتب",
             href: "/hr/payroll",
             icon: "Banknote",
-            badge: "Due",
-            badgeVariant: "warning",
+            // No badge: a static "Due" claimed payroll was outstanding at all times, including
+            // immediately after a run was paid. Same reason as Invoicing above.
           },
           {
             id: "leaves",
@@ -342,8 +344,7 @@ export const navigationConfig: NavGroup[] = [
             labelAr: "أوامر الشراء",
             href: "/purchase/orders",
             icon: "ClipboardCheck",
-            badge: 5,
-            badgeVariant: "default",
+            // No badge: hardcoded `5`, identical for every tenant. Same reason as Invoicing above.
           },
           {
             id: "grn",
