@@ -86,7 +86,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Buildx boots a BuildKit container, which it pulls from Docker Hub. That pull is the
+      # least reliable step in this pipeline — an anonymous fetch of registry-1.docker.io from a
+      # shared runner IP, subject to Hub rate limits and transient outages. It has failed a
+      # release with:
+      #   ERROR: Error response from daemon: Get "https://registry-1.docker.io/v2/":
+      #   net/http: request canceled while waiting for connection (Client.Timeout exceeded ...)
+      #
+      # Nothing about the commit causes it, so retry rather than lose the deploy. Two further
+      # attempts with backoff cover a Hub blip; a sustained outage still fails the job loudly
+      # (the last attempt has no continue-on-error) instead of being silently swallowed.
       - name: Set up Docker Buildx
+        id: buildx
+        continue-on-error: true
+        uses: docker/setup-buildx-action@v3
+
+      - name: Back off before Buildx retry 1
+        if: steps.buildx.outcome == 'failure'
+        run: sleep 30
+
+      - name: Set up Docker Buildx (retry 1)
+        id: buildx1
+        if: steps.buildx.outcome == 'failure'
+        continue-on-error: true
+        uses: docker/setup-buildx-action@v3
+
+      - name: Back off before Buildx retry 2
+        if: steps.buildx.outcome == 'failure' && steps.buildx1.outcome == 'failure'
+        run: sleep 60
+
+      - name: Set up Docker Buildx (retry 2)
+        if: steps.buildx.outcome == 'failure' && steps.buildx1.outcome == 'failure'
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
