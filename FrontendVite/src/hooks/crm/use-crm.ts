@@ -60,7 +60,12 @@ export function useCustomersSummary() {
 
 // ── Mutation helper ──────────────────────────────────────────────────────────
 
-function useCrmMutation<TArgs>(fn: (a: TArgs) => Promise<unknown>, opts?: { msg?: string; invalidate?: string[] }) {
+// Generic over the RESULT as well as the args: erasing it to `unknown` meant every caller that
+// actually needs the response (bulk filing’s filed/skipped tallies, the import summary) had to cast.
+function useCrmMutation<TArgs, TResult = unknown>(
+  fn: (a: TArgs) => Promise<TResult>,
+  opts?: { msg?: string; invalidate?: string[] },
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fn,
@@ -93,6 +98,24 @@ export function useBulkFileLeadsToTeam() {
     ({ leadIds, teamId }: { leadIds: string[]; teamId: string | null }) =>
       crmApi.bulkFileLeadsToTeam(leadIds, teamId),
     { invalidate: ["leads", "leads-summary", "dashboard"] },
+  );
+}
+
+/** Bulk-file opportunities to a team. */
+export function useBulkFileDealsToTeam() {
+  return useCrmMutation(
+    ({ dealIds, teamId }: { dealIds: string[]; teamId: string | null }) =>
+      crmApi.bulkFileDealsToTeam(dealIds, teamId),
+    { invalidate: ["deals", "deals-summary", "dashboard"] },
+  );
+}
+
+/** Bulk-file accounts to a team. */
+export function useBulkFileCustomersToTeam() {
+  return useCrmMutation(
+    ({ customerIds, teamId }: { customerIds: string[]; teamId: string | null }) =>
+      crmApi.bulkFileCustomersToTeam(customerIds, teamId),
+    { invalidate: ["customers", "customers-summary", "dashboard"] },
   );
 }
 

@@ -7,10 +7,11 @@ using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Application.Leads.Dtos;
 using Softaxis.CRM.Domain.Entities;
 using Softaxis.CRM.Infrastructure.Persistence;
+using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser) : ICommandHandler<CreateLeadCommand, LeadDto>
+internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser, ILeadAccessGuard access) : ICommandHandler<CreateLeadCommand, LeadDto>
 {
     public async Task<Result<LeadDto>> Handle(CreateLeadCommand cmd, CancellationToken ct)
     {
@@ -19,10 +20,25 @@ internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, I
             cmd.EstimatedValue, cmd.AssignedTo, cmd.Notes,
             cmd.WhatsApp, cmd.InterestedIn, cmd.Budget, cmd.Message, cmd.AssignedToUserId, cmd.PurchaseTimeframe);
 
-        // The ctor does not take a team, so stamp it here. Only meaningful with an owner — AssignTo
-        // clears the team when the owner is null.
-        if (cmd.AssignedToUserId is not null)
-            l.AssignTo(cmd.AssignedToUserId, cmd.AssignedTo, cmd.TeamId);
+        // Owner + team. Two things happen here:
+        //
+        //  1. If no owner was chosen, the CREATOR becomes the owner. Without this a rep who adds a
+        //     lead ends up with an unowned record — and an unowned record is visible only to the
+        //     full-access tier, so they immediately lose the lead they just typed in.
+        //  2. If no team was chosen, file it to the creator's team when that is unambiguous (they
+        //     belong to exactly one). Someone in several teams is left unfiled rather than guessed at.
+        //
+        // An explicit choice from the form always wins over both defaults.
+        var ownerId = cmd.AssignedToUserId ?? currentUser.Id;
+        var ownerName = cmd.AssignedToUserId is not null
+            ? cmd.AssignedTo
+            : (string.IsNullOrWhiteSpace(cmd.AssignedTo) ? currentUser.Username ?? "" : cmd.AssignedTo);
+
+        if (ownerId is not null)
+        {
+            var teamId = cmd.TeamId ?? await access.SoleTeamOfCurrentUserAsync(ct);
+            l.AssignTo(ownerId, ownerName, teamId);
+        }
 
         // Derive value from the budget when none was entered, detect an urgency tag from the message
         // when no explicit timeframe was given, then score (no activity yet → 0).

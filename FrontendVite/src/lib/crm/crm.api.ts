@@ -133,6 +133,12 @@ export interface LeadDto {
   /** Identity user id of the current owner (drives "my assigned leads" scoping). */
   assignedToUserId?: string | null;
   teamId?: string | null;
+  /**
+   * What became of the opportunity this lead converted into. A lead is never itself won or lost —
+   * that is a deal outcome — so this is how a converted lead reports its result.
+   */
+  convertedDealStage?: DealStage | null;
+  convertedDealValue?: number | null;
   createdDate:      string;
   lastContactDate?: string;
   nextFollowUp?:    string;
@@ -501,6 +507,10 @@ export const crmApi = {
   /** File many leads to a team at once; null teamId un-files them. Returns filed/skipped counts. */
   bulkFileLeadsToTeam: (leadIds: string[], teamId: string | null): Promise<BulkFileResult> =>
     rawApiClient.post(`${BASE}/leads/bulk-file-to-team`, { leadIds, teamId }),
+  bulkFileDealsToTeam: (dealIds: string[], teamId: string | null): Promise<BulkFileResult> =>
+    rawApiClient.post(`${BASE}/deals/bulk-file-to-team`, { dealIds, teamId }),
+  bulkFileCustomersToTeam: (customerIds: string[], teamId: string | null): Promise<BulkFileResult> =>
+    rawApiClient.post(`${BASE}/customers/bulk-file-to-team`, { customerIds, teamId }),
   deleteLead:     (id: string): Promise<void> => rawApiClient.delete(`${BASE}/leads/${id}`),
   importLeads:    (leads: ImportLeadInput[]): Promise<ImportLeadsResult> => rawApiClient.post(`${INTERNAL}/leads/import`, { leads }),
 

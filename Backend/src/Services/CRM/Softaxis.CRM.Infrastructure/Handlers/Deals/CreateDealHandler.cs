@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Deals.Commands;
 using Softaxis.CRM.Application.Deals.Dtos;
 using Softaxis.CRM.Domain.Entities;
@@ -8,7 +9,7 @@ using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Deals;
 
-internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stageRecorder) : ICommandHandler<CreateDealCommand, DealDto>
+internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stageRecorder, ICurrentUser currentUser, ILeadAccessGuard access) : ICommandHandler<CreateDealCommand, DealDto>
 {
     public async Task<Result<DealDto>> Handle(CreateDealCommand cmd, CancellationToken ct)
     {
@@ -24,10 +25,16 @@ internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stag
             cmd.Probability, cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
             cmd.ForecastCategory, cmd.CustomerId, cmd.AssignedToUserId);
 
-        // The ctor takes no team, so stamp owner + team together. AssignTo clears the team when the
-        // owner is null, so an unassigned deal cannot end up filed under one.
-        if (cmd.AssignedToUserId is not null)
-            d.AssignTo(cmd.AssignedToUserId, cmd.AssignedTo, cmd.TeamId);
+        // Default the owner to the CREATOR and the team to theirs when unambiguous — same reasoning
+        // as CreateLeadHandler: an unowned record is invisible to everyone but full-access roles, so
+        // a rep would lose the deal they just created. An explicit choice always wins.
+        var ownerId = cmd.AssignedToUserId ?? currentUser.Id;
+        var ownerName = cmd.AssignedToUserId is not null
+            ? cmd.AssignedTo
+            : (string.IsNullOrWhiteSpace(cmd.AssignedTo) ? currentUser.Username ?? "" : cmd.AssignedTo);
+
+        if (ownerId is not null)
+            d.AssignTo(ownerId, ownerName, cmd.TeamId ?? await access.SoleTeamOfCurrentUserAsync(ct));
 
         db.Deals.Add(d);
         stageRecorder.RecordCreated(d);   // opens the stage-history trail the velocity reports read

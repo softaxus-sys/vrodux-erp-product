@@ -1,6 +1,7 @@
 using FluentValidation;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.CRM.Application.Deals.Dtos;
+using Softaxis.CRM.Application.Leads.Commands;
 
 namespace Softaxis.CRM.Application.Deals.Commands;
 
@@ -42,3 +43,11 @@ public sealed record MoveDealStageCommand(
     string? ForecastCategory = null, string? LossReason = null) : ICommand;
 
 public sealed record DeleteDealCommand(Guid Id) : ICommand;
+
+/// <summary>
+/// File several opportunities to a team at once. Same rationale as the lead equivalent: until a
+/// record is filed, a team lead cannot see it — and every pipeline/forecast report reads deals, so
+/// leaving them unfiled makes those reports empty for team leads. Null TeamId un-files.
+/// </summary>
+public sealed record BulkFileDealsToTeamCommand(IReadOnlyList<Guid> DealIds, Guid? TeamId)
+    : ICommand<BulkFileResultDto>;

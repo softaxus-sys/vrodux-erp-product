@@ -4240,6 +4240,362 @@ comparing `crm.leads.view` against `crm.leads-team.view` **per role** in the dat
   figures instead of hanging; as the Administrator, totals are unchanged. Verify a team lead's pipeline
   value now reflects only their team's deals, not the tenant's.
 
+### Module 33 — Bulk team filing for opportunities and accounts (what made Files + Reports hierarchical)
+
+**Reported as "reports and file manager should work like leads hierarchically — a team lead can't
+access team member files."** The plumbing was already right: documents scope through
+`ScopeReadable`/`ScopeDeals`/`ScopeCustomers` (Module 26) and reports through the same guard
+(Module 23). What was missing was **filed data**.
+
+### Diagnosis against the live tenant
+| Entity | Total | Filed to a team |
+|---|---|---|
+| Leads | 4 | 3 |
+| Deals | 2 | **0** |
+| Customers | 2 | **0** |
+
+Module 31 had removed the untagged fallback, so an unfiled record is invisible to a team lead by
+design. Bulk filing existed **only for leads** — deals and accounts could be filed one at a time via
+their edit forms and nothing else. Consequence: a team lead's Pipeline, Win/Loss, Velocity and Account
+Revenue reports were all empty (every one reads deals), and any document hanging off a deal or account
+was unreachable. Nothing was broken in the scoping; there was simply no way to file the data.
+
+Also confirmed while diagnosing: the one existing document sits on lead *Hamza Bhi*, now filed to
+**Warsan** — Aslam's team — so that file is reachable to him; and the CRM Team Lead role already
+holds `reports.view` / `file-manager.view` / `crm.reports.view`. Permission grants land in the JWT at
+login, so a user granted them mid-session still needs to log out and back in.
+
+### Backend
+`BulkFileDealsToTeamCommand` / `BulkFileCustomersToTeamCommand` + handlers, and
+`POST /api/crm/deals/bulk-file-to-team` / `POST /api/crm/customers/bulk-file-to-team`. Both mirror the
+lead version exactly: **each record is still permission-checked individually** (`CanEditDealAsync` /
+`CanEditCustomerAsync`) — a bulk action must not become a way to touch records the caller could not
+edit one at a time — and failures are skipped and counted rather than failing the batch. Re-passing
+the current owner keeps ownership untouched and changes only the team; `AssignTo` clears the team when
+there is no owner, so an unassigned record cannot be filed. They share `BulkFileResultDto`.
+
+### Frontend — one shared component, three lists
+`modules/crm/shared/components/team-filing-bar.tsx` exports `TeamFilingBar` + `useRowSelection`, now
+used by **Leads, Pipeline and Accounts**. The bespoke implementation added to Leads in Module 31 was
+refactored onto it rather than copied twice — three divergent copies of a permission-sensitive bar is
+how one of them ends up subtly different.
+
+`useRowSelection`'s header checkbox acts on **visible rows only**; silently selecting rows the user
+cannot see makes the count meaningless. Row checkboxes `stopPropagation` so ticking doesn't also open
+the drawer. The bar renders only when something is selected.
+
+### Typing fix in the same pass
+`useCrmMutation<TArgs>` erased its result to `unknown`, so `mutateAsync` gave `Promise<unknown>` and
+any caller needing the response had to cast. Now `useCrmMutation<TArgs, TResult>` — the filing bar
+reads real `filed`/`skipped` tallies, and the import summary benefits too.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- No migration (uses `AddRecordTeamOwnership`).
+- **Pending (republish + restart):** file the 2 deals and 2 accounts to a team, then open Reports and
+  File Manager as Aslam — pipeline/win-loss figures and the team's documents appear. Confirm a
+  freshly-logged-in team lead is required for the newer module permissions.
+
+### Module 34 — Creator auto-assignment on create, + 🔴 documents were unreachable for the team tier
+
+Two requests in one pass.
+
+### 1. A record now belongs to whoever created it
+`CreateLeadHandler` / `CreateDealHandler` / `CreateCrmCustomerHandler` default the owner to the
+**creating user** when the form leaves it blank. Previously the record was created unowned — and since
+Module 31 an unowned record is visible only to full-access roles, so **a rep who added a lead
+immediately lost the lead they had just typed in**.
+
+The team is defaulted too, via new `ILeadAccessGuard.SoleTeamOfCurrentUserAsync()`: the creator's team
+when they belong to **exactly one** active team, null when they belong to several. Same "don't guess"
+rule as the backfill and for the same reason — filing a multi-team person's record to an arbitrary one
+of their teams hides it from a lead who legitimately had it. The query `Take(2)`s: enough to
+distinguish "exactly one" from "more than one" without loading every membership.
+
+An explicit choice from the form always wins over both defaults.
+
+### 2. 🔴 The team tier was missing from every document endpoint
+Reported as *"can't upload a document on a converted lead"*. The status was incidental — the real
+defect was broader. **All six** actions on `CrmDocumentsController` were gated as
+`RequireAnyPermission("crm.leads.view"/"edit", "crm.leads-assigned.*")`, omitting
+`crm.leads-team.*` entirely. So a team lead could neither **view, upload, download, edit nor delete**
+any document, on any lead, at any stage.
+
+Same class as the CRM dashboard gap (Module 32): a tier introduced later, and an endpoint never
+updated to accept it. Confirmed against the live tenant — CRM Team Lead holds `crm.leads-team.edit`
+but not `crm.leads.edit`, so every upload returned 403. Fixed on all six.
+
+Ruled out first, so the search is recorded: the upload handler, `ResolveRelatedNameAsync`, the
+`UploadCrmDocumentCommandValidator`, `DocumentFileRules`, `CanManageActivityAsync`, and the Documents
+tab in `lead-drawer.tsx` — none of them treats a converted lead differently, and the two converted
+leads in the tenant are both filed to Warsan and owned by Ahmed.
+
+**Known quirk, deliberately not changed:** the document endpoints gate on `crm.leads.*` for *every*
+target type, so attaching to an account or opportunity also requires lead permissions. The per-record
+`CanManageActivityAsync` check inside does use the correct area's tier. Re-gating per target type is a
+separate change and would need its own thought about mixed-permission roles.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · No migration.
+- **Pending (republish + restart):** create a lead as a rep with the assignee left blank — it comes
+  back owned by them and filed to their team when they have exactly one; upload a document as a team
+  lead onto any lead, converted or not.
+
+### Module 35 — CRM permissions no longer leak into other modules (or other CRM areas)
+
+**Directive: a module outside CRM must never require a CRM permission.** Audited the whole codebase for
+`crm.*` permission keys used outside CRM.
+
+**Backend: clean** — no other service references a `crm.*` key. Two violations in total, both around
+documents.
+
+### 1. File Manager demanded CRM permissions to open
+`file-manager-view.tsx` computed `canRead = (crm.leads view tier) && hasModuleAccess("crm")`, so a
+tenant or user without CRM saw *"You don't have permission to view stored documents"* in a module they
+legitimately hold `file-manager.view` for.
+
+Separated the two questions:
+- **Opening** File Manager needs only `file-manager.view` (route guard, Module 27).
+- **What it lists** depends on the document stores the caller can read. CRM is the only one today, so
+  the CRM query runs only when they hold some CRM view tier — otherwise the empty state reads
+  *"There are no document libraries available to you yet."*, which is the truth, rather than implying
+  they were denied File Manager.
+
+Also widened the tier check from lead-only to **any** CRM area, so someone who works purely on
+opportunities or accounts gets their files.
+
+### 2. Document endpoints gated on `crm.leads.*` for every target type
+All six actions on `CrmDocumentsController` required lead permissions even when attaching to an
+opportunity or an account — the wrong area's key guarding another area's records, and the reason File
+Manager had been made to demand lead permissions in the first place. They now accept **any** CRM
+area's tier; the attribute is only a coarse "may this user touch CRM documents at all" gate.
+
+### 3. The same fault one layer down — `CanManageActivitiesFreely`
+The per-record check short-circuited on `crm.leads.create` / `crm.leads.edit` **for every target
+type**, so anyone with lead-edit could manage activities and documents on opportunities and accounts
+they had no permission to see. Replaced with `CanManageFreely(area)`, and each branch now passes its
+own area (`deal → pipeline`, `customer`/`contact` → `customers`, `lead → leads`). The per-record tier
+logic below it was already area-correct; only the fast path was wrong.
+
+**This is a tightening**, worth stating plainly: a role holding only `crm.leads.edit` previously could
+attach documents to, and log activities on, opportunities and accounts. It no longer can — it needs
+the matching `crm.pipeline.*` / `crm.customers.*` key. That is the point of the directive, but it will
+change behaviour for any role that was relying on the old blanket rule.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- No migration.
+- **Pending (republish + restart):** open File Manager as a user with `file-manager.view` and **no**
+  CRM permissions — the module opens and shows the empty state rather than a permission error; as a
+  user with only `crm.pipeline.*`, documents on their opportunities are visible and uploadable.
+
+### Module 36 — 🔴 The upload UI was hidden from record owners (frontend tier gating swept)
+
+**Reported as "the assignee can't upload a document on the converted lead Hamza Bhi".** Module 34 had
+fixed the *server*; this was the client hiding the control before any request was made — which is why
+it read as "nothing happens" rather than an error.
+
+### Cause
+`documents-panel.tsx` wrapped the entire upload area in `<Can permission="crm.leads.edit">`.
+Ahmed (CRM Agent, the lead's owner) holds **`crm.leads-assigned.edit`**, not the tenant-wide
+`crm.leads.edit` — so `Can` failed and the drop zone, file picker and upload button never rendered.
+
+Wrong on two counts, both instances of the same fault chased through Modules 32, 34 and 35:
+1. **Only the tenant-wide tier checked** — the `-team` and `-assigned` tiers ignored, so the record's
+   own owner was locked out of their own record.
+2. **Wrong area** — the panel is shared by the lead, opportunity and account drawers, so attaching to
+   an opportunity or account also demanded the *lead* key (the Module 35 directive).
+
+Now derives its area from `relatedToType` (`deal → pipeline`, `customer`/`contact` → `customers`,
+otherwise `leads`) and accepts any of that area's three edit tiers. The server still decides per record
+whether this particular one is theirs, so widening the client gate grants nothing.
+
+### Swept the rest of the CRM UI for the same pattern
+Audited every `useCan("crm.…")` / `<Can permission="crm.…">` in the module:
+- **`deal-drawer.tsx`** — three `crm.pipeline.edit` gates with no tier variants: the stage control,
+  the edit action and the contact-role picker were hidden from a rep on their **own** opportunity.
+  Fixed.
+- **Correct as-is, deliberately left:** `crm.*.create`, `crm.*.delete` and `crm.reports.*` — those
+  actions have no `-team`/`-assigned` variants seeded, so the single key *is* the whole permission.
+- `lead-drawer.tsx` was already tier-aware via its `canEditThis` computation.
+
+**Rule going forward:** `view` and `edit` have tier variants and must be checked with `anyOf`;
+`create`, `delete`, `export`, `approve` do not. Gating a tiered action on the tenant-wide key alone
+silently hides the UI from exactly the people the tiers were introduced to serve.
+
+### Build / Verification Status
+- **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅ · Frontend only; no backend change,
+  no migration.
+- **Verified from the data:** CRM Agent holds `crm.leads.create` + `crm.leads-assigned.edit/view` (and
+  the equivalents for pipeline/customers) but no tenant-wide `.edit` — so every `<Can>` above failed
+  for Ahmed. The gateway was already current (DLL 22:54, started 23:02), which is what ruled the
+  backend out.
+- **Pending:** rebuild/serve the frontend, then upload as Ahmed on *Hamza Bhi* — converted or not.
+
+### Module 37 — Reports owner filter leaked the whole tenant roster
+
+**Reported from the Team Performance screen: a team lead's Owner dropdown listed other teams' leads and
+members.** Confirmed — it listed Aslam Bhi, Qfinity and everyone else, none of whom are in a team that
+lead runs.
+
+### Cause
+`reports-view.tsx` built the dropdown from `useUsers({ pageSize: 200 })` → `/api/users`, which is
+`[Authorize]`-only (deliberately, so restricted users can resolve names) and returns **every** tenant
+user. The filter offered all of them.
+
+**The report data was never at risk** — every handler scopes through `ILeadAccessGuard`, so selecting
+an out-of-scope owner returned an empty report rather than someone else's numbers. What leaked was the
+**roster**: names and existence of colleagues outside the caller's scope, plus a list of choices that
+could only ever come back empty.
+
+### Fix
+Switched to `useAssignableByTeam()`, the same server-scoped pool the assignment pickers use — the
+backend resolves it from the caller's tier (`GetAssignableUsersQueryHandler`: everyone for an admin,
+otherwise members of the teams they lead plus the leads above them). Rendered as `<optgroup>` per team,
+so the filter reads the same way as the reassign and create pickers.
+
+**Verified against the live tenant:** for *New CRM Team Lead Test* the scoped pool is exactly
+`ahmed`, `ghafoor`, `mujtaba`, `newteamlead` — the members of Team D and Team E, which they lead —
+and the handler does **not** classify that role as admin (no `crm.leads.edit`, no
+`settings.users.edit`). Aslam and Qfinity correctly disappear.
+
+### Swept for the same pattern
+No other CRM screen builds a picker from `useUsers`. Outside CRM: the AI-assistant modals (admin-only
+account linking, `search`-driven) and the dashboard's user **count** are legitimate;
+`pos/restaurant/reports-view.tsx` also lists all users, but Restaurant has no team tier model at all,
+so it is a different question and was left alone rather than changed speculatively.
+
+### Build / Verification Status
+- **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅ · Frontend only; no backend change,
+  no migration.
+- **Pending:** reload as a team lead — the Owner dropdown shows only their own teams, grouped.
+
+### Module 38 — Create forms start on the creator + their team (auto-file could never fire for multi-team users)
+
+**Reported: a team lead cannot see the deals Ahmed moved to won/lost, though Ahmed and the admin can.**
+
+### Cause
+Both deals carry `TeamId = NULL`, and since Module 31 an unfiled record is visible only to its owner
+and full-access roles. Ahmed and the admin qualify; a team lead does not.
+
+The deeper problem is *why* they were unfiled. Module 34's server-side auto-file only fires when the
+creator belongs to **exactly one** team — and **Ahmed belongs to two** (Warsan and Team D). So for him
+the auto-file never fires, and every record he creates or converts is born invisible to both of his
+team leads. Not a one-off: the most active user in the tenant is precisely the case the safety rule
+skips.
+
+### Fix — ask instead of guess
+New `useDefaultAssignee()` returns the option a create form should start on:
+- Creator in **one** team → pre-selected as owner **under that team** → filed automatically, no friction.
+- Creator in **several** teams → pre-selected as owner with **no team**, and `needsTeamChoice` is set so
+  the form can prompt. The lead form shows an inline warning telling them to pick themselves under a
+  team so that team's lead can see the record.
+
+Guessing a team for a multi-team creator is the one thing that must not happen: filing to the wrong
+team both reveals the record to a lead who should not see it and hides it from the one who should —
+the original complaint that started this whole thread.
+
+Applied to the lead, opportunity and account create forms. Only on **create** — the effect bails when
+`editing`, so opening an existing record never overwrites its stored owner or team.
+
+### The two existing deals
+They predate all of this and stay unfiled until filed explicitly. The Pipeline list's bulk filing bar
+(Module 33) handles that: select both → file to a team → they appear for that team's lead.
+
+### Not changed — converted leads still listed on the Leads page
+Checked: `statusFilter` defaults to `"all"`, and `converted` is both a filter option and a kanban
+column, so converted leads remain visible by design. That matches how CRMs generally treat them — the
+lead is history, not deleted, and its documents and activity stay reachable. Whether the default view
+should exclude them is a product preference, so it was left as-is and raised rather than changed
+unilaterally.
+
+### Build / Verification Status
+- **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅ · Frontend only; no backend change,
+  no migration. Hint translated en + ar.
+- **Verified from data:** both deals `TeamId = NULL`, owner Ahmed Khan; Ahmed is a member of Warsan
+  **and** Team D — hence no auto-file.
+- **Pending:** as Ahmed, create a lead — it comes back owned by him with the team prompt shown; file
+  the two existing deals from Pipeline and confirm they appear for that team's lead in won/lost.
+
+### Module 39 — Lead vs opportunity outcomes: converted leads now report what became of them
+
+**Question raised: should a lead show won/lost, and why do converted leads still appear in the list?**
+
+### The model, settled explicitly
+**Win and loss are opportunity outcomes, not lead outcomes.** A lead's life ends at *converted* or
+*unqualified* — winning means money, and money lives on the deal. Salesforce, HubSpot and Dynamics all
+draw the line the same way, and `LeadStatus` here already has no `won`. Adding one would blur a person
+you qualified with revenue you actually closed, and would double-count: the deal is already the thing
+being forecast and reported on.
+
+So the observed behaviour was correct — Ahmed moved two **deals** to won/lost; the leads stayed at
+*converted* because that is genuinely where their story ended.
+
+The real defect was that **a converted lead was a dead end** — it said "converted" and could not tell
+you what happened next.
+
+### Converted leads report their outcome
+- `LeadDto` gained `ConvertedDealStage` / `ConvertedDealValue`.
+- `ConvertedDealOutcomes` (new) resolves them in **one batched query per page**, not one per lead. The
+  deal id is stored on the lead as a string, so it is parsed in that one place.
+- Deliberately **not** access-scoped: it exposes only stage and value of a deal whose *origin* the
+  caller can already see — no owner, contacts or notes. Scoping it would leave the lead's own history
+  unreadable to the person working it.
+- Wired into `GetLeadsHandler` and `GetLeadByIdHandler`; `LeadMappings.ToDto` takes the two values as
+  optional trailing parameters so every other caller maps exactly as before.
+- UI: a **Won**/**Lost** chip beside the status in the list, and in the drawer's converted banner with
+  the deal value.
+
+### Leads list defaults to open leads
+`statusFilter` now starts at **"open"** — excluding `converted`, `unqualified` and `lost` via a new
+`CLOSED_LEAD_STATUSES` constant — with "Open leads" and "All statuses" both offered.
+
+Closed leads are **kept, not hidden away**: they are history rather than deletions, and their documents
+and activity hang off them. But they are not the working list, and mixing them in made the page read as
+though closed leads were still open — which is exactly what prompted the question.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** 279, unchanged baseline · **`vite build`:** ✅
+- No migration — reads the existing `Lead.ConvertedDealId` link.
+- **Pending:** open Leads — only live leads by default; switch to "All statuses" and *Sufian Jaabar*
+  shows **converted + Lost**, *Hamza Bhi* **converted + Won** with the deal value in the drawer.
+
+### Module 40 — Converted deals/accounts inherit their originating lead's team (backfill step 1)
+
+**Reported: the team lead still cannot see the two won/lost deals.** Correct, and not a permission
+problem — both deals carry `TeamId = NULL`, and an unfiled record is visible only to its owner and
+full-access roles.
+
+### Why the existing backfill could not fix them
+`BackfillRecordTeamsInBackgroundAsync` filed a record from its **owner's** team, but only when that
+owner belongs to exactly one team. Both deals are owned by Ahmed, who is in **Warsan and Team D**, so
+the rule deliberately skipped them — leaving the only remedy as filing by hand, forever, for the most
+active user in the tenant.
+
+### The link that was there all along
+Both deals were created by **converting a lead**, and both those leads are filed to **Warsan**. So the
+team is not a guess: `Lead.ConvertedDealId` / `Lead.ConvertedCustomerId` say exactly which record came
+from which lead. Module 30 made new conversions carry the team across; these predate it.
+
+New **step 1** of the backfill inherits the team from the originating lead, for both the opportunity
+and the account. It runs **before** the owner heuristic, because a real link beats an inference — and
+it is the only rule that can file records whose owner sits in several teams, which is precisely the
+case the owner rule must skip. Idempotent (`BackfillTeam` only ever fills a NULL), background,
+`try/catch`-guarded, all tenants.
+
+**Dry-run against the live data:** files *Sufian Jaabar* (lost) and *Test - Hamza Bhi* (won) plus their
+two accounts, all to **Warsan** — Aslam's team. He sees them on next startup with no manual filing.
+
+### Note on ordering
+Step 1 (origin) then step 2 (owner's sole team). Both only fill NULLs, so they cannot fight; the order
+matters only for a record that both rules could file, where the conversion link is the more precise
+answer.
+
+### Build / Verification Status
+- **CRM.API:** 0 errors, 0 warnings ✅ · No migration, no frontend change.
+- **Pending:** restart the gateway — the backfill runs in the background on startup; then check the
+  won/lost figures as Aslam.
+
 ---
 
 ## Build Status

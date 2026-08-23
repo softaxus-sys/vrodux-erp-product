@@ -24,7 +24,10 @@ public sealed class CrmDocumentsController(ISender sender) : CrmControllerBase
 {
     /// <summary>Metadata for every document on a record. Never returns file bytes.</summary>
     [HttpGet]
-    [RequireAnyPermission("crm.leads.view", "crm.leads-assigned.view")]
+    [RequireAnyPermission(
+        "crm.leads.view",     "crm.leads-team.view",     "crm.leads-assigned.view",
+        "crm.pipeline.view",  "crm.pipeline-team.view",  "crm.pipeline-assigned.view",
+        "crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string relatedToType, [FromQuery] Guid relatedToId, CancellationToken ct)
     {
@@ -34,7 +37,10 @@ public sealed class CrmDocumentsController(ISender sender) : CrmControllerBase
 
     /// <summary>Tenant-wide document library — search/filter across every CRM record.</summary>
     [HttpGet("library")]
-    [RequireAnyPermission("crm.leads.view", "crm.leads-assigned.view")]
+    [RequireAnyPermission(
+        "crm.leads.view",     "crm.leads-team.view",     "crm.leads-assigned.view",
+        "crm.pipeline.view",  "crm.pipeline-team.view",  "crm.pipeline-assigned.view",
+        "crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> Library(
         [FromQuery] string? search, [FromQuery] string? documentType,
         [FromQuery] string? relatedToType, CancellationToken ct)
@@ -45,7 +51,10 @@ public sealed class CrmDocumentsController(ISender sender) : CrmControllerBase
 
     [HttpPost]
     [RequestSizeLimit(UploadCrmDocumentCommandValidator.MaxBytes + 1024 * 1024)]
-    [RequireAnyPermission("crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission(
+        "crm.leads.edit",     "crm.leads-team.edit",     "crm.leads-assigned.edit",
+        "crm.pipeline.edit",  "crm.pipeline-team.edit",  "crm.pipeline-assigned.edit",
+        "crm.customers.edit", "crm.customers-team.edit", "crm.customers-assigned.edit")]
     public async Task<IActionResult> Upload([FromForm] UploadDocumentForm form, CancellationToken ct)
     {
         if (form.File is null || form.File.Length == 0)
@@ -68,7 +77,10 @@ public sealed class CrmDocumentsController(ISender sender) : CrmControllerBase
 
     /// <summary>Streams the file back for download / preview.</summary>
     [HttpGet("{id:guid}/content")]
-    [RequireAnyPermission("crm.leads.view", "crm.leads-assigned.view")]
+    [RequireAnyPermission(
+        "crm.leads.view",     "crm.leads-team.view",     "crm.leads-assigned.view",
+        "crm.pipeline.view",  "crm.pipeline-team.view",  "crm.pipeline-assigned.view",
+        "crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetCrmDocumentContentQuery(id), ct);
@@ -81,7 +93,10 @@ public sealed class CrmDocumentsController(ISender sender) : CrmControllerBase
 
     /// <summary>Re-categorise or re-describe a document. File content is immutable — upload again to replace it.</summary>
     [HttpPut("{id:guid}")]
-    [RequireAnyPermission("crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission(
+        "crm.leads.edit",     "crm.leads-team.edit",     "crm.leads-assigned.edit",
+        "crm.pipeline.edit",  "crm.pipeline-team.edit",  "crm.pipeline-assigned.edit",
+        "crm.customers.edit", "crm.customers-team.edit", "crm.customers-assigned.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDocumentRequest body, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateCrmDocumentCommand(id, body.DocumentType, body.Description), ct);
@@ -89,7 +104,10 @@ public sealed class CrmDocumentsController(ISender sender) : CrmControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [RequireAnyPermission("crm.leads.edit", "crm.leads-assigned.edit")]
+    [RequireAnyPermission(
+        "crm.leads.edit",     "crm.leads-team.edit",     "crm.leads-assigned.edit",
+        "crm.pipeline.edit",  "crm.pipeline-team.edit",  "crm.pipeline-assigned.edit",
+        "crm.customers.edit", "crm.customers-team.edit", "crm.customers-assigned.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteCrmDocumentCommand(id), ct);

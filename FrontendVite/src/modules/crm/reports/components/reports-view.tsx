@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { Can, useCan } from "@/components/auth/can";
-import { useUsers } from "@/hooks/identity/use-users";
+import { useAssignableByTeam } from "@/hooks/identity/use-assignable-by-team";
 import { REPORT_CATALOGUE, type ReportFilter, type ReportId } from "@/lib/crm/reports.api";
 import {
   PipelinePanel, WinLossPanel, PerformancePanel, LeadSourcePanel,
@@ -85,9 +85,18 @@ export function CrmReportsView() {
 
   const canExport = useCan("crm.reports.export");
 
-  // Owner filter needs the tenant's users. /api/users is [Authorize]-only, so this works for reps too.
-  const { data: usersPage } = useUsers({ pageSize: 200 });
-  const users = usersPage?.items ?? [];
+  // Owner filter, scoped to the people whose figures this caller can actually see.
+  //
+  // It used to read /api/users, which is [Authorize]-only and returns EVERY tenant user — so a team
+  // lead saw other teams' leads and members in the dropdown, and could select someone outside their
+  // scope. The reports themselves were never at risk (the guard scopes the data, so picking an
+  // outsider just returned nothing), but the list leaked the tenant's roster and offered choices that
+  // could only ever come back empty.
+  //
+  // The assignable pool is resolved server-side from the caller's tier — everyone for an admin, their
+  // own team members for a team lead — which is exactly the right set, and it groups by team so the
+  // filter reads the same way as the assignment pickers.
+  const { groups: ownerGroups, options: users } = useAssignableByTeam();
 
   // Stable identity — panels register through this inside an effect, so a fresh function each render
   // would re-register (and re-render this component) on every tick.
@@ -112,7 +121,7 @@ export function CrmReportsView() {
       : t("reports.filters.allTime"));
     if (filter.ownerUserId) {
       const u = users.find(x => x.id === filter.ownerUserId);
-      parts.push(`${t("reports.filters.owner")}: ${u?.fullName || u?.username || "—"}`);
+      parts.push(`${t("reports.filters.owner")}: ${u?.fullName || "—"}`);
     }
     if (filter.stage) parts.push(`${t("reports.filters.stage")}: ${t(`stage.${filter.stage}`, { defaultValue: filter.stage })}`);
     if (selected) parts.push(t("reports.filters.datedBy", { basis: t(`reports.basis.${selected}`) }));
@@ -210,7 +219,15 @@ export function CrmReportsView() {
                 className="h-9 rounded-md border border-border bg-card px-2 text-sm"
               >
                 <option value="">{t("reports.filters.everyone")}</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.fullName || u.username}</option>)}
+                {ownerGroups.map(g => (
+                  <optgroup key={g.team} label={g.team}>
+                    {/* Keyed by team + user — someone in two teams appears under each; the value is
+                        the same user id either way, since the filter is by owner, not by team. */}
+                    {g.members.map(u => (
+                      <option key={`${g.team}-${u.id}`} value={u.id}>{u.fullName}</option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
             </label>
 

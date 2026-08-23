@@ -261,7 +261,7 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
               <Button size="sm" className="gap-1.5 h-9" onClick={() => setTab("activities")}>
                 <Activity className="h-3.5 w-3.5" />{t("dealDrawer.logActivity")}
               </Button>
-              <Can permission="crm.pipeline.edit">
+              <Can anyOf={["crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit"]}>
                 <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-destructive hover:bg-destructive/5 ml-auto" disabled={del.isPending}
                   onClick={() => setConfirmDelete(true)}>
                   <Trash2 className="h-3.5 w-3.5" />{t("dealDrawer.delete")}
@@ -326,7 +326,7 @@ function DealContactsPanel({ dealId, customerId, company }: { dealId: string; cu
       <div className="flex items-center justify-between mb-4">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealDrawer.contacts", { count: linked.length })}</h4>
         {customerId && (
-          <Can permission="crm.pipeline.edit">
+          <Can anyOf={["crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit"]}>
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={() => setAdding(v => !v)} disabled={available.length === 0}>
               <UserPlus className="h-3.5 w-3.5" />{t("dealDrawer.add")}
             </Button>
@@ -390,7 +390,7 @@ function DealContactsPanel({ dealId, customerId, company }: { dealId: string; cu
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <Can permission="crm.pipeline.edit" fallback={<span className="text-[11px] font-medium text-muted-foreground px-2 py-1">{t(`contactRole.${c.role}`)}</span>}>
+                <Can anyOf={["crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit"]} fallback={<span className="text-[11px] font-medium text-muted-foreground px-2 py-1">{t(`contactRole.${c.role}`)}</span>}>
                   <select value={c.role} onChange={e => updateRole.mutate({ dealId, id: c.id, role: e.target.value })}
                     className="h-8 px-2 rounded-lg border border-border bg-card text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                     {DEAL_CONTACT_ROLES.map(r => <option key={r.value} value={r.value}>{t(`contactRole.${r.value}`)}</option>)}

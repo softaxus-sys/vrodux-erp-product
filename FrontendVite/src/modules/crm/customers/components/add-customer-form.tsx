@@ -1,6 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
+import { useAssignableByTeam, useDefaultAssignee, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { toast } from "sonner";
 import { StagedDocumentPicker, uploadStagedDocuments } from "@/modules/crm/shared/components/staged-document-picker";
 import type { StagedDocument } from "@/modules/crm/shared/components/staged-document-picker";
@@ -48,6 +48,18 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   // See the deal form: the id is what the assigned-only / my-team tiers scope on.
   // Grouped by team so a multi-team manager can be filed to the right team (see Module 30).
   const { groups: assignableGroups, options: assignableUsers } = useAssignableByTeam(open);
+  // Start on the creator + their team — see the lead form.
+  const defaultAssignee = useDefaultAssignee(open);
+
+  React.useEffect(() => {
+    if (!open || editing) return;
+    const { userId, teamId } = decodeAssignee(defaultAssignee.value);
+    if (!userId) return;
+    setAssignedToUserId(userId);
+    setAssignedTeamId(teamId);
+    setAssignedTo(assignableUsers.find(u => u.id === userId)?.fullName ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing, defaultAssignee.value]);
   const [notes, setNotes]               = React.useState("");
   const [staged, setStaged]             = React.useState<StagedDocument[]>([]);
 

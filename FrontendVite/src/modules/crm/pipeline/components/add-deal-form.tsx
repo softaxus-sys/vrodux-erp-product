@@ -1,6 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
+import { useAssignableByTeam, useDefaultAssignee, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,18 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   // own members. Storing the id is what makes the pipeline visibility tiers work at all.
   // Grouped by team so a multi-team owner can be filed to the right team (see Module 30).
   const { groups: assignableGroups, options: assignableUsers } = useAssignableByTeam(open);
+  // Start on the creator + their team, so a new opportunity is not born invisible to team leads.
+  const defaultAssignee = useDefaultAssignee(open);
+
+  React.useEffect(() => {
+    if (!open || editing) return;
+    const { userId, teamId } = decodeAssignee(defaultAssignee.value);
+    if (!userId) return;
+    setAssignedToUserId(userId);
+    setAssignedTeamId(teamId);
+    setAssignedTo(assignableUsers.find(u => u.id === userId)?.fullName ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editing, defaultAssignee.value]);
   const [description, setDescription] = React.useState("");
 
   const createDeal = useCreateDeal();

@@ -17,6 +17,9 @@ internal sealed class GetLeadByIdHandler(CrmDbContext db, ILeadAccessGuard acces
         if (l is null || !await access.CanReadAsync(l, ct))
             return Result.Failure<LeadDto>(Error.NotFoundById("Lead", query.Id));
 
-        return Result.Success(LeadMappings.ToDto(l));
+        var outcomes = await ConvertedDealOutcomes.LoadAsync(db, [l], ct);
+        var (stage, value) = ConvertedDealOutcomes.For(outcomes, l);
+
+        return Result.Success(LeadMappings.ToDto(l, stage, value));
     }
 }

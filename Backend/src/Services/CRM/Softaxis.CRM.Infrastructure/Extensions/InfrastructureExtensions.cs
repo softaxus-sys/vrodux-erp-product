@@ -322,6 +322,53 @@ public static class InfrastructureExtensions
             using var scope = services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
 
+            // ── Step 1: inherit the team from the record's ORIGIN ────────────────────────────
+            //
+            // A deal or account created by converting a lead belongs to whatever team that lead was
+            // filed to. This is a real link (Lead.ConvertedDealId / ConvertedCustomerId), not a
+            // guess, so it takes precedence over the owner heuristic below — and it is the only rule
+            // that can file records whose owner sits in several teams, which is exactly the case the
+            // owner heuristic has to skip. Conversions from before that link was carried across
+            // (Module 30) are repaired here.
+            var convertedLeads = await db.Leads.IgnoreQueryFilters()
+                .Where(l => l.TeamId != null && (l.ConvertedDealId != null || l.ConvertedCustomerId != null))
+                .Select(l => new { l.TeamId, l.ConvertedDealId, l.ConvertedCustomerId })
+                .ToListAsync();
+
+            if (convertedLeads.Count > 0)
+            {
+                var dealTeamByOrigin = new Dictionary<Guid, Guid>();
+                var customerTeamByOrigin = new Dictionary<Guid, Guid>();
+
+                foreach (var l in convertedLeads)
+                {
+                    if (l.TeamId is not { } tid) continue;
+                    if (Guid.TryParse(l.ConvertedDealId, out var dealId) && dealId != Guid.Empty)
+                        dealTeamByOrigin[dealId] = tid;
+                    if (l.ConvertedCustomerId is { } custId)
+                        customerTeamByOrigin[custId] = tid;
+                }
+
+                if (dealTeamByOrigin.Count > 0)
+                {
+                    var ids = dealTeamByOrigin.Keys.ToList();
+                    var fromConversion = await db.Deals.IgnoreQueryFilters()
+                        .Where(d => d.TeamId == null && ids.Contains(d.Id)).ToListAsync();
+                    foreach (var d in fromConversion) d.BackfillTeam(dealTeamByOrigin[d.Id]);
+                }
+
+                if (customerTeamByOrigin.Count > 0)
+                {
+                    var ids = customerTeamByOrigin.Keys.ToList();
+                    var fromConversion = await db.Customers.IgnoreQueryFilters()
+                        .Where(c => c.TeamId == null && ids.Contains(c.Id)).ToListAsync();
+                    foreach (var c in fromConversion) c.BackfillTeam(customerTeamByOrigin[c.Id]);
+                }
+
+                await db.SaveChangesAsync();
+            }
+
+            // ── Step 2: fall back to the owner's team, when unambiguous ──────────────────────
             // Users whose team membership is unambiguous → their single team id.
             // Raw cross-schema read: Identity owns these tables and lives in the same database.
             var soleTeamRows = await db.Database

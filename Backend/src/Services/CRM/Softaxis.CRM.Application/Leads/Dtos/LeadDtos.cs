@@ -18,7 +18,11 @@ public sealed record LeadDto(
     // Purchase intent: raw "when planning to buy" text + its classified urgency bucket key.
     string? PurchaseTimeframe = null, string? PurchaseUrgency = null,
     // Team the record belongs to. Null = untagged (visibility falls back to owner membership).
-    Guid? TeamId = null, string? TeamName = null);
+    Guid? TeamId = null, string? TeamName = null,
+    // Outcome of the opportunity this lead converted into. A lead is never itself "won" or "lost" —
+    // winning is a money outcome and lives on the deal — but a converted lead that cannot tell you
+    // what became of it is a dead end, so the deal's stage and value are surfaced here.
+    string? ConvertedDealStage = null, decimal? ConvertedDealValue = null);
 
 public sealed record LeadsSummaryDto(
     int Total, int NewThisWeek, int Qualified, int Contacted, int Converted,

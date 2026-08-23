@@ -71,6 +71,15 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
         return NoContentOrError(result);
     }
 
+    /// <summary>File many opportunities to a team at once (null un-files). Each is permission-checked
+    /// individually; ones the caller may not edit are skipped and reported.</summary>
+    [HttpPost("bulk-file-to-team")]
+    [RequireAnyPermission("crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit")]
+    public async Task<IActionResult> BulkFileToTeam([FromBody] BulkFileDealsReq req, CancellationToken ct)
+        => OkOrError(await sender.Send(new BulkFileDealsToTeamCommand(req.DealIds ?? [], req.TeamId), ct));
+
+    public sealed record BulkFileDealsReq(List<Guid>? DealIds, Guid? TeamId);
+
     public sealed record UpdateDealRequest(string Title, string Company, decimal Value, string Stage, string Priority,
         int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry, string Description,
         string? NextAction, string? NextActionDate, List<string>? Tags, string? ForecastCategory = null,
