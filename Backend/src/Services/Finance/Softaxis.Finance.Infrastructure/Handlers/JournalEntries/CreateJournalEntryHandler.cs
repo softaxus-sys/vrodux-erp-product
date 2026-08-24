@@ -15,7 +15,9 @@ internal sealed class CreateJournalEntryHandler(FinanceDbContext db) : ICommandH
         if (await GlPoster.IsPeriodClosedAsync(db, cmd.Date, ct))
             return Result.Failure<JournalEntryDto>(Error.Custom("FiscalPeriod.Locked", $"The fiscal period for {cmd.Date} is closed for posting."));
 
-        var entry = new JournalEntry(cmd.Date, cmd.Description, cmd.Reference, cmd.Notes);
+        var entry = new JournalEntry(
+            cmd.Date, cmd.Description, cmd.Reference, cmd.Notes,
+            cmd.CreatedByUserId, cmd.CreatedByName);
 
         foreach (var l in cmd.Lines)
             entry.Lines.Add(new JournalEntryLine(

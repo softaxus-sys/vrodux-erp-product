@@ -22,6 +22,8 @@ internal sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journ
         builder.Property(x => x.Notes).HasMaxLength(1000);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
+        builder.Property(x => x.CreatedByUserId).HasMaxLength(100);
+        builder.Property(x => x.CreatedByName).HasMaxLength(200);
 
         // Computed properties — not mapped
         builder.Ignore(x => x.TotalDebit);

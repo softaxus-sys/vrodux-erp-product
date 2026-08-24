@@ -44,12 +44,30 @@ internal sealed class UpdateAiSettingsHandler(AiAssistantDbContext db, ISecretPr
                 string.IsNullOrWhiteSpace(cmd.TelegramBotToken) ? null : protector.Protect(cmd.TelegramBotToken.Trim()),
                 cmd.TelegramBotUsername);
 
+        // Fallback provider (BYO, optional) — empty FallbackProvider disables it.
+        AiProvider? fallbackProvider = null;
+        if (!string.IsNullOrWhiteSpace(cmd.FallbackProvider))
+        {
+            if (!Enum.TryParse<AiProvider>(cmd.FallbackProvider, ignoreCase: true, out var fp))
+                return Result.Failure<AiSettingsDto>(Error.Custom("AiSettings.InvalidProvider", $"Unknown fallback provider '{cmd.FallbackProvider}'."));
+            fallbackProvider = fp;
+        }
+        settings.ConfigureFallback(fallbackProvider, cmd.FallbackModel);
+
+        if (cmd.ClearFallbackApiKey)
+            settings.ClearFallbackApiKey();
+        else if (!string.IsNullOrWhiteSpace(cmd.FallbackApiKey))
+            settings.SetFallbackProtectedApiKey(protector.Protect(cmd.FallbackApiKey.Trim()));
+
         await db.SaveChangesAsync(ct);
 
         return new AiSettingsDto(
             settings.Provider.ToString(), settings.Model, settings.Enabled, settings.Tier,
             settings.VoiceEnabled, settings.TelegramEnabled, settings.HasApiKey,
             settings.TelegramBotUsername, settings.HasTelegramBotToken, settings.TelegramInboundKey,
-            Capabilities: AiCapabilitiesMapper.From(settings));
+            Capabilities: AiCapabilitiesMapper.From(settings),
+            FallbackProvider: settings.FallbackProvider?.ToString(),
+            FallbackModel: settings.FallbackModel,
+            HasFallbackApiKey: settings.HasFallbackApiKey);
     }
 }

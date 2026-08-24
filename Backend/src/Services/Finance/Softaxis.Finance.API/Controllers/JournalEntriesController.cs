@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,6 +14,13 @@ namespace Softaxis.Finance.API.Controllers;
 [Authorize]
 public sealed class JournalEntriesController(ISender sender) : FinanceControllerBase
 {
+    private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    private string? CurrentUserName =>
+        User.FindFirstValue(ClaimTypes.Name)
+        ?? User.FindFirstValue("name")
+        ?? User.FindFirstValue(ClaimTypes.Email);
+
     [HttpGet]
     [RequirePermission("finance.journals.view")]
     public async Task<IActionResult> GetAll(
@@ -40,7 +48,8 @@ public sealed class JournalEntriesController(ISender sender) : FinanceController
     [RequirePermission("finance.journals.create")]
     public async Task<IActionResult> Create([FromBody] CreateJournalEntryCommand cmd, CancellationToken ct)
     {
-        var result = await sender.Send(cmd, ct);
+        var result = await sender.Send(
+            cmd with { CreatedByUserId = CurrentUserId, CreatedByName = CurrentUserName }, ct);
         return CreatedOrError(result, nameof(GetById),
             result.IsSuccess ? new { id = result.Value.Id } : null!);
     }

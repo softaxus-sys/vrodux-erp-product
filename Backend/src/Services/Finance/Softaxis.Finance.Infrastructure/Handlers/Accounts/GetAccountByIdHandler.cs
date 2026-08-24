@@ -16,7 +16,7 @@ internal sealed class GetAccountByIdHandler(FinanceDbContext db)
     {
         var acc = await db.Accounts
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == q.Id, ct);
+            .FirstOrDefaultAsync(x => x.Id == q.Id && !x.IsDeleted, ct);
 
         if (acc is null)
             return Result.Failure<AccountDto>(Error.NotFoundById(nameof(Account), q.Id));

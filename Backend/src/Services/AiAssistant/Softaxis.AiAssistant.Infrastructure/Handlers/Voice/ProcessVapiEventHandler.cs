@@ -125,7 +125,8 @@ internal sealed class ProcessVapiEventHandler(
 
             using (AiImpersonation.Use(new AiImpersonatedUser(
                 tok.UserId, tok.Username, tok.Email, tok.IsSuperAdmin,
-                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl)))
+                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl,
+                tok.Modules.ToHashSet(StringComparer.OrdinalIgnoreCase))))
             {
                 await gateway.PatchAsync($"api/crm/leads/{call.LeadId}/status",
                     JsonSerializer.Serialize(new { status = "contacted" }), ct);

@@ -11,6 +11,7 @@ public sealed class AiProviderFactory(IHttpClientFactory httpClientFactory) : IA
         AiProvider.Claude   => new ClaudeChatProvider(httpClientFactory),
         AiProvider.GroqFree => new GroqChatProvider(httpClientFactory, AiProvider.GroqFree),
         AiProvider.GroqPaid => new GroqChatProvider(httpClientFactory, AiProvider.GroqPaid),
+        AiProvider.OpenRouter => new OpenRouterChatProvider(httpClientFactory),
         _                   => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unknown AI provider."),
     };
 }

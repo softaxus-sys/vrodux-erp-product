@@ -72,7 +72,8 @@ public sealed class AiAutomationRunner(
             AiAssistant.Application.Chat.Dtos.AiAutonomousResult result;
             using (AiImpersonation.Use(new AiImpersonatedUser(
                 tok.UserId, tok.Username, tok.Email, tok.IsSuperAdmin,
-                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl)))
+                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl,
+                tok.Modules.ToHashSet(StringComparer.OrdinalIgnoreCase))))
             {
                 result = await orchestrator.RunAutonomousAsync(instruction, rule.Agent, autopilot, ct);
             }

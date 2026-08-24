@@ -44,7 +44,7 @@ public sealed class ClaudeChatProvider(IHttpClientFactory httpClientFactory) : I
         var payload = await response.Content.ReadAsStringAsync(ct);
 
         if (!response.IsSuccessStatusCode)
-            throw new AiProviderException($"Claude API error ({(int)response.StatusCode}): {Truncate(payload)}");
+            throw new AiProviderException($"Claude API error ({(int)response.StatusCode}): {Truncate(payload)}", (int)response.StatusCode);
 
         return ParseResponse(payload);
     }

@@ -22,6 +22,9 @@ internal sealed class GetAiSettingsHandler(AiAssistantDbContext db)
         return new AiSettingsDto(
             s.Provider.ToString(), s.Model, s.Enabled, s.Tier, s.VoiceEnabled, s.TelegramEnabled, s.HasApiKey,
             s.TelegramBotUsername, s.HasTelegramBotToken, s.TelegramInboundKey,
-            Capabilities: AiCapabilitiesMapper.From(s));
+            Capabilities: AiCapabilitiesMapper.From(s),
+            FallbackProvider: s.FallbackProvider?.ToString(),
+            FallbackModel: s.FallbackModel,
+            HasFallbackApiKey: s.HasFallbackApiKey);
     }
 }

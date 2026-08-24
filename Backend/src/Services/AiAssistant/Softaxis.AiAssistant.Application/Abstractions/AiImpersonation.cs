@@ -12,7 +12,8 @@ public sealed record AiImpersonatedUser(
     bool IsSuperAdmin,
     IReadOnlySet<string> Permissions,
     string BearerToken,
-    string BaseUrl);
+    string BaseUrl,
+    IReadOnlySet<string> Modules);
 
 /// <summary>
 /// Ambient impersonation, flowing through async calls. Set by the Telegram webhook for the

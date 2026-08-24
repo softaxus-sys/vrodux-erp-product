@@ -20,13 +20,19 @@ public sealed record AiAutonomousResult(
     string Reply,
     IReadOnlyList<string> ToolsUsed,
     PendingActionDto? Pending,
-    string? Error);
+    string? Error,
+    bool UsedFallback = false);
 
-/// <summary>The assistant's reply to a chat turn.</summary>
+/// <summary>
+/// The assistant's reply to a chat turn. <see cref="UsedFallback"/> is true when the tenant's
+/// primary provider failed (rate limited / unavailable) and the reply came from their configured
+/// BYO fallback provider instead — surfaced as a subtle marker in the chat UI.
+/// </summary>
 public sealed record AiChatResponseDto(
     string Reply,
     IReadOnlyList<string> ToolsUsed,
     string Provider,
     string Model,
     PendingActionDto? PendingAction = null,
-    string? Agent = null);
+    string? Agent = null,
+    bool UsedFallback = false);

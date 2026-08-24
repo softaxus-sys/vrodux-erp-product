@@ -12,6 +12,10 @@ using Softaxis.AiAssistant.Infrastructure.Providers;
 using Softaxis.AiAssistant.Infrastructure.Security;
 using Softaxis.AiAssistant.Infrastructure.Tools;
 using Softaxis.AiAssistant.Infrastructure.Tools.Crm;
+using Softaxis.AiAssistant.Infrastructure.Tools.Finance;
+using Softaxis.AiAssistant.Infrastructure.Tools.Generic;
+using Softaxis.AiAssistant.Infrastructure.Tools.Purchase;
+using Softaxis.AiAssistant.Infrastructure.Tools.Sales;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 
 namespace Softaxis.AiAssistant.Infrastructure.Extensions;
@@ -56,6 +60,29 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiTool, CrmListLeadsTool>();
         services.AddScoped<IAiTool, CrmLeadsSummaryTool>();
         services.AddScoped<IAiTool, CrmCreateLeadTool>();       // write (confirm-gated)
+        services.AddScoped<IAiTool, CrmCreateDealTool>();       // write (confirm-gated)
+        services.AddScoped<IAiTool, CrmAssignLeadTool>();       // write (confirm-gated)
+        services.AddScoped<IAiTool, CrmConvertLeadTool>();      // write (confirm-gated)
+        services.AddScoped<IAiTool, CrmGetDealByIdTool>();
+        services.AddScoped<IAiTool, CrmAccountTimelineTool>();
+
+        // Hand-written write tools whose body has a nested array of line items — a flat
+        // AiFieldSpec catalog entry can't express "N order lines", so these stay bespoke.
+        services.AddScoped<IAiTool, FinanceCreateJournalEntryTool>();  // write (confirm-gated)
+        services.AddScoped<IAiTool, FinanceCreateInvoiceTool>();       // write (confirm-gated)
+        services.AddScoped<IAiTool, SalesCreateOrderTool>();           // write (confirm-gated)
+        services.AddScoped<IAiTool, PurchaseCreateOrderTool>();        // write (confirm-gated)
+
+        // Data-driven module coverage — one catalog entry each instead of a bespoke class. See
+        // Tools/Generic/ModuleToolCatalog.cs. Module gating (AiToolRegistry.IsModuleEnabled) keys
+        // off each spec's Agent, so a tenant without e.g. "restaurant" enabled never even sees
+        // restaurant_* tools, let alone can call them.
+        foreach (var spec in ModuleToolCatalog.Lists)
+            services.AddScoped<IAiTool>(sp => new GenericListTool(spec, sp.GetRequiredService<GatewayToolClient>()));
+        foreach (var spec in ModuleToolCatalog.GetByIds)
+            services.AddScoped<IAiTool>(sp => new GenericGetByIdTool(spec, sp.GetRequiredService<GatewayToolClient>()));
+        foreach (var spec in ModuleToolCatalog.Creates)
+            services.AddScoped<IAiTool>(sp => new GenericCreateTool(spec, sp.GetRequiredService<GatewayToolClient>()));
         // Other module agents (read-only)
         services.AddScoped<IAiTool, FinanceInvoicesSummaryTool>();
         services.AddScoped<IAiTool, FinanceExpensesSummaryTool>();

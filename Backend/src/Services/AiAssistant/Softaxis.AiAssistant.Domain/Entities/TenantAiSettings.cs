@@ -54,8 +54,20 @@ public sealed class TenantAiSettings
     public DateTime CreatedAt { get; private set; }
     public DateTime UpdatedAt { get; private set; }
 
+    // ── Fallback provider (optional, BYO — tenant's own second key) ──────────
+    // Tried once, only on a retryable failure of the primary (rate limit / 5xx / timeout), never
+    // charged unless the primary actually failed. Null FallbackProvider = feature off.
+    public AiProvider? FallbackProvider        { get; private set; }
+    public string?     FallbackProtectedApiKey { get; private set; }
+    public string?     FallbackModel           { get; private set; }
+
     /// <summary>True when a key has been stored (used to tell the UI a key is set without exposing it).</summary>
     public bool HasApiKey => !string.IsNullOrEmpty(ProtectedApiKey);
+
+    public bool HasFallbackApiKey => !string.IsNullOrEmpty(FallbackProtectedApiKey);
+
+    /// <summary>True only when a fallback provider is chosen AND a key is actually stored for it.</summary>
+    public bool FallbackConfigured => FallbackProvider is not null && HasFallbackApiKey;
 
     public bool HasTelegramBotToken => !string.IsNullOrEmpty(ProtectedTelegramBotToken);
 
@@ -78,6 +90,27 @@ public sealed class TenantAiSettings
     }
 
     public void ClearApiKey() => ProtectedApiKey = null;
+
+    /// <summary>
+    /// Chooses (or clears) the fallback provider + model. Passing a null provider disables the
+    /// fallback and drops any stored fallback key too — a key with no provider is orphaned data.
+    /// </summary>
+    public void ConfigureFallback(AiProvider? provider, string? model)
+    {
+        FallbackProvider = provider;
+        FallbackModel    = string.IsNullOrWhiteSpace(model) ? null : model.Trim();
+        if (provider is null)
+            FallbackProtectedApiKey = null;
+    }
+
+    /// <summary>Store a new (already-encrypted) fallback API key. Pass null to leave the existing key untouched.</summary>
+    public void SetFallbackProtectedApiKey(string? protectedApiKey)
+    {
+        if (protectedApiKey is not null)
+            FallbackProtectedApiKey = protectedApiKey;
+    }
+
+    public void ClearFallbackApiKey() => FallbackProtectedApiKey = null;
 
     /// <summary>Configure the Telegram bot. Pass a null token to leave the stored token unchanged.</summary>
     public void ConfigureTelegramBot(string? protectedBotToken, string? botUsername)

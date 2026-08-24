@@ -12,4 +12,5 @@ public sealed record ServiceTokenDto(
     string? Email,
     bool IsSuperAdmin,
     Guid? TenantId,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    IReadOnlyList<string> Modules);

@@ -18,7 +18,7 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("aiassistant")
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -195,6 +195,69 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
                     b.HasIndex("RuleId", "StartedAt");
 
                     b.ToTable("automation_runs", "aiassistant");
+                });
+
+            modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.AiConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ai_conversations", "aiassistant");
+                });
+
+            modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.AiConversationMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("UsedFallback")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("ai_chat_messages", "aiassistant");
                 });
 
             modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.AiEventInbox", b =>
@@ -406,6 +469,17 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("bit");
 
+                    b.Property<string>("FallbackModel")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("FallbackProtectedApiKey")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FallbackProvider")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("Model")
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
@@ -607,6 +681,15 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
                     b.ToTable("user_telegram_links", "aiassistant");
                 });
 
+            modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.AiConversationMessage", b =>
+                {
+                    b.HasOne("Softaxis.AiAssistant.Domain.Entities.AiConversation", null)
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.CallAttempt", b =>
                 {
                     b.HasOne("Softaxis.AiAssistant.Domain.Entities.ScheduledCall", null)
@@ -614,6 +697,11 @@ namespace Softaxis.AiAssistant.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ScheduledCallId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.AiConversation", b =>
+                {
+                    b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("Softaxis.AiAssistant.Domain.Entities.ScheduledCall", b =>

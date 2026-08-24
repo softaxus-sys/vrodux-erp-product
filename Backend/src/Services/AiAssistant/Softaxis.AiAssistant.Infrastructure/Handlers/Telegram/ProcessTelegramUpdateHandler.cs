@@ -169,7 +169,8 @@ internal sealed class ProcessTelegramUpdateHandler(
         {
             using (AiImpersonation.Use(new AiImpersonatedUser(
                 tok.UserId, tok.Username, tok.Email, tok.IsSuperAdmin,
-                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl)))
+                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl,
+                tok.Modules.ToHashSet(StringComparer.OrdinalIgnoreCase))))
             {
                 return await action();
             }

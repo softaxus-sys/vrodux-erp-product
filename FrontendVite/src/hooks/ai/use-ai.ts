@@ -4,6 +4,7 @@ import {
   aiApi,
   type AiAgentDto,
   type AiCapabilitiesDto,
+  type AiConversationDto,
   type AiSettingsDto,
   type AutomationRuleDto,
   type AutomationRuleSummaryDto,
@@ -53,6 +54,28 @@ export function useSendChat() {
 export function useConfirmAction() {
   return useMutation({
     mutationFn: (payload: ConfirmActionPayload) => aiApi.confirmAction(payload),
+  });
+}
+
+/**
+ * The current user's persisted chat history. Refetches on every mount (default staleTime), so
+ * reopening the assistant panel or navigating back to the full page always shows what this user
+ * actually chatted, instead of resetting to a blank conversation.
+ */
+export function useAiConversation() {
+  return useQuery<AiConversationDto>({
+    queryKey: [QK, "conversation"],
+    queryFn: () => aiApi.getConversation(),
+  });
+}
+
+/** Clears the current user's persisted conversation (the "Clear chat" / "New chat" action). */
+export function useClearConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => aiApi.clearConversation(),
+    onSuccess: () => qc.setQueryData([QK, "conversation"], { conversationId: null, messages: [] }),
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

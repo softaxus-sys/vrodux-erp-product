@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Sparkles, Send, User, RefreshCw, Copy, ThumbsUp, ThumbsDown,
   Lightbulb, TrendingUp, BarChart3, Settings2, X, Loader2, Check, Ban,
-  MessageCircle, Link2, ExternalLink, Bot, Mic, Volume2, VolumeX,
+  MessageCircle, Link2, ExternalLink, Bot, Mic, Volume2, VolumeX, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { useAuthStore } from "@/store/auth.store";
 import {
   useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents, useAiCapabilities,
   useTelegramStatus, useGenerateTelegramLink, useUnlinkTelegram, useRegisterTelegramWebhook,
+  useAiConversation, useClearConversation,
 } from "@/hooks/ai/use-ai";
 import { useSpeechToText, speak, cancelSpeech, speechSynthesisSupported } from "@/hooks/ai/use-voice";
 import type { AiProvider, AiTier, ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
@@ -26,6 +27,8 @@ interface Message {
   timestamp: string;
   /** Set on an assistant message that proposed a write action awaiting confirmation. */
   pending?: PendingAction | null;
+  /** True when this reply came from the tenant's fallback AI provider, not their primary. */
+  usedFallback?: boolean;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -81,9 +84,7 @@ function TypingIndicator() {
 }
 
 export function AIAssistantView() {
-  const [messages, setMessages] = React.useState<Message[]>([
-    { id: "welcome", role: "assistant", content: WELCOME, timestamp: now() },
-  ]);
+  const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
   const [showSettings, setShowSettings] = React.useState(false);
   const [showAutomations, setShowAutomations] = React.useState(false);
@@ -97,7 +98,26 @@ export function AIAssistantView() {
   const confirmAction = useConfirmAction();
   const { data: agents } = useAiAgents();
   const { data: caps } = useAiCapabilities();
+  const { data: conversation, isLoading: historyLoading } = useAiConversation();
+  const clearConversation = useClearConversation();
   const isTyping = sendChat.isPending || confirmAction.isPending;
+
+  // Seed from the user's persisted history once it loads, so navigating away and back (or
+  // reloading) shows what they already chatted instead of resetting to just the welcome msg.
+  const seededRef = React.useRef(false);
+  React.useEffect(() => {
+    if (seededRef.current || historyLoading || !conversation) return;
+    seededRef.current = true;
+    setMessages(
+      conversation.messages.length > 0
+        ? conversation.messages.map((m) => ({
+            id: m.id, role: m.role, content: m.content,
+            timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            usedFallback: m.usedFallback,
+          }))
+        : [{ id: "welcome", role: "assistant", content: WELCOME, timestamp: now() }],
+    );
+  }, [conversation, historyLoading]);
 
   const canManageAi = useAuthStore((s) => s.hasRawPermission("settings.ai.edit"));
 
@@ -135,7 +155,7 @@ export function AIAssistantView() {
       const res = await sendChat.mutateAsync({ message: trimmed, history, agent });
       setMessages(prev => [...prev, {
         id: `a-${Date.now()}`, role: "assistant", content: res.reply, timestamp: now(),
-        pending: res.pendingAction ?? null,
+        pending: res.pendingAction ?? null, usedFallback: res.usedFallback,
       }]);
       if (speakRef.current) speak(res.reply);
     } catch (err) {
@@ -182,8 +202,10 @@ export function AIAssistantView() {
     }
   };
 
-  const clearChat = () =>
+  const clearChat = () => {
+    clearConversation.mutate();
     setMessages([{ id: "welcome", role: "assistant", content: WELCOME, timestamp: now() }]);
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] max-h-[900px]">
@@ -320,6 +342,14 @@ export function AIAssistantView() {
                 )}
                 <div className="flex items-center gap-2 px-1">
                   <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
+                  {msg.role === "assistant" && msg.usedFallback && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70"
+                      title="Answered using your fallback AI provider — your primary was rate-limited or unavailable."
+                    >
+                      <Zap className="h-2.5 w-2.5" /> via fallback
+                    </span>
+                  )}
                   {msg.role === "assistant" && msg.id !== "welcome" && (
                     <>
                       <button onClick={() => navigator.clipboard?.writeText(msg.content)} className="text-muted-foreground hover:text-foreground transition-colors"><Copy className="h-3 w-3" /></button>
@@ -391,9 +421,10 @@ export function AIAssistantView() {
 // ── AI settings modal (admin) ──────────────────────────────────────────────────
 
 const PROVIDERS: { value: AiProvider; label: string; hint: string }[] = [
-  { value: "Claude",   label: "Anthropic Claude", hint: "Best tool-calling reliability. Model e.g. claude-opus-4-8" },
-  { value: "GroqFree", label: "Groq (Free)",      hint: "Free tier for testing. Model e.g. llama-3.3-70b-versatile" },
-  { value: "GroqPaid", label: "Groq (Paid)",      hint: "Higher limits. Model e.g. llama-3.3-70b-versatile" },
+  { value: "Claude",     label: "Anthropic Claude", hint: "Best tool-calling reliability. Model e.g. claude-opus-4-8" },
+  { value: "GroqFree",   label: "Groq (Free)",      hint: "Free tier for testing. Model e.g. llama-3.3-70b-versatile" },
+  { value: "GroqPaid",   label: "Groq (Paid)",      hint: "Higher limits. Model e.g. llama-3.3-70b-versatile" },
+  { value: "OpenRouter", label: "OpenRouter",       hint: "Aggregates many providers/models behind one key — free models available, or route to Claude/GPT/Llama etc." },
 ];
 const TIERS: AiTier[] = ["starter", "growth", "enterprise"];
 
@@ -414,6 +445,20 @@ const CLAUDE_MODELS = [
   "claude-haiku-4-5-20251001",
   "claude-fable-5",
 ];
+const OPENROUTER_MODELS = [
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "deepseek/deepseek-chat-v3.1:free",
+  "qwen/qwen3-235b-a22b:free",
+  "anthropic/claude-sonnet-5",
+  "openai/gpt-5.1",
+];
+
+/** Suggested model list for a provider — used by both the primary and fallback pickers. */
+function modelsFor(provider: AiProvider): string[] {
+  if (provider === "Claude") return CLAUDE_MODELS;
+  if (provider === "OpenRouter") return OPENROUTER_MODELS;
+  return GROQ_MODELS;
+}
 
 /**
  * Client mirror of the backend `AiTierCapabilities` matrix — lets the settings editor gate features
@@ -442,18 +487,31 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
   const [botToken, setBotToken] = React.useState("");
   const [botUsername, setBotUsername] = React.useState("");
 
+  // Fallback provider (optional, BYO) — tried once when the primary is rate-limited/unavailable.
+  const [fallbackEnabled, setFallbackEnabled] = React.useState(false);
+  const [fallbackProvider, setFallbackProvider] = React.useState<AiProvider>("OpenRouter");
+  const [fallbackModel, setFallbackModel] = React.useState("");
+  const [fallbackCustomModel, setFallbackCustomModel] = React.useState(false);
+  const [fallbackApiKey, setFallbackApiKey] = React.useState("");
+
   React.useEffect(() => {
     if (!data) return;
     setProvider(data.provider);
     const loadedModel = data.model ?? "";
     setModel(loadedModel);
-    const list = data.provider === "Claude" ? CLAUDE_MODELS : GROQ_MODELS;
-    setCustomModel(!!loadedModel && !list.includes(loadedModel));
+    setCustomModel(!!loadedModel && !modelsFor(data.provider).includes(loadedModel));
     setTier(data.tier);
     setEnabled(data.enabled);
     setVoiceEnabled(data.voiceEnabled);
     setTelegramEnabled(data.telegramEnabled);
     setBotUsername(data.telegramBotUsername ?? "");
+
+    setFallbackEnabled(!!data.fallbackProvider);
+    const fbProvider = data.fallbackProvider ?? "OpenRouter";
+    setFallbackProvider(fbProvider);
+    const loadedFbModel = data.fallbackModel ?? "";
+    setFallbackModel(loadedFbModel);
+    setFallbackCustomModel(!!loadedFbModel && !modelsFor(fbProvider).includes(loadedFbModel));
   }, [data]);
 
   const save = async () => {
@@ -470,15 +528,22 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
         telegramBotToken: botToken.trim() ? botToken.trim() : null,
         telegramBotUsername: telegramEnabled ? botUsername.trim() : null,
         clearTelegramBot: false,
+        fallbackProvider: fallbackEnabled ? fallbackProvider : null,
+        fallbackModel: fallbackEnabled ? (fallbackModel.trim() || null) : null,
+        fallbackApiKey: fallbackEnabled && fallbackApiKey.trim() ? fallbackApiKey.trim() : null,
+        clearFallbackApiKey: !fallbackEnabled,
       });
       setBotToken("");
+      setFallbackApiKey("");
     } catch {
       /* hook shows the toast; keep the modal open for retry */
     }
   };
 
   const selectedHint = PROVIDERS.find(p => p.value === provider)?.hint;
-  const models = provider === "Claude" ? CLAUDE_MODELS : GROQ_MODELS;
+  const models = modelsFor(provider);
+  const fallbackHint = PROVIDERS.find(p => p.value === fallbackProvider)?.hint;
+  const fallbackModels = modelsFor(fallbackProvider);
 
   return (
     <motion.div
@@ -515,8 +580,7 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
                 const p = e.target.value as AiProvider;
                 setProvider(p);
                 // Re-evaluate custom mode against the new provider's suggested models.
-                const list = p === "Claude" ? CLAUDE_MODELS : GROQ_MODELS;
-                setCustomModel(!!model && !list.includes(model));
+                setCustomModel(!!model && !modelsFor(p).includes(model));
               }}
                 className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
                 {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -559,6 +623,67 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
                 placeholder={data?.hasApiKey ? "•••••••• — leave blank to keep current key" : "Paste your provider API key"}
                 className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
               <p className="text-[11px] text-muted-foreground">Your key is encrypted at rest and never shown again.</p>
+            </div>
+
+            {/* Fallback provider (optional, BYO) */}
+            <div className="rounded-xl border border-border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium flex items-center gap-1.5">
+                  <Zap className="h-3.5 w-3.5 text-primary" /> Fallback provider
+                </span>
+                <input type="checkbox" checked={fallbackEnabled} onChange={e => setFallbackEnabled(e.target.checked)}
+                  className="h-4 w-4 accent-primary" />
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                Used automatically, once, only when your primary provider is rate-limited or unavailable — never
+                for any other reason. This is your own key and your own cost; we never see or pay for this traffic.
+              </p>
+
+              {fallbackEnabled && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Provider</label>
+                    <select value={fallbackProvider} onChange={e => {
+                      const p = e.target.value as AiProvider;
+                      setFallbackProvider(p);
+                      setFallbackCustomModel(!!fallbackModel && !modelsFor(p).includes(fallbackModel));
+                    }}
+                      className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
+                      {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                    {fallbackHint && <p className="text-[11px] text-muted-foreground">{fallbackHint}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Model</label>
+                    <select value={fallbackCustomModel ? "__custom__" : fallbackModel}
+                      onChange={e => {
+                        const v = e.target.value;
+                        if (v === "__custom__") { setFallbackCustomModel(true); }
+                        else { setFallbackCustomModel(false); setFallbackModel(v); }
+                      }}
+                      className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
+                      <option value="" disabled>Select a model…</option>
+                      {fallbackModels.map(m => <option key={m} value={m}>{m}</option>)}
+                      <option value="__custom__">Custom model…</option>
+                    </select>
+                    {fallbackCustomModel && (
+                      <input value={fallbackModel} onChange={e => setFallbackModel(e.target.value)} autoFocus
+                        placeholder="e.g. meta-llama/llama-3.3-70b-instruct:free"
+                        className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">
+                      API key {data?.hasFallbackApiKey && <span className="text-[11px] text-success">(a key is stored)</span>}
+                    </label>
+                    <input type="password" value={fallbackApiKey} onChange={e => setFallbackApiKey(e.target.value)}
+                      placeholder={data?.hasFallbackApiKey ? "•••••••• — leave blank to keep current key" : "Paste your fallback provider's API key"}
+                      className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Tier */}

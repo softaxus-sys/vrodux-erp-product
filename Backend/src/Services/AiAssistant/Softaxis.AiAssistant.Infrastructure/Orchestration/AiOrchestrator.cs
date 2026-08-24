@@ -6,6 +6,7 @@ using Softaxis.AiAssistant.Application.Chat.Dtos;
 using Softaxis.AiAssistant.Domain.Entities;
 using Softaxis.AiAssistant.Domain.Enums;
 using Softaxis.AiAssistant.Infrastructure.Persistence;
+using Softaxis.AiAssistant.Infrastructure.Providers;
 
 namespace Softaxis.AiAssistant.Infrastructure.Orchestration;
 
@@ -13,6 +14,12 @@ namespace Softaxis.AiAssistant.Infrastructure.Orchestration;
 /// The assistant engine. Loads the tenant's provider + decrypted key, assembles the caller-permitted
 /// tools for the requested agent, and runs the model→tools→model loop until a final answer or a
 /// pending write action. Tools execute as the current user, so tenant isolation and RBAC hold.
+///
+/// Every provider round-trip goes through <see cref="CallProviderAsync"/> — the one chokepoint that
+/// retries against the tenant's optional BYO fallback provider (see <see cref="TenantAiSettings"/>)
+/// when the primary fails in a retryable way (rate limited or having a bad time). This is why every
+/// caller — interactive chat, confirm, and autonomous automation runs — gets the same resilience
+/// without duplicating retry logic per call site.
 /// </summary>
 public sealed class AiOrchestrator(
     AiAssistantDbContext db,
@@ -24,7 +31,12 @@ public sealed class AiOrchestrator(
 {
     private const int MaxToolIterations = 6;
 
-    private sealed record ResolvedSettings(IAiChatProvider Provider, string Model, string ApiKey, AiProvider ProviderKind);
+    private sealed record ResolvedSettings(
+        IAiChatProvider Provider, string Model, string ApiKey, AiProvider ProviderKind,
+        IAiChatProvider? FallbackProvider, string? FallbackModel, string? FallbackApiKey, AiProvider? FallbackProviderKind);
+
+    private readonly record struct ProviderCallResult(
+        AiCompletionResult Result, bool UsedFallback, AiProvider AnsweredBy, string AnsweredModel);
 
     public async Task<AiChatResponseDto> RunAsync(
         string message,
@@ -47,48 +59,50 @@ public sealed class AiOrchestrator(
         var systemPrompt = AiSystemPrompt.Build(resolvedAgent, currentUser, toolDefs.Count > 0);
         var messages = new List<AiChatMessage>(history) { new(AiRole.User, message) };
         var toolsUsed = new List<string>();
+        var usedFallback = false;
 
         for (var iteration = 0; iteration < MaxToolIterations; iteration++)
         {
-            var request = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, toolDefs);
-            var result  = await settings.Provider.CompleteAsync(request, ct);
+            var call = await CallProviderAsync(settings, systemPrompt, messages, toolDefs, ct);
+            usedFallback |= call.UsedFallback;
+            var result = call.Result;
 
             if (!result.WantsTools)
             {
                 var reply = result.AssistantText ?? "I wasn't able to produce a response. Please try rephrasing.";
-                return Response(reply, toolsUsed, settings, null, resolvedAgent);
+                return Response(reply, toolsUsed, call.AnsweredBy, call.AnsweredModel, usedFallback, null, resolvedAgent);
             }
 
             // Execute read tools; the first WRITE tool stops the loop and becomes a pending action.
             messages.Add(new AiChatMessage(AiRole.Assistant, result.AssistantText, result.ToolCalls));
 
-            foreach (var call in result.ToolCalls)
+            foreach (var toolCall in result.ToolCalls)
             {
-                var tool = toolRegistry.Resolve(call.Name);
+                var tool = toolRegistry.Resolve(toolCall.Name);
 
                 if (tool is not null && !tool.IsReadOnly)
                 {
                     var summary = string.IsNullOrWhiteSpace(result.AssistantText)
-                        ? $"Run {call.Name}."
+                        ? $"Run {toolCall.Name}."
                         : result.AssistantText!;
-                    var pending = new PendingActionDto(call.Id, call.Name, call.ArgumentsJson, summary);
+                    var pending = new PendingActionDto(toolCall.Id, toolCall.Name, toolCall.ArgumentsJson, summary);
                     var reply = string.IsNullOrWhiteSpace(result.AssistantText)
                         ? "I'd like to make a change on your behalf. Please confirm to proceed."
                         : result.AssistantText!;
-                    return Response(reply, toolsUsed, settings, pending, resolvedAgent);
+                    return Response(reply, toolsUsed, call.AnsweredBy, call.AnsweredModel, usedFallback, pending, resolvedAgent);
                 }
 
-                var toolResult = await ExecuteReadToolAsync(tool, call, ct);
-                if (!toolsUsed.Contains(call.Name)) toolsUsed.Add(call.Name);
-                messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: call.Id));
+                var toolResult = await ExecuteReadToolAsync(tool, toolCall, ct);
+                if (!toolsUsed.Contains(toolCall.Name)) toolsUsed.Add(toolCall.Name);
+                messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: toolCall.Id));
             }
         }
 
         // Loop budget exhausted — one final call with no tools to force a text answer.
-        var finalRequest = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, []);
-        var finalResult  = await settings.Provider.CompleteAsync(finalRequest, ct);
-        var finalReply   = finalResult.AssistantText ?? "I gathered some data but couldn't finish the answer. Please try again.";
-        return Response(finalReply, toolsUsed, settings, null, resolvedAgent);
+        var finalCall = await CallProviderAsync(settings, systemPrompt, messages, [], ct);
+        usedFallback |= finalCall.UsedFallback;
+        var finalReply = finalCall.Result.AssistantText ?? "I gathered some data but couldn't finish the answer. Please try again.";
+        return Response(finalReply, toolsUsed, finalCall.AnsweredBy, finalCall.AnsweredModel, usedFallback, null, resolvedAgent);
     }
 
     public async Task<AiChatResponseDto> ConfirmAsync(string toolName, string argumentsJson, CancellationToken ct)
@@ -97,7 +111,8 @@ public sealed class AiOrchestrator(
 
         var tool = toolRegistry.Resolve(toolName);
         if (tool is null)
-            return Response($"That action ('{toolName}') is no longer available or you lack permission to run it.", [], settings, null, null);
+            return Response($"That action ('{toolName}') is no longer available or you lack permission to run it.",
+                [], settings.ProviderKind, settings.Model, false, null, null);
 
         string toolResult;
         try
@@ -108,7 +123,7 @@ public sealed class AiOrchestrator(
         catch (Exception ex)
         {
             logger.LogWarning(ex, "AI confirmed tool {Tool} failed", toolName);
-            return Response($"The action failed to run: {ex.Message}", [], settings, null, null);
+            return Response($"The action failed to run: {ex.Message}", [], settings.ProviderKind, settings.Model, false, null, null);
         }
 
         // Summarise the outcome for the user (no tools — just a short confirmation).
@@ -119,10 +134,9 @@ public sealed class AiOrchestrator(
                 $"I confirmed the action '{toolName}'. Here is the result returned by the system:\n{toolResult}\n\n" +
                 "In one or two sentences, confirm to me what was done (or explain the error if it failed). Do not invent details."),
         };
-        var request = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, []);
-        var result  = await settings.Provider.CompleteAsync(request, ct);
-        var reply   = result.AssistantText ?? "Done.";
-        return Response(reply, [toolName], settings, null, tool.Agent);
+        var call = await CallProviderAsync(settings, systemPrompt, messages, [], ct);
+        var reply = call.Result.AssistantText ?? "Done.";
+        return Response(reply, [toolName], call.AnsweredBy, call.AnsweredModel, call.UsedFallback, null, tool.Agent);
     }
 
     public async Task<AiAutonomousResult> RunAutonomousAsync(
@@ -150,50 +164,52 @@ public sealed class AiOrchestrator(
 
         var messages = new List<AiChatMessage> { new(AiRole.User, instruction) };
         var toolsUsed = new List<string>();
+        var usedFallback = false;
 
         for (var iteration = 0; iteration < MaxToolIterations; iteration++)
         {
-            var request = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, toolDefs);
-            AiCompletionResult result;
-            try { result = await settings.Provider.CompleteAsync(request, ct); }
+            ProviderCallResult call;
+            try { call = await CallProviderAsync(settings, systemPrompt, messages, toolDefs, ct); }
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Autonomous run: provider call failed");
                 return new AiAutonomousResult("failed", "", toolsUsed, null, ex.Message);
             }
+            usedFallback |= call.UsedFallback;
+            var result = call.Result;
 
             if (!result.WantsTools)
-                return new AiAutonomousResult("success", result.AssistantText ?? "(no output)", toolsUsed, null, null);
+                return new AiAutonomousResult("success", result.AssistantText ?? "(no output)", toolsUsed, null, null, usedFallback);
 
             messages.Add(new AiChatMessage(AiRole.Assistant, result.AssistantText, result.ToolCalls));
 
-            foreach (var call in result.ToolCalls)
+            foreach (var toolCall in result.ToolCalls)
             {
-                var tool = toolRegistry.Resolve(call.Name);
+                var tool = toolRegistry.Resolve(toolCall.Name);
 
                 if (tool is not null && !tool.IsReadOnly && !autopilot)
                 {
                     // Confirm mode: stop at the first write and queue it for approval.
                     var summary = string.IsNullOrWhiteSpace(result.AssistantText)
-                        ? $"This automation wants to run '{call.Name}'."
+                        ? $"This automation wants to run '{toolCall.Name}'."
                         : result.AssistantText!;
-                    var pending = new PendingActionDto(call.Id, call.Name, call.ArgumentsJson, summary);
-                    return new AiAutonomousResult("pending_confirmation", summary, toolsUsed, pending, null);
+                    var pending = new PendingActionDto(toolCall.Id, toolCall.Name, toolCall.ArgumentsJson, summary);
+                    return new AiAutonomousResult("pending_confirmation", summary, toolsUsed, pending, null, usedFallback);
                 }
 
                 // Read tool, or a write tool in autopilot mode — execute and feed the result back.
-                var toolResult = await ExecuteReadToolAsync(tool, call, ct);
-                if (!toolsUsed.Contains(call.Name)) toolsUsed.Add(call.Name);
-                messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: call.Id));
+                var toolResult = await ExecuteReadToolAsync(tool, toolCall, ct);
+                if (!toolsUsed.Contains(toolCall.Name)) toolsUsed.Add(toolCall.Name);
+                messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: toolCall.Id));
             }
         }
 
         // Loop budget exhausted — one final call with no tools to force a text answer.
-        var finalRequest = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, []);
         try
         {
-            var finalResult = await settings.Provider.CompleteAsync(finalRequest, ct);
-            return new AiAutonomousResult("success", finalResult.AssistantText ?? "(no output)", toolsUsed, null, null);
+            var finalCall = await CallProviderAsync(settings, systemPrompt, messages, [], ct);
+            usedFallback |= finalCall.UsedFallback;
+            return new AiAutonomousResult("success", finalCall.Result.AssistantText ?? "(no output)", toolsUsed, null, null, usedFallback);
         }
         catch (Exception ex)
         {
@@ -216,8 +232,65 @@ public sealed class AiOrchestrator(
 
         var provider = providerFactory.Create(settings.Provider);
         var model    = string.IsNullOrWhiteSpace(settings.Model) ? DefaultModel(settings.Provider) : settings.Model!;
-        return new ResolvedSettings(provider, model, apiKey, settings.Provider);
+
+        // Fallback is optional and BYO — never blocks startup, silently unavailable if not fully
+        // configured (provider chosen but no key stored, or the stored key fails to decrypt).
+        IAiChatProvider? fallbackProvider = null;
+        string? fallbackModel = null;
+        string? fallbackApiKey = null;
+        if (settings.FallbackConfigured)
+        {
+            var fbKey = protector.Unprotect(settings.FallbackProtectedApiKey);
+            if (!string.IsNullOrEmpty(fbKey))
+            {
+                fallbackProvider = providerFactory.Create(settings.FallbackProvider!.Value);
+                fallbackModel    = string.IsNullOrWhiteSpace(settings.FallbackModel)
+                                    ? DefaultModel(settings.FallbackProvider!.Value)
+                                    : settings.FallbackModel!;
+                fallbackApiKey   = fbKey;
+            }
+        }
+
+        return new ResolvedSettings(
+            provider, model, apiKey, settings.Provider,
+            fallbackProvider, fallbackModel, fallbackApiKey,
+            fallbackProvider is not null ? settings.FallbackProvider : null);
     }
+
+    /// <summary>
+    /// The one chokepoint every provider round-trip goes through. Tries the primary; on a
+    /// retryable failure (rate limited or the provider having a bad time) with a fallback
+    /// configured, retries once against the fallback. A non-retryable failure (bad key, bad
+    /// request) is never retried — it would fail identically on the fallback and just hides a
+    /// real misconfiguration.
+    /// </summary>
+    private async Task<ProviderCallResult> CallProviderAsync(
+        ResolvedSettings settings, string systemPrompt, IReadOnlyList<AiChatMessage> messages,
+        IReadOnlyList<AiToolDefinition> toolDefs, CancellationToken ct)
+    {
+        var primaryRequest = new AiCompletionRequest(settings.Model, settings.ApiKey, systemPrompt, messages, toolDefs);
+        try
+        {
+            var result = await settings.Provider.CompleteAsync(primaryRequest, ct);
+            return new ProviderCallResult(result, false, settings.ProviderKind, settings.Model);
+        }
+        catch (Exception ex) when (settings.FallbackProvider is not null && !ct.IsCancellationRequested && IsRetryable(ex))
+        {
+            logger.LogWarning(ex, "Primary AI provider {Provider} failed — retrying via fallback {Fallback}",
+                settings.ProviderKind, settings.FallbackProviderKind);
+            var fallbackRequest = new AiCompletionRequest(settings.FallbackModel!, settings.FallbackApiKey!, systemPrompt, messages, toolDefs);
+            var result = await settings.FallbackProvider.CompleteAsync(fallbackRequest, ct);
+            return new ProviderCallResult(result, true, settings.FallbackProviderKind!.Value, settings.FallbackModel!);
+        }
+    }
+
+    private static bool IsRetryable(Exception ex) => ex switch
+    {
+        AiProviderException ape => ape.IsRetryable,
+        HttpRequestException    => true,
+        TaskCanceledException   => true, // the HTTP client's own timeout, not caller cancellation (excluded above)
+        _                       => false,
+    };
 
     private async Task<string> ExecuteReadToolAsync(IAiTool? tool, AiToolCall call, CancellationToken ct)
     {
@@ -236,8 +309,9 @@ public sealed class AiOrchestrator(
     }
 
     private static AiChatResponseDto Response(
-        string reply, IReadOnlyList<string> toolsUsed, ResolvedSettings s, PendingActionDto? pending, string? agent) =>
-        new(reply, toolsUsed, s.ProviderKind.ToString(), s.Model, pending, agent);
+        string reply, IReadOnlyList<string> toolsUsed, AiProvider provider, string model, bool usedFallback,
+        PendingActionDto? pending, string? agent) =>
+        new(reply, toolsUsed, provider.ToString(), model, pending, agent, usedFallback);
 
     /// <summary>Detects a leading "Vrodux &lt;agent&gt;" / "&lt;agent&gt; agent" and strips it from the message.</summary>
     private static string? DetectAgent(ref string message)
@@ -273,7 +347,8 @@ public sealed class AiOrchestrator(
 
     private static string DefaultModel(AiProvider provider) => provider switch
     {
-        AiProvider.Claude => "claude-opus-4-8",
-        _                 => "openai/gpt-oss-120b", // Groq: llama-3.3-70b-versatile is deprecating (Aug 2026)
+        AiProvider.Claude     => "claude-opus-4-8",
+        AiProvider.OpenRouter => "meta-llama/llama-3.3-70b-instruct:free",
+        _                     => "openai/gpt-oss-120b", // Groq: llama-3.3-70b-versatile is deprecating (Aug 2026)
     };
 }

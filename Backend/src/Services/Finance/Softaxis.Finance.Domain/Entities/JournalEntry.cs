@@ -4,16 +4,20 @@ public sealed class JournalEntry
 {
     private JournalEntry() { }
 
-    public JournalEntry(string date, string description, string? reference, string? notes)
+    public JournalEntry(
+        string date, string description, string? reference, string? notes,
+        string? createdByUserId = null, string? createdByName = null)
     {
-        Id          = Guid.NewGuid();
-        EntryNumber = $"JE-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
-        Date        = date;           // yyyy-MM-dd
-        Description = description.Trim();
-        Reference   = reference?.Trim();
-        Notes       = notes?.Trim();
-        Status      = "draft";        // draft | posted | reversed
-        CreatedAt   = DateTime.UtcNow;
+        Id              = Guid.NewGuid();
+        EntryNumber     = $"JE-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+        Date            = date;           // yyyy-MM-dd
+        Description     = description.Trim();
+        Reference       = reference?.Trim();
+        Notes           = notes?.Trim();
+        Status          = "draft";        // draft | posted | reversed
+        CreatedAt       = DateTime.UtcNow;
+        CreatedByUserId = createdByUserId;
+        CreatedByName   = createdByName?.Trim();
     }
 
     public Guid      Id          { get; private set; }
@@ -27,6 +31,8 @@ public sealed class JournalEntry
     public DateTime  CreatedAt   { get; private set; }
     public DateTime? UpdatedAt   { get; private set; }
     public bool      IsDeleted   { get; private set; }
+    public string?   CreatedByUserId { get; private set; }
+    public string?   CreatedByName   { get; private set; }
 
     public ICollection<JournalEntryLine> Lines { get; private set; } = new List<JournalEntryLine>();
 

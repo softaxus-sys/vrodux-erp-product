@@ -15,4 +15,7 @@ public sealed record AiSettingsDto(
     string? TelegramBotUsername = null,
     bool HasTelegramBotToken = false,
     string? TelegramInboundKey = null,
-    AiCapabilitiesDto? Capabilities = null);
+    AiCapabilitiesDto? Capabilities = null,
+    string? FallbackProvider = null,
+    string? FallbackModel = null,
+    bool HasFallbackApiKey = false);

@@ -18,6 +18,8 @@ public static class AiAgents
         ["inventory"]          = "Inventory",
         ["pos"]                = "POS",
         ["project-management"] = "Projects",
+        ["restaurant"]          = "Restaurant",
+        ["visa"]                = "Visa Services",
         ["b2b"]                = "B2B",
         ["education"]          = "Education",
         ["healthcare"]        = "Healthcare",

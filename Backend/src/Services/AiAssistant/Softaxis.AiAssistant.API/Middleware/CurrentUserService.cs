@@ -38,6 +38,21 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
             ? imp.Permissions.Contains(permissionKey)
             : Principal?.FindAll("permission").Any(c => c.Value == permissionKey) == true;
 
+    /// <summary>
+    /// The "modules" claim is a single comma-joined string (set at login from
+    /// Tenant.ResolvedModules — see JwtTokenService), not a JSON array or repeated claims.
+    /// </summary>
+    public bool HasModule(string moduleKey)
+    {
+        if (AiImpersonation.Current is { } imp)
+            return imp.Modules.Contains(moduleKey);
+
+        var raw = Principal?.FindFirstValue("modules");
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   .Contains(moduleKey, StringComparer.OrdinalIgnoreCase);
+    }
+
     public string? BearerToken
     {
         get

@@ -19,18 +19,23 @@ public sealed record UpdateAiSettingsCommand(
     bool ClearApiKey,
     string? TelegramBotToken = null,
     string? TelegramBotUsername = null,
-    bool ClearTelegramBot = false) : ICommand<AiSettingsDto>;
+    bool ClearTelegramBot = false,
+    // Fallback provider — null/empty FallbackProvider = feature off (BYO, tenant's own second key).
+    string? FallbackProvider = null,
+    string? FallbackModel = null,
+    string? FallbackApiKey = null,
+    bool ClearFallbackApiKey = false) : ICommand<AiSettingsDto>;
 
 public sealed class UpdateAiSettingsCommandValidator : AbstractValidator<UpdateAiSettingsCommand>
 {
-    private static readonly string[] Providers = ["Claude", "GroqFree", "GroqPaid"];
+    private static readonly string[] Providers = ["Claude", "GroqFree", "GroqPaid", "OpenRouter"];
     private static readonly string[] Tiers     = ["starter", "growth", "enterprise"];
 
     public UpdateAiSettingsCommandValidator()
     {
         RuleFor(x => x.Provider)
             .Must(p => Providers.Contains(p, StringComparer.OrdinalIgnoreCase))
-            .WithMessage("Provider must be one of: Claude, GroqFree, GroqPaid.");
+            .WithMessage("Provider must be one of: Claude, GroqFree, GroqPaid, OpenRouter.");
 
         RuleFor(x => x.Tier)
             .Must(t => Tiers.Contains(t, StringComparer.OrdinalIgnoreCase))
@@ -38,5 +43,11 @@ public sealed class UpdateAiSettingsCommandValidator : AbstractValidator<UpdateA
 
         RuleFor(x => x.Model).MaximumLength(120);
         RuleFor(x => x.ApiKey).MaximumLength(400);
+
+        RuleFor(x => x.FallbackProvider)
+            .Must(p => string.IsNullOrWhiteSpace(p) || Providers.Contains(p, StringComparer.OrdinalIgnoreCase))
+            .WithMessage("Fallback provider must be one of: Claude, GroqFree, GroqPaid, OpenRouter.");
+        RuleFor(x => x.FallbackModel).MaximumLength(120);
+        RuleFor(x => x.FallbackApiKey).MaximumLength(400);
     }
 }

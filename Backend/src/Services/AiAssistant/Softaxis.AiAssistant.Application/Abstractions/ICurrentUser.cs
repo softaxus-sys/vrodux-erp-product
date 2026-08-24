@@ -14,6 +14,14 @@ public interface ICurrentUser
     /// <summary>True if the caller holds the given permission claim (e.g. "crm.leads.view").</summary>
     bool HasPermission(string permissionKey);
 
+    /// <summary>
+    /// True if the caller's tenant has the given module enabled/subscribed (e.g. "finance", "hr").
+    /// A tool must never be offered or run against a module the tenant hasn't licensed, even if the
+    /// caller otherwise holds the permission (permissions are role-based; module enablement is a
+    /// separate, tenant-level gate — see PlanDefinitions/Tenant.ResolvedModules).
+    /// </summary>
+    bool HasModule(string moduleKey);
+
     /// <summary>The raw bearer token of the current request, so tools can call back to the gateway as this user.</summary>
     string? BearerToken { get; }
 

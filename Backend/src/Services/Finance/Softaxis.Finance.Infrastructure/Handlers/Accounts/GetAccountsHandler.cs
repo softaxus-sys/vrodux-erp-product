@@ -13,7 +13,7 @@ internal sealed class GetAccountsHandler(FinanceDbContext db)
     public async Task<Result<IReadOnlyList<AccountDto>>> Handle(
         GetAccountsQuery q, CancellationToken ct)
     {
-        var query = db.Accounts.AsNoTracking();
+        var query = db.Accounts.AsNoTracking().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(q.Search))
             query = query.Where(x =>

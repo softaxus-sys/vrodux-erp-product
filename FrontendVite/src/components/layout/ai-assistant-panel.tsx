@@ -1,12 +1,12 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, X, Send, RotateCcw, Check, Ban, ExternalLink } from "lucide-react";
+import { Sparkles, X, Send, RotateCcw, Check, Ban, ExternalLink, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUiStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useSendChat, useConfirmAction } from "@/hooks/ai/use-ai";
+import { useSendChat, useConfirmAction, useAiConversation, useClearConversation } from "@/hooks/ai/use-ai";
 import type { ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
 
@@ -17,6 +17,8 @@ interface Message {
   timestamp: string;
   /** Set on an assistant message that proposed a write action awaiting confirmation. */
   pending?: PendingAction | null;
+  /** True when this reply came from the tenant's fallback AI provider, not their primary. */
+  usedFallback?: boolean;
 }
 
 const suggestions = [
@@ -46,14 +48,31 @@ function prettifyAction(toolName: string): string {
 export function AiAssistantPanel() {
   const { aiAssistantOpen, setAiAssistantOpen } = useUiStore();
   const navigate = useNavigate();
-  const [messages, setMessages] = React.useState<Message[]>([welcomeMessage()]);
+  const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
 
   const sendChat = useSendChat();
   const confirmAction = useConfirmAction();
+  const { data: conversation, isLoading: historyLoading } = useAiConversation();
+  const clearConversation = useClearConversation();
   const isTyping = sendChat.isPending || confirmAction.isPending;
+
+  // Seed from the user's persisted history once it loads, so reopening the panel (or navigating
+  // away and back) shows what they already chatted instead of resetting to just the welcome msg.
+  const seededRef = React.useRef(false);
+  React.useEffect(() => {
+    if (seededRef.current || historyLoading || !conversation) return;
+    seededRef.current = true;
+    setMessages(
+      conversation.messages.length > 0
+        ? conversation.messages.map((m) => ({
+            id: m.id, role: m.role, content: m.content, timestamp: m.createdAt, usedFallback: m.usedFallback,
+          }))
+        : [welcomeMessage()],
+    );
+  }, [conversation, historyLoading]);
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -86,6 +105,7 @@ export function AiAssistantPanel() {
         content: res.reply,
         timestamp: new Date().toISOString(),
         pending: res.pendingAction ?? null,
+        usedFallback: res.usedFallback,
       }]);
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Something went wrong reaching the assistant.";
@@ -161,7 +181,7 @@ export function AiAssistantPanel() {
                 size="icon"
                 className="h-7 w-7"
                 title="Clear chat"
-                onClick={() => setMessages([welcomeMessage()])}
+                onClick={() => { clearConversation.mutate(); setMessages([welcomeMessage()]); }}
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
@@ -203,6 +223,14 @@ export function AiAssistantPanel() {
                     >
                       {msg.content}
                     </div>
+                    {msg.role === "assistant" && msg.usedFallback && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70 px-0.5"
+                        title="Answered using your fallback AI provider — your primary was rate-limited or unavailable."
+                      >
+                        <Zap className="h-2.5 w-2.5" /> via fallback
+                      </span>
+                    )}
                     {msg.pending && (
                       <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-2.5">
                         <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-1.5">

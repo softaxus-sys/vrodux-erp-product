@@ -4,7 +4,7 @@ const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/ai`
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type AiProvider = "Claude" | "GroqFree" | "GroqPaid";
+export type AiProvider = "Claude" | "GroqFree" | "GroqPaid" | "OpenRouter";
 export type AiTier = "starter" | "growth" | "enterprise";
 
 /** What the tenant's plan tier unlocks + which optional features the admin turned on. No secrets. */
@@ -34,6 +34,11 @@ export interface AiSettingsDto {
   hasTelegramBotToken: boolean;
   telegramInboundKey: string | null;
   capabilities: AiCapabilitiesDto | null;
+  /** Optional BYO fallback provider — tried once when the primary is rate-limited/unavailable. */
+  fallbackProvider: AiProvider | null;
+  fallbackModel: string | null;
+  /** True when a fallback key is stored. The key itself is never returned. */
+  hasFallbackApiKey: boolean;
 }
 
 export interface UpdateAiSettingsPayload {
@@ -50,6 +55,12 @@ export interface UpdateAiSettingsPayload {
   telegramBotToken?: string | null;
   telegramBotUsername?: string | null;
   clearTelegramBot?: boolean;
+  /** Null/omit = fallback disabled. The tenant's own second key — never subsidized by us. */
+  fallbackProvider?: AiProvider | null;
+  fallbackModel?: string | null;
+  /** New plaintext fallback key; omit/null to leave the stored key unchanged. */
+  fallbackApiKey?: string | null;
+  clearFallbackApiKey?: boolean;
 }
 
 /** Current user's Telegram connection state. */
@@ -80,6 +91,22 @@ export interface PendingAction {
   summary: string;
 }
 
+/** One persisted chat turn, as stored server-side per user. */
+export interface StoredChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  createdAt: string;
+  /** True when this assistant reply came from the tenant's fallback provider, not the primary. */
+  usedFallback?: boolean;
+}
+
+/** The caller's ongoing assistant conversation — persists across navigation and logins. */
+export interface AiConversationDto {
+  conversationId: string | null;
+  messages: StoredChatMessage[];
+}
+
 export interface AiChatResponse {
   reply: string;
   toolsUsed: string[];
@@ -87,6 +114,8 @@ export interface AiChatResponse {
   model: string;
   pendingAction: PendingAction | null;
   agent: string | null;
+  /** True when this reply came from the fallback provider (primary was rate-limited/unavailable). */
+  usedFallback: boolean;
 }
 
 export interface ConfirmActionPayload {
@@ -290,6 +319,14 @@ export const aiApi = {
 
   confirmAction: (payload: ConfirmActionPayload): Promise<AiChatResponse> =>
     rawApiClient.post(`${BASE}/confirm`, payload),
+
+  /** The caller's persisted chat history, so it survives navigating away and back. */
+  getConversation: (): Promise<AiConversationDto> =>
+    rawApiClient.get(`${BASE}/conversation`),
+
+  /** Clears the caller's persisted conversation. */
+  clearConversation: (): Promise<void> =>
+    rawApiClient.delete(`${BASE}/conversation`),
 
   getAgents: (): Promise<AiAgentDto[]> =>
     rawApiClient.get(`${BASE}/agents`),

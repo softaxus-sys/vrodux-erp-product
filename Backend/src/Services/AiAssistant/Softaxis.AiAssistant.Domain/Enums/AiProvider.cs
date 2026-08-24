@@ -15,4 +15,11 @@ public enum AiProvider
 
     /// <summary>Groq paid tier — same OpenAI-compatible endpoint, higher limits / production use.</summary>
     GroqPaid = 2,
+
+    /// <summary>
+    /// OpenRouter — OpenAI-compatible aggregator over many upstream providers/models behind one
+    /// BYO key. Usable as a primary provider or, most usefully, as the fallback slot: its own
+    /// per-request model-fallback list gives a second layer of resilience for one extra key.
+    /// </summary>
+    OpenRouter = 3,
 }

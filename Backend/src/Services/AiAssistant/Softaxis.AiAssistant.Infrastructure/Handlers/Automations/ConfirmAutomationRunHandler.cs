@@ -61,7 +61,8 @@ internal sealed class ConfirmAutomationRunHandler(
         {
             using (AiImpersonation.Use(new AiImpersonatedUser(
                 tok.UserId, tok.Username, tok.Email, tok.IsSuperAdmin,
-                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl)))
+                tok.Permissions.ToHashSet(StringComparer.Ordinal), tok.AccessToken, baseUrl,
+                tok.Modules.ToHashSet(StringComparer.OrdinalIgnoreCase))))
             {
                 var res = await orchestrator.ConfirmAsync(run.PendingToolName!, run.PendingArgumentsJson ?? "{}", ct);
                 run.Resolve("success", res.Reply, null);

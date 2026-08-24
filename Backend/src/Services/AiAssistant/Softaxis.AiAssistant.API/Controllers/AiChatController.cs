@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.AiAssistant.API.Controllers.Common;
 using Softaxis.AiAssistant.Application.Chat.Commands;
+using Softaxis.AiAssistant.Application.Chat.Queries;
 
 namespace Softaxis.AiAssistant.API.Controllers;
 
@@ -24,4 +25,14 @@ public sealed class AiChatController(ISender sender) : AiAssistantControllerBase
     [HttpPost("confirm")]
     public async Task<IActionResult> Confirm([FromBody] ConfirmActionCommand cmd, CancellationToken ct) =>
         OkOrError(await sender.Send(cmd, ct));
+
+    /// <summary>The caller's persisted chat history, so it survives page navigation.</summary>
+    [HttpGet("conversation")]
+    public async Task<IActionResult> GetConversation(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetMyConversationQuery(), ct));
+
+    /// <summary>Clears the caller's persisted conversation, starting fresh.</summary>
+    [HttpDelete("conversation")]
+    public async Task<IActionResult> ClearConversation(CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new ClearMyConversationCommand(), ct));
 }

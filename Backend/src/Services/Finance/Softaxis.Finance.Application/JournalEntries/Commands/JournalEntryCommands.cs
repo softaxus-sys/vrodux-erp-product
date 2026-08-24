@@ -6,7 +6,8 @@ namespace Softaxis.Finance.Application.JournalEntries.Commands;
 
 public sealed record CreateJournalEntryCommand(
     string Date, string Description, string? Reference, string? Notes,
-    IReadOnlyList<LineRequest> Lines) : ICommand<JournalEntryDto>;
+    IReadOnlyList<LineRequest> Lines,
+    string? CreatedByUserId = null, string? CreatedByName = null) : ICommand<JournalEntryDto>;
 
 public sealed class CreateJournalEntryValidator : AbstractValidator<CreateJournalEntryCommand>
 {

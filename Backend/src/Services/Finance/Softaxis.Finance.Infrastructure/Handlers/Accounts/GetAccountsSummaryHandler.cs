@@ -14,7 +14,7 @@ internal sealed class GetAccountsSummaryHandler(FinanceDbContext db)
         GetAccountsSummaryQuery _, CancellationToken ct)
     {
         var accounts = await db.Accounts.AsNoTracking()
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive && !x.IsDeleted)
             .ToListAsync(ct);
 
         // Totals are built from CURRENT balances (opening + posted movements), so this summary

@@ -15,6 +15,8 @@ public sealed class AiAssistantDbContext(DbContextOptions<AiAssistantDbContext> 
     public DbSet<TenantVoiceSettings> VoiceSettings => Set<TenantVoiceSettings>();
     public DbSet<ScheduledCall>     ScheduledCalls  => Set<ScheduledCall>();
     public DbSet<CallAttempt>       CallAttempts    => Set<CallAttempt>();
+    public DbSet<AiConversation>    Conversations   => Set<AiConversation>();
+    public DbSet<AiConversationMessage> ChatMessages => Set<AiConversationMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

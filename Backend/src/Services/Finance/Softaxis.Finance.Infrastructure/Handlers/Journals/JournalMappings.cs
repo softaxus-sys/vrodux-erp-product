@@ -9,7 +9,7 @@ internal static class JournalMappings
         e.Id, e.EntryNumber, e.Date, e.Description, e.Reference, e.Status, e.Notes,
         e.TotalDebit, e.TotalCredit, e.IsBalanced,
         e.Date.Length >= 7 ? e.Date[..7] : e.Date,
-        "System",
+        e.CreatedByName ?? "System",
         e.Lines.Select(l => new JournalLineDto(
             l.Id,
             l.Account?.AccountNumber ?? l.AccountId.ToString()[..8],

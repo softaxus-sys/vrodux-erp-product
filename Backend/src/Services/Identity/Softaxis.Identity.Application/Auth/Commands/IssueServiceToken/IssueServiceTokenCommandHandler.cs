@@ -27,6 +27,7 @@ public sealed class IssueServiceTokenCommandHandler(
         var accessToken = jwtService.GenerateAccessToken(user, permKeys, tenant);
 
         return new ServiceTokenDto(
-            accessToken, user.Id, user.Username, user.Email.Value, user.IsSuperAdmin, user.TenantId, permKeys);
+            accessToken, user.Id, user.Username, user.Email.Value, user.IsSuperAdmin, user.TenantId, permKeys,
+            tenant?.ResolvedModules ?? []);
     }
 }
