@@ -18,6 +18,7 @@ public sealed class CrmConvertLeadTool(GatewayToolClient gateway) : IAiTool
         "sensible defaults from the lead.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "crm.leads.edit";
     public string ParametersJsonSchema =>
         """

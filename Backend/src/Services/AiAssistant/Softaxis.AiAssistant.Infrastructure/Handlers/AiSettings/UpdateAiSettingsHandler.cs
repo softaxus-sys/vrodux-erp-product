@@ -52,7 +52,7 @@ internal sealed class UpdateAiSettingsHandler(AiAssistantDbContext db, ISecretPr
                 return Result.Failure<AiSettingsDto>(Error.Custom("AiSettings.InvalidProvider", $"Unknown fallback provider '{cmd.FallbackProvider}'."));
             fallbackProvider = fp;
         }
-        settings.ConfigureFallback(fallbackProvider, cmd.FallbackModel);
+        settings.ConfigureFallback(cmd.FallbackEnabled, fallbackProvider, cmd.FallbackModel);
 
         if (cmd.ClearFallbackApiKey)
             settings.ClearFallbackApiKey();
@@ -66,6 +66,7 @@ internal sealed class UpdateAiSettingsHandler(AiAssistantDbContext db, ISecretPr
             settings.VoiceEnabled, settings.TelegramEnabled, settings.HasApiKey,
             settings.TelegramBotUsername, settings.HasTelegramBotToken, settings.TelegramInboundKey,
             Capabilities: AiCapabilitiesMapper.From(settings),
+            FallbackEnabled: settings.FallbackEnabled,
             FallbackProvider: settings.FallbackProvider?.ToString(),
             FallbackModel: settings.FallbackModel,
             HasFallbackApiKey: settings.HasFallbackApiKey);

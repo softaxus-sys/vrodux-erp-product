@@ -13,6 +13,7 @@ public sealed class FinanceCreateInvoiceTool(GatewayToolClient gateway) : IAiToo
         "due date, tax rate, and at least one line item (description, quantity, unit price).";
     public string Agent       => "finance";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "finance.invoicing.create";
     public string ParametersJsonSchema =>
         """

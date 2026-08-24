@@ -11,6 +11,7 @@ public sealed class GenericListTool(AiListSpec spec, GatewayToolClient gateway) 
     public string  Description         => spec.Description;
     public string  Agent               => spec.Agent;
     public bool    IsReadOnly          => true;
+    public bool    IncludeInAutoMode   => false; // part of the large catalog — keep Auto mode's payload small
     public string? RequiredPermission  => spec.Permission;
     public string  ParametersJsonSchema => """{"type":"object","properties":{},"additionalProperties":false}""";
 
@@ -25,6 +26,7 @@ public sealed class GenericGetByIdTool(AiGetByIdSpec spec, GatewayToolClient gat
     public string  Description         => spec.Description;
     public string  Agent               => spec.Agent;
     public bool    IsReadOnly          => true;
+    public bool    IncludeInAutoMode   => false; // deep single-record read, needs an id — not general-question-worthy
     public string? RequiredPermission  => spec.Permission;
     public string ParametersJsonSchema
     {
@@ -64,6 +66,7 @@ public sealed class GenericCreateTool(AiCreateSpec spec, GatewayToolClient gatew
     public string  Description         => spec.Description;
     public string  Agent               => spec.Agent;
     public bool    IsReadOnly          => false;
+    public bool    IncludeInAutoMode   => false; // write — requires an explicit agent
     public string? RequiredPermission  => spec.Permission;
 
     public string ParametersJsonSchema

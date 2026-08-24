@@ -19,6 +19,7 @@ public sealed class FinanceCreateJournalEntryTool(GatewayToolClient gateway) : I
         "or a credit amount (never both). The entry is created as a draft; posting it is a separate step.";
     public string Agent       => "finance";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "finance.journals.create";
     public string ParametersJsonSchema =>
         """

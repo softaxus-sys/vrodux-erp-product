@@ -6,9 +6,12 @@ public sealed class AiProviderException(string message, int? httpStatusCode = nu
     public int? HttpStatusCode { get; } = httpStatusCode;
 
     /// <summary>
-    /// True for failures worth retrying against a fallback provider — rate limited (429) or the
-    /// provider having a bad time (5xx). False for anything else (bad key, bad request, etc.) —
-    /// those would fail identically on a fallback, so retrying would just hide a real problem.
+    /// True for failures worth retrying against a fallback provider — rate limited (429), the
+    /// provider having a bad time (5xx), or a request too large for the model's token-per-minute
+    /// budget (413 — Groq uses this status for that specific case, and a differently-sized/priced
+    /// fallback model may well have headroom the primary doesn't). False for anything else (bad
+    /// key, unknown model, malformed request) — those would fail identically on a fallback, so
+    /// retrying would just hide a real problem.
     /// </summary>
-    public bool IsRetryable => HttpStatusCode is 429 or >= 500;
+    public bool IsRetryable => HttpStatusCode is 413 or 429 or >= 500;
 }

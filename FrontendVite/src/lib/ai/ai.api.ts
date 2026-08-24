@@ -34,7 +34,12 @@ export interface AiSettingsDto {
   hasTelegramBotToken: boolean;
   telegramInboundKey: string | null;
   capabilities: AiCapabilitiesDto | null;
-  /** Optional BYO fallback provider — tried once when the primary is rate-limited/unavailable. */
+  /**
+   * Optional BYO fallback provider — tried once when the primary is rate-limited/unavailable.
+   * fallbackEnabled is independent of provider/model/hasFallbackApiKey, same as `enabled` is
+   * independent of `hasApiKey` above — turning it off never clears the stored key.
+   */
+  fallbackEnabled: boolean;
   fallbackProvider: AiProvider | null;
   fallbackModel: string | null;
   /** True when a fallback key is stored. The key itself is never returned. */
@@ -55,7 +60,9 @@ export interface UpdateAiSettingsPayload {
   telegramBotToken?: string | null;
   telegramBotUsername?: string | null;
   clearTelegramBot?: boolean;
-  /** Null/omit = fallback disabled. The tenant's own second key — never subsidized by us. */
+  /** Independent of provider/model/key, same as `enabled` vs `apiKey` above. */
+  fallbackEnabled: boolean;
+  /** The tenant's own second key — never subsidized by us. */
   fallbackProvider?: AiProvider | null;
   fallbackModel?: string | null;
   /** New plaintext fallback key; omit/null to leave the stored key unchanged. */

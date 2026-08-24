@@ -20,7 +20,10 @@ public sealed record UpdateAiSettingsCommand(
     string? TelegramBotToken = null,
     string? TelegramBotUsername = null,
     bool ClearTelegramBot = false,
-    // Fallback provider — null/empty FallbackProvider = feature off (BYO, tenant's own second key).
+    // Fallback provider (BYO, tenant's own second key). FallbackEnabled is independent of the
+    // provider/model/key — turning it off never clears the stored key, same as the primary's
+    // Enabled toggle never clears ApiKey.
+    bool FallbackEnabled = false,
     string? FallbackProvider = null,
     string? FallbackModel = null,
     string? FallbackApiKey = null,

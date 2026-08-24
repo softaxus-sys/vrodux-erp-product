@@ -13,6 +13,7 @@ public sealed class PurchaseCreateOrderTool(GatewayToolClient gateway) : IAiTool
         "purchase_list_vendors first.";
     public string Agent       => "purchase";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "purchase.orders.create";
     public string ParametersJsonSchema =>
         """

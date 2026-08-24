@@ -13,6 +13,7 @@ public sealed class CrmGetDealByIdTool(GatewayToolClient gateway) : IAiTool
         "deal) to look up one specific deal's detail.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => true;
+    public bool   IncludeInAutoMode => false; // deep single-record read, needs an id — not general-question-worthy
     public string? RequiredPermission => "crm.pipeline.view";
     public string ParametersJsonSchema =>
         """{"type":"object","properties":{"dealId":{"type":"string","description":"The deal's id (GUID) (required)"}},"required":["dealId"],"additionalProperties":false}""";

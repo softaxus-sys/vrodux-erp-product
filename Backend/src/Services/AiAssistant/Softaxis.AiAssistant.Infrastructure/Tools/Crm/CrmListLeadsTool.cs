@@ -10,6 +10,7 @@ public sealed class CrmListLeadsTool(GatewayToolClient gateway) : IAiTool
     public string Description  => "List all CRM leads for the current company, including their name, company, status, source, priority, estimated value, and assigned owner. Use this to answer questions about leads, counts, or who owns what.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => true;
+    public bool   IncludeInAutoMode => true; // small, cheap, cross-module-question-worthy
     public string? RequiredPermission => "crm.leads.view";
     public string ParametersJsonSchema =>
         """{"type":"object","properties":{},"additionalProperties":false}""";

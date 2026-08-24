@@ -22,6 +22,7 @@ public sealed class CrmCreateLeadTool(GatewayToolClient gateway) : IAiTool
         "what they're interested in, a message/note, or when they plan to buy).";
     public string Agent       => "crm";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "crm.leads.create";
     public string ParametersJsonSchema =>
         """

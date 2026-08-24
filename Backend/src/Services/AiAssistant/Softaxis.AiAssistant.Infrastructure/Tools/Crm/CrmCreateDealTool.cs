@@ -17,6 +17,7 @@ public sealed class CrmCreateDealTool(GatewayToolClient gateway) : IAiTool
         "an owner via assignedToUserId + teamId.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "crm.pipeline.create";
     public string ParametersJsonSchema =>
         """

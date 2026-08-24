@@ -16,6 +16,7 @@ public sealed class CrmAssignLeadTool(GatewayToolClient gateway) : IAiTool
         "Filing a lead's team matters: an unfiled lead is only visible to full-access roles, not team leads.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "crm.leads.edit";
     public string ParametersJsonSchema =>
         """

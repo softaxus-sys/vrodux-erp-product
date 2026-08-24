@@ -18,6 +18,9 @@ internal abstract class GetTool(GatewayToolClient gateway) : IAiTool
     protected abstract string Path { get; }
 
     public bool IsReadOnly => true;
+    // This is the original cross-module read/summary set (pre-dates the full module-tool
+    // catalog) — small, cheap, and the right size for "Auto" mode's constant tool-schema budget.
+    public bool IncludeInAutoMode => true;
     public string ParametersJsonSchema => """{"type":"object","properties":{},"additionalProperties":false}""";
     public Task<string> ExecuteAsync(JsonElement arguments, CancellationToken ct) => Gateway.GetAsync(Path, ct);
 }

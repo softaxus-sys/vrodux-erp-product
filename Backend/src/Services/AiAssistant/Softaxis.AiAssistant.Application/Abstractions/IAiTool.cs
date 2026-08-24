@@ -27,6 +27,19 @@ public interface IAiTool
     /// <summary>Which module/agent this tool belongs to (e.g. "crm"). Drives call-by-name routing.</summary>
     string Agent { get; }
 
+    /// <summary>
+    /// True to offer this tool in "Auto" mode (no agent picked/detected). Every tool must decide
+    /// explicitly — there's no default — because Auto mode's total tool-schema payload goes into
+    /// every request as JSON, and on a small-TPM free-tier model that payload alone can exceed the
+    /// token budget once dozens of tools exist (this is exactly what happened when the tool catalog
+    /// grew from ~12 to 65+: an "Auto" query started tripping Groq's TPM limit before the model even
+    /// saw the user's question). Keep this true only for the small, cheap, cross-module read/summary
+    /// set that answers general questions; every write tool and every deep/module-specific read
+    /// should be false and only reachable once the user (or the text/call-by-name heuristic) has
+    /// named a specific agent — see AiOrchestrator.DetectAgent and the agent picker in the chat UI.
+    /// </summary>
+    bool IncludeInAutoMode { get; }
+
     /// <summary>Permission the caller must hold for this tool to be offered/executed (null = any authenticated user).</summary>
     string? RequiredPermission { get; }
 

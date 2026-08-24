@@ -10,6 +10,7 @@ public sealed class CrmLeadsSummaryTool(GatewayToolClient gateway) : IAiTool
     public string Description  => "Get summary statistics for CRM leads for the current company — total count, counts by status, total and average estimated value. Use this for high-level questions like 'how many leads do we have' or 'what's our pipeline value'.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => true;
+    public bool   IncludeInAutoMode => true; // small, cheap, cross-module-question-worthy
     public string? RequiredPermission => "crm.leads.view";
     public string ParametersJsonSchema =>
         """{"type":"object","properties":{},"additionalProperties":false}""";

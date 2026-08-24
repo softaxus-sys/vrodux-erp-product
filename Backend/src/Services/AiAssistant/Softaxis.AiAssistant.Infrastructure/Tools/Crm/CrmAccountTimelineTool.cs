@@ -13,6 +13,7 @@ public sealed class CrmAccountTimelineTool(GatewayToolClient gateway) : IAiTool
         "converted from. Use to answer 'what's the recent activity on this account'.";
     public string Agent       => "crm";
     public bool   IsReadOnly  => true;
+    public bool   IncludeInAutoMode => false; // deep single-record read, needs an id — not general-question-worthy
     public string? RequiredPermission => "crm.customers.view";
     public string ParametersJsonSchema =>
         """{"type":"object","properties":{"customerId":{"type":"string","description":"The account/customer's id (GUID) (required)"}},"required":["customerId"],"additionalProperties":false}""";

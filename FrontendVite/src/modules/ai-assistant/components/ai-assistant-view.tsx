@@ -422,18 +422,20 @@ export function AIAssistantView() {
 
 const PROVIDERS: { value: AiProvider; label: string; hint: string }[] = [
   { value: "Claude",     label: "Anthropic Claude", hint: "Best tool-calling reliability. Model e.g. claude-opus-4-8" },
-  { value: "GroqFree",   label: "Groq (Free)",      hint: "Free tier for testing. Model e.g. llama-3.3-70b-versatile" },
-  { value: "GroqPaid",   label: "Groq (Paid)",      hint: "Higher limits. Model e.g. llama-3.3-70b-versatile" },
+  { value: "GroqFree",   label: "Groq (Free)",      hint: "Free tier for testing — low tokens-per-minute budget on small models. Model e.g. openai/gpt-oss-120b" },
+  { value: "GroqPaid",   label: "Groq (Paid)",      hint: "Higher limits. Model e.g. openai/gpt-oss-120b" },
   { value: "OpenRouter", label: "OpenRouter",       hint: "Aggregates many providers/models behind one key — free models available, or route to Claude/GPT/Llama etc." },
 ];
 const TIERS: AiTier[] = ["starter", "growth", "enterprise"];
 
 // Suggested models per provider (datalist — still free-text, since provider catalogs change).
+// NOTE: llama-3.3-70b-versatile and llama-3.1-8b-instant were removed — Groq has fully retired
+// both (confirmed via a live 404 "model does not exist", not just a permissions issue). The
+// remaining list is unverified against Groq's current catalog beyond the two openai/gpt-oss-*
+// entries (confirmed live) — if one 404s, drop it here too and use "Custom model…" meanwhile.
 const GROQ_MODELS = [
   "openai/gpt-oss-120b",
   "openai/gpt-oss-20b",
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
   "qwen/qwen3-32b",
   "gemma2-9b-it",
   "meta-llama/llama-4-scout-17b-16e-instruct",
@@ -506,7 +508,7 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
     setTelegramEnabled(data.telegramEnabled);
     setBotUsername(data.telegramBotUsername ?? "");
 
-    setFallbackEnabled(!!data.fallbackProvider);
+    setFallbackEnabled(data.fallbackEnabled);
     const fbProvider = data.fallbackProvider ?? "OpenRouter";
     setFallbackProvider(fbProvider);
     const loadedFbModel = data.fallbackModel ?? "";
@@ -528,10 +530,14 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
         telegramBotToken: botToken.trim() ? botToken.trim() : null,
         telegramBotUsername: telegramEnabled ? botUsername.trim() : null,
         clearTelegramBot: false,
-        fallbackProvider: fallbackEnabled ? fallbackProvider : null,
-        fallbackModel: fallbackEnabled ? (fallbackModel.trim() || null) : null,
-        fallbackApiKey: fallbackEnabled && fallbackApiKey.trim() ? fallbackApiKey.trim() : null,
-        clearFallbackApiKey: !fallbackEnabled,
+        // fallbackEnabled is the on/off switch; provider/model/key are sent as-is regardless of
+        // it, exactly like the primary section above — unchecking must never clear the stored
+        // fallback key, only stop using it (re-checking should just work with no re-entry).
+        fallbackEnabled,
+        fallbackProvider,
+        fallbackModel: fallbackModel.trim() || null,
+        fallbackApiKey: fallbackApiKey.trim() ? fallbackApiKey.trim() : null,
+        clearFallbackApiKey: false,
       });
       setBotToken("");
       setFallbackApiKey("");

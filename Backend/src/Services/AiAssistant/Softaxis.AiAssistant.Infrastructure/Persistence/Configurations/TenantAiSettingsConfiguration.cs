@@ -22,6 +22,7 @@ public sealed class TenantAiSettingsConfiguration : IEntityTypeConfiguration<Ten
         builder.Property(x => x.CreatedAt);
         builder.Property(x => x.UpdatedAt);
 
+        builder.Property(x => x.FallbackEnabled).IsRequired().HasDefaultValue(false);
         builder.Property(x => x.FallbackProvider).HasConversion<string>().HasMaxLength(20);
         builder.Property(x => x.FallbackProtectedApiKey).HasColumnType("nvarchar(max)");
         builder.Property(x => x.FallbackModel).HasMaxLength(120);

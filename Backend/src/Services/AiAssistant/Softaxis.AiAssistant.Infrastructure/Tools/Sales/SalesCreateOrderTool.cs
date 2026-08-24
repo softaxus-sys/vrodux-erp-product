@@ -14,6 +14,7 @@ public sealed class SalesCreateOrderTool(GatewayToolClient gateway) : IAiTool
         "via description.";
     public string Agent       => "sales";
     public bool   IsReadOnly  => false;
+    public bool   IncludeInAutoMode => false; // write — requires an explicit agent
     public string? RequiredPermission => "sales.orders.create";
     public string ParametersJsonSchema =>
         """
