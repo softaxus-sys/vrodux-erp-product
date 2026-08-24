@@ -424,7 +424,7 @@ const PROVIDERS: { value: AiProvider; label: string; hint: string }[] = [
   { value: "Claude",     label: "Anthropic Claude", hint: "Best tool-calling reliability. Model e.g. claude-opus-4-8" },
   { value: "GroqFree",   label: "Groq (Free)",      hint: "Free tier for testing — low tokens-per-minute budget on small models. Model e.g. openai/gpt-oss-120b" },
   { value: "GroqPaid",   label: "Groq (Paid)",      hint: "Higher limits. Model e.g. openai/gpt-oss-120b" },
-  { value: "OpenRouter", label: "OpenRouter",       hint: "Aggregates many providers/models behind one key — free models available, or route to Claude/GPT/Llama etc." },
+  { value: "OpenRouter", label: "OpenRouter",       hint: "Aggregates many providers/models behind one key. Its free-tier catalog rotates often — check openrouter.ai/models for what's currently free before picking a model." },
 ];
 const TIERS: AiTier[] = ["starter", "growth", "enterprise"];
 
@@ -447,13 +447,11 @@ const CLAUDE_MODELS = [
   "claude-haiku-4-5-20251001",
   "claude-fable-5",
 ];
-const OPENROUTER_MODELS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "deepseek/deepseek-chat-v3.1:free",
-  "qwen/qwen3-235b-a22b:free",
-  "anthropic/claude-sonnet-5",
-  "openai/gpt-5.1",
-];
+// Deliberately empty — every ":free" slug tried here (llama-3.3-70b-instruct, deepseek-chat-v3.1,
+// qwen3-235b-a22b) 404'd live within the same day ("unavailable for free" — OpenRouter had pulled
+// it from the free tier). There's no way to hardcode a model id that stays valid, so this always
+// forces "Custom model…" and the tenant picks a currently-live one from openrouter.ai/models.
+const OPENROUTER_MODELS: string[] = [];
 
 /** Suggested model list for a provider — used by both the primary and fallback pickers. */
 function modelsFor(provider: AiProvider): string[] {
@@ -585,8 +583,10 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
               <select value={provider} onChange={e => {
                 const p = e.target.value as AiProvider;
                 setProvider(p);
-                // Re-evaluate custom mode against the new provider's suggested models.
-                setCustomModel(!!model && !modelsFor(p).includes(model));
+                // Re-evaluate custom mode against the new provider's suggested models. OpenRouter
+                // has no suggested list at all (see OPENROUTER_MODELS) — always go straight to
+                // free-text rather than showing an empty, useless dropdown.
+                setCustomModel(p === "OpenRouter" || (!!model && !modelsFor(p).includes(model)));
               }}
                 className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
                 {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -612,13 +612,26 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
               </select>
               {customModel && (
                 <input value={model} onChange={e => setModel(e.target.value)} autoFocus
-                  placeholder={provider === "Claude" ? "claude-opus-4-8" : "openai/gpt-oss-120b"}
+                  placeholder={
+                    provider === "Claude" ? "claude-opus-4-8"
+                    : provider === "OpenRouter" ? "e.g. deepseek/deepseek-chat-v3.1 (check openrouter.ai/models first)"
+                    : "openai/gpt-oss-120b"
+                  }
                   className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
               )}
               <p className="text-[11px] text-muted-foreground">
-                {provider === "Claude"
-                  ? "Pick a Claude model your key supports."
-                  : "Groq free models. Note: llama-3.3-70b-versatile is deprecating — prefer openai/gpt-oss-120b."}
+                {provider === "Claude" && "Pick a Claude model your key supports."}
+                {(provider === "GroqFree" || provider === "GroqPaid") &&
+                  "llama-3.3-70b-versatile and llama-3.1-8b-instant are retired — prefer openai/gpt-oss-120b."}
+                {provider === "OpenRouter" && (
+                  <>
+                    Free-tier availability rotates often — a model free today can 404 tomorrow. Check{" "}
+                    <a href="https://openrouter.ai/models?max_price=0" target="_blank" rel="noreferrer"
+                      className="underline hover:text-foreground">
+                      openrouter.ai/models
+                    </a>{" "}for what's currently free, or use a paid model id for stability.
+                  </>
+                )}
               </p>
             </div>
 
@@ -652,7 +665,7 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
                     <select value={fallbackProvider} onChange={e => {
                       const p = e.target.value as AiProvider;
                       setFallbackProvider(p);
-                      setFallbackCustomModel(!!fallbackModel && !modelsFor(p).includes(fallbackModel));
+                      setFallbackCustomModel(p === "OpenRouter" || (!!fallbackModel && !modelsFor(p).includes(fallbackModel)));
                     }}
                       className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm">
                       {PROVIDERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -675,8 +688,21 @@ function AiSettingsModal({ onClose }: { onClose: () => void }) {
                     </select>
                     {fallbackCustomModel && (
                       <input value={fallbackModel} onChange={e => setFallbackModel(e.target.value)} autoFocus
-                        placeholder="e.g. meta-llama/llama-3.3-70b-instruct:free"
+                        placeholder={
+                          fallbackProvider === "Claude" ? "claude-opus-4-8"
+                          : fallbackProvider === "OpenRouter" ? "e.g. deepseek/deepseek-chat-v3.1 (check openrouter.ai/models first)"
+                          : "openai/gpt-oss-120b"
+                        }
                         className="w-full h-9 rounded-lg bg-card border border-border px-3 text-sm" />
+                    )}
+                    {fallbackProvider === "OpenRouter" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Free-tier availability rotates often — check{" "}
+                        <a href="https://openrouter.ai/models?max_price=0" target="_blank" rel="noreferrer"
+                          className="underline hover:text-foreground">
+                          openrouter.ai/models
+                        </a>{" "}before picking one.
+                      </p>
                     )}
                   </div>
 

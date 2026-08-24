@@ -231,22 +231,26 @@ public sealed class AiOrchestrator(
             throw new AiNotConfiguredException("No AI provider API key is configured. Ask an administrator to add one in Settings.");
 
         var provider = providerFactory.Create(settings.Provider);
-        var model    = string.IsNullOrWhiteSpace(settings.Model) ? DefaultModel(settings.Provider) : settings.Model!;
+        var model    = ResolveModel(settings.Provider, settings.Model)
+                        ?? throw new AiNotConfiguredException(
+                            "No model is set for your AI provider. OpenRouter's free-tier catalog changes " +
+                            "often, so there's no safe default — pick a currently available model at " +
+                            "openrouter.ai/models and paste its id into Settings.");
 
-        // Fallback is optional and BYO — never blocks startup, silently unavailable if not fully
-        // configured (provider chosen but no key stored, or the stored key fails to decrypt).
+        // Fallback is optional and BYO — never blocks the primary, silently unavailable if not
+        // fully configured (provider chosen but no key stored, key fails to decrypt, or — for
+        // OpenRouter — no model set, since guessing one here would be just as unsafe as above).
         IAiChatProvider? fallbackProvider = null;
         string? fallbackModel = null;
         string? fallbackApiKey = null;
         if (settings.FallbackConfigured)
         {
-            var fbKey = protector.Unprotect(settings.FallbackProtectedApiKey);
-            if (!string.IsNullOrEmpty(fbKey))
+            var fbKey   = protector.Unprotect(settings.FallbackProtectedApiKey);
+            var fbModel = ResolveModel(settings.FallbackProvider!.Value, settings.FallbackModel);
+            if (!string.IsNullOrEmpty(fbKey) && fbModel is not null)
             {
                 fallbackProvider = providerFactory.Create(settings.FallbackProvider!.Value);
-                fallbackModel    = string.IsNullOrWhiteSpace(settings.FallbackModel)
-                                    ? DefaultModel(settings.FallbackProvider!.Value)
-                                    : settings.FallbackModel!;
+                fallbackModel    = fbModel;
                 fallbackApiKey   = fbKey;
             }
         }
@@ -345,10 +349,22 @@ public sealed class AiOrchestrator(
         catch { return JsonDocument.Parse("{}"); }
     }
 
-    private static string DefaultModel(AiProvider provider) => provider switch
+    /// <summary>
+    /// Resolves the model to use, or null if none is configured and none can be safely assumed.
+    /// OpenRouter deliberately has NO hardcoded default: its free-tier catalog rotates model
+    /// availability often enough (confirmed live — three different hardcoded ":free" slugs each
+    /// 404'd within the same day as models were pulled from free tier) that guessing one is not a
+    /// safe default, only a ticking time bomb. The tenant must pick a currently-live model
+    /// themselves (openrouter.ai/models) — same principle as any other BYO credential.
+    /// </summary>
+    private static string? ResolveModel(AiProvider provider, string? configuredModel)
     {
-        AiProvider.Claude     => "claude-opus-4-8",
-        AiProvider.OpenRouter => "meta-llama/llama-3.3-70b-instruct:free",
-        _                     => "openai/gpt-oss-120b", // Groq: llama-3.3-70b-versatile is deprecating (Aug 2026)
-    };
+        if (!string.IsNullOrWhiteSpace(configuredModel)) return configuredModel.Trim();
+        return provider switch
+        {
+            AiProvider.Claude     => "claude-opus-4-8",
+            AiProvider.OpenRouter => null,
+            _                     => "openai/gpt-oss-120b", // Groq: llama-3.3-70b-versatile is deprecating (Aug 2026)
+        };
+    }
 }
