@@ -53,7 +53,10 @@ function toFrontendPermission(key: string): Permission | null {
   const parts = key.split(".");
   if (parts.length < 2) return null;
 
-  const module = parts[0]; // top-level module: "pos", "inventory", "finance", etc.
+  // Employee self-service is NOT the HR module. `hr.self.view` shares the "hr" prefix, so mapping
+  // it naively to "hr:read" unlocked the entire HR module for ordinary staff — the employee
+  // directory, salaries, payroll and the HR dashboard. It gets its own module id instead.
+  const module = key.startsWith("hr.self.") ? "hr-self" : parts[0];
   const action = parts[parts.length - 1]; // last part is always the action
 
   const actionMap: Record<string, "read" | "write" | "delete" | "admin"> = {
@@ -115,6 +118,7 @@ export function mapUserDto(dto: UserDto): User {
     status: dto.status.toLowerCase() === "active" ? "active" : "inactive",
     lastLogin: dto.lastLoginAt ?? undefined,
     createdAt: dto.createdAt,
+    mustChangePassword: dto.mustChangePassword ?? false,
   };
 }
 

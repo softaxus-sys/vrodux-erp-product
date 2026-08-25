@@ -18,7 +18,7 @@ namespace Softaxis.Purchase.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("purchase")
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -75,14 +75,15 @@ namespace Softaxis.Purchase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GrnNumber")
-                        .IsUnique();
-
                     b.HasIndex("PurchaseOrderId");
 
                     b.HasIndex("TenantId");
 
                     b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "GrnNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("goods_receipt_notes", "purchase");
                 });
@@ -320,14 +321,15 @@ namespace Softaxis.Purchase.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
 
                     b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("purchase_orders", "purchase");
                 });
@@ -427,12 +429,13 @@ namespace Softaxis.Purchase.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PurchaseOrderId");
 
-                    b.HasIndex("ReturnNumber")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "ReturnNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("purchase_returns", "purchase");
                 });

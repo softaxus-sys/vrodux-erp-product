@@ -7,7 +7,7 @@ import {
   MessageCircle, Link2, ExternalLink, Bot, Mic, Volume2, VolumeX, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, parseApiDate } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import {
   useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents, useAiCapabilities,
@@ -112,7 +112,7 @@ export function AIAssistantView() {
       conversation.messages.length > 0
         ? conversation.messages.map((m) => ({
             id: m.id, role: m.role, content: m.content,
-            timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            timestamp: parseApiDate(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
             usedFallback: m.usedFallback,
           }))
         : [{ id: "welcome", role: "assistant", content: WELCOME, timestamp: now() }],

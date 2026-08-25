@@ -207,6 +207,9 @@ export function DashboardView() {
   const isAdmin = isRole(["super_admin", "tenant_admin"]);
   const canCrm = hasModuleAccess("crm");
   const canHr = hasModuleAccess("hr") || isRole(["hr_manager"]);
+  // Quick actions link to pages, so each needs the permission that page requires — not merely
+  // module access. "Add Employee" opened the whole directory, salaries included.
+  const canAddEmployee = hasRawPermission("hr.employees.create");
   const canFinance = hasModuleAccess("finance");
   const canSales = hasModuleAccess("sales");
   const canInventory = hasModuleAccess("inventory");
@@ -281,10 +284,10 @@ export function DashboardView() {
     if (canSales) list.push({ label: t("quickActions.newOrder"), to: "/sales/orders", icon: ShoppingCart, accent: "sky" });
     if (canFinance) list.push({ label: t("quickActions.newInvoice"), to: "/finance/invoicing", icon: Receipt, accent: "amber" });
     if (canInventory) list.push({ label: t("quickActions.addProduct"), to: "/inventory/products", icon: Package, accent: "rose" });
-    if (canHr) list.push({ label: t("quickActions.addEmployee"), to: "/hr/employees", icon: Briefcase, accent: "sky" });
+    if (canAddEmployee) list.push({ label: t("quickActions.addEmployee"), to: "/hr/employees", icon: Briefcase, accent: "sky" });
     if (list.length === 0) list.push({ label: t("quickActions.settings"), to: "/settings/general", icon: Plus, accent: "blue" });
     return list.slice(0, 6);
-  }, [t, canCrm, canSales, canFinance, canInventory, canHr]);
+  }, [t, canCrm, canSales, canFinance, canInventory, canAddEmployee]);
 
   const activities: ActivityItem[] = React.useMemo(() =>
     (auditData?.items ?? []).slice(0, 12).map((log) => ({

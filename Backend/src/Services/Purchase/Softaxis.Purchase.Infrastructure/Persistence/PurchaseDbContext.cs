@@ -22,6 +22,11 @@ public sealed class PurchaseDbContext(DbContextOptions<PurchaseDbContext> option
         modelBuilder.HasDefaultSchema("purchase");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PurchaseDbContext).Assembly);
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Purchase.Domain");
+
+        // Document numbers are unique PER TENANT and only among live rows.
+        TenantIsolation.TenantUniqueIndex<PurchaseOrder>(modelBuilder, [nameof(PurchaseOrder.OrderNumber)]);
+        TenantIsolation.TenantUniqueIndex<GoodsReceiptNote>(modelBuilder, [nameof(GoodsReceiptNote.GrnNumber)]);
+        TenantIsolation.TenantUniqueIndex<PurchaseReturn>(modelBuilder, [nameof(PurchaseReturn.ReturnNumber)]);
         base.OnModelCreating(modelBuilder);
     }
 

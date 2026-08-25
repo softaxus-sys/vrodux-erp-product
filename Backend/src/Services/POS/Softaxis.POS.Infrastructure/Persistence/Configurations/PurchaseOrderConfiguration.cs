@@ -12,7 +12,7 @@ public sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purcha
         builder.HasKey(po => po.Id);
         builder.Property(po => po.Id).ValueGeneratedNever();
         builder.Property(po => po.OrderNumber).HasMaxLength(30).IsRequired();
-        builder.HasIndex(po => po.OrderNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.Property(po => po.Status).HasMaxLength(20).IsRequired();
         builder.Property(po => po.Notes).HasMaxLength(1000);
         builder.Property(po => po.ExpectedDate).HasMaxLength(20);

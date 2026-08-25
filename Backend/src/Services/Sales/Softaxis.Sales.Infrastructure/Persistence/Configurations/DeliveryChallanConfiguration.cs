@@ -23,7 +23,7 @@ internal sealed class DeliveryChallanConfiguration : IEntityTypeConfiguration<De
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.ChallanNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in SalesDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.SalesOrderId);
         builder.HasIndex(x => x.CustomerId);
 

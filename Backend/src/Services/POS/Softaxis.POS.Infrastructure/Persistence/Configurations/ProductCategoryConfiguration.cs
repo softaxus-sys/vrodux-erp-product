@@ -20,7 +20,7 @@ public sealed class ProductCategoryConfiguration : IEntityTypeConfiguration<Prod
         builder.Property(c => c.Description)
             .HasMaxLength(500);
 
-        builder.HasIndex(c => c.Name).IsUnique();
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasOne(c => c.ParentCategory)
             .WithMany(c => c.SubCategories)

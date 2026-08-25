@@ -18,9 +18,7 @@ public sealed class PaymentTermConfiguration : IEntityTypeConfiguration<PaymentT
         builder.Property(p => p.AdvancePercent).HasPrecision(5, 2);
         builder.Property(p => p.Description)  .HasMaxLength(300);
 
-        builder.HasIndex(p => p.Code)
-            .IsUnique()
-            .HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(p => !p.IsDeleted);
 

@@ -2,6 +2,7 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  keepPreviousData,
   type UseQueryOptions,
 } from "@tanstack/react-query";
 import { usersApi, type GetUsersParams, type CreateUserPayload, type UpdateUserPayload } from "@/lib/identity/users.api";
@@ -26,6 +27,10 @@ export function useUsers(params: GetUsersParams = {}, enabled = true) {
     queryKey: userKeys.list(params),
     queryFn:  () => usersApi.getAll(params),
     enabled,
+    // The key includes the params, so paging or typing in search moves to a NEW cache entry with
+    // no data — the table would empty out mid-request. Keep showing the previous page until the
+    // next one arrives (isFetching still drives the loading indicator).
+    placeholderData: keepPreviousData,
   });
 }
 

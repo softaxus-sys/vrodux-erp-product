@@ -18,9 +18,7 @@ public sealed class CurrencyConfiguration : IEntityTypeConfiguration<Currency>
         builder.Property(c => c.Symbol) .IsRequired().HasMaxLength(10);
         builder.Property(c => c.ExchangeRate).HasPrecision(18, 6);
 
-        builder.HasIndex(c => c.Code)
-            .IsUnique()
-            .HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(c => !c.IsDeleted);
 

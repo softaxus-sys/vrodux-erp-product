@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { employeeDocumentsApi } from "@/lib/hr/employee-documents.api";
 import {
   hrApi,
   type CreateEmployeePayload,
@@ -22,11 +23,68 @@ const QK = "hr";
 
 // ── Employees ─────────────────────────────────────────────────────────────────
 
-export function useEmployees() {
+export function useEmployees(includeInactive = false) {
   return useQuery({
-    queryKey: [QK, "employees"],
-    queryFn:  hrApi.getEmployees,
+    queryKey: [QK, "employees", includeInactive],
+    queryFn:  () => hrApi.getEmployees(includeInactive),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Full record by id — the list only carries a summary, so edit/detail screens use this. */
+export function useEmployee(id: string | null) {
+  return useQuery({
+    queryKey: [QK, "employee", id],
+    queryFn:  () => hrApi.getEmployeeById(id!),
+    enabled:  !!id,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useDepartments() {
+  return useQuery({
+    queryKey: [QK, "departments"],
+    queryFn:  hrApi.getDepartments,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useLinkEmployeeUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ employeeId, userId }: { employeeId: string; userId: string }) =>
+      hrApi.linkEmployeeUser(employeeId, userId),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: [QK, "employee", vars.employeeId] });
+      qc.invalidateQueries({ queryKey: [QK, "employees"] });
+      toast.success("Login account linked.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUnlinkEmployeeUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (employeeId: string) => hrApi.unlinkEmployeeUser(employeeId),
+    onSuccess: (_d, employeeId) => {
+      qc.invalidateQueries({ queryKey: [QK, "employee", employeeId] });
+      qc.invalidateQueries({ queryKey: [QK, "employees"] });
+      toast.success("Login account unlinked.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useCreateDepartment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: hrApi.createDepartment,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "departments"] });
+      toast.success("Department added.");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 }
 
@@ -57,6 +115,10 @@ export function useUpdateEmployee(id: string) {
     mutationFn: (payload: UpdateEmployeePayload) => hrApi.updateEmployee(id, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [QK, "employees"] });
+      // The detail record feeds the edit form and the drawer — without this, reopening either
+      // after a save would show the pre-edit values from cache.
+      qc.invalidateQueries({ queryKey: [QK, "employee", id] });
+      qc.invalidateQueries({ queryKey: [QK, "hr-summary"] });
       toast.success("Employee updated.");
     },
     onError: (err: Error) => toast.error(err.message),
@@ -121,19 +183,97 @@ export function useUpdateAttendance() {
 
 // ── Leaves ────────────────────────────────────────────────────────────────────
 
-export function useLeaveRequests() {
+export function useLeaveRequests(employeeId?: string) {
   return useQuery({
-    queryKey: [QK, "leave-requests"],
-    queryFn:  hrApi.getLeaveRequests,
+    queryKey: [QK, "leave-requests", employeeId ?? "all"],
+    queryFn:  () => hrApi.getLeaveRequests(employeeId),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useLeaveBalances() {
+export function useLeaveBalances(year?: number) {
   return useQuery({
-    queryKey: [QK, "leave-balances"],
-    queryFn:  hrApi.getLeaveBalances,
+    queryKey: [QK, "leave-balances", year ?? "current"],
+    queryFn:  () => hrApi.getLeaveBalances(year),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useEmployeeLeaveBalances(employeeId: string | null, year?: number) {
+  return useQuery({
+    queryKey: [QK, "employee-leave-balances", employeeId, year ?? "current"],
+    queryFn:  () => hrApi.getEmployeeLeaveBalances(employeeId!, year),
+    enabled:  !!employeeId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * The tenant's office hours. Long staleTime — they change a few times a year, and every
+ * attendance screen reads them to say whether someone was on time.
+ */
+export function useWorkSchedule() {
+  return useQuery({
+    queryKey: [QK, "work-schedule"],
+    queryFn:  hrApi.getWorkSchedule,
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+export function useUpdateWorkSchedule() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: hrApi.updateWorkSchedule,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "work-schedule"] });
+      // New hours change what counts as late from now on, so anything showing a verdict refetches.
+      qc.invalidateQueries({ queryKey: [QK, "attendance"] });
+      qc.invalidateQueries({ queryKey: [QK, "attendance-summary"] });
+      toast.success("Office timings updated.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useLeavePolicies() {
+  return useQuery({
+    queryKey: [QK, "leave-policies"],
+    queryFn:  hrApi.getLeavePolicies,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+function invalidateLeavePolicies(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: [QK, "leave-policies"] });
+  qc.invalidateQueries({ queryKey: [QK, "leave-balances"] });
+  qc.invalidateQueries({ queryKey: [QK, "employee-leave-balances"] });
+}
+
+export function useCreateLeavePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: hrApi.createLeavePolicy,
+    onSuccess: () => { invalidateLeavePolicies(qc); toast.success("Leave policy added."); },
+    onError:   (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useUpdateLeavePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...payload }: { id: string; annualEntitlementDays: number; isPaid: boolean; description?: string; isActive: boolean }) =>
+      hrApi.updateLeavePolicy(id, payload),
+    onSuccess: () => { invalidateLeavePolicies(qc); toast.success("Leave policy updated."); },
+    onError:   (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteLeavePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deleteLeavePolicy(id),
+    onSuccess: () => { invalidateLeavePolicies(qc); toast.success("Leave policy removed."); },
+    onError:   (err: Error) => toast.error(err.message),
   });
 }
 
@@ -221,6 +361,15 @@ export function usePayrollRunById(id: string | null) {
     queryKey: [QK, "payroll-run", id],
     queryFn:  () => hrApi.getPayrollRunById(id!),
     enabled:  !!id,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useEmployeePayslips(employeeId: string | null) {
+  return useQuery({
+    queryKey: [QK, "employee-payslips", employeeId],
+    queryFn:  () => hrApi.getEmployeePayslips(employeeId!),
+    enabled:  !!employeeId,
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -554,5 +703,81 @@ export function useDeleteApplicant() {
       toast.success("Applicant removed.");
     },
     onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ── Employee documents ────────────────────────────────────────────────────────
+
+export function useEmployeeDocuments(employeeId: string | null) {
+  return useQuery({
+    queryKey: [QK, "employee-documents", employeeId],
+    queryFn:  () => employeeDocumentsApi.getAll(employeeId!),
+    enabled:  !!employeeId,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useUploadEmployeeDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: employeeDocumentsApi.upload,
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: [QK, "employee-documents", vars.employeeId] });
+      toast.success("Document uploaded.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useDeleteEmployeeDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ employeeId, documentId }: { employeeId: string; documentId: string }) =>
+      employeeDocumentsApi.remove(employeeId, documentId),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: [QK, "employee-documents", vars.employeeId] });
+      toast.success("Document removed.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+// ── WPS (UAE Wage Protection System) ─────────────────────────────────────────
+
+export function useWpsConfig() {
+  return useQuery({
+    queryKey: [QK, "wps-config"],
+    queryFn:  hrApi.getWpsConfig,
+    staleTime: 30 * 60 * 1000,
+  });
+}
+
+export function useUpdateWpsConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: hrApi.updateWpsConfig,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "wps-config"] });
+      qc.invalidateQueries({ queryKey: [QK, "wps-sif"] });
+      toast.success("WPS details saved.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+/**
+ * The salary file for one run, built server-side.
+ *
+ * `retry: false` deliberately: the common failures here are "WPS not configured" and "no employee
+ * has the required details", and retrying a settings problem three times only delays the message
+ * that explains it.
+ */
+export function useWpsSif(runId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: [QK, "wps-sif", runId],
+    queryFn:  () => hrApi.getWpsSif(runId!),
+    enabled:  !!runId && enabled,
+    retry:    false,
+    staleTime: 0,
   });
 }

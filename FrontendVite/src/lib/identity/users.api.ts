@@ -1,5 +1,5 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
-import type { UserDto, UserSummaryDto } from "./types";
+import type { UserDto, UserSummaryDto, ProvisionUserPayload, ProvisionedUserDto } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/users`;
 
@@ -43,6 +43,21 @@ export const usersApi = {
 
   create: (payload: CreateUserPayload): Promise<UserDto> =>
     apiClient.post<UserDto>(BASE, payload),
+
+  /**
+   * Creates a login for someone an administrator is standing in front of (HR giving an employee
+   * portal access). Unlike create(), no verification email is sent and the account works
+   * immediately — the returned temporary password is shown ONCE and cannot be retrieved again.
+   */
+  provision: (payload: ProvisionUserPayload): Promise<ProvisionedUserDto> =>
+    apiClient.post<ProvisionedUserDto>(`${BASE}/provision`, payload),
+
+  /**
+   * Gives an existing login access to their own HR record. Additive — it assigns the
+   * "Employee (Self-Service)" role and never removes what the user already has.
+   */
+  grantSelfService: (id: string): Promise<void> =>
+    apiClient.post<void>(`${BASE}/${id}/grant-self-service`, {}),
 
   update: (id: string, payload: UpdateUserPayload): Promise<UserDto> =>
     apiClient.put<UserDto>(`${BASE}/${id}`, payload),

@@ -32,7 +32,7 @@ internal sealed class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.ExpenseNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in FinanceDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.Category);
         builder.HasIndex(x => x.ExpenseDate);

@@ -1,3 +1,4 @@
+import { parseApiDate } from "@/lib/utils";
 /**
  * Renders a discount voucher / coupon as an ESC/POS byte stream for thermal
  * printing on an 80mm receipt printer. Produces a decorative, gift-card-style
@@ -20,7 +21,7 @@ function fmtMoney(n: number, currency: string): string {
 
 function fmtDate(iso: string | null): string | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en", { day: "2-digit", month: "short", year: "numeric" });
+  return parseApiDate(iso).toLocaleDateString("en", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 /** Centre a short string within the paper width using spaces. */

@@ -23,7 +23,7 @@ public static class ModuleRoleCatalogue
 {
     /// <summary>Actions reserved for a manager — destructive, financial or approval authority.</summary>
     private static readonly HashSet<string> PrivilegedActions =
-        new(StringComparer.OrdinalIgnoreCase) { "delete", "approve", "void", "refund", "discount" };
+        new(StringComparer.OrdinalIgnoreCase) { "delete", "approve", "void", "refund", "discount", "create-login" };
 
     /// <summary>Display label per module prefix. A module absent here gets no default roles.</summary>
     public static readonly IReadOnlyDictionary<string, string> ModuleLabels =
@@ -95,6 +95,23 @@ public static class ModuleRoleCatalogue
                     "Process sales at the POS terminal. View products and print receipts.",
                     (m, a) => m is "pos.sessions" or "pos.products" ? a == "view"
                             : m == "pos.transactions" && a is "view" or "create" or "print"),
+            ];
+
+        // ── HR: manager + staff, plus the self-service tier ─────────────────
+        if (string.Equals(module, "hr", StringComparison.OrdinalIgnoreCase))
+            return
+            [
+                new($"{label} Manager", $"Full access to the {label} module.", (m, _) => InModule(m, "hr")),
+
+                new($"{label} Staff",
+                    "Day-to-day HR work — can view and record, but not delete or approve.",
+                    (m, a) => InModule(m, "hr") && !PrivilegedActions.Contains(a)),
+
+                // The role given to ordinary staff so they can book leave, mark attendance and
+                // see their own payslips — and nothing else. Holds hr.self.* exclusively.
+                new("Employee (Self-Service)",
+                    "See your own employee record, apply for leave, mark attendance and download your payslips.",
+                    (m, _) => string.Equals(m, "hr.self", StringComparison.OrdinalIgnoreCase)),
             ];
 
         // ── Everything else: manager + day-to-day staff ─────────────────────

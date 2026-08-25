@@ -177,10 +177,19 @@ export const navigationConfig: NavGroup[] = [
         module: "hr",
         children: [
           {
+            id: "my-hr",
+            label: "My HR",
+            labelAr: "شؤوني",
+            href: "/hr/me",
+            icon: "UserRound",
+            requiresPermission: "hr.self.view",
+          },
+          {
             id: "employees",
             label: "Employees",
             labelAr: "الموظفون",
             href: "/hr/employees",
+            requiresPermission: "hr.employees.view",
             icon: "UserCheck",
           },
           {
@@ -188,6 +197,7 @@ export const navigationConfig: NavGroup[] = [
             label: "Attendance",
             labelAr: "الحضور والغياب",
             href: "/hr/attendance",
+            requiresPermission: "hr.attendance.view",
             icon: "Clock",
           },
           {
@@ -195,6 +205,7 @@ export const navigationConfig: NavGroup[] = [
             label: "Payroll",
             labelAr: "الرواتب",
             href: "/hr/payroll",
+            requiresPermission: "hr.payroll.view",
             icon: "Banknote",
             // No badge: a static "Due" claimed payroll was outstanding at all times, including
             // immediately after a run was paid. Same reason as Invoicing above.
@@ -204,6 +215,7 @@ export const navigationConfig: NavGroup[] = [
             label: "Leave Management",
             labelAr: "إدارة الإجازات",
             href: "/hr/leaves",
+            requiresPermission: "hr.leaves.view",
             icon: "CalendarOff",
           },
           {
@@ -211,6 +223,7 @@ export const navigationConfig: NavGroup[] = [
             label: "Recruitment",
             labelAr: "التوظيف",
             href: "/hr/recruitment",
+            requiresPermission: "hr.recruitment.view",
             icon: "UserPlus",
           },
           {
@@ -218,6 +231,7 @@ export const navigationConfig: NavGroup[] = [
             label: "Performance",
             labelAr: "الأداء",
             href: "/hr/performance",
+            requiresPermission: "hr.performance.view",
             icon: "TrendingUp",
             isBeta: true,
           },

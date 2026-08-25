@@ -480,12 +480,13 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
-
                     b.HasIndex("Name");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("customers", "finance");
                 });
@@ -628,14 +629,15 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExpenseDate");
 
-                    b.HasIndex("ExpenseNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("SupplierId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ExpenseNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("expenses", "finance");
                 });
@@ -673,10 +675,11 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PeriodCode")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "PeriodCode")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL");
 
                     b.ToTable("fiscal_periods", "finance");
                 });
@@ -768,12 +771,13 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DueDate");
 
-                    b.HasIndex("InvoiceNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "InvoiceNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("invoices", "finance");
                 });
@@ -879,12 +883,13 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Date");
 
-                    b.HasIndex("EntryNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "EntryNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("journal_entries", "finance");
                 });
@@ -1046,8 +1051,9 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("VoucherNumber")
-                        .IsUnique();
+                    b.HasIndex("TenantId", "VoucherNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("payment_vouchers", "finance");
                 });
@@ -1129,9 +1135,6 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BillNumber")
-                        .IsUnique();
-
                     b.HasIndex("DueDate");
 
                     b.HasIndex("Status");
@@ -1139,6 +1142,10 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.HasIndex("SupplierId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "BillNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("purchase_bills", "finance");
                 });
@@ -1291,8 +1298,9 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("VoucherNumber")
-                        .IsUnique();
+                    b.HasIndex("TenantId", "VoucherNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("receipt_vouchers", "finance");
                 });
@@ -1457,12 +1465,13 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.HasIndex("Code")
-                        .IsUnique();
-
                     b.HasIndex("Name");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("suppliers", "finance");
                 });

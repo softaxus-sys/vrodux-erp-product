@@ -38,7 +38,7 @@ public sealed class POSTransactionConfiguration : IEntityTypeConfiguration<POSTr
         // Computed
         builder.Ignore(t => t.IsCash);
 
-        builder.HasIndex(t => t.TransactionNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.HasIndex(t => t.SessionId);
         builder.HasIndex(t => t.CashierId);
         builder.HasIndex(t => t.CompletedAt);

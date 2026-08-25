@@ -12,20 +12,30 @@ internal sealed class GetEmployeeByIdHandler(HrDbContext db)
 {
     public async Task<Result<EmployeeDto>> Handle(GetEmployeeByIdQuery query, CancellationToken ct)
     {
+        // Mapped through EmployeeMappings.ToDto, never a hand-written projection: this handler
+        // used to build EmployeeDto inline and silently returned null for every field added to
+        // the DTO afterwards (photo, nationality, compliance and bank details all came back empty).
         var emp = await db.Employees
             .AsNoTracking()
-            .Where(x => x.Id == query.Id)
-            .Select(x => new EmployeeDto(
-                x.Id, x.EmployeeNumber, x.FirstName, x.LastName,
-                x.FirstName + " " + x.LastName,
-                x.Email, x.Phone, x.JobTitle, x.DepartmentId, x.DepartmentName,
-                x.EmploymentType, x.BasicSalary, x.JoiningDate, x.TerminationDate,
-                x.Status, x.ManagerId, x.Notes, x.CreatedAt, x.UpdatedAt))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(x => x.Id == query.Id && !x.IsDeleted, ct);
 
         if (emp is null)
             return Result.Failure<EmployeeDto>(Error.NotFoundById("Employee", query.Id));
 
-        return Result.Success(emp);
+        // Read the linked login's live state rather than storing a copy of it: Identity owns
+        // those fields, so a snapshot here would drift the moment someone changes their email.
+        LinkedAccountDto? linked = null;
+        if (emp.UserId is { } userId)
+        {
+            linked = await IdentityUserLookup.ForCurrentTenant(db)
+                .Where(u => u.Id == userId)
+                .Select(u => new LinkedAccountDto(
+                    u.Id, u.Email, u.Username,
+                    (u.FirstName + " " + u.LastName).Trim(),
+                    u.Status, u.EmailVerified, u.LastLoginAt))
+                .FirstOrDefaultAsync(ct);
+        }
+
+        return Result.Success(EmployeeMappings.ToDto(emp, linked));
     }
 }

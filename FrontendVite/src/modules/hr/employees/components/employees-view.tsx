@@ -19,13 +19,14 @@ type ViewMode = "table" | "grid";
 
 export function EmployeesView() {
   const { t } = useTranslation("hr");
-  const { data: employees = [] } = useEmployees();
+  const { data: employees = [] } = useEmployees(true)   /* the list shows inactive and terminated staff too */;
   const { data: hrSummary } = useHrSummary();
 
   const [viewMode, setViewMode] = React.useState<ViewMode>("table");
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Employee | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [editing, setEditing] = React.useState<Employee | null>(null);
 
   const handleView = (emp: Employee) => {
     setSelected(emp);
@@ -117,8 +118,13 @@ export function EmployeesView() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         employee={selected}
+        onEdit={emp => { setDrawerOpen(false); setEditing(emp); }}
       />
-      <AddEmployeeForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <AddEmployeeForm
+        open={showAddForm || !!editing}
+        editing={editing}
+        onClose={() => { setShowAddForm(false); setEditing(null); }}
+      />
     </div>
   );
 }

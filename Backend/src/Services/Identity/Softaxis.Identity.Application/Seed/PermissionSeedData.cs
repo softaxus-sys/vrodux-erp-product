@@ -31,6 +31,10 @@ public static class PermissionSeedData
 
         // Finance
         ["finance.accounting"]   = ["view","create","edit","delete","approve","export"],
+        // Finance signs payroll off before any money leaves. Deliberately a Finance key, not an
+        // HR one: the approver needs no HR access, and hr.payroll.approve would also let them
+        // process and pay — the very separation this step exists to create.
+        ["finance.payroll"]      = ["view","approve"],
         ["finance.gl"]           = ["view","create","edit","approve","export"],
         ["finance.journals"]     = ["view","create","edit","approve","export","print"],
         ["finance.invoicing"]    = ["view","create","edit","delete","approve","export","print"],
@@ -40,12 +44,19 @@ public static class PermissionSeedData
         ["finance.banking"]      = ["view","create","edit","approve","export"],
 
         // HR
-        ["hr.employees"]         = ["view","create","edit","delete","export"],
+        // "create-login" lets HR give an employee portal access without holding
+        // settings.users.create, which would also let them create arbitrary administrators.
+        ["hr.employees"]         = ["view","create","edit","delete","export","create-login"],
         ["hr.attendance"]        = ["view","create","edit","export","adjust"],
         ["hr.payroll"]           = ["view","create","approve","export","print"],
         ["hr.leaves"]            = ["view","create","edit","approve"],
         ["hr.recruitment"]       = ["view","create","edit","delete"],
         ["hr.performance"]       = ["view","create","edit","export"],
+
+        // Employee self-service: strictly about the signed-in person. Kept separate from the
+        // administrative keys above so "can book a day off" never has to mean "can file leave
+        // for anyone and read everyone's requests".
+        ["hr.self"]              = ["view","leave-request","attendance","payslip"],
 
         // CRM
         ["crm.leads"]            = ["view","create","edit","delete","export"],

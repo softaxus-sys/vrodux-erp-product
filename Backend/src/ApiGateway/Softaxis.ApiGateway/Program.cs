@@ -147,6 +147,11 @@ try
         Softaxis.CRM.Application.Abstractions.ICurrentUser,
         Softaxis.CRM.API.Middleware.CurrentUserService>();
 
+    // HR.Application.Abstractions.ICurrentUser  →  HR CurrentUserService (employee self-service)
+    builder.Services.AddScoped<
+        Softaxis.HR.Application.Abstractions.ICurrentUser,
+        Softaxis.HR.API.Middleware.CurrentUserService>();
+
     // Restaurant.Application.Abstractions.ICurrentUser  →  Restaurant CurrentUserService (cashier stamping)
     builder.Services.AddScoped<
         Softaxis.Restaurant.Application.Abstractions.ICurrentUser,
@@ -255,6 +260,23 @@ try
             opts.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
         });
     }
+
+    // Swallow the fallout of a client that disconnected mid-request. The browser aborting a call
+    // (reload, navigation, React StrictMode) cancels the SQL command, and SqlClient surfaces that
+    // as a SqlException rather than OperationCanceledException — which would otherwise be logged
+    // as a 500 and written to a socket nobody is listening on. 499 is the usual "client closed
+    // request" code; nothing is actually sent, since the connection is already gone.
+    app.Use(async (ctx, next) =>
+    {
+        try
+        {
+            await next();
+        }
+        catch (Exception) when (ctx.RequestAborted.IsCancellationRequested)
+        {
+            if (!ctx.Response.HasStarted) ctx.Response.StatusCode = 499;
+        }
+    });
 
     app.UseCors("AllowFrontend");
     app.UseAuthentication();

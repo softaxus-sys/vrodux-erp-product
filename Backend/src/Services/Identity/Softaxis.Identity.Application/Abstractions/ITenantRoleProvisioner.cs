@@ -18,4 +18,14 @@ public interface ITenantRoleProvisioner
     /// template existed) pick it up automatically. Returns how many roles were added.
     /// </summary>
     Task<int> EnsureModuleRolesAsync(Guid tenantId, IReadOnlyList<string> enabledModules, CancellationToken ct = default);
+
+    /// <summary>
+    /// Grants template roles the permission keys that did not exist when those roles were created.
+    /// <para>Only ever adds a key that <b>no tenant-owned role anywhere holds</b> — true exactly
+    /// once, for a freshly seeded key. That self-limiting test is what stops this from undoing a
+    /// tenant which deliberately narrowed one of its roles: any key already granted to somebody is
+    /// left alone forever.</para>
+    /// Returns how many grants were made.
+    /// </summary>
+    Task<int> SyncNewTemplatePermissionsAsync(CancellationToken ct = default);
 }

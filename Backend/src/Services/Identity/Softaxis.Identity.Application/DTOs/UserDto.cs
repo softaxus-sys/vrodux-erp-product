@@ -14,7 +14,9 @@ public sealed record UserDto(
     DateTime? LastLoginAt,
     DateTime CreatedAt,
     IReadOnlyList<RoleDto> Roles,
-    IReadOnlyList<PermissionOverrideDto> PermissionOverrides
+    IReadOnlyList<PermissionOverrideDto> PermissionOverrides,
+    /// <summary>True while the current password was issued by an administrator, not chosen by the user.</summary>
+    bool     MustChangePassword = false
 );
 
 public sealed record PermissionOverrideDto(

@@ -30,7 +30,7 @@ internal sealed class PayrollRunConfiguration : IEntityTypeConfiguration<Payroll
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.RunNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in HrDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Period);
         builder.HasIndex(x => x.Status);
 

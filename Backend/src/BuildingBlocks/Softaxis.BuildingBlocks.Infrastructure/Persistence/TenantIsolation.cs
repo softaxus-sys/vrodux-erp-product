@@ -91,6 +91,42 @@ public static class TenantIsolation
         }
     }
 
+    /// <summary>
+    /// Declares a unique index that is scoped to the tenant and (by default) ignores
+    /// soft-deleted rows — the correct shape for any per-tenant business key
+    /// (document numbers, codes, names, SKUs).
+    ///
+    /// A bare <c>HasIndex(x => x.Code).IsUnique()</c> on a tenant-isolated entity is a BUG twice over:
+    /// one tenant's value blocks every other tenant from using it, and a soft-deleted row keeps its
+    /// claim on the value forever so it can never be reused.
+    ///
+    /// MUST be called AFTER <see cref="ApplyTenantId{TContext}(ModelBuilder, TContext, string, string)"/> —
+    /// the tenant column is a shadow property that does not exist until then, so declaring this
+    /// inside an IEntityTypeConfiguration would fail at model build.
+    /// </summary>
+    /// <param name="excludeSoftDeleted">Adds <c>[IsDeleted] = 0</c>; pass false for entities without that column.</param>
+    /// <param name="extraFilter">Additional SQL predicate, ANDed in (e.g. <c>[Code] IS NOT NULL</c> for nullable keys).</param>
+    public static void TenantUniqueIndex<TEntity>(
+        ModelBuilder modelBuilder,
+        string[] properties,
+        bool excludeSoftDeleted = true,
+        string? extraFilter = null,
+        string column = Column) where TEntity : class
+    {
+        // Legacy rows predating tenant isolation carry TenantId = NULL, and SQL Server treats NULLs
+        // as EQUAL for uniqueness — without this they would collide with each other and the index
+        // could not even be created on an existing database. They are exempt from the constraint.
+        var parts = new List<string> { $"[{column}] IS NOT NULL" };
+        if (excludeSoftDeleted) parts.Add("[IsDeleted] = 0");
+        if (!string.IsNullOrWhiteSpace(extraFilter)) parts.Add(extraFilter!);
+
+        var index = modelBuilder.Entity<TEntity>()
+            .HasIndex([column, .. properties])
+            .IsUnique();
+
+        index.HasFilter(string.Join(" AND ", parts));
+    }
+
     /// <summary>Stamp the tenant column on newly-added rows from the ambient tenant.</summary>
     public static void StampTenantId(ChangeTracker changeTracker, string column = Column)
     {

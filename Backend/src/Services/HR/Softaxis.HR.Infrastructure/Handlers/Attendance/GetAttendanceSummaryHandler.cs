@@ -18,14 +18,16 @@ internal sealed class GetAttendanceSummaryHandler(HrDbContext db)
         var todayCounts = await db.AttendanceLogs
             .AsNoTracking()
             .Where(x => x.Date == today)
-            .GroupBy(x => x.Status)
-            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .Select(x => new { x.Status, x.LateMinutes })
             .ToListAsync(ct);
 
-        var todayPresent = todayCounts.FirstOrDefault(c => c.Status == "present")?.Count ?? 0;
-        var todayAbsent  = todayCounts.FirstOrDefault(c => c.Status == "absent")?.Count  ?? 0;
-        var todayLate    = todayCounts.FirstOrDefault(c => c.Status == "late")?.Count    ?? 0;
-        var todayTotal   = todayCounts.Sum(c => c.Count);
+        var todayPresent = todayCounts.Count(c => c.Status == "present");
+        var todayAbsent  = todayCounts.Count(c => c.Status == "absent");
+
+        // Counted from recorded lateness, not from a "late" status: nothing ever set that status,
+        // so this figure was permanently zero.
+        var todayLate    = todayCounts.Count(c => c.LateMinutes > 0);
+        var todayTotal   = todayCounts.Count;
 
         var monthLogs = await db.AttendanceLogs
             .AsNoTracking()

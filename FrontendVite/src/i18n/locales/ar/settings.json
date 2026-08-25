@@ -850,7 +850,11 @@
       "void": "إلغاء",
       "refund": "استرداد",
       "discount": "خصم",
-      "adjust": "تسوية"
+      "adjust": "تسوية",
+      "create-login": "إنشاء حساب دخول",
+      "leave-request": "طلب إجازة شخصية",
+      "attendance": "تسجيل حضوره",
+      "payslip": "عرض قسائم راتبه"
     },
     "actionShort": {
       "view": "عرض",
@@ -863,7 +867,11 @@
       "void": "إلغاء",
       "refund": "استرداد",
       "discount": "خصم",
-      "adjust": "تسوية"
+      "adjust": "تسوية",
+      "create-login": "دخول",
+      "leave-request": "إجازة",
+      "attendance": "حضور",
+      "payslip": "راتب"
     },
     "group": {
       "inventory": "المخزون",

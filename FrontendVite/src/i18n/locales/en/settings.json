@@ -846,7 +846,11 @@
       "void": "Void",
       "refund": "Refund",
       "discount": "Discount",
-      "adjust": "Adjust"
+      "adjust": "Adjust",
+      "create-login": "Create login",
+      "leave-request": "Request own leave",
+      "attendance": "Mark own attendance",
+      "payslip": "View own payslips"
     },
     "actionShort": {
       "view": "VIE",
@@ -859,7 +863,11 @@
       "void": "VOI",
       "refund": "REF",
       "discount": "DIS",
-      "adjust": "ADJ"
+      "adjust": "ADJ",
+      "create-login": "LOGIN",
+      "leave-request": "LEAVE",
+      "attendance": "ATT",
+      "payslip": "PAY"
     },
     "group": {
       "inventory": "Inventory",

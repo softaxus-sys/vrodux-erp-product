@@ -51,7 +51,8 @@ export function EmployeeTable({ employees, onView }: Props) {
         if (sortField === "fullName") cmp = a.fullName.localeCompare(b.fullName);
         else if (sortField === "department") cmp = a.department.localeCompare(b.department);
         else if (sortField === "designation") cmp = a.designation.localeCompare(b.designation);
-        else if (sortField === "joinDate") cmp = a.joinDate.localeCompare(b.joinDate);
+        // joinDate is optional on the DTO — an employee without one must not crash the sort.
+        else if (sortField === "joinDate") cmp = (a.joinDate ?? "").localeCompare(b.joinDate ?? "");
         else if (sortField === "basicSalary") cmp = a.basicSalary - b.basicSalary;
         return sortDir === "asc" ? cmp : -cmp;
       });

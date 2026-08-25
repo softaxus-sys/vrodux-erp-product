@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Repositories;
@@ -8,16 +9,20 @@ namespace Softaxis.Identity.Application.Branches.Commands.UpdateBranch;
 
 public sealed class UpdateBranchCommandHandler(
     IBranchRepository branchRepo,
+    ICurrentUser      currentUser,
+    ITenantContext    tenantContext,
     IUnitOfWork       uow)
     : ICommandHandler<UpdateBranchCommand, BranchDto>
 {
     public async Task<Result<BranchDto>> Handle(UpdateBranchCommand cmd, CancellationToken ct)
     {
+        // Tenants only ever see their own branches; a super-admin sees the global/legacy rows.
+        Guid? tenantScope = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
         var branch = await branchRepo.GetByIdAsync(cmd.Id, ct);
-        if (branch is null)
+        if (branch is null || branch.TenantId != tenantScope)
             return Result.Failure<BranchDto>(Error.NotFoundById("Branch", cmd.Id));
 
-        if (await branchRepo.CodeExistsExcludingAsync(cmd.Code.ToUpperInvariant(), cmd.Id, ct))
+        if (await branchRepo.CodeExistsExcludingAsync(cmd.Code.ToUpperInvariant(), cmd.Id, tenantScope, ct))
             return Result.Failure<BranchDto>(Error.Custom("Branch.Code.Taken", "Another branch already uses this code."));
 
         branch.Update(

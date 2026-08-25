@@ -4,13 +4,18 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateJobPosting } from "@/hooks/hr/use-hr";
+import { useCreateJobPosting, useDepartments } from "@/hooks/hr/use-hr";
+import { useCurrency } from "@/hooks/use-currency";
 
-const DEPARTMENTS = ["IT", "Finance", "HR", "Sales", "Operations", "Marketing", "Management", "Procurement"];
+/** A stored value missing from the options would render the select blank — always offer it. */
+function withCurrent(options: string[], current: string): string[] {
+  const has = options.some(o => o.toLowerCase() === current.toLowerCase());
+  return current && !has ? [current, ...options] : options;
+}
+
 const JOB_TYPES   = ["Full-Time", "Part-Time", "Contract", "Internship", "Freelance"];
 const LOCATIONS    = ["Dubai HQ", "Abu Dhabi", "Sharjah", "Remote", "Hybrid"];
 const EXPERIENCE_LEVELS = ["Entry Level", "Mid Level", "Senior Level", "Lead / Principal", "Director / VP", "C-Suite"];
-const SALARY_CURRENCIES  = ["AED", "USD", "EUR"];
 
 const JOB_TYPE_MAP: Record<string, string> = {
   "Full-Time": "full_time", "Part-Time": "part_time", "Contract": "contract",
@@ -29,6 +34,9 @@ interface AddJobPostingFormProps {
 
 export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
   const { t } = useTranslation("hr");
+  const currency = useCurrency();
+  const { data: departments } = useDepartments();
+
   const [title, setTitle]               = React.useState("");
   const [department, setDepartment]     = React.useState("");
   const [jobType, setJobType]           = React.useState("Full-Time");
@@ -37,10 +45,14 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
   const [headcount, setHeadcount]       = React.useState("1");
   const [salaryMin, setSalaryMin]       = React.useState("");
   const [salaryMax, setSalaryMax]       = React.useState("");
-  const [salaryCurrency, setSalaryCurrency] = React.useState("AED");
   const [closingDate, setClosingDate]   = React.useState("");
   const [hiringManager, setHiringManager] = React.useState("");
   const [description, setDescription]  = React.useState("");
+
+  const departmentOptions = React.useMemo(
+    () => withCurrent((departments ?? []).map(d => d.name).filter(Boolean), department),
+    [departments, department]
+  );
   const [requirements, setRequirements] = React.useState<string[]>(["", "", ""]);
   const [responsibilities, setResponsibilities] = React.useState<string[]>(["", "", ""]);
 
@@ -56,7 +68,7 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
   const reset = () => {
     setTitle(""); setDepartment(""); setJobType("Full-Time"); setLocation("Dubai HQ");
     setExperience("Mid Level"); setHeadcount("1"); setSalaryMin(""); setSalaryMax("");
-    setSalaryCurrency("AED"); setClosingDate(""); setHiringManager(""); setDescription("");
+    setClosingDate(""); setHiringManager(""); setDescription("");
     setRequirements(["", "", ""]); setResponsibilities(["", "", ""]);
   };
 
@@ -73,7 +85,7 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
         headcount: Number(headcount) || 1,
         salaryMin: Number(salaryMin) || 0,
         salaryMax: Number(salaryMax) || 0,
-        currency: salaryCurrency,
+        currency,
         closingDate: closingDate || undefined,
         hiringManager: hiringManager.trim() || undefined,
         description: description.trim(),
@@ -127,7 +139,7 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
                     <select value={department} onChange={e => setDepartment(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       <option value="">{t("recruitment.jobForm.select")}</option>
-                      {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                      {departmentOptions.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -170,10 +182,9 @@ export function AddJobPostingForm({ open, onClose }: AddJobPostingFormProps) {
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("recruitment.jobForm.salaryRange")}</p>
                 <div className="flex items-center gap-2">
-                  <select value={salaryCurrency} onChange={e => setSalaryCurrency(e.target.value)}
-                    className="h-9 px-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {SALARY_CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                  </select>
+                  <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted/40 text-sm text-muted-foreground shrink-0">
+                    {currency}
+                  </span>
                   <Input type="number" min={0} step={500} value={salaryMin} onChange={e => setSalaryMin(e.target.value)}
                     placeholder={t("recruitment.jobForm.min")} className="h-9 text-sm flex-1" />
                   <span className="text-muted-foreground text-sm">—</span>

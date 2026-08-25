@@ -26,6 +26,18 @@ internal sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(x => x.TerminationDate).HasMaxLength(20);
         builder.Property(x => x.Status).IsRequired().HasMaxLength(30).HasDefaultValue("active");
         builder.Property(x => x.Notes).HasMaxLength(1000);
+        // Data URI for the profile photo; the API caps uploads at 2 MB so nvarchar(max) is the right fit.
+        builder.Property(x => x.AvatarData).HasColumnType("nvarchar(max)");
+        builder.Property(x => x.Nationality).HasMaxLength(100);
+        builder.Property(x => x.EmiratesId).HasMaxLength(30);
+        builder.Property(x => x.PassportNumber).HasMaxLength(30);
+        builder.Property(x => x.VisaExpiry).HasMaxLength(20);
+        builder.Property(x => x.ReportingTo).HasMaxLength(200);
+        builder.Property(x => x.BankAccount).HasMaxLength(120);
+        builder.Property(x => x.Iban).HasMaxLength(40);
+        builder.Property(x => x.LabourCardNumber).HasMaxLength(20);
+        builder.Property(x => x.BankRoutingCode).HasMaxLength(20);
+        builder.Property(x => x.MedicalInsurance).HasMaxLength(150);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 
@@ -34,8 +46,9 @@ internal sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.EmployeeNumber).IsUnique();
-        builder.HasIndex(x => x.Email).IsUnique();
+        // EmployeeNumber/Email uniqueness is declared in HrDbContext instead: it must be
+        // scoped to (TenantId, …) and filtered on IsDeleted, and TenantId is a shadow
+        // property that only exists after TenantIsolation.ApplyTenantId has run.
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.DepartmentId);
 

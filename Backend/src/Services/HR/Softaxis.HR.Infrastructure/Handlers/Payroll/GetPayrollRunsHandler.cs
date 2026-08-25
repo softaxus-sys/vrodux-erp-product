@@ -33,6 +33,7 @@ internal sealed class GetPayrollRunsHandler(HrDbContext db)
                 x.Id, x.RunNumber, x.Period,
                 x.TotalBasicSalary, x.TotalAllowances, x.TotalDeductions, x.TotalNetSalary,
                 x.Status, x.Notes, x.CreatedByName, x.RejectionReason, x.RejectedByName,
+                x.FinanceApprovedByName, x.FinanceApprovedAt, x.JournalEntryId, x.JournalEntryNumber,
                 x.Slips.Count,
                 x.ProcessedAt, x.PaidAt, x.RejectedAt, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(ct);

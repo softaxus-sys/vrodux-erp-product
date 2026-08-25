@@ -5,6 +5,8 @@ using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Leaves.Commands;
 using Softaxis.HR.Application.Leaves.Queries;
+using Softaxis.HR.Application.LeavePolicies.Commands;
+using Softaxis.HR.Application.LeavePolicies.Queries;
 
 namespace Softaxis.HR.API.Controllers;
 
@@ -14,6 +16,12 @@ namespace Softaxis.HR.API.Controllers;
 public sealed class LeavesController(ISender sender) : HrControllerBase
 {
     public sealed record ApproveRejectRequest(Guid ApproverId, string? Notes);
+
+    public sealed record UpdatePolicyRequest(
+        decimal AnnualEntitlementDays,
+        bool    IsPaid,
+        string? Description,
+        bool    IsActive);
 
     // ── GET /api/hr/leaves/summary ───────────────────────────────────────
     [HttpGet("summary")]
@@ -38,6 +46,63 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
     {
         var result = await sender.Send(
             new GetLeavesQuery(page, pageSize, search, status, leaveType, employeeId), ct);
+        return OkOrError(result);
+    }
+
+    // ── GET /api/hr/leaves/policies ──────────────────────────────────────
+    // Entitlements are tenant configuration; a tenant seeds its defaults on first read.
+    [HttpGet("policies")]
+    [RequirePermission("hr.leaves.view")]
+    public async Task<IActionResult> GetPolicies(CancellationToken ct)
+    {
+        var result = await sender.Send(new GetLeavePoliciesQuery(), ct);
+        return OkOrError(result);
+    }
+
+    // ── POST /api/hr/leaves/policies ─────────────────────────────────────
+    [HttpPost("policies")]
+    [RequirePermission("hr.leaves.edit")]
+    public async Task<IActionResult> CreatePolicy([FromBody] CreateLeavePolicyCommand command, CancellationToken ct)
+    {
+        var result = await sender.Send(command, ct);
+        return OkOrError(result);
+    }
+
+    // ── PUT /api/hr/leaves/policies/{id} ─────────────────────────────────
+    [HttpPut("policies/{id:guid}")]
+    [RequirePermission("hr.leaves.edit")]
+    public async Task<IActionResult> UpdatePolicy(Guid id, [FromBody] UpdatePolicyRequest req, CancellationToken ct)
+    {
+        var result = await sender.Send(new UpdateLeavePolicyCommand(
+            id, req.AnnualEntitlementDays, req.IsPaid, req.Description, req.IsActive), ct);
+        return NoContentOrError(result);
+    }
+
+    // ── DELETE /api/hr/leaves/policies/{id} ──────────────────────────────
+    // Leave has no delete permission key, so this gates on edit (nearest seeded key).
+    [HttpDelete("policies/{id:guid}")]
+    [RequirePermission("hr.leaves.edit")]
+    public async Task<IActionResult> DeletePolicy(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new DeleteLeavePolicyCommand(id), ct);
+        return NoContentOrError(result);
+    }
+
+    // ── GET /api/hr/leaves/balances ──────────────────────────────────────
+    [HttpGet("balances")]
+    [RequirePermission("hr.leaves.view")]
+    public async Task<IActionResult> GetAllBalances([FromQuery] int? year, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetAllLeaveBalancesQuery(year), ct);
+        return OkOrError(result);
+    }
+
+    // ── GET /api/hr/leaves/balances/{employeeId} ─────────────────────────
+    [HttpGet("balances/{employeeId:guid}")]
+    [RequirePermission("hr.leaves.view")]
+    public async Task<IActionResult> GetBalances(Guid employeeId, [FromQuery] int? year, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetEmployeeLeaveBalancesQuery(employeeId, year), ct);
         return OkOrError(result);
     }
 

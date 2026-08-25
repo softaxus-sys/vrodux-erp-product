@@ -18,6 +18,7 @@ import {
   useEmployees,
 } from "@/hooks/hr/use-hr";
 import { Can } from "@/components/auth/can";
+import { OfficeTimingsModal } from "./office-timings-modal";
 import { toast } from "sonner";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
@@ -393,6 +394,7 @@ export function AttendanceView() {
   const [deptFilter, setDeptFilter]     = React.useState("All Departments");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [markOpen, setMarkOpen]         = React.useState(false);
+  const [timingsOpen, setTimingsOpen]   = React.useState(false);
 
   const { data: attendanceRecords = [] } = useAttendance();
   const { data: attendanceSummary }      = useAttendanceSummary();
@@ -445,6 +447,13 @@ export function AttendanceView() {
           <p className="text-sm text-muted-foreground mt-0.5">{t("attendance.subtitle", { date: todayLabel })}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Office hours define what counts as late, so they sit with attendance rather than in
+              a settings page nobody visits while looking at a late arrival. */}
+          <Can permission="hr.attendance.edit">
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setTimingsOpen(true)}>
+              <Clock className="h-4 w-4" />{t("attendance.timings.button")}
+            </Button>
+          </Can>
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
           <Can permission="hr.attendance.create">
             <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setMarkOpen(true)}>
@@ -529,9 +538,23 @@ export function AttendanceView() {
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{rec.department}</td>
                     <td className="px-4 py-3">
-                      {rec.checkIn
-                        ? <span className={cn("font-mono text-sm font-medium", rec.status === "late" ? "text-warning" : "text-foreground")}>{rec.checkIn}</span>
-                        : <span className="text-muted-foreground text-sm">—</span>}
+                      {rec.checkIn ? (
+                        <div className="flex items-center gap-2">
+                          {/* Coloured by the recorded lateness, not by status: nothing ever set a
+                              "late" status, so this was always plain black. */}
+                          <span className={cn("font-mono text-sm font-medium",
+                            (rec.lateMinutes ?? 0) > 0 ? "text-warning" : "text-foreground")}>
+                            {rec.checkIn}
+                          </span>
+                          {(rec.lateMinutes ?? 0) > 0 && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/10 text-warning whitespace-nowrap">
+                              {t("attendance.lateBy", { minutes: rec.lateMinutes })}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {rec.checkOut ? <span className="font-mono text-sm">{rec.checkOut}</span> : <span className="text-muted-foreground text-sm">—</span>}
@@ -550,6 +573,8 @@ export function AttendanceView() {
           </div>
         </CardContent>
       </Card>
+
+      <OfficeTimingsModal open={timingsOpen} onClose={() => setTimingsOpen(false)} />
 
       {/* Mark Attendance Modal */}
       <MarkAttendanceModal

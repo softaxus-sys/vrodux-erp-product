@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Plus, X, Check, XCircle, Plane,
-  Calendar, User, Building2, Clock, FileText, CheckCircle2, AlertCircle
+  Calendar, User, Building2, Clock, FileText, CheckCircle2, AlertCircle, Settings2, Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
 import type { LeaveRequestDto as LeaveRequest, LeaveStatus } from "@/lib/hr/hr.api";
-import { useLeaveRequests, useLeaveBalances, useLeaveSummary, useApproveLeave, useRejectLeave } from "@/hooks/hr/use-hr";
+import {
+  useLeaveRequests, useLeaveBalances, useLeaveSummary, useApproveLeave, useRejectLeave,
+  useLeavePolicies, useCreateLeavePolicy, useUpdateLeavePolicy, useDeleteLeavePolicy,
+} from "@/hooks/hr/use-hr";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddLeaveForm } from "./add-leave-form";
 import { Can } from "@/components/auth/can";
+import { LeavePoliciesModal } from "./leave-policies-modal";
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
   pending:   { color: "text-warning",          bg: "bg-warning/10",     icon: Clock },
@@ -208,6 +212,7 @@ export function LeavesView() {
   const [selectedRequest, setSelectedRequest] = React.useState<LeaveRequest | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"requests" | "balances">("requests");
+  const [showPolicies, setShowPolicies] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
   const { data: leaveRequests = [] } = useLeaveRequests();
@@ -239,6 +244,12 @@ export function LeavesView() {
   const { data: leaveBalances = [] } = useLeaveBalances();
   const { data: leaveSummary } = useLeaveSummary();
 
+  // Columns follow the tenant's own leave policies rather than a fixed annual/sick/unpaid trio.
+  const balanceColumns = React.useMemo(
+    () => leaveBalances[0]?.balances.map(b => b.leaveType) ?? [],
+    [leaveBalances]
+  );
+
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
     return leaveRequests.filter(r => {
@@ -261,6 +272,11 @@ export function LeavesView() {
         </div>
         <div className="flex items-center gap-2">
           <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
+          <Can permission="hr.leaves.edit">
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowPolicies(true)}>
+              <Settings2 className="h-4 w-4" />{t("leaves.policies.button")}
+            </Button>
+          </Can>
           <Can permission="hr.leaves.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />{t("leaves.applyLeave")}</Button></Can>
         </div>
       </div>
@@ -400,62 +416,73 @@ export function LeavesView() {
       {activeTab === "balances" && (
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-y border-border bg-muted/30">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.balances.employee")}</th>
-                    {[t("leaves.balances.annualLeave"), t("leaves.balances.sickLeave"), t("leaves.balances.unpaidLeave")].map(h => (
-                      <th key={h} colSpan={3} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide border-l border-border/50">{h}</th>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-border bg-muted/10">
-                    <th className="px-4 py-2" />
-                    {["annual","sick","unpaid"].map(lt => (
-                      <React.Fragment key={lt}>
-                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground border-l border-border/50">{t("leaves.balances.entitled")}</th>
-                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">{t("leaves.balances.taken")}</th>
-                        <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">{t("leaves.balances.balance")}</th>
-                      </React.Fragment>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {leaveBalances.map((bal, i) => (
-                    <motion.tr key={bal.employeeId} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }} className="erp-table-row">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarFallback className="text-[11px] font-bold bg-primary/10 text-primary">{getInitials(bal.employeeName)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium text-sm">{bal.employeeName}</p>
-                            <p className="text-[11px] text-muted-foreground">{bal.department}</p>
-                          </div>
-                        </div>
-                      </td>
-                      {[bal.annual, bal.sick, bal.unpaid].map((lb, j) => (
-                        <React.Fragment key={j}>
-                          <td className="px-3 py-3 text-center text-sm border-l border-border/30">{lb.entitled}</td>
-                          <td className="px-3 py-3 text-center text-sm text-warning font-medium">{lb.taken}</td>
-                          <td className="px-3 py-3 text-center">
-                            <span className={cn("text-sm font-bold", lb.balance === 0 ? "text-destructive" : lb.balance <= 5 ? "text-warning" : "text-success")}>
-                              {lb.balance}
-                            </span>
-                          </td>
+            {!leaveBalances.length ? (
+              <p className="p-6 text-sm text-muted-foreground">{t("leaves.balances.empty")}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-y border-border bg-muted/30">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("leaves.balances.employee")}</th>
+                      {balanceColumns.map(lt => (
+                        <th key={lt} colSpan={3} className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide border-l border-border/50">
+                          {t(`leaveType.${lt}`, { defaultValue: lt })}
+                        </th>
+                      ))}
+                    </tr>
+                    <tr className="border-b border-border bg-muted/10">
+                      <th className="px-4 py-2" />
+                      {balanceColumns.map(lt => (
+                        <React.Fragment key={lt}>
+                          <th className="px-3 py-2 text-center text-[10px] text-muted-foreground border-l border-border/50">{t("leaves.balances.entitled")}</th>
+                          <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">{t("leaves.balances.taken")}</th>
+                          <th className="px-3 py-2 text-center text-[10px] text-muted-foreground">{t("leaves.balances.balance")}</th>
                         </React.Fragment>
                       ))}
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaveBalances.map((bal, i) => (
+                      <motion.tr key={bal.employeeId} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.03 }} className="erp-table-row">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8 shrink-0">
+                              <AvatarFallback className="text-[11px] font-bold bg-primary/10 text-primary">{getInitials(bal.employeeName)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{bal.employeeName}</p>
+                              <p className="text-[11px] text-muted-foreground">{bal.department ?? "—"}</p>
+                            </div>
+                          </div>
+                        </td>
+                        {balanceColumns.map(lt => {
+                          const lb = bal.balances.find(x => x.leaveType === lt);
+                          return (
+                            <React.Fragment key={lt}>
+                              <td className="px-3 py-3 text-center text-sm border-l border-border/30">{lb?.entitlementDays ?? 0}</td>
+                              <td className="px-3 py-3 text-center text-sm text-warning font-medium">{lb?.usedDays ?? 0}</td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={cn("text-sm font-bold",
+                                  !lb || lb.remainingDays === 0 ? "text-destructive" : lb.remainingDays <= 5 ? "text-warning" : "text-success")}>
+                                  {lb?.remainingDays ?? 0}
+                                </span>
+                              </td>
+                            </React.Fragment>
+                          );
+                        })}
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
       <LeaveDrawer request={selectedRequest} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <LeavePoliciesModal open={showPolicies} onClose={() => setShowPolicies(false)} />
       <AddLeaveForm open={showAddForm} onClose={() => setShowAddForm(false)} />
     </div>
   );

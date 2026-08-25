@@ -18,6 +18,6 @@ internal sealed class FiscalPeriodConfiguration : IEntityTypeConfiguration<Fisca
         builder.Property(x => x.ClosedByName).HasMaxLength(200);
         builder.Property(x => x.CreatedAt).IsRequired();
 
-        builder.HasIndex(x => x.PeriodCode).IsUnique();
+        // Unique per tenant, live rows only — declared in FinanceDbContext (needs the TenantId shadow column).
     }
 }

@@ -29,7 +29,7 @@ internal sealed class ReceiptVoucherConfiguration : IEntityTypeConfiguration<Rec
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.VoucherNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in FinanceDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.CustomerId);
 

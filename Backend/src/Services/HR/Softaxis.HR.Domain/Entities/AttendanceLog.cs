@@ -12,7 +12,8 @@ public sealed class AttendanceLog
         string? checkOut,
         decimal? workingHours,
         string  status,
-        string? notes)
+        string? notes,
+        int?    lateMinutes = null)
     {
         Id           = Guid.NewGuid();
         EmployeeId   = employeeId;
@@ -23,6 +24,7 @@ public sealed class AttendanceLog
         WorkingHours = workingHours;
         Status       = status;         // present | absent | half-day | remote | holiday | leave
         Notes        = notes?.Trim();
+        LateMinutes  = lateMinutes;
         CreatedAt    = DateTime.UtcNow;
     }
 
@@ -35,19 +37,31 @@ public sealed class AttendanceLog
     public decimal?  WorkingHours { get; private set; }
     public string    Status       { get; private set; } = string.Empty;
     public string?   Notes        { get; private set; }
+
+    /// <summary>
+    /// Minutes past the schedule's grace period at check-in; 0 when on time, null when it could
+    /// not be judged (no schedule, or an unreadable time). Snapshotted at check-in rather than
+    /// derived on read, so changing office hours never rewrites what already happened.
+    /// </summary>
+    public int?      LateMinutes  { get; private set; }
+
     public DateTime  CreatedAt    { get; private set; }
     public DateTime? UpdatedAt    { get; private set; }
 
     public Employee? Employee { get; private set; }
 
     public void Update(
-        string? checkIn, string? checkOut, decimal? workingHours, string status, string? notes)
+        string? checkIn, string? checkOut, decimal? workingHours, string status, string? notes,
+        int? lateMinutes = null)
     {
         CheckIn      = checkIn;
         CheckOut     = checkOut;
         WorkingHours = workingHours;
         Status       = status;
         Notes        = notes?.Trim();
+        // Only overwritten when a fresh judgement is supplied — an edit that does not touch the
+        // arrival time must not silently erase the original verdict.
+        LateMinutes  = lateMinutes ?? LateMinutes;
         UpdatedAt    = DateTime.UtcNow;
     }
 }

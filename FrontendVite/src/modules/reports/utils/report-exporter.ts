@@ -1,3 +1,4 @@
+import { parseApiDate } from "@/lib/utils";
 /**
  * Branded report export utilities — PDF, Excel (HTML), CSV, XML.
  *
@@ -54,7 +55,7 @@ function nowStr(): string {
 
 function fmtDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleDateString("en-GB", {
+    return parseApiDate(iso).toLocaleDateString("en-GB", {
       day: "2-digit", month: "short", year: "numeric",
     });
   } catch { return iso; }

@@ -36,17 +36,17 @@ internal sealed class GetEmployeesHandler(HrDbContext db)
         var total      = await q.CountAsync(ct);
         var totalPages = (int)Math.Ceiling((double)total / query.PageSize);
 
-        var items = await q
+        // Same rule as GetEmployeeById: one mapper owns the DTO shape, so a new field can never
+        // be added to EmployeeDto and silently come back null from here.
+        var rows = await q
             .OrderBy(x => x.FirstName).ThenBy(x => x.LastName)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
-            .Select(x => new EmployeeDto(
-                x.Id, x.EmployeeNumber, x.FirstName, x.LastName,
-                x.FirstName + " " + x.LastName,
-                x.Email, x.Phone, x.JobTitle, x.DepartmentId, x.DepartmentName,
-                x.EmploymentType, x.BasicSalary, x.JoiningDate, x.TerminationDate,
-                x.Status, x.ManagerId, x.Notes, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(ct);
+
+        // Explicit lambda, not a method group: ToDto now has an optional second parameter, and a
+        // list read deliberately passes no linked account (it must not join Identity per row).
+        var items = rows.Select(e => EmployeeMappings.ToDto(e)).ToList();
 
         return Result.Success(new PagedResult<EmployeeDto>(
             items, query.Page, query.PageSize, total, totalPages, query.Page < totalPages, query.Page > 1));

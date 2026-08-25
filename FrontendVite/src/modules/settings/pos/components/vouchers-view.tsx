@@ -1,3 +1,4 @@
+import { parseApiDate } from "@/lib/utils";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Search, Pencil, Trash2, Ticket, Loader2, Percent, Banknote, Printer, AlertTriangle } from "lucide-react";
@@ -171,7 +172,7 @@ function fmtMoney(n: number, currency: string): string {
 }
 function fmtDateNice(iso: string | null): string | null {
   if (!iso) return null;
-  return new Date(iso).toLocaleDateString("en", { day: "2-digit", month: "short", year: "numeric" });
+  return parseApiDate(iso).toLocaleDateString("en", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 /** Faux barcode rendered with CSS stripes — visual preview of the printed CODE128. */

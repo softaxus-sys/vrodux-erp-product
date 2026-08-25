@@ -32,7 +32,7 @@ internal sealed class JournalEntryConfiguration : IEntityTypeConfiguration<Journ
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.EntryNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in FinanceDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Date);
         builder.HasIndex(x => x.Status);
 

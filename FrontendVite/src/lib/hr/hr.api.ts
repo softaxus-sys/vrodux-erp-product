@@ -66,6 +66,12 @@ export interface EmployeeDto {
   passportNumber: string;
   visaExpiry?: string;
   medicalInsurance?: string;
+  /** MOHRE Person ID and the agent bank routing code — both required by a WPS salary file. */
+  labourCardNumber?: string;
+  bankRoutingCode?: string;
+  /** Identity login linked to this employee, if any. */
+  userId?: string;
+  linkedAccount?: LinkedAccountDto;
   annualLeaveBalance: number;
   sickLeaveBalance: number;
   skills: string[];
@@ -100,7 +106,22 @@ export interface AttendanceRecordDto {
   hoursWorked?: number;
   status: AttendanceStatus;
   note?: string;
+  /** Minutes past the grace period at check-in; 0 = on time, undefined = not judged. */
+  lateMinutes?: number;
 }
+
+/** The tenant's office hours — what "on time" means. */
+export interface WorkScheduleDto {
+  id: string;
+  name: string;
+  startTime: string;      // HH:mm, local to timeZoneId
+  endTime: string;        // HH:mm
+  graceMinutes: number;
+  workingDays: number[];  // 0 = Sunday
+  timeZoneId: string;
+}
+
+export type WorkSchedulePayload = Omit<WorkScheduleDto, "id">;
 
 export interface AttendanceSummaryDto {
   presentToday: number;
@@ -136,13 +157,31 @@ export interface LeaveRequestDto {
   coveringEmployee?: string;
 }
 
+export interface LeavePolicyDto {
+  id: string;
+  leaveType: string;
+  annualEntitlementDays: number;
+  isPaid: boolean;
+  description?: string | null;
+  isActive: boolean;
+}
+
+/** One leave type's position for an employee — every figure is derived server-side. */
+export interface LeaveBalanceLineDto {
+  leaveType: string;
+  entitlementDays: number;
+  usedDays: number;
+  pendingDays: number;
+  remainingDays: number;
+  isPaid: boolean;
+  year: number;
+}
+
 export interface LeaveBalanceDto {
   employeeId: string;
   employeeName: string;
-  department: string;
-  annual: { entitled: number; taken: number; balance: number };
-  sick: { entitled: number; taken: number; balance: number };
-  unpaid: { entitled: number; taken: number; balance: number };
+  department?: string | null;
+  balances: LeaveBalanceLineDto[];
 }
 
 export interface LeaveSummaryDto {
@@ -156,7 +195,7 @@ export interface LeaveSummaryDto {
 
 // ─── Payroll ──────────────────────────────────────────────────────────────────
 
-export type PayrollStatus  = "draft" | "processing" | "processed" | "approved" | "paid" | "failed" | "rejected";
+export type PayrollStatus  = "draft" | "processing" | "processed" | "finance_approved" | "approved" | "paid" | "failed" | "rejected";
 export type PayslipStatus  = "generated" | "sent" | "viewed";
 
 export interface PayrollDeductionDto { label: string; amount: number; }
@@ -183,6 +222,26 @@ export interface PayslipDto {
   paidOn?: string;
 }
 
+/** Employer identifiers a UAE WPS salary file must carry. Blank until HR fills them in. */
+export interface WpsConfigDto {
+  employerUniqueId: string;
+  employerBankRoutingCode: string;
+  fileSequence: number;
+  isComplete: boolean;
+}
+
+export interface WpsIssueDto { employeeName: string; problem: string; }
+
+export interface WpsSifFileDto {
+  fileName: string;
+  content: string;
+  recordCount: number;
+  totalSalary: number;
+  /** Employees left out because their record is incomplete — each reason is in "issues". */
+  excludedCount: number;
+  issues: WpsIssueDto[];
+}
+
 // Matches actual backend response shape
 export interface PayrollRunDto {
   id: string;
@@ -197,6 +256,12 @@ export interface PayrollRunDto {
   createdByName?: string;
   rejectionReason?: string | null;
   rejectedByName?: string | null;
+  /** Set once Finance has signed the run off; until then it cannot be paid. */
+  financeApprovedByName?: string | null;
+  financeApprovedAt?: string | null;
+  /** The accounting entry the approval posted. */
+  journalEntryId?: string | null;
+  journalEntryNumber?: string | null;
   slipCount: number;
   processedAt?: string | null;
   paidAt?: string | null;
@@ -321,6 +386,39 @@ export interface RecruitmentSummaryDto {
 
 // ─── Mutation Payloads ────────────────────────────────────────────────────────
 
+/** Live state of the Identity login linked to an employee. HR stores none of this. */
+export interface LinkedAccountDto {
+  userId: string;
+  email: string;
+  username: string;
+  fullName: string;
+  status: string;
+  emailVerified: boolean;
+  lastLoginAt?: string | null;
+}
+
+/** A login that might be the same person — a suggestion for a human to confirm. */
+export interface UserMatchDto {
+  userId: string;
+  email: string;
+  username: string;
+  fullName: string;
+  status: string;
+  /** Set when the login already belongs to another employee; then it cannot be linked. */
+  alreadyLinkedToEmployeeName?: string | null;
+  /**
+   * The address has no login in this workspace but already has one elsewhere. A Vrodux login is
+   * identified by email platform-wide, so it can neither be linked here nor created again.
+   */
+  registeredInAnotherWorkspace?: boolean;
+}
+
+export interface DepartmentOptionDto {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 export interface CreateEmployeePayload {
   firstName: string;
   lastName: string;
@@ -334,10 +432,24 @@ export interface CreateEmployeePayload {
   joiningDate: string;
   managerId?: string;
   notes?: string;
+  /** Profile photo as a data URI. Omit to keep the existing one; set removeAvatar to clear it. */
+  avatarData?: string;
+  nationality?: string;
+  emiratesId?: string;
+  passportNumber?: string;
+  visaExpiry?: string;
+  reportingTo?: string;
+  bankAccount?: string;
+  iban?: string;
+  medicalInsurance?: string;
+  labourCardNumber?: string;
+  bankRoutingCode?: string;
 }
 
 export interface UpdateEmployeePayload extends CreateEmployeePayload {
   status: string;
+  /** Explicitly clear the stored photo — a missing avatarData means "leave it alone". */
+  removeAvatar?: boolean;
 }
 
 export interface CreateLeavePayload {
@@ -348,6 +460,20 @@ export interface CreateLeavePayload {
   endDate: string;
   totalDays: number;
   reason?: string;
+}
+
+export interface EmployeePayslipDto {
+  runId: string;
+  slipId: string;
+  runNumber: string;
+  period: string;
+  runStatus: string;
+  basicSalary: number;
+  allowances: number;
+  deductions: number;
+  netSalary: number;
+  processedAt?: string | null;
+  paidAt?: string | null;
 }
 
 export interface CreatePayrollRunPayload {
@@ -451,6 +577,34 @@ export interface UpdateGoalPayload {
 
 // ─── Response mapper helpers ──────────────────────────────────────────────────
 
+/** Best-effort split for sources that only carry a combined name (e.g. the list endpoint). */
+function splitName(fullName?: string): { first: string; last: string } {
+  const parts = (fullName ?? "").trim().split(/s+/).filter(Boolean);
+  if (parts.length === 0) return { first: "", last: "" };
+  return { first: parts[0], last: parts.slice(1).join(" ") };
+}
+
+/**
+ * Backend AttendanceLogDto -> UI AttendanceRecordDto. The names genuinely differ
+ * (workingHours/notes vs hoursWorked/note), so without this the Hours column and the CSV/PDF
+ * export were permanently blank — the data was in the response under another name.
+ */
+export function mapAttendance(raw: any): AttendanceRecordDto {
+  return {
+    id:           raw.id,
+    employeeId:   raw.employeeId,
+    employeeName: raw.employeeName ?? "",
+    department:   raw.department ?? raw.departmentName ?? "",
+    date:         raw.date ?? "",
+    checkIn:      raw.checkIn  ?? undefined,
+    checkOut:     raw.checkOut ?? undefined,
+    hoursWorked:  raw.hoursWorked ?? raw.workingHours ?? undefined,
+    status:       (raw.status as AttendanceStatus) ?? "present",
+    note:         raw.note ?? raw.notes ?? undefined,
+    lateMinutes:  raw.lateMinutes ?? undefined,
+  };
+}
+
 /** Map raw backend employee to unified EmployeeDto */
 function mapEmployee(raw: any): EmployeeDto {
   const employmentType: string = raw.employmentType ?? raw.contractType ?? "Full-Time";
@@ -463,10 +617,10 @@ function mapEmployee(raw: any): EmployeeDto {
   return {
     id:                raw.id,
     employeeId:        raw.employeeNumber ?? raw.employeeId ?? "",
-    firstName:         raw.firstName ?? "",
-    lastName:          raw.lastName  ?? "",
+    firstName:         raw.firstName ?? splitName(raw.fullName).first,
+    lastName:          raw.lastName  ?? splitName(raw.fullName).last,
     fullName:          raw.fullName  ?? `${raw.firstName ?? ""} ${raw.lastName ?? ""}`.trim(),
-    avatar:            raw.avatar,
+    avatar:            raw.avatarData ?? raw.avatar,
     email:             raw.email     ?? "",
     phone:             raw.phone     ?? "",
     mobile:            raw.mobile    ?? raw.phone ?? "",
@@ -489,12 +643,16 @@ function mapEmployee(raw: any): EmployeeDto {
     passportNumber:    raw.passportNumber ?? "",
     visaExpiry:        raw.visaExpiry,
     medicalInsurance:  raw.medicalInsurance,
+    labourCardNumber:  raw.labourCardNumber,
+    bankRoutingCode:   raw.bankRoutingCode,
     annualLeaveBalance:raw.annualLeaveBalance ?? 0,
     sickLeaveBalance:  raw.sickLeaveBalance  ?? 0,
     skills:            raw.skills     ?? [],
     address:           raw.address    ?? "",
     emergencyContact:  raw.emergencyContact ?? { name: "", relation: "", phone: "" },
     documents:         raw.documents  ?? [],
+    userId:            raw.userId ?? undefined,
+    linkedAccount:     raw.linkedAccount ?? undefined,
   };
 }
 
@@ -578,9 +736,40 @@ function mapPerformanceReview(raw: any): PerformanceReviewDto {
 
 export const hrApi = {
   // ── Employees ─────────────────────────────────────────────────────────────
-  getEmployees: (): Promise<EmployeeDto[]> =>
-    rawApiClient.get(`${BASE}/employees/all`).then((r: any) =>
+  /** @param includeInactive the list page wants everyone; pickers want active staff only. */
+  getEmployees: (includeInactive = false): Promise<EmployeeDto[]> =>
+    rawApiClient.get(`${BASE}/employees/all${includeInactive ? "?includeInactive=true" : ""}`).then((r: any) =>
       (Array.isArray(r) ? r : r.items ?? []).map(mapEmployee)),
+
+  /**
+   * Full employee record. The list endpoint (/employees/all) returns a 6-field summary —
+   * no email, phone, first/last name, join date or compliance fields — so any screen that
+   * edits or details an employee must load the record by id, not reuse the list row.
+   */
+  getEmployeeById: (id: string): Promise<EmployeeDto> =>
+    rawApiClient.get(`${BASE}/employees/${id}`).then(mapEmployee),
+
+  /** Real departments (hr.departments). The forms used to offer a hardcoded list whose names
+   *  did not match a single stored department, so an employee's department never pre-selected. */
+  getDepartments: (): Promise<DepartmentOptionDto[]> =>
+    rawApiClient.get(`${BASE}/departments`).then((r: any) =>
+      (Array.isArray(r) ? r : r.items ?? [])
+        .filter((d: any) => d.isActive !== false)
+        .map((d: any) => ({ id: d.id, name: d.name ?? "", code: d.code ?? undefined }))),
+
+  createDepartment: (payload: { name: string; code?: string }): Promise<DepartmentOptionDto> =>
+    rawApiClient.post(`${BASE}/departments`, { ...payload, isActive: true })
+      .then((d: any) => ({ id: d.id, name: d.name ?? payload.name, code: d.code ?? undefined })),
+
+  /** Suggestion only — linking is a separate, explicit call. */
+  findUserMatch: (email: string): Promise<UserMatchDto | null> =>
+    rawApiClient.get(`${BASE}/employees/user-match?email=${encodeURIComponent(email)}`),
+
+  linkEmployeeUser: (employeeId: string, userId: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/employees/${employeeId}/link-user`, { userId }),
+
+  unlinkEmployeeUser: (employeeId: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/employees/${employeeId}/link-user`),
 
   getHrSummary: (): Promise<HrSummaryDto> =>
     rawApiClient.get(`${BASE}/employees/summary`),
@@ -596,13 +785,20 @@ export const hrApi = {
 
   // ── Attendance ────────────────────────────────────────────────────────────
   getAttendance: (): Promise<AttendanceRecordDto[]> =>
-    rawApiClient.get(`${BASE}/attendance?pageSize=500`).then((r: any) => r.items ?? r),
-
+    rawApiClient.get(`${BASE}/attendance?pageSize=500`)
+      .then((r: any) => (Array.isArray(r) ? r : r.items ?? []).map(mapAttendance)),
+ 
   getAttendanceSummary: (): Promise<AttendanceSummaryDto> =>
     rawApiClient.get(`${BASE}/attendance/summary`),
 
+  getWorkSchedule: (): Promise<WorkScheduleDto> =>
+    rawApiClient.get(`${BASE}/attendance/schedule`),
+
+  updateWorkSchedule: (payload: WorkSchedulePayload): Promise<WorkScheduleDto> =>
+    rawApiClient.put(`${BASE}/attendance/schedule`, payload),
+
   markAttendance: (payload: MarkAttendancePayload): Promise<AttendanceRecordDto> =>
-    rawApiClient.post(`${BASE}/attendance`, payload),
+    rawApiClient.post(`${BASE}/attendance`, payload).then(mapAttendance),
 
   updateAttendance: (id: string, payload: UpdateAttendancePayload): Promise<void> =>
     rawApiClient.put(`${BASE}/attendance/${id}`, payload),
@@ -611,15 +807,27 @@ export const hrApi = {
     rawApiClient.delete(`${BASE}/attendance/${id}`),
 
   // ── Leaves ────────────────────────────────────────────────────────────────
-  getLeaveRequests: (): Promise<LeaveRequestDto[]> =>
-    rawApiClient.get(`${BASE}/leaves?pageSize=500`).then((r: any) =>
+  getLeaveRequests: (employeeId?: string): Promise<LeaveRequestDto[]> =>
+    rawApiClient.get(`${BASE}/leaves?pageSize=500${employeeId ? `&employeeId=${employeeId}` : ""}`).then((r: any) =>
       (r.items ?? r ?? []).map(mapLeave)),
 
-  /** NOTE: /leaves/balances endpoint not yet implemented in backend — returns [] */
-  getLeaveBalances: (): Promise<LeaveBalanceDto[]> =>
-    rawApiClient.get(`${BASE}/leaves/balances?pageSize=500`)
-      .then((r: any) => r.items ?? r ?? [])
-      .catch(() => []),
+  getLeaveBalances: (year?: number): Promise<LeaveBalanceDto[]> =>
+    rawApiClient.get(`${BASE}/leaves/balances${year ? `?year=${year}` : ""}`),
+
+  getEmployeeLeaveBalances: (employeeId: string, year?: number): Promise<LeaveBalanceLineDto[]> =>
+    rawApiClient.get(`${BASE}/leaves/balances/${employeeId}${year ? `?year=${year}` : ""}`),
+
+  getLeavePolicies: (): Promise<LeavePolicyDto[]> =>
+    rawApiClient.get(`${BASE}/leaves/policies`),
+
+  createLeavePolicy: (payload: { leaveType: string; annualEntitlementDays: number; isPaid: boolean; description?: string }): Promise<LeavePolicyDto> =>
+    rawApiClient.post(`${BASE}/leaves/policies`, payload),
+
+  updateLeavePolicy: (id: string, payload: { annualEntitlementDays: number; isPaid: boolean; description?: string; isActive: boolean }): Promise<void> =>
+    rawApiClient.put(`${BASE}/leaves/policies/${id}`, payload),
+
+  deleteLeavePolicy: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/leaves/policies/${id}`),
 
   getLeaveSummary: (): Promise<LeaveSummaryDto> =>
     rawApiClient.get(`${BASE}/leaves/summary`),
@@ -640,8 +848,18 @@ export const hrApi = {
   getPayrollRuns: (): Promise<PayrollRunDto[]> =>
     rawApiClient.get(`${BASE}/payroll?pageSize=500`).then((r: any) => r.items ?? r),
 
+  /**
+   * The detail response names the collection `slips`; this client has always called it
+   * `payslips`, so `run.payslips` was permanently undefined — which is why the WPS preview was
+   * empty and the generated file reported 0 records. Normalised here, at the boundary.
+   */
   getPayrollRunById: (id: string): Promise<PayrollRunDto> =>
-    rawApiClient.get(`${BASE}/payroll/${id}`),
+    rawApiClient.get(`${BASE}/payroll/${id}`)
+      .then((r: any) => ({ ...r, payslips: r.payslips ?? r.slips ?? [] })),
+
+  /** Payslips issued to one employee — the API returns processed/paid runs only. */
+  getEmployeePayslips: (employeeId: string): Promise<EmployeePayslipDto[]> =>
+    rawApiClient.get(`${BASE}/payroll/employees/${employeeId}/slips`),
 
   getPayrollSummary: (): Promise<PayrollSummaryDto> =>
     rawApiClient.get(`${BASE}/payroll/summary`),
@@ -667,8 +885,27 @@ export const hrApi = {
   processPayrollRun: (id: string): Promise<void> =>
     rawApiClient.post(`${BASE}/payroll/${id}/process`, {}),
 
+  /** Finance signs the run off. Only after this can it be paid. */
+  financeApprovePayrollRun: (id: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/payroll/${id}/finance-approve`, {}),
+
+  /** Records the journal entry the approval posted, so payroll links to the ledger. */
+  linkPayrollJournalEntry: (id: string, payload: { journalEntryId: string; journalEntryNumber?: string }): Promise<void> =>
+    rawApiClient.patch(`${BASE}/payroll/${id}/journal-entry`, payload),
+
   payPayrollRun: (id: string): Promise<void> =>
     rawApiClient.post(`${BASE}/payroll/${id}/pay`, {}),
+ 
+  // ── WPS (UAE Wage Protection System) ────────────────────────────────────
+  getWpsConfig: (): Promise<WpsConfigDto> =>
+    rawApiClient.get(`${BASE}/payroll/wps/config`),
+
+  updateWpsConfig: (payload: { employerUniqueId: string; employerBankRoutingCode: string }): Promise<WpsConfigDto> =>
+    rawApiClient.put(`${BASE}/payroll/wps/config`, payload),
+
+  /** Built on the server: the employer identifiers never reach the browser. */
+  getWpsSif: (runId: string): Promise<WpsSifFileDto> =>
+    rawApiClient.get(`${BASE}/payroll/${runId}/wps-sif`),
 
   sendPayslipEmail: (runId: string, slipId: string): Promise<{ sentTo: string; sentAt: string }> =>
     rawApiClient.post(`${BASE}/payroll/${runId}/slips/${slipId}/send-email`, {}),

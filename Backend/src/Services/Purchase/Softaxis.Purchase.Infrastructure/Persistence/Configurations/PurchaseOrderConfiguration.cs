@@ -23,7 +23,7 @@ internal sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purc
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.OrderNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in PurchaseDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.VendorId);
 

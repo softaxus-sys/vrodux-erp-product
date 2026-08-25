@@ -5,7 +5,9 @@ using Softaxis.Identity.Application.Users.Commands.AdminResetPassword;
 using Softaxis.Identity.Application.Users.Commands.AssignRole;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
 using Softaxis.Identity.Application.Users.Commands.CreateUser;
+using Softaxis.Identity.Application.Users.Commands.ProvisionUser;
 using Softaxis.Identity.Application.Users.Commands.DeleteUser;
+using Softaxis.Identity.Application.Users.Commands.GrantSelfService;
 using Softaxis.Identity.Application.Users.Commands.RemoveRole;
 using Softaxis.Identity.Application.Users.Commands.UpdateUser;
 using Softaxis.Identity.Application.Users.Commands.UpdateUserPermissions;
@@ -41,6 +43,24 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateUserCommand command, CancellationToken ct)
         => HandleResult(await Sender.Send(command, ct), 201);
+
+    /// <summary>
+    /// Creates a login for someone standing in front of an administrator — HR giving an employee
+    /// portal access. Returns a server-generated temporary password ONCE; it is never retrievable
+    /// afterwards, only its hash is stored. The account is usable immediately and the holder must
+    /// replace the password at first sign-in.
+    /// </summary>
+    [HttpPost("provision")]
+    public async Task<IActionResult> Provision([FromBody] ProvisionUserCommand command, CancellationToken ct)
+        => HandleResult(await Sender.Send(command, ct), 201);
+
+    /// <summary>
+    /// Give an existing login access to their own HR record — profile, leave, attendance and
+    /// payslips. Additive: assigns one extra role, never removes what they already have.
+    /// </summary>
+    [HttpPost("{id:guid}/grant-self-service")]
+    public async Task<IActionResult> GrantSelfService(Guid id, CancellationToken ct)
+        => HandleResult(await Sender.Send(new GrantSelfServiceCommand(id), ct));
 
     /// <summary>Update a user's profile (name, phone, avatar).</summary>
     [HttpPut("{id:guid}")]

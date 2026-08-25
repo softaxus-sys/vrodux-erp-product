@@ -214,7 +214,7 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarNavItemProps) {
 // ─── Sidebar nav ──────────────────────────────────────────────────────────────
 
 export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
-  const { hasModuleAccess, user, tenant } = useAuthStore();
+  const { hasModuleAccess, hasRawPermission, user, tenant } = useAuthStore();
   const impersonation = useAuthStore((s) => s.impersonation);
   const navigationConfig = useNavigation();
 
@@ -229,19 +229,32 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   // whose visibility is governed by their parent).
   // Groups with no visible items are hidden entirely.
   const visibleConfig = React.useMemo((): NavGroup[] => {
-    const itemVisible = (mod?: string) =>
-      superAdminMode ? mod === "super-admin" : (!mod || hasModuleAccess(mod as ModuleKey));
+    const itemVisible = (mod?: string, permission?: string) => {
+      if (superAdminMode) return mod === "super-admin";
+      if (mod && !hasModuleAccess(mod as ModuleKey)) return false;
+      // A page the user cannot open should not be offered: a self-service employee holds the HR
+      // module but only hr.self.*, so Employees/Payroll would be a list of guaranteed 403s.
+      return !permission || hasRawPermission(permission);
+    };
     return navigationConfig
       .map((group) => ({
         ...group,
         items: group.items
-          // filter parent nav items by their module
-          .filter((item) => itemVisible(item.module))
           .map((item) => ({
             ...item,
-            // filter children that carry their own module requirement
-            children: item.children?.filter((child) => itemVisible(child.module)),
-          })),
+            // filter children that carry their own module or permission requirement
+            children: item.children?.filter((child) => itemVisible(child.module, child.requiresPermission)),
+          }))
+          // A parent is shown when the user may open it, OR when a child that carries its OWN
+          // module/permission survived the filter above. "My HR" needs that second case: an
+          // ordinary employee holds hr.self.* and deliberately does NOT have the HR module.
+          //
+          // The "own gate" test is essential. Most children are ungated — their visibility comes
+          // from the parent — so "any surviving child" is always true and would show every module
+          // in the sidebar to everyone.
+          .filter((item) =>
+            itemVisible(item.module, item.requiresPermission)
+            || (item.children ?? []).some((child) => child.module || child.requiresPermission)),
       }))
       .filter((group) => group.items.length > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps

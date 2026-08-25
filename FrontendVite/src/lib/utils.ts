@@ -45,13 +45,35 @@ export function formatPercentage(value: number, decimals = 1): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(decimals)}%`;
 }
 
+/**
+ * Parses a timestamp from the API into a real instant.
+ *
+ * <p>The backend stores and returns UTC, but .NET serialises a `DateTime` whose Kind is
+ * Unspecified **without a trailing `Z`** — "2026-08-25T19:03:55.12". JavaScript reads a bare
+ * date-time like that as *local* time, so every timestamp rendered as-is was wrong by the
+ * viewer's UTC offset: four hours out in the Gulf, and enough to show yesterday's evening
+ * activity as today.</p>
+ *
+ * <p>So a string carrying no zone and no offset is treated as UTC — which is what the server
+ * meant — and the browser then formats it in the viewer's own timezone. Date-only values
+ * ("2026-08-25", used for attendance and leave dates) are deliberately left alone: they are
+ * calendar days, not instants, and shifting them by an offset would move them a day.</p>
+ */
+export function parseApiDate(value: string): Date {
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const isDateTime = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(value);
+
+  return new Date(isDateTime && !hasZone && !isDateOnly ? `${value.replace(" ", "T")}Z` : value);
+}
+
 export function formatDate(
   date: string | Date | null | undefined,
   format: "short" | "medium" | "long" | "relative" = "medium",
   locale: string = activeLocale()
 ): string {
   if (date === null || date === undefined || date === "") return "—";
-  const d = typeof date === "string" ? new Date(date) : date;
+  const d = typeof date === "string" ? parseApiDate(date) : date;
   if (isNaN(d.getTime())) return "—";
 
   if (format === "relative") {
@@ -120,3 +142,10 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+
+/** Human-readable file size, e.g. "1.4 MB". Shared by every module that stores attachments. */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

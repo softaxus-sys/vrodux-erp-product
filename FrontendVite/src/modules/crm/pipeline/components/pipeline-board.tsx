@@ -111,8 +111,9 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setPendingLost(null)}
           />
-          <motion.div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-card border border-border rounded-2xl z-50 shadow-2xl"
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <motion.div
+            className="pointer-events-auto w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl"
             initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -155,7 +156,8 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
               <Button variant="outline" onClick={() => setPendingLost(null)}>{t("pipeline.board.cancel")}</Button>
               <Button variant="destructive" onClick={confirmLost}>{t("pipeline.board.markAsLost")}</Button>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

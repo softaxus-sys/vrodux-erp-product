@@ -3,4 +3,9 @@ using Softaxis.HR.Application.Employees.Dtos;
 
 namespace Softaxis.HR.Application.Employees.Queries;
 
-public sealed record GetAllEmployeesSimpleQuery : IQuery<IReadOnlyList<EmployeeListItemDto>>;
+/// <param name="IncludeInactive">
+/// The employee LIST page wants everyone (its status column and filters are meaningless
+/// otherwise); the leave/payroll/attendance pickers want active staff only, which stays the default.
+/// </param>
+public sealed record GetAllEmployeesSimpleQuery(bool IncludeInactive = false)
+    : IQuery<IReadOnlyList<EmployeeListItemDto>>;

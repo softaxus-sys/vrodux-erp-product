@@ -302,4 +302,50 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
 
         logger.LogInformation("Email '{Subject}' sent to {Email}", subject, toEmail);
     }
+
+    /// <inheritdoc />
+    public async Task<bool> SendEmployeeInviteEmailAsync(
+        string toEmail, string toName, string workspaceName, string setPasswordToken, CancellationToken ct = default)
+    {
+        var section     = configuration.GetSection("Email");
+        var frontendUrl = configuration["FrontendUrl"] ?? "http://localhost:5173";
+
+        // Reuses the password-reset page and token, so there is one set-your-password flow in the
+        // product rather than a second one that behaves almost the same.
+        var actionUrl = $"{frontendUrl}/auth/reset-password?token={Uri.EscapeDataString(setPasswordToken)}&email={Uri.EscapeDataString(toEmail)}";
+
+        var host     = section["SmtpHost"];
+        var username = section["SmtpUsername"];
+
+        // Not configured: log the link so it stays usable in development, and report false so the
+        // caller shows a temporary password instead of claiming an email was sent.
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        {
+            logger.LogWarning("SMTP not configured. Employee invite link for {Email}: {Url}", toEmail, actionUrl);
+            return false;
+        }
+
+        var body = $"""
+            <html><body style="font-family:sans-serif;color:#1e293b">
+              <h2>Your {workspaceName} account is ready</h2>
+              <p>Hi {toName},</p>
+              <p>An account has been created for you at <strong>{workspaceName}</strong>. Set your
+                 password to sign in and view your profile, request leave, mark attendance and
+                 download your payslips. This link expires in <strong>7 days</strong>.</p>
+              <p style="margin:24px 0">
+                <a href="{actionUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
+                  Set My Password
+                </a>
+              </p>
+              <p>Or copy this link into your browser:<br/>
+                <a href="{actionUrl}" style="color:#2563eb">{actionUrl}</a>
+              </p>
+              <p style="color:#64748b;font-size:13px">If you weren't expecting this, you can ignore this email.</p>
+            </body></html>
+            """;
+
+        await SendAsync(toEmail, toName, $"Set your password — {workspaceName}", body,
+            $"Employee invite link for {toEmail}: {actionUrl}", ct);
+        return true;
+    }
 }

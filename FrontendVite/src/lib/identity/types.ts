@@ -38,7 +38,30 @@ export interface PermissionOverrideDto {
   isGranted: boolean;   // true = extra grant, false = explicit deny
 }
 
+export interface ProvisionUserPayload {
+  email: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  roleIds: string[];
+  /** Email a set-your-own-password link instead of returning a temporary password. */
+  sendInvite?: boolean;
+}
+
+export interface ProvisionedUserDto {
+  user: UserDto;
+  /**
+   * Returned once, never retrievable again — only its hash is stored. Null when an invite was
+   * emailed, so the password stays known only to its owner.
+   */
+  temporaryPassword: string | null;
+  /** False means the invite could not be sent and `temporaryPassword` is the fallback. */
+  inviteSent: boolean;
+}
+
 export interface UserDto {
+  /** True while the current password was issued by an administrator rather than chosen. */
+  mustChangePassword?: boolean;
   id: string;
   email: string;
   username: string;

@@ -14,7 +14,8 @@ internal sealed class GetDepartmentsHandler(HrDbContext db)
     public async Task<Result<IReadOnlyList<DepartmentDto>>> Handle(
         GetDepartmentsQuery query, CancellationToken ct)
     {
-        IQueryable<Department> q = db.Departments.AsNoTracking();
+        // !IsDeleted by hand: TenantIsolation.ApplyTenantId replaces the entity query filter.
+        IQueryable<Department> q = db.Departments.AsNoTracking().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
             q = q.Where(x => x.Name.Contains(query.Search) ||

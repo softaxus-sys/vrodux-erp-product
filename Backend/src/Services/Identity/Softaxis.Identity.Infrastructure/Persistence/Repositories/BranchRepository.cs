@@ -8,9 +8,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Repositories;
 public sealed class BranchRepository(IdentityDbContext db) : IBranchRepository
 {
     public async Task<PagedResult<Branch>> GetPagedAsync(
-        int page, int pageSize, string? status, CancellationToken ct = default)
+        int page, int pageSize, string? status, Guid? tenantScope, CancellationToken ct = default)
     {
-        var query = db.Branches.AsNoTracking();
+        var query = Scoped(tenantScope).AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(b => b.Status == status);
@@ -28,11 +28,18 @@ public sealed class BranchRepository(IdentityDbContext db) : IBranchRepository
     public Task<Branch?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         db.Branches.FirstOrDefaultAsync(b => b.Id == id, ct);
 
-    public Task<bool> CodeExistsAsync(string code, CancellationToken ct = default) =>
-        db.Branches.AnyAsync(b => b.Code == code, ct);
+    public Task<bool> CodeExistsAsync(string code, Guid? tenantScope, CancellationToken ct = default) =>
+        Scoped(tenantScope).AnyAsync(b => b.Code == code, ct);
 
-    public Task<bool> CodeExistsExcludingAsync(string code, Guid excludeId, CancellationToken ct = default) =>
-        db.Branches.AnyAsync(b => b.Code == code && b.Id != excludeId, ct);
+    public Task<bool> CodeExistsExcludingAsync(string code, Guid excludeId, Guid? tenantScope, CancellationToken ct = default) =>
+        Scoped(tenantScope).AnyAsync(b => b.Code == code && b.Id != excludeId, ct);
+
+    // Split on HasValue so the null case emits "TenantId IS NULL" rather than "= @p", which
+    // never matches NULL in SQL (the EF null-parameter pitfall the roles fix hit).
+    private IQueryable<Branch> Scoped(Guid? tenantScope) =>
+        tenantScope.HasValue
+            ? db.Branches.Where(b => b.TenantId == tenantScope.Value)
+            : db.Branches.Where(b => b.TenantId == null);
 
     public void Add(Branch branch) => db.Branches.Add(branch);
 }

@@ -18,7 +18,7 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("sales")
-                .HasAnnotation("ProductVersion", "9.0.17")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -129,14 +129,15 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChallanNumber")
-                        .IsUnique();
-
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("SalesOrderId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ChallanNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("delivery_challans", "sales");
                 });
@@ -238,12 +239,13 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("OrderNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("sales_orders", "sales");
                 });
@@ -349,12 +351,13 @@ namespace Softaxis.Sales.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("QuotationNumber")
-                        .IsUnique();
-
                     b.HasIndex("Status");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "QuotationNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("sales_quotations", "sales");
                 });

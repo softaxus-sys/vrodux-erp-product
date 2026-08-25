@@ -34,7 +34,7 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.InvoiceNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in FinanceDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.DueDate);
 

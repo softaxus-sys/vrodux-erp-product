@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Repositories;
@@ -8,6 +9,8 @@ namespace Softaxis.Identity.Application.Branches.Commands.CreateBranch;
 
 public sealed class CreateBranchCommandHandler(
     IBranchRepository branchRepo,
+    ICurrentUser      currentUser,
+    ITenantContext    tenantContext,
     IUnitOfWork       uow)
     : ICommandHandler<CreateBranchCommand, BranchDto>
 {
@@ -18,7 +21,10 @@ public sealed class CreateBranchCommandHandler(
         if (string.IsNullOrWhiteSpace(cmd.Code))
             return Result.Failure<BranchDto>(Error.Custom("Validation.Failed", "Branch code is required."));
 
-        if (await branchRepo.CodeExistsAsync(cmd.Code.ToUpperInvariant(), ct))
+        // Tenants only ever see their own branches; a super-admin sees the global/legacy rows.
+        Guid? tenantScope = currentUser.IsSuperAdmin ? null : tenantContext.TenantId;
+
+        if (await branchRepo.CodeExistsAsync(cmd.Code.ToUpperInvariant(), tenantScope, ct))
             return Result.Failure<BranchDto>(Error.Custom("Branch.Code.Taken", "A branch with this code already exists."));
 
         var branch = new Branch(
@@ -27,7 +33,8 @@ public sealed class CreateBranchCommandHandler(
             cmd.Address, cmd.Phone, cmd.Email,
             cmd.Manager, cmd.Staff,
             cmd.Status ?? "active", cmd.Currency ?? "PKR",
-            cmd.Timezone ?? "Asia/Karachi (UTC+5)", cmd.OpenedDate);
+            cmd.Timezone ?? "Asia/Karachi (UTC+5)", cmd.OpenedDate,
+            tenantScope);
 
         branchRepo.Add(branch);
         await uow.SaveChangesAsync(ct);

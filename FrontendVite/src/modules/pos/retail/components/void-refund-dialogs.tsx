@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import { useTransaction, useVoidTransaction, useRefundTransaction } from "@/hooks/pos/use-transactions";
 import { usePaymentMethods } from "@/hooks/pos/use-payment-methods";
 import { useAuthStore } from "@/store/auth.store";
@@ -42,7 +42,7 @@ function fmt(n: number, currency: string) {
 }
 
 function fmtTime(iso: string) {
-  return new Date(iso).toLocaleString("en-PK", {
+  return parseApiDate(iso).toLocaleString("en-PK", {
     day: "numeric", month: "short", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });

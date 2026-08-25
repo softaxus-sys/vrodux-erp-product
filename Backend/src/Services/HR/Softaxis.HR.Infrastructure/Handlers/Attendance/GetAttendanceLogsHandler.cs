@@ -41,7 +41,7 @@ internal sealed class GetAttendanceLogsHandler(HrDbContext db)
             .Select(x => new AttendanceLogDto(
                 x.Id, x.EmployeeId, x.EmployeeName, x.Date,
                 x.CheckIn, x.CheckOut, x.WorkingHours,
-                x.Status, x.Notes, x.CreatedAt, x.UpdatedAt))
+                x.Status, x.Notes, x.LateMinutes, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(ct);
 
         return Result.Success(new PagedResult<AttendanceLogDto>(

@@ -19,9 +19,7 @@ public sealed class CustomerGroupConfiguration : IEntityTypeConfiguration<Custom
         builder.Property(g => g.MinPurchase)    .HasPrecision(18, 2);
         builder.Property(g => g.Description)    .HasMaxLength(300);
 
-        builder.HasIndex(g => g.Code)
-            .IsUnique()
-            .HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(g => !g.IsDeleted);
 

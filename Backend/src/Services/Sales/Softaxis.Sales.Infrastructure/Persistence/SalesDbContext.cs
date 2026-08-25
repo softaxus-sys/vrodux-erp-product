@@ -22,6 +22,11 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options)
         modelBuilder.HasDefaultSchema("sales");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SalesDbContext).Assembly);
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Sales.Domain");
+
+        // Document numbers are unique PER TENANT and only among live rows.
+        TenantIsolation.TenantUniqueIndex<SalesOrder>(modelBuilder, [nameof(SalesOrder.OrderNumber)]);
+        TenantIsolation.TenantUniqueIndex<SalesQuotation>(modelBuilder, [nameof(SalesQuotation.QuotationNumber)]);
+        TenantIsolation.TenantUniqueIndex<DeliveryChallan>(modelBuilder, [nameof(DeliveryChallan.ChallanNumber)]);
         base.OnModelCreating(modelBuilder);
     }
 

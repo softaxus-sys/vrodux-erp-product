@@ -35,6 +35,16 @@ public sealed class LoggingBehavior<TRequest, TResponse>(
 
             return response;
         }
+        // A client that navigates away or reloads aborts its request; EF then cancels the SQL
+        // command and SqlClient reports it as "A severe error occurred… Operation cancelled by user".
+        // That is a disconnected browser, not a fault — logging it as an error buries real ones.
+        catch (Exception) when (cancellationToken.IsCancellationRequested)
+        {
+            sw.Stop();
+            logger.LogInformation("[CANCELLED] {Request} aborted by the client after {Elapsed}ms",
+                requestName, sw.ElapsedMilliseconds);
+            throw;
+        }
         catch (Exception ex)
         {
             sw.Stop();

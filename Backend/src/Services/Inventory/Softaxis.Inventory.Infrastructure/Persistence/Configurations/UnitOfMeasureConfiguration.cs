@@ -22,7 +22,7 @@ internal sealed class UnitOfMeasureConfiguration : IEntityTypeConfiguration<Unit
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.Symbol).IsUnique();
+        // Unique per tenant, live rows only — declared in InventoryDbContext (needs the TenantId shadow column).
 
         builder.HasMany(x => x.Products)
                .WithOne(x => x.UnitOfMeasure)

@@ -20,6 +20,8 @@ internal sealed class GetPayrollRunByIdHandler(HrDbContext db)
         if (run is null)
             return Result.Failure<PayrollRunDetailDto>(Error.NotFoundById("PayrollRun", query.Id));
 
-        return Result.Success(PayrollMappings.ToDetailDto(run));
+        var bank = await PayrollBankLookup.ForRunAsync(db, run, ct);
+
+        return Result.Success(PayrollMappings.ToDetailDto(run, bank));
     }
 }

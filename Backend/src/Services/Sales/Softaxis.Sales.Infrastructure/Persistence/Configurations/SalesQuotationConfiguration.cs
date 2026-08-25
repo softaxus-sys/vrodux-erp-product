@@ -24,7 +24,7 @@ internal sealed class SalesQuotationConfiguration : IEntityTypeConfiguration<Sal
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.QuotationNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in SalesDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
 
         builder.HasOne(x => x.Customer)

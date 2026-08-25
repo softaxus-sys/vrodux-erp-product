@@ -43,6 +43,12 @@ public sealed class User : AuditableEntity<Guid>
     public string      LastName        { get; private set; } = string.Empty;
     public string      PasswordHash    { get; private set; } = string.Empty;
     public UserStatus  Status          { get; private set; }
+    /// <summary>
+    /// Set when an administrator hands over a temporary password (HR provisioning, admin reset).
+    /// Cleared the moment the user sets their own — see <see cref="ChangePassword"/>, which is the
+    /// only way a password is ever replaced, so the flag cannot be left stale.
+    /// </summary>
+    public bool        MustChangePassword { get; private set; }
     public bool        EmailVerified   { get; private set; }
     public string?     AvatarUrl       { get; private set; }
     public string?     PhoneNumber     { get; private set; }
@@ -110,9 +116,13 @@ public sealed class User : AuditableEntity<Guid>
         UpdatedAt   = DateTime.UtcNow;
     }
 
+    /// <summary>Marks the current password as temporary — the user must replace it at next login.</summary>
+    public void RequirePasswordChange() { MustChangePassword = true; UpdatedAt = DateTime.UtcNow; }
+
     public void ChangePassword(string newPasswordHash)
     {
-        PasswordHash = newPasswordHash;
+        PasswordHash       = newPasswordHash;
+        MustChangePassword = false;
         UpdatedAt    = DateTime.UtcNow;
         RaiseDomainEvent(new UserPasswordChangedEvent(Id));
     }

@@ -58,6 +58,20 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
             .IsUnique()
             .HasFilter($"[{TenantIsolation.Column}] IS NOT NULL");
 
+
+        // Every per-tenant business key: unique within the tenant, live rows only.
+        // (Account/AccountType above predate the shared helper and keep their own declaration.)
+        TenantIsolation.TenantUniqueIndex<Customer>(modelBuilder, [nameof(Customer.Code)]);
+        TenantIsolation.TenantUniqueIndex<Supplier>(modelBuilder, [nameof(Supplier.Code)]);
+        TenantIsolation.TenantUniqueIndex<Expense>(modelBuilder, [nameof(Expense.ExpenseNumber)]);
+        TenantIsolation.TenantUniqueIndex<Invoice>(modelBuilder, [nameof(Invoice.InvoiceNumber)]);
+        TenantIsolation.TenantUniqueIndex<JournalEntry>(modelBuilder, [nameof(JournalEntry.EntryNumber)]);
+        TenantIsolation.TenantUniqueIndex<PaymentVoucher>(modelBuilder, [nameof(PaymentVoucher.VoucherNumber)]);
+        TenantIsolation.TenantUniqueIndex<PurchaseBill>(modelBuilder, [nameof(PurchaseBill.BillNumber)]);
+        TenantIsolation.TenantUniqueIndex<ReceiptVoucher>(modelBuilder, [nameof(ReceiptVoucher.VoucherNumber)]);
+        // FiscalPeriod has no IsDeleted column.
+        TenantIsolation.TenantUniqueIndex<FiscalPeriod>(modelBuilder, [nameof(FiscalPeriod.PeriodCode)], excludeSoftDeleted: false);
+
         base.OnModelCreating(modelBuilder);
     }
 

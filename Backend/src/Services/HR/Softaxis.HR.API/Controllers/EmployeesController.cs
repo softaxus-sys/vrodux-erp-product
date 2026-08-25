@@ -26,7 +26,21 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
         string  JoiningDate,
         Guid?   ManagerId,
         string? Notes,
-        string  Status);
+        string  Status,
+        string? AvatarData = null,
+        string? Nationality = null,
+        string? EmiratesId = null,
+        string? PassportNumber = null,
+        string? VisaExpiry = null,
+        string? ReportingTo = null,
+        string? BankAccount = null,
+        string? Iban = null,
+        string? MedicalInsurance = null,
+        string? LabourCardNumber = null,
+        string? BankRoutingCode = null,
+        bool    RemoveAvatar = false);
+
+    public sealed record LinkUserRequest(Guid UserId);
 
     // ── GET /api/hr/employees/summary ───────────────────────────────────
     [HttpGet("summary")]
@@ -55,13 +69,22 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
     }
 
     // ── GET /api/hr/employees/all ────────────────────────────────────────
-    // Lightweight dropdown feed consumed by Leave/Payroll/Attendance forms across HR —
-    // left authenticated-only (not gated) so those forms work for users who can create
-    // leaves/payroll but lack hr.employees.view (shared reference, like Finance lookups).
+    // Lightweight dropdown feed for the Leave / Payroll / Attendance forms, so it stays open to
+    // users who can create those records but lack hr.employees.view.
+    //
+    // It was previously authenticated-only, which meant ANY signed-in user — including a
+    // self-service employee with no HR access whatsoever — could read the full staff roster
+    // together with every salary. It now requires one of the HR permissions that genuinely needs
+    // the list, and the handler withholds the salary figure from callers not entitled to it.
     [HttpGet("all")]
-    public async Task<IActionResult> GetAllSimple(CancellationToken ct)
+    [RequireAnyPermission(
+        "hr.employees.view", "hr.employees.create", "hr.employees.edit",
+        "hr.leaves.view", "hr.leaves.create",
+        "hr.attendance.view", "hr.attendance.create",
+        "hr.payroll.view", "hr.payroll.create")]
+    public async Task<IActionResult> GetAllSimple([FromQuery] bool includeInactive = false, CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetAllEmployeesSimpleQuery(), ct);
+        var result = await sender.Send(new GetAllEmployeesSimpleQuery(includeInactive), ct);
         return OkOrError(result);
     }
 
@@ -92,7 +115,41 @@ public sealed class EmployeesController(ISender sender) : HrControllerBase
             id, req.FirstName, req.LastName, req.Email, req.Phone,
             req.JobTitle, req.DepartmentId, req.DepartmentName,
             req.EmploymentType, req.BasicSalary, req.JoiningDate,
-            req.ManagerId, req.Notes, req.Status), ct);
+            req.ManagerId, req.Notes, req.Status, req.AvatarData,
+            req.Nationality, req.EmiratesId, req.PassportNumber, req.VisaExpiry, req.ReportingTo,
+            req.BankAccount, req.Iban, req.MedicalInsurance,
+            req.LabourCardNumber, req.BankRoutingCode,
+            // Named: the command grew two fields before this one, and passing it positionally
+            // silently bound a bool to a string in the first attempt.
+            RemoveAvatar: req.RemoveAvatar), ct);
+        return NoContentOrError(result);
+    }
+
+    // ── GET /api/hr/employees/user-match?email= ──────────────────────────
+    // Suggests a login that may be the same person. The caller confirms; nothing links here.
+    [HttpGet("user-match")]
+    [RequirePermission("hr.employees.edit")]
+    public async Task<IActionResult> FindUserMatch([FromQuery] string email, CancellationToken ct)
+    {
+        var result = await sender.Send(new FindUserMatchQuery(email), ct);
+        return OkOrError(result);
+    }
+
+    // ── POST /api/hr/employees/{id}/link-user ────────────────────────────
+    [HttpPost("{id:guid}/link-user")]
+    [RequirePermission("hr.employees.edit")]
+    public async Task<IActionResult> LinkUser(Guid id, [FromBody] LinkUserRequest req, CancellationToken ct)
+    {
+        var result = await sender.Send(new LinkEmployeeUserCommand(id, req.UserId), ct);
+        return NoContentOrError(result);
+    }
+
+    // ── DELETE /api/hr/employees/{id}/link-user ──────────────────────────
+    [HttpDelete("{id:guid}/link-user")]
+    [RequirePermission("hr.employees.edit")]
+    public async Task<IActionResult> UnlinkUser(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new UnlinkEmployeeUserCommand(id), ct);
         return NoContentOrError(result);
     }
 

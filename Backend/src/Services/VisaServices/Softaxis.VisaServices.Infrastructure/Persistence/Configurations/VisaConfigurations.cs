@@ -11,7 +11,7 @@ internal sealed class VisaCaseConfiguration : IEntityTypeConfiguration<VisaCase>
         builder.ToTable("visa_cases");
         builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.CaseNumber).IsRequired().HasMaxLength(30);
-        builder.HasIndex(x => x.CaseNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in VisaDbContext (needs the TenantId shadow column).
         builder.Property(x => x.VisaTypeName).IsRequired().HasMaxLength(150);
         builder.Property(x => x.Channel).IsRequired().HasMaxLength(20).HasDefaultValue("manual");
         builder.Property(x => x.Emirate).HasMaxLength(50);

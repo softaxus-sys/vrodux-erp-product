@@ -13,7 +13,12 @@ public sealed class BranchConfiguration : IEntityTypeConfiguration<Branch>
         builder.Property(b => b.Id).ValueGeneratedNever();
 
         builder.Property(b => b.Code).HasMaxLength(20).IsRequired();
-        builder.HasIndex(b => b.Code).IsUnique().HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, not globally — same lesson as roles and teams. Legacy NULL-tenant
+        // rows are exempt (SQL Server treats NULLs as equal for uniqueness).
+        builder.HasIndex(b => new { b.TenantId, b.Code })
+               .IsUnique()
+               .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
+        builder.HasIndex(b => b.TenantId);
 
         builder.Property(b => b.Name).HasMaxLength(150).IsRequired();
         builder.Property(b => b.Type).HasMaxLength(30).IsRequired();

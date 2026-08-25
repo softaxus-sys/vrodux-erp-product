@@ -21,6 +21,9 @@ public sealed class AdminResetPasswordCommandHandler(
             return Result.Failure(Error.NotFoundById("User", cmd.UserId));
 
         user.ChangePassword(passwordHasher.Hash(cmd.NewPassword));
+        // An administrator-set password is temporary by definition: the user must replace it.
+        // ChangePassword clears the flag, so this has to come after it.
+        user.RequirePasswordChange();
         userRepo.Update(user);
         await uow.SaveChangesAsync(ct);
         return Result.Success();

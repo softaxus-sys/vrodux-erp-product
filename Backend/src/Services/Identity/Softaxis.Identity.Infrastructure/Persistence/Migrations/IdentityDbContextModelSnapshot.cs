@@ -300,6 +300,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Timezone")
                         .IsRequired()
                         .HasMaxLength(80)
@@ -315,9 +318,11 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
                         .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("branches", "identity");
                 });
@@ -660,6 +665,20 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("4ef1ecd2-a04e-4cbc-7d19-6c731ee9bf5e"),
+                            Action = "view",
+                            Description = "View finance payroll",
+                            ModuleId = "finance.payroll"
+                        },
+                        new
+                        {
+                            Id = new Guid("9f7186a4-eaed-0f4a-c85b-e974d2c549f2"),
+                            Action = "approve",
+                            Description = "Approve finance payroll",
+                            ModuleId = "finance.payroll"
+                        },
+                        new
+                        {
                             Id = new Guid("8508c5fc-ddb5-0975-d6dc-8b4b20efca03"),
                             Action = "view",
                             Description = "View finance gl",
@@ -968,6 +987,13 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("0d0f9c6b-583b-cfd4-dbb9-c8057aee245c"),
+                            Action = "create-login",
+                            Description = "Create-login hr employees",
+                            ModuleId = "hr.employees"
+                        },
+                        new
+                        {
                             Id = new Guid("57f8682a-d2e1-48cd-1661-b1451acfa308"),
                             Action = "view",
                             Description = "View hr attendance",
@@ -1119,6 +1145,34 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "export",
                             Description = "Export hr performance",
                             ModuleId = "hr.performance"
+                        },
+                        new
+                        {
+                            Id = new Guid("9decbd74-633e-bfed-e623-9a3d7df0d1b2"),
+                            Action = "view",
+                            Description = "View hr self",
+                            ModuleId = "hr.self"
+                        },
+                        new
+                        {
+                            Id = new Guid("539f4396-9246-70db-c08c-3d757f3d5ca7"),
+                            Action = "leave-request",
+                            Description = "Leave-request hr self",
+                            ModuleId = "hr.self"
+                        },
+                        new
+                        {
+                            Id = new Guid("0ca08c0d-13d0-3237-70af-c564253a70fa"),
+                            Action = "attendance",
+                            Description = "Attendance hr self",
+                            ModuleId = "hr.self"
+                        },
+                        new
+                        {
+                            Id = new Guid("1e8cade4-b534-60b3-ac45-e7b01370bb52"),
+                            Action = "payslip",
+                            Description = "Payslip hr self",
+                            ModuleId = "hr.self"
                         },
                         new
                         {
@@ -2976,6 +3030,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("LockedUntil")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("bit");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()

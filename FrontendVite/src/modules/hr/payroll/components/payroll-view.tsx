@@ -5,7 +5,7 @@ import {
   Download, FileText, CheckCircle2, Clock, DollarSign,
   TrendingUp, Users, X, ChevronRight, Send, Printer,
   Building2, CreditCard, Calendar, BarChart3, AlertCircle,
-  ArrowLeft, Mail, MailCheck, Search, Trash2, Pencil, Save, RotateCcw
+  ArrowLeft, Mail, MailCheck, Search, Trash2, Pencil, Save, RotateCcw, ShieldCheck, Landmark
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,16 +14,20 @@ import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { hrApi } from "@/lib/hr/hr.api";
 import type { PayrollRunDto as PayrollRun } from "@/lib/hr/hr.api";
-import { usePayrollRuns, usePayrollSummary, usePayrollRunById, useProcessPayrollRun, usePayPayrollRun, useSendPayslipEmail, useDeletePayrollRun, useRejectPayrollRun, useReopenPayrollRun, useUpdatePayrollSlip } from "@/hooks/hr/use-hr";
+import { usePayrollRuns, usePayrollSummary, usePayrollRunById, useProcessPayrollRun, usePayPayrollRun, useSendPayslipEmail, useDeletePayrollRun, useRejectPayrollRun, useReopenPayrollRun, useUpdatePayrollSlip, useWpsSif } from "@/hooks/hr/use-hr";
 import { downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { AddPayrollForm } from "./add-payroll-form";
-import { Can } from "@/components/auth/can";
+import { WpsSettingsModal } from "./wps-settings-modal";
+import { Can, useCan } from "@/components/auth/can";
+import { useFinanceApprovePayroll } from "@/hooks/hr/use-payroll-finance";
 
 const STATUS_CONFIG: Record<string, { key: string; color: string; bg: string; icon: React.ElementType }> = {
   draft:      { key: "draft",      color: "text-muted-foreground", bg: "bg-muted",             icon: FileText },
   processing: { key: "processing", color: "text-info",             bg: "bg-info/10",           icon: Clock },
   processed:  { key: "processed",  color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
+  // Finance has signed off; the ledger entry is posted and the run may now be paid.
+  finance_approved: { key: "financeApproved", color: "text-info", bg: "bg-info/10", icon: ShieldCheck },
   approved:   { key: "approved",   color: "text-primary",          bg: "bg-primary/10",        icon: CheckCircle2 },
   paid:       { key: "paid",       color: "text-success",          bg: "bg-success/10",        icon: CheckCircle2 },
   failed:     { key: "failed",     color: "text-destructive",      bg: "bg-destructive/10",    icon: X },
@@ -245,6 +249,9 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
 
   const processRun   = useProcessPayrollRun();
   const payRun       = usePayPayrollRun();
+  const financeApprove   = useFinanceApprovePayroll();
+  // Only the Finance approver acts on a processed run; HR sees that it is waiting on them.
+  const canFinanceApprove = useCan("finance.payroll.approve");
   const rejectRun    = useRejectPayrollRun();
   const reopenRun    = useReopenPayrollRun();
   const updateSlip   = useUpdatePayrollSlip();
@@ -606,35 +613,6 @@ function PayrollRunDrawer({ run, open, onClose }: { run: PayrollRun | null; open
 
 // ── WPS SIF file generator ────────────────────────────────────────────────────
 // UAE Wage Protection System — Salary Information File (SIF) format
-function generateWpsSif(run: PayrollRun): string {
-  const payslips = run.payslips ?? [];
-  const [year, month] = run.period.split("-");
-  const period = `${year}${month}`;
-  const companyName = "COMPANY";
-  const totalCents = Math.round(run.totalNetSalary * 100);
-  const lines: string[] = [];
-
-  // EDR — Employer Detail Record
-  lines.push(`EDR|MOB|${companyName}|${period}|${payslips.length}|${totalCents}|AED`);
-
-  // SDR — Salary Detail Record per employee
-  const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-  const startDate = `${year}${month}01`;
-  const endDate   = `${year}${month}${String(daysInMonth).padStart(2, "0")}`;
-  for (const ps of payslips) {
-    const netCents   = Math.round(ps.netSalary * 100);
-    const basicCents = Math.round(ps.basicSalary * 100);
-    const varCents   = Math.round((ps.grossSalary - ps.basicSalary) * 100);
-    const iban = (ps.iban ?? "").replace(/\s/g, "");
-    lines.push(`SDR|${ps.employeeNumber}|MOB|${iban}|${netCents}|${startDate}|${endDate}|${daysInMonth}|${basicCents}|${varCents}|0`);
-  }
-
-  // EOS — End of Salary record
-  lines.push(`EOS|MOB|${companyName}|${period}|${payslips.length}|${totalCents}|AED`);
-
-  return lines.join("\r\n");
-}
-
 // ── WPS Submit Modal ──────────────────────────────────────────────────────────
 function WpsSubmitModal({ runId, period, open, onClose }: {
   runId: string | null; period: string; open: boolean; onClose: () => void;
@@ -643,19 +621,18 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
   const currency = useCurrency();
   const { data: run, isLoading } = usePayrollRunById(runId);
   const [submitted, setSubmitted] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+
+  // The file is built on the server: the employer identifiers are not shipped to the browser, and
+  // the sequence number that keeps resubmissions distinct has to be allocated somewhere durable.
+  const { data: sif, isLoading: sifLoading, error: sifError } = useWpsSif(runId, open);
 
   const payslips = run?.payslips ?? [];
+  const notConfigured = (sifError as Error | null)?.message?.toLowerCase().includes("mohre") ?? false;
 
-  const handleDownloadSif = () => {
-    if (!run) return;
-    const sif = generateWpsSif(run);
-    downloadFile(`WPS_SIF_${run.period}.txt`, sif, "text/plain");
-  };
-
-  const handleConfirmSubmit = () => {
-    if (!run) return;
-    const sif = generateWpsSif(run);
-    downloadFile(`WPS_SIF_${run.period}.txt`, sif, "text/plain");
+  const download = () => {
+    if (!sif) return;
+    downloadFile(sif.fileName, sif.content, "text/plain");
     setSubmitted(true);
   };
 
@@ -693,7 +670,7 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { label: t("payroll.wps.payPeriod"),    value: run.period },
-                    { label: t("payroll.wps.employees"),     value: run.slipCount },
+                    { label: t("payroll.wps.employees"),     value: run.slipCount ?? payslips.length },
                     { label: t("payroll.wps.totalPayroll"), value: formatCurrency(run.totalNetSalary, currency) },
                   ].map(s => (
                     <div key={s.label} className="bg-muted/30 rounded-xl p-3 text-center">
@@ -734,12 +711,22 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
                             <td className="px-3 py-2 font-mono text-[10px]">{ps.iban || "—"}</td>
                             <td className="px-3 py-2 font-semibold text-primary">{formatCurrency(ps.netSalary, currency)}</td>
                             <td className="px-3 py-2">
-                              <span className={cn(
-                                "px-2 py-0.5 rounded-full text-[10px] font-semibold",
-                                ps.iban ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                              )}>
-                                {ps.iban ? t("payroll.wps.ready") : t("payroll.wps.missingIban")}
-                              </span>
+                              {/* The verdict comes from the server's own validation, so the table
+                                  agrees with the file. A hardcoded "Missing IBAN" was wrong twice
+                                  over: it named one requirement out of three, and claimed "Ready"
+                                  for anyone who merely had an IBAN. */}
+                              {(() => {
+                                const problems = sif?.issues.filter(i => i.employeeName === ps.employeeName) ?? [];
+                                const ready = !!sif && problems.length === 0;
+                                return (
+                                  <span className={cn(
+                                    "px-2 py-0.5 rounded-full text-[10px] font-semibold",
+                                    ready ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
+                                  )} title={problems.map(p => p.problem).join(" ")}>
+                                    {ready ? t("payroll.wps.ready") : problems[0]?.problem ?? t("payroll.wps.checking")}
+                                  </span>
+                                );
+                              })()}
                             </td>
                           </tr>
                         ))}
@@ -748,6 +735,59 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
                   </div>
                 )}
               </div>
+
+              {/* What the file will actually contain — stated before it is sent to a bank. */}
+              {sifError && (
+                <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/20 rounded-xl">
+                  <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                  <div className="space-y-2">
+                    <p className="text-xs text-destructive">{(sifError as Error).message}</p>
+                    {notConfigured && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs"
+                        onClick={() => setSettingsOpen(true)}>
+                        {t("payroll.wps.openSettings")}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {sif && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-success/10 rounded-xl p-3 text-center">
+                      <p className="text-[10px] text-success uppercase tracking-wide">{t("payroll.wps.included")}</p>
+                      <p className="font-bold text-sm mt-0.5 text-success">{sif.recordCount}</p>
+                    </div>
+                    <div className={cn("rounded-xl p-3 text-center",
+                      sif.excludedCount > 0 ? "bg-warning/10" : "bg-muted/30")}>
+                      <p className={cn("text-[10px] uppercase tracking-wide",
+                        sif.excludedCount > 0 ? "text-warning" : "text-muted-foreground")}>
+                        {t("payroll.wps.excluded")}
+                      </p>
+                      <p className={cn("font-bold text-sm mt-0.5",
+                        sif.excludedCount > 0 ? "text-warning" : "")}>{sif.excludedCount}</p>
+                    </div>
+                  </div>
+
+                  {sif.recordCount > 0
+                    ? <p className="text-[11px] text-muted-foreground font-mono">{sif.fileName}</p>
+                    : <p className="text-[11px] text-warning">{t("payroll.wps.nothingToSend")}</p>}
+
+                  {/* Named one by one: "3 employees excluded" is not actionable, "Ahmed has no
+                      labour card number" is. */}
+                  {sif.issues.length > 0 && (
+                    <div className="rounded-xl border border-warning/30 bg-warning/5 divide-y divide-warning/20">
+                      {sif.issues.map((issue, i) => (
+                        <div key={i} className="px-3 py-2">
+                          <p className="text-xs font-medium">{issue.employeeName}</p>
+                          <p className="text-[11px] text-warning">{issue.problem}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Success confirmation */}
               {submitted && (
@@ -760,14 +800,21 @@ function WpsSubmitModal({ runId, period, open, onClose }: {
 
             {/* Footer */}
             <div className="border-t border-border px-6 py-4 flex gap-2">
-              <Button variant="outline" size="sm" className="h-9 gap-1.5 flex-1" onClick={handleDownloadSif} disabled={isLoading || !run}>
-                <Download className="h-3.5 w-3.5" />{t("payroll.wps.downloadSif")}
+              <Button variant="outline" size="sm" className="h-9 gap-1.5"
+                onClick={() => setSettingsOpen(true)}>
+                <Landmark className="h-3.5 w-3.5" />{t("payroll.wps.settings")}
               </Button>
-              <Button size="sm" className="h-9 gap-1.5 flex-1 bg-success hover:bg-success/90" onClick={handleConfirmSubmit} disabled={isLoading || !run || payslips.length === 0}>
-                <Send className="h-3.5 w-3.5" />{submitted ? t("payroll.wps.reDownloadSif") : t("payroll.wps.submitWps")}
+              <Button size="sm" className="h-9 gap-1.5 flex-1 bg-success hover:bg-success/90"
+                onClick={download} disabled={sifLoading || !sif || sif.recordCount === 0}>
+                <Download className="h-3.5 w-3.5" />
+                {sifLoading
+                  ? t("payroll.wps.building")
+                  : submitted ? t("payroll.wps.reDownloadSif") : t("payroll.wps.downloadSif")}
               </Button>
             </div>
           </motion.div>
+
+          <WpsSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         </>
       )}
     </AnimatePresence>

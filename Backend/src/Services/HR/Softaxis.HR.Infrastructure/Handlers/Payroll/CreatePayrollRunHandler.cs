@@ -31,6 +31,7 @@ internal sealed class CreatePayrollRunHandler(HrDbContext db)
         db.PayrollRuns.Add(run);
         await db.SaveChangesAsync(ct);
 
-        return Result.Success(PayrollMappings.ToDetailDto(run));
+        var bank = await PayrollBankLookup.ForRunAsync(db, run, ct);
+        return Result.Success(PayrollMappings.ToDetailDto(run, bank));
     }
 }

@@ -49,6 +49,25 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
             .Select(t => t.ClrType).Distinct().ToList();
         TenantIsolation.ApplyTenantId(modelBuilder, this, tenantOwned);
 
+        // Per-tenant business keys: unique within the tenant, live rows only. These were global
+        // unique indexes, so one tenant's barcode/SKU/code/customer phone blocked every other
+        // tenant from using the same value — and a soft-deleted row kept its claim forever.
+        TenantIsolation.TenantUniqueIndex<Currency>(modelBuilder, [nameof(Currency.Code)]);
+        TenantIsolation.TenantUniqueIndex<Customer>(modelBuilder, [nameof(Customer.Phone)], extraFilter: "[phone] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<CustomerGroup>(modelBuilder, [nameof(CustomerGroup.Code)]);
+        TenantIsolation.TenantUniqueIndex<POSTransaction>(modelBuilder, [nameof(POSTransaction.TransactionNumber)]);
+        TenantIsolation.TenantUniqueIndex<PaymentMethodConfig>(modelBuilder, [nameof(PaymentMethodConfig.Code)]);
+        TenantIsolation.TenantUniqueIndex<PaymentTerm>(modelBuilder, [nameof(PaymentTerm.Code)]);
+        TenantIsolation.TenantUniqueIndex<ProductCategory>(modelBuilder, [nameof(ProductCategory.Name)]);
+        TenantIsolation.TenantUniqueIndex<Product>(modelBuilder, [nameof(Product.Barcode)], extraFilter: "[barcode] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<Product>(modelBuilder, [nameof(Product.SKU)], extraFilter: "[sku] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<PurchaseOrder>(modelBuilder, [nameof(PurchaseOrder.OrderNumber)]);
+        TenantIsolation.TenantUniqueIndex<SalesOrder>(modelBuilder, [nameof(SalesOrder.OrderNumber)]);
+        TenantIsolation.TenantUniqueIndex<SalesQuotation>(modelBuilder, [nameof(SalesQuotation.QuotationNumber)]);
+        TenantIsolation.TenantUniqueIndex<TaxRate>(modelBuilder, [nameof(TaxRate.Code)]);
+        TenantIsolation.TenantUniqueIndex<Vendor>(modelBuilder, [nameof(Vendor.Code)], extraFilter: "[Code] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<Voucher>(modelBuilder, [nameof(Voucher.Code)]);
+
         base.OnModelCreating(modelBuilder);
     }
 }

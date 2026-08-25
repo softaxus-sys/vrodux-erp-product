@@ -1059,9 +1059,10 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
-      <motion.div
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+        <motion.div
         initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
-        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-background border border-border rounded-xl z-50 flex flex-col max-h-[85vh]"
+        className="pointer-events-auto w-full max-w-lg bg-background border border-border rounded-xl flex flex-col max-h-[85vh]"
       >
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
@@ -1113,7 +1114,8 @@ function MetaSelectModal({ integrationId, onClose }: { integrationId: string; on
           </Button>
           </div>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </>
   );
 }

@@ -10,6 +10,10 @@ public sealed record AttendanceLogDto(
     decimal?  WorkingHours,
     string    Status,
     string?   Notes,
+
+    /// <summary>Minutes past the grace period at check-in; 0 on time, null when not judged.</summary>
+    int?      LateMinutes,
+
     DateTime  CreatedAt,
     DateTime? UpdatedAt);
 

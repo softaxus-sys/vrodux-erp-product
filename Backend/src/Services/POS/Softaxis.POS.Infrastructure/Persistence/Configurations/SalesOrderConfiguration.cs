@@ -12,7 +12,7 @@ public sealed class SalesOrderConfiguration : IEntityTypeConfiguration<SalesOrde
         builder.HasKey(so => so.Id);
         builder.Property(so => so.Id).ValueGeneratedNever();
         builder.Property(so => so.OrderNumber).HasMaxLength(30).IsRequired();
-        builder.HasIndex(so => so.OrderNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.Property(so => so.CustomerName).HasMaxLength(200);
         builder.Property(so => so.Status).HasMaxLength(20).IsRequired();
         builder.Property(so => so.Notes).HasMaxLength(1000);

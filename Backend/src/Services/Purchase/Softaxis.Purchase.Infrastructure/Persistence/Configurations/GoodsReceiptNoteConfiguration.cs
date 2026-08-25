@@ -23,7 +23,7 @@ internal sealed class GoodsReceiptNoteConfiguration : IEntityTypeConfiguration<G
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.GrnNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in PurchaseDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.PurchaseOrderId);
         builder.HasIndex(x => x.VendorId);
 

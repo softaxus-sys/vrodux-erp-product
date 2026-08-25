@@ -28,6 +28,7 @@ public static class UserDtoMapper
             user.UserPermissions.Select(up => new PermissionOverrideDto(
                 up.PermissionId,
                 up.Permission.ModuleId + "." + up.Permission.Action,
-                up.IsGranted)).ToList()
+                up.IsGranted)).ToList(),
+            user.MustChangePassword
         );
 }

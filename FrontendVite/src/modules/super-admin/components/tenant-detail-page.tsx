@@ -9,7 +9,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, parseApiDate } from "@/lib/utils";
 import {
   tenantsAdminApi,
   type TenantDto,
@@ -66,7 +66,7 @@ function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
         {tenant.hasLicenseKey ? (
           <span className="text-[11px] text-emerald-600 flex items-center gap-1">
             <ShieldCheck className="h-3 w-3" />
-            Active · expires {tenant.licenseExpiresAt ? new Date(tenant.licenseExpiresAt).toLocaleDateString() : "—"}
+            Active · expires {tenant.licenseExpiresAt ? parseApiDate(tenant.licenseExpiresAt).toLocaleDateString() : "—"}
           </span>
         ) : (
           <span className="text-[11px] text-amber-600 flex items-center gap-1">
@@ -157,7 +157,7 @@ function CloudSubscriptionPanel({ tenant, onUpdated }: { tenant: TenantDto; onUp
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {tenant.licenseExpiresAt
-              ? `${isExpired ? "Expired" : "Expires"}: ${new Date(tenant.licenseExpiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+              ? `${isExpired ? "Expired" : "Expires"}: ${parseApiDate(tenant.licenseExpiresAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
               : "No expiry date set — tenant is on trial or has no active plan."}
           </p>
         </div>
@@ -577,8 +577,8 @@ export function TenantDetailPage() {
                       { label: "Contact Phone", value: tenant.contactPhone },
                       { label: "Country",       value: tenant.country },
                       { label: "Industry",      value: industryLabel ?? "Generic (CRM only)" },
-                      { label: "Created",       value: new Date(tenant.createdAt).toLocaleDateString() },
-                      { label: "Trial Ends",    value: tenant.trialEndsAt ? new Date(tenant.trialEndsAt).toLocaleDateString() : null },
+                      { label: "Created",       value: parseApiDate(tenant.createdAt).toLocaleDateString() },
+                      { label: "Trial Ends",    value: tenant.trialEndsAt ? parseApiDate(tenant.trialEndsAt).toLocaleDateString() : null },
                     ].filter(f => f.value).map(f => (
                       <div key={f.label} className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground text-xs">{f.label}</span>

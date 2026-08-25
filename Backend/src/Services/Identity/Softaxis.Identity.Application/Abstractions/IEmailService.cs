@@ -23,4 +23,13 @@ public interface IEmailService
 
     /// <summary>Confirm a successful payment (or a failed renewal) to the tenant owner.</summary>
     Task SendSubscriptionReceiptAsync(string toEmail, string toName, string tenantName, string planLabel, decimal amount, string currency, DateTime? nextRenewal, CancellationToken ct = default);
+
+    /// <summary>
+    /// Tell someone an account has been created for them and invite them to set their own
+    /// password. Used when HR gives an employee portal access, so the password is never seen,
+    /// spoken or written down by anyone but its owner.
+    /// </summary>
+    /// <returns>True when the message was actually dispatched; false when SMTP is not configured,
+    /// so the caller can fall back to handing over a temporary password instead.</returns>
+    Task<bool> SendEmployeeInviteEmailAsync(string toEmail, string toName, string workspaceName, string setPasswordToken, CancellationToken ct = default);
 }

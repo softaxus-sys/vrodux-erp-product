@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, parseApiDate } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import {
   tenantsAdminApi,
@@ -152,7 +152,7 @@ function TenantCard({ tenant, onClick, onEnter, entering }: {
         {tenant.trialEndsAt && tenant.status === "Trial" && (
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3 text-amber-500" />
-            <span>Trial ends {new Date(tenant.trialEndsAt).toLocaleDateString()}</span>
+            <span>Trial ends {parseApiDate(tenant.trialEndsAt).toLocaleDateString()}</span>
           </div>
         )}
       </div>

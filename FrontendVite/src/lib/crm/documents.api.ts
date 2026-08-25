@@ -52,12 +52,8 @@ export const documentTypeLabel = (value: string) =>
     defaultValue: value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
   });
 
-/** Human-readable size, e.g. "1.4 MB". */
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+// Moved to lib/utils so HR (and any future module with attachments) can use it too.
+export { formatFileSize } from "@/lib/utils";
 
 /** Matches UploadCrmDocumentCommandValidator.MaxBytes on the backend. */
 export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;

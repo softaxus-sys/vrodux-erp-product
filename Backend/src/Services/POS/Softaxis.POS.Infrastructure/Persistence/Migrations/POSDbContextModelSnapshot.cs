@@ -18,7 +18,7 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("pos")
-                .HasAnnotation("ProductVersion", "9.0.18")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -140,11 +140,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("currencies", "pos");
 
@@ -493,11 +493,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Phone")
-                        .IsUnique()
-                        .HasFilter("phone IS NOT NULL");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Phone")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [phone] IS NOT NULL");
 
                     b.ToTable("customers", "pos");
                 });
@@ -565,11 +565,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("customer_groups", "pos");
 
@@ -1067,8 +1067,9 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("TransactionNumber")
-                        .IsUnique();
+                    b.HasIndex("TenantId", "TransactionNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("pos_transactions", "pos");
                 });
@@ -1200,11 +1201,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("payment_method_configs", "pos");
 
@@ -1585,11 +1586,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("payment_terms", "pos");
 
@@ -1839,17 +1840,17 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Barcode")
-                        .IsUnique()
-                        .HasFilter("barcode IS NOT NULL");
-
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("SKU")
-                        .IsUnique()
-                        .HasFilter("sku IS NOT NULL");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Barcode")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [barcode] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "SKU")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [sku] IS NOT NULL");
 
                     b.ToTable("products", "pos");
                 });
@@ -1904,12 +1905,13 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
-
                     b.HasIndex("ParentCategoryId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("product_categories", "pos");
                 });
@@ -1958,12 +1960,13 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrderNumber")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("VendorId");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("purchase_orders", "pos");
                 });
@@ -2057,10 +2060,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("OrderNumber")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "OrderNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("sales_orders", "pos");
                 });
@@ -2153,10 +2157,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("QuotationNumber")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "QuotationNumber")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("sales_quotations", "pos");
                 });
@@ -2317,11 +2322,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("tax_rates", "pos");
 
@@ -2568,11 +2573,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0 AND [Code] IS NOT NULL");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [Code] IS NOT NULL");
 
                     b.ToTable("vendors", "pos");
                 });
@@ -2648,11 +2653,11 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("vouchers", "pos");
 

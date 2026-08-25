@@ -8,7 +8,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import {
   Search, X, ShoppingCart, Trash2, Plus, Minus,
   Receipt,
@@ -934,7 +934,7 @@ export function CashierPOSView() {
                                   <span className="text-[10px] text-muted-foreground/50">·</span>
                                   <span className="text-[10px] text-muted-foreground">
                                     {tx.completedAt
-                                      ? new Date(tx.completedAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })
+                                      ? parseApiDate(tx.completedAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" })
                                       : "—"
                                     }
                                   </span>

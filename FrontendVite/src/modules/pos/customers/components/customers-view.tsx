@@ -2,7 +2,7 @@ import * as React from "react";
 import { Users, Search, Wallet, CreditCard, Star, X, Loader2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import {
   useCustomers, useCustomer, useTopUpWallet, useSetCreditLimit, useRecordHouseAccountPayment, useWalletTransactions,
@@ -148,7 +148,7 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
                     <div key={t.id} className="flex items-center justify-between text-sm border-b border-border/50 last:border-0 py-1.5">
                       <div>
                         <p className="text-foreground">{TXN_LABELS[t.type]}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(t.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{parseApiDate(t.createdAt).toLocaleString()}</p>
                       </div>
                       <span className={cn("font-medium", t.type === "topup" || t.type === "house_payment" ? "text-success" : "text-destructive")}>
                         {t.type === "topup" || t.type === "house_payment" ? "+" : "-"}{formatCurrency(t.amount, currency)}

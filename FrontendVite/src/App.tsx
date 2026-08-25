@@ -37,6 +37,7 @@ const PayrollPage          = React.lazy(() => import("@/pages/hr/payroll"));
 const LeavesPage           = React.lazy(() => import("@/pages/hr/leaves"));
 const RecruitmentPage      = React.lazy(() => import("@/pages/hr/recruitment"));
 const PerformancePage      = React.lazy(() => import("@/pages/hr/performance"));
+const MyHrPage             = React.lazy(() => import("@/pages/hr/me"));
 
 // ── CRM ───────────────────────────────────────────────────────────────────────
 const CrmDashboardPage     = React.lazy(() => import("@/pages/crm/dashboard"));
@@ -307,6 +308,10 @@ export function App() {
           </Route>
 
           {/* ── HR ──────────────────────────────────────────────────────────── */}
+          {/* Self-service is deliberately outside the HR module guard: an ordinary employee has
+              no HR access at all, only the right to see their own record. */}
+          <Route path="/hr/me" element={<MyHrPage />} />
+
           <Route element={<ModuleGuard module="hr" />}>
             <Route path="/hr/employees"   element={<EmployeesPage />} />
             <Route path="/hr/attendance"  element={<AttendancePage />} />

@@ -18,8 +18,12 @@ internal sealed class UpdatePayrollSlipHandler(HrDbContext db)
         if (run is null)
             return Result.Failure(Error.NotFoundById("PayrollRun", cmd.RunId));
 
-        if (run.Status != "rejected" && run.Status != "draft")
-            return Result.Failure(Error.Custom("PayrollRun.Conflict", "Slips can only be edited on draft or rejected payroll runs."));
+        // "processed" is editable too, because that is exactly when Finance reviews the run, and
+        // Finance was asked to be able to correct a figure rather than bounce the whole run back
+        // to HR. Once Finance has signed off — or the money has moved — the figures are fixed.
+        if (run.Status is not ("draft" or "rejected" or "processed"))
+            return Result.Failure(Error.Custom("PayrollRun.Conflict",
+                "Slips can only be edited before Finance approves the run."));
 
         var slip = run.Slips.FirstOrDefault(s => s.Id == cmd.SlipId);
         if (slip is null)

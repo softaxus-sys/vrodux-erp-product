@@ -31,7 +31,7 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.SKU).IsUnique().HasFilter("[SKU] IS NOT NULL");
+        // Unique per tenant, live rows only — declared in InventoryDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Barcode).HasFilter("[Barcode] IS NOT NULL");
 
         builder.HasOne(x => x.Category)

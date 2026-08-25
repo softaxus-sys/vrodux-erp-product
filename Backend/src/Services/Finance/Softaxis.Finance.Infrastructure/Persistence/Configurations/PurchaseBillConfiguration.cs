@@ -34,7 +34,7 @@ internal sealed class PurchaseBillConfiguration : IEntityTypeConfiguration<Purch
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.BillNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in FinanceDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.DueDate);
         builder.HasIndex(x => x.SupplierId);

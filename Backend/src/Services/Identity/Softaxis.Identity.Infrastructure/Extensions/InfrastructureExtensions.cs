@@ -150,6 +150,11 @@ public static class InfrastructureExtensions
 
         await SyncAdministratorPermissionsAsync(db);       // always runs — idempotent
         await BackfillTenantRolesAsync(scope.ServiceProvider, db); // per-tenant roles + re-point admins
+        // Module template roles (HR Manager, CRM Manager, …) top up ONLY with keys nobody holds
+        // yet — i.e. keys seeded after those roles were created. Runs after the backfill so a
+        // role created moments ago in this same pass is included.
+        await scope.ServiceProvider.GetRequiredService<ITenantRoleProvisioner>()
+                   .SyncNewTemplatePermissionsAsync();
         await RemoveRedundantGlobalRolesAsync(db);         // drop legacy global duplicates (all envs)
         await SeedDemoTenantAsync(scope.ServiceProvider, db);      // opt-in demo tenant (Seeding:DemoTenant)
     }

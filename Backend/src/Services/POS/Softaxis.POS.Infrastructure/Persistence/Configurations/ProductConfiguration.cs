@@ -53,13 +53,9 @@ public sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.ImageUrl)
             .HasMaxLength(500);
 
-        builder.HasIndex(p => p.Barcode)
-            .IsUnique()
-            .HasFilter("barcode IS NOT NULL");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
-        builder.HasIndex(p => p.SKU)
-            .IsUnique()
-            .HasFilter("sku IS NOT NULL");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasIndex(p => p.CategoryId);
 

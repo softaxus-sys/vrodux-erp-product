@@ -18,7 +18,7 @@ namespace Softaxis.Inventory.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("inventory")
-                .HasAnnotation("ProductVersion", "9.0.16")
+                .HasAnnotation("ProductVersion", "9.0.19")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -64,14 +64,15 @@ namespace Softaxis.Inventory.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasFilter("[Code] IS NOT NULL");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [Code] IS NOT NULL");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("brands", "inventory");
                 });
@@ -167,13 +168,13 @@ namespace Softaxis.Inventory.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.HasIndex("SKU")
-                        .IsUnique()
-                        .HasFilter("[SKU] IS NOT NULL");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("UnitOfMeasureId");
+
+                    b.HasIndex("TenantId", "SKU")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [SKU] IS NOT NULL");
 
                     b.ToTable("products", "inventory");
                 });
@@ -545,10 +546,11 @@ namespace Softaxis.Inventory.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Symbol")
-                        .IsUnique();
-
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Symbol")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("units_of_measure", "inventory");
                 });

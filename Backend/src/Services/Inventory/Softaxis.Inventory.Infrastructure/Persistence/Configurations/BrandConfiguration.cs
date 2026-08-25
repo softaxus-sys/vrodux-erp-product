@@ -23,8 +23,7 @@ internal sealed class BrandConfiguration : IEntityTypeConfiguration<Brand>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.Name).IsUnique();
-        builder.HasIndex(x => x.Code).IsUnique().HasFilter("[Code] IS NOT NULL");
+        // Unique per tenant, live rows only — declared in InventoryDbContext (needs the TenantId shadow column).
 
         builder.HasMany(x => x.Products)
                .WithOne(x => x.Brand)

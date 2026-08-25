@@ -46,6 +46,8 @@ export interface User {
   status: Status;
   lastLogin?: string;
   createdAt: string;
+  /** The current password was set by an administrator — prompt the user to replace it. */
+  mustChangePassword?: boolean;
 }
 
 export interface UserPreferences {
@@ -169,6 +171,12 @@ export interface NavItem {
   badgeVariant?: "default" | "success" | "warning" | "destructive";
   children?: NavItem[];
   permission?: Permission;
+  /**
+   * Raw permission key (e.g. "hr.self.view") required to see this item. Same convention as the
+   * reports registry. A module grants access to the section; this hides the pages inside it that
+   * the user could not open anyway.
+   */
+  requiresPermission?: string;
   module?: ModuleKey;
   isNew?: boolean;
   isBeta?: boolean;

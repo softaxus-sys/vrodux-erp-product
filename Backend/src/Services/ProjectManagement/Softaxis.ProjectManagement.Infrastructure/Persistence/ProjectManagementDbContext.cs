@@ -21,6 +21,9 @@ public sealed class ProjectManagementDbContext(DbContextOptions<ProjectManagemen
         modelBuilder.HasDefaultSchema("projectmanagement");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ProjectManagementDbContext).Assembly);
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.ProjectManagement.Domain");
+
+        // Project keys are unique PER TENANT and only among live rows.
+        TenantIsolation.TenantUniqueIndex<Project>(modelBuilder, [nameof(Project.Key)]);
         base.OnModelCreating(modelBuilder);
     }
 

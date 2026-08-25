@@ -87,4 +87,49 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
         _ = ct;
         return Task.FromResult(added);
     }
+
+    /// <inheritdoc />
+    public async Task<int> SyncNewTemplatePermissionsAsync(CancellationToken ct = default)
+    {
+        var allPerms = await db.Permissions.AsNoTracking().ToListAsync(ct);
+        if (allPerms.Count == 0) return 0;
+
+        // Tenant-owned, non-system roles: the ones built from a catalogue template. Administrator
+        // is excluded deliberately — it already holds every key via SyncAdministratorPermissions,
+        // so counting it would make every key look "already granted" and this a permanent no-op.
+        var roles = await db.Roles
+            .Include(r => r.RolePermissions)
+            .Where(r => r.TenantId != null && !r.IsSystem && !r.IsDeleted)
+            .ToListAsync(ct);
+        if (roles.Count == 0) return 0;
+
+        var alreadyGranted = roles.SelectMany(r => r.RolePermissions)
+                                  .Select(rp => rp.PermissionId)
+                                  .ToHashSet();
+
+        var newPerms = allPerms.Where(p => !alreadyGranted.Contains(p.Id)).ToList();
+        if (newPerms.Count == 0) return 0;
+
+        // Role name → the template that defines it. Names are unique per module label
+        // ("HR Manager", "CRM Manager"), so the first match wins.
+        var templates = new Dictionary<string, Func<string, string, bool>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var module in ModuleRoleCatalogue.ModuleLabels.Keys)
+        foreach (var template in ModuleRoleCatalogue.For(module))
+            templates.TryAdd(template.Name, template.Includes);
+
+        var granted = 0;
+        foreach (var role in roles)
+        {
+            if (!templates.TryGetValue(role.Name, out var includes)) continue;
+
+            foreach (var p in newPerms.Where(p => includes(p.ModuleId, p.Action)))
+            {
+                role.AddPermission(p.Id);   // idempotent on the entity
+                granted++;
+            }
+        }
+
+        if (granted > 0) await db.SaveChangesAsync(ct);
+        return granted;
+    }
 }

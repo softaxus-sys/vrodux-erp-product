@@ -25,7 +25,7 @@ internal sealed class PurchaseReturnConfiguration : IEntityTypeConfiguration<Pur
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.ReturnNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in PurchaseDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.PurchaseOrderId);
         builder.HasIndex(x => x.VendorId);
 

@@ -44,9 +44,7 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.CreditBalance)
             .HasPrecision(18, 2);
 
-        builder.HasIndex(c => c.Phone)
-            .IsUnique()
-            .HasFilter("phone IS NOT NULL");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(c => !c.IsDeleted);
     }

@@ -13,7 +13,7 @@ public sealed class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Property(v => v.Id).ValueGeneratedNever();
         builder.Property(v => v.Name).HasMaxLength(200).IsRequired();
         builder.Property(v => v.Code).HasMaxLength(20);
-        builder.HasIndex(v => v.Code).IsUnique().HasFilter("[IsDeleted] = 0 AND [Code] IS NOT NULL");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.Property(v => v.Category).HasMaxLength(100);
         builder.Property(v => v.ContactPerson).HasMaxLength(150);
         builder.Property(v => v.Email).HasMaxLength(254);

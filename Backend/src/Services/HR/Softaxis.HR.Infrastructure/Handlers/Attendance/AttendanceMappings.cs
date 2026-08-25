@@ -8,5 +8,5 @@ internal static class AttendanceMappings
     public static AttendanceLogDto ToDto(AttendanceLog x) => new(
         x.Id, x.EmployeeId, x.EmployeeName, x.Date,
         x.CheckIn, x.CheckOut, x.WorkingHours,
-        x.Status, x.Notes, x.CreatedAt, x.UpdatedAt);
+        x.Status, x.Notes, x.LateMinutes, x.CreatedAt, x.UpdatedAt);
 }

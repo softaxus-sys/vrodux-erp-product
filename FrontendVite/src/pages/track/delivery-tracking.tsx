@@ -1,3 +1,4 @@
+import { parseApiDate } from "@/lib/utils";
 import * as React from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Truck, CheckCircle2, XCircle, Package } from "lucide-react";
@@ -68,7 +69,7 @@ export default function DeliveryTrackingPage() {
         )}
         {tracking.estimatedDeliveryAt && !tracking.deliveredAt && !failed && (
           <p className="text-center text-xs text-muted-foreground">
-            Estimated arrival: {new Date(tracking.estimatedDeliveryAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            Estimated arrival: {parseApiDate(tracking.estimatedDeliveryAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
           </p>
         )}
       </div>

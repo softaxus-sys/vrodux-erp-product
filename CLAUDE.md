@@ -4604,3 +4604,573 @@ answer.
 - **Backend HR service:** 0 errors ✅ (2 migrations applied)
 - **Backend Identity service:** 0 errors ✅
 - **Backend Inventory service:** 0 errors ✅
+
+---
+
+## Module 41 — HR employee/leave completion + 🔴 codebase-wide tenant-scoping of unique indexes
+
+Two threads: finishing the half-built HR employee & leave surfaces, and — triggered by a duplicate-key
+crash — a full sweep of every unique index in the backend for missing tenant scope.
+
+### HR — dead UI and invented data, replaced with real records
+- **Job designation** was a hardcoded 11-item list. Now defaults ∪ every title already in use
+  (from `useEmployees()`), plus an inline **"+ Add new designation…"** free-text mode. No new table:
+  the title is persisted on the employee, so it reappears for the next one.
+- **Upload Photo** was a button with no `onClick` and **no backend field at all**. Added
+  `Employee.AvatarData` (data URI, `nvarchar(max)`, validators cap it at ~2 MB and require `data:image/`),
+  a real file picker with preview + remove. Migration `AddEmployeeAvatar`.
+- **Employee Edit did not exist** — the drawer's Edit button was dead and `AddEmployeeForm` was
+  create-only. It now takes an `editing` prop (prefill, retitle, `useUpdateEmployee`).
+- **8 form fields were silently discarded** (Nationality/EmiratesId/Passport/VisaExpiry/ReportingTo, and
+  Bank/IBAN/Insurance which the drawer showed as permanently "Not provided"). Added to `Employee` via
+  `SetPersonalDetails` / `SetBankDetails` rather than growing a 12-arg constructor. IBAN is normalised —
+  the WPS SIF export depends on it. Migration `AddEmployeePersonalAndBankDetails`.
+- **Print** now renders the profile through the shared `exportPdf` helper.
+- **Salary structure was fabricated by the UI** — `basicSalary * 0.25` housing, `* 0.10` transport, flat
+  1000 medical. Nothing stores those; allowances are entered per payroll run. Now reports the latest
+  issued payslip, or says none exists.
+- **Recent Payslips was a hardcoded 3-month array.** New `GetEmployeePayslipsQuery` +
+  `GET /payroll/employees/{id}/slips`, filtered to `processed`/`paid` — a draft run is not a payslip
+  anyone received.
+- **Documents tab** listed `emp.documents`, which the API never populates, above an Upload button with
+  no store behind it. Replaced with the compliance records that do exist (Emirates ID / passport / visa)
+  and a real expiry status. HR has no document store; that is stated, not faked.
+
+### HR — leave entitlements became a model (`LeavePolicy`)
+Balances were `emp.annualLeaveBalance` against **hardcoded 30/15-day** totals, and the Balances tab was
+permanently empty (`getLeaveBalances` hit an endpoint that never existed, behind `.catch(() => [])`).
+- New tenant-scoped `LeavePolicy` (type, annual entitlement, paid flag), UAE-baseline defaults seeded
+  lazily per tenant on first read and never re-applied over an edit. Full CRUD + a policies editor.
+- **Balances are derived, never stored**: `entitlement − approved − pending`. Pending is held against the
+  balance so nobody books past entitlement while an earlier request awaits approval. Per-employee and
+  all-employees queries; the latter is one grouped query, not N+1 over headcount.
+- The Balances tab's columns now come from the tenant's own policies instead of a fixed annual/sick/unpaid
+  trio. Migration `AddLeavePolicies`.
+
+### 🔴 The sweep — unique indexes ignoring TenantId (found via a real crash)
+Creating an employee threw `DbUpdateException` → `IX_employees_Email UNIQUE (Email)`, unfiltered and
+**not tenant-scoped**. Two defects in one index, and the same shape existed across the codebase:
+1. one tenant's value blocked **every other tenant** from using it;
+2. a **soft-deleted** row kept its claim forever, so an email/code could never be reused.
+
+New shared helper **`TenantIsolation.TenantUniqueIndex<T>`** — `(TenantId, …)`, filtered
+`[TenantId] IS NOT NULL AND [IsDeleted] = 0`. Two rules it encodes:
+- It **must** be called from the DbContext **after** `ApplyTenantId` — `TenantId` is a shadow property
+  that does not exist inside an `IEntityTypeConfiguration`.
+- Legacy `TenantId IS NULL` rows are exempt, because **SQL Server treats NULLs as equal for uniqueness** —
+  without that clause the index cannot even be created on an existing database.
+
+Applied to **~35 indexes across 8 services**: HR (employee email/number, department name/code, leave and
+payroll-run numbers), Finance (customer/supplier codes, expense/invoice/journal/voucher/bill numbers,
+fiscal period), Inventory (brand name/code, product SKU, UoM symbol), POS (15 — barcode, SKU, customer
+phone, transaction/order/quotation numbers, currency/tax/voucher/term codes), Sales, Purchase, Visa
+(case number), ProjectManagement (project key). Migrations: one `Scope*UniqueIndexesToTenant` per service.
+
+**Also found: `Branch` had no tenant column at all** — a global table behind a per-tenant API, so every
+tenant saw and collided with every other tenant's branches. Given `TenantId` following the `Role`/`Team`
+precedent: repository scoped (splitting on `HasValue` so null emits `IS NULL`, not `= @p`), all five
+handlers scoped, cross-tenant reads return **NotFound** rather than Forbidden so existence never leaks.
+Table was empty, so no data risk. Migration `ScopeBranchesToTenant`.
+
+**Deliberately left global**, each verified: Currency/ExchangeRate (global by Module 6e), Identity
+Permission/RefreshToken/Tenant.Slug/User email+username/subscription idempotency ledger, AiAssistant
+inbound key, Restaurant QR + tracking tokens (resolved publicly, without tenant context). Composite
+indexes led by a tenant-owned parent GUID (`ProductId+WarehouseId`, `PayrollRunId+EmployeeId`, …) are
+implicitly safe — a GUID cannot repeat across tenants.
+
+**Duplicates now fail properly**: create/update employee pre-check the email and return
+`Employee.Duplicate` → **409** with a readable message, instead of an unhandled `DbUpdateException`.
+
+### Build / Verification Status
+- **Every service project: 0 errors** ✅ (the full-solution build only fails on MSB3027 file locks from
+  the user's **running** ApiGateway — not compile errors).
+- **Frontend `tsc`:** 279, unchanged baseline, none in a touched file · **`vite build`:** ✅ · en/ar
+  key parity verified.
+- `ScopeEmployeeUniqueIndexesToTenant` was **applied to the local dev DB and verified in `sys.indexes`**.
+- **Pending (republish + restart):** all other migrations auto-apply on startup. Worth a spot-check that
+  two tenants can now hold the same employee email / product SKU / invoice number, and that a deleted
+  employee's email can be reused.
+
+---
+
+## Module 42 — HR can create an employee login without holding user administration
+
+**Reported from the employee drawer: the Login Account panel offered no way to create a login.** The
+"Create login" button existed (Module 41) but was gated on `settings.users.create`, which HR Manager
+does not hold — and should not, since that key also creates administrators. So the panel could report
+*"No login found"* and then offer nothing.
+
+### New key — `hr.employees.create-login`
+Seeded as a fifth action on `hr.employees` (migration `AddHrCreateLoginPermission`; admins gain it
+automatically via `SyncAdministratorPermissionsAsync`). Added to `PrivilegedActions` in
+`ModuleRoleCatalogue`, so **HR Manager gets it and HR Staff does not** — minting a login is a manager
+decision, and it consumes a plan seat.
+
+`ProvisionUserCommandHandler` accepts **either** `settings.users.create` or the new key. The check
+lives in the handler because `UsersController` is `[Authorize]`-only with no per-permission attributes.
+
+Frontend gate widened to match. `ACTION_ORDER` gained `create-login` with en/ar labels, so it renders
+as a real column in both the role editor and the per-user override matrix.
+
+### A role-less login is not a working login
+If the caller picks no role, provisioning now falls back to the tenant's **Employee (Self-Service)**
+role rather than creating an account that signs in and sees nothing. That is exactly the access an
+employee being given portal access needs: their own profile, leave requests, attendance and payslips
+(`hr.self.*`), and nothing else.
+
+### Build / Verification Status
+- **Identity.API:** 0 errors ✅ (4 pre-existing SmtpEmailService warnings) · **`tsc`:** 277, unchanged
+  baseline · **`vite build`:** ✅ · en/ar parity verified.
+- **Pending (restart):** the migration and `SyncAdministratorPermissionsAsync` run on startup; grant
+  `hr.employees.create-login` to the HR Manager role, and **the holder must re-login** — permission
+  keys are embedded in the JWT at sign-in.
+
+### Module 42b — HR Manager actually receives the new key, and linking an existing login grants HR access
+
+Two gaps in 42, both found by asking "does this reach an existing tenant?"
+
+**1. A newly seeded key never reached an existing role.** `SyncAdministratorPermissionsAsync` tops up
+Administrator every startup, but `EnsureModuleRolesAsync` only *creates* missing roles — it
+deliberately never touches an existing one's permissions, since a tenant may have customised it. So
+an already-provisioned **HR Manager** would never gain `hr.employees.create-login`.
+
+New `ITenantRoleProvisioner.SyncNewTemplatePermissionsAsync()` tops up template roles, with one
+narrow test: it grants only keys that **no tenant-owned, non-system role anywhere holds**. That is
+true exactly once — for a freshly seeded key — and false forever after, so a tenant that
+deliberately narrows a role is never overridden. Administrator is excluded from the "already held"
+set on purpose: it holds every key, so counting it would make the sync a permanent no-op.
+
+*Known limit:* on a single-tenant install, removing the key from the only role holding it would see
+it re-granted on the next restart. Acceptable for a one-shot rollout; noted rather than hidden.
+
+**2. Linking an existing login granted nothing.** The account may exist for an entirely different
+job, and its role decides what it sees — so linking left the person with no HR access at all. New
+`GrantSelfServiceCommand` + `POST /api/users/{id}/grant-self-service` assigns the tenant's
+**Employee (Self-Service)** role. Purely additive; it never removes or replaces existing roles.
+
+Surfaced as an **explicit checkbox** beside the match ("also give them access to their own HR
+record…"), default on, rather than happening silently — it widens a real person's access.
+Orchestrated frontend-side in two calls because HR must never write into the identity schema; the
+link goes first and the grant is best-effort, so a failed grant leaves a correct link plus a toast.
+
+**Also:** provisioning a *new* login with no role selected now falls back to the same self-service
+role, instead of creating an account that signs in and sees nothing.
+
+Gated on `hr.employees.create-login` **or** `settings.users.create` — the same pair as provisioning.
+
+- **Identity.API + full solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite
+  build`:** ✅ · en/ar parity (the 5 Arabic plural forms of `self.daysCount` are the intended
+  exception).
+- **Pending (restart):** the top-up runs automatically; then HR Manager shows **Create login**, and
+  its holders must re-login for the key to enter their JWT.
+
+### Module 42c — three permissions existed but had no column in the matrix (ungrantable)
+
+Spotted from the HR group of the role editor: `hr.self` rendered **one** cell (`view`) and no
+`x/y` count, while the other six HR rows showed 4–6. Confirmed against the live database — three
+seeded actions have no entry in `ACTION_ORDER`:
+
+```
+attendance · leave-request · payslip
+```
+
+`ModuleRow` maps `ACTION_ORDER` to build its cells, so an action missing from that list renders
+**no column at all**. The permissions exist and are enforced, but could not be granted or revoked
+through the UI in either the role editor or the per-user override tab. Introduced with `hr.self`
+itself: the keys were seeded without adding their columns.
+
+Fixed by adding the three actions plus en/ar labels. Named for what they actually authorise
+("Request own leave", not "Leave") — every other column is a verb applied to other people's
+records, and these three are strictly about the signed-in person.
+
+`ACTION_ORDER` now carries a comment stating that a missing action is invisible, so the next key
+with a novel verb does not repeat this.
+
+**Not a bug (checked while here):** an all-`+` SETTINGS block on HR Manager is correct — `+` means
+the permission exists but this role lacks it, and HR Manager holds **0** `settings.*` permissions
+by design.
+
+**Module 42b verified against live data:** all six tenants' HR Manager roles now hold
+`hr.employees.create-login` (28 perms each); all six HR Staff roles do not (23) — the top-up ran
+exactly as intended.
+
+- **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · en/ar parity (only the intended
+  Arabic plural forms differ). Frontend only — no backend change, no migration.
+
+### Module 42d — "Create login" is offered only after the search finds nothing
+
+The panel showed **Find account** and **Create login** side by side from the start, so the obvious
+move was to press Create — which is the wrong one whenever a login already exists. Best case it
+fails on the taken email; worse, an administrator creates a *second* account for someone who
+already had one, and the person ends up with two sets of credentials.
+
+Now the panel is a sequence, not a choice: **Find account** first, and Create login appears only in
+the "no login found for …" branch. Linking an existing account is the other branch, so both
+outcomes lead somewhere and neither can be reached by mistake.
+
+- **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · frontend only, no new strings.
+
+### Module 42e — hand the account over by email invite, not by a password anyone has to carry
+
+Provisioning returned a temporary password for the administrator to relay. That works, but it means
+a real credential travels through a third party — read off a screen, typed into WhatsApp, written
+on paper — and it was the only option. Worse, it depended on the administrator seeing and acting on
+a value shown exactly once; miss it and the account is stranded.
+
+**Invite is now the default.** `ProvisionUserCommand.SendInvite` (default true) issues a single-use,
+hashed-at-rest password-reset token (7 days) and emails a set-your-own-password link, reusing the
+existing `/auth/reset-password` page and token rather than inventing a parallel flow. Nobody but the
+employee ever learns the password.
+
+**The temporary password stays**, as a deliberate second option — site, warehouse and retail staff
+frequently have no working mailbox, which is the whole reason this flow is separate from Create
+User. The modal offers both, invite first.
+
+**Neither path can strand an account.** A password is generated either way. It is withheld *only*
+when the invite genuinely went out: `SendEmployeeInviteEmailAsync` returns `bool` (false when SMTP
+is unconfigured — the existing dev-fallback logs the link and would otherwise be indistinguishable
+from success), and any send exception is caught. If the invite did not go, the response carries the
+password and the modal shows it under "the account was created, but the invite could not be sent".
+`ProvisionedUserDto.TemporaryPassword` is therefore nullable, paired with `InviteSent`.
+
+The email is sent **after** the commit: an account without its invite can be re-invited, while an
+invite for an account that failed to save is a dead link.
+
+`MustChangePassword` is still set on both paths and is harmless on the invite path —
+`ResetPassword` calls `ChangePassword`, which clears it.
+
+- **Identity.API + full solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite
+  build`:** ✅ · en/ar parity. No migration — reuses the existing reset-token columns.
+
+**Flagged, not changed:** `ApiGateway/appsettings.json` carries a **live SMTP password in plain
+text** and is committed to git (`3e9623e`). It works, which is why the invite path is usable today,
+but it belongs in an environment variable like every other secret — and since it is in history,
+rotating the mailbox password is the actual remedy.
+
+### Module 42f — "not found" then "already registered": two checks scoped differently
+
+Search said *no login found for kiani789@gmail.com*; creating one then failed *Email is already
+registered*. Both were telling the truth about different populations.
+
+Confirmed against the live database:
+- the employee sits in tenant `82351952-…`; the existing `kiani789@gmail.com` login sits in
+  tenant `A606706C-…` — a **different workspace**;
+- `FindUserMatch` queries the Identity view **tenant-scoped** (correct — it must never surface
+  another tenant's logins), so it found nothing;
+- `IX_users_email` is `UNIQUE (email) WHERE IsDeleted = 0` — **global, no TenantId** — so
+  `EmailExistsAsync` matched across the platform and rejected the create.
+
+**The global index is correct and was left alone.** Sign-in resolves an account by email with no
+workspace selector (`LoginCommandHandler` → `GetByEmailAsync`), so a per-tenant email would make
+login ambiguous. Scoping that index to the tenant — the reflex after Module 41 — would have broken
+authentication. One email = one login, platform-wide, is the actual rule.
+
+So the defect was the **contradiction**, not the constraint. Fixed at both ends:
+- `FindUserMatchHandler`, on finding nothing in this workspace, now checks whether the address
+  exists anywhere before reporting "not found", and returns `RegisteredInAnotherWorkspace`. **Only
+  a boolean crosses the tenant boundary** — no name, status or workspace — and it reveals nothing
+  the create endpoint did not already reveal by rejecting the address.
+- The panel renders that as its own outcome and **does not offer Create login**, so the button is
+  never shown for an address that cannot work.
+- `ProvisionUserCommandHandler`'s message now says *"in this or another workspace"* and explains
+  that an address can only belong to one login — the old wording was baffling precisely because the
+  conflicting account is invisible to the caller.
+
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+  · en/ar parity. No migration.
+
+### Module 42g — invites work on the server but not locally: Zoho refuses the sign-in from this IP
+
+Follow-up to 42e. A raw SMTP handshake from the dev machine to `smtp.zoho.com:587` reaches Zoho,
+completes STARTTLS, is offered `AUTH LOGIN`, and is answered **535 Authentication Failed** — with
+the same credentials that send successfully from the production server.
+
+So the credential is valid and the code is right; Zoho is declining the sign-in **from this
+location**. SMTP returns 535 for a wrong password and for a blocked sign-in alike, so a client
+cannot tell them apart — the server working is what settles it.
+
+**Local development no longer depends on Zoho.** `appsettings.Development.json` (already
+gitignored, so local-only and never deployed) blanks `Email:SmtpHost`/`SmtpUsername`, which takes
+the existing unconfigured-SMTP path: the invite URL is written to the gateway console as a warning,
+and `SendEmployeeInviteEmailAsync` returns false so the modal shows the temporary password. Both
+halves of the hand-over are therefore testable locally. Delete the file to go back to attempting
+real sends.
+
+Production is untouched — it reads its own configuration and already sends.
+
+To send from a workstation as well: add an app-specific password (Zoho requires one when 2FA is
+enabled) or allow the IP in Zoho's security settings.
+
+## Module 43 — HR: office timings, and an honest on-time / late verdict
+
+Requested: HR sets office hours, and an employee can see whether they arrived on time.
+
+### The blocker found first — attendance was stamped in UTC
+`SelfAttendance.Now` used `DateTime.UtcNow`, so a 09:00 arrival in Dubai was recorded as **05:00**.
+No lateness rule can work on top of that, and the times already shown to employees were wrong by
+the UTC offset. The timezone therefore lives **on the schedule** rather than being assumed:
+check-in, check-out and the date now come from `WorkScheduleRules.LocalNow(schedule)` — the date
+too, or a late-evening check-in lands on tomorrow.
+
+### `WorkSchedule` (tenant-scoped)
+`(Name, StartTime, EndTime, GraceMinutes, WorkingDays, TimeZoneId, IsDefault)`. Seeded on **first
+read**, not at startup: a startup seed has no ambient tenant and would write rows nobody can see —
+the Module 5g mistake. Default 09:00–18:00, 15 minutes grace, Mon–Fri, `Asia/Dubai`, all editable.
+The table takes many rows so per-department shifts can be added later; **assigning schedules to
+individual employees is deliberately not built**.
+
+`WorkScheduleRules` is pure — `LocalNow`, `LateMinutes`, `IsWorkingDay`. An unresolvable timezone
+falls back to UTC rather than throwing: a bad id must not stop someone checking in.
+`UpdateWorkScheduleHandler` still rejects one, so it cannot be saved in the first place.
+
+### Lateness is snapshotted, never derived on read
+`AttendanceLog.LateMinutes` — 0 on time, null when not judged. Written at check-in against the
+hours **in force then**, so changing office hours never rewrites who was late last month. Counted
+from the *end* of grace, so an arrival inside grace is 0 rather than a small positive number.
+`Update` re-judges only when the arrival time actually changed — editing a note must not erase the
+verdict recorded on the day.
+
+**Dead metric fixed:** the attendance summary counted `Status == "late"`, and nothing ever set that
+status, so "Late today" was permanently 0. It now counts `LateMinutes > 0`.
+
+**Two stale projections caught by the compiler** (`GetAttendanceLogById`, `GetAttendanceLogs`) —
+the same silent-null class as Module 41, which is why `LateMinutes` was added mid-record rather
+than as a trailing optional.
+
+### Surfaces
+- **HR** — an *Office Timings* button on the attendance page (`hr.attendance.edit`), sitting with
+  attendance rather than in a settings page nobody visits while looking at a late arrival.
+  `GET/PUT /api/hr/attendance/schedule`. The table's check-in cell now colours by recorded lateness
+  and carries a "Late 12m" badge.
+- **Employee** — the office hours are shown **before** check-in (knowing the deadline is what lets
+  someone avoid being late), and a chip afterwards: green *On time*, amber *Late by N min*, and
+  **nothing at all when null** — "on time" would be a claim the data does not support. The same
+  chip appears on every history row. The schedule rides along in `MyAttendanceTodayDto`, so ESS
+  needs no second call and no permission to read the schedule.
+- HR needed a design-time `HrDbContextFactory` — EF was building the API host, which lacks the
+  gateway's `ICurrentUser`, so no migration could be created.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+  · en/ar parity. Migration `AddWorkSchedulesAndLateMinutes` created (auto-applies on startup).
+- **Pending (restart):** set office hours; check in before and after the grace window and confirm
+  the chip and the HR table agree; confirm times are now local, not UTC.
+- **Note:** rows created before this change have `LateMinutes = NULL` and correctly show no verdict
+  — they were never judged, and back-filling them from today's hours would be inventing history.
+
+### Module 43b — Frontend timestamps were rendered as local when the API sends UTC
+
+Reported alongside the attendance work, and broader than HR. .NET serialises a `DateTime` whose
+Kind is Unspecified **without a trailing `Z`** — `"2026-08-25T19:03:55.12"` — and JavaScript reads
+a bare date-time like that as **local**. Every timestamp in the product was therefore wrong by the
+viewer's UTC offset: four hours in the Gulf, enough to show last night's activity as today.
+
+New `parseApiDate()` in `lib/utils.ts` treats a string with no zone and no offset as UTC — what the
+server meant — and lets the browser format it in the viewer's own timezone. `formatDate()` now goes
+through it, which covers most of the app in one place.
+
+**Date-only values are deliberately left alone.** `"2026-08-25"` (attendance dates, leave dates) is
+a calendar day, not an instant; shifting it by an offset would move it a day.
+
+The 14 places that bypassed `formatDate` and called `new Date(x).toLocale…` directly — POS receipts
+and transaction lists, the AI assistant, super-admin, report exports, delivery tracking — were
+routed through the same helper. Zero remain.
+
+- **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · frontend only, no migration.
+
+---
+
+## Module 44 — Payroll: Finance approves before money moves
+
+Requested: HR must not be able to pay staff on its own say-so. Both follow-up decisions were the
+user's — Finance **sees and can edit individual salaries**, and approval **posts to the ledger**.
+
+### The chain
+```
+draft → processed → finance_approved → paid
+         (HR ends here)   (Finance)      (HR disburses)
+```
+`PayPayrollRunHandler` now requires `finance_approved`, so the gate is enforced in the handler, not
+merely hidden in the UI. A run stuck at `processed` reports *"waiting for Finance approval"* rather
+than a generic conflict.
+
+### The permission is a Finance key, not an HR one
+`finance.payroll` = `view`, `approve` (migration `AddFinancePayrollPermissions`). Deliberately not
+`hr.payroll.approve`: that key also processes and pays, so granting it to Finance would dissolve
+the separation this step exists to create. The approver needs **no HR permissions at all** —
+`RequireAnyPermission` (copied into HR from CRM) opens payroll reads, slip edits and reject to
+`hr.payroll.*` **or** `finance.payroll.approve`.
+
+### Finance can correct figures, not just accept or refuse
+`UpdatePayrollSlipHandler` previously allowed edits on draft/rejected only. `processed` is now
+editable too — that is precisely when Finance reviews the run, and bouncing a whole payroll back to
+HR over one wrong allowance is not how this works in practice. Once approved or paid, figures are
+fixed. `RejectPayrollRunHandler` likewise accepts `processed`, so Finance can send a run back.
+
+### Money moves at approval
+`useFinanceApprovePayroll` approves, then posts a journal entry through the existing Finance API and
+links it onto the run (`JournalEntryId`/`JournalEntryNumber`). Frontend orchestration, because HR
+must never write into the Finance schema — the same shape the visa module uses to raise an invoice.
+
+**Order matters and is deliberate:** approval first. An approval without its posting is a run that
+can be paid and whose entry can be retried; a posting without an approval is money in the ledger
+that nothing authorised.
+
+The entry is an **accrual** — salary expense debited, salaries payable credited — so paying later
+clears the liability rather than double-counting the cost. Accounts are matched by name from the
+tenant's own chart, falling back to type. If no suitable accounts exist the run is still approved
+and the toast says **plainly** that nothing was posted; "approved" on its own would hide that the
+books are untouched.
+
+`Reopen()` clears the Finance sign-off as well as the rejection: the figures are about to change,
+so an approval of the old ones must not survive.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+  · en/ar parity. Migrations `AddPayrollFinanceApproval` (HR) + `AddFinancePayrollPermissions`
+  (Identity) created; both auto-apply, and Administrator roles gain the key on startup.
+- **Pending (restart + re-login):** create a "Finance Manager" role holding `finance.payroll.view`
+  and `.approve` and nothing from HR; confirm they can open a processed run, edit a slip, approve
+  or reject — and that HR alone cannot pay a run that Finance has not approved.
+
+## Module 45 — 🔴 A self-service employee could read the entire payroll
+
+Reported from a screenshot: `doob ja`, holding only **Employee (Self-Service)**, saw the HR
+dashboard, a **Add Employee** quick action, and — on clicking it — the full staff directory with
+**every salary**.
+
+### Three independent failures, all of which had to hold for this to happen
+**1. `hr.self.*` unlocked the whole HR module.** `toFrontendPermission` takes the first dotted
+segment as the module, so `hr.self.view` became `hr:read`, and `hasModuleAccess("hr")` step 7
+matched on the `hr:` prefix. Self-service now maps to its own module id (`hr-self`), so it can
+never satisfy an HR check. `/hr/me` moved **outside** the HR `ModuleGuard` — an ordinary employee
+legitimately has no HR access — and the sidebar keeps a parent visible when any child survived
+filtering, so "My HR" does not vanish with its parent.
+
+**2. The dashboard's Add Employee quick action was gated on module access.** Quick actions
+navigate to pages, so each needs the permission that page requires. Now `hr.employees.create`.
+
+**3. 🔴 The actual leak — `GET /api/hr/employees/all` was authenticated-only and returned
+`BasicSalary` for every employee.** It was left ungated on purpose as a dropdown feed for the
+leave/attendance/payroll forms (Module 5j), but "ungated" meant *any* signed-in user could read the
+roster and the payroll. It now requires one of the nine HR permissions that genuinely needs the
+list, and the handler **withholds the salary** unless the caller holds `hr.employees.view` or a
+payroll permission — the forms still work, the figure is simply absent.
+
+Fixing only the frontend would have left the endpoint open to anyone with a token.
+
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+- **Pending (restart + re-login):** sign in as a self-service employee — no HR nav beyond My HR, no
+  Add Employee action, and `/api/hr/employees/all` returns 403.
+
+---
+
+## Module 46 — WPS: a salary file the bank can actually accept
+
+The existing export was fabricated. It was pipe-delimited (the format is CSV), wrote the literals
+**`MOB`** and **`COMPANY`** where the MOHRE establishment number and agent routing code belong,
+used the internal employee number as the Employee Unique ID, expressed amounts in **fils**, and
+emitted a trailing `EOS` record that is not part of the format. No agent bank would have taken it.
+
+### The data did not exist, so it is collected rather than improvised
+- `WpsConfiguration` (tenant) — **Employer Unique ID** (MOHRE establishment) and **agent bank
+  routing code**, plus a **file sequence** so a corrected resubmission never reuses a filename the
+  agent already processed. Seeded **empty** on first read: an empty row is honest, invented
+  identifiers are not, and `IsComplete` is what the UI keys off.
+- `Employee.LabourCardNumber` (MOHRE Person ID) and `Employee.BankRoutingCode`. Neither is
+  derivable — an IBAN carries a 3-digit bank code, WPS wants the agent's 9-digit routing code.
+
+### `WpsSifBuilder`
+SDR rows per employee then a single EDR totalling them; comma-separated, CRLF; dates `YYYY-MM-DD`,
+salary month `MM-YYYY`, amounts decimal AED to 2 places. Basic pay is the fixed component and
+allowances the variable one, with deductions taken off the **variable** side only — a negative
+fixed component is rejected outright. Filename `{establishment}{MM}{YY}{seq}.SIF`.
+
+**IBANs are validated properly** — AE + 21 digits *and* the ISO 13616 mod-97 check, so a
+transposed digit is caught here rather than by the bank.
+
+### Generated on the server, and it says what is wrong
+`GET /api/hr/payroll/{id}/wps-sif` returns the file **with** the list of employees left out and
+why ("No labour card number", "IBAN … is not a valid UAE IBAN"). Reporting issues instead of the
+file would block a payroll over one incomplete record; reporting only the file would let the bank
+find the problem first. The sequence is consumed only when a file is actually produced.
+
+### ⚠️ Verify against your agent's template before the first live submission
+This is the published MOHRE layout, but banks and exchange houses issue their own SIF templates and
+some differ in optional trailing fields. Treat the builder as the shape to check, not an authority.
+
+- **Full backend solution:** 0 errors ✅ · migration `AddWpsSalaryFileData`.
+- **Not finished in this pass:** the WPS settings screen, the labour-card/routing fields on the
+  employee form, and switching the WPS modal from the old client-side generator to the new
+  endpoint. The backend is complete and callable; the UI still writes the old file until wired.
+
+### Module 46b — Employees can download their own payslip as a PDF
+`My HR → Payslips` gained a **PDF** button per row, rendering through the shared `exportPdf`
+helper (browser print-to-PDF, no new dependency, same look as every other document). Built from the
+figures already on the payslip plus the employee's own profile, so no id is passed and nothing can
+be requested for anyone else. Bank rows appear only when the details exist. Translated en + ar.
+
+### Module 45b — the sidebar fix was too permissive and showed every module
+
+Making a parent visible when **any** child survived filtering was wrong: most children carry no
+gate of their own (their visibility comes from the parent), so "any surviving child" is always
+true — and the self-service employee then saw Finance, CRM, Sales, Purchase, Inventory and every
+industry module in the sidebar.
+
+Only a child that declares its **own** module or permission can now rescue a parent. In this
+config that is exactly the seven HR children, which is the case the rule exists for: "My HR" is
+gated on `hr.self.view` and must survive when the HR module does not. Every other group falls back
+to the module check, as before.
+
+- **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · frontend only.
+
+### Module 46c — WPS export switched to the server, and the "0 records" cause found
+
+Reported: the downloaded file contained only two lines and **0 employees**:
+```
+EDR|MOB|COMPANY|202608|0|3410000|AED
+EOS|MOB|COMPANY|202608|0|3410000|AED
+```
+
+That was still the old client-side generator (Module 46 built the backend but left the UI wired to
+it). The **0** had its own separate cause, worth recording:
+
+**`run.payslips` was permanently `undefined`.** The detail endpoint returns the collection as
+`slips`; this client has always typed it `payslips`. Nothing ever failed — the field was simply
+absent, so the SIF preview table was empty and the file reported zero records while the *total*
+came from `run.totalNetSalary` and looked right. Same silent-mismatch class as Module 41, and
+exactly why the total and the count disagreed. Normalised at the API boundary.
+
+The generator is now deleted and the modal calls `GET /api/hr/payroll/{id}/wps-sif`:
+- **Included / Excluded** counts, the real filename, and every excluded employee named with the
+  reason — "no labour card number", "IBAN … is not a valid UAE IBAN". "3 employees excluded" is
+  not actionable; a name and a reason is.
+- A **WPS Settings** dialog for the MOHRE establishment number and agent routing code, reachable
+  from the footer and offered directly when the error says they are missing.
+- **Labour card number** and **bank routing code** added to the employee form's bank section, with
+  a note on why neither can be derived.
+
+- **Full backend:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · en/ar
+  parity (only the intended Arabic plural forms differ).
+- **Pending (restart):** enter the WPS employer details, add a labour card + routing code to one
+  employee, then export — the file should carry real SDR rows and name anyone still incomplete.
+
+### Module 46d — the disabled download was correct; the screen around it was not
+
+Reported as a bug. It was not: checked the database — **25 employees, 0 with an IBAN, 0 with a
+labour card number, 0 with a bank routing code**. There is genuinely nothing to put in a salary
+file, and offering a download would produce one the bank rejects.
+
+Three things around it were wrong, though:
+
+- **The row status was hardcoded to `ps.iban`** — so it named one requirement out of three, and
+  would have said "Ready" for anyone who merely had an IBAN while still missing a labour card. It
+  now shows the server's own verdict per employee, so the table and the file cannot disagree.
+- **The Employees tile was blank.** `PayrollRunDetailDto` carries the slips, not a `SlipCount`, so
+  the field was undefined. Falls back to the slip count.
+- **"No eligible records" was returned as a failure**, which threw away the per-employee reasons at
+  exactly the moment they matter most — the first export, before anyone has entered anything. It
+  now returns an empty file **with** the issues, and the download is disabled on `recordCount === 0`
+  rather than on an error. The file sequence is still only consumed when a real file is produced.
+
+- **HR.API:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · en/ar parity.

@@ -13,9 +13,11 @@ public sealed class Branch
         string? address, string? phone, string? email,
         string? manager, int staff,
         string status, string currency, string timezone,
-        string? openedDate)
+        string? openedDate,
+        Guid?   tenantId = null)
     {
         Id         = Guid.NewGuid();
+        TenantId   = tenantId;
         Code       = code.Trim().ToUpperInvariant();
         Name       = name.Trim();
         Type       = type;
@@ -35,6 +37,12 @@ public sealed class Branch
     }
 
     public Guid    Id         { get; private set; }
+    /// <summary>
+    /// Owning tenant. Follows <see cref="Role"/>/<see cref="Team"/>: NULL means a legacy/global
+    /// row, which is hidden from every tenant's list. Branches were global before this — one
+    /// tenant could see and collide with another tenant's branch codes.
+    /// </summary>
+    public Guid?    TenantId   { get; private set; }
     public string  Code       { get; private set; } = string.Empty;
     public string  Name       { get; private set; } = string.Empty;
     public string  Type       { get; private set; } = "regional";  // main | regional | international
@@ -81,4 +89,7 @@ public sealed class Branch
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetTenant(Guid? tenantId) => TenantId = tenantId;
+
 }

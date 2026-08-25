@@ -3,14 +3,26 @@ import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   X, Mail, Phone, MapPin, Calendar, Building2, CreditCard,
-  FileText, Shield, Award, AlertTriangle, CheckCircle2, Clock,
+  FileText, Shield, Award, AlertTriangle, CheckCircle2, Clock, Download, Trash2,
   Edit, Printer, ChevronRight, User, Briefcase, Banknote,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Can } from "@/components/auth/can";
 import { EmployeeStatusBadge } from "./employee-status-badge";
-import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
+import { formatDate, formatCurrency, formatFileSize, getInitials, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
+import {
+  useEmployeePayslips, useLeaveRequests, useEmployeeLeaveBalances, useEmployee,
+  useEmployeeDocuments, useUploadEmployeeDocument, useDeleteEmployeeDocument,
+} from "@/hooks/hr/use-hr";
+import {
+  employeeDocumentsApi, EMPLOYEE_DOCUMENT_TYPES, EXPIRING_DOCUMENT_TYPES,
+  type EmployeeDocumentDto,
+} from "@/lib/hr/employee-documents.api";
+import { useCan } from "@/components/auth/can";
+import { LinkedAccountPanel } from "./linked-account-panel";
+import { exportPdf } from "@/lib/pdf";
 import type { EmployeeDto as Employee } from "@/lib/hr/hr.api";
 
 type Tab = "overview" | "documents" | "payroll" | "leave";
@@ -78,6 +90,12 @@ function OverviewTab({ emp }: { emp: Employee }) {
         </div>
       </div>
 
+      {/* Login account — a User is a login, an Employee is a job; the link is explicit. */}
+      <div>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.loginAccount")}</h3>
+        <LinkedAccountPanel emp={emp} />
+      </div>
+
       {/* Emergency Contact */}
       {emp.emergencyContact && (
         <div>
@@ -96,13 +114,13 @@ function OverviewTab({ emp }: { emp: Employee }) {
 function PayrollTab({ emp }: { emp: Employee }) {
   const { t } = useTranslation("hr");
   const currency = useCurrency();
-  const allowances = [
-    { label: t("employees.drawer.housingAllowance"), amount: Math.round(emp.basicSalary * 0.25) },
-    { label: t("employees.drawer.transportAllowance"), amount: Math.round(emp.basicSalary * 0.1) },
-    { label: t("employees.drawer.medicalAllowance"), amount: 1000 },
-  ];
-  const totalAllowances = allowances.reduce((s, a) => s + a.amount, 0);
-  const grossSalary = emp.basicSalary + totalAllowances;
+  const { data: payslips, isLoading } = useEmployeePayslips(emp.id);
+
+  // Allowances and deductions are not stored on the employee record — they are entered
+  // per payroll run. So the structure below reports the latest issued payslip rather than
+  // inventing a percentage split of the basic salary.
+  const latest = payslips?.[0];
+  const grossSalary = latest ? latest.basicSalary + latest.allowances : emp.basicSalary;
 
   return (
     <div className="space-y-6">
@@ -111,13 +129,19 @@ function PayrollTab({ emp }: { emp: Employee }) {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.salaryStructure")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
           <InfoRow icon={Banknote} label={t("employees.drawer.basicSalary")} value={<span className="font-bold">{formatCurrency(emp.basicSalary, currency)}</span>} />
-          {allowances.map(a => (
-            <InfoRow key={a.label} icon={CreditCard} label={a.label} value={formatCurrency(a.amount, currency)} />
-          ))}
-          <div className="flex justify-between items-center pt-2 mt-1 border-t border-border">
-            <span className="text-sm font-bold">{t("employees.drawer.grossSalary")}</span>
-            <span className="text-sm font-bold text-primary">{formatCurrency(grossSalary, currency)}</span>
-          </div>
+          {latest ? (
+            <>
+              <InfoRow icon={CreditCard} label={t("employees.drawer.allowances")} value={formatCurrency(latest.allowances, currency)} />
+              <InfoRow icon={CreditCard} label={t("employees.drawer.deductions")} value={formatCurrency(latest.deductions, currency)} />
+              <div className="flex justify-between items-center pt-2 mt-1 border-t border-border">
+                <span className="text-sm font-bold">{t("employees.drawer.grossSalary")}</span>
+                <span className="text-sm font-bold text-primary">{formatCurrency(grossSalary, currency)}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pt-2">{t("employees.drawer.fromLatestPayslip", { period: latest.period })}</p>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground pt-2">{t("employees.drawer.noAllowanceData")}</p>
+          )}
         </div>
       </div>
 
@@ -131,28 +155,40 @@ function PayrollTab({ emp }: { emp: Employee }) {
         </div>
       </div>
 
-      {/* Payroll history */}
+      {/* Payroll history — processed/paid runs only */}
       <div>
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.recentPayslips")}</h3>
-        <div className="space-y-2">
-          {["May 2026", "Apr 2026", "Mar 2026"].map((month, i) => (
-            <div key={month} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FileText className="h-4 w-4 text-primary" />
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.loadingPayslips")}</p>
+        ) : !payslips?.length ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.noPayslips")}</p>
+        ) : (
+          <div className="space-y-2">
+            {payslips.slice(0, 6).map(slip => (
+              <div key={slip.slipId} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FileText className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{t("employees.drawer.payslip", { month: slip.period })}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {slip.runStatus === "paid"
+                        ? t("employees.drawer.paidOn", { date: formatDate(slip.paidAt) })
+                        : t("employees.drawer.processedOn", { date: formatDate(slip.processedAt) })}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">{t("employees.drawer.payslip", { month })}</p>
-                  <p className="text-xs text-muted-foreground">{t("employees.drawer.processedOn", { date: `${i === 0 ? "19" : i === 1 ? "18" : "17"} ${month.split(" ")[0]} 2026` })}</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{formatCurrency(slip.netSalary, currency)}</span>
+                  {slip.runStatus === "paid"
+                    ? <CheckCircle2 className="h-4 w-4 text-success" />
+                    : <Clock className="h-4 w-4 text-warning" />}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">{formatCurrency(grossSalary, currency)}</span>
-                <CheckCircle2 className="h-4 w-4 text-success" />
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -160,152 +196,357 @@ function PayrollTab({ emp }: { emp: Employee }) {
 
 function DocumentsTab({ emp }: { emp: Employee }) {
   const { t } = useTranslation("hr");
-  const docStatusConfig = {
-    valid: { icon: CheckCircle2, className: "text-success", label: t("employees.drawer.docStatus.valid") },
-    expiring: { icon: Clock, className: "text-warning", label: t("employees.drawer.docStatus.expiring") },
-    expired: { icon: AlertTriangle, className: "text-destructive", label: t("employees.drawer.docStatus.expired") },
+  const { data: documents, isLoading } = useEmployeeDocuments(emp.id);
+  const upload = useUploadEmployeeDocument();
+  const remove = useDeleteEmployeeDocument();
+  const canEdit   = useCan("hr.employees.edit");
+  const canDelete = useCan("hr.employees.delete");
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [docType, setDocType] = React.useState<string>("passport");
+  const [expiry, setExpiry]   = React.useState("");
+  const [pendingDelete, setPendingDelete] = React.useState<EmployeeDocumentDto | null>(null);
+
+  const daysUntil = (date?: string | null) => {
+    if (!date) return null;
+    const diff = new Date(date).getTime() - Date.now();
+    return Number.isNaN(diff) ? null : Math.ceil(diff / 86_400_000);
   };
 
+  const handlePick = (file: File | undefined) => {
+    if (!file) return;
+    upload.mutate(
+      { employeeId: emp.id, file, documentType: docType, expiryDate: expiry || undefined },
+      { onSuccess: () => setExpiry("") }
+    );
+  };
+
+  // Identifiers held on the employee record. Kept alongside the attachments because a number and
+  // a scan are different things: HR needs the number to hand, and the file as proof.
+  const identifiers = [
+    { key: "emiratesId", label: t("employees.drawer.emiratesId"), value: emp.emiratesId },
+    { key: "passport",   label: t("employees.drawer.passportNo"), value: emp.passportNumber },
+    { key: "visa",       label: t("employees.drawer.visaExpiry"),
+      value: emp.visaExpiry ? formatDate(emp.visaExpiry, "medium") : undefined },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{t("employees.drawer.documentsCompliance")}</h3>
-        <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
-          <FileText className="h-3 w-3" /> {t("employees.drawer.upload")}
-        </Button>
-      </div>
-
-      <div className="space-y-2.5">
-        {(emp.documents ?? []).map((doc, i) => {
-          const sc = docStatusConfig[doc.status];
-          const Icon = sc.icon;
-          return (
-            <motion.div key={i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-              <div className={cn(
-                "flex items-center gap-3 p-3.5 rounded-xl border transition-colors cursor-pointer hover:bg-muted/30",
-                doc.status === "expiring" ? "border-warning/30 bg-warning/5" :
-                  doc.status === "expired" ? "border-destructive/30 bg-destructive/5" :
-                    "border-border/50"
-              )}>
-                <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
-                  doc.status === "valid" ? "bg-success/10" : doc.status === "expiring" ? "bg-warning/10" : "bg-destructive/10")}>
-                  <FileText className={cn("h-4 w-4", sc.className)} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{doc.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">{doc.type}</span>
-                    {doc.expiry && (
-                      <>
-                        <span className="text-muted-foreground/40 text-xs">·</span>
-                        <span className="text-xs text-muted-foreground">{t("employees.drawer.expires", { date: formatDate(doc.expiry, "medium") })}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={cn("text-[11px] font-semibold flex items-center gap-1", sc.className)}>
-                    <Icon className="h-3 w-3" /> {sc.label}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
-
-      {/* IDs */}
+    <div className="space-y-6">
+      {/* Attachments */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-6 mb-3">{t("employees.drawer.identityNumbers")}</h3>
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{t("employees.drawer.attachments")}</h3>
+          {canEdit && (
+            <div className="flex items-center gap-1.5">
+              <select value={docType} onChange={e => setDocType(e.target.value)}
+                className="h-7 px-2 rounded-lg border border-border bg-card text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                {EMPLOYEE_DOCUMENT_TYPES.map(dt => (
+                  <option key={dt} value={dt}>{t("employees.drawer.docType." + dt, { defaultValue: dt })}</option>
+                ))}
+              </select>
+              {EXPIRING_DOCUMENT_TYPES.has(docType) && (
+                <input type="date" value={expiry} onChange={e => setExpiry(e.target.value)}
+                  title={t("employees.drawer.expiryOptional")}
+                  className="h-7 px-2 rounded-lg border border-border bg-card text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+              )}
+              <input ref={fileInputRef} type="file" className="hidden"
+                onChange={e => { handlePick(e.target.files?.[0]); e.target.value = ""; }} />
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5"
+                onClick={() => fileInputRef.current?.click()} disabled={upload.isPending}>
+                <FileText className="h-3 w-3" />
+                {upload.isPending ? t("employees.drawer.uploading") : t("employees.drawer.upload")}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.loadingDocuments")}</p>
+        ) : !documents?.length ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.noDocuments")}</p>
+        ) : (
+          <div className="space-y-2.5">
+            {documents.map((doc, i) => {
+              const left   = daysUntil(doc.expiryDate);
+              const status = left === null ? "none" : left < 0 ? "expired" : left <= 60 ? "expiring" : "valid";
+              const cfg = {
+                valid:    { icon: CheckCircle2,  className: "text-success",          label: t("employees.drawer.docStatus.valid"),    box: "border-border/50",                      tint: "bg-success/10" },
+                expiring: { icon: Clock,         className: "text-warning",          label: t("employees.drawer.docStatus.expiring"), box: "border-warning/30 bg-warning/5",         tint: "bg-warning/10" },
+                expired:  { icon: AlertTriangle, className: "text-destructive",      label: t("employees.drawer.docStatus.expired"),  box: "border-destructive/30 bg-destructive/5", tint: "bg-destructive/10" },
+                none:     { icon: FileText,      className: "text-muted-foreground", label: "",                                      box: "border-border/50",                      tint: "bg-muted" },
+              }[status];
+              const Icon = cfg.icon;
+              return (
+                <motion.div key={doc.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                  <div className={cn("flex items-center gap-3 p-3.5 rounded-xl border", cfg.box)}>
+                    <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", cfg.tint)}>
+                      <FileText className={cn("h-4 w-4", cfg.className)} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.fileName}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-muted-foreground">
+                          {t("employees.drawer.docType." + doc.documentType, { defaultValue: doc.documentType })}
+                        </span>
+                        <span className="text-muted-foreground/40 text-xs">·</span>
+                        <span className="text-xs text-muted-foreground">{formatFileSize(doc.sizeBytes)}</span>
+                        {doc.expiryDate && (
+                          <>
+                            <span className="text-muted-foreground/40 text-xs">·</span>
+                            <span className="text-xs text-muted-foreground">
+                              {t("employees.drawer.expires", { date: formatDate(doc.expiryDate, "medium") })}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {status !== "none" && (
+                        <span className={cn("text-[11px] font-semibold flex items-center gap-1", cfg.className)}>
+                          <Icon className="h-3 w-3" /> {cfg.label}
+                        </span>
+                      )}
+                      <button type="button" onClick={() => employeeDocumentsApi.download(doc)}
+                        title={t("employees.drawer.download")}
+                        className="text-muted-foreground hover:text-primary transition-colors">
+                        <Download className="h-4 w-4" />
+                      </button>
+                      {canDelete && (
+                        <button type="button" onClick={() => setPendingDelete(doc)}
+                          title={t("employees.drawer.deleteDocument")}
+                          className="text-muted-foreground hover:text-destructive transition-colors">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Identifiers stored on the employee record */}
+      <div>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.identityNumbers")}</h3>
         <div className="bg-muted/30 rounded-xl p-4 space-y-0">
-          {emp.emiratesId && <InfoRow icon={Shield} label={t("employees.drawer.emiratesId")} value={<span className="font-mono text-xs">{emp.emiratesId}</span>} />}
-          <InfoRow icon={FileText} label={t("employees.drawer.passportNo")} value={<span className="font-mono text-xs">{emp.passportNumber}</span>} />
+          {identifiers.map(item => (
+            <InfoRow key={item.key} icon={Shield} label={item.label}
+              value={<span className="font-mono text-xs">{item.value || t("employees.drawer.notProvided")}</span>} />
+          ))}
         </div>
       </div>
+
+      {/* Delete confirmation — never window.confirm */}
+      <AnimatePresence>
+        {pendingDelete && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-6">
+            <motion.div initial={{ scale: 0.96 }} animate={{ scale: 1 }} exit={{ scale: 0.96 }}
+              className="bg-card border border-border rounded-2xl shadow-2xl p-5 w-full max-w-sm">
+              <p className="font-semibold text-sm">{t("employees.drawer.deleteDocumentTitle")}</p>
+              <p className="text-xs text-muted-foreground mt-1 break-all">{pendingDelete.fileName}</p>
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" size="sm" onClick={() => setPendingDelete(null)}>
+                  {t("employees.drawer.cancel")}
+                </Button>
+                <Button variant="destructive" size="sm" disabled={remove.isPending}
+                  onClick={() => {
+                    remove.mutate({ employeeId: emp.id, documentId: pendingDelete.id });
+                    setPendingDelete(null);
+                  }}>
+                  {t("employees.drawer.deleteDocument")}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
+/** Falls back to a readable label for tenant-created types like "home leave". */
+function titleCaseType(v: string): string {
+  return v.replace(/[_-]+/g, " ").replace(/w/g, c => c.toUpperCase());
+}
+
 function LeaveTab({ emp }: { emp: Employee }) {
   const { t } = useTranslation("hr");
-  const leaveTypes = [
-    { type: t("employees.drawer.annualLeave"), balance: emp.annualLeaveBalance ?? 0, total: 30, color: "bg-primary" },
-    { type: t("employees.drawer.sickLeave"),   balance: emp.sickLeaveBalance  ?? 0, total: 15, color: "bg-warning" },
-    { type: t("employees.drawer.unpaidLeave"), balance: 0, total: 0, color: "bg-muted-foreground" },
-  ];
+  // Requests are fetched for this employee only — the list used to be a hardcoded sample.
+  const { data: leaves, isLoading } = useLeaveRequests(emp.id);
+  // Entitlement comes from the tenant's leave policy and usage from this employee's own
+  // requests — both server-side. Nothing here is a fixed 30/15 assumption any more.
+  const CURRENT_YEAR = new Date().getFullYear();
+  const [year, setYear] = React.useState(CURRENT_YEAR);
+  // Current year plus the two before it — enough to answer "what did they take last year?"
+  // without inventing a range that predates the tenant.
+  const yearOptions = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
+  const { data: balances, isLoading: isBalancesLoading } = useEmployeeLeaveBalances(emp.id, year);
 
-  const recentLeaves = [
-    { type: t("employees.drawer.annualLeave"), from: "2026-04-10", to: "2026-04-14", days: 5, status: "approved" },
-    { type: t("employees.drawer.sickLeave"), from: "2026-03-02", to: "2026-03-03", days: 2, status: "approved" },
-    { type: t("employees.drawer.annualLeave"), from: "2026-01-01", to: "2026-01-03", days: 3, status: "approved" },
-  ];
+  // Types the employee has actually used come first — an untouched entitlement is the least
+  // interesting row on the screen.
+  const orderedBalances = React.useMemo(() => {
+    const used = (b: { usedDays: number; pendingDays: number }) => b.usedDays + b.pendingDays;
+    return [...(balances ?? [])].sort((x, y2) =>
+      (used(y2) > 0 ? 1 : 0) - (used(x) > 0 ? 1 : 0) ||
+      used(y2) - used(x) ||
+      y2.entitlementDays - x.entitlementDays);
+  }, [balances]);
+
+  const barColor = (leaveType: string) =>
+    leaveType === "annual" ? "bg-primary" : leaveType === "sick" ? "bg-warning" : "bg-info";
+
+  const statusClass: Record<string, string> = {
+    approved:  "text-success bg-success/10",
+    pending:   "text-warning bg-warning/10",
+    rejected:  "text-destructive bg-destructive/10",
+    cancelled: "text-muted-foreground bg-muted",
+  };
 
   return (
     <div className="space-y-6">
       {/* Balances */}
       <div>
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.leaveBalances")}</h3>
-        <div className="space-y-3">
-          {leaveTypes.map(lt => (
-            <div key={lt.type} className="bg-muted/30 rounded-xl p-4">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-medium">{lt.type}</p>
-                <p className="text-sm font-bold">
-                  <span className="text-foreground">{lt.balance}</span>
-                  <span className="text-muted-foreground font-normal"> {t("employees.drawer.daysOf", { total: lt.total })}</span>
-                </p>
-              </div>
-              {lt.total > 0 && (
-                <div className="h-1.5 bg-border rounded-full overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full transition-all", lt.color)}
-                    style={{ width: `${Math.min((lt.balance / lt.total) * 100, 100)}%` }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{t("employees.drawer.leaveBalances")}</h3>
+          {/* Balances are per calendar year, so the year has to be selectable — otherwise last
+              year's usage is unreachable the moment January arrives. */}
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="h-7 px-2 rounded-lg border border-border bg-card text-[11px] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
+
+        {isBalancesLoading ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.loadingBalances")}</p>
+        ) : !balances?.length ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.noLeavePolicies")}</p>
+        ) : (
+          <div className="space-y-3">
+            {orderedBalances.map(b => {
+              // A policy with no fixed entitlement (unpaid, or a custom type added at 0 days) is
+              // still real — it is approved case by case. Hiding it made a policy the tenant had
+              // just created look like it had not saved.
+              const hasEntitlement = b.entitlementDays > 0;
+              const used = b.usedDays + b.pendingDays;
+              return (
+                <div key={b.leaveType} className="bg-muted/30 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-medium truncate">{t(`leaveType.${b.leaveType}`, { defaultValue: titleCaseType(b.leaveType) })}</p>
+                      {!b.isPaid && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
+                          {t("leaves.policies.unpaid")}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-bold shrink-0">
+                      {hasEntitlement ? (
+                        <>
+                          <span className="text-foreground">{b.remainingDays}</span>
+                          <span className="text-muted-foreground font-normal"> {t("employees.drawer.daysOf", { total: b.entitlementDays })}</span>
+                        </>
+                      ) : (
+                        <span className="text-xs font-normal text-muted-foreground">{t("employees.drawer.noFixedEntitlement")}</span>
+                      )}
+                    </p>
+                  </div>
+
+                  {hasEntitlement && (
+                    <div className="h-1.5 bg-border rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all", barColor(b.leaveType))}
+                        style={{ width: `${Math.min((b.remainingDays / b.entitlementDays) * 100, 100)}%` }}
+                      />
+                    </div>
+                  )}
+
+                  <p className={cn("text-[11px] mt-2", used > 0 ? "text-foreground" : "text-muted-foreground")}>
+                    {t("employees.drawer.leaveUsage", { used: b.usedDays, pending: b.pendingDays, year: b.year })}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Recent requests */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{t("employees.drawer.recentLeaveHistory")}</h3>
-          <Button variant="outline" size="sm" className="h-7 text-xs">{t("employees.drawer.applyLeave")}</Button>
-        </div>
-        <div className="space-y-2">
-          {recentLeaves.map((l, i) => (
-            <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Calendar className="h-4 w-4 text-primary" />
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.recentLeaveHistory")}</h3>
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.loadingLeaves")}</p>
+        ) : !leaves?.length ? (
+          <p className="text-xs text-muted-foreground">{t("employees.drawer.noLeaves")}</p>
+        ) : (
+          <div className="space-y-2">
+            {leaves.slice(0, 8).map(l => (
+              <div key={l.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Calendar className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{t(`leaveType.${l.leaveType}`, { defaultValue: l.leaveType })}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(l.fromDate, "medium")} – {formatDate(l.toDate, "medium")} · {t("employees.drawer.days", { count: l.days })}
+                  </p>
+                </div>
+                <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0", statusClass[l.status] ?? "text-muted-foreground bg-muted")}>
+                  {t(`leaveStatus.${l.status}`, { defaultValue: l.status })}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{l.type}</p>
-                <p className="text-xs text-muted-foreground">
-                  {formatDate(l.from, "medium")} – {formatDate(l.to, "medium")} · {t("employees.drawer.days", { count: l.days })}
-                </p>
-              </div>
-              <span className="text-[11px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full">
-                {t("leaveStatus.approved")}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-interface DrawerProps { open: boolean; onClose: () => void; employee: Employee | null; }
+interface DrawerProps { open: boolean; onClose: () => void; employee: Employee | null; onEdit?: (employee: Employee) => void; }
 
-export function EmployeeDrawer({ open, onClose, employee }: DrawerProps) {
+export function EmployeeDrawer({ open, onClose, employee: listRow, onEdit }: DrawerProps) {
   const { t } = useTranslation("hr");
+  const currency = useCurrency();
   const [tab, setTab] = React.useState<Tab>("overview");
 
+  // The list row is a 6-field summary, so the profile loads the full record and falls back to
+  // the summary until it arrives (avoids a flash of empty contact/compliance rows).
+  const { data: fullRecord } = useEmployee(open && listRow ? listRow.id : null);
+  const employee = fullRecord ?? listRow;
+
+  // Prints the profile as a two-column fact sheet through the shared PDF helper.
+  const printProfile = () => {
+    if (!employee) return;
+    exportPdf({
+      title:    employee.fullName,
+      subtitle: [employee.designation, employee.department, employee.employeeId].filter(Boolean).join(" · "),
+      columns:  [t("employees.drawer.field"), t("employees.drawer.value")],
+      rows: [
+        [t("employees.drawer.employeeId"),   employee.employeeId],
+        [t("employees.drawer.email"),        employee.email],
+        [t("employees.drawer.phone"),        employee.phone || "—"],
+        [t("employees.drawer.nationality"),  employee.nationality || "—"],
+        [t("employees.drawer.department"),   employee.department || "—"],
+        [t("employees.drawer.designation"),  employee.designation || "—"],
+        [t("employees.drawer.contractType"), employee.contractType],
+        [t("employees.drawer.status"),       employee.status],
+        [t("employees.drawer.joinDate"),     formatDate(employee.joinDate, "medium")],
+        [t("employees.drawer.reportsTo"),    employee.reportingTo || "—"],
+        [t("employees.drawer.basicSalary"),  formatCurrency(employee.basicSalary, currency)],
+        [t("employees.drawer.bank"),         employee.bankAccount || "—"],
+        [t("employees.drawer.iban"),         employee.iban || "—"],
+        [t("employees.drawer.emiratesId"),   employee.emiratesId || "—"],
+        [t("employees.drawer.passportNo"),   employee.passportNumber || "—"],
+        [t("employees.drawer.visaExpiry"),   employee.visaExpiry ? formatDate(employee.visaExpiry, "medium") : "—"],
+      ],
+    });
+  };
+
   // Reset tab when new employee selected
-  React.useEffect(() => { if (employee) setTab("overview"); }, [employee]);
+  React.useEffect(() => { if (listRow) setTab("overview"); }, [listRow?.id]);
 
   return (
     <AnimatePresence>
@@ -323,8 +564,12 @@ export function EmployeeDrawer({ open, onClose, employee }: DrawerProps) {
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t("employees.drawer.profile")}</p>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-8 w-8"><Edit className="h-3.5 w-3.5" /></Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8"><Printer className="h-3.5 w-3.5" /></Button>
+                <Can permission="hr.employees.edit">
+                  <Button variant="ghost" size="icon" className="h-8 w-8"
+                    onClick={() => onEdit?.(employee)}><Edit className="h-3.5 w-3.5" /></Button>
+                </Can>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={printProfile}
+                  title={t("employees.drawer.printProfile")}><Printer className="h-3.5 w-3.5" /></Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
               </div>
             </div>

@@ -19,9 +19,7 @@ public sealed class TaxRateConfiguration : IEntityTypeConfiguration<TaxRate>
         builder.Property(t => t.AppliesTo)  .IsRequired().HasMaxLength(20);
         builder.Property(t => t.Description).HasMaxLength(300);
 
-        builder.HasIndex(t => t.Code)
-            .IsUnique()
-            .HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(t => !t.IsDeleted);
 

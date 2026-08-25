@@ -24,7 +24,7 @@ internal sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.Key).IsUnique();
+        // Unique per tenant, live rows only — declared in ProjectManagementDbContext (needs the TenantId shadow column).
 
         builder.HasMany(x => x.BoardColumns).WithOne(x => x.Project!).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
         builder.HasMany(x => x.Labels).WithOne(x => x.Project!).HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);

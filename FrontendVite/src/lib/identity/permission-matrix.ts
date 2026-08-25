@@ -6,9 +6,16 @@
 import i18n from "@/i18n";
 import type { PermissionDto } from "@/lib/identity/types";
 
+/**
+ * Every action a seeded permission can use. A key whose action is missing here renders no
+ * column at all, so it cannot be granted or revoked through the UI — keep this in lockstep
+ * with PermissionSeedData.
+ */
 export const ACTION_ORDER = [
   "view", "create", "edit", "delete", "approve", "export", "print",
-  "void", "refund", "discount", "adjust",
+  "void", "refund", "discount", "adjust", "create-login",
+  // Employee self-service verbs — these are actions, not modules.
+  "leave-request", "attendance", "payslip",
 ] as const;
 
 export type Action = typeof ACTION_ORDER[number];

@@ -33,9 +33,7 @@ public sealed class PaymentMethodConfigConfiguration
         builder.Property(m => m.Description)
             .HasMaxLength(300);
 
-        builder.HasIndex(m => m.Code)
-            .IsUnique()
-            .HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(m => !m.IsDeleted);
 

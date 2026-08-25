@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import {
   Loader2, Eye, EyeOff, ArrowRight,
   DollarSign, Users, Package, BarChart3,
-  Mail, Lock, ShieldCheck, Globe, Clock, Sun, Moon,
+  Mail, Lock, ShieldCheck, Globe, Clock, Sun, Moon, MailWarning, CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
@@ -195,7 +195,25 @@ export default function LoginPage() {
   const [mfaCode, setMfaCode]     = React.useState("");
   const [verifying, setVerifying] = React.useState(false);
 
+  // An unverified account is a state to resolve, not a transient error: it needs a persistent
+  // panel with room to explain and a real button, not a toast that vanishes in eight seconds.
+  const [unverified, setUnverified] = React.useState<string | null>(null);
+  const [resendState, setResendState] = React.useState<"idle" | "sending" | "sent">("idle");
+
+  const resendVerification = async () => {
+    if (!unverified) return;
+    setResendState("sending");
+    try {
+      await authApi.resendVerification(unverified);
+      setResendState("sent");
+    } catch {
+      setResendState("idle");
+      toast.error(t("toast.verificationFailed"));
+    }
+  };
+
   const onSubmit = async (data: Form) => {
+    setUnverified(null);
     try {
       const res = await authApi.login(data.email, data.password);
       // Account has 2FA enabled → switch to the code-entry step instead of signing in.
@@ -206,6 +224,12 @@ export default function LoginPage() {
       }
       loginFromApi(res.accessToken, res.refreshToken, res.user!);
       toast.success(t("toast.welcomeBack", { name: res.user!.firstName }));
+      if (res.user?.mustChangePassword) {
+        // Administrator-issued password: land on the page that can replace it, and say why.
+        toast.warning(t("toast.mustChangePassword"));
+        navigate("/profile", { replace: true });
+        return;
+      }
       navigate("/dashboard", { replace: true });
     } catch (err) {
       // ApiError = server responded with an error envelope → show its message.
@@ -216,19 +240,11 @@ export default function LoginPage() {
       }
 
       const msg = err.message || t("toast.invalidCredentials");
-      // Unverified account → offer a one-click resend of the verification link.
+      // Unverified account → show the inline panel instead of a toast, and say nothing else:
+      // the panel carries the explanation and the resend button.
       if (msg.toLowerCase().includes("verify your email")) {
-        toast.error(msg, {
-          duration: 8000,
-          action: {
-            label: t("toast.resendLink"),
-            onClick: () => {
-              authApi.resendVerification(data.email)
-                .then(() => toast.success(t("toast.verificationSent")))
-                .catch(() => toast.error(t("toast.verificationFailed")));
-            },
-          },
-        });
+        setUnverified(data.email);
+        setResendState("idle");
         return;
       }
 
@@ -243,6 +259,12 @@ export default function LoginPage() {
       const res = await authApi.verifyTwoFactor(mfaToken, mfaCode.trim());
       loginFromApi(res.accessToken, res.refreshToken, res.user!);
       toast.success(t("toast.welcomeBack", { name: res.user!.firstName }));
+      if (res.user?.mustChangePassword) {
+        // Administrator-issued password: land on the page that can replace it, and say why.
+        toast.warning(t("toast.mustChangePassword"));
+        navigate("/profile", { replace: true });
+        return;
+      }
       navigate("/dashboard", { replace: true });
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("toast.verifyFailed"));
@@ -504,6 +526,48 @@ export default function LoginPage() {
                 {t(greetingKey())} {t("greeting.suffix")}
               </p>
             </div>
+
+            {/* Unverified-account notice */}
+            {unverified && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                className="mb-5 rounded-xl border p-4"
+                style={{
+                  borderColor: resendState === "sent" ? "rgba(34,197,94,0.35)" : "rgba(245,158,11,0.35)",
+                  background:  resendState === "sent" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.08)",
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 mt-0.5">
+                    {resendState === "sent"
+                      ? <CheckCircle2 className="h-4 w-4" style={{ color: "#22c55e" }} />
+                      : <MailWarning className="h-4 w-4" style={{ color: "#f59e0b" }} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold" style={{ color: D.white }}>
+                      {resendState === "sent" ? t("verify.sentTitle") : t("verify.title")}
+                    </p>
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: D.muted }}>
+                      {resendState === "sent"
+                        ? t("verify.sentBody", { email: unverified })
+                        : t("verify.body", { email: unverified })}
+                    </p>
+
+                    {resendState !== "sent" && (
+                      <button
+                        type="button"
+                        onClick={resendVerification}
+                        disabled={resendState === "sending"}
+                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 transition-opacity disabled:opacity-60"
+                        style={{ background: D.accent, color: "#fff" }}
+                      >
+                        {resendState === "sending" ? t("verify.sending") : t("verify.resend")}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

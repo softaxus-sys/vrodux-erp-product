@@ -23,6 +23,13 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
         modelBuilder.HasDefaultSchema("inventory");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly);
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.Inventory.Domain");
+
+        // Per-tenant business keys: unique within the tenant, live rows only. A global unique index
+        // here would let one tenant's SKU or brand name block every other tenant from using it.
+        TenantIsolation.TenantUniqueIndex<Brand>(modelBuilder, [nameof(Brand.Name)]);
+        TenantIsolation.TenantUniqueIndex<Brand>(modelBuilder, [nameof(Brand.Code)], extraFilter: "[Code] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<Product>(modelBuilder, [nameof(Product.SKU)], extraFilter: "[SKU] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<UnitOfMeasure>(modelBuilder, [nameof(UnitOfMeasure.Symbol)]);
         base.OnModelCreating(modelBuilder);
     }
 

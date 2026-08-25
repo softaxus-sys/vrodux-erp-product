@@ -27,7 +27,7 @@ internal sealed class LeaveConfiguration : IEntityTypeConfiguration<Leave>
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 
-        builder.HasIndex(x => x.LeaveNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in HrDbContext (needs the TenantId shadow column).
         builder.HasIndex(x => x.Status);
         builder.HasIndex(x => x.EmployeeId);
 

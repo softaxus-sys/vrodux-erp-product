@@ -30,6 +30,15 @@ public sealed class PayrollRun
     public DateTime? ProcessedAt        { get; private set; }
     public DateTime? PaidAt             { get; private set; }
     public DateTime? RejectedAt         { get; private set; }
+
+    // ── Finance sign-off ────────────────────────────────────────────────────
+    // Payroll leaves HR at "processed" and cannot become "paid" until Finance approves. These
+    // record who signed it off and what accounting entry that produced, so the run itself carries
+    // the audit trail rather than it living only in the Finance ledger.
+    public DateTime? FinanceApprovedAt     { get; private set; }
+    public string?   FinanceApprovedByName { get; private set; }
+    public Guid?     JournalEntryId        { get; private set; }
+    public string?   JournalEntryNumber    { get; private set; }
     public string?   RejectionReason    { get; private set; }
     public string?   RejectedByName     { get; private set; }
     public DateTime  CreatedAt          { get; private set; }
@@ -52,6 +61,27 @@ public sealed class PayrollRun
         Status      = "processed";
         ProcessedAt = DateTime.UtcNow;
         UpdatedAt   = DateTime.UtcNow;
+    }
+
+    /// <summary>Finance signs the run off. Money is posted separately and linked via <see cref="LinkJournalEntry"/>.</summary>
+    public void MarkFinanceApproved(string? approvedByName)
+    {
+        Status                = "finance_approved";
+        FinanceApprovedByName = approvedByName?.Trim();
+        FinanceApprovedAt     = DateTime.UtcNow;
+        // A rejection that was later reopened and re-approved must not keep showing as rejected.
+        RejectionReason       = null;
+        RejectedByName        = null;
+        RejectedAt            = null;
+        UpdatedAt             = DateTime.UtcNow;
+    }
+
+    /// <summary>Records the accounting entry Finance approval produced.</summary>
+    public void LinkJournalEntry(Guid journalEntryId, string? journalEntryNumber)
+    {
+        JournalEntryId     = journalEntryId;
+        JournalEntryNumber = journalEntryNumber?.Trim();
+        UpdatedAt          = DateTime.UtcNow;
     }
 
     public void MarkPaid()

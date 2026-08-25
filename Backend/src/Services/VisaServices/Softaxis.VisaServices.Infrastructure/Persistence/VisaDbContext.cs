@@ -22,6 +22,9 @@ public sealed class VisaDbContext(DbContextOptions<VisaDbContext> options)
         // Every visa-domain table (incl. VisaType — the catalogue is now tenant-owned and
         // editable per consultancy) gets the shadow TenantId column + query filter.
         TenantIsolation.ApplyTenantId(modelBuilder, this, "Softaxis.VisaServices.Domain");
+
+        // Case numbers are unique PER TENANT and only among live rows.
+        TenantIsolation.TenantUniqueIndex<VisaCase>(modelBuilder, [nameof(VisaCase.CaseNumber)]);
         base.OnModelCreating(modelBuilder);
     }
 

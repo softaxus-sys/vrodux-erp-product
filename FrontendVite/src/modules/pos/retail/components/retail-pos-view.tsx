@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import {
   Search, X, ShoppingCart, Trash2, Plus, Minus,
   Receipt, RotateCcw, Package, Scan,
@@ -666,7 +666,7 @@ export function RetailPOSView() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {tx.completedAt ? new Date(tx.completedAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                            {tx.completedAt ? parseApiDate(tx.completedAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }) : "—"}
                           </td>
                           <td className="px-4 py-3">
                             <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", sc.bg, sc.color)}>{sc.label}</span>

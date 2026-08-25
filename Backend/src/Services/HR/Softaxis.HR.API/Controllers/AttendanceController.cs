@@ -5,6 +5,8 @@ using Softaxis.HR.API.Authorization;
 using Softaxis.HR.API.Controllers.Common;
 using Softaxis.HR.Application.Attendance.Commands;
 using Softaxis.HR.Application.Attendance.Queries;
+using Softaxis.HR.Application.WorkSchedules.Commands;
+using Softaxis.HR.Application.WorkSchedules.Queries;
 
 namespace Softaxis.HR.API.Controllers;
 
@@ -84,4 +86,19 @@ public sealed class AttendanceController(ISender sender) : HrControllerBase
         var result = await sender.Send(new DeleteAttendanceLogCommand(id), ct);
         return NoContentOrError(result);
     }
+
+    // ── GET /api/hr/attendance/schedule ──────────────────────────────────
+    // Office hours drive every "on time / late" verdict the product shows, so the read is open to
+    // anyone who can see attendance — including an employee looking at their own record.
+    [HttpGet("schedule")]
+    [RequirePermission("hr.attendance.view")]
+    public async Task<IActionResult> GetSchedule(CancellationToken ct)
+        => OkOrError(await sender.Send(new GetWorkScheduleQuery(), ct));
+
+    // ── PUT /api/hr/attendance/schedule ──────────────────────────────────
+    [HttpPut("schedule")]
+    [RequirePermission("hr.attendance.edit")]
+    public async Task<IActionResult> UpdateSchedule(
+        [FromBody] UpdateWorkScheduleCommand command, CancellationToken ct)
+        => OkOrError(await sender.Send(command, ct));
 }

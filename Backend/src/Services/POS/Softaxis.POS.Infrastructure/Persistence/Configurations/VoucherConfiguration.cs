@@ -21,9 +21,7 @@ public sealed class VoucherConfiguration : IEntityTypeConfiguration<Voucher>
         builder.Property(v => v.MinSpend)         .HasPrecision(18, 2);
         builder.Property(v => v.MaxDiscountAmount).HasPrecision(18, 2);
 
-        builder.HasIndex(v => v.Code)
-            .IsUnique()
-            .HasFilter("[IsDeleted] = 0");
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(v => !v.IsDeleted);
 

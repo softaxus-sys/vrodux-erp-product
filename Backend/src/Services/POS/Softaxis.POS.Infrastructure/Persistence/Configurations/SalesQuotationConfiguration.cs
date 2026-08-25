@@ -12,7 +12,7 @@ public sealed class SalesQuotationConfiguration : IEntityTypeConfiguration<Sales
         builder.HasKey(sq => sq.Id);
         builder.Property(sq => sq.Id).ValueGeneratedNever();
         builder.Property(sq => sq.QuotationNumber).HasMaxLength(30).IsRequired();
-        builder.HasIndex(sq => sq.QuotationNumber).IsUnique();
+        // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.Property(sq => sq.CustomerName).HasMaxLength(200);
         builder.Property(sq => sq.Status).HasMaxLength(20).IsRequired();
         builder.Property(sq => sq.Notes).HasMaxLength(1000);
