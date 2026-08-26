@@ -22,6 +22,25 @@ public sealed class GatewayToolClient(IHttpClientFactory httpClientFactory, ICur
     public Task<string> PatchAsync(string relativePath, string jsonBody, CancellationToken ct) =>
         SendAsync(HttpMethod.Patch, relativePath, jsonBody, ct);
 
+    public Task<string> PutAsync(string relativePath, string jsonBody, CancellationToken ct) =>
+        SendAsync(HttpMethod.Put, relativePath, jsonBody, ct);
+
+    /// <summary>
+    /// Sends a JSON body with a verb named at runtime — the data-driven write tools carry their
+    /// verb as a string in the catalog, so this keeps that one string from having to be turned
+    /// back into a method call at each call site. An unrecognised verb falls back to POST rather
+    /// than throwing: a typo in the catalog should surface as an API error naming the route, not
+    /// as an unhandled exception in the tool loop.
+    /// </summary>
+    public Task<string> SendJsonAsync(string method, string relativePath, string jsonBody, CancellationToken ct) =>
+        SendAsync(method.ToUpperInvariant() switch
+        {
+            "PUT"    => HttpMethod.Put,
+            "PATCH"  => HttpMethod.Patch,
+            "DELETE" => HttpMethod.Delete,
+            _        => HttpMethod.Post,
+        }, relativePath, jsonBody, ct);
+
     private async Task<string> SendAsync(HttpMethod method, string relativePath, string? jsonBody, CancellationToken ct)
     {
         var baseUrl = currentUser.RequestBaseUrl;

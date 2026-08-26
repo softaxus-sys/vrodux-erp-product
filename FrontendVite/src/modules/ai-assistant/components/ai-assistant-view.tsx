@@ -7,6 +7,7 @@ import {
   MessageCircle, Link2, ExternalLink, Bot, Mic, Volume2, VolumeX, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/ui/markdown";
 import { cn, parseApiDate } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import {
@@ -309,7 +310,9 @@ export function AIAssistantView() {
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground rounded-tr-sm"
                     : "bg-card border border-border rounded-tl-sm")}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  {msg.role === "assistant"
+                    ? <Markdown content={msg.content} />
+                    : <div className="whitespace-pre-wrap">{msg.content}</div>}
                 </div>
                 {msg.pending && (
                   <div className="mt-1 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 w-full">

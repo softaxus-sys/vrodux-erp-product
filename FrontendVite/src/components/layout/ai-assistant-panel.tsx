@@ -4,6 +4,7 @@ import { Sparkles, X, Send, RotateCcw, Check, Ban, ExternalLink, Zap } from "luc
 import { useNavigate } from "react-router-dom";
 import { useUiStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
+import { Markdown } from "@/components/ui/markdown";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useSendChat, useConfirmAction, useAiConversation, useClearConversation } from "@/hooks/ai/use-ai";
@@ -43,6 +44,25 @@ function prettifyAction(toolName: string): string {
   const parts = toolName.split("_");
   const s = (parts.length > 1 ? parts.slice(1).join(" ") : toolName).replace(/_/g, " ").trim().toLowerCase();
   return s || toolName;
+}
+
+/**
+ * The exact values the pending write will send, so the confirmation can actually be reviewed —
+ * a prompt you cannot inspect is not a safeguard. Mirrors the full assistant page.
+ */
+function pendingFields(argumentsJson: string): { label: string; value: string }[] {
+  try {
+    const obj = JSON.parse(argumentsJson || "{}");
+    if (typeof obj !== "object" || obj === null) return [];
+    return Object.entries(obj)
+      .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "")
+      .map(([k, v]) => ({
+        label: k.replace(/([A-Z])/g, " $1").replace(/^./, c => c.toUpperCase()).trim(),
+        value: String(v),
+      }));
+  } catch {
+    return [];
+  }
 }
 
 export function AiAssistantPanel() {
@@ -215,13 +235,15 @@ export function AiAssistantPanel() {
                   <div className="max-w-[80%] flex flex-col gap-1.5">
                     <div
                       className={cn(
-                        "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap",
+                        "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
+                          ? "bg-primary text-primary-foreground whitespace-pre-wrap"
                           : "bg-muted text-foreground"
                       )}
                     >
-                      {msg.content}
+                      {msg.role === "assistant"
+                        ? <Markdown content={msg.content} />
+                        : msg.content}
                     </div>
                     {msg.role === "assistant" && msg.usedFallback && (
                       <span
@@ -236,7 +258,18 @@ export function AiAssistantPanel() {
                         <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-1.5">
                           ⚠ Confirm before I {prettifyAction(msg.pending.toolName)}:
                         </p>
-                        <p className="text-[11px] text-muted-foreground mb-2 break-words">{msg.pending.summary}</p>
+                        {pendingFields(msg.pending.argumentsJson).length > 0 ? (
+                          <div className="rounded-lg bg-background/60 border border-border p-2 mb-2 text-[11px] space-y-0.5">
+                            {pendingFields(msg.pending.argumentsJson).map(f => (
+                              <div key={f.label} className="flex gap-2">
+                                <span className="text-muted-foreground min-w-[80px]">{f.label}</span>
+                                <span className="font-medium break-all">{f.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-muted-foreground mb-2 break-words">{msg.pending.summary}</p>
+                        )}
                         <div className="flex gap-1.5">
                           <Button size="sm" className="h-7 gap-1 text-xs" disabled={confirmAction.isPending}
                             onClick={() => handleConfirm(msg.id, msg.pending!)}>

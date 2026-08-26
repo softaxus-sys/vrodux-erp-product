@@ -15,7 +15,9 @@ using Softaxis.AiAssistant.Infrastructure.Tools.Crm;
 using Softaxis.AiAssistant.Infrastructure.Tools.Finance;
 using Softaxis.AiAssistant.Infrastructure.Tools.Generic;
 using Softaxis.AiAssistant.Infrastructure.Tools.Purchase;
+using Softaxis.AiAssistant.Infrastructure.Tools.Restaurant;
 using Softaxis.AiAssistant.Infrastructure.Tools.Sales;
+using Softaxis.AiAssistant.Infrastructure.Tools.Visa;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 
 namespace Softaxis.AiAssistant.Infrastructure.Extensions;
@@ -71,7 +73,11 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiTool, FinanceCreateJournalEntryTool>();  // write (confirm-gated)
         services.AddScoped<IAiTool, FinanceCreateInvoiceTool>();       // write (confirm-gated)
         services.AddScoped<IAiTool, SalesCreateOrderTool>();           // write (confirm-gated)
+        services.AddScoped<IAiTool, SalesCreateQuotationTool>();       // write (confirm-gated)
         services.AddScoped<IAiTool, PurchaseCreateOrderTool>();        // write (confirm-gated)
+        services.AddScoped<IAiTool, PurchaseCreateRequisitionTool>();  // write (confirm-gated)
+        services.AddScoped<IAiTool, VisaCreateCaseTool>();             // write (confirm-gated)
+        services.AddScoped<IAiTool, RestaurantCreateOrderTool>();      // write (confirm-gated)
 
         // Data-driven module coverage — one catalog entry each instead of a bespoke class. See
         // Tools/Generic/ModuleToolCatalog.cs. Module gating (AiToolRegistry.IsModuleEnabled) keys
@@ -82,7 +88,13 @@ public static class InfrastructureExtensions
         foreach (var spec in ModuleToolCatalog.GetByIds)
             services.AddScoped<IAiTool>(sp => new GenericGetByIdTool(spec, sp.GetRequiredService<GatewayToolClient>()));
         foreach (var spec in ModuleToolCatalog.Creates)
-            services.AddScoped<IAiTool>(sp => new GenericCreateTool(spec, sp.GetRequiredService<GatewayToolClient>()));
+            services.AddScoped<IAiTool>(sp => new GenericCreateTool(spec,
+                sp.GetRequiredService<GatewayToolClient>(), sp.GetRequiredService<ICurrentUser>()));
+        foreach (var spec in ModuleToolCatalog.Updates)
+            services.AddScoped<IAiTool>(sp => new GenericUpdateTool(spec, sp.GetRequiredService<GatewayToolClient>()));
+        foreach (var spec in ModuleToolCatalog.Actions)
+            services.AddScoped<IAiTool>(sp => new GenericActionTool(spec,
+                sp.GetRequiredService<GatewayToolClient>(), sp.GetRequiredService<ICurrentUser>()));
         // Other module agents (read-only)
         services.AddScoped<IAiTool, FinanceInvoicesSummaryTool>();
         services.AddScoped<IAiTool, FinanceExpensesSummaryTool>();
@@ -95,6 +107,9 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiTool, SalesQuotationsTool>();
         services.AddScoped<IAiTool, PurchaseVendorsTool>();
         services.AddScoped<IAiTool, ProjectsListTool>();
+        // NOTE: UseModuleTool is deliberately NOT registered here — it needs the registry, and the
+        // registry needs every IAiTool, so registering it would be a DI cycle. AiToolRegistry
+        // constructs it instead (see there).
         services.AddScoped<IAiToolRegistry, AiToolRegistry>();
 
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();

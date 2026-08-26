@@ -95,6 +95,7 @@ public sealed class AiOrchestrator(
                 var toolResult = await ExecuteReadToolAsync(tool, toolCall, ct);
                 if (!toolsUsed.Contains(toolCall.Name)) toolsUsed.Add(toolCall.Name);
                 messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: toolCall.Id));
+                ExpandToolsIfRequested(toolCall, toolDefs);
             }
         }
 
@@ -201,6 +202,7 @@ public sealed class AiOrchestrator(
                 var toolResult = await ExecuteReadToolAsync(tool, toolCall, ct);
                 if (!toolsUsed.Contains(toolCall.Name)) toolsUsed.Add(toolCall.Name);
                 messages.Add(new AiChatMessage(AiRole.Tool, toolResult, ToolCallId: toolCall.Id));
+                ExpandToolsIfRequested(toolCall, toolDefs);
             }
         }
 
@@ -219,6 +221,37 @@ public sealed class AiOrchestrator(
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Progressive tool disclosure: when the model calls <see cref="UseModuleTool"/>, add that
+    /// module's tools to the definitions sent on the NEXT iteration, so a turn that started in
+    /// Auto mode with only the cheap read set can still create and modify records. Without this
+    /// the assistant answers "there is no function for that" about tools it simply wasn't shown.
+    /// Already-present tools are skipped, so repeated calls cannot bloat the payload.
+    /// </summary>
+    private void ExpandToolsIfRequested(AiToolCall call, List<AiToolDefinition> toolDefs)
+    {
+        if (!string.Equals(call.Name, UseModuleTool.ToolName, StringComparison.OrdinalIgnoreCase)) return;
+
+        string? module = null;
+        try
+        {
+            using var args = ParseArgs(call.ArgumentsJson);
+            if (args.RootElement.ValueKind == JsonValueKind.Object
+                && args.RootElement.TryGetProperty("module", out var v) && v.ValueKind == JsonValueKind.String)
+                module = v.GetString();
+        }
+        catch { /* a malformed argument just means nothing to expand */ }
+
+        if (string.IsNullOrWhiteSpace(module)) return;
+
+        var existing = toolDefs.Select(d => d.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var tool in toolRegistry.GetTools(module))
+        {
+            if (!existing.Add(tool.Name)) continue;
+            toolDefs.Add(new AiToolDefinition(tool.Name, tool.Description, tool.ParametersJsonSchema, tool.IsReadOnly));
+        }
+    }
 
     private async Task<ResolvedSettings> ResolveSettingsAsync(CancellationToken ct)
     {

@@ -11,9 +11,14 @@ internal sealed class GetAgentsHandler(IAiToolRegistry toolRegistry)
 {
     public Task<Result<IReadOnlyList<AiAgentDto>>> Handle(GetAgentsQuery request, CancellationToken ct)
     {
-        var agents = toolRegistry.GetTools(null)
-            .GroupBy(t => t.Agent, StringComparer.OrdinalIgnoreCase)
-            .Select(g => new AiAgentDto(g.Key, AiAgents.Label(g.Key), g.Count()))
+        // Built from every module the caller can act in, NOT from the Auto-mode tool set. Grouping
+        // the Auto-mode tools (as this did before) silently dropped every module without a cheap
+        // cross-module read tool — Restaurant, Visa, POS and the four industry packs never appeared
+        // in the picker at all, so their create/update tools were unreachable from the UI. It also
+        // reported the Auto-mode tool count rather than what the agent actually offers.
+        var agents = toolRegistry.GetAvailableModules()
+            .Select(m => new AiAgentDto(m, AiAgents.Label(m), toolRegistry.GetTools(m).Count))
+            .Where(a => a.ToolCount > 0)
             .OrderBy(a => a.Label, StringComparer.OrdinalIgnoreCase)
             .ToList();
 

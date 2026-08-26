@@ -40,7 +40,14 @@ public interface IAiTool
     /// </summary>
     bool IncludeInAutoMode { get; }
 
-    /// <summary>Permission the caller must hold for this tool to be offered/executed (null = any authenticated user).</summary>
+    /// <summary>
+    /// Permission the caller must hold for this tool to be offered/executed (null = any
+    /// authenticated user). May list ALTERNATIVES, comma-separated — the caller passes if they
+    /// hold any one of them. That mirrors the <c>[RequireAnyPermission]</c> attributes on the
+    /// tiered CRM controllers, where a team lead holds <c>crm.leads-team.edit</c> rather than the
+    /// tenant-wide <c>crm.leads.edit</c>; naming only the tenant-wide key here would hide the tool
+    /// from exactly the roles those tiers exist to serve.
+    /// </summary>
     string? RequiredPermission { get; }
 
     /// <summary>Execute the tool and return a result string (typically JSON) to feed back to the model.</summary>
@@ -58,4 +65,11 @@ public interface IAiToolRegistry
 
     /// <summary>Resolve a tool by name for execution (null if unknown or not permitted).</summary>
     IAiTool? Resolve(string name);
+
+    /// <summary>
+    /// The module keys the caller can actually act in right now — the tenant has them enabled AND
+    /// the caller holds at least one of their tools' permissions. Drives the "use_module" tool, so
+    /// the assistant offers only modules that will really answer when asked.
+    /// </summary>
+    IReadOnlyList<string> GetAvailableModules();
 }

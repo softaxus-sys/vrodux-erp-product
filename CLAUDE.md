@@ -5227,3 +5227,123 @@ ones and both now guard.
 - **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
   · no migration. The Create Login modal already surfaces the API message, so the employee path now
   shows the same "Your Micro plan allows a maximum of 3 users" text.
+
+---
+
+## Module 49 — AI Assistant: create/modify across every module, discoverable in Auto mode, formatted replies
+
+Reported as "I'm not able to create a new bug or task — the tools available to me only let me
+**list** projects", plus asterisks showing raw instead of bold, plus "make sure add/modify only
+happens after confirmation, as it does for CRM".
+
+### Why it said a capability did not exist (three independent causes)
+1. **Auto mode never shows a write tool.** `IAiTool.IncludeInAutoMode` is false for every write and
+   every deep read (deliberately — Module: the tool-schema payload goes into *every* request and a
+   tenant with all modules on was tripping Groq's TPM limit before the question was even read). So
+   in Auto mode the model saw only `projects_list` and answered, truthfully but uselessly, that
+   there was no function for adding — while `projects_create_issue` had existed the whole time.
+2. **The agent picker could not reach those modules either.** `GetAgentsHandler` built the picker by
+   grouping `GetTools(null)` — the *Auto-mode* set. Any module without a cheap cross-module read
+   tool therefore never appeared: **Restaurant, Visa, POS, B2B, Education, Healthcare and Insurance
+   had no picker entry at all**, so naming the agent was not a workaround. It also showed the
+   Auto-mode tool count rather than what the agent actually offers.
+3. **Whole modules genuinely had no write tools**, and *no module had an update tool of any kind* —
+   the catalog was create-only.
+
+### Fix 1 — progressive tool disclosure (`use_module`)
+New `Orchestration/UseModuleTool.cs` (agent `core`, read-only, in Auto mode). The model calls it with
+a module key; `AiOrchestrator.ExpandToolsIfRequested` then appends that module's full tool set —
+writes included — to `toolDefs` for the remaining iterations of the same turn. Applies to both
+`RunAsync` and `RunAutonomousAsync`. Auto mode's baseline payload is unchanged, so the TPM problem
+that motivated the restriction does not come back. `AiSystemPrompt` now states plainly that the
+assistant *can* create and modify, that the listed tools are a starting set, and that it must call
+`use_module` before ever claiming a capability is unavailable.
+
+**DI gotcha:** `UseModuleTool` needs `IAiToolRegistry`, and the registry needs every `IAiTool` — as a
+DI registration that is a cycle. `AiToolRegistry` constructs it in its own constructor instead; it is
+deliberately *not* in `AddScoped<IAiTool, …>`.
+
+`AiToolAgents.Core` ("core") is exempt from the module-licence gate — plumbing belongs to no module,
+and gating tool discovery on a subscription would make the assistant unable to find its own
+capabilities. It is excluded from `GetAvailableModules()` so it never shows up as an agent.
+
+### Fix 2 — three new data-driven tool kinds (`Tools/Generic/`)
+- **`AiUpdateSpec` / `GenericUpdateTool`** — modify an existing record. Almost every PUT in this
+  codebase **replaces** the whole record, so sending only the changed field would blank the rest.
+  The tool therefore **reads the record first and merges** the model's fields over it. Merging from
+  the full read result also preserves what a flat field list cannot express (tag arrays, labels)
+  without the model restating it. Refuses when no field was supplied, and when the read fails it
+  says so rather than writing a body assembled from guesses. Unwraps POS's `ApiResponse<T>`
+  envelope (`{ success, data }`) — merging the envelope would send a body with none of the real fields.
+- **`AiActionSpec` / `GenericActionTool`** — approve / reject / change status / move stage. Any
+  `{placeholder}` in the path is filled from the same-named field and then excluded from the body,
+  so one field list drives both route and payload. `RawBodyField` covers the three endpoints that
+  bind a bare value (`[FromBody] string status` on Sales orders, Purchase orders, POS purchase
+  orders) rather than an object.
+- **`AiListSpec.QueryParams`** — optional filters, and path placeholders for project-scoped lists.
+  This also fixed a live bug: `projects_list_issues` called `GET /issues` with no `projectId`, which
+  the API requires, so it could never return anything.
+
+**`AiFieldDefaults.CurrentUserId` / `CurrentUserName`** — fields whose value is "whoever is doing
+this" (`approverId`, `requestedBy`, `by`, `byName`) are filled from `ICurrentUser` and **omitted from
+the JSON schema entirely**, so the model is never tempted to invent a GUID for them.
+
+**`IAiTool.RequiredPermission` now accepts comma-separated alternatives** ("any of"). This mirrors
+the `[RequireAnyPermission]` attributes on the tiered CRM controllers: a team lead holds
+`crm.leads-team.edit`, not the tenant-wide `crm.leads.edit`, so naming only the tenant-wide key would
+have hidden every CRM tool from exactly the roles those tiers exist to serve.
+
+### Fix 3 — coverage: 254 tools, every module, create **and** modify
+`ModuleToolCatalog` grew to 226 data-driven entries (Lists / GetByIds / Creates / Updates / Actions)
+plus the bespoke tools. Per-module tool counts: finance 36, hr 33, crm 28, restaurant 26, inventory
+22, projects 20, sales 15, purchase 14, visa 11, b2b 10, education 10, insurance 10, healthcare 9,
+pos 9. **Visa, the four industry packs and POS had zero tools before this** and now have full
+list/create/modify coverage.
+
+Four new hand-written tools for bodies with nested line-item arrays (which a flat field list cannot
+express): `VisaCreateCaseTool` (applicants), `SalesCreateQuotationTool`, `RestaurantCreateOrderTool`,
+and `PurchaseCreateRequisitionTool` — the last one closes the gap flagged in Module 5p, where
+`POST /api/purchase/approvals` existed but the web UI's "New Request" button was never wired, so the
+assistant is currently the only way to raise a requisition. Shared readers live in `Tools/ToolJson.cs`.
+
+**Deliberately not exposed:** no delete tool anywhere (creating or correcting from chat is
+recoverable; deleting from a mis-parsed instruction is not), and no POS sale / void / refund /
+session tool — those move cash in a physical drawer against an open shift and belong at the terminal.
+
+### Fix 4 — confirmation (already universal; now reviewable everywhere)
+`AiOrchestrator` gates on `IsReadOnly == false`, so every one of the new write tools is held as a
+pending action for confirm/reject exactly like the CRM ones — no per-tool wiring, nothing to opt in
+to. The **side panel** only showed the model's prose summary, though; it now renders the same
+field-by-field table as the full assistant page, because a confirmation you cannot inspect is not
+much of a safeguard.
+
+### Fix 5 — Markdown rendering (the raw asterisks)
+Both chat surfaces printed `msg.content` as plain text, so the Markdown the models are instructed to
+produce came through literally. New `components/ui/markdown.tsx` renders headings, bold/italic/
+strikethrough, inline code, fenced code, bullet/numbered lists, GFM tables, blockquotes, rules and
+links. Dependency-free (same call as `lib/pdf.ts`) and it builds **React elements, never
+`dangerouslySetInnerHTML`**, so model output cannot inject markup; only `http(s):`/`mailto:` hrefs
+render as links. Two deliberate restrictions: no single-underscore emphasis (the answers are full of
+snake_case tool names, which `_x_` matching mangles) and no regex lookbehind (an unsupported
+construct is a parse-time SyntaxError that would take down the whole chunk). User messages stay
+plain text.
+
+### Verification
+- **Full solution build:** 0 errors ✅ (7 pre-existing MSB3277 Serilog version-conflict warnings).
+  **`vite build`:** ✅ · **`tsc`:** 277, unchanged baseline, none in a touched file.
+- **Every catalog path checked against the real routes** — a script derived 931 `(verb, path)` pairs
+  from every controller in the solution and matched all 226 catalog paths: **0 mismatches**. This
+  caught `purchase_set_order_status` needing `RawBodyField` (its endpoint binds a bare string).
+- **All 226 data-driven tools built and their JSON Schemas validated at runtime** (valid JSON,
+  snake_case names ≤ 64 chars, known primitive types, non-empty descriptions, every `required` entry
+  declared, every path placeholder fillable): 0 problems.
+- **Wire-level execution through a fake HTTP layer**, asserting the exact method/path/body: path
+  params excluded from the body, bare-string bodies, caller-identity defaults filled, multi-placeholder
+  routes, literal defaults, list querystring + path substitution, merge-update reading before writing
+  and preserving untouched values including tag arrays, empty updates refused without writing, and a
+  missing id refused before any HTTP call. All pass.
+- **Not runtime-tested against a live model or a running gateway** — needs the usual republish +
+  restart. Then spot-check: in Auto mode ask "log a bug in <project> that the login button does
+  nothing" → the assistant calls `use_module("project-management")`, then proposes
+  `projects_create_issue` for confirmation; the agent picker now lists Restaurant/Visa/POS and the
+  four industry packs; a reply containing `**bold**`, a list and a table renders formatted.
