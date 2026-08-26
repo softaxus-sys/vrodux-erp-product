@@ -192,6 +192,24 @@ public sealed class GetAssignableUsersQueryHandler(
     ITeamRepository repo, ICurrentUser currentUser, ITenantContext tenant)
     : IQueryHandler<GetAssignableUsersQuery, IReadOnlyList<TeamMemberDto>>
 {
+    /// <summary>
+    /// Drops anyone without access to the module the work belongs to. Applied to both branches:
+    /// an admin routing a lead should no more be offered a warehouse clerk than a team lead should.
+    /// </summary>
+    private async Task<List<TeamUserInfo>> NarrowToModuleAsync(
+        List<TeamUserInfo> users, string? module, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(module) || users.Count == 0) return users;
+
+        var allowed = await repo.FilterUsersWithModuleAccessAsync(
+            users.Select(u => u.Id).ToList(), module, ct);
+
+        // Super admins hold no explicit permission rows, so they would filter themselves out.
+        var keepSelf = currentUser.IsSuperAdmin ? currentUser.Id : null;
+
+        return users.Where(u => allowed.Contains(u.Id) || u.Id == keepSelf).ToList();
+    }
+
     public async Task<Result<IReadOnlyList<TeamMemberDto>>> Handle(GetAssignableUsersQuery query, CancellationToken ct)
     {
         var scope = TeamScope.For(currentUser, tenant);
@@ -207,6 +225,7 @@ public sealed class GetAssignableUsersQueryHandler(
             // Everyone, with team leads flagged and listed first — an admin routing work usually
             // wants to hand it to a lead, who then distributes it within their team.
             var all = await repo.GetActiveTenantUsersAsync(scope, ct);
+            all = await NarrowToModuleAsync(all, query.Module, ct);
             var allLeads = (await repo.GetAllTeamLeadIdsAsync(scope, ct)).ToHashSet();
             var allTeams = await repo.GetTeamsByUserAsync(all.Select(u => u.Id).ToList(), scope, ct);
             return Result.Success<IReadOnlyList<TeamMemberDto>>(
@@ -238,6 +257,7 @@ public sealed class GetAssignableUsersQueryHandler(
         // IsLead marks the team's lead(s) so the picker can label them — not the caller.
         var leadSet = leadIds.ToHashSet();
         var users = await repo.GetUsersAsync(ids, ct);
+        users = await NarrowToModuleAsync(users, query.Module, ct);
         var teamNames = await repo.GetTeamsByUserAsync(ids, scope, ct);
         return Result.Success<IReadOnlyList<TeamMemberDto>>(
             users.Select(u => new TeamMemberDto(

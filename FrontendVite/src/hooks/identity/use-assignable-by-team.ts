@@ -31,9 +31,15 @@ export interface AssignableTeamGroup {
  *
  * Shared by the reassign dialog and the create/edit lead form so the two pickers can't drift apart.
  */
-export function useAssignableByTeam(enabled = true) {
+/**
+ * Everyone this caller may assign CRM work to, grouped by team.
+ *
+ * Scoped to the CRM module: a colleague with no CRM access cannot open a lead, so offering them in
+ * the picker only produces records their assignee cannot see.
+ */
+export function useAssignableByTeam(enabled = true, module = "crm") {
   const { t } = useTranslation("crm");
-  const query = useAssignableUsers(enabled);
+  const query = useAssignableUsers(enabled, module);
   const assignable = query.data ?? [];
 
   const options = React.useMemo<AssignableOption[]>(
@@ -105,8 +111,8 @@ export function decodeAssignee(value: string): { userId: string | null; teamId: 
  * and already carries their teams. So a team lead can file to the teams they lead, and an admin to
  * every team that has a member.
  */
-export function useTeamsForFiling(enabled = true) {
-  const query = useAssignableUsers(enabled);
+export function useTeamsForFiling(enabled = true, module = "crm") {
+  const query = useAssignableUsers(enabled, module);
   const assignable = query.data ?? [];
 
   const teams = React.useMemo(() => {

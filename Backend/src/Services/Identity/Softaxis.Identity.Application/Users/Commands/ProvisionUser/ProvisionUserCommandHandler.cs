@@ -44,6 +44,12 @@ public sealed class ProvisionUserCommandHandler(
         // tenant-scoped. The message says so, because the address may well be invisible to the
         // caller: HR searches its own workspace, finds nothing, and would otherwise be told the
         // address is taken by something it cannot see.
+        // A provisioned login is a real user on the tenant's plan, so it consumes a seat exactly
+        // as one created from Settings does. Without this, HR could walk past the limit that screen
+        // enforces — the same rule with only one of its two implementations present.
+        if (await PlanSeatGuard.CheckAsync(userRepo, currentUser, tenantContext, ct) is { } seatError)
+            return Result.Failure<ProvisionedUserDto>(seatError);
+
         if (await userRepo.EmailExistsAsync(cmd.Email, ct))
             return Result.Failure<ProvisionedUserDto>(Error.Custom("User.Email.Taken",
                 "This email already has a Vrodux login, in this or another workspace. An address can only belong to one login — use a different address for this employee."));
@@ -110,6 +116,7 @@ public sealed class ProvisionUserCommandHandler(
         // Sent after the commit: an account that exists without its invite can be re-invited,
         // whereas an invite for an account that failed to save is a dead link.
         var inviteSent = false;
+        string? inviteError = null;
         if (inviteToken is not null)
         {
             try
@@ -118,11 +125,15 @@ public sealed class ProvisionUserCommandHandler(
                 var workspace = tenant?.Name ?? "Vrodux ERP";
                 inviteSent = await email.SendEmployeeInviteEmailAsync(
                     cmd.Email, $"{cmd.FirstName} {cmd.LastName}".Trim(), workspace, inviteToken, ct);
+
+                if (!inviteSent)
+                    inviteError = "SMTP is not configured on this server (Email:SmtpHost / Email:SmtpUsername).";
             }
             catch (Exception ex)
             {
                 // Never fail the creation over a mail problem — the fallback below covers it.
                 logger.LogWarning(ex, "Employee invite email failed for {Email}", cmd.Email);
+                inviteError = ex.Message;
             }
         }
 
@@ -133,7 +144,8 @@ public sealed class ProvisionUserCommandHandler(
         return Result.Success(new ProvisionedUserDto(
             UserDtoMapper.ToDto(saved),
             inviteSent ? null : temporaryPassword,
-            inviteSent));
+            inviteSent,
+            inviteError));
     }
 
 

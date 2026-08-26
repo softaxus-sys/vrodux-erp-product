@@ -5174,3 +5174,56 @@ Three things around it were wrong, though:
   rather than on an error. The file sequence is still only consumed when a real file is produced.
 
 - **HR.API:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅ · en/ar parity.
+
+## Module 47 — Assignment pickers list only people who can open the record
+
+The CRM reassign dropdown offered every tenant user, including HR-only accounts and employees
+provisioned purely for self-service. Handing a lead to one of them creates a record its assignee
+cannot open and only an administrator can then find.
+
+### Filtering is by *effective* permission, not by role
+New `ITeamRepository.FilterUsersWithModuleAccessAsync(userIds, modulePrefix)` returns the users
+holding at least one permission in the module, computed as **(roles ∪ user grants) − user denies**
+— the same formula the JWT is built from (Module 5h). Filtering on roles alone would disagree with
+what the person can actually do: a per-user grant would be ignored, and a per-user deny would leave
+someone in the picker who can no longer open a lead.
+
+The prefix is matched as `crm.` (or the exact key), so `crm` covers `crm.leads`, `crm.pipeline` and
+`crm.customers` without also matching an unrelated module that merely starts with the same letters.
+
+`GetAssignableUsersQuery` gained an optional `Module`, applied to **both** branches — an admin
+routing a lead should no more be offered a warehouse clerk than a team lead should. Super admins
+hold no explicit permission rows, so the caller is kept when they are one, rather than filtering
+themselves out of their own picker.
+
+`GET /api/teams/assignable-users?module=crm`; the module is part of the React Query key, since
+"who can take a lead" and "who can take a job" are different lists and must not share a cache entry.
+`useAssignableByTeam` / `useTeamsForFiling` default to `crm`, which is every current caller.
+
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+  · no migration.
+- **Verified against live data:** in the Qfinity tenant 6 users hold `crm.*` and 8 do not (HR test
+  accounts and self-service employees) — exactly the ones the picker was offering.
+
+## Module 48 — Provisioning a login bypassed the plan's seat limit
+
+Settings → Users refused a fourth user on a Micro plan; creating a login from an employee record
+did not. Both mint a real user on the same plan, so both consume a seat — the rule existed in one
+of its two implementations.
+
+The check is now `PlanSeatGuard.CheckAsync`, called by **both** `CreateUserCommandHandler` and
+`ProvisionUserCommandHandler`, with the same `Plan.UserLimitReached` code and wording. Extracted
+rather than copied: a duplicated limit is how the two drifted apart in the first place.
+
+**Linking an existing login is deliberately not gated** — that account already exists and is
+already counted, so it consumes no additional seat. Same for the trial/tenant-creation paths, which
+create a workspace's first admin before there is a plan to measure against, and for super admins,
+who operate above any single tenant's plan. `MaxUsers <= 0` means unlimited.
+
+Audited every `User.Create(` call site in Identity: the five are Register (dead endpoint),
+CreateTenant, RegisterTrial, CreateUser and ProvisionUser — the last two are the seat-consuming
+ones and both now guard.
+
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+  · no migration. The Create Login modal already surfaces the API message, so the employee path now
+  shows the same "Your Micro plan allows a maximum of 3 users" text.

@@ -77,7 +77,12 @@ public sealed record DeleteTeamCommand(Guid Id) : ICommand;
 /// Keeps the full team roster from being readable by restricted users, which would undercut the
 /// point of the tiers.
 /// </summary>
-public sealed record GetAssignableUsersQuery : IQuery<IReadOnlyList<TeamMemberDto>>;
+/// <param name="Module">
+/// Optional module prefix ("crm"). When given, only users who actually hold a permission in that
+/// module are returned — assigning work to someone who cannot open it helps nobody, and the record
+/// then sits where only an administrator can see it.
+/// </param>
+public sealed record GetAssignableUsersQuery(string? Module = null) : IQuery<IReadOnlyList<TeamMemberDto>>;
 
 /// <summary>Users eligible to lead a team — see ITeamRepository.GetTeamLeadCandidatesAsync.</summary>
 public sealed record GetTeamLeadCandidatesQuery : IQuery<IReadOnlyList<TeamMemberDto>>;

@@ -56,4 +56,15 @@ public interface ITeamRepository
         IReadOnlyCollection<Guid> userIds, Guid? tenantScope, CancellationToken ct = default);
 
     void Add(Team team);
+
+    /// <summary>
+    /// Of the given users, those who actually hold a permission in <paramref name="modulePrefix"/>
+    /// (e.g. "crm") — effective access, so per-user grants count and per-user denies remove.
+    ///
+    /// <para>Used to keep assignment pickers honest: handing a lead to someone with no CRM access
+    /// creates a record only an administrator can then see, and the person it was assigned to
+    /// cannot open it.</para>
+    /// </summary>
+    Task<HashSet<Guid>> FilterUsersWithModuleAccessAsync(
+        IReadOnlyCollection<Guid> userIds, string modulePrefix, CancellationToken ct = default);
 }

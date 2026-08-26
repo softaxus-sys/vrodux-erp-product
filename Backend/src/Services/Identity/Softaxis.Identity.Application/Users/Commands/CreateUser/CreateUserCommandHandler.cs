@@ -25,18 +25,9 @@ public sealed class CreateUserCommandHandler(
     public async Task<Result<UserDto>> Handle(CreateUserCommand cmd, CancellationToken ct)
     {
         // ── Plan limit check ──────────────────────────────────────────────────
-        if (!currentUser.IsSuperAdmin &&
-            tenantContext.IsResolved &&
-            tenantContext.TenantId.HasValue &&
-            tenantContext.Limits is { MaxUsers: > 0 } limits)
-        {
-            var count = await userRepo.CountByTenantAsync(tenantContext.TenantId.Value, ct);
-            if (count >= limits.MaxUsers)
-                return Result.Failure<UserDto>(Error.Custom(
-                    "Plan.UserLimitReached",
-                    $"Your {tenantContext.Plan} plan allows a maximum of {limits.MaxUsers} users. " +
-                    "Please upgrade to add more users."));
-        }
+        // Shared with ProvisionUser: both mint a login and both consume a seat.
+        if (await PlanSeatGuard.CheckAsync(userRepo, currentUser, tenantContext, ct) is { } seatError)
+            return Result.Failure<UserDto>(seatError);
 
         if (await userRepo.EmailExistsAsync(cmd.Email, ct))
             return Result.Failure<UserDto>(Error.Custom("User.Email.Taken", "Email is already registered."));

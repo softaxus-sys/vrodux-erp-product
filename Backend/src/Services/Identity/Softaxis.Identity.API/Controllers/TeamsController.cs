@@ -67,8 +67,8 @@ public sealed class TeamsController(ISender sender) : BaseApiController(sender)
     /// <summary>Who the caller may hand a lead to. Authenticated-only by design: it returns just
     /// the caller's own assignable pool, so it leaks nothing a restricted user should not see.</summary>
     [HttpGet("assignable-users")]
-    public async Task<IActionResult> AssignableUsers(CancellationToken ct)
-        => HandleResult(await Sender.Send(new GetAssignableUsersQuery(), ct));
+    public async Task<IActionResult> AssignableUsers([FromQuery] string? module, CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetAssignableUsersQuery(module), ct));
 
     public sealed record UpdateTeamRequest(string Name, string? Description, Guid? TeamLeadUserId, bool IsActive);
     public sealed record TeamMemberRequest(Guid UserId);

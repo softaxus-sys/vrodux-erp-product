@@ -57,6 +57,8 @@ export interface ProvisionedUserDto {
   temporaryPassword: string | null;
   /** False means the invite could not be sent and `temporaryPassword` is the fallback. */
   inviteSent: boolean;
+  /** Why it could not be sent — shown to the administrator, not just logged. */
+  inviteError?: string | null;
 }
 
 export interface UserDto {

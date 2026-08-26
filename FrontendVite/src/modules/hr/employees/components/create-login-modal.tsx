@@ -36,7 +36,7 @@ export function CreateLoginModal({ open, onClose, employee }: Props) {
   const [busy, setBusy]         = React.useState(false);
   const [sendInvite, setSendInvite] = React.useState(true);
   const [result, setResult]     = React.useState<
-    { email: string; password: string | null; inviteSent: boolean } | null>(null);
+    { email: string; password: string | null; inviteSent: boolean; inviteError?: string | null } | null>(null);
   const [copied, setCopied]     = React.useState(false);
   const [error, setError]       = React.useState<string | null>(null);
 
@@ -72,6 +72,7 @@ export function CreateLoginModal({ open, onClose, employee }: Props) {
         email:      employee.email,
         password:   provisioned.temporaryPassword,
         inviteSent: provisioned.inviteSent,
+        inviteError: provisioned.inviteError,
       });
     } catch (e) {
       setError((e as Error).message);
@@ -136,6 +137,9 @@ export function CreateLoginModal({ open, onClose, employee }: Props) {
                         <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                         <p className="text-xs text-warning">
                           {sendInvite ? t("employees.login.inviteFailed") : t("employees.login.shownOnce")}
+                          {sendInvite && result.inviteError && (
+                            <span className="block mt-1 opacity-80">{result.inviteError}</span>
+                          )}
                         </p>
                       </div>
 

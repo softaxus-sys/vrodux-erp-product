@@ -28,10 +28,12 @@ export function useTeam(id: string | null) {
  * The pool the current user may assign work to. Resolved by the server from the caller's tier, so
  * an admin gets every active user and a team lead gets only their own members.
  */
-export function useAssignableUsers(enabled = true) {
+export function useAssignableUsers(enabled = true, module?: string) {
   return useQuery({
-    queryKey: [QK, "assignable-users"],
-    queryFn:  teamsApi.assignableUsers,
+    // The module is part of the key: "who can I assign a lead to" and "who can I assign a job to"
+    // are different lists and must not share a cache entry.
+    queryKey: [QK, "assignable-users", module ?? "all"],
+    queryFn:  () => teamsApi.assignableUsers(module),
     staleTime: 5 * 60 * 1000,
     enabled,
   });

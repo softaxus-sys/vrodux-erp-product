@@ -65,7 +65,12 @@ export const teamsApi = {
    * members for a team lead, nobody for a plain member. Resolved server-side so the client never
    * has to know which tier it is on.
    */
-  assignableUsers: (): Promise<TeamMemberDto[]> => apiClient.get(`${BASE}/assignable-users`),
+  /**
+   * Who this caller may hand work to. Pass a module ("crm") to exclude colleagues who have no
+   * access to it — assigning a lead to someone who cannot open it helps nobody.
+   */
+  assignableUsers: (module?: string): Promise<TeamMemberDto[]> =>
+    apiClient.get(`${BASE}/assignable-users${module ? `?module=${encodeURIComponent(module)}` : ""}`),
 
   /**
    * Users who may be made a team lead — those whose permissions actually grant the CRM team tier.

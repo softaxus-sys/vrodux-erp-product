@@ -39,4 +39,13 @@ public sealed record ProvisionUserCommand(
 /// sent (SMTP unconfigured, or the send failed), in which case <paramref name="TemporaryPassword"/>
 /// is populated as the fallback — the account is never left unreachable.
 /// </param>
-public sealed record ProvisionedUserDto(UserDto User, string? TemporaryPassword, bool InviteSent);
+/// <param name="InviteError">
+/// Why the invite could not be sent, when it could not. Surfaced to the administrator rather than
+/// only logged: they are standing in front of the employee, and "it did not send" without a reason
+/// turns a two-minute fix into a support ticket.
+/// </param>
+public sealed record ProvisionedUserDto(
+    UserDto User,
+    string? TemporaryPassword,
+    bool    InviteSent,
+    string? InviteError = null);

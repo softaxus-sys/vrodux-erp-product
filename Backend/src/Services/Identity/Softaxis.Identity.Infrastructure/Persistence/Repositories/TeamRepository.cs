@@ -169,4 +169,45 @@ internal sealed class TeamRepository(IdentityDbContext db) : ITeamRepository
     }
 
     public void Add(Team team) => db.Teams.Add(team);
+
+    /// <inheritdoc />
+    public async Task<HashSet<Guid>> FilterUsersWithModuleAccessAsync(
+        IReadOnlyCollection<Guid> userIds, string modulePrefix, CancellationToken ct = default)
+    {
+        if (userIds.Count == 0 || string.IsNullOrWhiteSpace(modulePrefix)) return [];
+
+        // "crm" must match crm.leads and crm.pipeline but never crm-something-else, so the dot is
+        // part of the prefix. A key that is exactly the module ("reports") is matched too.
+        var prefix = modulePrefix.Trim().TrimEnd('.');
+        var dotted = prefix + ".";
+
+        var moduleIds = userIds.ToList();
+
+        var fromRoles = await db.Users.AsNoTracking()
+            .Where(u => moduleIds.Contains(u.Id))
+            .SelectMany(u => u.UserRoles.Select(ur => new { UserId = u.Id, ur.RoleId }))
+            .Join(db.Roles.AsNoTracking().SelectMany(r => r.RolePermissions.Select(rp => new { rp.RoleId, rp.PermissionId })),
+                  x => x.RoleId, y => y.RoleId, (x, y) => new { x.UserId, y.PermissionId })
+            .Join(db.Permissions.AsNoTracking().Where(p => p.ModuleId == prefix || p.ModuleId.StartsWith(dotted)),
+                  x => x.PermissionId, p => p.Id, (x, _) => new { x.UserId, x.PermissionId })
+            .ToListAsync(ct);
+
+        // Per-user overrides: a grant can add access the roles do not give, and a deny can remove
+        // the only one they do. Both have to be applied or the picker disagrees with the JWT.
+        var overrides = await db.UserPermissions.AsNoTracking()
+            .Where(up => moduleIds.Contains(up.UserId))
+            .Join(db.Permissions.AsNoTracking().Where(p => p.ModuleId == prefix || p.ModuleId.StartsWith(dotted)),
+                  up => up.PermissionId, p => p.Id, (up, _) => new { up.UserId, up.PermissionId, up.IsGranted })
+            .ToListAsync(ct);
+
+        var denied = overrides.Where(o => !o.IsGranted)
+                              .Select(o => (o.UserId, o.PermissionId))
+                              .ToHashSet();
+
+        var effective = fromRoles.Select(r => (r.UserId, r.PermissionId))
+            .Concat(overrides.Where(o => o.IsGranted).Select(o => (o.UserId, o.PermissionId)))
+            .Where(pair => !denied.Contains(pair));
+
+        return effective.Select(p => p.UserId).ToHashSet();
+    }
 }
