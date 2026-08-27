@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, isVisaLead, type LeadDto as Lead, type LeadStatus } from "@/lib/crm/crm.api";
-import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments } from "@/hooks/crm/use-crm";
+import { useConvertLead, useSetLeadStatus, useDeleteLead, useAssignLead, useLeadAssignments, useLead } from "@/hooks/crm/use-crm";
 import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
@@ -137,8 +137,17 @@ function ReassignPanel({
 
 interface Props { lead: Lead | null; open: boolean; onClose: () => void; onEdit?: (lead: Lead) => void; }
 
-export function LeadDrawer({ lead, open, onClose, onEdit }: Props) {
+export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
   const { t } = useTranslation("crm");
+
+  // The list deliberately omits Notes, Message and Form Responses — across thousands of leads they
+  // were most of the response. They are read here, so the full record is fetched on open and merged
+  // over the row we already have, which keeps the drawer populated instantly rather than blank
+  // while it loads.
+  const full = useLead(open && listLead ? listLead.id : null);
+  const lead = React.useMemo(
+    () => (listLead && full.data ? { ...listLead, ...full.data } : listLead),
+    [listLead, full.data]);
   const [tab, setTab] = React.useState<Tab>("overview");
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
 

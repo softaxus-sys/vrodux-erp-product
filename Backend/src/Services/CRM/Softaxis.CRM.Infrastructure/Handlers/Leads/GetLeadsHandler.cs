@@ -23,7 +23,7 @@ internal sealed class GetLeadsHandler(CrmDbContext db, ILeadAccessGuard access) 
         return Result.Success<IReadOnlyList<LeadDto>>(items.Select(l =>
         {
             var (stage, value) = ConvertedDealOutcomes.For(outcomes, l);
-            return LeadMappings.ToDto(l, stage, value);
+            return LeadMappings.ToDto(l, stage, value, forList: true);
         }).ToList());
     }
 }
