@@ -23,19 +23,23 @@ export function TeamFilingBar({
 }: {
   selectedCount: number;
   /** Runs the bulk mutation for the given team (null = un-file) and resolves with the tallies. */
-  onFile: (teamId: string | null) => Promise<FilingResult>;
+  onFile: (teamId: string | null, assignToUserId: string | null) => Promise<FilingResult>;
   onClear: () => void;
   isPending: boolean;
 }) {
   const { t } = useTranslation("crm");
   const [teamId, setTeamId] = React.useState("");
-  const { teams } = useTeamsForFiling();
+  // Empty = the team's own lead, who then distributes. Reset whenever the team changes, or the
+  // request would carry somebody who is not in the newly chosen team.
+  const [assignTo, setAssignTo] = React.useState("");
+  const { teams, membersByTeam } = useTeamsForFiling();
+  const members = teamId ? (membersByTeam.get(teamId) ?? []) : [];
 
   if (selectedCount === 0) return null;
 
   const apply = async () => {
     try {
-      const res = await onFile(teamId || null);
+      const res = await onFile(teamId || null, assignTo || null);
       const team = teams.find(x => x.id === teamId)?.name;
       toast.success(
         teamId
@@ -72,12 +76,25 @@ export function TeamFilingBar({
       </span>
       <select
         value={teamId}
-        onChange={e => setTeamId(e.target.value)}
+        onChange={e => { setTeamId(e.target.value); setAssignTo(""); }}
         className="h-8 rounded-md border border-border bg-card px-2 text-sm"
       >
         <option value="">{t("leads.noTeamOption", { defaultValue: "No team (owner only)" })}</option>
         {teams.map(tm => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
       </select>
+
+      {/* Only meaningful once a team is chosen: the list is that team’s members, and the server
+          rejects anyone outside it rather than creating a record their team lead cannot see. */}
+      {teamId && (
+        <select
+          value={assignTo}
+          onChange={e => setAssignTo(e.target.value)}
+          className="h-8 rounded-md border border-border bg-card px-2 text-sm"
+        >
+          <option value="">{t("leads.assignTeamLead", { defaultValue: "Team lead (distributes)" })}</option>
+          {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      )}
       <Button size="sm" className="h-8" onClick={apply} disabled={isPending}>
         {isPending
           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -70,7 +70,13 @@ public sealed record DeleteLeadCommand(Guid Id) : ICommand;
 /// is impractical at any real volume — and until a record is filed, a team lead cannot see it.
 /// A null <paramref name="TeamId"/> un-files them (back to owner + full-access only).
 /// </summary>
-public sealed record BulkFileLeadsToTeamCommand(IReadOnlyList<Guid> LeadIds, Guid? TeamId)
+/// <param name="AssignToUserId">
+/// Who should end up owning the leads being handed over. Null means the team's own lead. Must be a
+/// member of <paramref name="TeamId"/> — assigning into a team someone is not in would produce a
+/// record its new owner's team lead cannot see.
+/// </param>
+public sealed record BulkFileLeadsToTeamCommand(
+    IReadOnlyList<Guid> LeadIds, Guid? TeamId, Guid? AssignToUserId = null)
     : ICommand<BulkFileResultDto>;
 
 /// <summary>Outcome of a bulk filing — <paramref name="Skipped"/> counts ids the caller may not edit.</summary>

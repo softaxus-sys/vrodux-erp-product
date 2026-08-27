@@ -107,7 +107,7 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     [RequireAnyPermission(EditAny, EditTeam, EditAssigned)]
     public async Task<IActionResult> BulkFileToTeam([FromBody] BulkFileReq req, CancellationToken ct)
     {
-        var result = await sender.Send(new BulkFileLeadsToTeamCommand(req.LeadIds ?? [], req.TeamId), ct);
+        var result = await sender.Send(new BulkFileLeadsToTeamCommand(req.LeadIds ?? [], req.TeamId, req.AssignToUserId), ct);
         return OkOrError(result);
     }
 
@@ -139,6 +139,6 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
     public sealed record StatusReq(string Status);
     public sealed record ScoreReq(int Score);
     public sealed record AssignReq(Guid? ToUserId, string ToUserName, string? Note, Guid? TeamId);
-    public sealed record BulkFileReq(List<Guid>? LeadIds, Guid? TeamId);
+    public sealed record BulkFileReq(List<Guid>? LeadIds, Guid? TeamId, Guid? AssignToUserId);
     public sealed record ConvertReq(string? DealTitle, decimal? DealValue, string? ExpectedCloseDate);
 }

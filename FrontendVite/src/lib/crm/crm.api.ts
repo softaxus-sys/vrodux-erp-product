@@ -510,8 +510,8 @@ export const crmApi = {
   assignLead:     (id: string, body: { toUserId?: string | null; toUserName: string; note?: string | null; teamId?: string | null }): Promise<void> => rawApiClient.post(`${BASE}/leads/${id}/assign`, body),
   getLeadAssignments: (id: string): Promise<LeadAssignmentDto[]> => rawApiClient.get(`${BASE}/leads/${id}/assignments`),
   /** File many leads to a team at once; null teamId un-files them. Returns filed/skipped counts. */
-  bulkFileLeadsToTeam: (leadIds: string[], teamId: string | null): Promise<BulkFileResult> =>
-    rawApiClient.post(`${BASE}/leads/bulk-file-to-team`, { leadIds, teamId }),
+  bulkFileLeadsToTeam: (leadIds: string[], teamId: string | null, assignToUserId: string | null = null): Promise<BulkFileResult> =>
+    rawApiClient.post(`${BASE}/leads/bulk-file-to-team`, { leadIds, teamId, assignToUserId }),
   bulkFileDealsToTeam: (dealIds: string[], teamId: string | null): Promise<BulkFileResult> =>
     rawApiClient.post(`${BASE}/deals/bulk-file-to-team`, { dealIds, teamId }),
   bulkFileCustomersToTeam: (customerIds: string[], teamId: string | null): Promise<BulkFileResult> =>

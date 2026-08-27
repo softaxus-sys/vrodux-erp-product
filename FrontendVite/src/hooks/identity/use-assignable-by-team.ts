@@ -125,7 +125,24 @@ export function useTeamsForFiling(enabled = true, module = "crm") {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [assignable]);
 
-  return { teams, isLoading: query.isLoading };
+  /**
+   * Who is in each team, from the same server-scoped pool as the team list — so a team lead only
+   * ever sees people they are allowed to assign to, and no extra permission is needed.
+   */
+  const membersByTeam = React.useMemo(() => {
+    const map = new Map<string, { id: string; name: string }[]>();
+    for (const u of assignable) {
+      for (const t of u.teams ?? []) {
+        const list = map.get(t.teamId) ?? [];
+        list.push({ id: u.userId, name: u.fullName });
+        map.set(t.teamId, list);
+      }
+    }
+    for (const list of map.values()) list.sort((a, b) => a.name.localeCompare(b.name));
+    return map;
+  }, [assignable]);
+
+  return { teams, membersByTeam, isLoading: query.isLoading };
 }
 
 /**

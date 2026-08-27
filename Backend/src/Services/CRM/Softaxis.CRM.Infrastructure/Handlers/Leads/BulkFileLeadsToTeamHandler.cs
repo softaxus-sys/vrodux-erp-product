@@ -49,6 +49,18 @@ internal sealed class BulkFileLeadsToTeamHandler(CrmDbContext db, ILeadAccessGua
                 .Select(m => m.UserId)
                 .ToListAsync(ct)).ToHashSet();
 
+            // An explicit person beats the team lead — the caller may be handing a batch straight to
+            // the agent who will work it rather than to their manager.
+            if (cmd.AssignToUserId is { } chosen)
+            {
+                if (!members.Contains(chosen))
+                    return Result.Failure<BulkFileResultDto>(Error.Custom(
+                        "Team.Conflict",
+                        "That person is not in the team these records are being filed to. Assigning " +
+                        "them anyway would leave records their own team lead cannot see."));
+                teamLeadUserId = chosen;
+            }
+
             if (teamLeadUserId is { } lead)
             {
                 teamLeadName = await db.Set<IdentityUserView>()
@@ -73,7 +85,8 @@ internal sealed class BulkFileLeadsToTeamHandler(CrmDbContext db, ILeadAccessGua
             // Hand over only when the current holder is not part of this team — an unowned lead, or
             // one still sitting in someone else's triage pile. A team member keeps what they hold.
             var ownerIsInTeam = ownerId is { } oid && members.Contains(oid);
-            if (cmd.TeamId is not null && teamLeadUserId is { } newOwner && !ownerIsInTeam)
+            var handOver = cmd.AssignToUserId is not null || !ownerIsInTeam;
+            if (cmd.TeamId is not null && teamLeadUserId is { } newOwner && handOver && ownerId != newOwner)
             {
                 ownerId   = newOwner;
                 ownerName = teamLeadName;

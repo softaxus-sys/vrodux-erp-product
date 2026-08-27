@@ -95,8 +95,9 @@ export function useAssignLead()    { return useCrmMutation(({ id, toUserId, toUs
 /** Bulk-file leads to a team. No default toast — the caller reports filed/skipped counts. */
 export function useBulkFileLeadsToTeam() {
   return useCrmMutation(
-    ({ leadIds, teamId }: { leadIds: string[]; teamId: string | null }) =>
-      crmApi.bulkFileLeadsToTeam(leadIds, teamId),
+    ({ leadIds, teamId, assignToUserId }:
+      { leadIds: string[]; teamId: string | null; assignToUserId?: string | null }) =>
+      crmApi.bulkFileLeadsToTeam(leadIds, teamId, assignToUserId ?? null),
     { invalidate: ["leads", "leads-summary", "dashboard"] },
   );
 }

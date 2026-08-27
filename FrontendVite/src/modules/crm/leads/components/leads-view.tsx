@@ -388,8 +388,8 @@ export function LeadsView() {
   const selection = useRowSelection(listLazy.visible.map(l => l.id));
   const bulkFile = useBulkFileLeadsToTeam();
 
-  const fileSelected = (teamId: string | null) =>
-    bulkFile.mutateAsync({ leadIds: [...selection.picked], teamId });
+  const fileSelected = (teamId: string | null, assignToUserId: string | null) =>
+    bulkFile.mutateAsync({ leadIds: [...selection.picked], teamId, assignToUserId });
 
   const openDrawer = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
 
