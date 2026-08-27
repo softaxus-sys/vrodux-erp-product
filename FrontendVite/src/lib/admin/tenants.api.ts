@@ -13,6 +13,14 @@ const LICENSE_BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}
 export type PlanType =
   | "Micro" | "Starter" | "Professional" | "Enterprise"
   | "Business";   // legacy — pre-rename rows only
+/**
+ * The tiers a super admin may actually ASSIGN. Deliberately excludes the legacy `Business` and
+ * includes every current tier — a picker built from a hand-written list drifted out of step with
+ * the rename and offered `Business`, which the backend rejects with "Unknown plan: Business",
+ * while hiding `Micro` and `Professional` entirely. Every plan picker reads this.
+ */
+export const ASSIGNABLE_PLANS = ["Micro", "Starter", "Professional", "Enterprise"] as const;
+
 export type DeploymentType = "Cloud" | "OnPremises";
 export type TenantStatus   = "Trial" | "Active" | "Suspended" | "Expired";
 

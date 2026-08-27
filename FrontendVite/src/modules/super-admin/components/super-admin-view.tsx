@@ -19,6 +19,7 @@ import {
   type DeploymentType,
   type TenantStatus,
   planLimits,
+  ASSIGNABLE_PLANS,
 } from "@/lib/admin/tenants.api";
 import { DeletedTenantsPanel, useDeletedTenantCount } from "./deleted-tenants-panel";
 
@@ -340,7 +341,7 @@ export function SuperAdminView() {
 
         {/* Plan filter */}
         <div className="flex items-center gap-1">
-          {(["All", "Starter", "Business", "Enterprise"] as const).map(p => (
+          {(["All", ...ASSIGNABLE_PLANS] as const).map(p => (
             <button
               key={p}
               onClick={() => setFilterPlan(p)}

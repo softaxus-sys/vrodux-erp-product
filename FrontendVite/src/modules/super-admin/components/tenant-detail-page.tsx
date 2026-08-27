@@ -15,6 +15,7 @@ import {
   type TenantDto,
   type PlanType,
   planLimits,
+  ASSIGNABLE_PLANS,
 } from "@/lib/admin/tenants.api";
 import { ModuleSelector, PLAN_DEFAULTS, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
@@ -372,7 +373,7 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-const PLANS: PlanType[] = ["Starter", "Business", "Enterprise"];
+const PLANS: PlanType[] = [...ASSIGNABLE_PLANS];
 
 export function TenantDetailPage() {
   const navigate = useNavigate();
@@ -393,6 +394,9 @@ export function TenantDetailPage() {
   const [saving,  setSaving]  = React.useState(false);
 
   const [changingPlan, setChangingPlan] = React.useState(false);
+  // Picking a tier only STAGES it — a plan change resizes seat limits and can strip modules
+  // from a live tenant, so it must never fire on a single click.
+  const [pendingPlan,  setPendingPlan]  = React.useState<PlanType | null>(null);
   const [planSaving,   setPlanSaving]   = React.useState(false);
   const [industrySaving, setIndustrySaving] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -449,12 +453,16 @@ export function TenantDetailPage() {
     }
   };
 
-  const changePlan = async (plan: PlanType) => {
-    if (!tenant) return;
+  const changePlan = async () => {
+    if (!tenant || !pendingPlan) return;
     try {
       setPlanSaving(true);
-      const updated = await tenantsAdminApi.changePlan(tenant.id, plan);
-      onUpdated(updated); setChangingPlan(false);
+      setActionError(null);
+      const updated = await tenantsAdminApi.changePlan(tenant.id, pendingPlan);
+      onUpdated(updated);
+      toast.success(`Plan changed to ${pendingPlan}.`);
+      setPendingPlan(null);
+      setChangingPlan(false);
     } catch (err: any) { setActionError(err?.message ?? "Plan change failed."); }
     finally { setPlanSaving(false); }
   };
@@ -621,17 +629,62 @@ export function TenantDetailPage() {
               <Card className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground">Plan & Limits</h3>
-                  <button onClick={() => setChangingPlan(!changingPlan)} className="text-primary text-[11px] hover:underline">Change plan</button>
+                  <button
+                    onClick={() => { setChangingPlan(!changingPlan); setPendingPlan(null); }}
+                    className="text-primary text-[11px] hover:underline"
+                  >
+                    {changingPlan ? "Cancel" : "Change plan"}
+                  </button>
                 </div>
                 {changingPlan && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {PLANS.map(p => (
-                      <button key={p} disabled={p === tenant.plan || planSaving} onClick={() => changePlan(p)}
-                        className={cn("p-2 rounded-lg text-xs font-medium border transition-colors",
-                          p === tenant.plan ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:border-primary/50 text-foreground")}>
-                        {planSaving && p !== tenant.plan ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : p}
-                      </button>
-                    ))}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      {PLANS.map(p => {
+                        const isCurrent  = p === tenant.plan;
+                        const isSelected = p === pendingPlan;
+                        return (
+                          <button key={p} disabled={isCurrent || planSaving} onClick={() => setPendingPlan(p)}
+                            className={cn("p-2 rounded-lg text-xs font-medium border transition-colors disabled:opacity-60",
+                              isSelected ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/40"
+                                : isCurrent ? "border-primary/40 bg-muted text-muted-foreground"
+                                : "border-border bg-card hover:border-primary/50 text-foreground")}>
+                            {p}{isCurrent && <span className="block text-[10px] font-normal">current</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {pendingPlan && (
+                      <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 p-3 space-y-2">
+                        <p className="text-xs font-semibold text-foreground">
+                          Change plan from {tenant.plan} to {pendingPlan}?
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Seats: {planLimits(tenant.plan).maxUsers < 0 ? "Unlimited" : planLimits(tenant.plan).maxUsers}
+                          {" → "}
+                          {planLimits(pendingPlan).maxUsers < 0 ? "Unlimited" : planLimits(pendingPlan).maxUsers}
+                        </p>
+                        {/* A downgrade silently drops modules — the backend intersects the tenant's
+                            modules with the plan's, so say so BEFORE the change, not after. */}
+                        {(() => {
+                          const allowed = PLAN_DEFAULTS[pendingPlan] ?? [];
+                          const losing  = (tenant.resolvedModules ?? []).filter(m => !allowed.includes(m));
+                          return losing.length > 0 ? (
+                            <p className="text-[11px] text-amber-700 dark:text-amber-400">
+                              Modules no longer included on {pendingPlan}: <b>{losing.join(", ")}</b>
+                            </p>
+                          ) : null;
+                        })()}
+                        <div className="flex gap-2 pt-0.5">
+                          <Button size="sm" className="h-8 text-xs flex-1" disabled={planSaving} onClick={changePlan}>
+                            {planSaving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                            Confirm change
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 text-xs" disabled={planSaving}
+                            onClick={() => setPendingPlan(null)}>Cancel</Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 {/* Industry pack */}
