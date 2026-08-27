@@ -74,4 +74,8 @@ public sealed record BulkFileLeadsToTeamCommand(IReadOnlyList<Guid> LeadIds, Gui
     : ICommand<BulkFileResultDto>;
 
 /// <summary>Outcome of a bulk filing — <paramref name="Skipped"/> counts ids the caller may not edit.</summary>
-public sealed record BulkFileResultDto(int Filed, int Skipped);
+/// <param name="Reassigned">
+/// How many of the filed records also changed owner, because whoever held them was not in the
+/// team they were filed to. Reported separately so a bulk file never moves ownership silently.
+/// </param>
+public sealed record BulkFileResultDto(int Filed, int Skipped, int Reassigned = 0);

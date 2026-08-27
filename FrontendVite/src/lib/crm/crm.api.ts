@@ -481,7 +481,12 @@ export interface CrmDashboardDto {
   winRate: number; totalLeads: number; totalDeals: number; openTasks: number; overdueTasks: number;
 }
 
-export interface BulkFileResult { filed: number; skipped: number }
+export interface BulkFileResult {
+  filed: number;
+  skipped: number;
+  /** Also changed owner, because whoever held them was not in the destination team. */
+  reassigned: number;
+}
 
 export const crmApi = {
   // Deals

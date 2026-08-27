@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTeamsForFiling } from "@/hooks/identity/use-assignable-by-team";
 
-export interface FilingResult { filed: number; skipped: number }
+export interface FilingResult { filed: number; skipped: number; reassigned?: number }
 
 /**
  * Bulk "file these records to a team" bar, shared by the Leads, Pipeline and Accounts lists.
@@ -44,6 +44,15 @@ export function TeamFilingBar({
       );
       // "Skipped" means the caller may not edit that record — surfaced rather than silently dropped,
       // so a partial result is never mistaken for a complete one.
+      // Ownership moving is worth saying out loud — a bulk action should never change who owns
+      // work without the person who pressed it being told.
+      if (res.reassigned && res.reassigned > 0) {
+        toast.info(t("leads.filedReassigned", {
+          count: res.reassigned,
+          defaultValue: "{{count}} had no owner in that team and now belong to its team lead.",
+        }));
+      }
+
       if (res.skipped > 0) {
         toast.info(t("leads.filingSkipped", {
           count: res.skipped,
@@ -79,7 +88,7 @@ export function TeamFilingBar({
       </Button>
       <p className="text-[11px] text-muted-foreground w-full">
         {t("leads.filingHint", {
-          defaultValue: "A team lead only sees records filed to a team they lead. Unfiled records stay visible to their owner and to admins.",
+          defaultValue: "A team lead only sees records filed to a team they lead. Anything held by someone outside that team — including unassigned records — is handed to its team lead to distribute.",
         })}
       </p>
     </div>
