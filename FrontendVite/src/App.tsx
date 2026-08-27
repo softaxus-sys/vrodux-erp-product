@@ -4,170 +4,173 @@ import { useAuthStore } from "@/store/auth.store";
 import type { ModuleKey } from "@/types";
 import { ErpLayout } from "@/components/layout/layouts/erp-layout";
 import { ServerSettingsPrompt } from "@/components/desktop/server-settings-prompt";
+// Every route below is code-split, so each one is a chance to hit a chunk that a deploy has just
+// replaced. lazyWithRetry turns that from a white screen into a single reload.
+import { lazyWithRetry } from "@/lib/lazy-with-retry";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-const LoginPage          = React.lazy(() => import("@/pages/auth/login"));
-const ForgotPasswordPage = React.lazy(() => import("@/pages/auth/forgot-password"));
-const ResetPasswordPage  = React.lazy(() => import("@/pages/auth/reset-password"));
-const VerifyEmailPage    = React.lazy(() => import("@/pages/auth/verify-email"));
+const LoginPage          = lazyWithRetry(() => import("@/pages/auth/login"));
+const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-password"));
+const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-password"));
+const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
-const DashboardPage        = React.lazy(() => import("@/pages/dashboard"));
-const AiAssistantPage      = React.lazy(() => import("@/pages/ai-assistant"));
-const ReportsPage          = React.lazy(() => import("@/pages/reports"));
-const FileManagerPage      = React.lazy(() => import("@/pages/file-manager"));
-const ProfilePage          = React.lazy(() => import("@/pages/profile"));
+const DashboardPage        = lazyWithRetry(() => import("@/pages/dashboard"));
+const AiAssistantPage      = lazyWithRetry(() => import("@/pages/ai-assistant"));
+const ReportsPage          = lazyWithRetry(() => import("@/pages/reports"));
+const FileManagerPage      = lazyWithRetry(() => import("@/pages/file-manager"));
+const ProfilePage          = lazyWithRetry(() => import("@/pages/profile"));
 
 // ── Finance ───────────────────────────────────────────────────────────────────
-const AccountingPage       = React.lazy(() => import("@/pages/finance/accounting"));
-const GeneralLedgerPage    = React.lazy(() => import("@/pages/finance/general-ledger"));
-const JournalsPage         = React.lazy(() => import("@/pages/finance/journals"));
-const StatementsPage       = React.lazy(() => import("@/pages/finance/statements"));
-const InvoicingPage        = React.lazy(() => import("@/pages/finance/invoicing"));
-const RecurringInvoicesPage = React.lazy(() => import("@/pages/finance/recurring"));
-const ExpensesPage         = React.lazy(() => import("@/pages/finance/expenses"));
-const BudgetingPage        = React.lazy(() => import("@/pages/finance/budgeting"));
-const TaxPage              = React.lazy(() => import("@/pages/finance/tax"));
-const BankingPage          = React.lazy(() => import("@/pages/finance/banking"));
+const AccountingPage       = lazyWithRetry(() => import("@/pages/finance/accounting"));
+const GeneralLedgerPage    = lazyWithRetry(() => import("@/pages/finance/general-ledger"));
+const JournalsPage         = lazyWithRetry(() => import("@/pages/finance/journals"));
+const StatementsPage       = lazyWithRetry(() => import("@/pages/finance/statements"));
+const InvoicingPage        = lazyWithRetry(() => import("@/pages/finance/invoicing"));
+const RecurringInvoicesPage = lazyWithRetry(() => import("@/pages/finance/recurring"));
+const ExpensesPage         = lazyWithRetry(() => import("@/pages/finance/expenses"));
+const BudgetingPage        = lazyWithRetry(() => import("@/pages/finance/budgeting"));
+const TaxPage              = lazyWithRetry(() => import("@/pages/finance/tax"));
+const BankingPage          = lazyWithRetry(() => import("@/pages/finance/banking"));
 
 // ── HR ────────────────────────────────────────────────────────────────────────
-const EmployeesPage        = React.lazy(() => import("@/pages/hr/employees"));
-const AttendancePage       = React.lazy(() => import("@/pages/hr/attendance"));
-const PayrollPage          = React.lazy(() => import("@/pages/hr/payroll"));
-const LeavesPage           = React.lazy(() => import("@/pages/hr/leaves"));
-const RecruitmentPage      = React.lazy(() => import("@/pages/hr/recruitment"));
-const PerformancePage      = React.lazy(() => import("@/pages/hr/performance"));
-const MyHrPage             = React.lazy(() => import("@/pages/hr/me"));
+const EmployeesPage        = lazyWithRetry(() => import("@/pages/hr/employees"));
+const AttendancePage       = lazyWithRetry(() => import("@/pages/hr/attendance"));
+const PayrollPage          = lazyWithRetry(() => import("@/pages/hr/payroll"));
+const LeavesPage           = lazyWithRetry(() => import("@/pages/hr/leaves"));
+const RecruitmentPage      = lazyWithRetry(() => import("@/pages/hr/recruitment"));
+const PerformancePage      = lazyWithRetry(() => import("@/pages/hr/performance"));
+const MyHrPage             = lazyWithRetry(() => import("@/pages/hr/me"));
 
 // ── CRM ───────────────────────────────────────────────────────────────────────
-const CrmDashboardPage     = React.lazy(() => import("@/pages/crm/dashboard"));
-const LeadsPage            = React.lazy(() => import("@/pages/crm/leads"));
-const PipelinePage         = React.lazy(() => import("@/pages/crm/pipeline"));
-const CustomersPage        = React.lazy(() => import("@/pages/crm/customers"));
-const CrmActivitiesPage    = React.lazy(() => import("@/pages/crm/activities"));
-const CrmDocumentsPage     = React.lazy(() => import("@/pages/crm/documents"));
-const CrmReportsPage       = React.lazy(() => import("@/pages/crm/reports"));
+const CrmDashboardPage     = lazyWithRetry(() => import("@/pages/crm/dashboard"));
+const LeadsPage            = lazyWithRetry(() => import("@/pages/crm/leads"));
+const PipelinePage         = lazyWithRetry(() => import("@/pages/crm/pipeline"));
+const CustomersPage        = lazyWithRetry(() => import("@/pages/crm/customers"));
+const CrmActivitiesPage    = lazyWithRetry(() => import("@/pages/crm/activities"));
+const CrmDocumentsPage     = lazyWithRetry(() => import("@/pages/crm/documents"));
+const CrmReportsPage       = lazyWithRetry(() => import("@/pages/crm/reports"));
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
-const QuotationsPage       = React.lazy(() => import("@/pages/sales/quotations"));
-const SalesOrdersPage      = React.lazy(() => import("@/pages/sales/orders"));
-const ReturnsPage          = React.lazy(() => import("@/pages/sales/returns"));
-const DeliveryChallansPage = React.lazy(() => import("@/pages/sales/delivery-challans"));
+const QuotationsPage       = lazyWithRetry(() => import("@/pages/sales/quotations"));
+const SalesOrdersPage      = lazyWithRetry(() => import("@/pages/sales/orders"));
+const ReturnsPage          = lazyWithRetry(() => import("@/pages/sales/returns"));
+const DeliveryChallansPage = lazyWithRetry(() => import("@/pages/sales/delivery-challans"));
 
 // ── Purchase ──────────────────────────────────────────────────────────────────
-const VendorsPage          = React.lazy(() => import("@/pages/purchase/vendors"));
-const PurchaseOrdersPage   = React.lazy(() => import("@/pages/purchase/orders"));
-const ApprovalsPage        = React.lazy(() => import("@/pages/purchase/approvals"));
-const GrnPage              = React.lazy(() => import("@/pages/purchase/grn"));
-const PurchaseReturnsPage  = React.lazy(() => import("@/pages/purchase/returns"));
-const PurchaseBillsPage    = React.lazy(() => import("@/pages/purchase/bills"));
+const VendorsPage          = lazyWithRetry(() => import("@/pages/purchase/vendors"));
+const PurchaseOrdersPage   = lazyWithRetry(() => import("@/pages/purchase/orders"));
+const ApprovalsPage        = lazyWithRetry(() => import("@/pages/purchase/approvals"));
+const GrnPage              = lazyWithRetry(() => import("@/pages/purchase/grn"));
+const PurchaseReturnsPage  = lazyWithRetry(() => import("@/pages/purchase/returns"));
+const PurchaseBillsPage    = lazyWithRetry(() => import("@/pages/purchase/bills"));
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
-const WarehousesPage       = React.lazy(() => import("@/pages/inventory/warehouses"));
-const StockPage            = React.lazy(() => import("@/pages/inventory/stock"));
-const MovementsPage        = React.lazy(() => import("@/pages/inventory/movements"));
-const TransfersPage        = React.lazy(() => import("@/pages/inventory/transfers"));
-const CategoriesPage       = React.lazy(() => import("@/pages/inventory/master/categories"));
-const BrandsPage           = React.lazy(() => import("@/pages/inventory/master/brands"));
-const UomPage              = React.lazy(() => import("@/pages/inventory/master/uom"));
+const WarehousesPage       = lazyWithRetry(() => import("@/pages/inventory/warehouses"));
+const StockPage            = lazyWithRetry(() => import("@/pages/inventory/stock"));
+const MovementsPage        = lazyWithRetry(() => import("@/pages/inventory/movements"));
+const TransfersPage        = lazyWithRetry(() => import("@/pages/inventory/transfers"));
+const CategoriesPage       = lazyWithRetry(() => import("@/pages/inventory/master/categories"));
+const BrandsPage           = lazyWithRetry(() => import("@/pages/inventory/master/brands"));
+const UomPage              = lazyWithRetry(() => import("@/pages/inventory/master/uom"));
 
 // ── Real Estate ───────────────────────────────────────────────────────────────
-const PropertiesPage       = React.lazy(() => import("@/pages/real-estate/properties"));
-const UnitsPage            = React.lazy(() => import("@/pages/real-estate/units"));
-const TenantsPage          = React.lazy(() => import("@/pages/real-estate/tenants"));
-const ContractsPage        = React.lazy(() => import("@/pages/real-estate/contracts"));
-const BrokersPage          = React.lazy(() => import("@/pages/real-estate/brokers"));
-const RePipelinePage       = React.lazy(() => import("@/pages/real-estate/sales"));
+const PropertiesPage       = lazyWithRetry(() => import("@/pages/real-estate/properties"));
+const UnitsPage            = lazyWithRetry(() => import("@/pages/real-estate/units"));
+const TenantsPage          = lazyWithRetry(() => import("@/pages/real-estate/tenants"));
+const ContractsPage        = lazyWithRetry(() => import("@/pages/real-estate/contracts"));
+const BrokersPage          = lazyWithRetry(() => import("@/pages/real-estate/brokers"));
+const RePipelinePage       = lazyWithRetry(() => import("@/pages/real-estate/sales"));
 
 // ── Construction ──────────────────────────────────────────────────────────────
-const ConBiddingPage       = React.lazy(() => import("@/pages/construction/bidding"));
-const HealthcarePage       = React.lazy(() => import("@/pages/healthcare"));
-const EducationPage        = React.lazy(() => import("@/pages/education"));
-const InsurancePage        = React.lazy(() => import("@/pages/insurance"));
-const B2BPage              = React.lazy(() => import("@/pages/b2b"));
-const ProjectsPage         = React.lazy(() => import("@/pages/construction/projects"));
-const BoqPage              = React.lazy(() => import("@/pages/construction/boq"));
-const ContractorsPage      = React.lazy(() => import("@/pages/construction/contractors"));
-const SitesPage            = React.lazy(() => import("@/pages/construction/sites"));
+const ConBiddingPage       = lazyWithRetry(() => import("@/pages/construction/bidding"));
+const HealthcarePage       = lazyWithRetry(() => import("@/pages/healthcare"));
+const EducationPage        = lazyWithRetry(() => import("@/pages/education"));
+const InsurancePage        = lazyWithRetry(() => import("@/pages/insurance"));
+const B2BPage              = lazyWithRetry(() => import("@/pages/b2b"));
+const ProjectsPage         = lazyWithRetry(() => import("@/pages/construction/projects"));
+const BoqPage              = lazyWithRetry(() => import("@/pages/construction/boq"));
+const ContractorsPage      = lazyWithRetry(() => import("@/pages/construction/contractors"));
+const SitesPage            = lazyWithRetry(() => import("@/pages/construction/sites"));
 
 // ── POS ───────────────────────────────────────────────────────────────────────
-const RetailPOSPage        = React.lazy(() => import("@/pages/pos/retail"));
-const RestaurantPOSPage    = React.lazy(() => import("@/pages/pos/restaurant"));
-const KitchenDisplayPage   = React.lazy(() => import("@/pages/pos/kitchen"));
-const FloorDesignerPage    = React.lazy(() => import("@/pages/pos/floor-designer"));
-const WaitlistPage         = React.lazy(() => import("@/pages/pos/waitlist"));
-const ReservationsPage     = React.lazy(() => import("@/pages/pos/reservations"));
-const KitchenConfigPage    = React.lazy(() => import("@/pages/pos/kitchen-config"));
-const MenuManagementPage   = React.lazy(() => import("@/pages/pos/menu-management"));
-const DeliveryPage         = React.lazy(() => import("@/pages/pos/delivery"));
-const RestaurantReportsPage    = React.lazy(() => import("@/pages/pos/reports"));
-const RestaurantDashboardsPage = React.lazy(() => import("@/pages/pos/dashboards"));
-const BranchAccessPage         = React.lazy(() => import("@/pages/pos/branch-access"));
-const PosCustomersPage         = React.lazy(() => import("@/pages/pos/customers"));
+const RetailPOSPage        = lazyWithRetry(() => import("@/pages/pos/retail"));
+const RestaurantPOSPage    = lazyWithRetry(() => import("@/pages/pos/restaurant"));
+const KitchenDisplayPage   = lazyWithRetry(() => import("@/pages/pos/kitchen"));
+const FloorDesignerPage    = lazyWithRetry(() => import("@/pages/pos/floor-designer"));
+const WaitlistPage         = lazyWithRetry(() => import("@/pages/pos/waitlist"));
+const ReservationsPage     = lazyWithRetry(() => import("@/pages/pos/reservations"));
+const KitchenConfigPage    = lazyWithRetry(() => import("@/pages/pos/kitchen-config"));
+const MenuManagementPage   = lazyWithRetry(() => import("@/pages/pos/menu-management"));
+const DeliveryPage         = lazyWithRetry(() => import("@/pages/pos/delivery"));
+const RestaurantReportsPage    = lazyWithRetry(() => import("@/pages/pos/reports"));
+const RestaurantDashboardsPage = lazyWithRetry(() => import("@/pages/pos/dashboards"));
+const BranchAccessPage         = lazyWithRetry(() => import("@/pages/pos/branch-access"));
+const PosCustomersPage         = lazyWithRetry(() => import("@/pages/pos/customers"));
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
-const RecipesPage          = React.lazy(() => import("@/pages/recipe/recipes"));
-const IngredientsPage      = React.lazy(() => import("@/pages/recipe/ingredients"));
-const FoodCostPage         = React.lazy(() => import("@/pages/recipe/food-cost"));
+const RecipesPage          = lazyWithRetry(() => import("@/pages/recipe/recipes"));
+const IngredientsPage      = lazyWithRetry(() => import("@/pages/recipe/ingredients"));
+const FoodCostPage         = lazyWithRetry(() => import("@/pages/recipe/food-cost"));
 
 // ── Project Management ──────────────────────────────────────────────────────
-const ProjectManagementPage = React.lazy(() => import("@/pages/project-management/index"));
-const ProjectBoardPage      = React.lazy(() => import("@/pages/project-management/board"));
-const ProjectBacklogPage    = React.lazy(() => import("@/pages/project-management/backlog"));
-const ProjectIssuesPage     = React.lazy(() => import("@/pages/project-management/issues"));
+const ProjectManagementPage = lazyWithRetry(() => import("@/pages/project-management/index"));
+const ProjectBoardPage      = lazyWithRetry(() => import("@/pages/project-management/board"));
+const ProjectBacklogPage    = lazyWithRetry(() => import("@/pages/project-management/backlog"));
+const ProjectIssuesPage     = lazyWithRetry(() => import("@/pages/project-management/issues"));
 
 // ── Visa Services ────────────────────────────────────────────────────────────
-const VisaDashboardPage     = React.lazy(() => import("@/pages/visa/dashboard"));
-const VisaCasesPage         = React.lazy(() => import("@/pages/visa/cases"));
-const VisaRenewalsPage      = React.lazy(() => import("@/pages/visa/renewals"));
-const VisaTypesPage         = React.lazy(() => import("@/pages/visa/types"));
-const VisaChannelsPage      = React.lazy(() => import("@/pages/visa/channels"));
+const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
+const VisaCasesPage         = lazyWithRetry(() => import("@/pages/visa/cases"));
+const VisaRenewalsPage      = lazyWithRetry(() => import("@/pages/visa/renewals"));
+const VisaTypesPage         = lazyWithRetry(() => import("@/pages/visa/types"));
+const VisaChannelsPage      = lazyWithRetry(() => import("@/pages/visa/channels"));
 
 // ── Hospitality ───────────────────────────────────────────────────────────────
-const BookingsPage         = React.lazy(() => import("@/pages/hospitality/bookings"));
-const RoomsPage            = React.lazy(() => import("@/pages/hospitality/rooms"));
-const HousekeepingPage     = React.lazy(() => import("@/pages/hospitality/housekeeping"));
+const BookingsPage         = lazyWithRetry(() => import("@/pages/hospitality/bookings"));
+const RoomsPage            = lazyWithRetry(() => import("@/pages/hospitality/rooms"));
+const HousekeepingPage     = lazyWithRetry(() => import("@/pages/hospitality/housekeeping"));
 
 // ── Settings ──────────────────────────────────────────────────────────────────
-const GeneralSettingsPage  = React.lazy(() => import("@/pages/settings/general"));
-const CurrencySettingsPage = React.lazy(() => import("@/pages/settings/currency"));
-const BillingSettingsPage  = React.lazy(() => import("@/pages/settings/billing"));
-const CheckoutResultPage   = React.lazy(() => import("@/pages/billing/checkout-result"));
-const UsersPage            = React.lazy(() => import("@/pages/settings/users"));
-const SecurityPage         = React.lazy(() => import("@/pages/settings/security"));
-const RolesPage            = React.lazy(() => import("@/pages/settings/roles"));
-const TeamsPage            = React.lazy(() => import("@/pages/settings/teams"));
-const BranchesPage         = React.lazy(() => import("@/pages/settings/branches"));
-const IntegrationsPage     = React.lazy(() => import("@/pages/settings/integrations"));
-const PropertyFinderPage   = React.lazy(() => import("@/pages/settings/property-finder"));
-const AuditPage            = React.lazy(() => import("@/pages/settings/audit"));
-const AppearancePage       = React.lazy(() => import("@/pages/settings/appearance"));
-const PosPaymentMethodsPage = React.lazy(() => import("@/pages/settings/pos-payment-methods"));
-const PaymentGatewayPage    = React.lazy(() => import("@/pages/settings/payment-gateway"));
-const NotificationConfigPage = React.lazy(() => import("@/pages/settings/notifications"));
-const DevicesPage           = React.lazy(() => import("@/pages/settings/devices"));
-const VouchersPage          = React.lazy(() => import("@/pages/settings/vouchers"));
+const GeneralSettingsPage  = lazyWithRetry(() => import("@/pages/settings/general"));
+const CurrencySettingsPage = lazyWithRetry(() => import("@/pages/settings/currency"));
+const BillingSettingsPage  = lazyWithRetry(() => import("@/pages/settings/billing"));
+const CheckoutResultPage   = lazyWithRetry(() => import("@/pages/billing/checkout-result"));
+const UsersPage            = lazyWithRetry(() => import("@/pages/settings/users"));
+const SecurityPage         = lazyWithRetry(() => import("@/pages/settings/security"));
+const RolesPage            = lazyWithRetry(() => import("@/pages/settings/roles"));
+const TeamsPage            = lazyWithRetry(() => import("@/pages/settings/teams"));
+const BranchesPage         = lazyWithRetry(() => import("@/pages/settings/branches"));
+const IntegrationsPage     = lazyWithRetry(() => import("@/pages/settings/integrations"));
+const PropertyFinderPage   = lazyWithRetry(() => import("@/pages/settings/property-finder"));
+const AuditPage            = lazyWithRetry(() => import("@/pages/settings/audit"));
+const AppearancePage       = lazyWithRetry(() => import("@/pages/settings/appearance"));
+const PosPaymentMethodsPage = lazyWithRetry(() => import("@/pages/settings/pos-payment-methods"));
+const PaymentGatewayPage    = lazyWithRetry(() => import("@/pages/settings/payment-gateway"));
+const NotificationConfigPage = lazyWithRetry(() => import("@/pages/settings/notifications"));
+const DevicesPage           = lazyWithRetry(() => import("@/pages/settings/devices"));
+const VouchersPage          = lazyWithRetry(() => import("@/pages/settings/vouchers"));
 
 // ── Master Data ───────────────────────────────────────────────────────────────
-const MasterDataPage       = React.lazy(() => import("@/pages/master-data"));
+const MasterDataPage       = lazyWithRetry(() => import("@/pages/master-data"));
 
 // ── Onboarding / Trial ────────────────────────────────────────────────────────
-const OnboardingPage            = React.lazy(() => import("@/pages/trial/onboarding"));
+const OnboardingPage            = lazyWithRetry(() => import("@/pages/trial/onboarding"));
 
 // ── Restaurant public (QR ordering / delivery tracking) ──────────────────────
-const GuestOrderPage            = React.lazy(() => import("@/pages/order/guest-order"));
-const DeliveryTrackingPage      = React.lazy(() => import("@/pages/track/delivery-tracking"));
+const GuestOrderPage            = lazyWithRetry(() => import("@/pages/order/guest-order"));
+const DeliveryTrackingPage      = lazyWithRetry(() => import("@/pages/track/delivery-tracking"));
 
 // ── Careers (public) ─────────────────────────────────────────────────────────
-const CareersJobsPage           = React.lazy(() => import("@/pages/careers/jobs"));
-const CareersJobDetailPage      = React.lazy(() => import("@/pages/careers/job-detail"));
+const CareersJobsPage           = lazyWithRetry(() => import("@/pages/careers/jobs"));
+const CareersJobDetailPage      = lazyWithRetry(() => import("@/pages/careers/job-detail"));
 
 // ── Super Admin ───────────────────────────────────────────────────────────────
-const SuperAdminPage            = React.lazy(() => import("@/pages/super-admin/index"));
-const NewTenantPage             = React.lazy(() => import("@/pages/super-admin/new-tenant"));
-const TenantDetailPage          = React.lazy(() => import("@/pages/super-admin/tenant-detail"));
-const PlatformBillingPage       = React.lazy(() => import("@/pages/super-admin/billing"));
-const SubscriptionExpiredPage   = React.lazy(() => import("@/pages/subscription-expired"));
+const SuperAdminPage            = lazyWithRetry(() => import("@/pages/super-admin/index"));
+const NewTenantPage             = lazyWithRetry(() => import("@/pages/super-admin/new-tenant"));
+const TenantDetailPage          = lazyWithRetry(() => import("@/pages/super-admin/tenant-detail"));
+const PlatformBillingPage       = lazyWithRetry(() => import("@/pages/super-admin/billing"));
+const SubscriptionExpiredPage   = lazyWithRetry(() => import("@/pages/subscription-expired"));
 
 // ── Guards ───────────────────────────────────────────────────────────────────
 
