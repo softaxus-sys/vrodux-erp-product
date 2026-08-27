@@ -49,6 +49,9 @@ internal sealed class ImportLeadsHandler(ILeadIntakeService intake, ILogger<Impo
                 switch (result.Outcome)
                 {
                     case IntakeOutcome.Created:   created++; break;
+                    // Enriched an existing lead. Reported with duplicates because no NEW lead was made,
+                    // but it is emphatically not a failure — the contact is on the timeline.
+                    case IntakeOutcome.Updated:
                     case IntakeOutcome.Duplicate: duplicates++; break;
                     default:
                         failed++;

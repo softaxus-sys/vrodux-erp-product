@@ -6,6 +6,7 @@ import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, 
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { parseDelimitedFile } from "@/lib/csv";
 import { useImportLeads } from "@/hooks/crm/use-crm";
 import {
   IMPORT_TARGET_FIELDS, type ImportTargetField, type ImportLeadInput, type ImportLeadsResult,
@@ -83,43 +84,6 @@ function autoDetect(header: string): ImportTargetField | "" {
   return "";
 }
 
-// ── CSV parsing (RFC-4180-ish: quoted fields, embedded commas / newlines) ───────
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-  const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (s[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
-      } else field += c;
-    } else if (c === '"') inQuotes = true;
-    else if (c === ",") { row.push(field); field = ""; }
-    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
-    else field += c;
-  }
-  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
-}
-
-async function parseFile(file: File): Promise<string[][]> {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".csv") || name.endsWith(".txt")) {
-    return parseCsv(await file.text());
-  }
-  // Excel — lazy-load SheetJS so it never bloats the main bundle.
-  const XLSX = await import("xlsx");
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, blankrows: false, defval: "", raw: false });
-  return rows
-    .map((r) => (Array.isArray(r) ? r.map((c) => (c == null ? "" : String(c))) : []))
-    .filter((r) => r.some((cell) => String(cell).trim() !== ""));
-}
 
 const CHUNK = 2000;   // backend caps a single request at 5000 rows
 
@@ -149,7 +113,7 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
   async function handleFile(file: File) {
     setParsing(true);
     try {
-      const grid = await parseFile(file);
+      const grid = await parseDelimitedFile(file);
       if (grid.length < 2) {
         toast.error(t("import.needHeaderRow"));
         return;

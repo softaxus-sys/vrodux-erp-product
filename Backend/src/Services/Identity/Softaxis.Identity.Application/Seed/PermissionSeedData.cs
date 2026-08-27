@@ -130,7 +130,10 @@ public static class PermissionSeedData
         ["settings.users"]       = ["view","create","edit","delete"],
         ["settings.roles"]       = ["view","create","edit","delete"],
         ["settings.branches"]    = ["view","create","edit","delete"],
-        ["settings.integrations"]= ["view","edit"],
+        // "import" is a workspace-owner action: it creates logins in bulk and pulls an outside
+        // system's data into this CRM, so it is deliberately NOT part of "edit" and no module
+        // manager role receives it — only Administrator, via SyncAdministratorPermissionsAsync.
+        ["settings.integrations"]= ["view","edit","import"],
         ["settings.audit"]       = ["view","export"],
         ["settings.ai"]          = ["view","edit"],
         // Billing: "view" sees plan + invoices, "edit" can purchase, change tier or cancel.

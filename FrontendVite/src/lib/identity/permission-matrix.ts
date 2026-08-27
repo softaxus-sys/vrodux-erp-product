@@ -13,7 +13,7 @@ import type { PermissionDto } from "@/lib/identity/types";
  */
 export const ACTION_ORDER = [
   "view", "create", "edit", "delete", "approve", "export", "print",
-  "void", "refund", "discount", "adjust", "create-login",
+  "void", "refund", "discount", "adjust", "create-login", "import",
   // Employee self-service verbs — these are actions, not modules.
   "leave-request", "attendance", "payslip",
 ] as const;

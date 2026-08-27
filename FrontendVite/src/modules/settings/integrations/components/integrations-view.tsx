@@ -5,12 +5,13 @@ import { Trans, useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check,
-  KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud,
+  KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud, DownloadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatDate } from "@/lib/utils";
+import { PropertyFinderTab } from "./property-finder-tab";
 import { useAuthStore } from "@/store/auth.store";
 import {
   useProviderCatalog, useIntegration, useIntegrationSyncLogs, useIntegrationInbox,
@@ -308,7 +309,7 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
 
 // ── Configure drawer ─────────────────────────────────────────────────────────
 
-type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors";
+type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors" | "propertyfinder";
 
 function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
   integrationId: string; canEdit: boolean; onClose: () => void; onManageMeta: (id: string) => void;
@@ -325,6 +326,10 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
 
   const tabs: { id: Tab; label: string; icon: React.ElementType; show: boolean }[] = [
     { id: "overview", label: t("integrations.tab.overview"), icon: ShieldCheck,       show: true },
+    // Property Finder owns its API key, live-sync subscription and historical import on its own
+    // integration — the same row that holds the inbound key those all depend on.
+    { id: "propertyfinder", label: "Property Finder", icon: DownloadCloud,
+      show: integration?.providerKey === "property-finder" },
     { id: "setup",    label: t("integrations.tab.setup"),    icon: Plug,              show: isInbound },
     { id: "inbound",  label: t("integrations.tab.inbound"),  icon: KeyRound,          show: isInbound },
     { id: "mapping",  label: t("integrations.tab.mapping"),  icon: SlidersHorizontal, show: true },
@@ -382,6 +387,7 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
             </div>
 
             <div className="flex-1 overflow-y-auto p-5">
+              {tab === "propertyfinder" && <PropertyFinderTab integration={integration} />}
               {tab === "overview" && <OverviewTab integration={integration} isMeta={isMeta} onManageMeta={() => onManageMeta(integration.id)} />}
               {tab === "setup"    && <ProviderSetup integration={integration} />}
               {tab === "inbound"  && <InboundTab integration={integration} canEdit={canEdit} />}

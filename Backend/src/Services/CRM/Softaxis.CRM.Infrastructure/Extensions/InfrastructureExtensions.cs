@@ -12,6 +12,7 @@ using Softaxis.CRM.Application.LeadIntake.Dtos;
 using Softaxis.CRM.Infrastructure.Integrations;
 using Softaxis.CRM.Infrastructure.Integrations.Providers;
 using Softaxis.CRM.Infrastructure.Integrations.Providers.Meta;
+using Softaxis.CRM.Infrastructure.Integrations.Providers.PropertyFinder;
 using Softaxis.CRM.Infrastructure.Integrations.Security;
 using Softaxis.CRM.Infrastructure.Integrations.Services;
 using Softaxis.CRM.Infrastructure.Persistence;
@@ -45,6 +46,9 @@ public static class InfrastructureExtensions
         // ── Role-based lead access scoping (full vs assigned-only) ───────────
         services.AddScoped<Services.ILeadAccessGuard, Services.LeadAccessGuard>();
         services.AddScoped<Services.IDealStageRecorder, Services.DealStageRecorder>();
+
+        // The batched Property Finder import keeps its plan here between slices.
+        services.AddMemoryCache();
 
         // ── Integration platform (lead sources) ──────────────────────────────
         // Secret encryption over ASP.NET Core Data Protection (host calls AddDataProtection()).
@@ -82,9 +86,23 @@ public static class InfrastructureExtensions
         // ── Calendly — inbound webhook (invitee.created → lead) ───────────────
         services.AddSingleton<ILeadProvider, CalendlyLeadProvider>();
 
-        // ── Property Finder — real-estate portal listing enquiries (inbound webhook) ──
-        // Buyer/tenant enquiries (email/call/WhatsApp) POSTed to the inbound URL become leads,
-        // with the property, reference, price, offering type and message attached.
+        // ── Property Finder — Enterprise API (webhook + poll + historical backfill) ──
+        // Enquiries (WhatsApp / phone call / email) become leads. A lead references its listing by
+        // id only, so the provider looks the listing up to attach the property title and price.
+        services.Configure<PropertyFinderOptions>(configuration.GetSection(PropertyFinderOptions.Section));
+        // A User-Agent is REQUIRED, not cosmetic: atlas.propertyfinder.com sits behind CloudFront,
+        // which rejects requests with an empty User-Agent with a 403 "Request blocked" HTML page —
+        // before the API is reached, so it looks exactly like a revoked API key. HttpClient sends
+        // no User-Agent by default, so it must be set explicitly.
+        services.AddHttpClient("property-finder", c =>
+        {
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("VroduxERP/1.0 (+https://vrodux.com)");
+            c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            c.Timeout = TimeSpan.FromSeconds(60);
+        });
+        services.AddSingleton<PropertyFinderApiClient>();
+        // Per-tenant credentials: scoped, because it reads the caller's own integration row.
+        services.AddScoped<PropertyFinderCredentialStore>();
         services.AddSingleton<ILeadProvider, PropertyFinderLeadProvider>();
 
         // ── Google Forms / Google Sheets — inbound webhook via Apps Script ────
@@ -115,6 +133,11 @@ public static class InfrastructureExtensions
 
         // ── Background processing (inbox drain + retry) ───────────────────────
         services.AddHostedService<RawLeadInboxProcessor>();
+
+        // Gap-fill behind the webhooks: a delivery made while the gateway was restarting is lost
+        // for good, and nothing would otherwise notice. Dedupe makes overlapping with the webhook
+        // harmless — an already-ingested lead simply comes back as a duplicate.
+        services.AddHostedService<LeadPollSyncService>();
 
         return services;
     }

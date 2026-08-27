@@ -394,6 +394,15 @@ interface AuthState {
    * Super/tenant admins always return true.
    */
   hasRawPermission: (key: string) => boolean;
+  /**
+   * Can this user open a Settings page requiring `key` (e.g. "settings.users.view")?
+   *
+   * The legacy admin tiers (super_admin / tenant_admin / manager) keep the blanket Settings
+   * access the route guard has always given them. That is deliberately NOT folded into
+   * hasRawPermission, which would hand every `manager` every permission in the product.
+   * Everyone else needs the specific key.
+   */
+  canOpenSettingsPage: (key: string) => boolean;
 }
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -564,8 +573,16 @@ export const useAuthStore = create<AuthState>()(
         //       (settings & users included, since those are gated by step 3).
         if (user.role === "tenant_admin" || user.role === "manager") return true;
 
-        // ── 5. Settings / Users: admins only ────────────────────────────────────
-        if (module === "settings" || module === "users") return false;
+        // ── 5. Settings / Users: admins, OR anyone holding a settings.* permission ──
+        //    This used to be a flat `return false`, which made the granular settings.* keys
+        //    (settings.users.*, settings.roles.*, settings.branches.* …) ungrantable: a tenant
+        //    admin could tick them on a role and the holder still saw nothing, because the
+        //    module was refused before the permission check at step 7 ever ran.
+        //    Opening the module does NOT open the whole tree — each page inside Settings
+        //    carries its own `requiresPermission` in navigation.ts and its own route guard.
+        if (module === "settings" || module === "users") {
+          return user.permissions.some((p) => p.startsWith("settings:"));
+        }
 
         // ── 6. Role-based default module access ─────────────────────────────────
         //    Covers cases where backend roles don't enumerate explicit permissions.
@@ -598,6 +615,14 @@ export const useAuthStore = create<AuthState>()(
         const { user, rawPermissions } = get();
         if (!user) return false;
         if (user.role === "super_admin" || user.role === "tenant_admin") return true;
+        return rawPermissions.includes(key);
+      },
+
+      canOpenSettingsPage: (key: string) => {
+        const { user, rawPermissions } = get();
+        if (!user) return false;
+        if (user.role === "super_admin" || user.role === "tenant_admin" ||
+            user.role === "manager") return true;
         return rawPermissions.includes(key);
       },
     }),

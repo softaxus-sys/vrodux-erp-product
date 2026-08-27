@@ -32,6 +32,23 @@ public sealed class CanonicalLead
 
     // ── Attribution / provenance ──────────────────────────────────────────────
     public string? ExternalLeadId { get; set; }
+
+    /// <summary>
+    /// Who owns this lead in the SOURCE system (e.g. a Property Finder agent profile id).
+    ///
+    /// <para>Routing config can only name a person, which is fine when leads are shared out by us
+    /// but wrong when the source already knows whose they are. With this set, an integration using
+    /// the <c>external_map</c> routing mode gives the lead to the matching Vrodux user instead of
+    /// round-robining it to whoever happens to be next.</para>
+    /// </summary>
+    public string? ExternalOwnerId { get; set; }
+
+    /// <summary>
+    /// True when the payload is an ownership CHANGE rather than a new enquiry (Property Finder's
+    /// <c>lead.assigned</c>). Without it a reassignment is indistinguishable from a duplicate, and
+    /// the lead would keep its original owner for ever.
+    /// </summary>
+    public bool IsReassignment { get; set; }
     public string? Platform   { get; set; }   // meta / facebook / instagram / google …
     public string? FormName   { get; set; }
     public bool?   IsOrganic  { get; set; }

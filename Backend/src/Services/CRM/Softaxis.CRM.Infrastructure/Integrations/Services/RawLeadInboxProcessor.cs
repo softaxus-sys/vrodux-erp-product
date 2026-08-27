@@ -133,6 +133,9 @@ public sealed class RawLeadInboxProcessor(
             switch (result.Outcome)
             {
                 case IntakeOutcome.Created:   created++; firstLeadId ??= result.LeadId; break;
+                // A repeat contact enriched an existing lead — a real outcome, so the inbox row
+                // points at that lead rather than being recorded as a failure.
+                case IntakeOutcome.Updated:   created++; firstLeadId ??= result.LeadId; break;
                 case IntakeOutcome.Duplicate: duplicates++; firstDuplicateId ??= result.LeadId; break;
                 default:                      failed++; break;
             }

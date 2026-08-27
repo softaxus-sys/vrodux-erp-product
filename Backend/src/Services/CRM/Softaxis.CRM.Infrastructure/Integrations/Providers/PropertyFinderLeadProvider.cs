@@ -4,211 +4,233 @@ using System.Text.Json;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
 using Softaxis.CRM.Domain.Entities.Integrations;
+using Softaxis.CRM.Infrastructure.Integrations.Providers.PropertyFinder;
 
 namespace Softaxis.CRM.Infrastructure.Integrations.Providers;
 
 /// <summary>
-/// Property Finder listing enquiries → CRM leads. Property Finder delivers each buyer/tenant
-/// enquiry (email, phone-call, WhatsApp or SMS) as a JSON payload posted to this integration's
-/// inbound URL. The person is nested under <c>client</c>/<c>contact</c> and the listing under
-/// <c>property</c>/<c>listing</c> — a shape the generic JSON provider can't read — so this provider
-/// understands it and attaches the real-estate context (property, reference, price, offering type,
-/// location, beds/baths) to the lead: the enquiry <c>message</c> → Message, the property → Interested
-/// In, the price → Budget, and every listing detail is stashed for the lead's Form Responses.
+/// Property Finder enquiries → CRM leads, via the Enterprise API (atlas.propertyfinder.com).
 ///
-/// Auth: possession of the unguessable inbound URL is the baseline secret (as with the other inbound
-/// providers). If the tenant stores a Property Finder signing secret on the integration, a present
-/// signature header is additionally verified; an unsigned request is still accepted on the inbound key.
+/// Both directions are supported and produce identical leads:
+///  • <b>Live</b> — PF posts <c>lead.created</c> / <c>lead.assigned</c> to this integration's
+///    inbound URL. Deliveries are at-least-once and must be acknowledged within 5 seconds, which
+///    the existing store-to-inbox-then-ack flow already satisfies.
+///  • <b>Backfill / gap-fill</b> — <see cref="FetchAsync"/> pages the leads endpoint.
+///
+/// A lead references its listing by id only, so the property title and price require a second
+/// lookup. That is why the interesting work happens in <see cref="NormalizeAsync"/> (enriching)
+/// rather than the synchronous <see cref="Normalize"/>, which is kept only as the no-network
+/// fallback the inbox uses if enrichment fails.
 /// </summary>
-public sealed class PropertyFinderLeadProvider : ILeadProvider, IWebhookLeadProvider
+public sealed class PropertyFinderLeadProvider(PropertyFinderApiClient api, ISecretProtector protector)
+    : ILeadProvider, IWebhookLeadProvider, IAsyncLeadProvider, IPollSyncLeadProvider
 {
     public string Key => "property-finder";
 
     public ProviderDescriptor Descriptor => new(
         "property-finder", "Property Finder", ProviderCategory.RealEstate,
-        "Turn Property Finder listing enquiries (email, call, WhatsApp) into CRM leads — with the property, price and message attached.",
-        ProviderCapabilities.Webhook | ProviderCapabilities.InboundKey | ProviderCapabilities.ApiKey);
+        "Sync Property Finder enquiries (WhatsApp, phone call, email) into the CRM — with the property, price and owning agent attached.",
+        ProviderCapabilities.Webhook | ProviderCapabilities.InboundKey | ProviderCapabilities.ApiKey | ProviderCapabilities.PollSync);
+
+    // ── Synchronous fallback (no enrichment) ────────────────────────────────────
 
     public IReadOnlyList<CanonicalLead> Normalize(string rawPayload, Integration integration)
     {
-        if (string.IsNullOrWhiteSpace(rawPayload)) return [];
+        foreach (var (el, json) in ExtractLeads(rawPayload, out _))
+            if (PropertyFinderLeadMapper.Map(el, null, json) is { } lead)
+                return [lead];
+        return [];
+    }
 
-        JsonElement root;
-        try { root = JsonDocument.Parse(rawPayload).RootElement; }
-        catch { return []; }
+    // ── Enriched path — used by the inbox processor ─────────────────────────────
 
-        var items = root.ValueKind switch
+    public async Task<IReadOnlyList<CanonicalLead>> NormalizeAsync(
+        string rawPayload, Integration integration, CancellationToken ct)
+    {
+        var items = ExtractLeads(rawPayload, out var isReassignment);
+        if (items.Count == 0) return [];
+
+        var cred = ResolveCredentials(integration);
+        var listings = new Dictionary<string, PropertyFinderLeadMapper.ListingInfo>(StringComparer.OrdinalIgnoreCase);
+
+        if (cred is not null)
         {
-            JsonValueKind.Array  => root.EnumerateArray().ToList(),
-            JsonValueKind.Object => Unwrap(root),
-            _ => new List<JsonElement>(),
-        };
+            var ids = items.Select(x => PropertyFinderLeadMapper.ListingId(x.Element))
+                           .Where(id => id is not null).Select(id => id!).Distinct().ToList();
+            if (ids.Count > 0)
+            {
+                // Enrichment must never cost us the lead: a deleted listing, a missing scope or a
+                // slow API is a reason to store a thinner lead, not to drop the enquiry.
+                try
+                {
+                    foreach (var l in await api.GetListingsByIdsAsync(cred, ids, ct))
+                        if (PropertyFinderLeadMapper.ParseListing(l) is { } info)
+                            listings[info.Id] = info;
+                }
+                catch (PropertyFinderApiException) { /* fall through unenriched */ }
+            }
+        }
 
-        var leads = new List<CanonicalLead>();
-        foreach (var el in items)
-            if (el.ValueKind == JsonValueKind.Object && MapOne(el, rawPayload) is { } lead)
+        var leads = new List<CanonicalLead>(items.Count);
+        foreach (var (el, json) in items)
+        {
+            var listingId = PropertyFinderLeadMapper.ListingId(el);
+            var info = listingId is not null && listings.TryGetValue(listingId, out var v) ? v : null;
+            if (PropertyFinderLeadMapper.Map(el, info, json) is { } lead)
+            {
+                lead.IsReassignment = isReassignment;
                 leads.Add(lead);
+            }
+        }
         return leads;
     }
 
-    // Accept a single object, a bare array, or { "leads": [...] } / { "data": [...] }.
-    private static List<JsonElement> Unwrap(JsonElement obj)
+    // ── Poll sync — gap-fill behind the webhook ─────────────────────────────────
+
+    /// <summary>
+    /// Leads created since the integration's last successful sync.
+    ///
+    /// The API rejects a <c>createdAtFrom</c> older than 3 months, so a long-dormant integration
+    /// clamps to that window rather than sending a value that would 400. That is safe here because
+    /// polling is only ever the gap-filler behind the webhook — the full history is loaded once by
+    /// the backfill, which pages without a date filter.
+    /// </summary>
+    public async Task<IReadOnlyList<CanonicalLead>> FetchAsync(Integration integration, CancellationToken ct)
     {
-        foreach (var w in new[] { "leads", "data", "items", "results" })
-            if (obj.TryGetProperty(w, out var inner) && inner.ValueKind == JsonValueKind.Array)
-                return inner.EnumerateArray().ToList();
-        return [obj];
+        var cred = ResolveCredentials(integration);
+        if (cred is null) return [];
+
+        var floor = DateTime.UtcNow.AddDays(-89);
+        var since = integration.LastSuccessAt is { } last && last > floor ? last.AddMinutes(-5) : floor;
+
+        var raw = new List<(JsonElement Element, string Json)>();
+        for (var page = 1; ; page++)
+        {
+            var result = await api.GetLeadsPageAsync(cred, page, since, ct);
+            raw.AddRange(result.Items.Select(i => (i, i.GetRawText())));
+            if (page >= result.TotalPages || result.Items.Count == 0) break;
+        }
+        if (raw.Count == 0) return [];
+
+        var listings = await LoadListingsAsync(cred, raw.Select(r => r.Element), ct);
+
+        var leads = new List<CanonicalLead>(raw.Count);
+        foreach (var (el, json) in raw)
+        {
+            var lid  = PropertyFinderLeadMapper.ListingId(el);
+            var info = lid is not null && listings.TryGetValue(lid, out var v) ? v : null;
+            if (PropertyFinderLeadMapper.Map(el, info, json) is { } lead) leads.Add(lead);
+        }
+        return leads;
     }
 
-    private static CanonicalLead? MapOne(JsonElement el, string rawJson)
+    internal async Task<Dictionary<string, PropertyFinderLeadMapper.ListingInfo>> LoadListingsAsync(
+        PropertyFinderApiClient.Credentials cred, IEnumerable<JsonElement> leads, CancellationToken ct)
     {
-        // The enquirer may be nested (client / contact / customer / lead / user) or flat on the root.
-        var person = Obj(el, "client") ?? Obj(el, "contact") ?? Obj(el, "customer")
-                  ?? Obj(el, "lead") ?? Obj(el, "user") ?? el;
-
-        var fullName = Val(person, "name") ?? Val(person, "full_name") ?? Val(person, "fullname");
-        var first    = Val(person, "first_name") ?? Val(person, "firstname");
-        var last     = Val(person, "last_name") ?? Val(person, "lastname");
-        var email    = Val(person, "email") ?? Val(person, "email_address");
-        var phone    = Val(person, "phone") ?? Val(person, "mobile")
-                    ?? Val(person, "phone_number") ?? Val(person, "contact_number");
-        var whatsapp = Val(person, "whatsapp") ?? Val(el, "whatsapp");
-
-        var leadType = (Val(el, "type") ?? Val(el, "lead_type") ?? Val(el, "enquiry_type")
-                     ?? Val(el, "channel") ?? "").ToLowerInvariant();
-        var message  = Val(el, "message") ?? Val(el, "comment") ?? Val(el, "enquiry")
-                    ?? Val(el, "note") ?? Val(el, "text");
-
-        // WhatsApp enquiries: the contact number IS the WhatsApp number.
-        if (whatsapp is null && leadType.Contains("whatsapp")) whatsapp = phone;
-
-        // Property / listing the enquiry is about.
-        var prop = Obj(el, "property") ?? Obj(el, "listing");
-        string? propTitle = null, propRef = null, propUrl = null, propLoc = null,
-                propPrice = null, propType = null, offering = null, beds = null, baths = null, size = null;
-        if (prop is { } pv)
+        var map = new Dictionary<string, PropertyFinderLeadMapper.ListingInfo>(StringComparer.OrdinalIgnoreCase);
+        var ids = leads.Select(PropertyFinderLeadMapper.ListingId)
+                       .Where(id => id is not null).Select(id => id!).Distinct().ToList();
+        if (ids.Count == 0) return map;
+        try
         {
-            propTitle = Val(pv, "title") ?? Val(pv, "name");
-            propRef   = Val(pv, "reference") ?? Val(pv, "ref") ?? Val(pv, "reference_number") ?? Val(pv, "listing_reference");
-            propUrl   = Val(pv, "url") ?? Val(pv, "link") ?? Val(pv, "permalink");
-            propLoc   = Val(pv, "location") ?? Val(pv, "community") ?? Val(pv, "area") ?? Val(pv, "city");
-            propPrice = Val(pv, "price") ?? Val(pv, "amount");
-            propType  = Val(pv, "type") ?? Val(pv, "property_type") ?? Val(pv, "category");
-            offering  = Val(pv, "offering_type") ?? Val(pv, "offering") ?? Val(pv, "purpose");
-            beds      = Val(pv, "bedrooms") ?? Val(pv, "beds");
-            baths     = Val(pv, "bathrooms") ?? Val(pv, "baths");
-            size      = Val(pv, "size") ?? Val(pv, "area_size") ?? Val(pv, "builtup_area");
+            foreach (var l in await api.GetListingsByIdsAsync(cred, ids, ct))
+                if (PropertyFinderLeadMapper.ParseListing(l) is { } info) map[info.Id] = info;
         }
-
-        var externalId = Val(el, "lead_id") ?? Val(el, "id") ?? Val(el, "reference");
-
-        // Need at least one contact identifier to be a usable lead.
-        if (email is null && phone is null && fullName is null && first is null)
-            return null;
-
-        // "Interested in" = the property being enquired about.
-        var interested = propTitle;
-        if (propRef is not null) interested = interested is null ? $"Ref {propRef}" : $"{interested} (Ref {propRef})";
-
-        // Budget = listing price + offering type (e.g. "120,000 · Rent").
-        var budget = propPrice;
-        if (budget is not null && !string.IsNullOrWhiteSpace(offering)) budget = $"{budget} · {Cap(offering)}";
-
-        // Human-readable summary so agents see the whole enquiry at a glance.
-        var notes = new StringBuilder();
-        void Line(string label, string? v) { if (!string.IsNullOrWhiteSpace(v)) notes.Append(label).Append(": ").Append(v).Append('\n'); }
-        Line("Enquiry", string.IsNullOrWhiteSpace(leadType) ? null : Cap(leadType));
-        Line("Property", propTitle);
-        Line("Reference", propRef);
-        Line("Type", propType);
-        Line("Offering", offering is null ? null : Cap(offering));
-        Line("Price", propPrice);
-        Line("Location", propLoc);
-        Line("Bedrooms", beds);
-        Line("Bathrooms", baths);
-        Line("Size", size);
-        Line("Listing", propUrl);
-        if (!string.IsNullOrWhiteSpace(message)) notes.Append("Message: ").Append(message).Append('\n');
-
-        var lead = new CanonicalLead
-        {
-            FirstName = first,
-            LastName  = last,
-            FullName  = first is null && last is null ? fullName : null,
-            Email     = email,
-            Phone     = phone,
-            WhatsApp  = whatsapp,
-            Message   = message,
-            InterestedIn = interested,
-            Budget    = budget,
-            City      = propLoc,
-            Notes     = notes.Length > 0 ? notes.ToString().TrimEnd() : null,
-            Platform  = "property_finder",
-            FormName  = string.IsNullOrWhiteSpace(leadType) ? "Property Finder enquiry" : $"Property Finder — {Cap(leadType)} enquiry",
-            ExternalLeadId = externalId,
-            PlatformCreatedTime = Val(el, "created_at") ?? Val(el, "created") ?? Val(el, "timestamp"),
-            RawJson   = rawJson.Length > 8000 ? rawJson[..8000] : rawJson,
-        };
-
-        // Stash structured listing details so they show under Form Responses and are field-mappable.
-        void Raw(string k, string? v) { if (!string.IsNullOrWhiteSpace(v)) lead.RawFields[k] = v; }
-        Raw("property_reference", propRef);
-        Raw("property_title", propTitle);
-        Raw("property_type", propType);
-        Raw("offering_type", offering);
-        Raw("price", propPrice);
-        Raw("location", propLoc);
-        Raw("bedrooms", beds);
-        Raw("bathrooms", baths);
-        Raw("size", size);
-        Raw("listing_url", propUrl);
-        Raw("enquiry_type", leadType);
-        Raw("agent", Obj(el, "agent") is { } ag ? (Val(ag, "name") ?? Val(ag, "email")) : Val(el, "agent"));
-
-        return lead;
+        catch (PropertyFinderApiException) { /* unenriched is acceptable */ }
+        return map;
     }
 
     // ── Webhook capability ──────────────────────────────────────────────────────
 
     public string? TryHandleVerification(IReadOnlyDictionary<string, string> query, Integration integration) => null;
 
+    /// <summary>
+    /// Property Finder signs the full event payload with HMAC-SHA256 and sends the result in
+    /// <c>X-Signature</c> as a <b>bare hex string</b> — no "sha256=" prefix, unlike Meta and
+    /// Calendly. The prefix is still tolerated so a proxy that adds one does not break delivery.
+    /// </summary>
     public bool VerifySignature(string rawBody, IReadOnlyDictionary<string, string> headers, string? decryptedSecret)
     {
-        var sig = Header(headers, "X-PropertyFinder-Signature")
-               ?? Header(headers, "X-Signature")
-               ?? Header(headers, "X-Vrodux-Signature")
-               ?? Header(headers, "X-Hub-Signature-256");
+        var sig = Header(headers, "X-Signature")
+               ?? Header(headers, "X-PropertyFinder-Signature")
+               ?? Header(headers, "X-Vrodux-Signature");
 
-        if (string.IsNullOrWhiteSpace(sig)) return true;              // unsigned — inbound key is the secret
-        if (string.IsNullOrWhiteSpace(decryptedSecret)) return true;  // no key stored — can't verify, don't reject
+        if (string.IsNullOrWhiteSpace(sig)) return true;              // unsigned — the inbound key is the secret
+        if (string.IsNullOrWhiteSpace(decryptedSecret)) return true;  // nothing to verify against
 
         var provided = sig.StartsWith("sha256=", StringComparison.OrdinalIgnoreCase) ? sig[7..] : sig;
         var computed = Convert.ToHexString(
-            new HMACSHA256(Encoding.UTF8.GetBytes(decryptedSecret)).ComputeHash(Encoding.UTF8.GetBytes(rawBody)));
+            HMACSHA256.HashData(Encoding.UTF8.GetBytes(decryptedSecret), Encoding.UTF8.GetBytes(rawBody)));
 
         return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(provided.ToLowerInvariant()),
+            Encoding.UTF8.GetBytes(provided.Trim().ToLowerInvariant()),
             Encoding.UTF8.GetBytes(computed.ToLowerInvariant()));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────────
 
-    private static JsonElement? Obj(JsonElement el, string prop) =>
-        el.ValueKind == JsonValueKind.Object && el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.Object
-            ? v : null;
-
-    private static string? Val(JsonElement el, string prop)
+    /// <summary>
+    /// The API key belongs to the tenant that owns this integration, and is stored encrypted on
+    /// it — never read from shared configuration, which every tenant would share.
+    /// </summary>
+    private PropertyFinderApiClient.Credentials? ResolveCredentials(Integration integration)
     {
-        if (el.ValueKind != JsonValueKind.Object || !el.TryGetProperty(prop, out var v)) return null;
-        return v.ValueKind switch
+        if (integration.Credentials is not { Length: > 0 } encrypted) return null;
+        try
         {
-            JsonValueKind.String => string.IsNullOrWhiteSpace(v.GetString()) ? null : v.GetString()!.Trim(),
-            JsonValueKind.Number => v.GetRawText(),
-            _ => null,
-        };
+            var root = JsonDocument.Parse(protector.Unprotect(encrypted)).RootElement;
+            return PropertyFinderApiClient.BuildCredentials(
+                root.TryGetProperty("apiKey", out var k) ? k.GetString() : null,
+                root.TryGetProperty("apiSecret", out var s) ? s.GetString() : null);
+        }
+        catch { return null; }   // unreadable ciphertext = treat as not configured
     }
+    /// <summary>
+    /// A webhook delivery wraps the lead in an event envelope; the API returns bare lead objects.
+    /// Accept both, plus a bare array, so the same provider serves every path.
+    /// </summary>
+    private static List<(JsonElement Element, string Json)> ExtractLeads(string rawPayload, out bool isReassignment)
+    {
+        isReassignment = false;
+        if (string.IsNullOrWhiteSpace(rawPayload)) return [];
+        JsonElement root;
+        try { root = JsonDocument.Parse(rawPayload).RootElement.Clone(); }
+        catch { return []; }
 
-    private static string Cap(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
+        if (root.ValueKind == JsonValueKind.Array)
+            return root.EnumerateArray().Select(e => (e.Clone(), e.GetRawText())).ToList();
+
+        if (root.ValueKind != JsonValueKind.Object) return [];
+
+        // Webhook envelope: { id, type, timestamp, entity: { id, type: "lead" }, payload: { … } }.
+        // The payload carries the lead fields but not the lead id — that lives on `entity.id`, and
+        // it is what dedupe keys on, so the two have to be recombined.
+        // lead.assigned carries the same lead id as lead.created, so without reading the event
+        // type a reassignment is indistinguishable from a duplicate and ownership never moves.
+        if (root.TryGetProperty("type", out var evt) && evt.ValueKind == JsonValueKind.String)
+            isReassignment = string.Equals(evt.GetString(), "lead.assigned", StringComparison.OrdinalIgnoreCase);
+
+        if (root.TryGetProperty("payload", out var payload) && payload.ValueKind == JsonValueKind.Object)
+        {
+            var merged = new Dictionary<string, JsonElement>();
+            foreach (var p in payload.EnumerateObject()) merged[p.Name] = p.Value;
+            if (root.TryGetProperty("entity", out var entity) && entity.ValueKind == JsonValueKind.Object &&
+                entity.TryGetProperty("id", out var eid))
+                merged["id"] = eid;
+            if (!merged.ContainsKey("createdAt") && root.TryGetProperty("timestamp", out var ts))
+                merged["createdAt"] = ts;
+
+            var json = JsonSerializer.Serialize(merged.ToDictionary(k => k.Key, v => (object?)v.Value));
+            var el   = JsonDocument.Parse(json).RootElement.Clone();
+            return [(el, rawPayload)];
+        }
+
+        foreach (var wrapper in new[] { "data", "leads", "items", "results" })
+            if (root.TryGetProperty(wrapper, out var arr) && arr.ValueKind == JsonValueKind.Array)
+                return arr.EnumerateArray().Select(e => (e.Clone(), e.GetRawText())).ToList();
+
+        return [(root, rawPayload)];
+    }
 
     private static string? Header(IReadOnlyDictionary<string, string> headers, string name) =>
         headers.TryGetValue(name, out var v) ? v : null;

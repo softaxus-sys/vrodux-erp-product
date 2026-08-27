@@ -139,6 +139,7 @@ const RolesPage            = React.lazy(() => import("@/pages/settings/roles"));
 const TeamsPage            = React.lazy(() => import("@/pages/settings/teams"));
 const BranchesPage         = React.lazy(() => import("@/pages/settings/branches"));
 const IntegrationsPage     = React.lazy(() => import("@/pages/settings/integrations"));
+const PropertyFinderPage   = React.lazy(() => import("@/pages/settings/property-finder"));
 const AuditPage            = React.lazy(() => import("@/pages/settings/audit"));
 const AppearancePage       = React.lazy(() => import("@/pages/settings/appearance"));
 const PosPaymentMethodsPage = React.lazy(() => import("@/pages/settings/pos-payment-methods"));
@@ -222,6 +223,20 @@ function ModuleGuard({ module }: { module: ModuleKey }) {
 function RoleGuard({ roles }: { roles: Array<"super_admin" | "tenant_admin" | "manager"> }) {
   const isRole = useAuthStore((s) => s.isRole);
   if (!isRole(roles)) return <Navigate to="/dashboard" replace />;
+  return <Outlet />;
+}
+
+/**
+ * SettingsGuard — restricts one Settings page to holders of its permission key.
+ *
+ * Replaces the blanket RoleGuard that used to wrap the whole Settings block, which made every
+ * settings.* permission key unusable: a role granted settings.users.view was still bounced to
+ * the dashboard because its frontend role mapped to "custom" rather than tenant_admin/manager.
+ * The admin tiers still pass unconditionally — see `canOpenSettingsPage` in the auth store.
+ */
+function SettingsGuard({ permission }: { permission: string }) {
+  const canOpenSettingsPage = useAuthStore((s) => s.canOpenSettingsPage);
+  if (!canOpenSettingsPage(permission)) return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }
 
@@ -460,26 +475,52 @@ export function App() {
             <Route path="/super-admin/billing"     element={<PlatformBillingPage />} />
           </Route>
 
-          {/* ── Settings — admin/manager only ───────────────────────────────── */}
-          <Route element={<RoleGuard roles={["super_admin", "tenant_admin", "manager"]} />}>
-            <Route path="/settings/general"               element={<GeneralSettingsPage />} />
-            <Route path="/settings/currency"              element={<CurrencySettingsPage />} />
+          {/* ── Settings — per-page permission, admin tiers always pass ─────── */}
+          {/* 2FA is the signed-in user's own account, so it needs no permission at all. */}
+          <Route path="/settings/security"              element={<SecurityPage />} />
+
+          <Route element={<SettingsGuard permission="settings.general.view" />}>
+            <Route path="/settings/general"             element={<GeneralSettingsPage />} />
+            {/* no settings.currency key — currency is a company-wide general setting */}
+            <Route path="/settings/currency"            element={<CurrencySettingsPage />} />
+          </Route>
+          <Route element={<SettingsGuard permission="settings.billing.view" />}>
             {/* Billing is deliberately NOT behind a module guard — an expired tenant must always
                 be able to reach it to pay and restore access. */}
-            <Route path="/settings/billing"               element={<BillingSettingsPage />} />
-            <Route path="/billing/checkout/:outcome"      element={<CheckoutResultPage />} />
+            <Route path="/settings/billing"             element={<BillingSettingsPage />} />
+            <Route path="/billing/checkout/:outcome"    element={<CheckoutResultPage />} />
+          </Route>
+          <Route element={<SettingsGuard permission="settings.users.view" />}>
+            <Route path="/settings/users"               element={<UsersPage />} />
+            {/* no settings.teams key — a team is a grouping of users */}
+            <Route path="/settings/teams"               element={<TeamsPage />} />
+          </Route>
+          <Route element={<SettingsGuard permission="settings.roles.view" />}>
+            <Route path="/settings/roles"               element={<RolesPage />} />
+          </Route>
+          <Route element={<SettingsGuard permission="settings.branches.view" />}>
+            <Route path="/settings/branches"            element={<BranchesPage />} />
+          </Route>
+          <Route element={<SettingsGuard permission="settings.integrations.view" />}>
+            <Route path="/settings/integrations"        element={<IntegrationsPage />} />
+          </Route>
+          {/* Importing creates logins in bulk and pulls an outside system's data into this CRM —
+              a workspace-owner action, so it has its own permission rather than riding on "edit". */}
+          <Route element={<SettingsGuard permission="settings.integrations.import" />}>
+            <Route path="/settings/property-finder"     element={<PropertyFinderPage />} />
+          </Route>
+          <Route element={<SettingsGuard permission="settings.audit.view" />}>
+            <Route path="/settings/audit"               element={<AuditPage />} />
+          </Route>
+
+          {/* POS / Restaurant device + payment settings have no settings.* key of their own,
+              so they keep the original admin/manager-only guard. */}
+          <Route element={<RoleGuard roles={["super_admin", "tenant_admin", "manager"]} />}>
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
             <Route path="/settings/payment-gateway"       element={<PaymentGatewayPage />} />
             <Route path="/settings/notifications"         element={<NotificationConfigPage />} />
             <Route path="/settings/devices"               element={<DevicesPage />} />
             <Route path="/settings/vouchers"              element={<VouchersPage />} />
-            <Route path="/settings/users"                 element={<UsersPage />} />
-            <Route path="/settings/security"              element={<SecurityPage />} />
-            <Route path="/settings/roles"                 element={<RolesPage />} />
-            <Route path="/settings/teams"                 element={<TeamsPage />} />
-            <Route path="/settings/branches"              element={<BranchesPage />} />
-            <Route path="/settings/integrations"          element={<IntegrationsPage />} />
-            <Route path="/settings/audit"                 element={<AuditPage />} />
           </Route>
         </Route>
 

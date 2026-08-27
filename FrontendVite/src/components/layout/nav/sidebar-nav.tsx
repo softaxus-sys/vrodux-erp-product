@@ -214,7 +214,7 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarNavItemProps) {
 // ─── Sidebar nav ──────────────────────────────────────────────────────────────
 
 export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
-  const { hasModuleAccess, hasRawPermission, user, tenant } = useAuthStore();
+  const { hasModuleAccess, hasRawPermission, canOpenSettingsPage, user, tenant } = useAuthStore();
   const impersonation = useAuthStore((s) => s.impersonation);
   const navigationConfig = useNavigation();
 
@@ -234,7 +234,12 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
       if (mod && !hasModuleAccess(mod as ModuleKey)) return false;
       // A page the user cannot open should not be offered: a self-service employee holds the HR
       // module but only hr.self.*, so Employees/Payroll would be a list of guaranteed 403s.
-      return !permission || hasRawPermission(permission);
+      if (!permission) return true;
+      // Settings pages use canOpenSettingsPage so the legacy admin tiers keep the blanket
+      // Settings access the route guard has always given them; everyone else needs the key.
+      return permission.startsWith("settings.")
+        ? canOpenSettingsPage(permission)
+        : hasRawPermission(permission);
     };
     return navigationConfig
       .map((group) => ({

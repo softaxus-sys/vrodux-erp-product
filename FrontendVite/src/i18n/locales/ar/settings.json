@@ -854,7 +854,8 @@
       "create-login": "إنشاء حساب دخول",
       "leave-request": "طلب إجازة شخصية",
       "attendance": "تسجيل حضوره",
-      "payslip": "عرض قسائم راتبه"
+      "payslip": "عرض قسائم راتبه",
+      "import": "استيراد بيانات خارجية"
     },
     "actionShort": {
       "view": "عرض",
@@ -871,7 +872,8 @@
       "create-login": "دخول",
       "leave-request": "إجازة",
       "attendance": "حضور",
-      "payslip": "راتب"
+      "payslip": "راتب",
+      "import": "استيراد"
     },
     "group": {
       "inventory": "المخزون",

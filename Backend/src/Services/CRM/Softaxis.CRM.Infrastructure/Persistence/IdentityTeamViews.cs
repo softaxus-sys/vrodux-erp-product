@@ -32,6 +32,28 @@ internal sealed class IdentityTeamMemberView
     public Guid UserId { get; set; }
 }
 
+/// <summary>
+/// Read-only projection of Identity's users, used by the Property Finder import to answer two
+/// questions before creating anything: does this agent already have a login in THIS workspace,
+/// and is their email already taken somewhere on the platform?
+///
+/// <para>That second question needs a deliberately un-scoped read: <c>IX_users_email</c> is unique
+/// platform-wide (sign-in has no workspace selector), so an address belonging to another tenant
+/// blocks creation here too. Only a boolean ever leaves this class — never a name, status or
+/// workspace — so nothing crosses the tenant boundary that the create endpoint would not already
+/// reveal by rejecting the address.</para>
+/// </summary>
+internal sealed class IdentityUserView
+{
+    public Guid   Id        { get; set; }
+    public string Email     { get; set; } = string.Empty;
+    public string Username  { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName  { get; set; } = string.Empty;
+    public Guid?  TenantId  { get; set; }
+    public bool   IsDeleted { get; set; }
+}
+
 internal static class IdentityTeamViewMapping
 {
     public static void MapIdentityTeamViews(this ModelBuilder modelBuilder)
@@ -46,6 +68,14 @@ internal static class IdentityTeamViewMapping
         {
             b.HasNoKey();
             b.ToView("team_members", "identity");
+        });
+
+        modelBuilder.Entity<IdentityUserView>(b =>
+        {
+            b.HasNoKey();
+            b.ToView("users", "identity");
+            // The column is lower-cased in Identity's schema; every other property matches by name.
+            b.Property(x => x.Email).HasColumnName("email");
         });
     }
 }

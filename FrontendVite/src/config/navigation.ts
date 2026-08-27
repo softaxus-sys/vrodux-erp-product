@@ -611,22 +611,30 @@ export const navigationConfig: NavGroup[] = [
         href: "/settings",
         icon: "Settings2",
         module: "settings",
+        // Each page carries its OWN settings.* key. Settings is no longer all-or-nothing:
+        // a role granted only settings.users.* sees Users (and nothing else in here), and a
+        // surviving child keeps the Settings parent visible even when the holder is not an
+        // admin. Admin tiers still see everything — see `canOpenSettingsPage` in auth.store.
+        // Pages with no seeded key of their own stay on the nearest one (noted inline).
         children: [
-          { id: "general", label: "General", href: "/settings/general", icon: "SlidersHorizontal" },
-          { id: "currency", label: "Currency & Rates", href: "/settings/currency", icon: "Coins" },
-          { id: "billing", label: "Billing & Plan", href: "/settings/billing", icon: "CreditCard" },
+          { id: "general", label: "General", href: "/settings/general", icon: "SlidersHorizontal", requiresPermission: "settings.general.view" },
+          // no settings.currency key — currency is a company-wide general setting
+          { id: "currency", label: "Currency & Rates", href: "/settings/currency", icon: "Coins", requiresPermission: "settings.general.view" },
+          { id: "billing", label: "Billing & Plan", href: "/settings/billing", icon: "CreditCard", requiresPermission: "settings.billing.view" },
           { id: "pos-payment-methods", label: "POS Payments", href: "/settings/pos-payment-methods", icon: "CreditCard", module: "pos" },
           { id: "payment-gateway", label: "Payment Gateway", href: "/settings/payment-gateway", icon: "Landmark", module: "pos" },
           { id: "notifications", label: "SMS & WhatsApp", href: "/settings/notifications", icon: "Bell", module: "restaurant" },
           { id: "devices", label: "Registered Devices", href: "/settings/devices", icon: "Monitor", module: "restaurant" },
           { id: "vouchers", label: "Vouchers & Coupons", href: "/settings/vouchers", icon: "Ticket", module: "pos" },
-          { id: "users", label: "Users", href: "/settings/users", icon: "Users" },
-          { id: "roles", label: "Roles & Permissions", href: "/settings/roles", icon: "ShieldCheck" },
-          { id: "teams", label: "Teams", labelAr: "الفرق", href: "/settings/teams", icon: "Users" },
+          { id: "users", label: "Users", href: "/settings/users", icon: "Users", requiresPermission: "settings.users.view" },
+          { id: "roles", label: "Roles & Permissions", href: "/settings/roles", icon: "ShieldCheck", requiresPermission: "settings.roles.view" },
+          // no settings.teams key — a team is a grouping of users
+          { id: "teams", label: "Teams", labelAr: "الفرق", href: "/settings/teams", icon: "Users", requiresPermission: "settings.users.view" },
+          // 2FA is the signed-in user's OWN account — never permission-gated
           { id: "security", label: "Security (2FA)", href: "/settings/security", icon: "ShieldCheck" },
-          { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch" },
-          { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug" },
-          { id: "audit-logs", label: "Audit Logs", href: "/settings/audit", icon: "ScrollText" },
+          { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch", requiresPermission: "settings.branches.view" },
+          { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug", requiresPermission: "settings.integrations.view" },
+          { id: "audit-logs", label: "Audit Logs", href: "/settings/audit", icon: "ScrollText", requiresPermission: "settings.audit.view" },
         ],
       },
     ],
