@@ -118,7 +118,7 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div>
-                <h3 className="text-base font-bold">{t("pipeline.board.markLost")}</h3>
+                <h3 className="text-base font-bold">{t("pipeline.lostDialog.markLost")}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{pendingLost.title}</p>
               </div>
               <button onClick={() => setPendingLost(null)} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
@@ -126,10 +126,10 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("pipeline.board.whyLost")}</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("pipeline.lostDialog.whyLost")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOSS_REASON_KEYS.map(rk => {
-                  const label = t(`pipeline.board.reason.${rk}`);
+                  const label = t(`pipeline.lostDialog.reason.${rk}`);
                   return (
                   <button
                     key={rk}
@@ -147,14 +147,14 @@ export function PipelineBoard({ deals, onDealClick }: Props) {
               <textarea
                 value={lossReason}
                 onChange={e => setLossReason(e.target.value)}
-                placeholder={t("pipeline.board.addDetail")}
+                placeholder={t("pipeline.lostDialog.addDetail")}
                 rows={3}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-destructive/30 resize-none"
               />
             </div>
             <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setPendingLost(null)}>{t("pipeline.board.cancel")}</Button>
-              <Button variant="destructive" onClick={confirmLost}>{t("pipeline.board.markAsLost")}</Button>
+              <Button variant="outline" onClick={() => setPendingLost(null)}>{t("pipeline.lostDialog.cancel")}</Button>
+              <Button variant="destructive" onClick={confirmLost}>{t("pipeline.lostDialog.markAsLost")}</Button>
             </div>
             </motion.div>
           </div>
@@ -229,7 +229,7 @@ function BoardColumn({
 
         {hasMore && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={loadMore}>
-            {t("pipeline.board.showMore", { count: total - shown })}
+            {t("pipeline.lostDialog.showMore", { count: total - shown })}
           </Button>
         )}
 
@@ -241,7 +241,7 @@ function BoardColumn({
               isOver ? "border-primary/40 text-primary" : "border-border"
             )}
           >
-            {isOver ? t("pipeline.board.dropHere") : t("pipeline.board.noDeals")}
+            {isOver ? t("pipeline.lostDialog.dropHere") : t("pipeline.lostDialog.noDeals")}
           </motion.div>
         )}
       </div>

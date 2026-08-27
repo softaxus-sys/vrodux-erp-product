@@ -222,7 +222,9 @@
     "addDeal": "إضافة صفقة",
     "searchPlaceholder": "ابحث في الصفقات...",
     "all": "الكل",
-    "board": {
+    "list": "قائمة",
+    "board": "لوحة",
+    "lostDialog": {
       "markLost": "وضع علامة خاسرة على الصفقة",
       "whyLost": "لماذا خُسرت؟",
       "addDetail": "أضف تفصيلاً (اختياري)…",
@@ -241,7 +243,6 @@
         "other": "أخرى"
       }
     },
-    "list": "قائمة",
     "noDeals": "لا توجد صفقات.",
     "loadMore": "تحميل المزيد",
     "showing": "عرض {{shown}} من {{total}} صفقة",
