@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { useSendChat, useConfirmAction, useAiConversation, useClearConversation } from "@/hooks/ai/use-ai";
 import type { ChatHistoryItem, PendingAction } from "@/lib/ai/ai.api";
 import { ApiError } from "@/lib/api-client";
@@ -72,6 +73,7 @@ export function AiAssistantPanel() {
   const [input, setInput] = React.useState("");
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = useAutosizeTextarea(input, 140);
 
   const sendChat = useSendChat();
   const confirmAction = useConfirmAction();
@@ -173,13 +175,14 @@ export function AiAssistantPanel() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 40 }}
           transition={{ duration: 0.2 }}
-          className="fixed right-4 bottom-4 top-20 z-50 w-[380px] flex flex-col rounded-xl border border-border bg-card shadow-enterprise-lg overflow-hidden"
+          className="fixed right-4 bottom-4 top-20 z-50 w-[380px] flex flex-col rounded-2xl border border-border bg-card shadow-enterprise-lg overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/5 to-transparent">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-primary" />
+          <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/[0.07] via-card to-card">
+            <div className="flex items-center gap-2.5">
+              <div className="relative h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shadow-sm shadow-primary/20">
+                <Sparkles className="h-4 w-4 text-white" />
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-success border-2 border-card" />
               </div>
               <div>
                 <p className="font-semibold text-sm">AI Assistant</p>
@@ -228,17 +231,17 @@ export function AiAssistantPanel() {
                   )}
                 >
                   {msg.role === "assistant" && (
-                    <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center mr-2 shrink-0 mt-1">
-                      <Sparkles className="h-3 w-3 text-primary" />
+                    <div className="h-6 w-6 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center mr-2 shrink-0 mt-1 ring-2 ring-background">
+                      <Sparkles className="h-3 w-3 text-white" />
                     </div>
                   )}
                   <div className="max-w-[80%] flex flex-col gap-1.5">
                     <div
                       className={cn(
-                        "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed",
+                        "rounded-xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm",
                         msg.role === "user"
-                          ? "bg-primary text-primary-foreground whitespace-pre-wrap"
-                          : "bg-muted text-foreground"
+                          ? "bg-primary text-primary-foreground whitespace-pre-wrap rounded-tr-sm"
+                          : "bg-muted text-foreground rounded-tl-sm"
                       )}
                     >
                       {msg.role === "assistant"
@@ -320,10 +323,16 @@ export function AiAssistantPanel() {
             </div>
           )}
 
-          {/* Input */}
+          {/* Input — auto-grows with content (like ChatGPT's composer) so pasted multi-line
+              text is visible immediately instead of sitting scrolled out of view below the
+              single visible line. */}
           <div className="p-3 border-t border-border">
-            <div className="flex gap-2 items-end">
+            <div className={cn(
+              "flex gap-2 items-end rounded-2xl border bg-background px-2.5 py-1.5 transition-shadow",
+              "border-input focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15",
+            )}>
               <textarea
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -332,17 +341,26 @@ export function AiAssistantPanel() {
                     sendMessage(input);
                   }
                 }}
+                onPaste={() => {
+                  requestAnimationFrame(() => {
+                    const el = inputRef.current;
+                    if (!el) return;
+                    el.style.height = "auto";
+                    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                  });
+                }}
                 placeholder="Ask anything about your ERP..."
                 rows={1}
-                className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring min-h-[36px] max-h-24"
+                className="flex-1 resize-none bg-transparent px-1 py-1 text-sm placeholder:text-muted-foreground focus:outline-none"
+                style={{ lineHeight: "1.5" }}
               />
               <Button
                 size="icon"
-                className="h-9 w-9 shrink-0"
+                className="h-8 w-8 rounded-full shrink-0"
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || isTyping}
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>

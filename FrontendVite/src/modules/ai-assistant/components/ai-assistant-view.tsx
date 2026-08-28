@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
 import { cn, parseApiDate } from "@/lib/utils";
+import { useAutosizeTextarea } from "@/hooks/use-autosize-textarea";
 import { useAuthStore } from "@/store/auth.store";
 import {
   useSendChat, useAiSettings, useUpdateAiSettings, useConfirmAction, useAiAgents, useAiCapabilities,
@@ -93,7 +94,7 @@ export function AIAssistantView() {
   const [showTelegram, setShowTelegram] = React.useState(false);
   const [agent, setAgent] = React.useState<string | null>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
-  const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const inputRef = useAutosizeTextarea(input, 200);
 
   const sendChat = useSendChat();
   const confirmAction = useConfirmAction();
@@ -211,44 +212,46 @@ export function AIAssistantView() {
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] max-h-[900px]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 rounded-2xl border border-border bg-gradient-to-r from-primary/[0.07] via-card to-card px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center shadow-sm shadow-primary/20">
             <Sparkles className="h-5 w-5 text-white" />
+            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-success border-2 border-card" title="Online" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">AI Assistant</h1>
+            <h1 className="text-xl font-bold tracking-tight">AI Assistant</h1>
             <p className="text-xs text-muted-foreground">Powered by your ERP data</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setShowTelegram(true)} className="gap-1.5 text-muted-foreground h-8">
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="sm" onClick={() => setShowTelegram(true)} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
             <MessageCircle className="h-3.5 w-3.5" />Telegram
           </Button>
           {canManageAi && (
-            <Button variant="ghost" size="sm" onClick={() => setShowAutomations(true)} className="gap-1.5 text-muted-foreground h-8">
+            <Button variant="ghost" size="sm" onClick={() => setShowAutomations(true)} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
               <Bot className="h-3.5 w-3.5" />Automations
             </Button>
           )}
           {canManageAi && (
-            <Button variant="ghost" size="sm" onClick={() => setShowVoiceAgent(true)} className="gap-1.5 text-muted-foreground h-8">
+            <Button variant="ghost" size="sm" onClick={() => setShowVoiceAgent(true)} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
               <Mic className="h-3.5 w-3.5" />Voice Agent
             </Button>
           )}
           {canManageAi && (
-            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)} className="gap-1.5 text-muted-foreground h-8">
+            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
               <Settings2 className="h-3.5 w-3.5" />Settings
             </Button>
           )}
           {canSpeak && (
             <Button variant="ghost" size="sm"
               onClick={() => { const next = !speakReplies; setSpeakReplies(next); if (!next) cancelSpeech(); }}
-              className={cn("gap-1.5 h-8", speakReplies ? "text-primary" : "text-muted-foreground")}
+              className={cn("gap-1.5 h-8", speakReplies ? "text-primary" : "text-muted-foreground hover:text-foreground")}
               title={speakReplies ? "Spoken replies on" : "Spoken replies off"}>
               {speakReplies ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}Speak
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={clearChat} className="gap-1.5 text-muted-foreground h-8">
+          <div className="w-px h-5 bg-border mx-1" />
+          <Button variant="ghost" size="sm" onClick={clearChat} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
             <RefreshCw className="h-3.5 w-3.5" />Clear
           </Button>
         </div>
@@ -257,16 +260,16 @@ export function AIAssistantView() {
       {/* Agent selector (call-by-name targets) */}
       {agents && agents.length > 0 && (
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-          <span className="text-[11px] text-muted-foreground mr-1">Agent:</span>
+          <span className="text-[11px] font-medium text-muted-foreground mr-1">Agent</span>
           <button onClick={() => setAgent(null)}
-            className={cn("px-2.5 py-1 rounded-full text-[11px] border transition-colors",
-              agent === null ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-primary/40")}>
+            className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+              agent === null ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground")}>
             Auto
           </button>
           {agents.map(a => (
             <button key={a.key} onClick={() => setAgent(a.key)}
-              className={cn("px-2.5 py-1 rounded-full text-[11px] border transition-colors",
-                agent === a.key ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border hover:border-primary/40")}>
+              className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors",
+                agent === a.key ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground")}>
               {a.label}
             </button>
           ))}
@@ -296,17 +299,18 @@ export function AIAssistantView() {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 pr-1 mb-4">
+      <div className="flex-1 min-h-0 rounded-2xl border border-border bg-muted/20 overflow-hidden mb-4">
+      <div className="h-full overflow-y-auto space-y-4 px-4 py-4">
         <AnimatePresence>
           {messages.map((msg) => (
             <motion.div key={msg.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
               className={cn("flex gap-3", msg.role === "user" ? "flex-row-reverse" : "")}>
-              <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+              <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0 ring-2 ring-background",
                 msg.role === "assistant" ? "bg-gradient-to-br from-primary to-purple-500" : "bg-muted")}>
                 {msg.role === "assistant" ? <Sparkles className="h-4 w-4 text-white" /> : <User className="h-4 w-4 text-muted-foreground" />}
               </div>
               <div className={cn("max-w-[78%]", msg.role === "user" ? "items-end" : "items-start", "flex flex-col gap-1")}>
-                <div className={cn("rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                <div className={cn("rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground rounded-tr-sm"
                     : "bg-card border border-border rounded-tl-sm")}>
@@ -367,39 +371,53 @@ export function AIAssistantView() {
         </AnimatePresence>
         {isTyping && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center ring-2 ring-background">
               <Sparkles className="h-4 w-4 text-white" />
             </div>
-            <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3">
+            <div className="bg-card border border-border rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
               <TypingIndicator />
             </div>
           </motion.div>
         )}
         <div ref={bottomRef} />
       </div>
+      </div>
 
-      {/* Input */}
-      <div className="bg-card border border-border rounded-2xl p-3 flex items-end gap-2">
+      {/* Input — auto-grows with content (up to a cap, then scrolls internally), so pasted
+          multi-line text is immediately visible instead of sitting scrolled out of view. */}
+      <div className={cn(
+        "bg-card border rounded-3xl px-3 py-2.5 flex items-end gap-2 shadow-sm transition-shadow",
+        "border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15",
+      )}>
         <textarea
           ref={inputRef}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKey}
+          onPaste={() => {
+            // Let the paste land, then re-measure — some browsers report scrollHeight a tick late.
+            requestAnimationFrame(() => {
+              const el = inputRef.current;
+              if (!el) return;
+              el.style.height = "auto";
+              el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+            });
+          }}
           placeholder={stt.listening ? "Listening…" : "Ask anything about your business data…"}
           rows={1}
-          className="flex-1 resize-none bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground max-h-32"
+          className="flex-1 resize-none bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground py-1"
           style={{ lineHeight: "1.5" }}
         />
         {canListen && (
           <Button onClick={() => stt.listening ? stt.stop() : stt.start()} disabled={isTyping}
             size="sm" variant={stt.listening ? "default" : "ghost"}
-            className={cn("h-8 w-8 p-0 rounded-xl shrink-0", stt.listening && "animate-pulse")}
+            className={cn("h-8 w-8 p-0 rounded-full shrink-0", stt.listening && "animate-pulse")}
             title={stt.listening ? "Stop listening" : "Speak your question"}>
             <Mic className="h-3.5 w-3.5" />
           </Button>
         )}
         <Button onClick={() => sendMessage(input)} disabled={!input.trim() || isTyping}
-          size="sm" className="h-8 w-8 p-0 rounded-xl shrink-0">
+          size="sm" className="h-8 w-8 p-0 rounded-full shrink-0">
           {isTyping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
         </Button>
       </div>
