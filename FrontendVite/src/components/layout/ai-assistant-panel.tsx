@@ -1,6 +1,6 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, X, Send, RotateCcw, Check, Ban, ExternalLink, Zap } from "lucide-react";
+import { Sparkles, X, Send, RotateCcw, Check, Ban, ExternalLink, Zap, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUiStore } from "@/store/ui.store";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,7 @@ export function AiAssistantPanel() {
   const navigate = useNavigate();
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
+  const [showClearConfirm, setShowClearConfirm] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = useAutosizeTextarea(input, 140);
@@ -167,7 +168,14 @@ export function AiAssistantPanel() {
     }]);
   }, []);
 
+  const clearChat = () => {
+    clearConversation.mutate();
+    setMessages([welcomeMessage()]);
+    setShowClearConfirm(false);
+  };
+
   return (
+    <>
     <AnimatePresence>
       {aiAssistantOpen && (
         <motion.div
@@ -204,7 +212,7 @@ export function AiAssistantPanel() {
                 size="icon"
                 className="h-7 w-7"
                 title="Clear chat"
-                onClick={() => { clearConversation.mutate(); setMessages([welcomeMessage()]); }}
+                onClick={() => setShowClearConfirm(true)}
               >
                 <RotateCcw className="h-3.5 w-3.5" />
               </Button>
@@ -327,10 +335,7 @@ export function AiAssistantPanel() {
               text is visible immediately instead of sitting scrolled out of view below the
               single visible line. */}
           <div className="p-3 border-t border-border">
-            <div className={cn(
-              "flex gap-2 items-end rounded-2xl border bg-background px-2.5 py-1.5 transition-shadow",
-              "border-input focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15",
-            )}>
+            <div className="flex gap-2 items-end rounded-2xl border border-input bg-background px-2.5 py-1.5">
               <textarea
                 ref={inputRef}
                 value={input}
@@ -351,7 +356,7 @@ export function AiAssistantPanel() {
                 }}
                 placeholder="Ask anything about your ERP..."
                 rows={1}
-                className="flex-1 resize-none bg-transparent px-1 py-1 text-sm placeholder:text-muted-foreground focus:outline-none"
+                className="flex-1 resize-none bg-transparent px-1 py-1 text-sm placeholder:text-muted-foreground outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                 style={{ lineHeight: "1.5" }}
               />
               <Button
@@ -367,5 +372,42 @@ export function AiAssistantPanel() {
         </motion.div>
       )}
     </AnimatePresence>
+    <AnimatePresence>
+      {showClearConfirm && (
+        <motion.div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          onClick={() => setShowClearConfirm(false)}
+        >
+          <motion.div
+            className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-xl p-5"
+            initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-5">
+              <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <RotateCcw className="h-4 w-4 text-destructive" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">Clear chat history?</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This deletes your saved conversation with the assistant. This can't be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowClearConfirm(false)} disabled={clearConversation.isPending}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" className="gap-1.5" onClick={clearChat} disabled={clearConversation.isPending}>
+                {clearConversation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Clear history
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

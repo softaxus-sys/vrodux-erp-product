@@ -92,6 +92,7 @@ export function AIAssistantView() {
   const [showAutomations, setShowAutomations] = React.useState(false);
   const [showVoiceAgent, setShowVoiceAgent] = React.useState(false);
   const [showTelegram, setShowTelegram] = React.useState(false);
+  const [showClearConfirm, setShowClearConfirm] = React.useState(false);
   const [agent, setAgent] = React.useState<string | null>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const inputRef = useAutosizeTextarea(input, 200);
@@ -207,6 +208,7 @@ export function AIAssistantView() {
   const clearChat = () => {
     clearConversation.mutate();
     setMessages([{ id: "welcome", role: "assistant", content: WELCOME, timestamp: now() }]);
+    setShowClearConfirm(false);
   };
 
   return (
@@ -251,7 +253,7 @@ export function AIAssistantView() {
             </Button>
           )}
           <div className="w-px h-5 bg-border mx-1" />
-          <Button variant="ghost" size="sm" onClick={clearChat} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
+          <Button variant="ghost" size="sm" onClick={() => setShowClearConfirm(true)} className="gap-1.5 text-muted-foreground h-8 hover:text-foreground">
             <RefreshCw className="h-3.5 w-3.5" />Clear
           </Button>
         </div>
@@ -385,10 +387,7 @@ export function AIAssistantView() {
 
       {/* Input — auto-grows with content (up to a cap, then scrolls internally), so pasted
           multi-line text is immediately visible instead of sitting scrolled out of view. */}
-      <div className={cn(
-        "bg-card border rounded-3xl px-3 py-2.5 flex items-end gap-2 shadow-sm transition-shadow",
-        "border-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15",
-      )}>
+      <div className="bg-card border border-border rounded-3xl px-3 py-2.5 flex items-end gap-2 shadow-sm">
         <textarea
           ref={inputRef}
           value={input}
@@ -405,7 +404,7 @@ export function AIAssistantView() {
           }}
           placeholder={stt.listening ? "Listening…" : "Ask anything about your business data…"}
           rows={1}
-          className="flex-1 resize-none bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground py-1"
+          className="flex-1 resize-none bg-transparent text-sm outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground py-1"
           style={{ lineHeight: "1.5" }}
         />
         {canListen && (
@@ -434,8 +433,49 @@ export function AIAssistantView() {
         {showTelegram && <TelegramLinkModal key="ai-telegram" onClose={() => setShowTelegram(false)} />}
         {showAutomations && <AutomationsModal key="ai-automations" onClose={() => setShowAutomations(false)} />}
         {showVoiceAgent && <VoiceAgentModal key="ai-voice-agent" onClose={() => setShowVoiceAgent(false)} />}
+        {showClearConfirm && (
+          <ClearChatConfirmModal key="ai-clear-confirm" pending={clearConversation.isPending}
+            onConfirm={clearChat} onClose={() => setShowClearConfirm(false)} />
+        )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Clear-chat confirmation (destructive — deletes the persisted conversation) ─────────────────
+
+function ClearChatConfirmModal({ onConfirm, onClose, pending }: { onConfirm: () => void; onClose: () => void; pending: boolean }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-xl p-5"
+        initial={{ scale: 0.96, y: 8 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 8 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3 mb-5">
+          <div className="h-9 w-9 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+            <RefreshCw className="h-4 w-4 text-destructive" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">Clear chat history?</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              This deletes your saved conversation with the assistant. This can't be undone.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={pending}>Cancel</Button>
+          <Button variant="destructive" size="sm" onClick={onConfirm} disabled={pending} className="gap-1.5">
+            {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Clear history
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
