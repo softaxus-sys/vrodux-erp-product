@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Vrodux">
+  <!--
+    Vrodux browser icon. Mirrors <BrandMark> in src/components/brand/brand-logo.tsx —
+    same rounded tile and the same #2563eb → #1e3a8a gradient — so the tab matches the app.
+
+    The "V" is drawn as a path rather than set as text: a favicon is rendered outside the page,
+    where no webfont is loaded, so text would fall back to whatever the OS picks and the shape
+    would differ per machine.
+
+    The tile is opaque on purpose. It carries its own background, so the mark stays legible on a
+    light or a dark browser chrome without needing a second file.
+  -->
+  <defs>
+    <linearGradient id="v" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#v)"/>
+
+  <!-- Heavy strokes and a wide gap: at 16px anything finer closes up into a blob. -->
+  <path d="M16 18 L26.5 18 L32 39.5 L37.5 18 L48 18 L38 46 L26 46 Z" fill="#ffffff"/>
+</svg>
