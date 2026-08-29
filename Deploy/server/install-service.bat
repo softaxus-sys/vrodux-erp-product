@@ -91,9 +91,13 @@ echo.
 echo   Next steps:
 echo   1. Update appsettings.json with the correct
 echo      SQL Server connection string
-echo   2. Open firewall port 5000 if employees
+echo   2. Set FrontendUrl in appsettings.json to the
+echo      address staff open in their browser. Password
+echo      reset and invite emails link to it - the
+echo      default (localhost:5173) will not work.
+echo   3. Open firewall port 5000 if employees
 echo      connect from other machines
-echo   3. Install VroduxERP-Setup.exe on each PC
+echo   4. Install VroduxERP-Setup.exe on each PC
 echo      and point it to this server's IP
 echo  ============================================
 echo.

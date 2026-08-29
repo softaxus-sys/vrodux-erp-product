@@ -17,8 +17,11 @@ import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { sourceLabel, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, type LeadDto as Lead, type LeadStatus, type LeadSource, type DealStage } from "@/lib/crm/crm.api";
-import { useLeads, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
+import { sourceLabel, SOURCE_LABELS, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, leadDate, type LeadDto as Lead, type LeadStatus, type LeadSource, type DealStage } from "@/lib/crm/crm.api";
+import { useLeads, useLeadsPaged, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
+import { useAssignableByTeam } from "@/hooks/identity/use-assignable-by-team";
+import { Pagination } from "@/components/ui/pagination";
+import { crmApi } from "@/lib/crm/crm.api";
 import { toast } from "sonner";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { useBulkFileLeadsToTeam } from "@/hooks/crm/use-crm";
@@ -35,7 +38,7 @@ type SortKey = "date" | "score" | "value";
 type SortDir = "asc" | "desc";
 
 const SORT_LABELS: Record<SortKey, string> = {
-  date:  "Date created",
+  date:  "Lead date",
   score: "Intent score",
   value: "Estimated value",
 };
@@ -54,9 +57,11 @@ function makeLeadComparator(sortBy: SortKey, sortDir: SortDir) {
       case "value": diff = a.estimatedValue - b.estimatedValue; break;
       case "date":
       default: {
+        // Sorts on the SAME date the Lead Date column shows — sorting by our import time while
+        // displaying the enquiry time would put the rows in an order the screen contradicts.
         // Missing/invalid dates sort oldest so they never squat on top of a desc list.
-        const at = new Date(a.createdDate).getTime();
-        const bt = new Date(b.createdDate).getTime();
+        const at = new Date(leadDate(a).value).getTime();
+        const bt = new Date(leadDate(b).value).getTime();
         diff = (Number.isNaN(at) ? 0 : at) - (Number.isNaN(bt) ? 0 : bt);
         break;
       }
@@ -80,6 +85,58 @@ const KANBAN_COLS: LeadStatus[] = ["new", "contacted", "qualified", "converted"]
 
 /** Statuses that end a lead's life. Converted is an outcome, not a stage still being worked. */
 const CLOSED_LEAD_STATUSES: LeadStatus[] = ["converted", "unqualified", "lost"];
+
+/** Sentinel for the "no owner" option — cannot collide with a user id or a name key. */
+const UNASSIGNED = "__unassigned__";
+
+/**
+ * Identifies an assignee for filtering. Keyed by user id where the lead has one, because two
+ * colleagues can share a display name and merging them would hide one behind the other. Legacy
+ * leads carry only a name (they predate the assignedToUserId link), so those fall back to a name
+ * key rather than being dropped from the filter entirely.
+ */
+function assigneeKey(l: Lead): string | null {
+  if (l.assignedToUserId) return l.assignedToUserId;
+  const name = l.assignedTo?.trim();
+  return name ? "name:" + name.toLowerCase() : null;
+}
+
+function buildAssigneeOptions(leads: Lead[]) {
+  const byKey = new Map<string, { key: string; label: string; count: number }>();
+  for (const l of leads) {
+    const key = assigneeKey(l);
+    if (!key) continue;
+    const existing = byKey.get(key);
+    if (existing) { existing.count++; continue; }
+    byKey.set(key, { key, label: l.assignedTo?.trim() || "—", count: 1 });
+  }
+  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * When the lead arose. Shows the source platform's own enquiry time where there is one, so a
+ * batch imported today does not read as though every enquiry happened today. Both dates are in
+ * the tooltip whenever they differ, because "why does this say last week?" is the immediate
+ * question once the two can disagree.
+ */
+function LeadDateCell({ lead }: { lead: Lead }) {
+  const { t } = useTranslation("crm");
+  const { value, fromPlatform } = leadDate(lead);
+  const shown = formatDate(value, "medium");
+  const added = formatDate(lead.createdDate, "medium");
+  const differs = fromPlatform && shown !== added;
+
+  return (
+    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
+      <span title={differs ? t("leads.table.leadDateHint", { enquired: shown, added }) : undefined}>
+        {shown}
+      </span>
+      {differs && (
+        <span className="ms-1.5 text-[10px] text-muted-foreground/70">{t("leads.table.enquired")}</span>
+      )}
+    </td>
+  );
+}
 
 function StatusBadge({ status, outcome }: { status: LeadStatus; outcome?: DealStage | null }) {
   const { t } = useTranslation("crm");
@@ -294,13 +351,36 @@ function LeadColumn({
   );
 }
 
+const PAGE_SIZE = 25;
+
 export function LeadsView() {
   const { t } = useTranslation("crm");
   const currency = useCurrency();
-  const { data: leads = [], isLoading } = useLeads();
+  const [viewMode, setViewMode] = React.useState<ViewMode>("list");
 
-  const exportCsv = () => {
-    const csv = toCsv(leads.map(l => ({
+  // The board groups every lead by status, so it genuinely needs the whole set — but only once
+  // someone opens it. The list, which is what loads by default, is served page by page.
+  const { data: allLeads = [], isLoading: allLoading } = useLeads(viewMode === "kanban");
+
+  // Exports cover the whole result, not the page on screen, so they fetch on demand rather than
+  // keeping every lead in memory for a button most visits never press.
+  const [exporting, setExporting] = React.useState(false);
+  const fetchAllForExport = async (): Promise<Lead[]> => {
+    setExporting(true);
+    try {
+      return await crmApi.getLeads();
+    } catch {
+      toast.error(t("leads.exportFailed"));
+      return [];
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportCsv = async () => {
+    const rows = await fetchAllForExport();
+    if (rows.length === 0) return;
+    const csv = toCsv(rows.map(l => ({
       "Name":            l.fullName,
       "Title":           l.title,
       "Company":         l.company,
@@ -312,28 +392,44 @@ export function LeadsView() {
       "Priority":        l.priority,
       "Score":           l.score,
       "Est. Value":      l.estimatedValue ?? "",
+      "Lead Date":       formatDate(leadDate(l).value, "medium"),
+      "Added On":        formatDate(l.createdDate, "medium"),
       "Assigned To":     l.assignedTo ?? "",
-    })), ["Name","Title","Company","Email","Phone","Country","Source","Status","Priority","Score","Est. Value","Assigned To"]);
+    })), ["Name","Title","Company","Email","Phone","Country","Source","Status","Priority","Score","Est. Value","Lead Date","Added On","Assigned To"]);
     downloadFile(`leads_${new Date().toISOString().split("T")[0]}.csv`, csv);
   };
 
-  const exportPdfReport = () => exportPdf({
-    title: "Leads",
-    subtitle: `${leads.length} leads`,
-    columns: ["Name","Company","Email","Phone","Country","Source","Status","Priority","Score"],
-    rows: leads.map(l => [l.fullName, l.company, l.email, l.phone, l.country, l.source, l.status, l.priority, l.score]),
-    landscape: true,
-  });
+  const exportPdfReport = async () => {
+    const rows = await fetchAllForExport();
+    if (rows.length === 0) return;
+    exportPdf({
+      title: "Leads",
+      subtitle: `${rows.length} leads`,
+      columns: ["Name","Company","Email","Phone","Country","Source","Status","Priority","Score"],
+      rows: rows.map(l => [l.fullName, l.company, l.email, l.phone, l.country, l.source, l.status, l.priority, l.score]),
+      landscape: true,
+    });
+  };
   const { data: leadsSummary }          = useLeadsSummary();
   const currentUserName = useAuthStore(s => s.user?.name) ?? "";
+  const myUserId        = useAuthStore(s => s.user?.id) ?? "";
   const [search, setSearch] = React.useState("");
+  // The server does the searching now, so every keystroke would otherwise be a query.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const h = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(h);
+  }, [search]);
+
+  const [page, setPage] = React.useState(1);
   // Defaults to the leads still being worked. Converted and unqualified/lost leads are kept (they are
   // history, not deletions — their documents and activity hang off them) but they are not the working
   // list, and with them mixed in the page reads as though closed leads are still open.
   const [statusFilter, setStatusFilter] = React.useState("open");
   const [sourceFilter, setSourceFilter] = React.useState("all");
+  // "all" | "unassigned" | an assignee key from buildAssigneeOptions below.
+  const [assigneeFilter, setAssigneeFilter] = React.useState("all");
   const [mineOnly, setMineOnly] = React.useState(false);
-  const [viewMode, setViewMode] = React.useState<ViewMode>("list");
   // Newest-first by default — the freshest lead is the one worth calling now.
   const [sortBy, setSortBy] = React.useState<SortKey>("date");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
@@ -342,6 +438,35 @@ export function LeadsView() {
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [showImport, setShowImport] = React.useState(false);
   const [editingLead, setEditingLead] = React.useState<Lead | null>(null);
+
+  // "Assigned to me" is just the assignee filter pinned to the signed-in user, so it is folded in
+  // here rather than being a second, client-only pass the server knows nothing about.
+  const effectiveAssignee = mineOnly && myUserId ? myUserId : assigneeFilter;
+
+  const pageParams = {
+    page,
+    pageSize: PAGE_SIZE,
+    search: debouncedSearch || undefined,
+    status: statusFilter,
+    source: sourceFilter,
+    assignee: effectiveAssignee,
+    sortBy,
+    sortDesc: sortDir === "desc",
+  };
+
+  const { data: pageData, isLoading: listLoading, isFetching, isError, error, refetch } =
+    useLeadsPaged(pageParams);
+
+  const pageItems  = pageData?.items ?? [];
+  const totalCount = pageData?.totalCount ?? 0;
+  const totalPages = pageData?.totalPages ?? 1;
+
+  // Any filter change re-shapes the result, so staying on page 7 would land on an empty page.
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, sourceFilter, effectiveAssignee, sortBy, sortDir]);
+
+  const isLoading = viewMode === "kanban" ? allLoading : listLoading;
 
   const openEdit = (l: Lead) => { setDrawerOpen(false); setEditingLead(l); setShowAddForm(true); };
   const closeForm = () => { setShowAddForm(false); setEditingLead(null); };
@@ -356,9 +481,10 @@ export function LeadsView() {
     }
   }, [searchParams, setSearchParams]);
 
+  // Board only: the list is filtered and sorted in SQL.
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
-    return leads
+    return allLeads
       .filter(l => {
         const matchSearch = !search || [
           l.fullName,
@@ -368,6 +494,7 @@ export function LeadsView() {
           l.whatsApp,
           l.source,
           sourceLabel(l.source),
+          l.assignedTo,
         ].some(v => (v ?? "").toString().toLowerCase().includes(q));
         const matchStatus =
           statusFilter === "all"  ? true
@@ -375,17 +502,20 @@ export function LeadsView() {
           : l.status === statusFilter;
         const matchSource = sourceFilter === "all" || l.source === sourceFilter;
         const matchMine   = !mineOnly || l.assignedTo === currentUserName;
-        return matchSearch && matchStatus && matchSource && matchMine;
+        const matchAssignee =
+          assigneeFilter === "all"        ? true
+          : assigneeFilter === UNASSIGNED ? !l.assignedTo?.trim()
+          : assigneeKey(l) === assigneeFilter;
+        return matchSearch && matchStatus && matchSource && matchMine && matchAssignee;
       })
       .sort(makeLeadComparator(sortBy, sortDir));
-  }, [leads, search, statusFilter, sourceFilter, mineOnly, currentUserName, sortBy, sortDir]);
+  }, [allLeads, search, statusFilter, sourceFilter, assigneeFilter, mineOnly, currentUserName, sortBy, sortDir]);
 
-  const listLazy = useLazyList(filtered, 25);
 
   // ── Bulk filing to a team ────────────────────────────────────────────────
   // A record is only visible to a team lead once it is filed to a team they lead, so filing existing
   // records has to be possible in bulk. Selection + the bar are shared with Pipeline and Accounts.
-  const selection = useRowSelection(listLazy.visible.map(l => l.id));
+  const selection = useRowSelection(pageItems.map(l => l.id));
   const bulkFile = useBulkFileLeadsToTeam();
 
   const fileSelected = (teamId: string | null, assignToUserId: string | null) =>
@@ -393,7 +523,14 @@ export function LeadsView() {
 
   const openDrawer = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
 
-  const uniqueSources = [...new Set(leads.map(l => l.source))] as LeadSource[];
+  // Sources are a small fixed vocabulary, so listing them all beats deriving them from a page.
+  const uniqueSources = Object.keys(SOURCE_LABELS) as LeadSource[];
+
+  // The assignee list comes from the server-scoped assignable pool, not from the rows on screen:
+  // with only one page loaded, deriving it from the rows would offer whoever happens to be on this
+  // page and hide everyone else. That pool is already limited to who this caller may see, so it
+  // cannot name colleagues outside their scope either.
+  const { groups: assigneeGroups } = useAssignableByTeam();
 
   return (
     <div className="space-y-6">
@@ -413,7 +550,7 @@ export function LeadsView() {
           >
             <Users className="h-4 w-4" />{t("leads.assignedToMe")}
           </Button>
-          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} />
+          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} disabled={exporting} />
           <Can permission="crm.leads.create">
             <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setShowImport(true)}><UploadCloud className="h-4 w-4" />{t("leads.import")}</Button>
           </Can>
@@ -426,12 +563,12 @@ export function LeadsView() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {[
-          { label: t("leads.stat.totalLeads"), value: leadsSummary?.total ?? leads.length,               sub: t("leads.stat.allTime"),     icon: Users,      color: "text-primary bg-primary/10" },
-          { label: t("leads.stat.new"),        value: leadsSummary?.newThisWeek ?? leads.filter(l=>l.status==="new").length, sub: t("leads.stat.needsContact"), icon: Zap, color: "text-slate-600 bg-slate-100 dark:bg-slate-800/50" },
-          { label: t("leads.stat.qualified"),  value: leadsSummary?.qualified ?? leads.filter(l=>l.status==="qualified").length, sub: t("leads.stat.hotLeads"), icon: Target, color: "text-success bg-success/10" },
-          { label: t("leads.stat.contacted"),  value: leadsSummary?.contacted ?? leads.filter(l=>l.status==="contacted").length, sub: t("leads.stat.inFollowUp"), icon: TrendingUp, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
-          { label: t("leads.stat.converted"),  value: leadsSummary?.converted ?? leads.filter(l=>l.status==="converted").length, sub: t("leads.stat.toDeals"), icon: CheckCircle2, color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
-          { label: t("leads.stat.pipelineValue"), value: formatCurrency(leadsSummary?.totalEstimatedValue ?? leads.reduce((s,l)=>s+l.estimatedValue,0), currency), sub: t("leads.stat.estValue"), icon: DollarSign, color: "text-warning bg-warning/10" },
+          { label: t("leads.stat.totalLeads"), value: leadsSummary?.total ?? 0,sub: t("leads.stat.allTime"),     icon: Users,      color: "text-primary bg-primary/10" },
+          { label: t("leads.stat.new"),        value: leadsSummary?.newThisWeek ?? 0, sub: t("leads.stat.needsContact"), icon: Zap, color: "text-slate-600 bg-slate-100 dark:bg-slate-800/50" },
+          { label: t("leads.stat.qualified"),  value: leadsSummary?.qualified ?? 0, sub: t("leads.stat.hotLeads"), icon: Target, color: "text-success bg-success/10" },
+          { label: t("leads.stat.contacted"),  value: leadsSummary?.contacted ?? 0, sub: t("leads.stat.inFollowUp"), icon: TrendingUp, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/20" },
+          { label: t("leads.stat.converted"),  value: leadsSummary?.converted ?? 0, sub: t("leads.stat.toDeals"), icon: CheckCircle2, color: "text-violet-600 bg-violet-100 dark:bg-violet-900/20" },
+          { label: t("leads.stat.pipelineValue"), value: formatCurrency(leadsSummary?.totalEstimatedValue ?? 0, currency), sub: t("leads.stat.estValue"), icon: DollarSign, color: "text-warning bg-warning/10" },
         ].map((s, i) => (
           <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="card-hover">
@@ -469,6 +606,23 @@ export function LeadsView() {
             className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="all">{t("leads.allSources")}</option>
             {uniqueSources.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
+          </select>
+          {/* Assignee filter */}
+          <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
+            aria-label={t("leads.allAssignees")}
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="all">{t("leads.allAssignees")}</option>
+            <option value={UNASSIGNED}>{t("leads.unassigned")}</option>
+            {assigneeGroups.map(g => (
+              <optgroup key={g.team} label={g.team}>
+                {/* Keyed by team + user: a multi-team colleague appears under each of their teams,
+                    so a user id alone is not unique here. The VALUE is the user id either way —
+                    filtering by a person is the same question whichever team you picked them under. */}
+                {g.members.map(o => (
+                  <option key={g.team + "-" + o.id} value={o.id}>{o.fullName}</option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           {/* Sort field + direction */}
           <select value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)}
@@ -545,6 +699,7 @@ export function LeadsView() {
                       { k: "phone",    label: t("leads.table.phone") },
                       { k: "whatsapp", label: t("leads.table.whatsapp") },
                       { k: "source",   label: t("leads.table.source") },
+                      { k: "leadDate", label: t("leads.table.leadDate") },
                       { k: "estValue", label: t("leads.table.estValue") },
                       { k: "score",    label: t("leads.table.score") },
                       { k: "followup", label: t("leads.table.nextFollowUp") },
@@ -557,9 +712,24 @@ export function LeadsView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {listLazy.total === 0 ? (
+                  {/* Loading and failed are distinct from empty. Previously neither had a state of
+                      its own, so a slow request and a broken one both rendered "No leads found" —
+                      which is why a page that was still loading looked like a page with no data. */}
+                  {listLoading ? (
+                    <tr><td colSpan={11} className="text-center py-16">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
+                    </td></tr>
+                  ) : isError ? (
+                    <tr><td colSpan={11} className="text-center py-16 space-y-3">
+                      <p className="text-sm text-destructive">{t("leads.loadFailed")}</p>
+                      <p className="text-xs text-muted-foreground">{(error as Error)?.message}</p>
+                      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => refetch()}>
+                        {t("common:action.retry")}
+                      </Button>
+                    </td></tr>
+                  ) : pageItems.length === 0 ? (
                     <tr><td colSpan={11} className="text-center py-16 text-muted-foreground text-sm">{t("leads.empty")}</td></tr>
-                  ) : listLazy.visible.map((lead, i) => (
+                  ) : pageItems.map((lead, i) => (
                     <motion.tr key={lead.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(lead)}>
                       {/* stopPropagation: the row opens the drawer, so a tick must not also open it. */}
@@ -610,6 +780,7 @@ export function LeadsView() {
                         ) : <span className="text-sm text-muted-foreground">—</span>}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{sourceLabel(lead.source)}</td>
+                      <LeadDateCell lead={lead} />
                       <td className="px-4 py-3 font-semibold text-sm whitespace-nowrap">{formatCompactValue(lead.estimatedValue, currency)}</td>
                       <td className="px-4 py-3 min-w-[100px]"><ScoreBar score={lead.score} /></td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
@@ -641,13 +812,17 @@ export function LeadsView() {
                 </tbody>
               </table>
             </div>
-            {listLazy.hasMore && (
-              <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("common:action.loadMore")}</Button>
-              </div>
-            )}
-            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              {t("leads.showing", { shown: listLazy.shown, total: listLazy.total, rate: leadsSummary?.conversionRate ?? 0 })}
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              pageCount={pageItems.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+              isFetching={isFetching}
+            />
+            <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
+              {t("leads.conversionRate", { rate: leadsSummary?.conversionRate ?? 0 })}
             </div>
           </CardContent>
         </Card>

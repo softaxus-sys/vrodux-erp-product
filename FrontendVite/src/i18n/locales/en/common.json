@@ -87,6 +87,8 @@
   },
   "pagination": {
     "info": "Page {{page}} of {{totalPages}} ({{count}} {{label}})",
+    "range": "Showing {{from}}–{{to}} of {{total}}",
+    "goToPage": "Go to page {{page}}",
     "items": "items",
     "prev": "Prev",
     "next": "Next"

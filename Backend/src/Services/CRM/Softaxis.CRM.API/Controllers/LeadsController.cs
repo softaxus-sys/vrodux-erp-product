@@ -27,6 +27,29 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
         return OkOrError(result);
     }
 
+    /// <summary>
+    /// The list screen. Filtering, sorting and paging run in SQL — see <c>GetLeadsPagedQuery</c>
+    /// for why the unpaged sibling below is not used here.
+    /// </summary>
+    [HttpGet("paged")]
+    [RequireAnyPermission(ViewAny, ViewTeam, ViewAssigned)]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? source = null,
+        [FromQuery] string? assignee = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool sortDesc = true,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(
+            new GetLeadsPagedQuery(page, pageSize, search, status, source, assignee, sortBy, sortDesc), ct);
+        return OkOrError(result);
+    }
+
+    /// <summary>Every lead the caller can see. Used by the board view and exports.</summary>
     [HttpGet]
     [RequireAnyPermission(ViewAny, ViewTeam, ViewAssigned)]
     public async Task<IActionResult> GetAll(CancellationToken ct)

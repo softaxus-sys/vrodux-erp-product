@@ -120,6 +120,29 @@ public sealed class User : AuditableEntity<Guid>
         UpdatedAt   = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Moves the account to a new address. Email IS the login identity here — sign-in resolves an
+    /// account by address alone — so the caller must have checked platform-wide uniqueness first.
+    /// <paramref name="requireVerification"/> leaves the account unverified (and so unable to sign
+    /// in until the new address is confirmed); an administrator making the change vouches for it
+    /// instead, the same reasoning ProvisionUser uses when it verifies a login up front.
+    /// </summary>
+    public void ChangeEmail(Email newEmail, bool requireVerification)
+    {
+        Email     = newEmail;
+        UpdatedAt = DateTime.UtcNow;
+
+        // Any token outstanding was issued against the OLD address — it must not confirm the new one.
+        EmailVerificationTokenHash   = null;
+        EmailVerificationTokenExpiry = null;
+
+        if (requireVerification)
+        {
+            EmailVerified = false;
+            Status        = UserStatus.PendingVerification;
+        }
+    }
+
     /// <summary>Marks the current password as temporary — the user must replace it at next login.</summary>
     public void RequirePasswordChange() { MustChangePassword = true; UpdatedAt = DateTime.UtcNow; }
 
@@ -137,6 +160,22 @@ public sealed class User : AuditableEntity<Guid>
         EmailVerified = true;
         Status        = UserStatus.Active;
         UpdatedAt     = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// A completed password reset proves the person reads mail at this address — the same thing
+    /// email verification proves — so it confirms the address. Deliberately narrower than
+    /// <see cref="VerifyEmail"/>: it promotes an account that was only PendingVerification, and
+    /// leaves Inactive or Locked exactly as it found them, so resetting a password can never
+    /// quietly re-enable an account an administrator disabled.
+    /// </summary>
+    public void ConfirmEmailViaPasswordReset()
+    {
+        EmailVerified = true;
+        EmailVerificationTokenHash   = null;
+        EmailVerificationTokenExpiry = null;
+        if (Status == UserStatus.PendingVerification) Status = UserStatus.Active;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void RecordLoginSuccess()
@@ -214,10 +253,21 @@ public sealed class User : AuditableEntity<Guid>
         UpdatedAt                = DateTime.UtcNow;
     }
 
-    public bool IsPasswordResetTokenValid(string tokenHash) =>
-        PasswordResetTokenHash == tokenHash &&
-        PasswordResetTokenExpiry.HasValue &&
-        PasswordResetTokenExpiry > DateTime.UtcNow;
+    /// <summary>
+    /// Compared in fixed time: ordinary string equality returns as soon as two characters differ,
+    /// which leaks how much of a guess was correct. The comparison is on the stored HASH, and a
+    /// hash only ever matches the account it was written to — a token issued for one user can
+    /// never validate against another.
+    /// </summary>
+    public bool IsPasswordResetTokenValid(string tokenHash)
+    {
+        if (string.IsNullOrEmpty(PasswordResetTokenHash) || string.IsNullOrEmpty(tokenHash)) return false;
+        if (!PasswordResetTokenExpiry.HasValue || PasswordResetTokenExpiry <= DateTime.UtcNow) return false;
+
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(PasswordResetTokenHash),
+            System.Text.Encoding.UTF8.GetBytes(tokenHash));
+    }
 
     // ── Email verification ────────────────────────────────────────────────────
 

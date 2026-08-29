@@ -1,12 +1,13 @@
 ﻿import * as React from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, User, Lock, Shield, Camera } from "lucide-react";
+import { Loader2, User, Lock, Shield, Camera, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/lib/identity/auth.api";
+import { ChangeEmailForm } from "@/modules/settings/users/components/change-email-form";
 
 type Tab = "profile" | "security";
 
@@ -127,6 +128,9 @@ function ProfileInfoTab() {
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</label>
           <Input value={me?.email ?? ""} disabled className="h-9 text-sm opacity-60" />
+          {/* Email is the sign-in identity, so it changes under Security with the password check,
+              not as part of an ordinary profile save. */}
+          <p className="text-[11px] text-muted-foreground">Change it under the Security tab.</p>
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
@@ -161,6 +165,8 @@ function RoleBadge() {
 
 function SecurityTab() {
   const { logout } = useAuthStore();
+  const myUserId   = useAuthStore(state => state.user?.id);
+  const myEmail    = useAuthStore(state => state.user?.email);
   const [current, setCurrent]     = React.useState("");
   const [newPass, setNewPass]     = React.useState("");
   const [confirm, setConfirm]     = React.useState("");
@@ -207,6 +213,26 @@ function SecurityTab() {
             {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Changing…</> : "Change Password"}
           </Button>
         </div>
+      </div>
+
+      {/* Change sign-in email */}
+      <div className="bg-card border border-border rounded-2xl p-6 space-y-4">
+        <h2 className="text-sm font-bold flex items-center gap-2">
+          <Mail className="w-4 h-4 text-primary" /> Change Email
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          You sign in with <span className="font-medium text-foreground">{myEmail}</span>.
+        </p>
+        {myUserId && myEmail && (
+          <ChangeEmailForm
+            userId={myUserId}
+            currentEmail={myEmail}
+            isSelf
+            // The server revokes every session and holds the account until the new address is
+            // verified, so staying on a dead session would just fail on the next request.
+            onChanged={() => setTimeout(() => logout(), 2500)}
+          />
+        )}
       </div>
 
       {/* Permissions (read-only) */}

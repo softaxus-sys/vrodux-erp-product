@@ -16,7 +16,10 @@ import {
 import { useRoles } from "@/hooks/identity/use-roles";
 import type { UserSummaryDto, UserDto } from "@/lib/identity/types";
 import { UserPermissionsTab } from "./user-permissions-tab";
-import { Can } from "@/components/auth/can";
+import { Can, useCan } from "@/components/auth/can";
+import { useAuthStore } from "@/store/auth.store";
+import { ChangeEmailForm } from "./change-email-form";
+import { Pagination } from "@/components/ui/pagination";
 
 // ── Local role/status config ──────────────────────────────────────────────────
 
@@ -58,8 +61,8 @@ function RoleBadge({ roleName }: { roleName: string }) {
   );
 }
 
-function StatCard({ label, value, icon: Icon, color }: {
-  label: string; value: number; icon: React.ElementType; color: string;
+function StatCard({ label, value, icon: Icon, color, hint }: {
+  label: string; value: number; icon: React.ElementType; color: string; hint?: string;
 }) {
   return (
     <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
@@ -69,6 +72,7 @@ function StatCard({ label, value, icon: Icon, color }: {
       <div>
         <p className="text-2xl font-bold">{value}</p>
         <p className="text-xs text-muted-foreground">{label}</p>
+        {hint && <p className="text-[10px] text-muted-foreground/70">{hint}</p>}
       </div>
     </div>
   );
@@ -484,6 +488,12 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
   const updateUser = useUpdateUser(user.id);
+  const myUserId   = useAuthStore(state => state.user?.id);
+  const isSelf     = myUserId === user.id;
+  // Anyone may change their own address; changing someone else's is a user-administration action.
+  // Mirrors the same test the server makes, so the control is not offered where it would 403.
+  const canEditEmail = useCan("settings.users.edit") || isSelf;
+  const [editingEmail, setEditingEmail] = React.useState(false);
   const [form, setForm] = React.useState({
     firstName:   user.firstName   ?? "",
     lastName:    user.lastName    ?? "",
@@ -523,10 +533,31 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
             </button>
           </div>
           <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-            {/* Email (read-only) */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
-              <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
-              <span className="text-sm text-muted-foreground">{user.email}</span>
+            {/* Sign-in email — editable only for a user administrator */}
+            <div className="rounded-lg bg-muted/40 border border-border">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground truncate flex-1">{user.email}</span>
+                {canEditEmail && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingEmail(v => !v)}
+                    className="text-xs font-semibold text-primary hover:underline shrink-0"
+                  >
+                    {editingEmail ? tc("action.cancel") : t("users.changeEmail.action")}
+                  </button>
+                )}
+              </div>
+              {editingEmail && (
+                <div className="px-3 pb-3 pt-1 border-t border-border">
+                  <ChangeEmailForm
+                    userId={user.id}
+                    currentEmail={user.email}
+                    isSelf={isSelf}
+                    onChanged={() => setEditingEmail(false)}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -585,12 +616,15 @@ function EditUserModal({ user, onClose }: { user: UserDto; onClose: () => void }
 
 // ── Main view ─────────────────────────────────────────────────────────────────
 
+const PAGE_SIZE = 20;
+
 export function UsersView() {
   const { t } = useTranslation("settings");
   const { t: tc } = useTranslation("common");
   const [search, setSearch]               = React.useState("");
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [page, setPage]                   = React.useState(1);
+  const listTopRef                        = React.useRef<HTMLDivElement>(null);
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null);
   const [editUser, setEditUser]           = React.useState<UserDto | null>(null);
   const [deleteTarget, setDeleteTarget]   = React.useState<UserDto | null>(null);
@@ -606,9 +640,15 @@ export function UsersView() {
 
   React.useEffect(() => { setPage(1); }, [debouncedSearch]);
 
+  // Bring the top of the list into view after a page change — otherwise the
+  // user stays scrolled at the pagination bar and lands mid-way down page 2.
+  React.useEffect(() => {
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [page]);
+
   const { data, isLoading, isError, refetch, isFetching } = useUsers({
     page,
-    pageSize: 20,
+    pageSize: PAGE_SIZE,
     search: debouncedSearch || undefined,
   });
 
@@ -656,9 +696,9 @@ export function UsersView() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label={t("users.statTotal")}     value={stats.total}     icon={Users}     color="bg-primary/10 text-primary" />
-        <StatCard label={t("users.statActive")}    value={stats.active}    icon={UserCheck} color="bg-success/10 text-success" />
-        <StatCard label={t("users.statInactive")}  value={stats.inactive}  icon={UserX}     color="bg-muted text-muted-foreground" />
-        <StatCard label={t("users.statWithRoles")} value={stats.withRoles} icon={Shield}    color="bg-destructive/10 text-destructive" />
+        <StatCard label={t("users.statActive")}    value={stats.active}    icon={UserCheck} color="bg-success/10 text-success" hint={t("users.statOnThisPage")} />
+        <StatCard label={t("users.statInactive")}  value={stats.inactive}  icon={UserX}     color="bg-muted text-muted-foreground" hint={t("users.statOnThisPage")} />
+        <StatCard label={t("users.statWithRoles")} value={stats.withRoles} icon={Shield}    color="bg-destructive/10 text-destructive" hint={t("users.statOnThisPage")} />
       </div>
 
       {/* Search */}
@@ -675,7 +715,7 @@ export function UsersView() {
       </div>
 
       {/* Table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div ref={listTopRef} className="bg-card border border-border rounded-xl overflow-hidden scroll-mt-20">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -760,28 +800,16 @@ export function UsersView() {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              {t("users.showing", { shown: users.length, total: totalCount })}
-            </p>
-            <div className="flex gap-1.5">
-              <Button
-                variant="outline" size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-              >
-                {tc("action.previous")}
-              </Button>
-              <Button
-                variant="outline" size="sm"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages}
-              >
-                {tc("action.next")}
-              </Button>
-            </div>
-          </div>
+        {!isLoading && !isError && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            pageCount={users.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            isFetching={isFetching}
+          />
         )}
       </div>
 

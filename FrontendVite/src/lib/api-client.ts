@@ -215,7 +215,14 @@ async function rawRequest<T>(
 
   if (res.status === 204) return undefined as T;
 
-  const body = await res.json().catch(() => null);
+  // `parsed: false` distinguishes "the body was literally null" from "the body could not be
+  // parsed". They were indistinguishable before, so a 200 whose body was cut short — a slow, large
+  // response through a proxy — resolved as null, sailed past every `data = []` default (those only
+  // fire for undefined) and crashed the caller on the first property access.
+  const { body, parsed } = await res
+    .json()
+    .then(b => ({ body: b, parsed: true }))
+    .catch(() => ({ body: null, parsed: false }));
 
   if (!res.ok) {
     // ExceptionHandlingMiddleware uses `detail`; FinanceControllerBase uses `description`; fallback `message`
@@ -228,6 +235,11 @@ async function rawRequest<T>(
       `HTTP ${res.status}`;
     const code = (b?.code as string | undefined) ?? null;
     throw new ApiError(res.status, code, msg);
+  }
+
+  if (!parsed) {
+    throw new ApiError(res.status, "Response.Unreadable",
+      "The server's response could not be read — it may have been cut short. Please try again.");
   }
 
   return body as T;

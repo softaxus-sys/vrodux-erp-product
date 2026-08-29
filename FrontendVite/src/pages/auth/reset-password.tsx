@@ -82,7 +82,9 @@ export default function ResetPasswordPage() {
       await authApi.resetPassword(email, token, data.newPassword);
       setDone(true);
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : t("shared.genericError");
+      const msg = err instanceof ApiError
+        ? (err.statusCode === 429 ? t("forgot.throttled") : err.message)
+        : t("shared.genericError");
       toast.error(msg);
     }
   };

@@ -76,8 +76,9 @@ export default function ForgotPasswordPage() {
       setSentEmail(data.email);
       setSent(true);
     } catch (err) {
+      // 429 arrives with an empty body, so the raw message would read "Too Many Requests".
       const msg = err instanceof ApiError
-        ? err.message
+        ? (err.statusCode === 429 ? t("forgot.throttled") : err.message)
         : t("shared.genericError");
       setSubmitError(msg);
     }

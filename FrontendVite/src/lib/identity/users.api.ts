@@ -27,6 +27,21 @@ export interface UpdateUserPayload {
   avatarUrl?: string | null;
 }
 
+export interface ChangeEmailPayload {
+  newEmail: string;
+  /** Required only when changing your OWN address — the server rejects a self-change without it. */
+  currentPassword?: string;
+}
+
+export interface ChangeEmailResultDto {
+  userId: string;
+  email: string;
+  /** The account is unverified and cannot sign in until the new address is confirmed. */
+  requiresVerification: boolean;
+  notificationSent: boolean;
+  notificationError?: string | null;
+}
+
 export const usersApi = {
   getAll: (params: GetUsersParams = {}): Promise<PagedResult<UserSummaryDto>> => {
     const qs = new URLSearchParams();
@@ -61,6 +76,13 @@ export const usersApi = {
 
   update: (id: string, payload: UpdateUserPayload): Promise<UserDto> =>
     apiClient.put<UserDto>(`${BASE}/${id}`, payload),
+
+  /**
+   * Move an account to a different sign-in address. Self-service (pass currentPassword) or, for
+   * a holder of settings.users.edit, on another user's behalf.
+   */
+  changeEmail: (id: string, payload: ChangeEmailPayload): Promise<ChangeEmailResultDto> =>
+    apiClient.put<ChangeEmailResultDto>(`${BASE}/${id}/email`, payload),
 
   delete: (id: string): Promise<void> =>
     apiClient.delete<void>(`${BASE}/${id}`),

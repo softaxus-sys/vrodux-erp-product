@@ -805,6 +805,18 @@
     "roleCount_one": "{{count}} role",
     "roleCount_other": "{{count}} roles",
     "showing": "Showing {{shown}} of {{total}} users",
+    "statOnThisPage": "on this page",
+    "changeEmail": {
+      "action": "Change",
+      "newLabel": "New email address",
+      "newPlaceholder": "name@company.com",
+      "same": "That is already the current address.",
+      "passwordLabel": "Your current password",
+      "passwordPlaceholder": "Confirm it is you",
+      "submit": "Change email",
+      "warnSelf": "You will be signed out everywhere, and you must click the link sent to the new address before you can sign in again. A notice goes to your old address.",
+      "warnOther": "They will sign in with the new address and be signed out on every device. A notice goes to their old address. The address must not already have a Vrodux login."
+    },
     "tabProfile": "Profile",
     "tabPermissions": "Permissions",
     "username": "Username",

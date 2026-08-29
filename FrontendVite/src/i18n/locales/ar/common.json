@@ -87,6 +87,8 @@
   },
   "pagination": {
     "info": "الصفحة {{page}} من {{totalPages}} ({{count}} {{label}})",
+    "range": "عرض {{from}}–{{to}} من {{total}}",
+    "goToPage": "الانتقال إلى الصفحة {{page}}",
     "items": "عناصر",
     "prev": "السابق",
     "next": "التالي"

@@ -32,4 +32,11 @@ public interface IEmailService
     /// <returns>True when the message was actually dispatched; false when SMTP is not configured,
     /// so the caller can fall back to handing over a temporary password instead.</returns>
     Task<bool> SendEmployeeInviteEmailAsync(string toEmail, string toName, string workspaceName, string setPasswordToken, CancellationToken ct = default);
+
+    /// <summary>
+    /// Tell the OLD address that the account has moved to a new one. The standard safeguard: if
+    /// someone else made the change, the real owner finds out at the address they still control.
+    /// </summary>
+    /// <returns>True when the message was actually dispatched; false when SMTP is not configured.</returns>
+    Task<bool> SendEmailChangedNoticeAsync(string oldEmail, string toName, string newEmail, string workspaceName, CancellationToken ct = default);
 }
