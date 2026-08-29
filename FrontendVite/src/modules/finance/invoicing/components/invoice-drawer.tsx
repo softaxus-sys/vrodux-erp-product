@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { InvoiceStatusBadge } from "./invoice-status-badge";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
+import { InvoiceQuotationsPanel } from "./invoice-quotations-panel";
 import type { InvoiceDto as Invoice } from "@/lib/finance/finance.api";
 import {
   useCreateInvoice, useUpdateInvoice,
@@ -427,6 +428,9 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
             </div>
           </div>
         </div>
+
+        {/* Quotations this invoice was raised from. Renders nothing for tenants without Sales. */}
+        <InvoiceQuotationsPanel invoiceId={invoice.id} invoiceNumber={invoice.invoiceNumber} />
       </div>
 
       {/* Cancel confirmation modal */}
