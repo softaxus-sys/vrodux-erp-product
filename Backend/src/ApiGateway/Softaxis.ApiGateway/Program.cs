@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.DataProtection;
@@ -221,6 +222,40 @@ try
             .AllowAnyMethod());
     });
 
+    // ── Rate limiting ─────────────────────────────────────────────────────────
+    // The gateway is the real host in every deployment (it loads each service's controllers via
+    // AddApplicationPart), but it never configured a rate limiter — so the [EnableRateLimiting]
+    // attributes on Identity's forgot-password and trial endpoints, added precisely to stop
+    // enumeration and signup abuse, have been inert here. Registering the limiter activates
+    // those as intended and lets the anonymous public-quotation link be protected too.
+    //
+    // Every policy an [EnableRateLimiting] attribute anywhere in the solution names must be
+    // defined here, or the endpoint throws at request time.
+    builder.Services.AddRateLimiter(rl =>
+    {
+        rl.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        static RateLimitPartition<string> PerIp(HttpContext ctx, int permits, int seconds) =>
+            RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                factory: _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit          = permits,
+                    Window               = TimeSpan.FromSeconds(seconds),
+                    SegmentsPerWindow    = 5,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit           = 0,
+                });
+
+        rl.AddPolicy("trial_challenge",  ctx => PerIp(ctx, 5,  60));
+        rl.AddPolicy("trial_register",   ctx => PerIp(ctx, 3,  300));
+        rl.AddPolicy("forgot_password",  ctx => PerIp(ctx, 5,  300));
+        // The public quotation link is addressed purely by a secret in the URL, so it is the one
+        // anonymous surface worth brute-forcing. Generous enough for a customer reloading and
+        // re-reading their quotation, far too slow to walk the token space.
+        rl.AddPolicy("public_quotation", ctx => PerIp(ctx, 60, 60));
+    });
+
     // ─────────────────────────────────────────────────────────────────────────
     var app = builder.Build();
     // ─────────────────────────────────────────────────────────────────────────
@@ -279,6 +314,7 @@ try
     });
 
     app.UseCors("AllowFrontend");
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseMiddleware<TenantContextMiddleware>();           // resolve tenant + modules from JWT
     app.UseMiddleware<TenantAmbientMiddleware>();           // publish tenant to AsyncLocal for DB isolation

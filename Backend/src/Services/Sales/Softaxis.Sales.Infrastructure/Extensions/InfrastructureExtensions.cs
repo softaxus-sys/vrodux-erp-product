@@ -8,7 +8,9 @@ using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.Sales.Application.DeliveryChallans.Commands;
 using Softaxis.Sales.Infrastructure.Handlers.DeliveryChallans;
 using Softaxis.Sales.Infrastructure.Persistence;
+using Softaxis.Sales.Application.Abstractions;
 using Softaxis.Sales.Infrastructure.Persistence.Seed;
+using Softaxis.Sales.Infrastructure.Services;
 
 namespace Softaxis.Sales.Infrastructure.Extensions;
 
@@ -36,6 +38,14 @@ public static class InfrastructureExtensions
 
         // ── FluentValidation — register all validators from Application ───────
         services.AddValidatorsFromAssembly(typeof(CreateDeliveryChallanCommand).Assembly);
+
+        // ── Quotation document services ──────────────────────────────────────
+        // Branding is scoped: it reads through the request's DbContext. The link builder and the
+        // email sender are stateless and read configuration only.
+        services.AddMemoryCache();
+        services.AddSingleton<IPublicLinkBuilder, PublicLinkBuilder>();
+        services.AddSingleton<IQuotationEmailSender, SmtpQuotationEmailSender>();
+        services.AddScoped<IQuotationBrandingProvider, QuotationBrandingProvider>();
 
         return services;
     }

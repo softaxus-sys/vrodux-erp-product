@@ -10,8 +10,11 @@ public sealed class SalesDbContext(DbContextOptions<SalesDbContext> options)
     public DbSet<Customer>          Customers          => Set<Customer>();
     public DbSet<SalesOrder>        SalesOrders        => Set<SalesOrder>();
     public DbSet<SalesOrderItem>    SalesOrderItems    => Set<SalesOrderItem>();
-    public DbSet<SalesQuotation>    SalesQuotations    => Set<SalesQuotation>();
-    public DbSet<SalesQuotationItem> SalesQuotationItems => Set<SalesQuotationItem>();
+    public DbSet<SalesQuotation>        SalesQuotations        => Set<SalesQuotation>();
+    public DbSet<SalesQuotationItem>    SalesQuotationItems    => Set<SalesQuotationItem>();
+    public DbSet<SalesQuotationSection> SalesQuotationSections => Set<SalesQuotationSection>();
+    public DbSet<QuotationTemplate>     QuotationTemplates     => Set<QuotationTemplate>();
+    public DbSet<QuotationTemplateItem> QuotationTemplateItems => Set<QuotationTemplateItem>();
     public DbSet<SalesReturn>       SalesReturns       => Set<SalesReturn>();
     public DbSet<SalesReturnItem>   SalesReturnItems   => Set<SalesReturnItem>();
     public DbSet<DeliveryChallan>     DeliveryChallans     => Set<DeliveryChallan>();
