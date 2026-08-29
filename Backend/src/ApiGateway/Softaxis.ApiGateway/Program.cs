@@ -6,8 +6,10 @@ using Serilog;
 using Softaxis.ApiGateway.Middleware;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.BuildingBlocks.Infrastructure.Middleware;
+using Softaxis.Identity.API.Extensions;
 using Softaxis.Identity.API.Middleware;
 using Softaxis.Identity.Infrastructure.Extensions;
+using Softaxis.Identity.Infrastructure.Services;
 using Softaxis.Inventory.Infrastructure.Extensions;
 using Softaxis.Purchase.Infrastructure.Extensions;
 using Softaxis.Sales.Infrastructure.Extensions;
@@ -201,6 +203,12 @@ try
     builder.Services.AddAuthorization();
     builder.Services.AddOpenApi();
 
+    // ── Rate limiting ─────────────────────────────────────────────────────────
+    // The anonymous auth endpoints carry [EnableRateLimiting] attributes, and this host serves
+    // them via AddApplicationPart. Without the limiter registered here those attributes did
+    // nothing at all in the deployed product.
+    builder.Services.AddAuthRateLimiting();
+
     // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>
     {
@@ -223,6 +231,47 @@ try
 
     // ─────────────────────────────────────────────────────────────────────────
     var app = builder.Build();
+
+    // Every emailed link — password reset, email verification, employee invite — is built from
+    // FrontendUrl. The shipped default is a dev Vite port, so an install that never overrides it
+    // sends links nobody outside the server can open, and the only symptom is users reporting that
+    // password reset "does not work". Say so at startup rather than letting it fail silently.
+    // Password resets, verification and invites all depend on SMTP. Host and username live in
+    // appsettings.json while the password is supplied per environment, so a host started without
+    // that environment file looks configured and fails at authentication on every send — with the
+    // failure caught and logged, and nothing at all on screen. Say which piece is missing, once,
+    // at startup, where it is actually findable.
+    {
+        // Counts a placeholder ("__SET_SMTP_PASSWORD_VIA_ENV_OR_DEV_SETTINGS__") as missing, which is
+        // the case that actually bites: the value is present, so an empty-check passes, and every
+        // send then fails authentication.
+        var missing = SmtpConfiguration.MissingKeys(app.Configuration);
+
+        if (missing.Length == 3)
+            Log.Warning("Email is not configured — password reset, verification and invite links will " +
+                        "be written to this log instead of being sent. Environment: {Environment}.",
+                        app.Environment.EnvironmentName);
+        else if (missing.Length > 0)
+            Log.Warning("Email is only PARTLY configured — missing {Missing}. No mail can be sent. " +
+                        "Environment is {Environment}; check the appsettings file for it, or set the " +
+                        "Email__{First} environment variable.",
+                        string.Join(", ", missing), app.Environment.EnvironmentName, missing[0]);
+    }
+
+    if (!app.Environment.IsDevelopment())
+    {
+        var frontendUrl = app.Configuration["FrontendUrl"];
+        if (string.IsNullOrWhiteSpace(frontendUrl)
+            || frontendUrl.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+            || frontendUrl.Contains("127.0.0.1", StringComparison.Ordinal))
+        {
+            Log.Warning(
+                "FrontendUrl is {FrontendUrl} — password-reset, verification and invite links will " +
+                "point there and will not open for users. Set FrontendUrl in appsettings.json (or the " +
+                "FrontendUrl environment variable) to the address staff actually use.",
+                frontendUrl ?? "(not set)");
+        }
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── Auto-migrate all 5 DbContexts on startup (dev / Docker) ──────────────
@@ -279,6 +328,7 @@ try
     });
 
     app.UseCors("AllowFrontend");
+    app.UseRateLimiter();
     app.UseAuthentication();
     app.UseMiddleware<TenantContextMiddleware>();           // resolve tenant + modules from JWT
     app.UseMiddleware<TenantAmbientMiddleware>();           // publish tenant to AsyncLocal for DB isolation

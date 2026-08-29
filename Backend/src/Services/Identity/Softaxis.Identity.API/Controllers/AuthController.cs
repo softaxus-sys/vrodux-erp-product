@@ -91,6 +91,7 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
     /// <summary>Reset password using the token from the reset email.</summary>
     [HttpPost("reset-password")]
     [AllowAnonymous]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(Extensions.AuthRateLimitPolicies.ResetPassword)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req, CancellationToken ct)
     {
         var result = await Sender.Send(new ResetPasswordCommand(req.Email, req.Token, req.NewPassword), ct);

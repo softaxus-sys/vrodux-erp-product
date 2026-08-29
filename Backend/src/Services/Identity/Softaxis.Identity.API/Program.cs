@@ -6,6 +6,7 @@ using Scalar.AspNetCore;
 using Serilog;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.BuildingBlocks.Infrastructure.Middleware;
+using Softaxis.Identity.API.Extensions;
 using Softaxis.Identity.API.Middleware;
 // TenantContextMiddleware is in the same namespace — no additional using needed
 using Softaxis.Identity.Application.Abstractions;
@@ -69,49 +70,8 @@ try
     builder.Services.AddMemoryCache(opts => opts.SizeLimit = 50_000);
 
     // ── Rate limiting ─────────────────────────────────────────────────────
-    // trial_challenge:  5 req / IP / 60 s  — prevents bulk token harvesting
-    // trial_register:   3 req / IP / 300 s — stops automated sign-up abuse
-    // forgot_password:  5 req / IP / 300 s — prevents email spam / enumeration
-    builder.Services.AddRateLimiter(rl =>
-    {
-        rl.RejectionStatusCode = 429;
-
-        rl.AddPolicy("trial_challenge", ctx =>
-            RateLimitPartition.GetSlidingWindowLimiter(
-                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                factory: _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit          = 5,
-                    Window               = TimeSpan.FromSeconds(60),
-                    SegmentsPerWindow    = 6,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit           = 0,
-                }));
-
-        rl.AddPolicy("trial_register", ctx =>
-            RateLimitPartition.GetSlidingWindowLimiter(
-                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                factory: _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit          = 3,
-                    Window               = TimeSpan.FromSeconds(300),
-                    SegmentsPerWindow    = 5,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit           = 0,
-                }));
-
-        rl.AddPolicy("forgot_password", ctx =>
-            RateLimitPartition.GetSlidingWindowLimiter(
-                partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                factory: _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit          = 5,
-                    Window               = TimeSpan.FromSeconds(300),
-                    SegmentsPerWindow    = 5,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                    QueueLimit           = 0,
-                }));
-    });
+    // Shared with the ApiGateway, which serves these same controllers in production.
+    builder.Services.AddAuthRateLimiting();
 
     // ── CORS ──────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>
