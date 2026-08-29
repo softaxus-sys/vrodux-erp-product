@@ -13,6 +13,7 @@ import { useReturns, useReturnsSummary } from "@/hooks/sales/use-returns";
 import { ReturnDrawer } from "./return-drawer";
 import { AddReturnForm } from "./add-return-form";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
 const STATUS_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
 const STATUS_STYLES: Record<string, { color: string; bg: string; dot: string }> = {
@@ -24,6 +25,7 @@ const STATUS_STYLES: Record<string, { color: string; bg: string; dot: string }> 
 };
 
 function StatCard({ card, index }: { card: { label: string; value: number; icon: React.ElementType; color: string; bg: string; format: string }; index: number }) {
+  const currency = useCurrency();
   const Icon = card.icon;
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -36,7 +38,7 @@ function StatCard({ card, index }: { card: { label: string; value: number; icon:
         <p className="text-xs text-muted-foreground truncate">{card.label}</p>
         <p className="font-bold text-lg leading-tight">
           {card.format === "currency"
-            ? formatCurrency(card.value as number, "AED")
+            ? formatCurrency(card.value as number, currency)
             : card.value}
         </p>
       </div>
@@ -45,6 +47,7 @@ function StatCard({ card, index }: { card: { label: string; value: number; icon:
 }
 
 export function ReturnsView() {
+  const currency = useCurrency();
   const { t } = useTranslation("sales");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<ReturnStatus | "all">("all");
@@ -171,7 +174,7 @@ export function ReturnsView() {
                     </div>
                   </td>
                   <td className="px-4 py-3.5 text-right">
-                    <span className="font-semibold text-sm">{formatCurrency(r.refundAmount, r.currency)}</span>
+                    <span className="font-semibold text-sm">{formatCurrency(r.refundAmount, r.currency || currency)}</span>
                     {r.refundMethod && <p className="text-[10px] text-muted-foreground capitalize mt-0.5">{r.refundMethod.replace("_", " ")}</p>}
                   </td>
                   <td className="px-4 py-3.5 text-center">

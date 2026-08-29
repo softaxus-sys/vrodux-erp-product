@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Finance.Domain.Entities;
 
 public sealed class ReceiptVoucher
@@ -38,7 +40,7 @@ public sealed class ReceiptVoucher
     public Guid?     BankAccountId { get; private set; }
     public string?   Reference     { get; private set; }
     public string?   Notes         { get; private set; }
-    public string    CurrencyCode  { get; private set; } = "AED";
+    public string    CurrencyCode  { get; private set; } = TenantCurrency.Resolve();
     public string    Status        { get; private set; } = "draft";
     public DateTime? PostedAt      { get; private set; }
     public DateTime  CreatedAt     { get; private set; }

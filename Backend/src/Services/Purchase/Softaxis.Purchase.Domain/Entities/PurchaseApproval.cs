@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Purchase.Domain.Entities;
 
 public sealed class PurchaseApproval
@@ -26,7 +28,7 @@ public sealed class PurchaseApproval
     public string    Category         { get; private set; } = string.Empty;
     public string?   VendorSuggestion { get; private set; }
     public decimal   TotalAmount      { get; private set; }
-    public string    Currency         { get; private set; } = "AED";
+    public string    Currency         { get; private set; } = TenantCurrency.Resolve();
     public string    Justification    { get; private set; } = string.Empty;
     public string?   ApprovedBy       { get; private set; }
     public string?   ApprovedDate     { get; private set; }

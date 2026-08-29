@@ -123,7 +123,7 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
             {/* Quick metrics */}
             <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
               {[
-                { label: t("customerDrawer.totalRevenue"), value: formatCurrency(customer.totalRevenue, customer.currency), sub: t("customerDrawer.lifetime") },
+                { label: t("customerDrawer.totalRevenue"), value: formatCurrency(customer.totalRevenue, customer.currency || currency), sub: t("customerDrawer.lifetime") },
                 { label: t("customerDrawer.openDeals"),   value: customer.openDeals, sub: t("customerDrawer.active") },
                 { label: t("customerDrawer.customerSince"), value: new Date(customer.since).getFullYear(), sub: formatDate(customer.since, "medium") },
               ].map(m => (

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatCurrency, getInitials } from "@/lib/utils";
 import { Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface Performer {
   name: string;
@@ -13,6 +14,7 @@ interface Performer {
 }
 
 export function TopPerformers({ performers }: { performers: Performer[] }) {
+  const currency = useCurrency();
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -51,7 +53,7 @@ export function TopPerformers({ performers }: { performers: Performer[] }) {
               <p className="text-[10px] text-muted-foreground">{person.deals} deals</p>
             </div>
             <span className="text-xs font-bold text-success">
-              {formatCurrency(person.revenue, "AED")}
+              {formatCurrency(person.revenue, currency)}
             </span>
           </div>
         ))}

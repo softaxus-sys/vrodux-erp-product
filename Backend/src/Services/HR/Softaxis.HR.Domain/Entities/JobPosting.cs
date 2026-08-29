@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.HR.Domain.Entities;
 
 public sealed class JobPosting
@@ -51,7 +53,7 @@ public sealed class JobPosting
     public int       Headcount            { get; private set; }
     public decimal   SalaryMin            { get; private set; }
     public decimal   SalaryMax            { get; private set; }
-    public string    Currency             { get; private set; } = "AED";
+    public string    Currency             { get; private set; } = TenantCurrency.Resolve();
     public string    Status               { get; private set; } = "draft";
     public string    PostedDate           { get; private set; } = string.Empty;
     public string?   ClosingDate          { get; private set; }

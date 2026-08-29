@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Finance.Domain.Entities;
 
 public sealed class BankAccount
@@ -26,7 +28,7 @@ public sealed class BankAccount
     public string    BankName         { get; private set; } = string.Empty;
     public string    AccountNumber    { get; private set; } = string.Empty;
     public string    Iban             { get; private set; } = string.Empty;
-    public string    Currency         { get; private set; } = "AED";
+    public string    Currency         { get; private set; } = TenantCurrency.Resolve();
     public decimal   Balance          { get; private set; }
     public decimal   AvailableBalance { get; private set; }
     public string    Status           { get; private set; } = "active";

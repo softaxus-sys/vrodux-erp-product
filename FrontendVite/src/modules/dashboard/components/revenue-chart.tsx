@@ -12,15 +12,17 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { useRevenueChart } from "@/hooks/dashboard/use-dashboard";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
+  const currency = useCurrency();
   if (active && payload?.length) {
     return (
       <div className="bg-card border border-border rounded-lg shadow-enterprise-md p-3 text-sm">
         <p className="font-semibold mb-2">{label}</p>
         <div className="space-y-1">
-          <p className="text-primary">Revenue: {formatCurrency(payload[0]?.value, "AED")}</p>
-          <p className="text-muted-foreground">Expenses: {formatCurrency(payload[1]?.value, "AED")}</p>
+          <p className="text-primary">Revenue: {formatCurrency(payload[0]?.value, currency)}</p>
+          <p className="text-muted-foreground">Expenses: {formatCurrency(payload[1]?.value, currency)}</p>
         </div>
       </div>
     );

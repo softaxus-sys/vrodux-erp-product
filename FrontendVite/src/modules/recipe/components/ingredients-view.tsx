@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { useRecipes } from "@/hooks/recipe/use-recipe";
 import type { RecipeIngredientDto } from "@/lib/recipe/recipe.api";
 import { formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface FlatIngredient extends RecipeIngredientDto {
   recipeId:   string;
@@ -11,6 +12,7 @@ interface FlatIngredient extends RecipeIngredientDto {
 }
 
 export function IngredientsView() {
+  const currency = useCurrency();
   const { data: recipes, isLoading, isError } = useRecipes();
   const [search, setSearch] = React.useState("");
 
@@ -84,8 +86,8 @@ export function IngredientsView() {
                   <td className="px-4 py-3 text-muted-foreground">{ing.recipeName}</td>
                   <td className="px-4 py-3 text-right">{ing.quantity}</td>
                   <td className="px-4 py-3 text-muted-foreground">{ing.unit}</td>
-                  <td className="px-4 py-3 text-right">{formatCurrency(ing.costPerUnit)}</td>
-                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(ing.lineTotal)}</td>
+                  <td className="px-4 py-3 text-right">{formatCurrency(ing.costPerUnit, currency)}</td>
+                  <td className="px-4 py-3 text-right font-medium">{formatCurrency(ing.lineTotal, currency)}</td>
                   <td className="px-4 py-3 text-right">
                     {ing.stockQuantity != null
                       ? <span className={low ? "text-destructive font-medium" : "text-success"}>{ing.stockQuantity}</span>

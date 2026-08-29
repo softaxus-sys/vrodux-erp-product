@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Clock } from "lucide-react";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface Payment {
   id: string;
@@ -12,6 +13,7 @@ interface Payment {
 }
 
 export function UpcomingPayments({ payments }: { payments: Payment[] }) {
+  const currency = useCurrency();
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -30,7 +32,7 @@ export function UpcomingPayments({ payments }: { payments: Payment[] }) {
               </div>
             </div>
             <span className="text-xs font-semibold text-warning shrink-0">
-              {formatCurrency(payment.amount, "AED")}
+              {formatCurrency(payment.amount, currency)}
             </span>
           </div>
         ))}

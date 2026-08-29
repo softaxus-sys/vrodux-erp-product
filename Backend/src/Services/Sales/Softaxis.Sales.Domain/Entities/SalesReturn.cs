@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Sales.Domain.Entities;
 
 public sealed class SalesReturn
@@ -11,7 +13,7 @@ public sealed class SalesReturn
         CustomerId   = customerId; CustomerName = customerName.Trim();
         RequestDate  = DateTime.UtcNow.ToString("yyyy-MM-dd");
         Status       = "pending"; Reason = reason; ReasonDetail = reasonDetail.Trim();
-        Currency     = "AED"; CreatedAt = DateTime.UtcNow;
+        Currency     = TenantCurrency.Resolve(); CreatedAt = DateTime.UtcNow;
     }
     public Guid      Id            { get; private set; }
     public string    ReturnNumber  { get; private set; } = string.Empty;
@@ -24,7 +26,7 @@ public sealed class SalesReturn
     public string    Reason        { get; private set; } = string.Empty;
     public string    ReasonDetail  { get; private set; } = string.Empty;
     public decimal   RefundAmount  { get; private set; }
-    public string    Currency      { get; private set; } = "AED";
+    public string    Currency      { get; private set; } = TenantCurrency.Resolve();
     public string?   CreditNote    { get; private set; }
     public string?   ProcessedBy   { get; private set; }
     public string?   ProcessedDate { get; private set; }

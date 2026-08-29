@@ -13,6 +13,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useThemeStore } from "@/store/theme.store";
 import { toast } from "sonner";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
+import { tenantSettingsApi } from "@/lib/identity/tenant-settings.api";
 import { findCountry } from "@/lib/onboarding/geo-data";
 import type { ModuleKey } from "@/types/global";
 
@@ -425,6 +426,11 @@ export function GeneralSettingsView() {
 
   // Holds last successfully loaded (or saved) server state so Discard is instant
   const serverRef = React.useRef<Snapshot | null>(null);
+  // What the tenant's `Currency` column already holds, so a save that did not touch the
+  // currency does not fire a pointless tenant-wide write on every click of Save.
+  const tenantCurrencyRef = React.useRef<string | undefined>(
+    useAuthStore.getState().tenant?.currency?.trim().toUpperCase()
+  );
 
   const updatePreferences = useAuthStore(s => s.updatePreferences);
   const setDarkMode       = useThemeStore(s => s.setDarkMode);
@@ -476,11 +482,15 @@ export function GeneralSettingsView() {
       const tenantCountry  = tenant?.country ? findCountry(tenant.country) : undefined;
       const resolvedCountry = toStr(r.country, tenantCountry?.code.toLowerCase() ?? D.regional.country);
 
-      // Prefer what the resolved country implies; only fall back to the tenant's currency claim.
+      // The tenant's own persisted currency wins: it is the value embedded in the JWT and
+      // therefore what `useCurrency()` renders app-wide, so showing anything else here makes
+      // this panel disagree with every invoice, report and receipt in the product. It also
+      // outranks the country: a UAE-registered tenant is perfectly entitled to operate in USD.
+      // The country is only consulted for a tenant that has never had a currency persisted.
       const countryMeta      = findCountry(resolvedCountry) ?? tenantCountry;
       const resolvedCurrency = toStr(
-        r.currency,
-        countryMeta?.currencyCode ?? tenant?.currency?.trim() ?? D.regional.currency,
+        tenant?.currency?.trim().toUpperCase(),
+        toStr(r.currency, countryMeta?.currencyCode ?? D.regional.currency),
       );
 
       const newRegional: typeof DEFAULTS.regional = {
@@ -602,6 +612,25 @@ export function GeneralSettingsView() {
         notifications: Object.fromEntries(Object.entries(notifications).map(([k, v]) => [k, String(v)])),
         security:      Object.fromEntries(Object.entries(security).map(([k, v]) => [k, String(v)])),
       });
+
+      // ── Persist the operating currency onto the TENANT itself, not just app_settings.
+      //    app_settings is per-tenant key/value the UI reads; the tenant's own `Currency`
+      //    column is what gets embedded in the JWT `currency` claim, which is what
+      //    `useCurrency()` reads app-wide after any reload or re-login. Saving only to
+      //    app_settings meant the picked currency survived until the next page load and
+      //    then silently reverted to the stale claim — the "I chose PKR but invoices say
+      //    AED" bug. Best-effort: a failure here must not lose the rest of the settings.
+      const pickedCurrency = regional.currency?.trim().toUpperCase();
+      if (pickedCurrency && pickedCurrency.length === 3 && pickedCurrency !== tenantCurrencyRef.current) {
+        try {
+          await tenantSettingsApi.updateCurrency(pickedCurrency);
+          tenantCurrencyRef.current = pickedCurrency;
+        } catch {
+          toast.warning(t("general.toastCurrencyNotPersisted", {
+            defaultValue: "Settings saved, but the operating currency could not be applied tenant-wide. It may revert on your next sign-in.",
+          }));
+        }
+      }
 
       // Update server ref so Discard can revert instantly
       serverRef.current = { company, regional, appearance, notifications, security };

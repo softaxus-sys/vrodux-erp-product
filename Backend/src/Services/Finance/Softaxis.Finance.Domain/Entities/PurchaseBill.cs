@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Finance.Domain.Entities;
 
 public sealed class PurchaseBill
@@ -33,7 +35,7 @@ public sealed class PurchaseBill
     public string    BillDate     { get; private set; } = string.Empty;
     public string    DueDate      { get; private set; } = string.Empty;
     public decimal   TaxRate      { get; private set; }
-    public string    CurrencyCode { get; private set; } = "AED";
+    public string    CurrencyCode { get; private set; } = TenantCurrency.Resolve();
     public string    Status       { get; private set; } = "draft";
     public string?   Reference    { get; private set; }
     public string?   Notes        { get; private set; }

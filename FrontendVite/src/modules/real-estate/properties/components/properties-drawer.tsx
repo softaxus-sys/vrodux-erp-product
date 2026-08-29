@@ -192,7 +192,7 @@ export function PropertiesDrawer({ open, onClose, property }: Props) {
                     label="Avg Rent / Unit"
                     value={formatCurrency(
                       Math.round(property.annualRent / (property.totalUnits - property.vacantUnits)),
-                      "AED"
+                      currency
                     )}
                   />
                   <InfoRow

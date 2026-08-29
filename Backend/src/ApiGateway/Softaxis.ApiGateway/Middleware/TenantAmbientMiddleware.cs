@@ -17,7 +17,10 @@ public sealed class TenantAmbientMiddleware(RequestDelegate next)
         {
             var isSuper  = user.FindFirstValue("is_super_admin") == "true";
             Guid? tenant = Guid.TryParse(user.FindFirstValue("tenant_id"), out var id) ? id : null;
-            TenantAmbient.Set(tenant, isSuper, isResolved: true);
+            // The tenant's operating currency (Module 6e) rides on the same token, so newly
+            // created records can be stamped with it instead of the historical "AED" default.
+            var currency = user.FindFirstValue("currency");
+            TenantAmbient.Set(tenant, isSuper, isResolved: true, currency);
         }
         else
         {

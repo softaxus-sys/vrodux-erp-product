@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreatePurchaseBill, useSuppliers } from "@/hooks/finance/use-finance";
-import { useCurrency } from "@/hooks/use-currency";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -16,7 +16,6 @@ function addDays(dateStr: string, days: number): string {
   return d.toISOString().split("T")[0];
 }
 
-const CURRENCIES = ["AED", "USD", "EUR", "GBP", "PKR", "SAR"];
 
 interface BillLine {
   description: string;
@@ -32,6 +31,7 @@ interface CreatePurchaseBillFormProps {
 export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillFormProps) {
   const { t } = useTranslation("purchase");
   const defaultCurrency = useCurrency();
+  const CURRENCIES      = useCurrencyOptions();
   const [supplierId, setSupplierId] = React.useState("");
   const [billDate, setBillDate]     = React.useState(TODAY);
   const [dueDate, setDueDate]       = React.useState(addDays(TODAY, 30));
@@ -173,7 +173,7 @@ export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillForm
                 </div>
               </div>
 
-              {currencyCode !== "AED" && (
+              {currencyCode !== defaultCurrency && (
                 <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
                   Import invoice — amounts recorded in <span className="font-semibold">{currencyCode}</span>.
                 </p>

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
-import { useCurrency } from "@/hooks/use-currency";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 import { financeApi } from "@/lib/finance/finance.api";
 import type { ExpenseDto as Expense, ExpenseStatus } from "@/lib/finance/finance.api";
 import { useExpenses, useExpensesSummary, useApproveExpense, useRejectExpense, usePayExpense, useDeleteExpenseReceipt } from "@/hooks/finance/use-finance";
@@ -45,6 +45,7 @@ const CATEGORY_EMOJIS: Record<string, string> = {
 
 function ExpenseDrawer({ expense, onClose }: { expense: Expense; onClose: () => void }) {
   const { t } = useTranslation("finance");
+  const currency = useCurrency();
   const approve = useApproveExpense();
   const reject  = useRejectExpense();
   const pay     = usePayExpense();
@@ -122,7 +123,7 @@ function ExpenseDrawer({ expense, onClose }: { expense: Expense; onClose: () => 
             </div>
             <div className="flex justify-between">
               <span className="text-xs text-muted-foreground">{t("expenses.drawer.amount")}</span>
-              <span className="text-sm font-bold">{formatCurrency(expense.amount, expense.currency ?? "AED")}</span>
+              <span className="text-sm font-bold">{formatCurrency(expense.amount, currency)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-xs text-muted-foreground">{t("expenses.drawer.date")}</span>
@@ -240,7 +241,7 @@ export function ExpensesView() {
       "Paid By":    e.paidBy,
       "Date":       e.expenseDate,
       "Amount":     e.amount,
-      "Currency":   e.currency ?? "AED",
+      "Currency":   currency,
       "Status":     e.status,
       "Approved By":e.approvedBy ?? "",
     })), ["Expense #","Title","Category","Paid By","Date","Amount","Currency","Status","Approved By"]);
@@ -251,7 +252,7 @@ export function ExpensesView() {
     title: "Expense Claims",
     subtitle: `${expenses.length} expenses`,
     columns: ["Expense #","Title","Category","Paid By","Date","Amount","Currency","Status"],
-    rows: expenses.map(e => [e.expenseNumber, e.title, e.category, e.paidBy, e.expenseDate, e.amount, e.currency ?? "AED", e.status]),
+    rows: expenses.map(e => [e.expenseNumber, e.title, e.category, e.paidBy, e.expenseDate, e.amount, currency, e.status]),
     landscape: false,
   });
   const approveRow = useApproveExpense();
@@ -403,7 +404,7 @@ export function ExpensesView() {
                     {formatDate(expense.expenseDate, "medium")}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-semibold">
-                    {formatCurrency(expense.amount, expense.currency ?? "AED")}
+                    {formatCurrency(expense.amount, currency)}
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", STATUS_STYLES[expense.status] ?? STATUS_STYLES_FALLBACK)}>

@@ -5,4 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Domain\Softaxis.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
 </Project>

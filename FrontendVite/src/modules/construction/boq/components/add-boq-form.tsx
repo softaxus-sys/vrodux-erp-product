@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreateBOQ } from "@/hooks/construction/use-construction";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const UOM_OPTIONS = ["m²", "m³", "m", "nos", "kg", "ton", "ls", "hr", "day"];
 
@@ -27,7 +28,9 @@ export function AddBOQForm({ open, onClose }: AddBOQFormProps) {
   const [projectName, setProjectName]   = React.useState("");
   const [projectRef, setProjectRef]     = React.useState("");
   const [preparedBy, setPreparedBy]     = React.useState("");
-  const [currency, setCurrency]         = React.useState("AED");
+  const tenantCurrency = useCurrency();
+  const currencyOptions = useCurrencyOptions();
+  const [currency, setCurrency]         = React.useState(tenantCurrency);
   const [vatRate, setVatRate]           = React.useState("5");
   const [lines, setLines]               = React.useState<BOQLine[]>([
     { id: "1", itemCode: "", description: "", unit: "m²", quantity: "", unitRate: "" },
@@ -52,7 +55,7 @@ export function AddBOQForm({ open, onClose }: AddBOQFormProps) {
   const isValid = projectName.trim() && validLines.length > 0;
 
   const reset = () => {
-    setProjectName(""); setProjectRef(""); setPreparedBy(""); setCurrency("AED"); setVatRate("5");
+    setProjectName(""); setProjectRef(""); setPreparedBy(""); setCurrency(tenantCurrency); setVatRate("5");
     setLines([{ id: "1", itemCode: "", description: "", unit: "m²", quantity: "", unitRate: "" }]);
     setNotes("");
   };
@@ -111,7 +114,7 @@ export function AddBOQForm({ open, onClose }: AddBOQFormProps) {
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
                     <select value={currency} onChange={e => setCurrency(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {["AED", "USD", "EUR"].map(c => <option key={c}>{c}</option>)}
+                      {currencyOptions.map(c => <option key={c}>{c}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">

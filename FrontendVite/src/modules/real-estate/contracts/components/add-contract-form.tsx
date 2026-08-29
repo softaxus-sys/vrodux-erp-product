@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreateContract } from "@/hooks/real-estate/use-re";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const CONTRACT_TYPES  = ["Lease", "Sale", "Management", "Service"];
 const PAYMENT_FREQ    = ["Monthly", "Quarterly", "Semi-Annual", "Annual", "One-Time"];
 const PAYMENT_METHODS = ["Bank Transfer", "Cheque", "Cash", "Credit Card"];
-const CURRENCIES      = ["AED", "USD", "EUR"];
 
 interface AddContractFormProps {
   open: boolean;
@@ -26,7 +26,9 @@ export function AddContractForm({ open, onClose }: AddContractFormProps) {
   const [startDate, setStartDate]       = React.useState("");
   const [endDate, setEndDate]           = React.useState("");
   const [rentAmount, setRentAmount]     = React.useState("");
-  const [currency, setCurrency]         = React.useState("AED");
+  const tenantCurrency = useCurrency();
+  const CURRENCIES = useCurrencyOptions();
+  const [currency, setCurrency]         = React.useState(tenantCurrency);
   const [paymentFreq, setPaymentFreq]   = React.useState("Monthly");
   const [paymentMethod, setPaymentMethod] = React.useState("Bank Transfer");
   const [deposit, setDeposit]           = React.useState("");
@@ -45,7 +47,7 @@ export function AddContractForm({ open, onClose }: AddContractFormProps) {
 
   const reset = () => {
     setContractType("Lease"); setUnit(""); setTenantName(""); setTenantEmail(""); setTenantPhone("");
-    setStartDate(""); setEndDate(""); setRentAmount(""); setCurrency("AED"); setPaymentFreq("Monthly");
+    setStartDate(""); setEndDate(""); setRentAmount(""); setCurrency(tenantCurrency); setPaymentFreq("Monthly");
     setPaymentMethod("Bank Transfer"); setDeposit(""); setNoOfCheques("1");
     setBrokerName(""); setCommission(""); setNotes("");
   };

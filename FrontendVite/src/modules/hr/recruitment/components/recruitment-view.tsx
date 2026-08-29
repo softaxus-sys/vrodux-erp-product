@@ -31,6 +31,7 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { AddJobPostingForm } from "./add-job-posting-form";
 import { AddApplicantForm } from "./add-applicant-form";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
 const JOB_STATUS_CONFIG: Record<string, { key: string; color: string; bg: string }> = {
   open:     { key: "open",    color: "text-success",          bg: "bg-success/10" },
@@ -230,6 +231,7 @@ function ApplicantDrawer({ applicant, open, onClose }: { applicant: Applicant | 
 }
 
 export function RecruitmentView() {
+  const currency = useCurrency();
   const { t } = useTranslation("hr");
   const [search, setSearch] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<"jobs" | "applicants">("jobs");
@@ -412,7 +414,7 @@ export function RecruitmentView() {
                       <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3" />{job.branch}</div>
                       <div className="flex items-center gap-1.5">
                         <DollarSign className="h-3 w-3" />
-                        {formatCurrency(job.salaryMin, job.currency)} – {formatCurrency(job.salaryMax, job.currency)}
+                        {formatCurrency(job.salaryMin, job.currency || currency)} – {formatCurrency(job.salaryMax, job.currency || currency)}
                       </div>
                       <div className="flex items-center gap-1.5"><Calendar className="h-3 w-3" />{t("recruitment.job.closes", { date: formatDate(job.closingDate, "medium") })}</div>
                     </div>
