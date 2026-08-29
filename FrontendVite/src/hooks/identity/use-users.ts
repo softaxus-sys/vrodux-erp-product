@@ -5,7 +5,7 @@ import {
   keepPreviousData,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import { usersApi, type GetUsersParams, type CreateUserPayload, type UpdateUserPayload } from "@/lib/identity/users.api";
+import { usersApi, type GetUsersParams, type CreateUserPayload, type UpdateUserPayload, type ChangeEmailPayload } from "@/lib/identity/users.api";
 import type { UserDto, UserSummaryDto } from "@/lib/identity/types";
 import type { PagedResult } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -65,6 +65,35 @@ export function useUpdateUser(userId: string) {
       qc.invalidateQueries({ queryKey: userKeys.lists() });
       qc.setQueryData(userKeys.detail(userId), data);
       toast.success("User updated.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+/**
+ * Change the address an account signs in with. The toast states the consequence rather than a
+ * bare "saved": a self-change leaves the account unverified and signs every session out, which
+ * the user needs to be told before it happens to them.
+ */
+export function useChangeUserEmail(userId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ChangeEmailPayload) => usersApi.changeEmail(userId, payload),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: userKeys.lists() });
+      qc.invalidateQueries({ queryKey: userKeys.detail(userId) });
+
+      if (result.notificationError) {
+        // The change is committed either way — say so, and say what did not happen, so nobody
+        // waits for a mail that was never sent.
+        toast.warning(`Email changed to ${result.email}, but the notification could not be sent.`);
+        return;
+      }
+      toast.success(
+        result.requiresVerification
+          ? `Check ${result.email} for a verification link — you must confirm it before signing in again.`
+          : `Email changed to ${result.email}.`,
+      );
     },
     onError: (err: Error) => toast.error(err.message),
   });

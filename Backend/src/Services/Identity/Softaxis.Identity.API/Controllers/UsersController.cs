@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Softaxis.Identity.Application.Users.Commands.AdminResetPassword;
 using Softaxis.Identity.Application.Users.Commands.AssignRole;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
+using Softaxis.Identity.Application.Users.Commands.ChangeUserEmail;
 using Softaxis.Identity.Application.Users.Commands.CreateUser;
 using Softaxis.Identity.Application.Users.Commands.ProvisionUser;
 using Softaxis.Identity.Application.Users.Commands.DeleteUser;
@@ -103,6 +104,14 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
         => HandleResult(await Sender.Send(new ChangePasswordCommand(id, request.CurrentPassword, request.NewPassword), ct));
 
     /// <summary>
+    /// Change the address an account signs in with. Self-service (requires the current password)
+    /// or, for someone holding settings.users.edit, on another user's behalf.
+    /// </summary>
+    [HttpPut("{id:guid}/email")]
+    public async Task<IActionResult> ChangeEmail(Guid id, [FromBody] ChangeEmailRequest request, CancellationToken ct)
+        => HandleResult(await Sender.Send(new ChangeUserEmailCommand(id, request.NewEmail, request.CurrentPassword), ct));
+
+    /// <summary>
     /// Admin: forcibly reset a user's password without knowing their current password.
     /// </summary>
     [HttpPost("{id:guid}/reset-password")]
@@ -114,6 +123,7 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
 public sealed record UpdateUserRequest(string FirstName, string LastName, string? PhoneNumber, string? AvatarUrl);
 public sealed record RoleAssignRequest(Guid RoleId);
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+public sealed record ChangeEmailRequest(string NewEmail, string? CurrentPassword);
 public sealed record AdminResetPasswordRequest(string NewPassword);
 public sealed record UpdateUserPermissionsRequest(List<PermissionOverrideRequest> Overrides);
 public sealed record PermissionOverrideRequest(Guid PermissionId, bool IsGranted);

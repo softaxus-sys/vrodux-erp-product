@@ -24,7 +24,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var fromName = section["FromName"]    ?? "Softaxis ERP";
 
         // Dev fallback: log to console when SMTP is not configured
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        if (!SmtpConfiguration.IsConfigured(section))
         {
             logger.LogWarning(
                 "SMTP not configured. Password reset link for {Email}: {Url}",
@@ -84,7 +84,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var fromName = section["FromName"]    ?? "Softaxis ERP";
 
         // Dev fallback: log to console when SMTP is not configured so the link is still usable.
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        if (!SmtpConfiguration.IsConfigured(section))
         {
             logger.LogWarning("SMTP not configured. Email verification link for {Email}: {Url}", toEmail, verifyUrl);
             return;
@@ -142,7 +142,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var fromName = section["FromName"]    ?? "Softaxis ERP";
 
         // Dev fallback: log to console when SMTP is not configured so the link is still usable.
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        if (!SmtpConfiguration.IsConfigured(section))
         {
             logger.LogWarning("SMTP not configured. Tenant {Action} link for {Email}: {Url}",
                 isInvite ? "activation" : "login", toEmail, actionUrl);
@@ -280,7 +280,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
         var fromName = section["FromName"]    ?? "Softaxis ERP";
 
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        if (!SmtpConfiguration.IsConfigured(section))
         {
             logger.LogWarning("SMTP not configured. {Fallback}", fallbackLog);
             return;
@@ -319,7 +319,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
 
         // Not configured: log the link so it stays usable in development, and report false so the
         // caller shows a temporary password instead of claiming an email was sent.
-        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
+        if (!SmtpConfiguration.IsConfigured(section))
         {
             logger.LogWarning("SMTP not configured. Employee invite link for {Email}: {Url}", toEmail, actionUrl);
             return false;
@@ -346,6 +346,33 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
 
         await SendAsync(toEmail, toName, $"Set your password — {workspaceName}", body,
             $"Employee invite link for {toEmail}: {actionUrl}", ct);
+        return true;
+    }
+
+    public async Task<bool> SendEmailChangedNoticeAsync(
+        string oldEmail, string toName, string newEmail, string workspaceName, CancellationToken ct = default)
+    {
+        var section = configuration.GetSection("Email");
+        if (string.IsNullOrWhiteSpace(section["SmtpHost"]) || string.IsNullOrWhiteSpace(section["SmtpUsername"]))
+        {
+            logger.LogWarning("SMTP not configured. Email-change notice for {Old} -> {New} not sent.", oldEmail, newEmail);
+            return false;
+        }
+
+        var body = $"""
+            <html><body style="font-family:sans-serif;color:#1e293b">
+              <h2>Your sign-in email was changed</h2>
+              <p>Hi {toName},</p>
+              <p>The email address for your <strong>{workspaceName}</strong> account was changed from
+                 <strong>{oldEmail}</strong> to <strong>{newEmail}</strong>. Sign in with the new
+                 address from now on.</p>
+              <p style="color:#b91c1c">If you did not make this change, contact your administrator
+                 immediately — someone else may have access to your account.</p>
+            </body></html>
+            """;
+
+        await SendAsync(oldEmail, toName, $"Your {workspaceName} sign-in email was changed", body,
+            $"Email-change notice for {oldEmail} (new address {newEmail})", ct);
         return true;
     }
 }
