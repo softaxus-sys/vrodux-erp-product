@@ -99,6 +99,12 @@ export interface AuthTokenDto {
   /** When true, the account has 2FA enabled — no tokens issued yet; call verify-2fa with mfaToken. */
   mfaRequired?: boolean;
   mfaToken?: string | null;
+  /**
+   * The tenant requires two-factor and this account has not enrolled. The session IS valid —
+   * refusing it would lock out every user the moment an admin flips the switch, including the
+   * admin who flipped it — so the app routes them to Settings → Security instead.
+   */
+  mustSetUpTwoFactor?: boolean;
 }
 
 // ── Two-factor authentication ─────────────────────────────────────────────────

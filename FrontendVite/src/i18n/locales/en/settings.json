@@ -556,7 +556,15 @@
       "emailPlaceholder": "info@yourcompany.com",
       "supportEmailPlaceholder": "support@yourcompany.com",
       "poBoxPlaceholder": "P.O. Box, City",
-      "addressPlaceholder": "Street, building, city, country"
+      "addressPlaceholder": "Street, building, city, country",
+      "removeLogo": "Remove",
+      "logoHint": "PNG, JPG, SVG or WebP, up to 1 MB. Appears on quotations, invoices and printed documents.",
+      "logoNotImage": "Choose an image file.",
+      "logoTooLarge": "That image is over 1 MB. Please use a smaller one.",
+      "logoFailed": "That image could not be read.",
+      "taxNumber": "Tax registration number",
+      "taxNumberHint": "Printed on quotations and invoices.",
+      "taxNumberPlaceholder": "e.g. TRN 100123456700003"
     },
     "regional": {
       "title": "Regional & Locale",
@@ -713,7 +721,10 @@
         "90": "90 days",
         "180": "180 days",
         "never": "Never expire"
-      }
+      },
+      "ipList": "Allowed addresses",
+      "ipListHint": "One IP or CIDR range per line, e.g. 203.0.113.7 or 203.0.113.0/24. Leaving this empty allows every address.",
+      "ipListWarning": "Make sure your own address is on this list before saving — sign-in from anywhere else will be refused."
     },
     "modules": {
       "title": "Module Access",

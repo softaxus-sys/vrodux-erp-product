@@ -19,6 +19,7 @@ public sealed class CreateUserCommandHandler(
     IJwtTokenService    jwtService,
     IEmailService       emailService,
     ILogger<CreateUserCommandHandler> logger,
+    ITenantSecurityPolicyProvider securityPolicy,
     IUnitOfWork         uow)
     : ICommandHandler<CreateUserCommand, UserDto>
 {
@@ -34,6 +35,13 @@ public sealed class CreateUserCommandHandler(
 
         if (await userRepo.UsernameExistsAsync(cmd.Username, ct))
             return Result.Failure<UserDto>(Error.Custom("User.Username.Taken", "Username is already taken."));
+
+        // The tenant's own password rules. An admin creating an account for someone else must
+        // still meet the policy they set — otherwise the weakest passwords in a workspace are the
+        // ones handed out by its administrator.
+        var policy = await securityPolicy.GetAsync(tenantContext.TenantId, ct);
+        var policyCheck = PasswordPolicy.Validate(cmd.Password, policy);
+        if (policyCheck.IsFailure) return Result.Failure<UserDto>(policyCheck.Error);
 
         var hash   = passwordHasher.Hash(cmd.Password);
         var result = User.Create(cmd.Email, cmd.Username, cmd.FirstName, cmd.LastName, hash);

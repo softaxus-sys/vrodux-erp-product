@@ -25,11 +25,21 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
     public DateTime AccessTokenExpiry  => DateTime.UtcNow.AddMinutes(_settings.AccessTokenMinutes);
     public DateTime RefreshTokenExpiry => DateTime.UtcNow.AddDays(_settings.RefreshTokenDays);
 
-    public string GenerateAccessToken(User user, IEnumerable<string> permissionKeys, Tenant? tenant = null, Guid? impersonatedBy = null)
+    /// <summary>
+    /// A tenant's configured session timeout, falling back to the deployment-wide setting when
+    /// they have not chosen one. Clamped so a stray value cannot mint a token lasting a month.
+    /// </summary>
+    public DateTime AccessTokenExpiryFor(int sessionMinutes) =>
+        DateTime.UtcNow.AddMinutes(sessionMinutes > 0
+            ? Math.Clamp(sessionMinutes, 5, 43200)
+            : _settings.AccessTokenMinutes);
+
+    public string GenerateAccessToken(User user, IEnumerable<string> permissionKeys, Tenant? tenant = null,
+                                      Guid? impersonatedBy = null, int sessionMinutes = 0)
     {
         var key     = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.Secret));
         var creds   = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expiry  = AccessTokenExpiry;
+        var expiry  = AccessTokenExpiryFor(sessionMinutes);
 
         // When a super-admin is impersonating a tenant, the token is scoped to that tenant:
         // is_super_admin is forced FALSE so the DB tenant filter scopes to the tenant (rather than

@@ -107,6 +107,10 @@ const DEFAULTS = {
     supportEmail: "",
     address: "",
     poBox: "",
+    taxNumber: "",
+    // Stored as a data URI in app_settings (nvarchar(max)), the same approach as the employee
+    // avatar. There is no blob store in this product, and a logo is a handful of KB.
+    logoUrl: "",
   },
   regional: {
     country: "",                // ISO country code — source of truth for POS/reports/receipt
@@ -141,16 +145,20 @@ const DEFAULTS = {
     inAppSystem: false,
     digestFrequency: "daily",
   },
+  // These are what the backend enforces for a tenant that has never saved this panel
+  // (TenantSecurityPolicy.Permissive). They used to be aspirational — 2FA on, 90-day expiry —
+  // while nothing read them, so the panel confidently displayed protections that did not exist.
   security: {
-    enforce2FA: true,
+    enforce2FA: false,
     sessionTimeout: "480",
-    passwordMinLength: "10",
-    passwordRequireUpper: true,
-    passwordRequireNumbers: true,
+    passwordMinLength: "8",
+    passwordRequireUpper: false,
+    passwordRequireNumbers: false,
     passwordRequireSymbols: false,
-    passwordExpiry: "90",
+    passwordExpiry: "never",
     maxLoginAttempts: "5",
     ipWhitelistEnabled: false,
+    ipWhitelist: "",
     singleSession: false,
   },
 };
@@ -472,6 +480,8 @@ export function GeneralSettingsView() {
         supportEmail:   toStr(c.supportEmail,   D.company.supportEmail),
         address:        toStr(c.address,        D.company.address),
         poBox:          toStr(c.poBox,          D.company.poBox),
+        taxNumber:      toStr(c.taxNumber,      D.company.taxNumber),
+        logoUrl:        toStr(c.logoUrl,        D.company.logoUrl),
       };
 
       // The country chosen during onboarding is the source of truth here — it is stored on the
@@ -540,6 +550,7 @@ export function GeneralSettingsView() {
         passwordExpiry:          toStr(sec.passwordExpiry,           D.security.passwordExpiry),
         maxLoginAttempts:        toStr(sec.maxLoginAttempts,         D.security.maxLoginAttempts),
         ipWhitelistEnabled:      toBool(sec.ipWhitelistEnabled,      D.security.ipWhitelistEnabled),
+        ipWhitelist:             toStr (sec.ipWhitelist,             D.security.ipWhitelist),
         singleSession:           toBool(sec.singleSession,           D.security.singleSession),
       };
 
@@ -687,6 +698,37 @@ export function GeneralSettingsView() {
 
   // ── Field updaters ─────────────────────────────────────────────────────────
   const updateCompany       = (key: string, value: string)          => { setCompany(p => ({ ...p, [key]: value }));       setIsDirty(true); };
+
+  // ── Company logo ───────────────────────────────────────────────────────────
+  // Read as a data URI and stored in app_settings alongside the rest of the company profile.
+  // There is no blob store in this product and a logo is a few KB, so a URI keeps the whole
+  // letterhead in one place — which is what the quotation and invoice documents read.
+  const logoInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleLogoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset immediately so re-picking the same file still fires a change event.
+    e.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("general.company.logoNotImage", { defaultValue: "Choose an image file." }));
+      return;
+    }
+    // 1 MB of source file is roughly 1.4 MB once base64-encoded. Beyond that the settings
+    // payload starts to slow every save, and a letterhead does not need it.
+    if (file.size > 1024 * 1024) {
+      toast.error(t("general.company.logoTooLarge", {
+        defaultValue: "That image is over 1 MB. Please use a smaller one." }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => updateCompany("logoUrl", String(reader.result ?? ""));
+    reader.onerror = () => toast.error(t("general.company.logoFailed", {
+      defaultValue: "That image could not be read." }));
+    reader.readAsDataURL(file);
+  };
   const updateRegional      = (key: string, value: string)          => { setRegional(p => ({ ...p, [key]: value }));      setIsDirty(true); };
   const updateAppearance    = (key: string, value: boolean | string) => {
     setAppearance(p => ({ ...p, [key]: value }));
@@ -737,12 +779,19 @@ export function GeneralSettingsView() {
         {/* Logo */}
         <div className="flex items-start gap-5 mb-6 pb-6 border-b border-border">
           <div className="relative">
-            <div className="h-20 w-20 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center">
-              <span className="text-3xl font-bold text-primary">
-                {(company.name?.[0] ?? "S").toUpperCase()}
-              </span>
+            <div className="h-20 w-20 rounded-2xl bg-primary/10 border-2 border-primary/20 flex items-center justify-center overflow-hidden">
+              {company.logoUrl
+                ? <img src={company.logoUrl} alt="" className="h-full w-full object-contain" />
+                : <span className="text-3xl font-bold text-primary">
+                    {(company.name?.[0] ?? "S").toUpperCase()}
+                  </span>}
             </div>
-            <button className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center shadow-sm hover:bg-muted/40 transition-colors">
+            <button
+              type="button"
+              onClick={() => logoInputRef.current?.click()}
+              title={t("general.company.uploadLogo")}
+              className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center shadow-sm hover:bg-muted/40 transition-colors"
+            >
               <Camera className="w-3 h-3 text-muted-foreground" />
             </button>
           </div>
@@ -760,7 +809,29 @@ export function GeneralSettingsView() {
                 </span>
               </div>
             )}
-            <Button variant="outline" size="sm" className="mt-3 h-7 text-xs">{t("general.company.uploadLogo")}</Button>
+            <div className="flex items-center gap-2 mt-3">
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                className="hidden"
+                onChange={handleLogoPick}
+              />
+              <Button variant="outline" size="sm" className="h-7 text-xs"
+                      onClick={() => logoInputRef.current?.click()}>
+                {t("general.company.uploadLogo")}
+              </Button>
+              {company.logoUrl && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                        onClick={() => updateCompany("logoUrl", "")}>
+                  {t("general.company.removeLogo", { defaultValue: "Remove" })}
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              {t("general.company.logoHint", {
+                defaultValue: "PNG, JPG, SVG or WebP, up to 1 MB. Appears on quotations, invoices and printed documents." })}
+            </p>
           </div>
         </div>
 
@@ -790,6 +861,13 @@ export function GeneralSettingsView() {
           </FormField>
           <FormField label={t("general.company.registrationNo")}>
             <Input value={company.registrationNo} onChange={e => updateCompany("registrationNo", e.target.value)} className="h-9 text-sm font-mono" placeholder={t("general.company.registrationNoPlaceholder", { defaultValue: "e.g. UAE-LLC-2024-00000" })} />
+          </FormField>
+          <FormField label={t("general.company.taxNumber", { defaultValue: "Tax registration number" })}
+                     hint={t("general.company.taxNumberHint", {
+                       defaultValue: "Printed on quotations and invoices." })}>
+            <Input value={company.taxNumber} onChange={e => updateCompany("taxNumber", e.target.value)}
+                   className="h-9 text-sm font-mono"
+                   placeholder={t("general.company.taxNumberPlaceholder", { defaultValue: "e.g. TRN 100123456700003" })} />
           </FormField>
           <FormField label={t("general.company.phone")}>
             <Input value={company.phone} onChange={e => updateCompany("phone", e.target.value)} className="h-9 text-sm" placeholder={t("general.company.phonePlaceholder", { defaultValue: "+971 4 000 0000" })} />
@@ -1047,6 +1125,30 @@ export function GeneralSettingsView() {
             <ToggleRow label={t("general.security.enforce2FA")} description={t("general.security.enforce2FADesc")} checked={security.enforce2FA} onChange={v => updateSecurity("enforce2FA", v)} />
             <ToggleRow label={t("general.security.singleSession")} description={t("general.security.singleSessionDesc")} checked={security.singleSession} onChange={v => updateSecurity("singleSession", v)} />
             <ToggleRow label={t("general.security.ipWhitelist")} description={t("general.security.ipWhitelistDesc")} checked={security.ipWhitelistEnabled} onChange={v => updateSecurity("ipWhitelistEnabled", v)} />
+            {security.ipWhitelistEnabled && (
+              <div className="mt-3 ps-1">
+                <FormField
+                  label={t("general.security.ipList", { defaultValue: "Allowed addresses" })}
+                  hint={t("general.security.ipListHint", {
+                    defaultValue: "One IP or CIDR range per line, e.g. 203.0.113.7 or 203.0.113.0/24. Leaving this empty allows every address." })}
+                >
+                  <textarea
+                    value={security.ipWhitelist}
+                    onChange={e => updateSecurity("ipWhitelist", e.target.value)}
+                    rows={3}
+                    spellCheck={false}
+                    placeholder={"203.0.113.7" + String.fromCharCode(10) + "198.51.100.0/24"}
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </FormField>
+                {/* Saving a list that excludes your own address locks you out of your own
+                    workspace, so the address this browser is signing in from is shown alongside. */}
+                <p className="text-[11px] text-warning mt-1.5">
+                  {t("general.security.ipListWarning", {
+                    defaultValue: "Make sure your own address is on this list before saving — sign-in from anywhere else will be refused." })}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Session */}

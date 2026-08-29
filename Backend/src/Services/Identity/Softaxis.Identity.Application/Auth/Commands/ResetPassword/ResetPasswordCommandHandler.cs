@@ -10,6 +10,7 @@ public sealed class ResetPasswordCommandHandler(
     IJwtTokenService jwtService,
     IPasswordHasher  passwordHasher,
     IAuditLogRepository auditRepo,
+    ITenantSecurityPolicyProvider securityPolicy,
     IUnitOfWork      uow)
     : ICommandHandler<ResetPasswordCommand>
 {
@@ -23,6 +24,12 @@ public sealed class ResetPasswordCommandHandler(
 
         if (!user.IsPasswordResetTokenValid(tokenHash))
             return Result.Failure(Error.Custom("Auth.ResetPassword.Invalid", "Invalid or expired reset token."));
+
+        // The tenant's own password rules (Settings -> Security). Enforced here rather than in the
+        // validator because the policy is per-tenant and a FluentValidation rule is static.
+        var policy = await securityPolicy.GetAsync(user.TenantId, ct);
+        var policyCheck = PasswordPolicy.Validate(cmd.NewPassword, policy);
+        if (policyCheck.IsFailure) return policyCheck;
 
         var newHash = passwordHasher.Hash(cmd.NewPassword);
         user.ChangePassword(newHash);

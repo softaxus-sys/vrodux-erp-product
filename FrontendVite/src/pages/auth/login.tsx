@@ -224,6 +224,16 @@ export default function LoginPage() {
       }
       loginFromApi(res.accessToken, res.refreshToken, res.user!);
       toast.success(t("toast.welcomeBack", { name: res.user!.firstName }));
+      // The tenant requires 2FA and this account has none. Send them straight to the page that
+      // sets it up rather than letting them discover the requirement later. (A user who already
+      // has 2FA never reaches here — they went down the code-entry path above.)
+      if (res.mustSetUpTwoFactor) {
+        toast.warning(t("toast.mustSetUpTwoFactor", {
+          defaultValue: "Your organisation requires two-factor authentication. Please set it up now.",
+        }), { duration: 8000 });
+        navigate("/settings/security", { replace: true });
+        return;
+      }
       if (res.user?.mustChangePassword) {
         // Administrator-issued password: land on the page that can replace it, and say why.
         toast.warning(t("toast.mustChangePassword"));

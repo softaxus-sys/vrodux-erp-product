@@ -95,5 +95,9 @@ public sealed record AuthTokenDto(
     // Set when the account has 2FA enabled: no real tokens are issued yet — the client must call
     // /auth/verify-2fa with MfaToken + the authenticator code to complete login.
     bool     MfaRequired = false,
-    string?  MfaToken    = null
+    string?  MfaToken    = null,
+    // The tenant requires two-factor and this account has not enrolled. The session is real —
+    // blocking would lock out every user the moment the switch is flipped — but the app should
+    // route them to Settings -> Security until they set it up.
+    bool     MustSetUpTwoFactor = false
 );

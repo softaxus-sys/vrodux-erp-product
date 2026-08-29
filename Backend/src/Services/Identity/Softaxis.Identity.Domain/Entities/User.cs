@@ -49,6 +49,10 @@ public sealed class User : AuditableEntity<Guid>
     /// only way a password is ever replaced, so the flag cannot be left stale.
     /// </summary>
     public bool        MustChangePassword { get; private set; }
+    /// <summary>When the password was last set. Drives the tenant's password-expiry policy;
+    /// null on rows that predate the column, which are treated as never expiring rather than
+    /// as infinitely old — the alternative would force a reset on every existing user at once.</summary>
+    public DateTime?   PasswordChangedAt  { get; private set; }
     public bool        EmailVerified   { get; private set; }
     public string?     AvatarUrl       { get; private set; }
     public string?     PhoneNumber     { get; private set; }
@@ -123,6 +127,7 @@ public sealed class User : AuditableEntity<Guid>
     {
         PasswordHash       = newPasswordHash;
         MustChangePassword = false;
+        PasswordChangedAt  = DateTime.UtcNow;
         UpdatedAt    = DateTime.UtcNow;
         RaiseDomainEvent(new UserPasswordChangedEvent(Id));
     }
@@ -151,6 +156,16 @@ public sealed class User : AuditableEntity<Guid>
             RaiseDomainEvent(new UserLockedEvent(Id, LockedUntil.Value));
         }
     }
+
+    /// <summary>
+    /// True when the tenant's password-expiry policy has elapsed since the password was last set.
+    /// A user who has never had the timestamp recorded is never expired: back-dating them would
+    /// force every existing user in the tenant to reset at once the moment expiry is switched on.
+    /// </summary>
+    public bool IsPasswordExpired(int expiryDays, DateTime asOfUtc) =>
+        expiryDays > 0
+        && PasswordChangedAt.HasValue
+        && PasswordChangedAt.Value.AddDays(expiryDays) < asOfUtc;
 
     public void Unlock()
     {

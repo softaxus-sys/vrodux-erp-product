@@ -17,6 +17,7 @@ public sealed class LoginCommandHandler(
     IPasswordHasher         passwordHasher,
     IJwtTokenService        jwtService,
     IAuditLogRepository     auditRepo,
+    ITenantSecurityPolicyProvider securityPolicy,
     IUnitOfWork             uow)
     : ICommandHandler<LoginCommand, AuthTokenDto>
 {
@@ -29,13 +30,23 @@ public sealed class LoginCommandHandler(
         if (user.IsLocked)
             return Fail(user.Id, cmd, false, "Account is locked. Try again later.");
 
+        // The tenant's own lockout threshold, not the hardcoded 5. Read before the password is
+        // verified so a failed attempt is counted against the right limit.
+        var policy = await securityPolicy.GetAsync(user.TenantId, ct);
+
         if (!passwordHasher.Verify(cmd.Password, user.PasswordHash))
         {
-            user.RecordLoginFailure();
+            user.RecordLoginFailure(policy.MaxLoginAttempts);
             userRepo.Update(user);
             await uow.SaveChangesAsync(ct);
             return Fail(user.Id, cmd, false, "Invalid email or password.");
         }
+
+        // Network restriction, if the tenant configured one. Checked after the password so it
+        // cannot be used to probe which addresses are allowed without valid credentials.
+        if (!policy.AllowsIp(cmd.IpAddress))
+            return Fail(user.Id, cmd, false,
+                "Sign-in from this network is not permitted. Contact your administrator.");
 
         // Password is correct — but the email must be verified first (admin-created users start unverified).
         if (!user.EmailVerified)
@@ -70,6 +81,23 @@ public sealed class LoginCommandHandler(
             return Fail(user.Id, cmd, false,
                 "This workspace is no longer available. Please contact your administrator.");
 
+        // The tenant requires two-factor and this user has not enrolled. Deliberately NOT a
+        // refusal: blocking would lock out every user in the tenant the moment the switch is
+        // flipped, including the admin who flipped it. The session is issued and flagged, and the
+        // app routes them to Settings -> Security to enrol. (A user who HAS enrolled never
+        // reaches here — they were sent down the MFA-challenge path above.)
+        var mustSetUpTwoFactor = policy.Enforce2FA && !user.TwoFactorEnabled;
+
+        // Password older than the tenant's expiry window: allow the login but force a change,
+        // reusing the existing MustChangePassword flow rather than inventing a second one.
+        if (user.IsPasswordExpired(policy.PasswordExpiryDays, DateTime.UtcNow))
+            user.RequirePasswordChange();
+
+        // One live session per user: retire every refresh token this user still holds before
+        // issuing the new one, so signing in here signs them out everywhere else.
+        if (policy.SingleSession)
+            await refreshRepo.RevokeAllForUserAsync(user.Id, ct);
+
         // Issue tokens
         var permKeys = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
         var rawRefresh = jwtService.GenerateRefreshTokenRaw();
@@ -84,20 +112,14 @@ public sealed class LoginCommandHandler(
 
         await uow.SaveChangesAsync(ct);
 
-        var accessToken = jwtService.GenerateAccessToken(user, permKeys, tenant);
-        var dto         = MapToDto(user, accessToken, rawRefresh);
+        var accessToken = jwtService.GenerateAccessToken(user, permKeys, tenant, sessionMinutes: policy.SessionTimeoutMinutes);
+        var expiry      = jwtService.AccessTokenExpiryFor(policy.SessionTimeoutMinutes);
 
-        return Result.Success(dto);
+        return Result.Success(new AuthTokenDto(
+            accessToken, rawRefresh, expiry, UserDtoMapper.ToDto(user),
+            MustSetUpTwoFactor: mustSetUpTwoFactor));
     }
 
     private static Result<AuthTokenDto> Fail(Guid? userId, LoginCommand cmd, bool succeeded, string msg)
         => Result.Failure<AuthTokenDto>(Error.Custom("Auth.Login.Failed", msg));
-
-    private AuthTokenDto MapToDto(Domain.Entities.User user, string accessToken, string rawRefresh) =>
-        new(
-            accessToken,
-            rawRefresh,
-            jwtService.AccessTokenExpiry,
-            UserDtoMapper.ToDto(user)
-        );
 }
