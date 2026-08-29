@@ -198,6 +198,49 @@ export function formatCompactValue(amount: number | null | undefined, currency: 
 }
 
 /** Lead temperature derived from the intent score — the at-a-glance "should I call this now?" signal. */
+/**
+ * The date a lead actually arose, for display and sorting.
+ *
+ * Leads captured from a platform carry the moment the enquiry was made there
+ * (`platformCreatedTime` — Property Finder's `createdAt`, Meta's `created_time`). That is not the
+ * same as `createdDate`, which is when the record reached this CRM: a poll sync or a bulk import
+ * can land days later, so showing only `createdDate` makes every backfilled lead look like it came
+ * in today. Prefer the platform date, fall back to ours.
+ *
+ * `platformCreatedTime` is stored as the raw string the source sent, so it is validated here rather
+ * than trusted — an unparseable value falls back instead of rendering as an invalid date.
+ */
+export interface LeadsPageParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  /** A lead status, or "open" for everything still being worked. */
+  status?: string;
+  source?: string;
+  /** An owner user id, "unassigned", or a legacy owner name. */
+  assignee?: string;
+  sortBy?: "date" | "score" | "value";
+  sortDesc?: boolean;
+}
+
+export interface PagedLeads {
+  items: LeadDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export function leadDate(
+  lead: Pick<LeadDto, "createdDate" | "platformCreatedTime">,
+): { value: string; fromPlatform: boolean } {
+  const raw = lead.platformCreatedTime?.trim();
+  if (raw && !Number.isNaN(new Date(raw).getTime())) {
+    return { value: raw, fromPlatform: true };
+  }
+  return { value: lead.createdDate, fromPlatform: false };
+}
+
 export function leadHeat(score: number): { label: string; color: string; bg: string; emoji: string } {
   if (score >= 70) return { label: i18n.t("crm:heat.hot"),  color: "text-destructive", bg: "bg-destructive/10",              emoji: "🔥" };
   if (score >= 40) return { label: i18n.t("crm:heat.warm"), color: "text-warning",     bg: "bg-warning/10",                  emoji: "🌤️" };
@@ -499,6 +542,24 @@ export const crmApi = {
   deleteDeal:    (id: string): Promise<void> => rawApiClient.delete(`${BASE}/deals/${id}`),
 
   // Leads
+  /**
+   * The list screen. Filtering, sorting and paging happen server-side — a tenant here holds ~6,000
+   * leads, and fetching them all to filter in the browser took over ten seconds.
+   */
+  getLeadsPaged: (p: LeadsPageParams = {}): Promise<PagedLeads> => {
+    const qs = new URLSearchParams();
+    if (p.page)     qs.set("page",     String(p.page));
+    if (p.pageSize) qs.set("pageSize", String(p.pageSize));
+    if (p.search?.trim())            qs.set("search",   p.search.trim());
+    if (p.status   && p.status   !== "all") qs.set("status",   p.status);
+    if (p.source   && p.source   !== "all") qs.set("source",   p.source);
+    if (p.assignee && p.assignee !== "all") qs.set("assignee", p.assignee);
+    if (p.sortBy)   qs.set("sortBy",   p.sortBy);
+    if (p.sortDesc !== undefined) qs.set("sortDesc", String(p.sortDesc));
+    return rawApiClient.get(`${BASE}/leads/paged?${qs}`);
+  },
+
+  /** Every lead the caller can see. Only for the board view and exports — see getLeadsPaged. */
   getLeads:       (): Promise<LeadDto[]>          => rawApiClient.get(`${BASE}/leads`),
   getLeadsSummary:(): Promise<LeadsSummaryDto>    => rawApiClient.get(`${BASE}/leads/summary`),
   getLead:        (id: string): Promise<LeadDto>  => rawApiClient.get(`${BASE}/leads/${id}`),

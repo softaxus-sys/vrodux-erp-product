@@ -22,6 +22,7 @@ public sealed class Lead
         Budget         = Trim(budget);  Message = Trim(message);
         PurchaseTimeframe = Trim(purchaseTimeframe);
         CreatedAt      = DateTime.UtcNow;
+        LeadDate       = CreatedAt;
     }
 
     private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
@@ -54,6 +55,17 @@ public sealed class Lead
     /// visible rather than vanishing from a team lead the day this shipped.
     /// </summary>
     public Guid?     TeamId          { get; private set; }
+    /// <summary>
+    /// When the lead actually arose, as a real date the database can sort and index.
+    /// <para>
+    /// Defaults to <c>CreatedAt</c> and is overwritten with the source platform's own enquiry time
+    /// once that is known. It exists as a column rather than being derived per query because
+    /// <c>PlatformCreatedTime</c> is a raw string from the source: ordering by it needs a per-row
+    /// conversion that SQL cannot use an index for, and the list sorts on this by default over
+    /// thousands of rows.
+    /// </para>
+    /// </summary>
+    public DateTime  LeadDate        { get; private set; }
     public string    CreatedDate     { get; private set; } = string.Empty;
     public string?   LastContactDate { get; private set; }
     public string?   NextFollowUp    { get; private set; }
@@ -221,6 +233,13 @@ public sealed class Lead
         Platform = Trim(platform); FormName = Trim(formName); IsOrganic = isOrganic;
         Campaign = Trim(campaign); AdName = Trim(adName); AdSetName = Trim(adSetName);
         PlatformCreatedTime = Trim(platformCreatedTime);
+        // Kept in step here rather than computed on read, so the sort column can never disagree
+        // with the date the grid shows. An unparseable value leaves the CreatedAt default alone.
+        if (PlatformCreatedTime is not null
+            && DateTime.TryParse(PlatformCreatedTime, null,
+                   System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal,
+                   out var platformDate))
+            LeadDate = platformDate;
         CustomFields = customFields is { Count: > 0 } ? customFields : null;
     }
 

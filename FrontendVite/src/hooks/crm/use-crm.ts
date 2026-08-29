@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { crmApi } from "@/lib/crm/crm.api";
 import type {
   CreateLeadRequest, UpdateLeadRequest, CreateDealRequest, UpdateDealRequest,
   CreateCustomerRequest, UpdateCustomerRequest, CreateActivityRequest,
-  UpsertContactRequest, ImportLeadInput,
+  UpsertContactRequest, ImportLeadInput, LeadsPageParams,
 } from "@/lib/crm/crm.api";
 
 const QK = "crm";
@@ -26,10 +26,32 @@ export function useCrmSummary() {
   });
 }
 
-export function useLeads() {
+/**
+ * The leads list. Server-paged, so the first rows arrive in one small response instead of the
+ * whole table.
+ *
+ * `placeholderData: keepPreviousData` matters here: the params are part of the key, so typing in
+ * search or turning a page moves to a fresh cache entry with no data and the table would blank out
+ * between keystrokes.
+ */
+export function useLeadsPaged(params: LeadsPageParams) {
+  return useQuery({
+    queryKey: [QK, "leads", "paged", params],
+    queryFn:  () => crmApi.getLeadsPaged(params),
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Every lead the caller can see. Expensive on a large tenant — pass `enabled: false` and switch it
+ * on only when the whole set is genuinely needed (the board view, an export).
+ */
+export function useLeads(enabled = true) {
   return useQuery({
     queryKey: [QK, "leads"],
     queryFn:  crmApi.getLeads,
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }

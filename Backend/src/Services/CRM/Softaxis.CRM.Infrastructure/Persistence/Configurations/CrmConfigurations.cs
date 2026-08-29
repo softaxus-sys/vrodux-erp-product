@@ -34,6 +34,8 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.HasIndex(x => x.ConvertedCustomerId);
         // Team-scoped reads filter on this constantly.
         builder.HasIndex(x => x.TeamId);
+        // The list's default sort and its paging both order on this, over every lead in the tenant.
+        builder.HasIndex(x => x.LeadDate);
         // Conversion + source-effectiveness reports slice leads by conversion date.
         builder.HasIndex(x => x.ConvertedAt);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
