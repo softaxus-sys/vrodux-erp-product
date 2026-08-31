@@ -5,10 +5,16 @@ using Softaxis.Finance.Application.ReceiptVouchers.Commands;
 using Softaxis.Finance.Domain.Entities;
 using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
+using Softaxis.Finance.Infrastructure.Services;
+using Softaxis.Finance.Application.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.ReceiptVouchers;
 
-internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandHandler<PostReceiptVoucherCommand>
+internal sealed class PostReceiptVoucherHandler(
+    FinanceDbContext db,
+    IFinanceEmailService email,
+    ILogger<PostReceiptVoucherHandler> logger) : ICommandHandler<PostReceiptVoucherCommand>
 {
     public async Task<Result> Handle(PostReceiptVoucherCommand cmd, CancellationToken ct)
     {
@@ -70,8 +76,80 @@ internal sealed class PostReceiptVoucherHandler(FinanceDbContext db) : ICommandH
         var journalEntryId = await GlPoster.PostAsync(db, voucher.ReceiptDate, $"Receipt Voucher {voucher.VoucherNumber}", voucher.VoucherNumber, lines, ct);
         voucher.SetJournalEntryId(journalEntryId);
 
+        // Captured BEFORE the send: RecordPayment already ran above, so AmountDue is the balance
+        // left AFTER this receipt — which is exactly what the customer needs to see.
+        var applied = voucher.Allocations
+            .Select(a =>
+            {
+                var invoice = invoices.First(x => x.Id == a.InvoiceId);
+                return new VoucherReceiptEmailTemplate.AppliedLine(
+                    invoice.InvoiceNumber, a.AmountApplied, invoice.AmountDue);
+            })
+            .ToList();
+
         await db.SaveChangesAsync(ct);
 
+        await SendReceiptAsync(voucher, applied, ct);
+
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Emails the customer their receipt, copying the workspace CC list.
+    ///
+    /// Best-effort and after the commit: the money is recorded and the ledger posted either way. A
+    /// mail server being down must never fail a payment that has already happened, and re-sending
+    /// a receipt is trivial where un-posting a voucher is not.
+    /// </summary>
+    private async Task SendReceiptAsync(
+        ReceiptVoucher voucher,
+        IReadOnlyList<VoucherReceiptEmailTemplate.AppliedLine> applied,
+        CancellationToken ct)
+    {
+        try
+        {
+            // The voucher stores no email of its own. Prefer the customer record; fall back to an
+            // address on one of the invoices it settled, which is where the bill was sent.
+            var toEmail = await db.Customers.AsNoTracking()
+                .Where(c => c.Id == voucher.CustomerId)
+                .Select(c => c.Email)
+                .FirstOrDefaultAsync(ct);
+
+            if (string.IsNullOrWhiteSpace(toEmail))
+            {
+                var invoiceIds = voucher.Allocations.Select(a => a.InvoiceId).ToList();
+                toEmail = await db.Invoices.AsNoTracking()
+                    .Where(i => invoiceIds.Contains(i.Id) && i.CustomerEmail != null)
+                    .Select(i => i.CustomerEmail)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            if (string.IsNullOrWhiteSpace(toEmail))
+            {
+                logger.LogWarning(
+                    "Receipt voucher {VoucherNumber} posted, but no email address is on file for {Customer}.",
+                    voucher.VoucherNumber, voucher.CustomerName);
+                return;
+            }
+
+            var branding = await RecurringInvoiceGenerator.ResolveBrandingAsync(db, ct);
+            var body = VoucherReceiptEmailTemplate.Build(voucher, branding, applied);
+
+            var sent = await email.SendInvoiceAsync(
+                toEmail!, voucher.CustomerName, branding.CcList,
+                body.Subject, body.Html, body.InlineImages, ct);
+
+            // Recorded only on a real send, so a voucher never claims a receipt nobody received.
+            if (sent)
+            {
+                voucher.RecordReceiptSent(toEmail!);
+                await db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Receipt voucher {VoucherNumber} posted, but the receipt email failed.",
+                voucher.VoucherNumber);
+        }
     }
 }

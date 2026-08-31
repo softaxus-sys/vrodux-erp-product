@@ -48,9 +48,21 @@ public sealed class ReceiptVoucher
     public bool      IsDeleted     { get; private set; }
     public Guid?     JournalEntryId { get; private set; }
 
+    // The receipt emailed to the customer when this voucher was posted.
+    public DateTime? ReceiptSentAt { get; private set; }
+    public string?   ReceiptSentTo { get; private set; }
+
     public ICollection<ReceiptAllocation> Allocations { get; private set; } = new List<ReceiptAllocation>();
 
     public decimal AllocatedTotal => Allocations.Sum(a => a.AmountApplied);
+
+    /// <summary>Records that the receipt reached the customer. Only called after a real send.</summary>
+    public void RecordReceiptSent(string toEmail)
+    {
+        ReceiptSentAt = DateTime.UtcNow;
+        ReceiptSentTo = toEmail;
+        UpdatedAt     = DateTime.UtcNow;
+    }
 
     public void Update(string customerName, string receiptDate, decimal amount, string? receiptMethod,
         Guid? bankAccountId, string? reference, string? notes)
