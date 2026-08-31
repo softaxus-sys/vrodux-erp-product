@@ -14,7 +14,8 @@ internal static class RecurringInvoiceMappings
             r.NextRunDate.ToString("yyyy-MM-dd"), r.DueDays, r.TaxRate, r.Notes, r.IsActive,
             r.LastGeneratedDate?.ToString("yyyy-MM-dd"), r.GeneratedCount,
             sub, Math.Round(sub + sub * r.TaxRate / 100m, 2),
-            r.Lines.Select(l => new LineDto(l.Id, l.Description, l.Quantity, l.UnitPrice)).ToList());
+            r.Lines.Select(l => new LineDto(l.Id, l.Description, l.Quantity, l.UnitPrice)).ToList(),
+            r.CcEmails, r.AutoSend);
     }
 
     public static DateTime ParseDate(string s) =>

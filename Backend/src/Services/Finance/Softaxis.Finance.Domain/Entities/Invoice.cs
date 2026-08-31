@@ -40,6 +40,13 @@ public sealed class Invoice
     public DateTime  CreatedAt     { get; private set; }
     public DateTime? UpdatedAt     { get; private set; }
     public bool      IsDeleted     { get; private set; }
+    // Delivery record. "Sent" alone cannot distinguish an invoice a person marked sent by hand
+    // from one the system actually emailed, which is the first thing anyone asks when a client
+    // says they never received it.
+    public DateTime? EmailSentAt  { get; private set; }
+    public string?   EmailSentTo  { get; private set; }
+    public string?   EmailCc      { get; private set; }
+
     public Guid?     JournalEntryId { get; private set; }
     public Guid?     PaymentJournalEntryId { get; private set; }
 
@@ -74,6 +81,18 @@ public sealed class Invoice
     {
         Status    = "sent";
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Records a real delivery and moves the invoice to sent. Only called after the mail
+    /// server accepted it — a failed send must leave the invoice as it was, or the list would show
+    /// "sent" for something nobody received.</summary>
+    public void RecordEmailSent(string toEmail, string? cc)
+    {
+        EmailSentAt = DateTime.UtcNow;
+        EmailSentTo = toEmail;
+        EmailCc     = cc;
+        if (Status == "draft") Status = "sent";
+        UpdatedAt   = DateTime.UtcNow;
     }
 
     public void Cancel()

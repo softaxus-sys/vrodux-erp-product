@@ -12,7 +12,8 @@ public sealed class RecurringInvoice
     public RecurringInvoice(
         string templateName, string customerName, string? customerEmail,
         string frequency, DateTime startDate, DateTime? endDate,
-        int dueDays, decimal taxRate, string? notes)
+        int dueDays, decimal taxRate, string? notes,
+        string? ccEmails = null, bool autoSend = true)
     {
         Id            = Guid.NewGuid();
         TemplateName  = templateName.Trim();
@@ -25,6 +26,8 @@ public sealed class RecurringInvoice
         DueDays       = dueDays <= 0 ? 30 : dueDays;
         TaxRate       = taxRate;
         Notes         = notes?.Trim();
+        CcEmails      = Normalise(ccEmails);
+        AutoSend      = autoSend;
         IsActive      = true;
         CreatedAt     = DateTime.UtcNow;
     }
@@ -40,6 +43,14 @@ public sealed class RecurringInvoice
     public int       DueDays            { get; private set; } = 30;
     public decimal   TaxRate            { get; private set; }
     public string?   Notes              { get; private set; }
+    /// <summary>Comma-separated addresses copied on every invoice from this template.</summary>
+    public string?   CcEmails           { get; private set; }
+
+    /// <summary>Email the invoice the moment it is generated. Off means it is created as a draft
+    /// for someone to review and send by hand — worth using for a first client before letting a
+    /// template run unattended.</summary>
+    public bool      AutoSend           { get; private set; } = true;
+
     public bool      IsActive           { get; private set; }
     public DateTime? LastGeneratedDate  { get; private set; }
     public int       GeneratedCount     { get; private set; }
@@ -72,7 +83,8 @@ public sealed class RecurringInvoice
     }
 
     public void Update(string templateName, string customerName, string? customerEmail,
-        string frequency, DateTime? endDate, int dueDays, decimal taxRate, string? notes)
+        string frequency, DateTime? endDate, int dueDays, decimal taxRate, string? notes,
+        string? ccEmails = null, bool autoSend = true)
     {
         TemplateName  = templateName.Trim();
         CustomerName  = customerName.Trim();
@@ -82,8 +94,25 @@ public sealed class RecurringInvoice
         DueDays       = dueDays <= 0 ? 30 : dueDays;
         TaxRate       = taxRate;
         Notes         = notes?.Trim();
+        CcEmails      = Normalise(ccEmails);
+        AutoSend      = autoSend;
         UpdatedAt     = DateTime.UtcNow;
     }
+
+    /// <summary>Addresses to copy, split on comma or semicolon and de-duplicated — one stray
+    /// separator would otherwise produce "a@x.com;b@y.com" as a single address no server accepts.</summary>
+    public IReadOnlyList<string> CcList =>
+        (CcEmails ?? string.Empty)
+            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static string? Normalise(string? csv) =>
+        string.IsNullOrWhiteSpace(csv)
+            ? null
+            : string.Join(",", csv
+                .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase));
 
     public void Pause()  { IsActive = false; UpdatedAt = DateTime.UtcNow; }
     public void Resume() { IsActive = true;  UpdatedAt = DateTime.UtcNow; }

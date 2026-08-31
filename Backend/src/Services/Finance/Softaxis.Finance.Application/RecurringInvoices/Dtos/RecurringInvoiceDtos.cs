@@ -9,7 +9,8 @@ public sealed record RecurringDto(
     string Frequency, string StartDate, string? EndDate, string NextRunDate,
     int DueDays, decimal TaxRate, string? Notes, bool IsActive,
     string? LastGeneratedDate, int GeneratedCount,
-    decimal SubTotal, decimal Total, IReadOnlyList<LineDto> Lines);
+    decimal SubTotal, decimal Total, IReadOnlyList<LineDto> Lines,
+    string? CcEmails = null, bool AutoSend = true);
 
 public sealed record RecurringInvoicesSummaryDto(
     int     Total,
@@ -20,4 +21,4 @@ public sealed record RecurringInvoicesSummaryDto(
 
 public sealed record GenerateInvoiceResultDto(Guid InvoiceId, string InvoiceNumber);
 
-public sealed record RunDueResultDto(int Generated);
+public sealed record RunDueResultDto(int Generated, int Emailed = 0, int EmailFailed = 0);

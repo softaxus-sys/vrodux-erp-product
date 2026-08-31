@@ -16,7 +16,8 @@ internal sealed class UpdateRecurringInvoiceHandler(FinanceDbContext db) : IComm
             return Result.Failure(Error.NotFoundById("RecurringInvoice", cmd.Id));
 
         r.Update(cmd.TemplateName, cmd.CustomerName, cmd.CustomerEmail, cmd.Frequency,
-            RecurringInvoiceMappings.ParseNullableDate(cmd.EndDate), cmd.DueDays, cmd.TaxRate, cmd.Notes);
+            RecurringInvoiceMappings.ParseNullableDate(cmd.EndDate), cmd.DueDays, cmd.TaxRate, cmd.Notes,
+            cmd.CcEmails, cmd.AutoSend);
 
         db.RecurringInvoiceLines.RemoveRange(r.Lines);
         r.Lines.Clear();

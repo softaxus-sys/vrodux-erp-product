@@ -7,7 +7,10 @@ namespace Softaxis.Finance.Application.RecurringInvoices.Commands;
 public sealed record CreateRecurringInvoiceCommand(
     string TemplateName, string CustomerName, string? CustomerEmail, string Frequency,
     string StartDate, string? EndDate, int DueDays, decimal TaxRate, string? Notes,
-    IReadOnlyList<LineRequest> Lines) : ICommand<RecurringDto>;
+    IReadOnlyList<LineRequest> Lines,
+    // Copied on every invoice this template produces. AutoSend off means the invoice is created as
+    // a draft for someone to review and send by hand.
+    string? CcEmails = null, bool AutoSend = true) : ICommand<RecurringDto>;
 
 public sealed class CreateRecurringInvoiceValidator : AbstractValidator<CreateRecurringInvoiceCommand>
 {
@@ -24,7 +27,8 @@ public sealed class CreateRecurringInvoiceValidator : AbstractValidator<CreateRe
 public sealed record UpdateRecurringInvoiceCommand(
     Guid Id, string TemplateName, string CustomerName, string? CustomerEmail, string Frequency,
     string? EndDate, int DueDays, decimal TaxRate, string? Notes,
-    IReadOnlyList<LineRequest> Lines) : ICommand;
+    IReadOnlyList<LineRequest> Lines,
+    string? CcEmails = null, bool AutoSend = true) : ICommand;
 
 public sealed class UpdateRecurringInvoiceValidator : AbstractValidator<UpdateRecurringInvoiceCommand>
 {

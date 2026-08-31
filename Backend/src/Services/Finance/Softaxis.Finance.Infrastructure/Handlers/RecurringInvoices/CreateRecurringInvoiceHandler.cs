@@ -13,7 +13,7 @@ internal sealed class CreateRecurringInvoiceHandler(FinanceDbContext db) : IComm
     {
         var r = new RecurringInvoice(cmd.TemplateName, cmd.CustomerName, cmd.CustomerEmail,
             cmd.Frequency, RecurringInvoiceMappings.ParseDate(cmd.StartDate), RecurringInvoiceMappings.ParseNullableDate(cmd.EndDate),
-            cmd.DueDays, cmd.TaxRate, cmd.Notes);
+            cmd.DueDays, cmd.TaxRate, cmd.Notes, cmd.CcEmails, cmd.AutoSend);
 
         foreach (var l in cmd.Lines)
             r.Lines.Add(new RecurringInvoiceLine(r.Id, l.Description, l.Quantity, l.UnitPrice));
