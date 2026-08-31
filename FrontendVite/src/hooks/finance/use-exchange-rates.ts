@@ -6,6 +6,7 @@ import { tenantSettingsApi } from "@/lib/identity/tenant-settings.api";
 import { buildRateMap, convert } from "@/lib/finance/convert";
 import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
+import { refreshSession } from "@/lib/identity/refresh-session";
 
 const QK = "exchange-rates";
 
@@ -36,14 +37,28 @@ export function useRefreshRates() {
 /**
  * Change the tenant's operating currency. Persists on the backend and updates the auth store
  * immediately so the whole app (formatCurrency via useCurrency) reflects it without a re-login.
+ *
+ * The store patch alone is not enough: the backend stamps every newly created record with the
+ * currency from the JWT `currency` claim, which is fixed at sign-in. Without re-issuing the
+ * token the app would render the new currency while the server kept writing the old one — a
+ * quotation composed in USD came back stored, exported and printed as AED. So refresh the
+ * session too; it is best-effort, since the currency itself is already persisted.
  */
 export function useUpdateTenantCurrency() {
   return useMutation({
-    mutationFn: (currency: string) => tenantSettingsApi.updateCurrency(currency),
-    onSuccess: (_res, currency) => {
+    mutationFn: async (currency: string) => {
+      const res = await tenantSettingsApi.updateCurrency(currency);
+      const reissued = await refreshSession();
+      return { res, reissued };
+    },
+    onSuccess: ({ reissued }, currency) => {
+      const code = currency.toUpperCase();
       const tenant = useAuthStore.getState().tenant;
-      if (tenant) useAuthStore.getState().setTenant({ ...tenant, currency: currency.toUpperCase() });
-      toast.success(`Operating currency changed to ${currency.toUpperCase()}.`);
+      // The refresh already rebuilt the tenant from fresh claims; patch only if it did not run.
+      if (!reissued && tenant) useAuthStore.getState().setTenant({ ...tenant, currency: code });
+      if (reissued) toast.success(`Operating currency changed to ${code}.`);
+      else toast.warning(
+        `Operating currency changed to ${code}. Sign out and back in so new records are recorded in ${code}.`);
     },
     onError: (e: Error) => toast.error(e.message),
   });

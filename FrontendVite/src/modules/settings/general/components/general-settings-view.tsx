@@ -14,6 +14,7 @@ import { useThemeStore } from "@/store/theme.store";
 import { toast } from "sonner";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
 import { tenantSettingsApi } from "@/lib/identity/tenant-settings.api";
+import { refreshSession } from "@/lib/identity/refresh-session";
 import { findCountry } from "@/lib/onboarding/geo-data";
 import type { ModuleKey } from "@/types/global";
 
@@ -636,6 +637,18 @@ export function GeneralSettingsView() {
         try {
           await tenantSettingsApi.updateCurrency(pickedCurrency);
           tenantCurrencyRef.current = pickedCurrency;
+          // Re-issue the session token. The tenant's currency travels to the backend as a JWT
+          // claim fixed at sign-in, and that claim is what stamps every newly created record
+          // (quotation, invoice, deal). Without this the UI showed the new currency while the
+          // server kept writing the old one, so a quotation composed in USD was stored, exported
+          // and printed as AED.
+          if (!(await refreshSession())) {
+            toast.warning(t("general.toastCurrencyNeedsRelogin", {
+              defaultValue:
+                "Currency saved. Sign out and back in so new records are recorded in {{code}}.",
+              code: pickedCurrency,
+            }));
+          }
         } catch {
           toast.warning(t("general.toastCurrencyNotPersisted", {
             defaultValue: "Settings saved, but the operating currency could not be applied tenant-wide. It may revert on your next sign-in.",
