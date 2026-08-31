@@ -4,9 +4,8 @@ import { motion } from "framer-motion";
 import { CheckSquare, Phone, Mail, Calendar, StickyNote, ListTodo, AlertTriangle, CalendarClock, Check, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  useActivities, useActivitiesSummary, useCompleteActivity, useReopenActivity, useDeleteActivity,
+  useActivitiesPaged, useActivitiesSummary, useCompleteActivity, useReopenActivity, useDeleteActivity,
 } from "@/hooks/crm/use-crm";
-import { useLazyList } from "@/hooks/use-lazy-list";
 import { Button } from "@/components/ui/button";
 
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
@@ -18,21 +17,33 @@ export function ActivitiesView() {
   const { t } = useTranslation("crm");
   const [filter, setFilter] = React.useState<FilterKey>("open");
   const { data: summary } = useActivitiesSummary();
-  const { data: all = [] } = useActivities(
-    filter === "completed" ? { completed: true } : filter === "all" ? {} : { completed: false }
-  );
   const complete = useCompleteActivity();
   const reopen = useReopenActivity();
   const del = useDeleteActivity();
 
   const today = new Date().toISOString().slice(0, 10);
-  const items = React.useMemo(() => {
-    if (filter === "overdue") return all.filter(a => !a.completed && a.dueDate && a.dueDate < today);
-    if (filter === "today")   return all.filter(a => !a.completed && a.dueDate === today);
-    return all;
-  }, [all, filter, today]);
+  const [page, setPage] = React.useState(1);
 
-  const lazy = useLazyList(items, 30);
+  // Every filter now narrows in SQL. "overdue" and "today" used to be applied in the browser over
+  // the whole list, which cannot survive paging: it would filter within one page and under-report.
+  const params = React.useMemo(() => {
+    switch (filter) {
+      case "completed": return { completed: true };
+      case "all":       return {};
+      case "overdue":   return { completed: false, dueBefore: today };
+      case "today":     return { completed: false, dueOn: today };
+      default:          return { completed: false };
+    }
+  }, [filter, today]);
+
+  // Back to page one whenever the filter changes — page 3 of the previous filter is meaningless
+  // against a different result set, and often past its end.
+  React.useEffect(() => { setPage(1); }, [filter]);
+
+  const { data: paged, isFetching } = useActivitiesPaged({ ...params, page, pageSize: 30 });
+  const items      = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
 
   const stats = [
     { label: t("activity.view.openTasks"), value: summary?.openTasks ?? 0, icon: ListTodo, color: "text-primary", bg: "bg-primary/10" },
@@ -77,9 +88,9 @@ export function ActivitiesView() {
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
-        {lazy.total === 0 ? (
+        {totalCount === 0 ? (
           <div className="text-center py-16 text-sm text-muted-foreground">{t("activity.view.empty")}</div>
-        ) : lazy.visible.map(a => {
+        ) : items.map(a => {
           const Icon = ICON[a.type] ?? StickyNote;
           const overdue = !a.completed && a.dueDate && a.dueDate < today;
           return (
@@ -108,10 +119,28 @@ export function ActivitiesView() {
             </div>
           );
         })}
-        {lazy.hasMore && (
-          <div ref={lazy.sentinelRef} className="flex items-center justify-center gap-3 py-3">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={lazy.loadMore}>{t("activity.view.loadMore")}</Button>
-            <span className="text-xs text-muted-foreground">{t("activity.view.showing", { shown: lazy.shown, total: lazy.total })}</span>
+        {totalCount > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <span className="text-xs text-muted-foreground">
+              {t("activity.view.showing", {
+                shown: `${(page - 1) * 30 + 1}–${Math.min(page * 30, totalCount)}`,
+                total: totalCount,
+              })}
+            </span>
+            <div className="flex items-center gap-2">
+              {/* Disabled while fetching, so a double-click cannot skip a page. */}
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page <= 1 || isFetching}
+                onClick={() => setPage(p => Math.max(1, p - 1))}>
+                {t("activity.view.prev", { defaultValue: "Previous" })}
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page >= totalPages || isFetching}
+                onClick={() => setPage(p => p + 1)}>
+                {t("activity.view.next", { defaultValue: "Next" })}
+              </Button>
+            </div>
           </div>
         )}
       </div>

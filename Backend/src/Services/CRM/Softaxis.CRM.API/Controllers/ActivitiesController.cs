@@ -23,6 +23,23 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
         return OkOrError(result);
     }
 
+    /// <summary>The list screen. Filtering, searching and paging run in SQL — see
+    /// <c>GetActivitiesPagedQuery</c> for why the unpaged sibling above is only for record drawers.</summary>
+    [HttpGet("paged")]
+    [RequireAnyPermission("crm.leads.view", "crm.leads-team.view", "crm.leads-assigned.view")]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 30,
+        [FromQuery] string? relatedToType = null, [FromQuery] Guid? relatedToId = null,
+        [FromQuery] bool? completed = null, [FromQuery] string? type = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? dueBefore = null, [FromQuery] string? dueOn = null,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(new GetActivitiesPagedQuery(
+            page, pageSize, relatedToType, relatedToId, completed, type, search, dueBefore, dueOn), ct);
+        return OkOrError(result);
+    }
+
     [HttpGet("summary")]
     [RequirePermission("crm.leads.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)

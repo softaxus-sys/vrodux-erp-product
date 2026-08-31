@@ -231,6 +231,26 @@ export interface PagedLeads {
   totalPages: number;
 }
 
+export interface PagedActivities {
+  items: ActivityDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface ActivityPageParams {
+  page?: number;
+  pageSize?: number;
+  completed?: boolean;
+  type?: string;
+  search?: string;
+  /** yyyy-MM-dd — activities due strictly before this date (the "overdue" tab). */
+  dueBefore?: string;
+  /** yyyy-MM-dd — activities due on this exact date (the "today" tab). */
+  dueOn?: string;
+}
+
 export function leadDate(
   lead: Pick<LeadDto, "createdDate" | "platformCreatedTime">,
 ): { value: string; fromPlatform: boolean } {
@@ -599,6 +619,19 @@ export const crmApi = {
     if (params?.type)          qs.set("type", params.type);
     const s = qs.toString();
     return rawApiClient.get(`${BASE}/activities${s ? `?${s}` : ""}`);
+  },
+  /** The list screen. Filtering, searching and paging happen in SQL — see getActivities above,
+   *  which stays for the record drawers (a lead/deal/account passes relatedToId). */
+  getActivitiesPaged: (p: ActivityPageParams = {}): Promise<PagedActivities> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.completed !== undefined) qs.set("completed", String(p.completed));
+    if (p.type)      qs.set("type", p.type);
+    if (p.search)    qs.set("search", p.search);
+    if (p.dueBefore) qs.set("dueBefore", p.dueBefore);
+    if (p.dueOn)     qs.set("dueOn", p.dueOn);
+    return rawApiClient.get(`${BASE}/activities/paged?${qs}`);
   },
   getActivitiesSummary: (): Promise<ActivitiesSummaryDto> => rawApiClient.get(`${BASE}/activities/summary`),
   getCustomerTimeline:  (customerId: string): Promise<ActivityDto[]> => rawApiClient.get(`${BASE}/customers/${customerId}/timeline`),

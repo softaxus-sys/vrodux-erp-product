@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { ActivityPageParams } from "@/lib/crm/crm.api";
 import { crmApi } from "@/lib/crm/crm.api";
 import type {
   CreateLeadRequest, UpdateLeadRequest, CreateDealRequest, UpdateDealRequest,
@@ -169,6 +170,20 @@ export function useDeleteCustomer() { return useCrmMutation((id: string) => crmA
 export function useActivities(params?: { relatedToType?: string; relatedToId?: string; completed?: boolean; type?: string }) {
   return useQuery({ queryKey: [QK, "activities", params ?? {}], queryFn: () => crmApi.getActivities(params) });
 }
+/**
+ * The activities LIST. Server-paged: the unpaged sibling returns every activity the caller can
+ * see, already over a thousand on one tenant and growing with every logged call.
+ * keepPreviousData stops the table blanking between pages.
+ */
+export function useActivitiesPaged(params: ActivityPageParams) {
+  return useQuery({
+    queryKey: [QK, "activities", "paged", params],
+    queryFn: () => crmApi.getActivitiesPaged(params),
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+  });
+}
+
 export function useActivitiesSummary() {
   return useQuery({ queryKey: [QK, "activities-summary"], queryFn: crmApi.getActivitiesSummary });
 }
