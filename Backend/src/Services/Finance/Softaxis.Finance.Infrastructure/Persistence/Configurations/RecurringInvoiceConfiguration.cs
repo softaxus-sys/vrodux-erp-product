@@ -18,6 +18,9 @@ internal sealed class RecurringInvoiceConfiguration : IEntityTypeConfiguration<R
         b.Property(x => x.Frequency).IsRequired().HasMaxLength(20);
         b.Property(x => x.TaxRate).HasPrecision(9, 4);
         b.Property(x => x.Notes).HasMaxLength(1000);
+        b.Property(x => x.CcEmails).HasMaxLength(2000);
+        b.Property(x => x.AutoSend).HasDefaultValue(true);
+        b.Ignore(x => x.CcList);
 
         b.HasQueryFilter(x => !x.IsDeleted);
         b.HasIndex(x => new { x.IsActive, x.NextRunDate });

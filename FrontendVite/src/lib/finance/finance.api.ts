@@ -636,6 +636,10 @@ export interface RecurringInvoiceDto {
   subTotal: number;
   total: number;
   lines: RecurringLineDto[];
+  /** Addresses copied on every invoice this template produces. */
+  ccEmails?: string | null;
+  /** Email the invoice the moment it is generated, rather than leaving it as a draft. */
+  autoSend: boolean;
 }
 export interface RecurringSummaryDto {
   total: number; active: number; dueSoon: number; generatedTotal: number; monthlyValue: number;
@@ -651,6 +655,8 @@ export interface UpsertRecurringRequest {
   taxRate: number;
   notes?: string | null;
   lines: { description: string; quantity: number; unitPrice: number }[];
+  ccEmails?: string | null;
+  autoSend?: boolean;
 }
 
 function qsRange(from?: string, to?: string): string {
@@ -795,6 +801,8 @@ export const financeApi = {
   deleteRecurringInvoice: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/recurring-invoices/${id}`),
   pauseRecurringInvoice:  (id: string): Promise<void> => rawApiClient.post(`${BASE}/recurring-invoices/${id}/pause`),
   resumeRecurringInvoice: (id: string): Promise<void> => rawApiClient.post(`${BASE}/recurring-invoices/${id}/resume`),
-  generateRecurringNow:   (id: string): Promise<{ invoiceId: string; invoiceNumber: string }> => rawApiClient.post(`${BASE}/recurring-invoices/${id}/generate`),
-  runDueRecurring:        (): Promise<{ generated: number }> => rawApiClient.post(`${BASE}/recurring-invoices/run-due`),
+  generateRecurringNow:   (id: string): Promise<{ invoiceId: string; invoiceNumber: string; emailed: boolean }> =>
+    rawApiClient.post(`${BASE}/recurring-invoices/${id}/generate`),
+  runDueRecurring:        (): Promise<{ generated: number; emailed: number; emailFailed: number }> =>
+    rawApiClient.post(`${BASE}/recurring-invoices/run-due`),
 };

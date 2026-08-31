@@ -630,6 +630,13 @@
       "totalInvoice": "Total / invoice",
       "notes": "Notes",
       "notesPh": "Appears on every generated invoice…",
+      "delivery": "Delivery",
+      "deliveryHint": "How each generated invoice reaches the customer.",
+      "autoSend": "Email the invoice automatically",
+      "autoSendHint": "Sent the moment it is generated. Leave unticked to create it as a draft and send it by hand.",
+      "ccEmails": "CC on every invoice",
+      "ccEmailsHint": "Separate multiple addresses with a comma.",
+      "autoSendNoEmail": "Add a customer email above, or there is nobody to send to and the invoice will stay a draft.",
       "saveChanges": "Save Changes",
       "createTemplate": "Create Template"
     }

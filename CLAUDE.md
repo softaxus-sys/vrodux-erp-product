@@ -5890,3 +5890,74 @@ read-only on the server, flagged not fixed.
 - The full-solution build reports 8 **MSB3027/MSB3021 file locks**, not compile errors — the
   running gateway (and Visual Studio) hold the RealEstate DLLs.
 - Migration `AddUnitDetailFields` created; **needs a gateway restart to apply**.
+
+---
+
+## Module 54 — Finance: recurring invoices that are visible, and that actually reach the customer
+
+Asked for: a monthly recurring invoice for the first real client, emailed to them on the 1st with a
+CC address. Three things stood between the existing feature and that.
+
+### 🔴 1. Generated invoices were invisible to the workspace that owned the template
+`RecurringInvoiceHostedService` called the generator with **no ambient tenant**. That failed twice
+at once: the global query filter was bypassed (so it read *every* workspace's templates), and
+`StampTenantId` is a no-op when the tenant is unresolved, so every invoice it created landed with
+`TenantId = NULL` — hidden from the very workspace that generated it.
+
+Not theoretical: **10 of 11 invoices** in the dev database are NULL-tenant, two of them produced by
+the existing "test eemplete" template. The only correctly-stamped invoice was created through the UI.
+
+The job now enumerates workspaces (`IgnoreQueryFilters` + `EF.Property<Guid?>` for the shadow
+column, skipping NULL-tenant rows so orphans are never reprocessed), then loops one at a time with
+`TenantAmbient.Set(...)` and a fresh DI scope per workspace, clearing the ambient in a `finally` —
+it is an `AsyncLocal` and would otherwise leak into whatever ran next.
+
+### 2. Nothing was ever emailed
+Finance had **no email capability at all**. Invoices were generated as drafts and sat there.
+
+- `IFinanceEmailService` + `SmtpFinanceEmailService` reading the shared `Email` config (the
+  one-interface-per-service convention: Identity, Restaurant, Real Estate).
+- `InvoiceEmailTemplate` — inlined CSS (mail clients strip stylesheets), every interpolated value
+  HTML-encoded (customer names and line descriptions are user input), VAT row suppressed at 0% so a
+  zero-rated invoice does not invite a "is this misconfigured?" question.
+- **Save before send.** An invoice that exists but was not emailed can be re-sent; an email sent for
+  an invoice that failed to save is a bill the customer holds and the books do not.
+- **`RecordEmailSent` only fires on a real send.** `SendInvoiceAsync` returns false when SMTP is
+  unconfigured, so a failure leaves the invoice as it was. Marking it "sent" for something nobody
+  received is the one claim this must never make. `EmailSentAt`/`EmailSentTo`/`EmailCc` distinguish
+  a system delivery from someone ticking "sent" by hand.
+
+### 3. No CC field
+`CcEmails` (comma/semicolon split, de-duplicated — one stray separator otherwise yields
+`a@x.com;b@y.com` as a single address no server accepts) and `AutoSend` on the template. AutoSend
+defaults on but is per-template, so a first client can be reviewed for a month before running
+unattended. The form warns when auto-send is ticked with no customer address, since there would be
+nobody to send to and the invoice would silently stay a draft.
+
+### Caught from the merge: background jobs were stamping the wrong currency
+The incoming currency work (Module 50) made `Invoice.CurrencyCode` default via
+`TenantCurrency.Resolve()`, which reads `TenantAmbient.Currency` — and gave `TenantAmbient.Set` an
+optional 4th parameter. My background service called the 3-arg form, so `Currency` was null and
+**every invoice a background job created would fall back to AED** regardless of the workspace's
+actual currency. The job now resolves each workspace's currency in one query up front and passes it
+into `Set`. My own explicit `SetCurrencyCode` in the generator was deleted in favour of their
+entity-level default.
+
+### Also
+`GenerateNowHandler` and `RunDueHandler` both email too, via a shared `SendInvoiceAsync`, and report
+what was sent — the manual paths already ran inside a request, so they were always tenant-correct.
+Migration `AddRecurringInvoiceEmailing` (5 additive columns), applied and verified.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 273, unchanged baseline, none in a touched
+  file · **`vite build`:** ✅ · en/ar key parity verified.
+- Migration **applied**; gateway starts clean; all 5 columns confirmed in `sys.columns`.
+- **Not verified end to end** — that needs a real template owned by a tenant, and a configured SMTP
+  server. The sweep currently picks up **0 templates**, correctly: the only existing one is
+  NULL-tenant and inactive, so it is skipped rather than reprocessed.
+
+### Flagged, NOT actioned — 10 orphaned NULL-tenant invoices
+Eight are demo seed data (ADNOC, DEWA, Etisalat…), two came from the old template. All are
+invisible to every workspace. They cannot be attributed automatically — the template that produced
+them is itself NULL-tenant — so deleting or reassigning them is the owner's decision, not a guess to
+make on their behalf.

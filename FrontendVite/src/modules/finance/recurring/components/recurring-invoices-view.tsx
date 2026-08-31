@@ -194,6 +194,8 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
   const [dueDays, setDueDays] = React.useState(30);
   const [taxRate, setTaxRate] = React.useState(5);
   const [notes, setNotes] = React.useState("");
+  const [ccEmails, setCcEmails] = React.useState("");
+  const [autoSend, setAutoSend] = React.useState(true);
   const [lines, setLines] = React.useState<LineState[]>([{ id: "1", description: "", quantity: 1, unitPrice: 0 }]);
 
   React.useEffect(() => {
@@ -203,11 +205,13 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       setCustomerEmail(editing.customerEmail ?? ""); setFrequency(editing.frequency);
       setStartDate(editing.startDate.slice(0, 10)); setEndDate(editing.endDate?.slice(0, 10) ?? "");
       setDueDays(editing.dueDays); setTaxRate(editing.taxRate); setNotes(editing.notes ?? "");
+      setCcEmails(editing.ccEmails ?? ""); setAutoSend(editing.autoSend ?? true);
       setLines(editing.lines.length ? editing.lines.map(l => ({ id: l.id, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice }))
                                     : [{ id: "1", description: "", quantity: 1, unitPrice: 0 }]);
     } else {
       setTemplateName(""); setCustomerName(""); setCustomerEmail(""); setFrequency("monthly");
       setStartDate(new Date().toISOString().slice(0, 10)); setEndDate(""); setDueDays(30); setTaxRate(5); setNotes("");
+      setCcEmails(""); setAutoSend(true);
       setLines([{ id: "1", description: "", quantity: 1, unitPrice: 0 }]);
     }
   }, [open, editing]);
@@ -224,6 +228,8 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
       customerEmail: customerEmail.trim() || null, frequency, startDate,
       endDate: endDate || null, dueDays, taxRate, notes: notes.trim() || null,
       lines: active.map(l => ({ description: l.description.trim(), quantity: l.quantity, unitPrice: l.unitPrice })),
+      ccEmails: ccEmails.trim() || null,
+      autoSend,
     };
     if (isEdit && editing) update.mutate({ id: editing.id, data: payload }, { onSuccess: onClose });
     else create.mutate(payload, { onSuccess: onClose });
@@ -317,6 +323,36 @@ function RecurringDrawer({ open, editing, onClose }: { open: boolean; editing: R
             <div className="space-y-1.5"><Label>{t("recurring.form.notes")}</Label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder={t("recurring.form.notesPh")}
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" /></div>
+
+            {/* ── Delivery ─────────────────────────────────────────────── */}
+            <div className="rounded-lg border border-border p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium">{t("recurring.form.delivery")}</p>
+                <p className="text-xs text-muted-foreground">{t("recurring.form.deliveryHint")}</p>
+              </div>
+
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input type="checkbox" checked={autoSend} onChange={e => setAutoSend(e.target.checked)}
+                  className="w-4 h-4 mt-0.5 accent-primary" />
+                <span className="text-sm">
+                  {t("recurring.form.autoSend")}
+                  <span className="block text-xs text-muted-foreground">{t("recurring.form.autoSendHint")}</span>
+                </span>
+              </label>
+
+              <div className="space-y-1.5">
+                <Label>{t("recurring.form.ccEmails")}</Label>
+                <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
+                  placeholder="accounts@example.com, manager@example.com" className="h-9 text-sm" />
+                <p className="text-xs text-muted-foreground">{t("recurring.form.ccEmailsHint")}</p>
+              </div>
+
+              {/* Stated plainly: without a customer address there is nobody to send to, and the
+                  invoice would silently stay a draft no matter what the toggle says. */}
+              {autoSend && !customerEmail.trim() && (
+                <p className="text-xs text-warning">{t("recurring.form.autoSendNoEmail")}</p>
+              )}
+            </div>
           </div>
 
           <div className="px-6 py-4 border-t border-border flex justify-end gap-2 shrink-0">

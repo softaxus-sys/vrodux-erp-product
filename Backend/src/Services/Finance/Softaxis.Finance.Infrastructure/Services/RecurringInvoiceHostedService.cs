@@ -41,9 +41,12 @@ public sealed class RecurringInvoiceHostedService(
         }
     }
 
+    private sealed record TenantCurrencyRow(Guid Id, string? Currency);
+
     private async Task RunAllTenantsAsync(CancellationToken ct)
     {
         List<Guid> tenantIds;
+        var currencies = new Dictionary<Guid, string?>();
 
         using (var lookupScope = scopeFactory.CreateScope())
         {
@@ -60,9 +63,27 @@ public sealed class RecurringInvoiceHostedService(
                 .Distinct()
                 .Select(id => id!.Value)
                 .ToListAsync(ct);
-        }
 
-        if (tenantIds.Count == 0) return;
+            if (tenantIds.Count == 0) return;
+
+            // Each workspace's operating currency, so the ambient context carries it into the
+            // generated invoices. Without this, TenantAmbient.Currency is null, Invoice's default
+            // falls back through TenantCurrency to "AED", and a PKR workspace has every recurring
+            // invoice stamped in the wrong currency. One query, not one per workspace.
+            // "identity" is a RESERVED SQL Server keyword and MUST be bracketed.
+            try
+            {
+                var rows = await db.Database
+                    .SqlQuery<TenantCurrencyRow>($"SELECT [Id], [Currency] FROM [identity].[tenants]")
+                    .ToListAsync(ct);
+                foreach (var r in rows) currencies[r.Id] = r.Currency;
+            }
+            catch (Exception ex)
+            {
+                // Falls back to the entity default rather than stopping invoicing outright.
+                logger.LogWarning(ex, "RecurringInvoices: could not resolve tenant currencies.");
+            }
+        }
 
         foreach (var tenantId in tenantIds)
         {
@@ -73,7 +94,8 @@ public sealed class RecurringInvoiceHostedService(
             using var scope = scopeFactory.CreateScope();
             try
             {
-                TenantAmbient.Set(tenantId, isSuperAdmin: false, isResolved: true);
+                TenantAmbient.Set(tenantId, isSuperAdmin: false, isResolved: true,
+                    currency: currencies.GetValueOrDefault(tenantId));
 
                 var db    = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
                 var email = scope.ServiceProvider.GetRequiredService<IFinanceEmailService>();

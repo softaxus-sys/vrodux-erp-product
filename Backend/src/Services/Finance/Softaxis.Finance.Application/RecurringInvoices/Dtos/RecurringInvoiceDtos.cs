@@ -19,6 +19,6 @@ public sealed record RecurringInvoicesSummaryDto(
     int     GeneratedTotal,
     decimal MonthlyValue);
 
-public sealed record GenerateInvoiceResultDto(Guid InvoiceId, string InvoiceNumber);
+public sealed record GenerateInvoiceResultDto(Guid InvoiceId, string InvoiceNumber, bool Emailed = false);
 
 public sealed record RunDueResultDto(int Generated, int Emailed = 0, int EmailFailed = 0);

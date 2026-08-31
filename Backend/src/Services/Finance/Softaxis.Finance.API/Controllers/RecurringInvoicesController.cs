@@ -43,7 +43,10 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
     public sealed record UpsertRequest(
         string TemplateName, string CustomerName, string? CustomerEmail,
         string Frequency, string StartDate, string? EndDate,
-        int DueDays, decimal TaxRate, string? Notes, IReadOnlyList<LineRequest> Lines);
+        int DueDays, decimal TaxRate, string? Notes, IReadOnlyList<LineRequest> Lines,
+        // Addresses copied on every invoice this template produces, and whether to email it the
+        // moment it is generated (off = created as a draft for someone to send by hand).
+        string? CcEmails = null, bool AutoSend = true);
 
     [HttpPost]
     [RequirePermission("finance.invoicing.create")]
@@ -52,7 +55,8 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         var result = await sender.Send(new CreateRecurringInvoiceCommand(
             req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.StartDate, req.EndDate, req.DueDays, req.TaxRate, req.Notes,
-            req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList()), ct);
+            req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
+            req.CcEmails, req.AutoSend), ct);
 
         return CreatedOrError(result, nameof(GetById), result.IsSuccess ? new { id = result.Value.Id } : null!);
     }
@@ -64,7 +68,8 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         var result = await sender.Send(new UpdateRecurringInvoiceCommand(
             id, req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.EndDate, req.DueDays, req.TaxRate, req.Notes,
-            req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList()), ct);
+            req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
+            req.CcEmails, req.AutoSend), ct);
 
         return NoContentOrError(result);
     }

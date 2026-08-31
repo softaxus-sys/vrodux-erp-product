@@ -47,6 +47,10 @@ public static class InfrastructureExtensions
         services.Configure<ExchangeRateOptions>(configuration.GetSection(ExchangeRateOptions.Section));
         services.AddHttpClient("exchange-rates");
         services.AddScoped<IExchangeRateProvider, ErApiExchangeRateProvider>();
+        // Invoice delivery. Finance previously had no email capability at all, so every recurring
+        // invoice was generated as a draft and sat there.
+        services.AddScoped<Softaxis.Finance.Application.Abstractions.IFinanceEmailService,
+                           Services.SmtpFinanceEmailService>();
 
         // ── Background jobs ───────────────────────────────────────────────────
         services.AddHostedService<Services.RecurringInvoiceHostedService>();

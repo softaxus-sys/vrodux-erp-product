@@ -22,8 +22,14 @@ public sealed record RecurringRunResult(int Created, int Emailed, int EmailFaile
 /// </summary>
 public static class RecurringInvoiceGenerator
 {
-    /// <summary>Generate one invoice from a template for its current run date.</summary>
-    public static Invoice GenerateInvoice(RecurringInvoice template, DateTime runDate, string? currencyCode = null)
+    /// <summary>
+    /// Generate one invoice from a template for its current run date.
+    ///
+    /// The currency is NOT set here: <c>Invoice.CurrencyCode</c> defaults through
+    /// <c>TenantCurrency.Resolve()</c>, which reads the ambient tenant. The caller's job is to make
+    /// sure that ambient context carries a currency — the background service does, per workspace.
+    /// </summary>
+    public static Invoice GenerateInvoice(RecurringInvoice template, DateTime runDate)
     {
         var invoiceDate = runDate.ToString("yyyy-MM-dd");
         var dueDate     = runDate.AddDays(template.DueDays).ToString("yyyy-MM-dd");
@@ -35,10 +41,6 @@ public static class RecurringInvoiceGenerator
         var invoice = new Invoice(template.CustomerName, template.CustomerEmail, invoiceDate, dueDate, template.TaxRate, note);
         foreach (var l in template.Lines)
             invoice.Items.Add(new InvoiceItem(invoice.Id, l.Description, l.Quantity, l.UnitPrice));
-
-        // Invoice defaults to AED. A workspace operating in another currency would otherwise have
-        // every recurring invoice silently labelled in the wrong one.
-        if (!string.IsNullOrWhiteSpace(currencyCode)) invoice.SetCurrencyCode(currencyCode!);
 
         return invoice;
     }
@@ -60,7 +62,7 @@ public static class RecurringInvoiceGenerator
 
         if (due.Count == 0) return new RecurringRunResult(0, 0, 0);
 
-        var (companyName, currency) = await ResolveTenantAsync(db, ct);
+        var companyName = await ResolveCompanyNameAsync(db, ct);
 
         var created = 0;
         var toEmail = new List<(Invoice Invoice, RecurringInvoice Template)>();
@@ -71,7 +73,7 @@ public static class RecurringInvoiceGenerator
             var guard = 0;
             while (template.IsDue(asOf) && guard++ < 60)
             {
-                var invoice = GenerateInvoice(template, template.NextRunDate, currency);
+                var invoice = GenerateInvoice(template, template.NextRunDate);
                 db.Invoices.Add(invoice);
                 template.AdvanceAfterGeneration();
                 created++;
@@ -92,19 +94,10 @@ public static class RecurringInvoiceGenerator
         {
             foreach (var (invoice, template) in toEmail)
             {
-                var body = InvoiceEmailTemplate.Build(invoice, companyName);
-                var sent = await email.SendInvoiceAsync(
-                    invoice.CustomerEmail!, invoice.CustomerName, template.CcList,
-                    body.Subject, body.Html, ct);
-
-                if (sent)
-                {
-                    // Only on a real send. Marking it "sent" after a failure would show delivered
-                    // for something nobody received — the one thing this must never claim.
-                    invoice.RecordEmailSent(invoice.CustomerEmail!, template.CcEmails);
+                if (await SendInvoiceAsync(db, invoice, template.CcList, template.CcEmails, email, ct, companyName))
                     emailed++;
-                }
-                else failed++;
+                else
+                    failed++;
             }
 
             if (emailed > 0) await db.SaveChangesAsync(ct);
@@ -114,29 +107,52 @@ public static class RecurringInvoiceGenerator
     }
 
     /// <summary>
-    /// The workspace's display name and operating currency, for the email and the invoice.
+    /// Emails one invoice and records the delivery on it. Does NOT save — the caller decides when,
+    /// so a batch can write once rather than per message.
+    /// </summary>
+    /// <returns>true only if the mail server accepted it.</returns>
+    public static async Task<bool> SendInvoiceAsync(
+        FinanceDbContext db, Invoice invoice, IReadOnlyList<string> cc, string? ccRaw,
+        IFinanceEmailService email, CancellationToken ct, string? companyName = null)
+    {
+        if (string.IsNullOrWhiteSpace(invoice.CustomerEmail)) return false;
+
+        companyName ??= await ResolveCompanyNameAsync(db, ct);
+
+        var body = InvoiceEmailTemplate.Build(invoice, companyName);
+        var sent = await email.SendInvoiceAsync(
+            invoice.CustomerEmail!, invoice.CustomerName, cc, body.Subject, body.Html, ct);
+
+        // Recorded only on a real send. Marking it "sent" after a failure would show delivered for
+        // something nobody received — the one thing this must never claim.
+        if (sent) invoice.RecordEmailSent(invoice.CustomerEmail!, ccRaw);
+
+        return sent;
+    }
+
+    /// <summary>
+    /// The workspace's display name, used as the sender in the invoice email — a customer should
+    /// see who is billing them, not a generic label.
+    ///
     /// Cross-schema read: every service points at the same physical database, different schema.
     /// <c>identity</c> is a RESERVED SQL Server keyword and MUST be bracketed.
     /// </summary>
-    private static async Task<(string CompanyName, string? Currency)> ResolveTenantAsync(
-        FinanceDbContext db, CancellationToken ct)
+    private static async Task<string> ResolveCompanyNameAsync(FinanceDbContext db, CancellationToken ct)
     {
         try
         {
             var tenantId = TenantAmbient.TenantId ?? Guid.Empty;
             var rows = await db.Database
-                .SqlQuery<TenantRow>($"SELECT [Name], [Currency] FROM [identity].[tenants] WHERE [Id] = {tenantId}")
+                .SqlQuery<string?>($"SELECT [Name] FROM [identity].[tenants] WHERE [Id] = {tenantId}")
                 .ToListAsync(ct);
 
-            var row = rows.FirstOrDefault();
-            return (string.IsNullOrWhiteSpace(row?.Name) ? "Accounts" : row!.Name, row?.Currency);
+            var name = rows.FirstOrDefault();
+            return string.IsNullOrWhiteSpace(name) ? "Accounts" : name!;
         }
         catch
         {
             // A lookup failure must not stop invoicing; the email just carries a neutral sender name.
-            return ("Accounts", null);
+            return "Accounts";
         }
     }
-
-    private sealed record TenantRow(string? Name, string? Currency);
 }
