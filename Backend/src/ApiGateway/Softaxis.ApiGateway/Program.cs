@@ -12,6 +12,7 @@ using Softaxis.Identity.Infrastructure.Extensions;
 using Softaxis.Identity.Infrastructure.Services;
 using Softaxis.Inventory.Infrastructure.Extensions;
 using Softaxis.Purchase.Infrastructure.Extensions;
+using Softaxis.Sales.API.Extensions;
 using Softaxis.Sales.Infrastructure.Extensions;
 using Softaxis.POS.Infrastructure.Extensions;
 using Softaxis.HR.Infrastructure.Extensions;
@@ -208,6 +209,9 @@ try
     // them via AddApplicationPart. Without the limiter registered here those attributes did
     // nothing at all in the deployed product.
     builder.Services.AddAuthRateLimiting();
+    // Sales' anonymous quotation link carries its own [EnableRateLimiting] attribute, and a
+    // named policy that is never registered throws at request time.
+    builder.Services.AddPublicLinkRateLimiting();
 
     // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>

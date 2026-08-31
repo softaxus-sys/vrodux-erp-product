@@ -12,8 +12,8 @@ import {
 } from "@/hooks/insurance/use-insurance";
 import type { PolicyDto } from "@/lib/insurance/insurance.api";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
-const CUR = "AED";
 type Tab = "policies" | "renewals" | "claims";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
   { key: "policies", label: "Policies", icon: FileText },
@@ -32,6 +32,7 @@ const badge = (s: string) => ({
 }[s] ?? "bg-muted text-muted-foreground");
 
 export function InsuranceView() {
+  const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("policies");
   const { data: s } = useInsuranceSummary();
   const { data: policies = [] } = usePolicies();
@@ -97,6 +98,7 @@ function Table({ cols, children, empty, emptyMsg }: { cols: string[]; children: 
 }
 
 function PoliciesTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = usePolicies();
   const create = useCreatePolicy(); const setStatus = useSetPolicyStatus(); const renew = useRenewPolicy(); const del = useDeletePolicy();
   const [open, setOpen] = React.useState(false);
@@ -136,6 +138,7 @@ function PoliciesTab() {
 }
 
 function RenewalsTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = useRenewals();
   const complete = useCompleteRenewal(); const del = useDeleteRenewal();
   return (
@@ -158,6 +161,7 @@ function RenewalsTab() {
 }
 
 function ClaimsTab({ policies }: { policies: PolicyDto[] }) {
+  const CUR = useCurrency();
   const { data: rows = [] } = useClaims();
   const create = useCreateClaim(); const approve = useApproveClaim(); const setStatus = useSetClaimStatus(); const del = useDeleteClaim();
   const [open, setOpen] = React.useState(false);

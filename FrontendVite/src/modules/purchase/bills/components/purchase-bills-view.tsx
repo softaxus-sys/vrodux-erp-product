@@ -14,6 +14,7 @@ import {
 } from "@/hooks/finance/use-finance";
 import type { PurchaseBillStatus } from "@/lib/finance/finance.api";
 import { CreatePurchaseBillForm } from "./create-purchase-bill-form";
+import { useCurrency } from "@/hooks/use-currency";
 
 const getStatusConfig = (t: any): Record<PurchaseBillStatus, { label: string; color: string; bg: string; dot: string }> => ({
   draft:           { label: t("bills.status.draft"),           color: "text-slate-600",   bg: "bg-slate-100 dark:bg-slate-800/50", dot: "bg-slate-400" },
@@ -25,6 +26,7 @@ const getStatusConfig = (t: any): Record<PurchaseBillStatus, { label: string; co
 
 export function PurchaseBillsView() {
   const { t } = useTranslation("purchase");
+  const currency = useCurrency();
   const [search, setSearch]             = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]                 = React.useState(1);
@@ -57,9 +59,9 @@ export function PurchaseBillsView() {
     { label: t("common.totalInvoices"), value: summary?.totalBills ?? 0,                           icon: Receipt,      color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: t("bills.status.draft"),          value: summary?.draftCount ?? 0,                           icon: FileText,     color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: t("common.outstanding"),    value: summary?.outstandingCount ?? 0,                     icon: Clock,        color: "text-primary",   bg: "bg-primary/10" },
-    { label: t("common.totalAmount"),   value: formatCurrency(summary?.totalAmount ?? 0, "AED"),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
-    { label: t("common.paid"),           value: formatCurrency(summary?.totalPaid ?? 0, "AED"),     icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
-    { label: t("common.due"),            value: formatCurrency(summary?.totalOutstanding ?? 0, "AED"), icon: Ban,       color: "text-destructive", bg: "bg-destructive/10" },
+    { label: t("common.totalAmount"),   value: formatCurrency(summary?.totalAmount ?? 0, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("common.paid"),           value: formatCurrency(summary?.totalPaid ?? 0, currency),     icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
+    { label: t("common.due"),            value: formatCurrency(summary?.totalOutstanding ?? 0, currency), icon: Ban,       color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
   return (
@@ -151,7 +153,7 @@ export function PurchaseBillsView() {
                         {b.taxRate === 0 && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-muted-foreground">Non-Tax</span>
                         )}
-                        {b.currencyCode !== "AED" && (
+                        {b.currencyCode && b.currencyCode !== currency && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary">Import · {b.currencyCode}</span>
                         )}
                       </div>
@@ -168,10 +170,10 @@ export function PurchaseBillsView() {
                       <span className="text-xs text-muted-foreground">{formatDate(b.dueDate)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right">
-                      <span className="font-semibold text-sm">{formatCurrency(b.total, b.currencyCode)}</span>
+                      <span className="font-semibold text-sm">{formatCurrency(b.total, b.currencyCode || currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-right hidden md:table-cell">
-                      <span className="text-sm text-muted-foreground">{formatCurrency(b.amountDue, b.currencyCode)}</span>
+                      <span className="text-sm text-muted-foreground">{formatCurrency(b.amountDue, b.currencyCode || currency)}</span>
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>

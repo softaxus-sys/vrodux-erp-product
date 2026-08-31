@@ -9,6 +9,7 @@ import {
   Line,
   ResponsiveContainer,
 } from "recharts";
+import { useCurrency } from "@/hooks/use-currency";
 
 interface KpiCardProps {
   card: KpiCard;
@@ -16,6 +17,7 @@ interface KpiCardProps {
 }
 
 function KpiCardComponent({ card, index }: KpiCardProps) {
+  const currency = useCurrency();
   const colorMap = {
     primary: "text-primary bg-primary/10",
     success: "text-success bg-success/10",
@@ -36,7 +38,7 @@ function KpiCardComponent({ card, index }: KpiCardProps) {
 
   const formattedValue =
     card.format === "currency" && typeof card.value === "number"
-      ? formatCurrency(card.value, card.currency)
+      ? formatCurrency(card.value, card.currency || currency)
       : card.format === "number" && typeof card.value === "number"
         ? formatNumber(card.value)
         : String(card.value);

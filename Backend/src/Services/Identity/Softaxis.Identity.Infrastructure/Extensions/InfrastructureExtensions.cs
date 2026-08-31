@@ -38,6 +38,9 @@ public static class InfrastructureExtensions
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
         services.AddScoped<IAuditLogRepository,     AuditLogRepository>();
         services.AddScoped<IAppSettingRepository,   AppSettingRepository>();
+        // Reads Settings -> Security and turns it into the policy the auth handlers enforce.
+        services.AddMemoryCache();
+        services.AddScoped<ITenantSecurityPolicyProvider, TenantSecurityPolicyProvider>();
         services.AddScoped<IBranchRepository,       BranchRepository>();
         services.AddScoped<ITenantRepository,       TenantRepository>();
         services.AddScoped<ITeamRepository,         TeamRepository>();

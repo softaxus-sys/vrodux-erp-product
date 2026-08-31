@@ -6,12 +6,13 @@ using Softaxis.Identity.Domain.Repositories;
 namespace Softaxis.Identity.Application.Auth.Commands.ResetPassword;
 
 public sealed class ResetPasswordCommandHandler(
-    IUserRepository         userRepo,
-    IJwtTokenService        jwtService,
-    IPasswordHasher         passwordHasher,
-    IRefreshTokenRepository refreshRepo,
-    IAuditLogRepository     auditRepo,
-    IUnitOfWork             uow)
+    IUserRepository               userRepo,
+    IJwtTokenService              jwtService,
+    IPasswordHasher               passwordHasher,
+    IRefreshTokenRepository       refreshRepo,
+    IAuditLogRepository           auditRepo,
+    ITenantSecurityPolicyProvider securityPolicy,
+    IUnitOfWork                   uow)
     : ICommandHandler<ResetPasswordCommand>
 {
     /// <summary>
@@ -33,6 +34,16 @@ public sealed class ResetPasswordCommandHandler(
 
         if (!user.IsPasswordResetTokenValid(jwtService.HashToken(cmd.Token)))
             return Result.Failure(invalid);
+
+        // The tenant's own password rules (Settings → Security). Enforced here rather than in the
+        // validator because the policy is per-tenant and a FluentValidation rule is static.
+        //
+        // Deliberately AFTER the token check: this is the one response on the endpoint that says
+        // something specific, and running it first would let anyone holding an address — with no
+        // valid token at all — read back the tenant's password policy by submitting a weak one.
+        var policy = await securityPolicy.GetAsync(user.TenantId, ct);
+        var policyCheck = PasswordPolicy.Validate(cmd.NewPassword, policy);
+        if (policyCheck.IsFailure) return policyCheck;
 
         user.ChangePassword(passwordHasher.Hash(cmd.NewPassword));
         user.ClearPasswordResetToken();

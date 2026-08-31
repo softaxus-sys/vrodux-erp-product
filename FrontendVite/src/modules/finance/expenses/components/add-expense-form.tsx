@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreateExpense, useUploadExpenseReceipt } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const CATEGORY_VALUES = ["travel", "accommodation", "meals", "fuel", "software", "office", "training", "medical", "other"] as const;
 const PAYMENT_METHOD_VALUES = ["cash", "personal_card", "company_card", "bank_transfer"] as const;
@@ -44,7 +45,9 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
   const [department, setDepartment] = React.useState("");
   const [project, setProject] = React.useState("");
   const [paymentMethod, setPaymentMethod] = React.useState("personal_card");
-  const [currency, setCurrency] = React.useState("AED");
+  const tenantCurrency = useCurrency();
+  const currencyOptions = useCurrencyOptions();
+  const [currency, setCurrency] = React.useState(tenantCurrency);
   const [notes, setNotes] = React.useState("");
 
   const totalAmount = lines.reduce((s, l) => s + l.amount, 0);
@@ -67,7 +70,7 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
     setLines([newLine()]);
     setDate(new Date().toISOString().split("T")[0]);
     setDepartment(""); setProject(""); setPaymentMethod("personal_card");
-    setCurrency("AED"); setNotes("");
+    setCurrency(tenantCurrency); setNotes("");
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
@@ -160,7 +163,7 @@ export function AddExpenseForm({ open, onClose }: AddExpenseFormProps) {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("expenses.form.currency")}</label>
                   <select value={currency} onChange={e => setCurrency(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                    {["AED", "USD", "EUR", "GBP", "SAR"].map(c => <option key={c}>{c}</option>)}
+                    {currencyOptions.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2 space-y-1.5">

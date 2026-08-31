@@ -15,6 +15,7 @@ import { CATEGORY_LABELS } from "@/lib/purchase/approvals.api";
 import { useApproveApproval, useRejectApproval } from "@/hooks/purchase/use-approvals";
 import { useAuthStore } from "@/store/auth.store";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
 /** Styling only — labels via t(`approvals.status.${s}`). */
 const STATUS_CONFIG: Record<ApprovalStatus, { color: string; bg: string; icon: React.ElementType }> = {
@@ -35,6 +36,7 @@ const PRIORITY_CONFIG: Record<ApprovalPriority, { color: string; bg: string }> =
 interface Props { approval: PurchaseApproval | null; open: boolean; onClose: () => void; }
 
 export function ApprovalDrawer({ approval, open, onClose }: Props) {
+  const currency = useCurrency();
   const { t } = useTranslation("purchase");
   const approve = useApproveApproval();
   const reject  = useRejectApproval();
@@ -101,7 +103,7 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                 <p className={cn("text-3xl font-bold",
                   approval.status === "approved" ? "text-success" :
                   approval.status === "rejected" ? "text-destructive" : "text-foreground")}>
-                  {formatCurrency(approval.totalAmount, approval.currency)}
+                  {formatCurrency(approval.totalAmount, approval.currency || currency)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">{approval.currency} · {CATEGORY_LABELS[approval.category]}</p>
               </div>
@@ -170,8 +172,8 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                           className="border-t border-border/40 hover:bg-muted/20 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium">{item.description}</td>
                           <td className="px-4 py-3 text-right text-sm text-muted-foreground">{item.quantity}</td>
-                          <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.estimatedUnitPrice, approval.currency)}</td>
-                          <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.total, approval.currency)}</td>
+                          <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.estimatedUnitPrice, approval.currency || currency)}</td>
+                          <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.total, approval.currency || currency)}</td>
                         </motion.tr>
                       ))}
                     </tbody>
@@ -179,7 +181,7 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
                 </div>
                 <div className="mt-3 flex justify-between items-center px-1">
                   <span className="text-sm text-muted-foreground">{t("approvals.drawer.estimatedTotal")}</span>
-                  <span className="font-bold text-base">{formatCurrency(approval.totalAmount, approval.currency)}</span>
+                  <span className="font-bold text-base">{formatCurrency(approval.totalAmount, approval.currency || currency)}</span>
                 </div>
               </div>
             </div>

@@ -5350,7 +5350,211 @@ plain text.
 
 ---
 
-## Module 50 — Real Estate: rent schedules, rent/overdue reminders, lease-expiry notices
+## Module 50 — 🔴 Tenant currency was neither persisted nor displayed consistently
+
+Reported as "my default currency is PKR but the invoice shows AED". Three independent causes.
+
+### 1. The picked currency was never persisted to the tenant
+Settings → General → Regional saved `currency` into `app_settings` and patched the auth store
+in memory, but never called `PUT /api/tenant-settings/currency`. The tenant's own `Currency`
+column is what gets embedded in the JWT `currency` claim, which is what `useCurrency()` reads
+app-wide — so the choice survived until the next page load and then silently reverted to the
+stale claim. The save now writes through to the tenant (best-effort: a failure warns rather
+than losing the other settings), guarded by a `tenantCurrencyRef` so an unrelated save does not
+fire a pointless tenant-wide write.
+
+### 2. An explicit currency could be overridden by the tenant's country
+`buildTenantFromClaims` discarded a `"USD"` claim and re-derived from the country, on the
+theory that USD was only ever an unset default. That also overrode a deliberate choice, so a
+UAE-registered tenant operating in USD was forced back to AED on every load. **Any 3-letter
+claim now wins; the country is a fallback only.** The General Settings loader likewise prefers
+the tenant's persisted currency over a country-derived guess, so the panel agrees with the rest
+of the product.
+
+### 3. ~30 display sites ignored the tenant currency
+- Module-scope `const CUR = "AED"` in B2B, Insurance, Education, Real-Estate Sales and —
+  most visibly — **`invoice-print.ts`, the printed/PDF invoice**.
+- Literal `"AED"` in the dashboard (revenue chart, top performers, upcoming payments), purchase
+  bills/approvals stat cards, sales returns, properties drawer.
+- Six no-arg `formatCurrency()` calls in Recipe falling through to the AED default.
+- Create forms (expense, BOQ, contractor, construction project, RE contract) defaulted their
+  picker to `"AED"` off a hardcoded list that in several cases did not even offer PKR.
+- **"Import invoice" was flagged as `currencyCode !== "AED"`**, so for a PKR tenant every
+  purchase bill read as an import. Now compared against the tenant's own currency.
+
+Genuinely multi-currency records — foreign bank accounts, import purchase bills — still show
+their own stored currency; only their fallback changed.
+
+### 4. The backend stamped "AED" on every new record
+Every Finance/CRM/HR/Purchase/Sales entity hardcoded `CurrencyCode = "AED"` and no service read
+the currency claim. **`TenantAmbient` now carries the tenant's currency** (published per request
+by `TenantAmbientMiddleware` from the JWT) and entities resolve their default through the new
+`TenantCurrency.Resolve()` in `BuildingBlocks.Domain.Multitenancy`. Existing rows are left as-is
+— display is tenant-driven regardless, and rewriting live financial data is a separate call.
+(`CRM.Domain` had no `BuildingBlocks.Domain` reference; added.)
+
+New helpers: `getTenantCurrency()` for non-hook contexts (print/PDF/CSV builders, ESC-POS) and
+`useCurrencyOptions()` for pickers, which guarantees the tenant's own currency is present and
+listed first.
+
+**Note:** `WpsSifBuilder` still hardcodes AED — correct, the UAE Wage Protection System file
+format is AED-only by regulation.
+
+- **Build:** ApiGateway 0 errors ✅ · `vite build` ✅ · `tsc` 274 vs the 277 baseline, none new.
+- **Pending (republish + restart):** re-save the currency in Settings → General so it reaches
+  the tenant column, then confirm a new invoice, its PDF, and the dashboard all read PKR.
+
+---
+
+## Module 51 — Sales: quotations become a real customer-facing document
+
+Extends the existing Sales quotation from an items-and-total record into the proposal a tenant
+actually sends, and **migrates the feature to CQRS** on the way (it was the Module 5o tech debt —
+`SalesQuotationsController` injected `SalesDbContext` with inline DTOs). Request records stay
+inline, the same exception Finance's `AccountsController` uses.
+
+### Document
+`Title`, `Reference`, `IssueDate`, `CoverNote`, `PaymentTerms`, `TermsAndConditions`,
+`PreparedByName`, customer email/phone/address, and a JSON `CustomFields` bag (max 25) so a
+tenant can add a field — project code, lead time, warranty — without a migration.
+`SalesQuotationSection` groups lines; a flat quotation needs none. Lines gained `Unit`, `Notes`,
+`SortOrder` and **`IsOptional`** — quoted for consideration, excluded from the total, and **not
+carried onto a converted order** (the customer never committed to them). `OptionalTotal` is
+exposed so the document can show "+ X if selected".
+
+**`QuotationTemplate`** seeds a new draft with the tenant's own boilerplate and prefilled lines.
+Applying one only *seeds*: the quotation keeps its own copy of every value, so editing a template
+never rewrites a proposal already sent. Exactly one default per tenant, maintained in the handler
+rather than by a filtered unique index (promoting one demotes the incumbent — a two-row swap a
+constraint would make ordering-sensitive).
+
+**🔴 Bug found and fixed:** the header `DiscountPercent` was stored and rendered but **never
+subtracted**, so a quotation showing "10% discount" still charged full price. Tax is now taken on
+the post-discount base.
+
+### Sharing
+Public link `/q/{token}` — 24 CSPRNG bytes, uniquely indexed, resolved with **no tenant context**
+(the careers / QR-ordering pattern: `IgnoreQueryFilters` drops the tenant filter *and* the
+soft-delete filter, so `IsDeleted` is re-applied by hand, then the ambient tenant is set from the
+row). `PublicQuotationDto` is a deliberate subset: no internal notes, no token, no downstream
+order or invoice id.
+
+- The customer can accept or decline online; a second answer is a **409, not an overwrite**.
+- Drafts are unreadable even with a token; expired quotations cannot be answered.
+- The token is **stable across re-sends** so a link already in the customer's inbox keeps working.
+- **Deleting a quotation revokes it** — the customer's copy of the URL does not disappear when
+  the tenant deletes the record.
+- Email carries the link and **reports honestly**: SMTP failure returns `EmailSent=false` with
+  the share link rather than claiming an email went out. The quotation is marked sent and
+  **committed before** delivery is attempted, so a failed email leaves a resendable record
+  instead of a dead URL.
+- Branding (company name, address, tax number, logo) read from the tenant's own General Settings
+  via cross-schema SQL (`[identity].[app_settings]` — bracketed, reserved keyword), cached 5 min,
+  falling back to the tenant name. A settings-read failure must never stop a customer opening
+  what they were sent.
+
+### Invoicing
+`PATCH /invoice` attaches a Finance invoice — used both for convert-to-invoice and for linking an
+existing one. **Sales never writes into Finance's schema**: the frontend creates the invoice
+against the Finance API and only the id and number are recorded here (the visa-module pattern).
+Linking deliberately does **not** force `"converted"` — attaching for reference is not the same
+act as raising a sales order. `GET ?invoiceId=` lists what is attached to an invoice.
+
+Optional lines are excluded from the generated invoice, line discounts are folded into unit price
+(the Finance invoice line has no discount field), and the tax rate is **derived from what the
+quotation actually charges** rather than assumed.
+
+### Also
+`Duplicate` produces a clean revision (new draft, no token, no send/view/response history, no
+inherited links). Editing a converted or already-answered quotation is refused with a pointer to
+duplicate. **Status vocabulary unchanged** (only `viewed` added) so every stored row and the
+existing convert-to-order guard keep working.
+
+### 🔴 Rate limiting was inert in the gateway
+The gateway is the real host in every deployment (it loads each service's controllers via
+`AddApplicationPart`) but **never configured a rate limiter**, so the `[EnableRateLimiting]`
+attributes on Identity's forgot-password and trial endpoints have done nothing there since they
+were added. Registered the limiter in `ApiGateway/Program.cs` with those three policies plus
+`public_quotation` (60/min/IP) for the anonymous link. **Every policy an `[EnableRateLimiting]`
+attribute anywhere in the solution names must be defined there, or the endpoint throws.**
+
+### Frontend
+`quotation-builder.tsx` (replaces `add-quotation-form`) — three tabs, sections, optional extras,
+reorder/duplicate, live totals that mirror the server exactly. Doubles as the edit form.
+`quotation-drawer.tsx` rewritten — **Send, Duplicate and Reissue previously had no `onClick` at
+all**. Now: send, copy/revoke link, record an off-platform decision, convert, create invoice,
+PDF, plus a delivery trail (sent / opened / answered) because a status badge alone does not tell
+a rep whether the customer has actually looked at it.
+`pages/public/quotation.tsx` — self-contained, no app layout/auth store/i18n, forced light, and
+**plain `fetch` rather than `rawApiClient`** (which attaches a token and redirects to `/login` on
+401, bouncing a customer out of their own quotation).
+`quotation-print.ts` renders the same document through the browser's print engine, no dependency.
+`invoice-quotations-panel.tsx` in the invoice drawer — renders **nothing** for tenants without
+Sales rather than an empty box on every invoice.
+`quotation-templates-modal.tsx` manages the boilerplate.
+
+- **Build:** ApiGateway 0 errors ✅ · `tsc` 273 vs 277 baseline, none new ✅ · `vite build` ✅ ·
+  en/ar parity verified. Migration `AddQuotationDocumentAndTemplates` (additive; existing rows
+  backfilled with their own tenant's currency, not EF's empty default).
+- **Pending (republish + restart):** create → send → open the link in a private window → accept →
+  convert to order and to invoice; confirm the header discount now actually reduces the total.
+
+---
+
+## Module 52 — Settings: the Security panel enforced nothing, and the logo upload was dead
+
+### Logo upload
+The camera button and "Upload Logo" had **no `onClick`**, and there was **no logo field in the
+company settings at all** — nothing to upload to and nowhere to store it. Added a real picker:
+type- and size-checked (1 MB), read to a data URI, stored in `app_settings` with the rest of the
+company profile, with preview and Remove. A data URI because this product has no blob store and a
+letterhead is a few KB — and it keeps the whole letterhead in one row, which is what the
+quotation and invoice documents read. Added the **tax registration number** field too: the
+documents print it and there was nowhere to enter it.
+
+### 🔴 Ten security settings that enforced nothing
+Settings → Security saved `enforce2FA`, session timeout, max login attempts, password minimum
+length, complexity, expiry, single-session and IP whitelist into `app_settings`, and grep
+confirmed **not one was read anywhere in the backend**. A tenant could set a 14-character policy,
+a 3-attempt lockout and mandatory 2FA and get none of it.
+
+Now enforced via **`ITenantSecurityPolicyProvider`** (reads the tenant's rows, cached 1 min,
+invalidated by `UpsertAllSettingsCommandHandler` on save):
+- **Password rules** through one shared `PasswordPolicy.Validate` on change / reset / admin reset
+  / admin create, so the paths cannot drift. "Symbol" means *not a letter, digit or whitespace*
+  rather than a fixed list, so a password is never rejected for a punctuation mark the list omitted.
+- **Password expiry** — new `User.PasswordChangedAt` (migration `AddPasswordChangedAt`, nullable)
+  drives it at next login through the existing `MustChangePassword` flow. A null timestamp is
+  *never* expired: back-dating would force every existing user to reset at once.
+- **Max login attempts** replaces the hardcoded 5 in `RecordLoginFailure`.
+- **Session timeout** drives the access-token lifetime (`AccessTokenExpiryFor`), falling back to
+  the deployment's `Jwt:AccessTokenMinutes`.
+- **Single session** revokes the user's other refresh tokens on login.
+- **IP whitelist** — added the missing list field (there was a toggle with nothing to toggle
+  against). IPs and CIDR ranges, checked *after* the password so it cannot be used to probe which
+  addresses are allowed.
+
+### ⚠️ Four deliberate anti-lockout decisions
+1. Backend defaults (`TenantSecurityPolicy.Permissive`) match pre-change behaviour, so reading
+   the policy changes nothing until a tenant configures it.
+2. **The panel's own defaults claimed 2FA ON and a 90-day expiry.** Wiring enforcement to those
+   would have imposed both on every tenant that had never opened the panel. The displayed
+   defaults now match what is actually enforced.
+3. **Enforce-2FA never refuses a login** — that would lock out every user the moment the switch
+   is flipped, including the admin who flipped it. The session is issued with
+   `MustSetUpTwoFactor` and the app routes them to Settings → Security to enrol.
+4. An **enabled-but-empty whitelist allows everything** rather than denying everything, and the
+   field carries an explicit warning to include your own address.
+
+- **Build:** ApiGateway 0 errors ✅ · `tsc` 273 vs 277 baseline, none new ✅ · `vite build` ✅ ·
+  en/ar parity verified. Migration `AddPasswordChangedAt` (additive, nullable).
+- **Pending (republish + restart):** set a 12-char policy with complexity → confirm a weak
+  password is refused on change *and* on admin-create; set max attempts to 3 → confirm lockout at
+  3; enable 2FA enforcement → confirm login lands on Settings → Security rather than failing.
+
+---
+
+## Module 53 — Real Estate: rent schedules, rent/overdue reminders, lease-expiry notices
 
 Requested: alert tenants before rent falls due, chase them when it is not paid, and warn before a
 lease expires — all by email.
@@ -5488,7 +5692,7 @@ expiring queues, a **Preview (dry run)** button, and a sent log that shows *why*
 - Rent payments are recorded in Real Estate only; posting them to Finance as receivables was
   considered and deliberately not built (the self-contained option was chosen).
 
-### Module 50b — Add Tenant 400, field-level validation errors, advance rent
+### Module 53b — Add Tenant 400, field-level validation errors, advance rent
 
 **Three follow-ups from using the module.**
 
@@ -5562,7 +5766,7 @@ reporting overdue.
 - **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
 - Migration `AddTenantProfileFields` created **and applied**; gateway restarts clean.
 
-### Module 50c — Startup: a migration lock-release failure no longer kills the gateway
+### Module 53c — Startup: a migration lock-release failure no longer kills the gateway
 
 Reported as `SqlException: Cannot release the application lock ... '__EFMigrationsLock' ... because
 it is not currently held`, thrown from `MigrateAndSeedCrmAsync`.
@@ -5585,7 +5789,7 @@ against a half-migrated schema.
 **Operational note:** running the VroduxERP Windows Service and an IDE instance at the same time
 puts two processes on the same database and the same lock — a plausible route to exactly this.
 
-### Module 50d — Properties page crashed on open (`Cannot read properties of undefined (reading 'className')`)
+### Module 53d — Properties page crashed on open (`Cannot read properties of undefined (reading 'className')`)
 
 `properties-drawer.tsx` ran `STATUS_CONFIG[property.status].className`. Its map was keyed
 `active` / `inactive` / `under_development`; `Property.Status` is `available` /
@@ -5628,7 +5832,7 @@ a config map bare, and never trust a hand-written DTO that no compiler checks ag
   credentials. Verified instead by (a) reading the real status values out of the database, and
   (b) proving no unguarded lookup remains.
 
-### Module 50e — Property drawer actions wired, unit create/update/delete built, edit no longer wipes data
+### Module 53e — Property drawer actions wired, unit create/update/delete built, edit no longer wipes data
 
 Reported: **View All Units / Generate Report / Edit / Print** all dead in the property drawer, and
 the Add Unit property dropdown showing a static list.

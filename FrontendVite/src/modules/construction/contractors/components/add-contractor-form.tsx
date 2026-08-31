@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateContractor } from "@/hooks/construction/use-construction";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const TRADES = [
   "Civil", "MEP", "Structural", "Finishing", "Landscaping",
@@ -15,7 +16,6 @@ const TRADE_VALUES = [
 ];
 const CATEGORIES    = ["Subcontractor", "Main Contractor", "Specialist", "Consultant", "Supplier"];
 const PAYMENT_TERMS = ["Net 30", "Net 45", "Net 60", "Net 90", "COD"];
-const CURRENCIES    = ["AED", "USD", "EUR"];
 const EMIRATES      = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
 
 interface AddContractorFormProps {
@@ -40,7 +40,9 @@ export function AddContractorForm({ open, onClose }: AddContractorFormProps) {
   const [insuranceProvider, setInsuranceProvider] = React.useState("");
   const [insuranceExpiry, setInsuranceExpiry]   = React.useState("");
   const [paymentTerms, setPaymentTerms]         = React.useState("Net 30");
-  const [currency, setCurrency]                 = React.useState("AED");
+  const tenantCurrency = useCurrency();
+  const CURRENCIES = useCurrencyOptions();
+  const [currency, setCurrency]                 = React.useState(tenantCurrency);
   const [creditLimit, setCreditLimit]           = React.useState("");
   const [bankName, setBankName]                 = React.useState("");
   const [iban, setIban]                         = React.useState("");
@@ -55,7 +57,7 @@ export function AddContractorForm({ open, onClose }: AddContractorFormProps) {
     setSelectedTrades([]); setCategory("Subcontractor"); setCompanyName(""); setTradeName("");
     setContactPerson(""); setEmail(""); setPhone(""); setWebsite(""); setCity(""); setEmirate("Dubai");
     setLicenseNumber(""); setLicenseExpiry(""); setInsuranceProvider(""); setInsuranceExpiry("");
-    setPaymentTerms("Net 30"); setCurrency("AED"); setCreditLimit(""); setBankName(""); setIban(""); setNotes("");
+    setPaymentTerms("Net 30"); setCurrency(tenantCurrency); setCreditLimit(""); setBankName(""); setIban(""); setNotes("");
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);

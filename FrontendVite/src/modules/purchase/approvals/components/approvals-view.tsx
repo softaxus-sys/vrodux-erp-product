@@ -12,6 +12,7 @@ import type { PurchaseApprovalDto as PurchaseApproval, ApprovalStatus, ApprovalP
 import { CATEGORY_LABELS } from "@/lib/purchase/approvals.api";
 import { useApprovals, useApprovalsSummary } from "@/hooks/purchase/use-approvals";
 import { ApprovalDrawer } from "./approval-drawer";
+import { useCurrency } from "@/hooks/use-currency";
 
 const getStatusConfig = (t: any): Record<string, { label: string; color: string; bg: string; dot: string }> => ({
   pending:   { label: t("common.pending"),   color: "text-warning",          bg: "bg-warning/10",     dot: "bg-warning" },
@@ -31,6 +32,7 @@ const STATUS_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: 
 const PRIORITY_FALLBACK = { label: "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
 
 function StatCard({ card, index }: { card?: { label: string; value: number | string; icon: any; color: string; bg: string; format: string }; index: number }) {
+  const currency = useCurrency();
   if (!card) return null;
   const Icon = card.icon;
   return (
@@ -43,7 +45,7 @@ function StatCard({ card, index }: { card?: { label: string; value: number | str
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground truncate">{card.label}</p>
         <p className="font-bold text-lg leading-tight">
-          {card.format === "currency" ? formatCurrency(card.value as number, "AED") : card.value}
+          {card.format === "currency" ? formatCurrency(card.value as number, currency) : card.value}
         </p>
       </div>
     </motion.div>
@@ -51,6 +53,7 @@ function StatCard({ card, index }: { card?: { label: string; value: number | str
 }
 
 export function ApprovalsView() {
+  const currency = useCurrency();
   const { t } = useTranslation("purchase");
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<ApprovalStatus | "all">("all");
@@ -186,8 +189,8 @@ export function ApprovalsView() {
                   <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{a.justification}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="font-bold text-lg">{formatCurrency(a.totalAmount, a.currency)}</p>
-                  <p className="text-[10px] text-muted-foreground">{a.currency} · {(a.items ?? []).length} items</p>
+                  <p className="font-bold text-lg">{formatCurrency(a.totalAmount, a.currency || currency)}</p>
+                  <p className="text-[10px] text-muted-foreground">{a.currency || currency} · {(a.items ?? []).length} items</p>
                   {a.status === "pending" && (
                     <div className="flex items-center gap-1.5 mt-3 justify-end" onClick={e => e.stopPropagation()}>
                       <button onClick={e => { e.stopPropagation(); openDrawer(a); }}

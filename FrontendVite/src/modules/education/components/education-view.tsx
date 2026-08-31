@@ -12,8 +12,8 @@ import {
 } from "@/hooks/education/use-education";
 import type { StudentDto } from "@/lib/education/education.api";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
-const CUR = "AED";
 type Tab = "admissions" | "students" | "enrollments";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
   { key: "admissions", label: "Admissions", icon: FileText },
@@ -29,6 +29,7 @@ const badge = (s: string) => ({
 }[s] ?? "bg-muted text-muted-foreground");
 
 export function EducationView() {
+  const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("admissions");
   const { data: s } = useEducationSummary();
   const { data: students = [] } = useStudents();
@@ -159,6 +160,7 @@ function StudentsTab() {
 }
 
 function EnrollmentsTab({ students }: { students: StudentDto[] }) {
+  const CUR = useCurrency();
   const { data: rows = [] } = useEnrollments();
   const create = useCreateEnrollment(); const pay = useRecordFee(); const del = useDeleteEnrollment();
   const [open, setOpen] = React.useState(false);

@@ -12,6 +12,8 @@
     <PackageReference Include="MediatR"                                              Version="12.*" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions"       Version="11.*" />
     <PackageReference Include="Serilog"                                 Version="4.*" />
+    <PackageReference Include="MailKit"                                 Version="4.*" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory"     Version="9.*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Softaxis.Sales.Application\Softaxis.Sales.Application.csproj" />

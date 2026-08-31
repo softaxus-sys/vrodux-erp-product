@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Finance.Domain.Entities;
 
 public sealed class Expense
@@ -39,7 +41,7 @@ public sealed class Expense
     public string?   PaymentMethod { get; private set; }
     public string?   Reference     { get; private set; }
     public string?   Notes         { get; private set; }
-    public string    CurrencyCode  { get; private set; } = "AED";
+    public string    CurrencyCode  { get; private set; } = TenantCurrency.Resolve();
     public string    Status        { get; private set; } = "pending";
     public Guid?     ApprovedById  { get; private set; }
     public DateTime? ApprovedAt    { get; private set; }

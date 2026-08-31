@@ -4,11 +4,11 @@ import { X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateProject } from "@/hooks/construction/use-construction";
+import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 
 const PROJECT_TYPES = ["Residential", "Commercial", "Infrastructure", "Industrial"];
 const STATUSES      = ["Planning", "In Progress", "On Hold"];
 const EMIRATES      = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"];
-const CURRENCIES    = ["AED", "USD", "EUR"];
 
 interface Phase {
   id: string;
@@ -34,7 +34,9 @@ export function AddProjectForm({ open, onClose }: AddProjectFormProps) {
   const [siteEngineer, setSiteEngineer] = React.useState("");
   const [startDate, setStartDate]       = React.useState("");
   const [endDate, setEndDate]           = React.useState("");
-  const [currency, setCurrency]         = React.useState("AED");
+  const tenantCurrency = useCurrency();
+  const CURRENCIES = useCurrencyOptions();
+  const [currency, setCurrency]         = React.useState(tenantCurrency);
   const [contractValue, setContractValue] = React.useState("");
   const [workers, setWorkers]           = React.useState("");
   const [phases, setPhases]             = React.useState<Phase[]>([
@@ -52,7 +54,7 @@ export function AddProjectForm({ open, onClose }: AddProjectFormProps) {
   const reset = () => {
     setProjectType("Residential"); setStatus("Planning"); setName(""); setClient("");
     setLocation(""); setEmirate("Dubai"); setProjectManager(""); setSiteEngineer("");
-    setStartDate(""); setEndDate(""); setCurrency("AED"); setContractValue("");
+    setStartDate(""); setEndDate(""); setCurrency(tenantCurrency); setContractValue("");
     setWorkers(""); setPhases([{ id: "1", name: "", startDate: "", endDate: "" }]); setNotes("");
   };
 

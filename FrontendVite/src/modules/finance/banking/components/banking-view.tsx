@@ -150,13 +150,13 @@ export function BankingView() {
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden sm:table-cell">{txn.reference}</td>
                       <td className="px-4 py-3 text-right text-sm text-destructive font-medium">
-                        {txn.type === "debit" ? formatCurrency(Math.abs(txn.amount), selectedAccount?.currency ?? "AED") : "—"}
+                        {txn.type === "debit" ? formatCurrency(Math.abs(txn.amount), selectedAccount?.currency || currency) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-success font-medium">
-                        {txn.type === "credit" ? formatCurrency(txn.amount, selectedAccount?.currency ?? "AED") : "—"}
+                        {txn.type === "credit" ? formatCurrency(txn.amount, selectedAccount?.currency || currency) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-semibold hidden md:table-cell">
-                        {formatCurrency(txn.balance, selectedAccount?.currency ?? "AED")}
+                        {formatCurrency(txn.balance, selectedAccount?.currency || currency)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {txn.reconciled ? (
@@ -188,6 +188,7 @@ export function BankingView() {
 
 function BankAccountCard({ account, isSelected, onClick }: { account: BankAccount; isSelected: boolean; onClick: () => void }) {
   const { t } = useTranslation("finance");
+  const currency = useCurrency();
   const typeColor = account.accountType === "savings" ? "text-primary" : "text-success";
 
   return (
@@ -218,10 +219,10 @@ function BankAccountCard({ account, isSelected, onClick }: { account: BankAccoun
       </div>
       <p className="text-xs text-muted-foreground mb-0.5">{account.accountName}</p>
       <p className={cn("text-lg font-bold", typeColor)}>
-        {formatCurrency(account.balance, account.currency)}
+        {formatCurrency(account.balance, account.currency || currency)}
       </p>
       <p className="text-xs text-muted-foreground mt-1">
-        {t("banking.card.available", { amount: formatCurrency(account.availableBalance, account.currency) })}
+        {t("banking.card.available", { amount: formatCurrency(account.availableBalance, account.currency || currency) })}
       </p>
       <p className="text-xs text-muted-foreground mt-2">
         {t("banking.card.synced", { time: formatDate(account.lastSynced, "relative") })}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreateReturn } from "@/hooks/sales/use-returns";
+import { useCurrency } from "@/hooks/use-currency";
 
 const RETURN_REASONS = [
   "Defective / Damaged",
@@ -46,6 +47,7 @@ interface AddReturnFormProps {
 }
 
 export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
+  const currency = useCurrency();
   const { t } = useTranslation("sales");
   const createReturn = useCreateReturn();
   const [orderRef, setOrderRef]       = React.useState("");
@@ -199,7 +201,7 @@ export function AddReturnForm({ open, onClose }: AddReturnFormProps) {
                     <AlertCircle className="w-4 h-4 text-destructive" />
                     <span className="text-sm font-semibold text-foreground">{t("returns.form.totalRefund")}</span>
                   </div>
-                  <span className="text-lg font-bold text-destructive">{formatCurrency(totalRefund, "AED")}</span>
+                  <span className="text-lg font-bold text-destructive">{formatCurrency(totalRefund, currency)}</span>
                 </div>
               )}
 

@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.CRM.Domain.Entities;
 
 public sealed class Deal
@@ -11,7 +13,7 @@ public sealed class Deal
         Id               = Guid.NewGuid();
         Title            = title.Trim(); Company = company.Trim();
         CustomerId       = customerId;
-        Value            = value; Currency = "AED"; Stage = stage; Priority = priority;
+        Value            = value; Currency = TenantCurrency.Resolve(); Stage = stage; Priority = priority;
         Probability      = probability; ExpectedCloseDate = expectedCloseDate;
         CreatedDate      = DateTime.UtcNow.ToString("yyyy-MM-dd");
         AssignedTo       = assignedTo.Trim(); AssignedToUserId = assignedToUserId; Source = source;
@@ -26,7 +28,7 @@ public sealed class Deal
     // Relational link to the account (CrmCustomer). Null = unlinked / free-text company.
     public Guid?     CustomerId       { get; private set; }
     public decimal   Value            { get; private set; }
-    public string    Currency         { get; private set; } = "AED";
+    public string    Currency         { get; private set; } = TenantCurrency.Resolve();
     public string    Stage            { get; private set; } = "lead";
     public string    Priority         { get; private set; } = "medium";
     public int       Probability      { get; private set; }

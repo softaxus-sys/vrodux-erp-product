@@ -12,8 +12,8 @@ import {
 } from "@/hooks/b2b/use-b2b";
 import type { ServiceContractDto } from "@/lib/b2b/b2b.api";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
-const CUR = "AED";
 type Tab = "proposals" | "contracts" | "tickets";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
   { key: "proposals", label: "Proposals", icon: FileText },
@@ -37,6 +37,7 @@ const badge = (s: string) => ({
 }[s] ?? "bg-muted text-muted-foreground");
 
 export function B2BView() {
+  const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("proposals");
   const { data: s } = useB2BSummary();
   const { data: contracts = [] } = useServiceContracts();
@@ -102,6 +103,7 @@ function Table({ cols, children, empty, emptyMsg }: { cols: string[]; children: 
 }
 
 function ProposalsTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = useProposals();
   const create = useCreateProposal(); const setStatus = useSetProposalStatus(); const del = useDeleteProposal();
   const [open, setOpen] = React.useState(false);
@@ -139,6 +141,7 @@ function ProposalsTab() {
 }
 
 function ContractsTab() {
+  const CUR = useCurrency();
   const { data: rows = [] } = useServiceContracts();
   const create = useCreateServiceContract(); const setStatus = useSetServiceContractStatus(); const del = useDeleteServiceContract();
   const [open, setOpen] = React.useState(false);

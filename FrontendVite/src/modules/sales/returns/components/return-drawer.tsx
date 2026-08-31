@@ -13,6 +13,7 @@ import type { SalesReturnDto as SalesReturn, ReturnStatus, ReturnReason } from "
 import { useApproveReturn, useRejectReturn } from "@/hooks/sales/use-returns";
 import { useAuthStore } from "@/store/auth.store";
 import { Can } from "@/components/auth/can";
+import { useCurrency } from "@/hooks/use-currency";
 
 const STATUS_STYLES: Record<ReturnStatus, { color: string; bg: string; icon: React.ElementType }> = {
   pending:   { color: "text-slate-600",    bg: "bg-slate-100 dark:bg-slate-800/50", icon: Clock },
@@ -25,6 +26,7 @@ const STATUS_STYLES: Record<ReturnStatus, { color: string; bg: string; icon: Rea
 interface Props { ret: SalesReturn | null; open: boolean; onClose: () => void; }
 
 export function ReturnDrawer({ ret, open, onClose }: Props) {
+  const currency = useCurrency();
   const { t } = useTranslation("sales");
   const approve = useApproveReturn();
   const reject  = useRejectReturn();
@@ -74,7 +76,7 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                 : "bg-muted/30 border-border")}>
                 <p className="text-xs text-muted-foreground mb-1">Refund Amount</p>
                 <p className={cn("text-3xl font-bold", ret.status === "refunded" || ret.status === "completed" ? "text-success" : "text-foreground")}>
-                  {formatCurrency(ret.refundAmount, ret.currency)}
+                  {formatCurrency(ret.refundAmount, ret.currency || currency)}
                 </p>
                 {ret.refundMethod && (
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
@@ -139,8 +141,8 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                           className="border-t border-border/40 hover:bg-muted/20 transition-colors">
                           <td className="px-4 py-3 text-sm font-medium">{item.description}</td>
                           <td className="px-4 py-3 text-right text-sm">{item.quantity}</td>
-                          <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.unitPrice, ret.currency)}</td>
-                          <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.total, ret.currency)}</td>
+                          <td className="px-4 py-3 text-right text-sm">{formatCurrency(item.unitPrice, ret.currency || currency)}</td>
+                          <td className="px-4 py-3 text-right font-semibold">{formatCurrency(item.total, ret.currency || currency)}</td>
                         </motion.tr>
                       ))}
                     </tbody>
@@ -148,7 +150,7 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                 </div>
                 <div className="mt-3 flex justify-between items-center px-1">
                   <span className="text-sm text-muted-foreground">{t("returns.drawer.refundTotal")}</span>
-                  <span className="font-bold text-base">{formatCurrency(ret.refundAmount, ret.currency)}</span>
+                  <span className="font-bold text-base">{formatCurrency(ret.refundAmount, ret.currency || currency)}</span>
                 </div>
               </div>
             </div>

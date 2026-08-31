@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBankAccounts, useCreateBankTransaction } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
+import { useCurrency } from "@/hooks/use-currency";
 
 const CATEGORY_KEYS = [
   "revenue", "customerPayment", "vendorPayment", "salary", "rent", "utility",
@@ -20,6 +21,7 @@ interface AddTransactionFormProps {
 }
 
 export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
+  const tenantCurrency = useCurrency();
   const { t } = useTranslation("finance");
   const { data: bankAccounts = [] } = useBankAccounts();
   const createTransaction = useCreateBankTransaction();
@@ -180,7 +182,7 @@ export function AddTransactionForm({ open, onClose }: AddTransactionFormProps) {
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("banking.txForm.amount")}</label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold">
-                      {selectedAccount?.currency ?? "AED"}
+                      {selectedAccount?.currency || tenantCurrency}
                     </span>
                     <Input type="number" min={0} step={0.01} value={amount} onChange={e => setAmount(e.target.value)}
                       placeholder="0.00" className="h-9 text-sm pl-12 text-right font-semibold" />

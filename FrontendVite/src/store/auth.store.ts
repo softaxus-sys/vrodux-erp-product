@@ -252,13 +252,17 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
   const country = (claims["country"] as string | undefined)?.trim() || "";
   const countryMeta = country ? findCountry(country) : undefined;
 
-  // Operating/display currency from the JWT (set at signup from the browser locale). When the
-  // tenant never got one persisted, derive it from their country rather than defaulting to USD —
-  // that is what produced "UAE country, USD currency" mismatches.
+  // Operating/display currency, straight from the JWT (persisted on the tenant by
+  // Settings -> General -> Regional and Settings -> Currency & Rates).
+  //
+  // An explicitly persisted currency ALWAYS wins, including "USD". This used to discard a
+  // USD claim and re-derive from the tenant's country, on the theory that USD was only ever
+  // an unset default — but that also overrode a deliberate choice, so a UAE-registered tenant
+  // operating in USD was silently forced back to AED on every page load. The country is now
+  // only a fallback for tenants that genuinely have no currency persisted at all.
   const currencyClaim = (claims["currency"] as string | undefined)?.trim().toUpperCase();
-  const currency = (currencyClaim && currencyClaim !== "USD" ? currencyClaim : null)
+  const currency = (currencyClaim && currencyClaim.length === 3 ? currencyClaim : null)
     ?? countryMeta?.currencyCode
-    ?? currencyClaim
     ?? "USD";
 
   const backendModules = modulesCsv

@@ -1,8 +1,7 @@
 import type { InvoiceDetailDto } from "@/lib/finance/finance.api";
 import { formatCurrency } from "@/lib/utils";
+import { getTenantCurrency } from "@/hooks/use-currency";
 import { toast } from "sonner";
-
-const CUR = "AED";
 
 function esc(s: string): string {
   return s.replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]!));
@@ -13,6 +12,7 @@ function esc(s: string): string {
  * print dialog doubles as "Save as PDF", so this powers both Print and PDF.
  */
 export function printInvoice(inv: InvoiceDetailDto, company = "Your Company") {
+  const CUR = getTenantCurrency();
   const win = window.open("", "_blank", "width=900,height=1100");
   if (!win) { toast.error("Pop-up blocked — allow pop-ups to print the invoice."); return; }
 

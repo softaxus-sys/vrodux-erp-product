@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.Finance.Domain.Entities;
 
 public sealed class Account
@@ -29,7 +31,7 @@ public sealed class Account
     public string?   Description   { get; private set; }
     public Guid?     ParentId      { get; private set; }
     public Guid?     AccountTypeId { get; private set; }
-    public string    CurrencyCode  { get; private set; } = "AED";
+    public string    CurrencyCode  { get; private set; } = TenantCurrency.Resolve();
     public bool      IsActive      { get; private set; }
     public decimal   Balance       { get; private set; }
     public DateTime  CreatedAt     { get; private set; }

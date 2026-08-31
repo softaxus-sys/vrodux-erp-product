@@ -12,8 +12,8 @@ import {
   useCreateReservation, useSetReservationStatus, useDeleteReservation,
   useCreateBooking, useRecordPayment, useSetBookingStatus, useDeleteBooking,
 } from "@/hooks/real-estate/use-re-sales";
+import { useCurrency } from "@/hooks/use-currency";
 
-const CUR = "AED";
 type Tab = "visits" | "reservations" | "bookings";
 const TABS: { key: Tab; label: string; icon: typeof MapPin }[] = [
   { key: "visits", label: "Site Visits", icon: MapPin },
@@ -35,6 +35,7 @@ const badge = (s: string) => {
 };
 
 export function SalesPipelineView() {
+  const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("visits");
   const { data: summary } = useReSalesSummary();
   const { data: properties = [] } = useQuery({ queryKey: ["re-properties"], queryFn: reApi.getProperties });
@@ -171,6 +172,7 @@ function VisitsTab({ properties, unitsForProp, propName }: TabProps) {
 
 // ── Reservations ─────────────────────────────────────────────────────────────
 function ReservationsTab({ properties, unitsForProp, propName }: TabProps) {
+  const CUR = useCurrency();
   const { data: rows = [] } = useReservations();
   const create = useCreateReservation(); const setStatus = useSetReservationStatus(); const del = useDeleteReservation();
   const [open, setOpen] = React.useState(false);
@@ -209,6 +211,7 @@ function ReservationsTab({ properties, unitsForProp, propName }: TabProps) {
 
 // ── Bookings ─────────────────────────────────────────────────────────────────
 function BookingsTab({ properties, unitsForProp, propName }: TabProps) {
+  const CUR = useCurrency();
   const { data: rows = [] } = useBookings();
   const create = useCreateBooking(); const pay = useRecordPayment(); const del = useDeleteBooking();
   const [open, setOpen] = React.useState(false);

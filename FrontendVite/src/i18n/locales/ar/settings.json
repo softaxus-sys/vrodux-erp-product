@@ -556,7 +556,15 @@
       "emailPlaceholder": "info@yourcompany.com",
       "supportEmailPlaceholder": "support@yourcompany.com",
       "poBoxPlaceholder": "صندوق البريد، المدينة",
-      "addressPlaceholder": "الشارع، المبنى، المدينة، الدولة"
+      "addressPlaceholder": "الشارع، المبنى، المدينة، الدولة",
+      "removeLogo": "إزالة",
+      "logoHint": "PNG أو JPG أو SVG أو WebP، بحد أقصى 1 ميجابايت. يظهر في عروض الأسعار والفواتير والمستندات المطبوعة.",
+      "logoNotImage": "اختر ملف صورة.",
+      "logoTooLarge": "حجم الصورة يتجاوز 1 ميجابايت. استخدم صورة أصغر.",
+      "logoFailed": "تعذّر قراءة هذه الصورة.",
+      "taxNumber": "الرقم الضريبي",
+      "taxNumberHint": "يُطبع على عروض الأسعار والفواتير.",
+      "taxNumberPlaceholder": "مثال: TRN 100123456700003"
     },
     "regional": {
       "title": "الإعدادات الإقليمية",
@@ -713,7 +721,10 @@
         "90": "90 يوماً",
         "180": "180 يوماً",
         "never": "بلا انتهاء"
-      }
+      },
+      "ipList": "العناوين المسموح بها",
+      "ipListHint": "عنوان IP أو نطاق CIDR واحد في كل سطر، مثل 203.0.113.7 أو 203.0.113.0/24. تركه فارغًا يسمح لكل العناوين.",
+      "ipListWarning": "تأكد من وجود عنوانك في هذه القائمة قبل الحفظ — فسيُرفض تسجيل الدخول من أي مكان آخر."
     },
     "modules": {
       "title": "الوصول إلى الوحدات",

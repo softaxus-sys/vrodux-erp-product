@@ -5,7 +5,15 @@ namespace Softaxis.Identity.Application.Abstractions;
 public interface IJwtTokenService
 {
     /// <param name="tenant">Pass tenant for tenant-scoped users; null for super-admins.</param>
-    string GenerateAccessToken(User user, IEnumerable<string> permissionKeys, Tenant? tenant = null, Guid? impersonatedBy = null);
+    /// <param name="sessionMinutes">
+    /// The tenant's configured session timeout. 0 (the default) uses the deployment-wide
+    /// Jwt:AccessTokenMinutes, so a tenant that has not set one is unaffected.
+    /// </param>
+    string GenerateAccessToken(User user, IEnumerable<string> permissionKeys, Tenant? tenant = null,
+                               Guid? impersonatedBy = null, int sessionMinutes = 0);
+
+    /// <summary>Expiry that a token minted with <paramref name="sessionMinutes"/> will carry.</summary>
+    DateTime AccessTokenExpiryFor(int sessionMinutes);
     string GenerateRefreshTokenRaw();          // plain-text — caller must hash before persisting
     string HashToken(string rawToken);
     DateTime AccessTokenExpiry { get; }

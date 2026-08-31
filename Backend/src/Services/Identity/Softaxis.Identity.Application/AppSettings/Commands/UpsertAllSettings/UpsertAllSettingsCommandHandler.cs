@@ -9,6 +9,7 @@ namespace Softaxis.Identity.Application.AppSettings.Commands.UpsertAllSettings;
 public sealed class UpsertAllSettingsCommandHandler(
     IAppSettingRepository settingRepo,
     IUnitOfWork           uow,
+    ITenantSecurityPolicyProvider securityPolicy,
     ITenantContext        tenant)
     : ICommandHandler<UpsertAllSettingsCommand>
 {
@@ -90,6 +91,11 @@ public sealed class UpsertAllSettingsCommandHandler(
         }
 
         await uow.SaveChangesAsync(ct);
+
+        // The security policy is cached per tenant, so drop it here rather than making an admin
+        // wait out the TTL to see their own change take effect.
+        securityPolicy.Invalidate(tenant.TenantId);
+
         return Result.Success();
     }
 }

@@ -3244,6 +3244,9 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(500)

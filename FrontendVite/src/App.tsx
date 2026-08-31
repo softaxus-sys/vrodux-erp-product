@@ -13,6 +13,7 @@ const LoginPage          = lazyWithRetry(() => import("@/pages/auth/login"));
 const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-password"));
 const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-password"));
 const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
+const PublicQuotationPage = lazyWithRetry(() => import("@/pages/public/quotation"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 const DashboardPage        = lazyWithRetry(() => import("@/pages/dashboard"));
@@ -278,6 +279,10 @@ export function App() {
 
         {/* Subscription expired — shown when enforcement middleware blocks requests */}
         <Route path="/subscription-expired" element={<SubscriptionExpiredPage />} />
+
+        {/* Customer-facing quotation link — fully public, no auth. Kept short (/q/:token)
+            because the URL is pasted into emails and read aloud on calls. */}
+        <Route path="/q/:token" element={<PublicQuotationPage />} />
 
         {/* Careers portal — fully public, no auth */}
         <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />

@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.CRM.Domain.Entities;
 
 public sealed class CrmCustomer
@@ -14,7 +16,7 @@ public sealed class CrmCustomer
         Status         = "active"; Tier = tier; AccountManager = accountManager.Trim();
         AccountManagerUserId = accountManagerUserId;
         Since          = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        TotalRevenue   = 0m; OpenDeals = 0; Currency = "AED";
+        TotalRevenue   = 0m; OpenDeals = 0; Currency = TenantCurrency.Resolve();
         Description    = description.Trim(); Tags = [];
         CreatedAt      = DateTime.UtcNow;
     }
@@ -39,7 +41,7 @@ public sealed class CrmCustomer
     public string?   LastActivity   { get; private set; }
     public decimal   TotalRevenue   { get; private set; }
     public int       OpenDeals      { get; private set; }
-    public string    Currency       { get; private set; } = "AED";
+    public string    Currency       { get; private set; } = TenantCurrency.Resolve();
     public string?   Employees      { get; private set; }
     public string    Description    { get; private set; } = string.Empty;
     public List<string> Tags        { get; private set; } = [];

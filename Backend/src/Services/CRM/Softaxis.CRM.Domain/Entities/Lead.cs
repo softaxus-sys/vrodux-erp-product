@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
+
 namespace Softaxis.CRM.Domain.Entities;
 
 public sealed class Lead
@@ -15,7 +17,7 @@ public sealed class Lead
         Email          = email.Trim().ToLowerInvariant(); Phone = phone.Trim();
         Country        = country; City = city; Source = source; Priority = priority;
         Status         = "new"; Score = 0; EstimatedValue = estimatedValue;
-        Currency       = "AED"; AssignedTo = assignedTo.Trim(); AssignedToUserId = assignedToUserId;
+        Currency       = TenantCurrency.Resolve(); AssignedTo = assignedTo.Trim(); AssignedToUserId = assignedToUserId;
         CreatedDate    = DateTime.UtcNow.ToString("yyyy-MM-dd");
         Notes          = notes?.Trim(); Tags = [];
         WhatsApp       = Trim(whatsApp); InterestedIn = Trim(interestedIn);
@@ -42,7 +44,7 @@ public sealed class Lead
     public string    Priority        { get; private set; } = "medium";
     public int       Score           { get; private set; }
     public decimal   EstimatedValue  { get; private set; }
-    public string    Currency        { get; private set; } = "AED";
+    public string    Currency        { get; private set; } = TenantCurrency.Resolve();
     /// <summary>Display name of the current owner (denormalized, kept for back-compat + list display).</summary>
     public string    AssignedTo      { get; private set; } = string.Empty;
     /// <summary>Identity user id of the current owner. Drives role-based "my assigned leads" scoping.

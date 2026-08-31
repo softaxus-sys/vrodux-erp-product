@@ -10,6 +10,7 @@ import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
 import type { RecipeDto, RecipeIngredientDto, IngredientReq } from "@/lib/recipe/recipe.api";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { useCurrency } from "@/hooks/use-currency";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ function StatCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; 
 // ─── Ingredient row ───────────────────────────────────────────────────────────
 
 function IngredientRow({ ing }: { ing: RecipeIngredientDto }) {
+  const currency = useCurrency();
   const low = ing.stockQuantity != null && ing.stockQuantity < ing.quantity;
   return (
     <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
@@ -53,7 +55,7 @@ function IngredientRow({ ing }: { ing: RecipeIngredientDto }) {
             {ing.stockQuantity} in stock
           </span>
         )}
-        <span className="font-medium">{formatCurrency(ing.lineTotal)}</span>
+        <span className="font-medium">{formatCurrency(ing.lineTotal, currency)}</span>
       </div>
     </div>
   );
@@ -62,6 +64,7 @@ function IngredientRow({ ing }: { ing: RecipeIngredientDto }) {
 // ─── Recipe card ──────────────────────────────────────────────────────────────
 
 function RecipeCard({ recipe, onSelect }: { recipe: RecipeDto; onSelect: (r: RecipeDto) => void }) {
+  const currency = useCurrency();
   const cfg = STATUS_CFG[recipe.status];
   const hasLowStock = recipe.ingredients.some(i => i.stockQuantity != null && i.stockQuantity < i.quantity);
 
@@ -102,7 +105,7 @@ function RecipeCard({ recipe, onSelect }: { recipe: RecipeDto; onSelect: (r: Rec
         {[
           { icon: Clock,      val: `${recipe.prepTimeMinutes + recipe.cookTimeMinutes}m`, label: "Total Time" },
           { icon: Users,      val: recipe.servings,                                        label: "Servings" },
-          { icon: DollarSign, val: formatCurrency(recipe.costPerServing),                  label: "Cost/Serving" },
+          { icon: DollarSign, val: formatCurrency(recipe.costPerServing, currency),                  label: "Cost/Serving" },
           { icon: Package,    val: recipe.portionsCanMake ?? "—",                          label: "Can Make" },
         ].map(({ icon: Icon, val, label }) => (
           <div key={label} className="bg-muted/30 rounded-lg p-2">
@@ -124,6 +127,7 @@ function RecipeCard({ recipe, onSelect }: { recipe: RecipeDto; onSelect: (r: Rec
 // ─── Detail panel ─────────────────────────────────────────────────────────────
 
 function RecipeDetail({ recipe, onClose }: { recipe: RecipeDto; onClose: () => void }) {
+  const currency = useCurrency();
   const activate  = useActivateRecipe();
   const archive   = useArchiveRecipe();
   const syncCosts = useSyncCosts();
@@ -162,7 +166,7 @@ function RecipeDetail({ recipe, onClose }: { recipe: RecipeDto; onClose: () => v
           { label: "Prep Time",    value: `${recipe.prepTimeMinutes}m` },
           { label: "Cook Time",    value: `${recipe.cookTimeMinutes}m` },
           { label: "Servings",     value: recipe.servings },
-          { label: "Cost/Serving", value: formatCurrency(recipe.costPerServing) },
+          { label: "Cost/Serving", value: formatCurrency(recipe.costPerServing, currency) },
           { label: "Can Make",     value: `${recipe.portionsCanMake ?? "—"} portions` },
           { label: "Status",       value: STATUS_CFG[recipe.status].label },
         ].map(({ label, value }) => (
@@ -374,6 +378,7 @@ function CreateRecipeModal({ unlinkedMenuItems, onClose }: {
 // ─── Main view ────────────────────────────────────────────────────────────────
 
 export function RecipesView() {
+  const currency = useCurrency();
   const { data: recipes, isLoading } = useRecipes();
   const { data: summary } = useRecipeSummary();
   const { data: menu = [] } = useMenu();
@@ -429,7 +434,7 @@ export function RecipesView() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard icon={BookOpen}   label="Total Recipes"    value={summary.total}                          sub={`${summary.active} active`} />
           <StatCard icon={Package}    label="Ingredients"      value={summary.totalIngredients}               sub={`${summary.linkedToInventory} linked`} />
-          <StatCard icon={DollarSign} label="Avg Cost/Serving" value={formatCurrency(summary.avgCostPerServing)} />
+          <StatCard icon={DollarSign} label="Avg Cost/Serving" value={formatCurrency(summary.avgCostPerServing, currency)} />
           <StatCard icon={ChefHat}    label="Draft"            value={summary.draft}                          sub={`${summary.archived} archived`} />
         </div>
       )}

@@ -11,6 +11,7 @@ public sealed class ChangePasswordCommandHandler(
     IPasswordHasher passwordHasher,
     ICurrentUser    currentUser,
     ITenantContext  tenantContext,
+    ITenantSecurityPolicyProvider securityPolicy,
     IUnitOfWork     uow)
     : ICommandHandler<ChangePasswordCommand>
 {
@@ -22,6 +23,12 @@ public sealed class ChangePasswordCommandHandler(
 
         if (!passwordHasher.Verify(cmd.CurrentPassword, user.PasswordHash))
             return Result.Failure(Error.Custom("User.Password.Invalid", "Current password is incorrect."));
+
+        // The tenant's own password rules (Settings -> Security). Enforced here rather than in the
+        // validator because the policy is per-tenant and a FluentValidation rule is static.
+        var policy = await securityPolicy.GetAsync(user.TenantId, ct);
+        var policyCheck = PasswordPolicy.Validate(cmd.NewPassword, policy);
+        if (policyCheck.IsFailure) return policyCheck;
 
         user.ChangePassword(passwordHasher.Hash(cmd.NewPassword));
         userRepo.Update(user);

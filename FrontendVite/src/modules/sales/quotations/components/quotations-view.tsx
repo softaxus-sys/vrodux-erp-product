@@ -3,16 +3,16 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
   FileText, Send, CheckCircle2, ArrowRight, Ban, Clock,
-  Search, Plus, DollarSign, Loader2, Calendar,
-} from "lucide-react";
+  Search, Plus, DollarSign, Loader2, Calendar, Sparkles} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useSalesQuotations, useConvertQuotationToOrder } from "@/hooks/sales/use-sales-quotations";
-import type { SalesQuotationSummaryDto } from "@/lib/pos/types";
+import type { QuotationDto, QuotationSummaryDto } from "@/lib/sales/quotations.api";
 import { QuotationDrawer } from "./quotation-drawer";
-import { AddQuotationForm } from "./add-quotation-form";
+import { QuotationBuilder } from "./quotation-builder";
+import { QuotationTemplatesModal } from "./quotation-templates-modal";
 import { Can } from "@/components/auth/can";
 
 const STATUS_STYLES: Record<string, { color: string; bg: string; dot: string }> = {
@@ -39,7 +39,9 @@ export function QuotationsView() {
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("");
   const [page, setPage]               = React.useState(1);
-  const [selected, setSelected]       = React.useState<SalesQuotationSummaryDto | null>(null);
+  const [selected, setSelected]       = React.useState<QuotationSummaryDto | null>(null);
+  const [editing, setEditing]         = React.useState<QuotationDto | null>(null);
+  const [showTemplates, setShowTemplates] = React.useState(false);
   const [drawerOpen, setDrawerOpen]   = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
@@ -79,11 +81,19 @@ export function QuotationsView() {
           <h1 className="text-2xl font-bold">{t("quotations.title")}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{t("quotations.description")}</p>
         </div>
-        <Can permission="sales.quotations.create">
-          <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
-            <Plus className="h-4 w-4" />{t("quotations.new")}
-          </Button>
-        </Can>
+        <div className="flex items-center gap-2">
+          <Can permission="sales.quotations.view">
+            <Button variant="outline" className="gap-2 h-9" onClick={() => setShowTemplates(true)}>
+              <Sparkles className="h-4 w-4" />
+              {t("quotations.templates.button", { defaultValue: "Templates" })}
+            </Button>
+          </Can>
+          <Can permission="sales.quotations.create">
+            <Button className="gap-2 h-9" onClick={() => { setEditing(null); setShowAddForm(true); }}>
+              <Plus className="h-4 w-4" />{t("quotations.new")}
+            </Button>
+          </Can>
+        </div>
       </div>
 
       {/* Stats */}
@@ -213,8 +223,18 @@ export function QuotationsView() {
         </div>
       )}
 
-      <QuotationDrawer quotation={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <AddQuotationForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <QuotationDrawer
+        quotation={selected}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onEdit={q => { setEditing(q); setShowAddForm(true); }}
+      />
+      <QuotationBuilder
+        open={showAddForm}
+        editing={editing}
+        onClose={() => { setShowAddForm(false); setEditing(null); }}
+      />
+      <QuotationTemplatesModal open={showTemplates} onClose={() => setShowTemplates(false)} />
     </div>
   );
 }
