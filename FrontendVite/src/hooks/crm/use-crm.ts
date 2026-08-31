@@ -6,16 +6,28 @@ import type {
   CreateLeadRequest, UpdateLeadRequest, CreateDealRequest, UpdateDealRequest,
   CreateCustomerRequest, UpdateCustomerRequest, CreateActivityRequest,
   UpsertContactRequest, ImportLeadInput, LeadsPageParams,
+  DealsPageParams, CustomersPageParams,
 } from "@/lib/crm/crm.api";
 
 const QK = "crm";
 
+/** Every opportunity on one account — bounded by the account. The pipeline screen uses useDealsPaged. */
 export function useDeals(customerId?: string, enabled = true) {
   return useQuery({
     queryKey: [QK, "deals", customerId ?? "all"],
     queryFn:  () => crmApi.getDeals(customerId),
     staleTime: 5 * 60 * 1000,
     enabled,
+  });
+}
+
+export function useDealsPaged(params: DealsPageParams = {}) {
+  return useQuery({
+    queryKey: [QK, "deals", "paged", params],
+    queryFn:  () => crmApi.getDealsPaged(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the board.
+    placeholderData: (prev) => prev,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -65,10 +77,12 @@ export function useLeadsSummary() {
   });
 }
 
-export function useCustomers() {
+export function useCustomers(params: CustomersPageParams = {}) {
   return useQuery({
-    queryKey: [QK, "customers"],
-    queryFn:  crmApi.getCustomers,
+    queryKey: [QK, "customers", params],
+    queryFn:  () => crmApi.getCustomers(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
 }

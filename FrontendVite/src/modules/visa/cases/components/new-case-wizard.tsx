@@ -36,7 +36,6 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
   const currency = useCurrency();
   const createdByName = useAuthStore(s => s.user?.name) ?? "";
   const { data: types = [] } = useVisaTypes();
-  const { data: accounts = [] } = useCustomers();
   const create = useCreateVisaCase();
   const genInvoice = useGenerateCaseInvoice();
   const canInvoice = useCan("finance.invoicing.create");
@@ -57,10 +56,15 @@ export function NewCaseWizard({ open, onClose, prefill }: Props) {
 
   const selectedType = types.find(vt => vt.id === typeId) ?? null;
 
-  const acctMatches = React.useMemo(() => {
-    const q = customerName.trim().toLowerCase();
-    return accounts.filter(a => !q || a.name.toLowerCase().includes(q)).slice(0, 6);
-  }, [accounts, customerName]);
+  // The account picker searches in SQL — it used to pull every account in the tenant just to
+  // filter six of them in the browser. Debounced so typing does not fire a request per keystroke.
+  const [acctQuery, setAcctQuery] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setAcctQuery(customerName.trim()), 300);
+    return () => clearTimeout(id);
+  }, [customerName]);
+  const { data: accounts } = useCustomers({ search: acctQuery || undefined, pageSize: 6 });
+  const acctMatches = accounts?.items ?? [];
 
   const reset = () => {
     setStep(1); setTypeId(""); setEmirate("Dubai"); setPriority("medium");

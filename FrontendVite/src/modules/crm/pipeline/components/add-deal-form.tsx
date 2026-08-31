@@ -77,16 +77,18 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
 
   const createDeal = useCreateDeal();
   const updateDeal = useUpdateDeal();
-  const { data: accounts = [] } = useCustomers();
   const saving = createDeal.isPending || updateDeal.isPending;
   const isValid = dealName.trim() && company.trim() && value && closeDate;
 
-  const acctMatches = React.useMemo(() => {
-    const q = company.trim().toLowerCase();
-    return accounts
-      .filter(a => !q || a.name.toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [accounts, company]);
+  // The account picker searches in SQL — it used to pull every account in the tenant just to
+  // filter six of them in the browser. Debounced so typing does not fire a request per keystroke.
+  const [acctQuery, setAcctQuery] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setAcctQuery(company.trim()), 300);
+    return () => clearTimeout(id);
+  }, [company]);
+  const { data: acctPage } = useCustomers({ search: acctQuery || undefined, pageSize: 6 });
+  const acctMatches = acctPage?.items ?? [];
 
   const pickAccount = (a: { id: string; name: string }) => {
     setCustomerId(a.id); setCompany(a.name); setAcctOpen(false);

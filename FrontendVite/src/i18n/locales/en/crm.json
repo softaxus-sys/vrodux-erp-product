@@ -296,7 +296,8 @@
       "overdue": "{{days}}d overdue",
       "dueToday": "Due today",
       "daysLeft": "{{days}}d left"
-    }
+    },
+    "boardCapped": "Showing the {{shown}} highest-value opportunities of {{total}}. Narrow with search or a stage filter, or switch to the list view to page through all of them."
   },
   "tier": {
     "platinum": "Platinum",

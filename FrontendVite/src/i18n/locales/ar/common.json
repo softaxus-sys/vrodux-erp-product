@@ -112,5 +112,10 @@
     "newPurchaseOrder": "أمر شراء جديد",
     "addCustomer": "إضافة عميل",
     "newQuotation": "عرض سعر جديد"
+  },
+  "pager": {
+    "showing": "عرض {{shown}} من {{total}}",
+    "prev": "السابق",
+    "next": "التالي"
   }
 }

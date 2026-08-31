@@ -27,6 +27,20 @@ public sealed class PipelineController(ISender sender) : CrmControllerBase
         return OkOrError(result);
     }
 
+    /// <summary>The pipeline screen. Filtering, searching and paging run in SQL — see
+    /// <c>GetDealsPagedQuery</c> for why the unpaged sibling above is only for account drawers.</summary>
+    [HttpGet("paged")]
+    [RequireAnyPermission("crm.pipeline.view", "crm.pipeline-team.view", "crm.pipeline-assigned.view")]
+    public async Task<IActionResult> GetPaged(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 30,
+        [FromQuery] string? search = null, [FromQuery] string? stage = null,
+        [FromQuery] Guid? customerId = null,
+        CancellationToken ct = default)
+    {
+        var result = await sender.Send(new GetDealsPagedQuery(page, pageSize, search, stage, customerId), ct);
+        return OkOrError(result);
+    }
+
     [HttpGet("{id:guid}")]
     [RequireAnyPermission("crm.pipeline.view", "crm.pipeline-team.view", "crm.pipeline-assigned.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)

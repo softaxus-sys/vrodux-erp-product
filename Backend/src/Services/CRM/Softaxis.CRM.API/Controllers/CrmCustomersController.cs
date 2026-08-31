@@ -22,9 +22,15 @@ public sealed class CrmCustomersController(ISender sender) : CrmControllerBase
 
     [HttpGet]
     [RequireAnyPermission("crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? tier = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetCrmCustomersQuery(), ct);
+        var result = await sender.Send(new GetCrmCustomersQuery(search, status, tier, page, pageSize), ct);
         return OkOrError(result);
     }
 

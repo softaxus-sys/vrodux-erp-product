@@ -112,5 +112,10 @@
     "newPurchaseOrder": "New Purchase Order",
     "addCustomer": "Add Customer",
     "newQuotation": "New Quotation"
+  },
+  "pager": {
+    "showing": "Showing {{shown}} of {{total}}",
+    "prev": "Previous",
+    "next": "Next"
   }
 }

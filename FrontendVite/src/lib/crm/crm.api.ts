@@ -239,6 +239,38 @@ export interface PagedActivities {
   totalPages: number;
 }
 
+export interface PagedDeals {
+  items: DealDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface PagedCustomers {
+  items: CustomerDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface DealsPageParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  stage?: string;
+  customerId?: string;
+}
+
+export interface CustomersPageParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  tier?: string;
+}
+
 export interface ActivityPageParams {
   page?: number;
   pageSize?: number;
@@ -555,7 +587,19 @@ export interface BulkFileResult {
 
 export const crmApi = {
   // Deals
+  /** Every opportunity on one account. Bounded by the account — the pipeline screen uses getDealsPaged. */
   getDeals:      (customerId?: string): Promise<DealDto[]> => rawApiClient.get(`${BASE}/deals${customerId ? `?customerId=${customerId}` : ""}`),
+
+  /** The pipeline screen. Filtering, searching and paging run server-side. */
+  getDealsPaged: (p: DealsPageParams = {}): Promise<PagedDeals> => {
+    const qs = new URLSearchParams();
+    qs.set("page",     String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim())            qs.set("search", p.search.trim());
+    if (p.stage && p.stage !== "all") qs.set("stage", p.stage);
+    if (p.customerId)                 qs.set("customerId", p.customerId);
+    return rawApiClient.get(`${BASE}/deals/paged?${qs}`);
+  },
   getCrmSummary: (): Promise<CrmSummaryDto>       => rawApiClient.get(`${BASE}/deals/summary`),
   getDeal:       (id: string): Promise<DealDto>   => rawApiClient.get(`${BASE}/deals/${id}`),
   createDeal:    (d: CreateDealRequest): Promise<DealDto> => rawApiClient.post(`${BASE}/deals`, d),
@@ -603,7 +647,17 @@ export const crmApi = {
   importLeads:    (leads: ImportLeadInput[]): Promise<ImportLeadsResult> => rawApiClient.post(`${INTERNAL}/leads/import`, { leads }),
 
   // Customers
-  getCustomers:         (): Promise<CustomerDto[]>        => rawApiClient.get(`${BASE}/customers`),
+  /** Search runs in SQL, so the account comboboxes ask for the few they need rather than
+   *  pulling every account to filter in the browser. */
+  getCustomers: (p: CustomersPageParams = {}): Promise<PagedCustomers> => {
+    const qs = new URLSearchParams();
+    qs.set("page",     String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim())              qs.set("search", p.search.trim());
+    if (p.status && p.status !== "all") qs.set("status", p.status);
+    if (p.tier   && p.tier   !== "all") qs.set("tier",   p.tier);
+    return rawApiClient.get(`${BASE}/customers?${qs}`);
+  },
   getCustomersSummary:  (): Promise<CustomersSummaryDto>  => rawApiClient.get(`${BASE}/customers/summary`),
   getCustomer:          (id: string): Promise<CustomerDto> => rawApiClient.get(`${BASE}/customers/${id}`),
   createCustomer:       (c: CreateCustomerRequest): Promise<CustomerDto> => rawApiClient.post(`${BASE}/customers`, c),

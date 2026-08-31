@@ -10,7 +10,7 @@ import { DealDrawer } from "./deal-drawer";
 import { AddDealForm } from "./add-deal-form";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES, type DealDto as Deal } from "@/lib/crm/crm.api";
-import { useDeals, useCrmSummary } from "@/hooks/crm/use-crm";
+import { useDealsPaged, useCrmSummary } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
@@ -19,9 +19,12 @@ import { Can } from "@/components/auth/can";
 
 type ViewMode = "board" | "list";
 
+const PAGE_SIZE = 25;
+/** The board draws all six stages at once, so it takes the server maximum rather than paging. */
+const BOARD_LIMIT = 200;
+
 export function PipelineView() {
   const { t } = useTranslation("crm");
-  const { data: deals = [], isLoading } = useDeals();
   const { data: crmSummary }            = useCrmSummary();
   const currency = useCurrency();
   const [selectedDeal, setSelectedDeal] = React.useState<Deal | null>(null);
@@ -29,21 +32,34 @@ export function PipelineView() {
   const [viewMode, setViewMode] = React.useState<ViewMode>("board");
   const [search, setSearch] = React.useState("");
   const [stageFilter, setStageFilter] = React.useState("all");
+  const [page, setPage] = React.useState(1);
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [editingDeal, setEditingDeal] = React.useState<Deal | null>(null);
   const openEditDeal = (d: Deal) => { setDrawerOpen(false); setEditingDeal(d); setShowAddForm(true); };
   const closeDealForm = () => { setShowAddForm(false); setEditingDeal(null); };
 
-  const filtered = React.useMemo(() => {
-    const q = search.toLowerCase();
-    return deals
-      .filter(d => {
-        const matchSearch = !search || d.title.toLowerCase().includes(q) || d.company.toLowerCase().includes(q);
-        const matchStage = stageFilter === "all" || d.stage === stageFilter;
-        return matchSearch && matchStage;
-      })
-      .sort((a, b) => b.value - a.value); // top-value deals first
-  }, [deals, search, stageFilter]);
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, stageFilter, viewMode]);
+
+  // The board draws every stage at once and holds local state for drag-and-drop, so it cannot page
+  // the way a table does. It asks for the server's maximum instead — the highest-value deals, which
+  // is the order the board already sorts in — and says so plainly when there are more (below).
+  const boardMode = viewMode === "board";
+  const { data: paged, isLoading, isFetching } = useDealsPaged({
+    search: debouncedSearch || undefined,
+    stage:  stageFilter,
+    page:   boardMode ? 1 : page,
+    pageSize: boardMode ? BOARD_LIMIT : PAGE_SIZE,
+  });
+  const filtered   = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
 
   const handleView = (deal: Deal) => {
     setSelectedDeal(deal);
@@ -51,7 +67,7 @@ export function PipelineView() {
   };
 
   const exportCsv = () => {
-    const csv = toCsv(deals.map(d => ({
+    const csv = toCsv(filtered.map(d => ({
       "Title":        d.title,
       "Company":      d.company,
       "Stage":        d.stage,
@@ -69,9 +85,9 @@ export function PipelineView() {
 
   const exportPdfReport = () => exportPdf({
     title: "Sales Pipeline",
-    subtitle: `${deals.length} deals`,
+    subtitle: `${filtered.length} of ${totalCount} deals${boardMode ? "" : ` (page ${page})`}`,
     columns: ["Title","Company","Stage","Value","Currency","Probability","Assigned To","Close Date"],
-    rows: deals.map(d => [d.title, d.company, d.stage, d.value, currency, `${d.probability}%`, d.assignedTo, d.expectedCloseDate]),
+    rows: filtered.map(d => [d.title, d.company, d.stage, d.value, currency, `${d.probability}%`, d.assignedTo, d.expectedCloseDate]),
     landscape: true,
   });
 
@@ -158,10 +174,25 @@ export function PipelineView() {
       </div>
 
       {/* Board / List */}
-      {viewMode === "board" ? (
-        <PipelineBoard deals={filtered} onDealClick={handleView} />
+      {boardMode ? (
+        <>
+          {totalCount > BOARD_LIMIT && (
+            <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-2.5 text-xs text-foreground">
+              {t("pipeline.boardCapped", {
+                shown: BOARD_LIMIT,
+                total: totalCount,
+                defaultValue: "Showing the {{shown}} highest-value opportunities of {{total}}. Narrow with search or a stage filter, or switch to the list view to page through all of them.",
+              })}
+            </div>
+          )}
+          <PipelineBoard deals={filtered} onDealClick={handleView} />
+        </>
       ) : (
-        <PipelineListView deals={filtered} onDealClick={handleView} />
+        <PipelineListView
+          deals={filtered} onDealClick={handleView}
+          page={page} totalPages={totalPages} totalCount={totalCount}
+          busy={isFetching} onPage={setPage}
+        />
       )}
 
       {/* Drawer */}
@@ -176,18 +207,22 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { DealPriorityBadge } from "./deal-status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { useLazyList } from "@/hooks/use-lazy-list";
+import { Pager } from "@/components/ui/pager";
 import { useBulkFileDealsToTeam } from "@/hooks/crm/use-crm";
 import { TeamFilingBar, useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 
-function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: (d: Deal) => void }) {
+function PipelineListView({ deals, onDealClick, page, totalPages, totalCount, busy, onPage }: {
+  deals: Deal[]; onDealClick: (d: Deal) => void;
+  page: number; totalPages: number; totalCount: number; busy: boolean;
+  onPage: (updater: (p: number) => number) => void;
+}) {
   const { t } = useTranslation("crm");
   const currency = useCurrency();
-  const { visible, hasMore, loadMore, sentinelRef, shown, total } = useLazyList(deals, 25);
 
   // Opportunities must be filed to a team too, not just leads — every pipeline/forecast report reads
   // deals, so unfiled deals leave a team lead's reports empty.
-  const selection = useRowSelection(visible.map(d => d.id));
+  // Selection covers the page on screen; ticking rows the user cannot see makes the count meaningless.
+  const selection = useRowSelection(deals.map(d => d.id));
   const bulkFile = useBulkFileDealsToTeam();
   const fileSelected = (teamId: string | null) =>
     bulkFile.mutateAsync({ dealIds: [...selection.picked], teamId });
@@ -216,9 +251,9 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
               </tr>
             </thead>
             <tbody>
-              {visible.length === 0 ? (
+              {totalCount === 0 ? (
                 <tr><td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">{t("pipeline.noDeals")}</td></tr>
-              ) : visible.map((deal, i) => (
+              ) : deals.map((deal, i) => (
                 <motion.tr
                   key={deal.id}
                   initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
@@ -256,14 +291,11 @@ function PipelineListView({ deals, onDealClick }: { deals: Deal[]; onDealClick: 
             </tbody>
           </table>
         </div>
-        {hasMore && (
-          <div ref={sentinelRef} className="flex justify-center py-4 border-t border-border">
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={loadMore}>{t("pipeline.loadMore")}</Button>
+        {totalCount > 0 && (
+          <div className="border-t border-border">
+            <Pager page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} busy={busy} onPage={onPage} />
           </div>
         )}
-        <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          {t("pipeline.showing", { shown, total })}
-        </div>
       </CardContent>
     </Card>
   );

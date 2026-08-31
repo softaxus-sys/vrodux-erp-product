@@ -15,7 +15,7 @@ import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
 import { type CustomerDto as Customer, type CustomerStatus, type CustomerTier } from "@/lib/crm/crm.api";
 import { useCustomers, useCustomersSummary } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
-import { useLazyList } from "@/hooks/use-lazy-list";
+import { Pager } from "@/components/ui/pager";
 import { useBulkFileCustomersToTeam } from "@/hooks/crm/use-crm";
 import { TeamFilingBar, useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { toCsv, downloadFile } from "@/lib/csv";
@@ -24,6 +24,8 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { Can } from "@/components/auth/can";
 
 type ViewMode = "list" | "grid";
+
+const PAGE_SIZE = 24;
 
 const TIER_CONFIG: Record<CustomerTier, { color: string; bg: string; icon: string }> = {
   platinum: { color: "text-violet-600", bg: "bg-violet-100 dark:bg-violet-900/30", icon: "💎" },
@@ -121,9 +123,35 @@ function CustomerCard({ customer, index, onClick }: { customer: Customer; index:
 
 export function CustomersView() {
   const { t } = useTranslation("crm");
-  const { data: customers = [], isLoading } = useCustomers();
   const currency = useCurrency();
+  const [search, setSearch] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState("all");
+  const [tierFilter, setTierFilter] = React.useState("all");
+  const [page, setPage] = React.useState(1);
 
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // Every filter now narrows in SQL. Filtering in the browser cannot survive paging: it would
+  // filter within one page and under-report.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, tierFilter]);
+
+  const { data: paged, isLoading, isFetching } = useCustomers({
+    search: debouncedSearch || undefined,
+    status: statusFilter,
+    tier:   tierFilter,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const customers  = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
+
+  // Exports carry the page on screen, not the whole account base — the subtitle says which.
   const exportCsv = () => {
     const csv = toCsv(customers.map(c => ({
       "Name":           c.name,
@@ -144,15 +172,12 @@ export function CustomersView() {
 
   const exportPdfReport = () => exportPdf({
     title: "Customer Directory",
-    subtitle: `${customers.length} customers`,
+    subtitle: `${customers.length} of ${totalCount} customers (page ${page})`,
     columns: ["Name","Industry","Email","Phone","Country","Status","Tier","Revenue (AED)","Account Manager"],
     rows: customers.map(c => [c.name, c.industry, c.email, c.phone, c.country, c.status, c.tier, c.totalRevenue, c.accountManager]),
     landscape: true,
   });
   const { data: customersSummary }          = useCustomersSummary();
-  const [search, setSearch] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const [tierFilter, setTierFilter] = React.useState("all");
   const [viewMode, setViewMode] = React.useState<ViewMode>("list");
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -161,21 +186,10 @@ export function CustomersView() {
   const openEditCustomer = (c: Customer) => { setDrawerOpen(false); setEditingCustomer(c); setShowAddForm(true); };
   const closeCustomerForm = () => { setShowAddForm(false); setEditingCustomer(null); };
 
-  const filtered = React.useMemo(() => {
-    const q = search.toLowerCase();
-    return customers.filter(c => {
-      const matchSearch = !search || (c.name ?? "").toLowerCase().includes(q) || (c.industry ?? "").toLowerCase().includes(q) || (c.accountManager ?? "").toLowerCase().includes(q);
-      const matchStatus = statusFilter === "all" || c.status === statusFilter;
-      const matchTier = tierFilter === "all" || c.tier === tierFilter;
-      return matchSearch && matchStatus && matchTier;
-    });
-  }, [customers, search, statusFilter, tierFilter]);
-
-  const listLazy = useLazyList(filtered, 24);
-
   // Accounts need filing too — the Account Revenue report and every account-scoped document read
   // through the same guard, so an unfiled account is invisible to a team lead.
-  const selection = useRowSelection(listLazy.visible.map(c => c.id));
+  // Selection covers the page on screen; ticking rows the user cannot see makes the count meaningless.
+  const selection = useRowSelection(customers.map(c => c.id));
   const bulkFile = useBulkFileCustomersToTeam();
   const fileSelected = (teamId: string | null) =>
     bulkFile.mutateAsync({ customerIds: [...selection.picked], teamId });
@@ -268,19 +282,14 @@ export function CustomersView() {
       {viewMode === "grid" && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {listLazy.visible.map((c, i) => (
+            {customers.map((c, i) => (
               <CustomerCard key={c.id} customer={c} index={Math.min(i, 12)} onClick={() => openDrawer(c)} />
             ))}
-            {listLazy.total === 0 && (
+            {totalCount === 0 && (
               <div className="col-span-full text-center py-20 text-muted-foreground text-sm">{t("customers.noCustomers")}</div>
             )}
           </div>
-          {listLazy.hasMore && (
-            <div ref={listLazy.sentinelRef} className="flex flex-col items-center gap-2 py-4">
-              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("customers.loadMore")}</Button>
-              <span className="text-xs text-muted-foreground">{t("customers.showing", { shown: listLazy.shown, total: listLazy.total })}</span>
-            </div>
-          )}
+          {totalCount > 0 && <Pager page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} busy={isFetching} onPage={setPage} />}
         </>
       )}
 
@@ -304,9 +313,9 @@ export function CustomersView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {listLazy.total === 0 ? (
+                  {totalCount === 0 ? (
                     <tr><td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">{t("customers.noCustomers")}</td></tr>
-                  ) : listLazy.visible.map((c, i) => (
+                  ) : customers.map((c, i) => (
                     <motion.tr key={c.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 12) * 0.03 }} className="erp-table-row cursor-pointer" onClick={() => openDrawer(c)}>
                       <td className="px-4 py-3">
@@ -344,14 +353,11 @@ export function CustomersView() {
                 </tbody>
               </table>
             </div>
-            {listLazy.hasMore && (
-              <div ref={listLazy.sentinelRef} className="flex justify-center py-4 border-t border-border">
-                <Button variant="outline" size="sm" className="h-8 text-xs" onClick={listLazy.loadMore}>{t("customers.loadMore")}</Button>
+            {totalCount > 0 && (
+              <div className="border-t border-border">
+                <Pager page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} busy={isFetching} onPage={setPage} />
               </div>
             )}
-            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
-              {t("customers.showing", { shown: listLazy.shown, total: listLazy.total })}
-            </div>
           </CardContent>
         </Card>
       )}
