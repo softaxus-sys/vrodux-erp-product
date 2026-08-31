@@ -20,6 +20,7 @@ import {
 } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 import { printInvoice } from "./invoice-print";
+import { useCompanyName } from "@/hooks/use-company-name";
 
 interface InvoiceDrawerProps {
   open: boolean;
@@ -291,9 +292,12 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
   const cancelInvoice = useCancelInvoice();
   const { data: detail } = useInvoiceById(invoice.id);
 
+  // The legal name from Settings → General, falling back to the workspace name.
+  const companyName = useCompanyName();
+
   const handlePrint = () => {
     if (!detail) { toast.error(t("invoicing.drawer.view.printLoading")); return; }
-    printInvoice(detail);
+    printInvoice(detail, companyName);
   };
 
   if (editMode) {

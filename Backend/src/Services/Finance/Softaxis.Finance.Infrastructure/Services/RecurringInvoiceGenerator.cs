@@ -139,9 +139,31 @@ public static class RecurringInvoiceGenerator
     /// </summary>
     private static async Task<string> ResolveCompanyNameAsync(FinanceDbContext db, CancellationToken ct)
     {
+        var tenantId = TenantAmbient.TenantId ?? Guid.Empty;
+
+        // Same precedence the printed invoice uses (legal name → trading name → workspace name), so
+        // the emailed and printed copies of the same invoice never disagree about who issued it.
+        // `UserId IS NULL` selects the company-wide value rather than someone's personal override.
         try
         {
-            var tenantId = TenantAmbient.TenantId ?? Guid.Empty;
+            var configured = await db.Database
+                .SqlQuery<string?>($@"
+                    SELECT TOP 1 [Value] FROM [identity].[app_settings]
+                    WHERE [Category] = 'company' AND [TenantId] = {tenantId} AND [UserId] IS NULL
+                      AND [Key] IN ('legalName', 'name') AND LTRIM(RTRIM([Value])) <> ''
+                    ORDER BY CASE WHEN [Key] = 'legalName' THEN 0 ELSE 1 END")
+                .ToListAsync(ct);
+
+            var name = configured.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(name)) return name!;
+        }
+        catch
+        {
+            // Settings are optional; fall through to the workspace name.
+        }
+
+        try
+        {
             var rows = await db.Database
                 .SqlQuery<string?>($"SELECT [Name] FROM [identity].[tenants] WHERE [Id] = {tenantId}")
                 .ToListAsync(ct);

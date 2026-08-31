@@ -1,6 +1,7 @@
 import type { InvoiceDetailDto } from "@/lib/finance/finance.api";
 import { formatCurrency } from "@/lib/utils";
 import { getTenantCurrency } from "@/hooks/use-currency";
+import { getTenantName } from "@/hooks/use-company-name";
 import { toast } from "sonner";
 
 function esc(s: string): string {
@@ -11,7 +12,10 @@ function esc(s: string): string {
  * Opens a print-ready window with a professional A4 invoice. The browser's
  * print dialog doubles as "Save as PDF", so this powers both Print and PDF.
  */
-export function printInvoice(inv: InvoiceDetailDto, company = "Your Company") {
+export function printInvoice(inv: InvoiceDetailDto, company?: string) {
+  // Falls back to the workspace name rather than the literal "Your Company" this used to default
+  // to — which is what every printed invoice actually said.
+  const companyName = company?.trim() || getTenantName() || "Invoice";
   const CUR = getTenantCurrency();
   const win = window.open("", "_blank", "width=900,height=1100");
   if (!win) { toast.error("Pop-up blocked — allow pop-ups to print the invoice."); return; }
@@ -52,7 +56,7 @@ export function printInvoice(inv: InvoiceDetailDto, company = "Your Company") {
       <button onclick="window.print()" style="padding:9px 22px;font-size:14px;cursor:pointer;border-radius:6px;border:none;background:#2563eb;color:#fff;font-weight:600">Print / Save as PDF</button>
     </div>
     <div class="head">
-      <div><div class="company">${esc(company)}</div><div class="muted">Tax Invoice</div></div>
+      <div><div class="company">${esc(companyName)}</div><div class="muted">Tax Invoice</div></div>
       <div class="title">
         <h1>INVOICE</h1>
         <div class="muted">${esc(inv.invoiceNumber)}</div>
