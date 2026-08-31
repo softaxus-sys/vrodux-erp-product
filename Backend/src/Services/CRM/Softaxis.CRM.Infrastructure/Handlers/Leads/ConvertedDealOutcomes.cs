@@ -19,11 +19,19 @@ internal static class ConvertedDealOutcomes
 {
     internal readonly record struct Outcome(string Stage, decimal Value);
 
-    public static async Task<Dictionary<Guid, Outcome>> LoadAsync(
+    public static Task<Dictionary<Guid, Outcome>> LoadAsync(
         CrmDbContext db, IEnumerable<Lead> leads, CancellationToken ct)
+        => LoadAsync(db, leads.Select(l => l.ConvertedDealId), ct);
+
+    /// <summary>
+    /// Takes the raw ConvertedDealId strings, so the leads list can call this from its lightweight
+    /// projection without materialising whole Lead entities just to read one field off each.
+    /// </summary>
+    public static async Task<Dictionary<Guid, Outcome>> LoadAsync(
+        CrmDbContext db, IEnumerable<string?> convertedDealIds, CancellationToken ct)
     {
-        var dealIds = leads
-            .Select(l => Guid.TryParse(l.ConvertedDealId, out var g) ? g : Guid.Empty)
+        var dealIds = convertedDealIds
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
             .Where(g => g != Guid.Empty)
             .Distinct()
             .ToList();

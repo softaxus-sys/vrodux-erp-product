@@ -46,6 +46,11 @@ public sealed class Invoice
     // from one the system actually emailed, which is the first thing anyone asks when a client
     // says they never received it.
     public DateTime? EmailSentAt  { get; private set; }
+
+    // The payment receipt is a different message from the invoice, sent at a different moment, so
+    // it gets its own record — reusing EmailSentAt would make it impossible to tell which was sent.
+    public DateTime? ReceiptSentAt { get; private set; }
+    public string?   ReceiptSentTo { get; private set; }
     public string?   EmailSentTo  { get; private set; }
     public string?   EmailCc      { get; private set; }
 
@@ -95,6 +100,15 @@ public sealed class Invoice
         EmailCc     = cc;
         if (Status == "draft") Status = "sent";
         UpdatedAt   = DateTime.UtcNow;
+    }
+
+    /// <summary>Records that the payment receipt reached the customer. Only called after the mail
+    /// server accepted it.</summary>
+    public void RecordReceiptSent(string toEmail)
+    {
+        ReceiptSentAt = DateTime.UtcNow;
+        ReceiptSentTo = toEmail;
+        UpdatedAt     = DateTime.UtcNow;
     }
 
     public void Cancel()

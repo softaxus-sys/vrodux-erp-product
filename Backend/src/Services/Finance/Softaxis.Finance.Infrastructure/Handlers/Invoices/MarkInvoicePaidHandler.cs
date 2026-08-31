@@ -4,6 +4,10 @@ using Softaxis.Finance.Application.Invoices.Commands;
 using Softaxis.Finance.Infrastructure.Handlers.GeneralLedger;
 using Softaxis.Finance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Softaxis.Finance.Application.Abstractions;
+using Softaxis.Finance.Domain.Entities;
+using Softaxis.Finance.Infrastructure.Services;
 
 namespace Softaxis.Finance.Infrastructure.Handlers.Invoices;
 
@@ -20,7 +24,10 @@ namespace Softaxis.Finance.Infrastructure.Handlers.Invoices;
 /// receipts covering several invoices. This is the one-click "settle it in full, today, to the
 /// bank account" shortcut.</para>
 /// </summary>
-internal sealed class MarkInvoicePaidHandler(FinanceDbContext db) : ICommandHandler<MarkInvoicePaidCommand>
+internal sealed class MarkInvoicePaidHandler(
+    FinanceDbContext db,
+    IFinanceEmailService email,
+    ILogger<MarkInvoicePaidHandler> logger) : ICommandHandler<MarkInvoicePaidCommand>
 {
     public async Task<Result> Handle(MarkInvoicePaidCommand cmd, CancellationToken ct)
     {
@@ -81,6 +88,44 @@ internal sealed class MarkInvoicePaidHandler(FinanceDbContext db) : ICommandHand
 
         await db.SaveChangesAsync(ct);
 
+        await SendReceiptAsync(invoice, outstanding, settlementDate, ct);
+
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Emails the customer their payment receipt, copying the workspace's CC list.
+    ///
+    /// Best-effort and deliberately after the commit: the money is recorded and the ledger posted
+    /// either way. A mail server being down must never fail a payment that has already happened,
+    /// and re-sending a receipt is trivial where un-recording a payment is not.
+    /// </summary>
+    private async Task SendReceiptAsync(
+        Invoice invoice, decimal amountReceived, string receivedOn, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(invoice.CustomerEmail)) return;
+
+        try
+        {
+            var branding = await RecurringInvoiceGenerator.ResolveBrandingAsync(db, ct);
+            var body = PaymentReceiptEmailTemplate.Build(
+                invoice, branding, amountReceived, receivedOn, method: null);
+
+            var sent = await email.SendInvoiceAsync(
+                invoice.CustomerEmail!, invoice.CustomerName, branding.CcList,
+                body.Subject, body.Html, body.InlineImages, ct);
+
+            // Recorded only on a real send, so the invoice never claims a receipt nobody received.
+            if (sent)
+            {
+                invoice.RecordReceiptSent(invoice.CustomerEmail!);
+                await db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Payment recorded for invoice {InvoiceNumber}, but the receipt email failed.",
+                invoice.InvoiceNumber);
+        }
     }
 }

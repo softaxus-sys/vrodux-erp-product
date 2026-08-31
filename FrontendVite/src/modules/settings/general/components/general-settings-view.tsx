@@ -113,6 +113,7 @@ const DEFAULTS = {
     logoUrl: "",
     signatureUrl: "",
     stampUrl: "",
+    invoiceCcEmails: "",
   },
   regional: {
     country: "",                // ISO country code — source of truth for POS/reports/receipt
@@ -544,6 +545,7 @@ export function GeneralSettingsView() {
         logoUrl:        toStr(c.logoUrl,        D.company.logoUrl),
         signatureUrl:   toStr(c.signatureUrl,   D.company.signatureUrl),
         stampUrl:       toStr(c.stampUrl,       D.company.stampUrl),
+        invoiceCcEmails: toStr(c.invoiceCcEmails, D.company.invoiceCcEmails),
       };
 
       // The country chosen during onboarding is the source of truth here — it is stored on the
@@ -934,6 +936,24 @@ export function GeneralSettingsView() {
             removeLabel={t("general.company.removeLogo", { defaultValue: "Remove" })}
             emptyLabel={t("general.company.noStamp", { defaultValue: "No stamp" })}
           />
+        </div>
+
+        {/* Who gets copied on invoices and payment receipts. A one-off invoice has no recurring
+            template to take a CC from, so without this a receipt reaches the customer and nobody
+            internally. Recurring templates can still add their own CC on top. */}
+        <div className="mb-6 pb-6 border-b border-border">
+          <FormField
+            label={t("general.company.invoiceCc", { defaultValue: "CC on invoices and receipts" })}
+            hint={t("general.company.invoiceCcHint", {
+              defaultValue: "Separate multiple addresses with a comma. Copied on every invoice and payment receipt emailed to a customer." })}
+          >
+            <Input
+              value={company.invoiceCcEmails}
+              onChange={e => updateCompany("invoiceCcEmails", e.target.value)}
+              placeholder="accounts@example.com, manager@example.com"
+              className="h-9 text-sm"
+            />
+          </FormField>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

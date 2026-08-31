@@ -566,6 +566,8 @@
       "stamp": "Company stamp",
       "stampHint": "Your official stamp or seal. A transparent PNG sits best over a document.",
       "noStamp": "No stamp",
+      "invoiceCc": "CC on invoices and receipts",
+      "invoiceCcHint": "Separate multiple addresses with a comma. Copied on every invoice and payment receipt emailed to a customer.",
       "logoNotImage": "Choose an image file.",
       "logoTooLarge": "That image is over 1 MB. Please use a smaller one.",
       "logoFailed": "That image could not be read.",

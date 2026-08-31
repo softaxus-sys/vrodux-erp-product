@@ -23,7 +23,19 @@ public sealed record InvoiceBranding(
     string? RegistrationNo,
     string? LogoUrl,
     string? SignatureUrl,
-    string? StampUrl);
+    string? StampUrl,
+    // Workspace-wide addresses copied on invoice and receipt emails, from Settings → General →
+    // Company. A one-off invoice has no recurring template to take a CC from, so without this a
+    // receipt would reach the customer and nobody internally.
+    string? CcEmails = null)
+{
+    /// <summary>Split on comma or semicolon and de-duplicated.</summary>
+    public IReadOnlyList<string> CcList =>
+        (CcEmails ?? string.Empty)
+            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+};
 
 /// <summary>
 /// Materialises real invoices from recurring-invoice templates. Used by both the manual API
@@ -161,7 +173,7 @@ public static class RecurringInvoiceGenerator
     /// <c>identity</c> is a RESERVED SQL Server keyword and MUST be bracketed. <c>UserId IS NULL</c>
     /// selects the company-wide value rather than someone's personal override.
     /// </summary>
-    private static async Task<InvoiceBranding> ResolveBrandingAsync(FinanceDbContext db, CancellationToken ct)
+    public static async Task<InvoiceBranding> ResolveBrandingAsync(FinanceDbContext db, CancellationToken ct)
     {
         var tenantId = TenantAmbient.TenantId ?? Guid.Empty;
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -205,7 +217,8 @@ public static class RecurringInvoiceGenerator
             string.IsNullOrWhiteSpace(name) ? "Accounts" : name!,
             Pick(map, "address"), Pick(map, "phone"), Pick(map, "email"), Pick(map, "website"),
             Pick(map, "taxNumber"), Pick(map, "registrationNo"),
-            Pick(map, "logoUrl"), Pick(map, "signatureUrl"), Pick(map, "stampUrl"));
+            Pick(map, "logoUrl"), Pick(map, "signatureUrl"), Pick(map, "stampUrl"),
+            Pick(map, "invoiceCcEmails"));
     }
 
     private static string? Pick(Dictionary<string, string> map, params string[] keys)

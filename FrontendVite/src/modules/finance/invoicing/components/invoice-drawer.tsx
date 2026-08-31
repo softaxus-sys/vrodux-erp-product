@@ -172,12 +172,17 @@ function EditInvoice({
           </div>
           <div className="space-y-1.5">
             <Label>{t("invoicing.drawer.form.status")}</Label>
-            <select value={status} onChange={e => setStatus(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
-              {STATUS_OPTION_VALUES.map(value => (
-                <option key={value} value={value}>{t(`invoicing.status.${value}`)}</option>
-              ))}
-            </select>
+            {/* Read-only on purpose. This was a dropdown including "paid", and choosing it moved
+                the invoice to paid while posting NOTHING to the ledger — no cash recorded, the
+                receivable never relieved. Every status that means something financial has an
+                action that writes the ledger too, so it is set there and only there. */}
+            <div className="h-9 px-3 rounded-lg border border-border bg-muted/40 text-sm flex items-center">
+              {t(`invoicing.status.${status}`)}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t("invoicing.drawer.form.statusReadOnly", {
+                defaultValue: "Set by Send, Mark as Paid and Cancel — each posts the matching entry to the ledger." })}
+            </p>
           </div>
         </div>
 
