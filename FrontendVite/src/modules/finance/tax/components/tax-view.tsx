@@ -20,18 +20,22 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> 
   overdue: { color: "text-destructive", bg: "bg-destructive/10",                 dot: "bg-destructive" },
 };
 
-function TaxDrawer({ period, open, onClose, taxTransactions }: { period: TaxPeriod | null; open: boolean; onClose: () => void; taxTransactions: { id: string; date: string; type: "sale" | "purchase"; reference: string; amount: number; vatAmount: number; vatRate: number; description: string; period: string }[] }) {
+function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: boolean; onClose: () => void }) {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
   const [tab, setTab] = React.useState<"overview" | "sales" | "purchases">("overview");
   const fileReturn = useFileTaxPeriod();
   const payReturn  = usePayTaxPeriod();
+  // Fetched here, for this period only. The list page used to load every VAT-bearing transaction
+  // the tenant has ever had — derived from every invoice and bill — just to filter one period out
+  // of it in the browser. Nothing loads until a period is actually opened.
+  const { data: taxTransactions = [] } = useTaxTransactions(open ? period?.period : undefined);
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
   if (!period) return null;
   const busy = fileReturn.isPending || payReturn.isPending;
-  const sc = STATUS_CONFIG[period.status];
-  const salesTxns = taxTransactions.filter(t => t.period === period.period && t.type === "sale");
-  const purchaseTxns = taxTransactions.filter(t => t.period === period.period && t.type === "purchase");
+  const sc = STATUS_CONFIG[period.status] ?? STATUS_CONFIG.open;
+  const salesTxns = taxTransactions.filter(t => t.type === "sale");
+  const purchaseTxns = taxTransactions.filter(t => t.type === "purchase");
 
   return (
     <AnimatePresence>
@@ -231,7 +235,6 @@ export function TaxView() {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: taxPeriods = [] } = useTaxPeriods();
-  const { data: taxTransactions = [] } = useTaxTransactions();
   const { data: taxSummary } = useTaxSummary();
   const fileRow = useFileTaxPeriod();
   const payRow  = usePayTaxPeriod();
@@ -286,7 +289,7 @@ export function TaxView() {
           </thead>
           <tbody>
             {taxPeriods.map((p, i) => {
-              const sc = STATUS_CONFIG[p.status];
+              const sc = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.open;
               return (
                 <motion.tr key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}
                   onClick={() => { setSelected(p); setDrawerOpen(true); }}
@@ -314,7 +317,7 @@ export function TaxView() {
           </tbody>
         </table>
       </motion.div>
-      <TaxDrawer period={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} taxTransactions={taxTransactions} />
+      <TaxDrawer period={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <NewReturnForm open={newReturnOpen} onClose={() => setNewReturnOpen(false)} />
     </div>
   );

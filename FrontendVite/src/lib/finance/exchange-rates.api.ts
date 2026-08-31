@@ -27,8 +27,15 @@ export interface RefreshRatesDto {
 }
 
 export const exchangeRatesApi = {
-  getAll: (currencyCode?: string): Promise<ExchangeRateDto[]> =>
-    rawApiClient.get(`${BASE}${currencyCode ? `?currencyCode=${encodeURIComponent(currencyCode)}` : ""}`),
+  /** `latestOnly` returns one row per currency — its newest rate — resolved in SQL. The table
+   *  grows by a row per currency per day, so the full history is unbounded and nothing reads it. */
+  getAll: (currencyCode?: string, latestOnly = false): Promise<ExchangeRateDto[]> => {
+    const qs = new URLSearchParams();
+    if (currencyCode) qs.set("currencyCode", currencyCode);
+    if (latestOnly) qs.set("latestOnly", "true");
+    const q = qs.toString();
+    return rawApiClient.get(`${BASE}${q ? `?${q}` : ""}`);
+  },
 
   convert: (from: string, to: string, amount: number, asOf?: string): Promise<ConvertCurrencyDto> =>
     rawApiClient.get(

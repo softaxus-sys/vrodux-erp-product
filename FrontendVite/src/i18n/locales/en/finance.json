@@ -269,7 +269,10 @@
       "credit": "Credit",
       "status": "Status",
       "empty": "No journal entries found.",
-      "unbalanced": "Unbalanced"
+      "unbalanced": "Unbalanced",
+      "showing": "Showing {{shown}} of {{total}} journals",
+      "prev": "Previous",
+      "next": "Next"
     },
     "drawer": {
       "balanced": "Balanced",
@@ -362,7 +365,10 @@
       "variance": "Variance",
       "utilisation": "Utilisation",
       "status": "Status",
-      "linesShort": "{{count}} lines"
+      "linesShort": "{{count}} lines",
+      "showing": "Showing {{shown}} of {{total}} budgets",
+      "prev": "Previous",
+      "next": "Next"
     },
     "form": {
       "title": "New Budget",
@@ -429,7 +435,10 @@
       "rec": "Rec.",
       "empty": "No transactions for this account.",
       "reconcile": "Reconcile",
-      "reconcileTitle": "Mark as reconciled"
+      "reconcileTitle": "Mark as reconciled",
+      "showing": "Showing {{shown}} of {{total}} transactions",
+      "prev": "Previous",
+      "next": "Next"
     },
     "card": {
       "available": "Available: {{amount}}",
@@ -591,7 +600,10 @@
       "nextRun": "Next Run",
       "amount": "Amount",
       "generated": "Generated",
-      "status": "Status"
+      "status": "Status",
+      "showing": "Showing {{shown}} of {{total}} templates",
+      "prev": "Previous",
+      "next": "Next"
     },
     "rowAction": {
       "generateNow": "Generate invoice now",

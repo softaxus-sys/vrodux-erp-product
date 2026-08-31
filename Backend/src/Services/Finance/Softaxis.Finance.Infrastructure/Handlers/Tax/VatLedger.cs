@@ -33,12 +33,35 @@ internal static class VatLedger
     /// declared tax periods where one covers the date, otherwise it falls back to the calendar
     /// month so the row is still groupable.
     /// </summary>
-    public static async Task<List<TaxTransactionDto>> BuildAsync(FinanceDbContext db, CancellationToken ct)
+    /// <param name="period">
+    /// Restricts the build to one declared tax period. A VAT screen is always read one period at a
+    /// time, and this is what keeps the query bounded: without it every invoice and bill the tenant
+    /// has ever issued is read on each call. Narrowed in SQL via the period's date range, so the
+    /// unmatched documents are never fetched. An unknown period yields no rows.
+    /// </param>
+    public static async Task<List<TaxTransactionDto>> BuildAsync(
+        FinanceDbContext db, CancellationToken ct, string? period = null)
     {
+        var periods = await db.TaxPeriods.AsNoTracking()
+            .Select(p => new { p.Period, p.FromDate, p.ToDate })
+            .ToListAsync(ct);
+
+        string? from = null, to = null;
+        if (!string.IsNullOrWhiteSpace(period))
+        {
+            var declared = periods.FirstOrDefault(p => p.Period == period);
+            if (declared is not null) { from = declared.FromDate; to = declared.ToDate; }
+            // Not a declared period: fall back to the yyyy-MM the PeriodFor() default produces,
+            // otherwise a month-labelled row would be unreachable through its own filter.
+            else if (period!.Length == 7) { from = period + "-01"; to = period + "-32"; }
+            else return [];
+        }
+
         // SubTotal/TaxAmount are computed properties, so the line sum is projected in SQL rather
         // than materialising every invoice with its items.
         var sales = await db.Invoices.AsNoTracking()
             .Where(i => !i.IsDeleted && IssuedInvoiceStatuses.Contains(i.Status))
+            .Where(i => from == null || (string.Compare(i.InvoiceDate, from) >= 0 && string.Compare(i.InvoiceDate, to) <= 0))
             .Select(i => new
             {
                 i.Id, i.InvoiceDate, i.InvoiceNumber, i.CustomerName, i.TaxRate,
@@ -48,15 +71,12 @@ internal static class VatLedger
 
         var purchases = await db.PurchaseBills.AsNoTracking()
             .Where(b => !b.IsDeleted && ApprovedBillStatuses.Contains(b.Status))
+            .Where(b => from == null || (string.Compare(b.BillDate, from) >= 0 && string.Compare(b.BillDate, to) <= 0))
             .Select(b => new
             {
                 b.Id, b.BillDate, b.BillNumber, b.SupplierName, b.TaxRate,
                 SubTotal = b.Items.Sum(x => x.Quantity * x.UnitPrice),
             })
-            .ToListAsync(ct);
-
-        var periods = await db.TaxPeriods.AsNoTracking()
-            .Select(p => new { p.Period, p.FromDate, p.ToDate })
             .ToListAsync(ct);
 
         string PeriodFor(string date)

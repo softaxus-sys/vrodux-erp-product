@@ -14,8 +14,11 @@ namespace Softaxis.Finance.API.Controllers;
 public sealed class ExchangeRatesController(ISender sender) : FinanceControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] string? currencyCode, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetExchangeRatesQuery(currencyCode), ct));
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? currencyCode,
+        [FromQuery] bool latestOnly = false,
+        CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetExchangeRatesQuery(currencyCode, latestOnly), ct));
 
     [HttpGet("convert")]
     public async Task<IActionResult> Convert(

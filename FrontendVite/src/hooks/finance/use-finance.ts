@@ -11,6 +11,19 @@ import type {
   CreateBankTransactionRequest, CreateBankAccountRequest,
   UpsertRecurringRequest,
   CreatePurchaseBillRequest,
+  JournalPageParams,
+  BankTxPageParams,
+  BankAccountDto,
+  BudgetPageParams,
+  RecurringPageParams,
+  TaxTransactionDto,
+  TaxPeriodDto,
+  AccountDto,
+  AccountTypeDto,
+  InvoiceDto,
+  ExpenseDto,
+  SupplierDto,
+  TrialBalanceLine,
 } from "@/lib/finance/finance.api";
 
 const QK = "finance";
@@ -40,7 +53,7 @@ export function useInvoices() {
   return useQuery({
     queryKey: [QK, "invoices"],
     queryFn:  financeApi.getInvoices,
-    select:   (data) => toItems(data),
+    select:   (data) => toItems<InvoiceDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -57,7 +70,9 @@ export function useAccounts(params?: { search?: string; accountType?: string; is
   return useQuery({
     queryKey: [QK, "accounts", params],
     queryFn:  () => financeApi.getAccounts(params),
-    select:   (data) => toItems(data),
+    // Typed explicitly: toItems<T> infers T as unknown at the call site, which erased the account
+    // shape and left every consumer of this hook working with `unknown`.
+    select:   (data) => toItems<AccountDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -123,7 +138,7 @@ export function useAccountTypes() {
   return useQuery({
     queryKey: [QK, "account-types"],
     queryFn:  financeApi.getAccountTypes,
-    select:   (data) => toItems(data),
+    select:   (data) => toItems<AccountTypeDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -183,16 +198,22 @@ export function useBankAccounts() {
   return useQuery({
     queryKey: [QK, "bank-accounts"],
     queryFn:  financeApi.getBankAccounts,
-    select:   (data) => toItems(data),
+    // Typed explicitly: toItems<T> infers T as unknown at the call site, which erased the
+    // account shape and left every consumer of this hook working with `unknown`.
+    select:   (data) => toItems<BankAccountDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useBankTransactions() {
+export function useBankTransactions(params: BankTxPageParams = {}, enabled = true) {
   return useQuery({
-    queryKey: [QK, "bank-transactions"],
-    queryFn:  financeApi.getBankTransactions,
-    select:   (data) => toItems(data),
+    queryKey: [QK, "bank-transactions", params],
+    queryFn:  () => financeApi.getBankTransactions(params),
+    // Held until an account is chosen — otherwise the first render briefly shows
+    // every account's lines under the heading of one of them.
+    enabled,
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -205,11 +226,12 @@ export function useBankingSummary() {
   });
 }
 
-export function useBudgets() {
+export function useBudgets(params: BudgetPageParams = {}) {
   return useQuery({
-    queryKey: [QK, "budgets"],
-    queryFn:  financeApi.getBudgets,
-    select:   (data) => toItems(data),
+    queryKey: [QK, "budgets", params],
+    queryFn:  () => financeApi.getBudgets(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -226,7 +248,7 @@ export function useSuppliers(params?: { search?: string; isActive?: boolean }) {
   return useQuery({
     queryKey: [QK, "suppliers", params],
     queryFn:  () => financeApi.getSuppliers(params),
-    select:   (data) => toItems(data),
+    select:   (data) => toItems<SupplierDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -312,7 +334,7 @@ export function useExpenses() {
   return useQuery({
     queryKey: [QK, "expenses"],
     queryFn:  financeApi.getExpenses,
-    select:   (data) => toItems(data),
+    select:   (data) => toItems<ExpenseDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -329,7 +351,7 @@ export function useTrialBalance() {
   return useQuery({
     queryKey: [QK, "trial-balance"],
     queryFn:  financeApi.getTrialBalance,
-    select:   (data) => toItems(data),
+    select:   (data) => toItems<TrialBalanceLine>(data),
     staleTime: 10 * 60 * 1000,
   });
 }
@@ -372,11 +394,12 @@ export function useAccountLedger(accountId: string | null, from?: string, to?: s
   });
 }
 
-export function useJournals() {
+export function useJournals(params: JournalPageParams = {}) {
   return useQuery({
-    queryKey: [QK, "journals"],
-    queryFn:  financeApi.getJournals,
-    select:   (data) => toItems(data),
+    queryKey: [QK, "journals", params],
+    queryFn:  () => financeApi.getJournals(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -393,16 +416,24 @@ export function useTaxPeriods() {
   return useQuery({
     queryKey: [QK, "tax-periods"],
     queryFn:  financeApi.getTaxPeriods,
-    select:   (data) => toItems(data),
+    // Typed explicitly: toItems<T> infers T as unknown at the call site, which erased the period
+    // shape and left every consumer of this hook working with `unknown`.
+    select:   (data) => toItems<TaxPeriodDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
 
-export function useTaxTransactions() {
+/**
+ * VAT-bearing transactions for one declared period. The period is required in practice: the rows
+ * are derived from every invoice and bill the tenant has issued, so an unscoped call reads the
+ * whole document history. Held until a period is chosen.
+ */
+export function useTaxTransactions(period?: string) {
   return useQuery({
-    queryKey: [QK, "tax-transactions"],
-    queryFn:  financeApi.getTaxTransactions,
-    select:   (data) => toItems(data),
+    queryKey: [QK, "tax-transactions", period ?? null],
+    queryFn:  () => financeApi.getTaxTransactions(period),
+    enabled:  Boolean(period),
+    select:   (data) => toItems<TaxTransactionDto>(data),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -665,8 +696,13 @@ export function usePayTaxPeriod() {
 
 // ── Recurring invoices ──────────────────────────────────────────────────────────
 
-export function useRecurringInvoices() {
-  return useQuery({ queryKey: [QK, "recurring"], queryFn: () => financeApi.getRecurringInvoices() });
+export function useRecurringInvoices(params: RecurringPageParams = {}) {
+  return useQuery({
+    queryKey: [QK, "recurring", params],
+    queryFn: () => financeApi.getRecurringInvoices(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+  });
 }
 export function useRecurringSummary() {
   return useQuery({ queryKey: [QK, "recurring-summary"], queryFn: () => financeApi.getRecurringSummary() });

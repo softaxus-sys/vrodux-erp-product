@@ -27,9 +27,12 @@ public sealed class BudgetsController(ISender sender) : FinanceControllerBase
     public async Task<IActionResult> GetAll(
         [FromQuery] string? period = null,
         [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
         CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetBudgetsQuery(period, status), ct);
+        var result = await sender.Send(new GetBudgetsQuery(period, status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

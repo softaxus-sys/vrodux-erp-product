@@ -16,6 +16,8 @@ import { ExportMenu } from "@/components/ui/export-menu";
 import { AddBudgetForm } from "./add-budget-form";
 import { Can } from "@/components/auth/can";
 
+const PAGE_SIZE = 30;
+
 const STATUS_STYLES: Record<BudgetStatus, string> = {
   draft: "bg-muted text-muted-foreground",
   approved: "bg-primary/10 text-primary",
@@ -160,8 +162,13 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
 export function BudgetingView() {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
-  const { data: budgets = [] } = useBudgets();
+  const [page, setPage] = React.useState(1);
+  const { data: paged, isFetching } = useBudgets({ page, pageSize: PAGE_SIZE });
+  const budgets    = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
 
+  // Exports carry the page on screen, not the whole ledger — the subtitle says which.
   const exportCsv = () => {
     const csv = toCsv(budgets.map(b => ({
       "Name":        b.name,
@@ -177,7 +184,7 @@ export function BudgetingView() {
 
   const exportPdfReport = () => exportPdf({
     title: "Budget Overview",
-    subtitle: `${budgets.length} budgets`,
+    subtitle: `${budgets.length} of ${totalCount} budgets (page ${page})`,
     columns: ["Name","Period","Status","Budgeted (AED)","Actual (AED)","Variance (AED)","Lines"],
     rows: budgets.map(b => [b.name, b.period, b.status, b.totalBudgeted, b.totalActual, b.variance, b.lineCount]),
   });
@@ -290,6 +297,30 @@ export function BudgetingView() {
             })}
           </tbody>
         </table>
+        {totalCount > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {t("budgeting.table.showing", {
+                shown: `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)}`,
+                total: totalCount,
+              })}
+            </span>
+            <div className="flex items-center gap-2">
+              {/* Disabled while fetching, so a double-click cannot skip a page. */}
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page <= 1 || isFetching}
+                onClick={() => setPage(p => Math.max(1, p - 1))}>
+                {t("budgeting.table.prev")}
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page >= totalPages || isFetching}
+                onClick={() => setPage(p => p + 1)}>
+                {t("budgeting.table.next")}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Drawer */}

@@ -9,11 +9,17 @@ import { useAuthStore } from "@/store/auth.store";
 
 const QK = "exchange-rates";
 
-/** All stored exchange rates (USD base). 30-min staleness — rates move slowly. */
+/**
+ * The current exchange rates (USD base) — one row per currency. 30-min staleness; rates move slowly.
+ *
+ * Asks the server for latest-per-currency rather than the whole history: both consumers
+ * (`buildRateMap` and the settings table) reduce to exactly this, and the table gains a row per
+ * currency every day, so the unfiltered read grows without bound.
+ */
 export function useExchangeRates() {
   return useQuery({
-    queryKey: [QK],
-    queryFn: () => exchangeRatesApi.getAll(),
+    queryKey: [QK, "latest"],
+    queryFn: () => exchangeRatesApi.getAll(undefined, true),
     staleTime: 30 * 60 * 1000,
   });
 }

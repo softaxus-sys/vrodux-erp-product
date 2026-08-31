@@ -56,9 +56,9 @@ public sealed class TaxController(ISender sender) : FinanceControllerBase
 
     [HttpGet("transactions")]
     [RequirePermission("finance.tax.view")]
-    public async Task<IActionResult> GetTransactions(CancellationToken ct)
+    public async Task<IActionResult> GetTransactions([FromQuery] string? period = null, CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetTaxTransactionsQuery(), ct);
+        var result = await sender.Send(new GetTaxTransactionsQuery(period), ct);
         return OkOrError(result);
     }
 }

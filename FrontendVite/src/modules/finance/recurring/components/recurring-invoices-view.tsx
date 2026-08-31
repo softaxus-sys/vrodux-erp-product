@@ -19,10 +19,16 @@ import { useCurrency } from "@/hooks/use-currency";
 
 const FREQ_VALUES: RecurrenceFrequency[] = ["weekly", "monthly", "quarterly", "yearly"];
 
+const PAGE_SIZE = 30;
+
 export function RecurringInvoicesView() {
   const { t } = useTranslation("finance");
   const CUR = useCurrency();
-  const { data: items = [], isLoading } = useRecurringInvoices();
+  const [page, setPage] = React.useState(1);
+  const { data: paged, isLoading, isFetching } = useRecurringInvoices({ page, pageSize: PAGE_SIZE });
+  const items      = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
   const { data: summary } = useRecurringSummary();
   const runDue = useRunDueRecurring();
   const [editing, setEditing] = React.useState<RecurringInvoiceDto | null>(null);
@@ -113,6 +119,30 @@ export function RecurringInvoicesView() {
               ))}
             </tbody>
           </table>
+        )}
+        {totalCount > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {t("recurring.table.showing", {
+                shown: `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)}`,
+                total: totalCount,
+              })}
+            </span>
+            <div className="flex items-center gap-2">
+              {/* Disabled while fetching, so a double-click cannot skip a page. */}
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page <= 1 || isFetching}
+                onClick={() => setPage(p => Math.max(1, p - 1))}>
+                {t("recurring.table.prev")}
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page >= totalPages || isFetching}
+                onClick={() => setPage(p => p + 1)}>
+                {t("recurring.table.next")}
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 

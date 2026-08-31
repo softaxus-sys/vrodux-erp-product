@@ -23,7 +23,20 @@ const STATUS_CONFIG: Record<JournalStatus, { color: string; bg: string; dot: str
 
 const FILTER_KEYS: (JournalStatus | "all")[] = ["all", "draft", "posted", "reversed", "voided"];
 
-const PERIODS = ["All Periods", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"];
+/** Anything the backend sends that predates a status here would otherwise crash the row. */
+const UNKNOWN_STATUS = { color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
+
+const PAGE_SIZE = 30;
+
+/** The last 24 months, newest first. This was a hardcoded list that stopped at 2026-05 — stale
+ *  for months, so entries in later periods were unreachable through the filter. */
+function buildPeriods(): string[] {
+  const now = new Date();
+  return Array.from({ length: 24 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+}
 
 function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; open: boolean; onClose: () => void }) {
   const { t } = useTranslation("finance");
@@ -31,7 +44,7 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
   const post = usePostJournal();
   const reverse = useVoidJournal();
   if (!entry) return null;
-  const sc = STATUS_CONFIG[entry.status];
+  const sc = STATUS_CONFIG[entry.status] ?? UNKNOWN_STATUS;
   const busy = post.isPending || reverse.isPending;
   return (
     <AnimatePresence>
@@ -122,31 +135,43 @@ function JournalDrawer({ entry, open, onClose }: { entry: JournalEntry | null; o
 export function JournalsView() {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
-  const { data: journals = [] } = useJournals();
   const { data: journalsSummary } = useJournalsSummary();
 
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<JournalStatus | "all">("all");
-  const [period, setPeriod] = React.useState("All Periods");
+  const [period, setPeriod] = React.useState("");
+  const [page, setPage] = React.useState(1);
   const [selected, setSelected] = React.useState<JournalEntry | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const filtered = React.useMemo(() => {
-    let list = journals;
-    if (statusFilter !== "all") list = list.filter(j => j.status === statusFilter);
-    if (period !== "All Periods") list = list.filter(j => j.period === period);
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      list = list.filter(j => (j.journalNumber ?? "").toLowerCase().includes(s) || (j.description ?? "").toLowerCase().includes(s) || (j.reference ?? "").toLowerCase().includes(s));
-    }
-    return list;
-  }, [journals, search, statusFilter, period]);
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
 
+  // Page 3 of the previous filter is meaningless against a different result set, and often past its end.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, period]);
+
+  const { data: paged, isFetching } = useJournals({
+    search:   debouncedSearch || undefined,
+    status:   statusFilter === "all" ? undefined : statusFilter,
+    period:   period || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const journals   = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
+  const periods    = React.useMemo(buildPeriods, []);
+
+  // Counts come from the summary endpoint — a single page could never total the ledger.
   const STATS = [
-    { label: t("journals.stat.totalJournals"), value: journalsSummary?.total ?? journals.length, icon: BookOpen, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: t("journals.stat.draft"), value: journalsSummary?.draft ?? journals.filter(j => j.status === "draft").length, icon: FileText, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: t("journals.stat.posted"), value: journalsSummary?.posted ?? journals.filter(j => j.status === "posted").length, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
+    { label: t("journals.stat.totalJournals"), value: journalsSummary?.total ?? 0, icon: BookOpen, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("journals.stat.draft"), value: journalsSummary?.draft ?? 0, icon: FileText, color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("journals.stat.posted"), value: journalsSummary?.posted ?? 0, icon: CheckCircle2, color: "text-success", bg: "bg-success/10" },
     { label: t("journals.stat.postedValue"), value: formatCurrency(journalsSummary?.totalPostedValue ?? 0, currency), icon: Percent, color: "text-primary", bg: "bg-primary/10", isText: true },
   ];
 
@@ -184,7 +209,8 @@ export function JournalsView() {
         </div>
         <select value={period} onChange={e => setPeriod(e.target.value)}
           className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
-          {PERIODS.map(p => <option key={p} value={p}>{p === "All Periods" ? t("journals.allPeriods") : p}</option>)}
+          <option value="">{t("journals.allPeriods")}</option>
+          {periods.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
@@ -202,10 +228,10 @@ export function JournalsView() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {totalCount === 0 ? (
               <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{t("journals.table.empty")}</td></tr>
-            ) : filtered.map((j, i) => {
-              const sc = STATUS_CONFIG[j.status];
+            ) : journals.map((j, i) => {
+              const sc = STATUS_CONFIG[j.status] ?? UNKNOWN_STATUS;
               return (
                 <motion.tr key={j.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
                   onClick={() => { setSelected(j); setDrawerOpen(true); }}
@@ -237,6 +263,30 @@ export function JournalsView() {
             })}
           </tbody>
         </table>
+        {totalCount > 0 && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
+            <span className="text-xs text-muted-foreground">
+              {t("journals.table.showing", {
+                shown: `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)}`,
+                total: totalCount,
+              })}
+            </span>
+            <div className="flex items-center gap-2">
+              {/* Disabled while fetching, so a double-click cannot skip a page. */}
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page <= 1 || isFetching}
+                onClick={() => setPage(p => Math.max(1, p - 1))}>
+                {t("journals.table.prev")}
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" className="h-8 text-xs"
+                disabled={page >= totalPages || isFetching}
+                onClick={() => setPage(p => p + 1)}>
+                {t("journals.table.next")}
+              </Button>
+            </div>
+          </div>
+        )}
       </motion.div>
       <JournalDrawer entry={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <AddJournalForm open={showAddForm} onClose={() => setShowAddForm(false)} />

@@ -14,7 +14,7 @@ internal sealed class GetTaxTransactionsHandler(FinanceDbContext db) : IQueryHan
 {
     public async Task<Result<IReadOnlyList<TaxTransactionDto>>> Handle(GetTaxTransactionsQuery query, CancellationToken ct)
     {
-        var rows = await VatLedger.BuildAsync(db, ct);
+        var rows = await VatLedger.BuildAsync(db, ct, query.Period);
         return Result.Success<IReadOnlyList<TaxTransactionDto>>(rows);
     }
 }

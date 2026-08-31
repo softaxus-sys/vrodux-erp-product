@@ -16,9 +16,14 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
 {
     [HttpGet]
     [RequirePermission("finance.invoicing.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search = null,
+        [FromQuery] bool? isActive = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetRecurringInvoicesQuery(), ct);
+        var result = await sender.Send(new GetRecurringInvoicesQuery(search, isActive, page, pageSize), ct);
         return OkOrError(result);
     }
 

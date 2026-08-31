@@ -268,7 +268,10 @@
       "credit": "دائن",
       "status": "الحالة",
       "empty": "لا توجد قيود يومية.",
-      "unbalanced": "غير متوازن"
+      "unbalanced": "غير متوازن",
+      "showing": "عرض {{shown}} من {{total}} قيد",
+      "prev": "السابق",
+      "next": "التالي"
     },
     "drawer": {
       "balanced": "متوازن",
@@ -361,7 +364,10 @@
       "variance": "الانحراف",
       "utilisation": "الاستخدام",
       "status": "الحالة",
-      "linesShort": "{{count}} بند"
+      "linesShort": "{{count}} بند",
+      "showing": "عرض {{shown}} من {{total}} ميزانية",
+      "prev": "السابق",
+      "next": "التالي"
     },
     "form": {
       "title": "ميزانية جديدة",
@@ -428,7 +434,10 @@
       "rec": "التسوية",
       "empty": "لا توجد معاملات لهذا الحساب.",
       "reconcile": "تسوية",
-      "reconcileTitle": "وضع علامة مسوّاة"
+      "reconcileTitle": "وضع علامة مسوّاة",
+      "showing": "عرض {{shown}} من {{total}} معاملة",
+      "prev": "السابق",
+      "next": "التالي"
     },
     "card": {
       "available": "المتاح: {{amount}}",
@@ -590,7 +599,10 @@
       "nextRun": "التشغيل التالي",
       "amount": "المبلغ",
       "generated": "المولّدة",
-      "status": "الحالة"
+      "status": "الحالة",
+      "showing": "عرض {{shown}} من {{total}} قالب",
+      "prev": "السابق",
+      "next": "التالي"
     },
     "rowAction": {
       "generateNow": "توليد فاتورة الآن",

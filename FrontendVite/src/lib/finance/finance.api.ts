@@ -192,6 +192,16 @@ export interface BankTransactionDto {
   balance: number;
 }
 
+/** Server-side paging for the statement list — a bank feed only ever grows. */
+export interface BankTxPageParams {
+  accountId?: string;
+  type?: "credit" | "debit";
+  search?: string;
+  reconciled?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface BankingSummaryDto {
   totalBalance: number;
   totalAccounts: number;
@@ -213,6 +223,15 @@ export interface BudgetDto {
   totalActual: number;
   variance: number;
   lineCount: number;
+}
+
+/** Server-side paging for the budget list — one row per department per period. */
+export interface BudgetPageParams {
+  period?: string;
+  status?: BudgetStatus;
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface BudgetingSummaryDto {
@@ -445,6 +464,16 @@ export interface JournalEntryDto {
   period: string;
 }
 
+/** Server-side paging + filtering for the journals list. The period filter is a yyyy-MM
+ *  prefix match on the stored date - it used to be a hardcoded list filtered in the browser. */
+export interface JournalPageParams {
+  search?: string;
+  status?: string;
+  period?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface JournalsSummaryDto {
   total: number;
   draft: number;
@@ -641,6 +670,14 @@ export interface RecurringInvoiceDto {
   /** Email the invoice the moment it is generated, rather than leaving it as a draft. */
   autoSend: boolean;
 }
+/** Server-side paging — one template per client contract, so this scales with the customer base. */
+export interface RecurringPageParams {
+  search?: string;
+  isActive?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface RecurringSummaryDto {
   total: number; active: number; dueSoon: number; generatedTotal: number; monthlyValue: number;
 }
@@ -703,14 +740,31 @@ export const financeApi = {
 
   // Banking
   getBankAccounts:        (): Promise<BankAccountDto[]>     => rawApiClient.get(`${BASE}/banking/accounts`),
-  getBankTransactions:    (): Promise<BankTransactionDto[]> => rawApiClient.get(`${BASE}/banking/transactions`),
+  getBankTransactions: (p: BankTxPageParams = {}): Promise<PagedResult<BankTransactionDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.accountId) qs.set("accountId", p.accountId);
+    if (p.type) qs.set("type", p.type);
+    if (p.search) qs.set("search", p.search);
+    if (p.reconciled !== undefined) qs.set("reconciled", String(p.reconciled));
+    return rawApiClient.get(`${BASE}/banking/transactions?${qs}`);
+  },
   getBankingSummary:      (): Promise<BankingSummaryDto>    => rawApiClient.get(`${BASE}/banking/summary`),
   createBankAccount:      (data: CreateBankAccountRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/accounts`, data),
   createBankTransaction:  (data: CreateBankTransactionRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/transactions`, data),
   reconcileTransaction:   (id: string): Promise<void> => rawApiClient.post(`${BASE}/banking/transactions/${id}/reconcile`),
 
   // Budgeting
-  getBudgets:          (): Promise<BudgetDto[]>          => rawApiClient.get(`${BASE}/budgets`),
+  getBudgets: (p: BudgetPageParams = {}): Promise<PagedResult<BudgetDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.period) qs.set("period", p.period);
+    if (p.status) qs.set("status", p.status);
+    if (p.search) qs.set("search", p.search);
+    return rawApiClient.get(`${BASE}/budgets?${qs}`);
+  },
   getBudgetingSummary: (): Promise<BudgetingSummaryDto>  => rawApiClient.get(`${BASE}/budgets/summary`),
   createBudget:        (data: CreateBudgetRequest): Promise<BudgetDto> => rawApiClient.post(`${BASE}/budgets`, data),
   changeBudgetStatus:  (id: string, status: BudgetStatus): Promise<void> => rawApiClient.post(`${BASE}/budgets/${id}/status`, { status }),
@@ -779,7 +833,15 @@ export const financeApi = {
     rawApiClient.get(`${BASE}/gl/cash-flow${qsRange(from, to)}`),
 
   // Journals
-  getJournals:         (): Promise<JournalEntryDto[]>   => rawApiClient.get(`${BASE}/journals`),
+  getJournals: (p: JournalPageParams = {}): Promise<PagedResult<JournalEntryDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search) qs.set("search", p.search);
+    if (p.status) qs.set("status", p.status);
+    if (p.period) qs.set("period", p.period);
+    return rawApiClient.get(`${BASE}/journals?${qs}`);
+  },
   getJournalsSummary:  (): Promise<JournalsSummaryDto>  => rawApiClient.get(`${BASE}/journals/summary`),
   createJournalEntry:  (data: CreateJournalEntryRequest): Promise<unknown> => rawApiClient.post(`${BASE}/journal-entries`, data),
   postJournalEntry:    (id: string): Promise<void> => rawApiClient.post(`${BASE}/journal-entries/${id}/post`),
@@ -787,14 +849,23 @@ export const financeApi = {
 
   // Tax / VAT
   getTaxPeriods:       (): Promise<TaxPeriodDto[]>      => rawApiClient.get(`${BASE}/tax/periods`),
-  getTaxTransactions:  (): Promise<TaxTransactionDto[]> => rawApiClient.get(`${BASE}/tax/transactions`),
+  // Period-scoped: without it every invoice and bill the tenant has ever issued is read.
+  getTaxTransactions: (period?: string): Promise<TaxTransactionDto[]> =>
+    rawApiClient.get(`${BASE}/tax/transactions${period ? `?period=${encodeURIComponent(period)}` : ""}`),
   getTaxSummary:       (): Promise<TaxSummaryDto>       => rawApiClient.get(`${BASE}/tax/summary`),
   createTaxPeriod:     (data: CreateTaxPeriodRequest): Promise<TaxPeriodDto> => rawApiClient.post(`${BASE}/tax/periods`, data),
   fileTaxPeriod:       (id: string): Promise<void> => rawApiClient.post(`${BASE}/tax/periods/${id}/file`),
   payTaxPeriod:        (id: string): Promise<void> => rawApiClient.post(`${BASE}/tax/periods/${id}/pay`),
 
   // Recurring invoices
-  getRecurringInvoices:   (): Promise<RecurringInvoiceDto[]> => rawApiClient.get(`${BASE}/recurring-invoices`),
+  getRecurringInvoices: (p: RecurringPageParams = {}): Promise<PagedResult<RecurringInvoiceDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search) qs.set("search", p.search);
+    if (p.isActive !== undefined) qs.set("isActive", String(p.isActive));
+    return rawApiClient.get(`${BASE}/recurring-invoices?${qs}`);
+  },
   getRecurringSummary:    (): Promise<RecurringSummaryDto>   => rawApiClient.get(`${BASE}/recurring-invoices/summary`),
   createRecurringInvoice: (data: UpsertRecurringRequest): Promise<RecurringInvoiceDto> => rawApiClient.post(`${BASE}/recurring-invoices`, data),
   updateRecurringInvoice: (id: string, data: UpsertRecurringRequest): Promise<void> => rawApiClient.put(`${BASE}/recurring-invoices/${id}`, data),

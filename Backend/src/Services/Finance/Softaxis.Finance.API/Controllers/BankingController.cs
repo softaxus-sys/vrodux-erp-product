@@ -28,8 +28,12 @@ public sealed class BankingController(ISender sender) : FinanceControllerBase
     public async Task<IActionResult> GetTransactions(
         [FromQuery] Guid? accountId = null,
         [FromQuery] string? type = null,
+        [FromQuery] string? search = null,
+        [FromQuery] bool? reconciled = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
         CancellationToken ct = default) =>
-        OkOrError(await sender.Send(new GetBankTransactionsQuery(accountId, type), ct));
+        OkOrError(await sender.Send(new GetBankTransactionsQuery(accountId, type, search, reconciled, page, pageSize), ct));
 
     [HttpPost("accounts")]
     [RequirePermission("finance.banking.create")]

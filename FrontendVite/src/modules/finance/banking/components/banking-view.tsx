@@ -13,6 +13,8 @@ import type { BankAccountDto as BankAccount } from "@/lib/finance/finance.api";
 import { useBankAccounts, useBankTransactions, useBankingSummary, useReconcileTransaction } from "@/hooks/finance/use-finance";
 import { Can } from "@/components/auth/can";
 
+const PAGE_SIZE = 30;
+
 const CURRENCY_FLAGS: Record<string, string> = {
   AED: "🇦🇪",
   USD: "🇺🇸",
@@ -24,7 +26,6 @@ export function BankingView() {
   const { t } = useTranslation("finance");
   const currency = useCurrency();
   const { data: bankAccounts = [] } = useBankAccounts();
-  const { data: bankTransactions = [] } = useBankTransactions();
   const reconcile = useReconcileTransaction();
   const { data: bankingSummary } = useBankingSummary();
 
@@ -45,10 +46,18 @@ export function BankingView() {
     [bankAccounts, selectedAccountId]
   );
 
-  const transactions = React.useMemo(
-    () => bankTransactions.filter((t) => t.accountId === (selectedAccount?.id ?? selectedAccountId)),
-    [bankTransactions, selectedAccount, selectedAccountId]
+  // The account filter now narrows in SQL rather than in the browser over the whole feed.
+  const activeAccountId = selectedAccount?.id ?? selectedAccountId;
+  const [page, setPage] = React.useState(1);
+  React.useEffect(() => { setPage(1); }, [activeAccountId]);
+
+  const { data: paged, isFetching } = useBankTransactions(
+    { accountId: activeAccountId || undefined, page, pageSize: PAGE_SIZE },
+    Boolean(activeAccountId),
   );
+  const transactions = paged?.items ?? [];
+  const totalCount   = paged?.totalCount ?? 0;
+  const totalPages   = paged?.totalPages ?? 1;
 
   return (
     <div className="space-y-6">
@@ -116,7 +125,7 @@ export function BankingView() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
               {t("banking.txHeading", { account: selectedAccount?.accountName ?? "—" })}
             </p>
-            <p className="text-xs text-muted-foreground">{t("banking.entries", { count: transactions.length })}</p>
+            <p className="text-xs text-muted-foreground">{t("banking.entries", { count: totalCount })}</p>
           </div>
           <div className="bg-card border border-border rounded-xl overflow-hidden">
             <table className="w-full">
@@ -132,7 +141,7 @@ export function BankingView() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.length === 0 ? (
+                {totalCount === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">
                       {t("banking.table.empty")}
@@ -177,6 +186,30 @@ export function BankingView() {
                 )}
               </tbody>
             </table>
+            {totalCount > 0 && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-border">
+                <span className="text-xs text-muted-foreground">
+                  {t("banking.table.showing", {
+                    shown: `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)}`,
+                    total: totalCount,
+                  })}
+                </span>
+                <div className="flex items-center gap-2">
+                  {/* Disabled while fetching, so a double-click cannot skip a page. */}
+                  <Button variant="outline" size="sm" className="h-8 text-xs"
+                    disabled={page <= 1 || isFetching}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}>
+                    {t("banking.table.prev")}
+                  </Button>
+                  <span className="text-xs text-muted-foreground tabular-nums">{page} / {totalPages}</span>
+                  <Button variant="outline" size="sm" className="h-8 text-xs"
+                    disabled={page >= totalPages || isFetching}
+                    onClick={() => setPage(p => p + 1)}>
+                    {t("banking.table.next")}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
