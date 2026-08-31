@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrency } from "@/hooks/use-currency";
-import { useLeads, useDeals } from "@/hooks/crm/use-crm";
+import { useCrmDashboard } from "@/hooks/crm/use-crm";
 import { useInvoices, useExpenses } from "@/hooks/finance/use-finance";
 import type { InvoiceDto, ExpenseDto } from "@/lib/finance/finance.api";
 import { useEmployees, useLeaveRequests, useAttendance } from "@/hooks/hr/use-hr";
@@ -595,40 +595,36 @@ function SalesCharts() {
 
 function CrmCharts() {
   const { t } = useTranslation("dashboard");
-  const { data: leads = [] } = useLeads();
-  const { data: deals = [] } = useDeals();
+  // One aggregate call. This used to be useLeads() + useDeals() — every lead and every deal
+  // downloaded on every dashboard load, purely to count them in the browser. On a tenant with
+  // 6,019 leads that is the unpaginated query that was timing out, run for anyone who logged in.
+  const { data: dash } = useCrmDashboard();
 
-  // ── Real monthly acquisition/conversion (this calendar year, up to current month) ──
+  // ── Monthly acquisition/conversion, counted server-side ──
   const crmMonthly = React.useMemo(() => {
-    const year = new Date().getFullYear();
-    const buckets = MONTHS.map((m) => ({ month: m, newLeads: 0, converted: 0 }));
-    for (const l of leads) {
-      const d = l.createdDate ? new Date(l.createdDate) : null;
-      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year) continue;
-      const idx = d.getMonth();
-      if (idx > MONTH_IDX) continue;
-      buckets[idx].newLeads += 1;
-      if (l.status === "converted") buckets[idx].converted += 1;
-    }
-    return buckets;
-  }, [leads]);
+    const byMonth = dash?.leadsByMonth ?? [];
+    return MONTHS.map((m, idx) => {
+      const row = byMonth.find(b => b.month === idx + 1);
+      return { month: m, newLeads: row?.newLeads ?? 0, converted: row?.converted ?? 0 };
+      // Months after the current one stay at zero rather than being dropped, so the axis keeps
+      // its shape across the year instead of the chart resizing every month.
+    }).slice(0, MONTH_IDX + 1);
+  }, [dash]);
 
-  // ── Real lead-stage (status) distribution ──
+  // ── Lead-stage distribution, from the same aggregate ──
   const leadStages = React.useMemo(() => {
-    const order: { key: string; name: string }[] = [
-      { key: "new", name: "New" }, { key: "contacted", name: "Contacted" },
-      { key: "qualified", name: "Qualified" }, { key: "converted", name: "Converted" },
-      { key: "lost", name: "Lost" },
-    ];
-    return order
-      .map(o => ({ name: o.name, value: leads.filter(l => l.status === o.key).length }))
+    const labels: Record<string, string> = {
+      new: "New", contacted: "Contacted", qualified: "Qualified",
+      converted: "Converted", lost: "Lost",
+    };
+    return (dash?.leadFunnel ?? [])
+      .map(s => ({ name: labels[s.stage] ?? s.stage, value: s.count }))
       .filter(s => s.value > 0);
-  }, [leads]);
+  }, [dash]);
 
-  const totalPipeline = React.useMemo(
-    () => deals.filter(d => d.stage !== "won" && d.stage !== "lost").reduce((s, d) => s + (d.value ?? 0), 0),
-    [deals],
-  );
+  const totalPipeline = dash?.openPipelineValue ?? 0;
+  const leadCount     = dash?.totalLeads ?? 0;
+  const dealCount     = dash?.totalDeals ?? 0;
   const hasStages = leadStages.length > 0;
 
   return (
@@ -637,7 +633,7 @@ function CrmCharts() {
         icon={TrendingUp}
         title={t("charts.crm.title")}
         color={P.pink}
-        description={t("charts.crm.desc", { leads: leads.length, deals: deals.length, pipeline: fmt(totalPipeline) })}
+        description={t("charts.crm.desc", { leads: leadCount, deals: dealCount, pipeline: fmt(totalPipeline) })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 

@@ -19,7 +19,8 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db, ILeadAccessGuard a
         // Deals and activities are scoped too. They were not, which was survivable only while this
         // endpoint required the tenant-wide crm.leads.view; now that every view tier can reach it, an
         // unscoped deal query would hand a team lead the whole tenant's pipeline value.
-        var leads = await access.ScopeReadable(db.Leads.AsNoTracking()).Where(l => !l.IsDeleted).Select(l => new { l.Status, l.Source, l.EstimatedValue }).ToListAsync(ct);
+        var leads = await access.ScopeReadable(db.Leads.AsNoTracking()).Where(l => !l.IsDeleted)
+            .Select(l => new { l.Status, l.Source, l.EstimatedValue, l.CreatedAt }).ToListAsync(ct);
         var deals = await access.ScopeDeals(db.Deals.AsNoTracking()).Where(d => !d.IsDeleted).Select(d => new { d.Stage, d.Value }).ToListAsync(ct);
 
         string[] leadStages = ["new", "contacted", "qualified", "converted"];
@@ -28,6 +29,14 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db, ILeadAccessGuard a
         var bySource = leads.GroupBy(l => string.IsNullOrWhiteSpace(l.Source) ? "other" : l.Source)
             .Select(g => new LeadsBySourceDto(g.Key, g.Count()))
             .OrderByDescending(x => x.Count).ToList();
+
+        // Counted here rather than in the browser: the dashboard previously fetched every lead
+        // through the unpaged endpoint just to bucket them by month.
+        var year = DateTime.UtcNow.Year;
+        var byMonth = Enumerable.Range(1, 12).Select(m => new LeadsByMonthDto(
+            m,
+            leads.Count(l => l.CreatedAt.Year == year && l.CreatedAt.Month == m),
+            leads.Count(l => l.CreatedAt.Year == year && l.CreatedAt.Month == m && l.Status == "converted"))).ToList();
 
         string[] dealStages = ["lead", "qualified", "proposal", "negotiation", "won", "lost"];
         var pipeline = dealStages.Select(s => new PipelineStageDto(
@@ -43,7 +52,7 @@ internal sealed class GetCrmDashboardHandler(CrmDbContext db, ILeadAccessGuard a
             .Where(a => !a.IsDeleted && !a.Completed).Select(a => a.DueDate).ToListAsync(ct);
 
         return Result.Success(new CrmDashboardDto(
-            funnel, bySource, pipeline,
+            funnel, bySource, pipeline, byMonth,
             openDeals.Sum(d => d.Value), won.Sum(d => d.Value), won.Count, lost,
             totalClosed > 0 ? Math.Round((double)won.Count / totalClosed * 100, 1) : 0,
             leads.Count, deals.Count, openActs.Count,

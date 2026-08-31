@@ -520,6 +520,8 @@ export interface CrmDashboardDto {
   leadFunnel: { stage: string; count: number }[];
   leadsBySource: { source: string; count: number }[];
   pipelineByStage: { stage: string; count: number; value: number }[];
+  /** New/converted counts per month of the current year, aggregated server-side. */
+  leadsByMonth: { month: number; newLeads: number; converted: number }[];
   openPipelineValue: number; wonValue: number; wonCount: number; lostCount: number;
   winRate: number; totalLeads: number; totalDeals: number; openTasks: number; overdueTasks: number;
 }
