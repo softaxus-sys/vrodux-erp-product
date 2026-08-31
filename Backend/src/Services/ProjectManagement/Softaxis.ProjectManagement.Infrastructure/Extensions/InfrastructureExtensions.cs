@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -45,7 +46,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ProjectManagementDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
         await RepairProjectMemberTenantIdsAsync(db);
         await BackfillProjectMembersAsync(db);
     }

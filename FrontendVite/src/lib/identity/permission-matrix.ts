@@ -16,6 +16,9 @@ export const ACTION_ORDER = [
   "void", "refund", "discount", "adjust", "create-login", "import",
   // Employee self-service verbs — these are actions, not modules.
   "leave-request", "attendance", "payslip",
+  // Real-estate rent collection: recording money and sending a reminder are separate decisions
+  // from editing a lease, so they are their own actions rather than folded into edit.
+  "record", "remind",
 ] as const;
 
 export type Action = typeof ACTION_ORDER[number];
@@ -39,12 +42,13 @@ export const MODULE_GROUPS: Record<string, string> = {
   "project-management": "Project Management",
   b2b: "B2B", education: "Education", healthcare: "Healthcare", insurance: "Insurance",
   visa: "Visa Services", restaurant: "Restaurant", reports: "Reports",
+  "real-estate": "Real Estate",
   "file-manager": "File Manager",
 };
 
 export const GROUP_ORDER = [
   "POS", "Restaurant", "Inventory", "Finance", "Sales", "Purchase", "CRM",
-  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "HR",
+  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "HR",
   "Project Management", "Reports", "File Manager", "Settings",
 ];
 

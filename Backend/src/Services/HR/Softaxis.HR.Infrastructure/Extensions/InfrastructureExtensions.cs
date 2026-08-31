@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -44,7 +45,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HrDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
         if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
             await DemoTenantSeeder.RunAsync(() => HrSeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))

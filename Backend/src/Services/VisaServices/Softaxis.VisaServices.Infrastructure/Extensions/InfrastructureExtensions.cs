@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<VisaDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
 
         // VisaType is now tenant-owned + seeded lazily per tenant (GetVisaTypesHandler).
         // Remove any legacy GLOBAL (TenantId NULL) rows left by the earlier global seed —

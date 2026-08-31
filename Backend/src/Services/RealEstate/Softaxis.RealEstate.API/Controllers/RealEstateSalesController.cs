@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.RealEstate.API.Authorization;
 using Softaxis.RealEstate.API.Controllers.Common;
 using Softaxis.RealEstate.Application.Sales.Commands;
 using Softaxis.RealEstate.Application.Sales.Queries;
@@ -20,6 +21,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
 
     // ── Summary (pack dashboard) ──────────────────────────────────────────────
     [HttpGet("sales/summary")]
+    [RequirePermission("real-estate.sales.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetSalesSummaryQuery(), ct);
@@ -28,6 +30,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
 
     // ── Site Visits ───────────────────────────────────────────────────────────
     [HttpGet("site-visits")]
+    [RequirePermission("real-estate.sales.view")]
     public async Task<IActionResult> GetVisits([FromQuery] Guid? leadId, CancellationToken ct)
     {
         var result = await sender.Send(new GetSiteVisitsQuery(leadId), ct);
@@ -35,6 +38,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPost("site-visits")]
+    [RequirePermission("real-estate.sales.create")]
     public async Task<IActionResult> CreateVisit([FromBody] CreateSiteVisitCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -42,6 +46,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPost("site-visits/{id:guid}/complete")]
+    [RequirePermission("real-estate.sales.edit")]
     public async Task<IActionResult> CompleteVisit(Guid id, [FromBody] FeedbackReq req, CancellationToken ct)
     {
         var result = await sender.Send(new CompleteSiteVisitCommand(id, req.Feedback), ct);
@@ -49,6 +54,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpDelete("site-visits/{id:guid}")]
+    [RequirePermission("real-estate.sales.delete")]
     public async Task<IActionResult> DeleteVisit(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteSiteVisitCommand(id), ct);
@@ -57,6 +63,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
 
     // ── Reservations ──────────────────────────────────────────────────────────
     [HttpGet("reservations")]
+    [RequirePermission("real-estate.sales.view")]
     public async Task<IActionResult> GetReservations(CancellationToken ct)
     {
         var result = await sender.Send(new GetReservationsQuery(), ct);
@@ -64,6 +71,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPost("reservations")]
+    [RequirePermission("real-estate.sales.create")]
     public async Task<IActionResult> CreateReservation([FromBody] CreateReservationCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -71,6 +79,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPatch("reservations/{id:guid}/status")]
+    [RequirePermission("real-estate.sales.edit")]
     public async Task<IActionResult> ReservationStatus(Guid id, [FromBody] StatusReq req, CancellationToken ct)
     {
         var result = await sender.Send(new SetReservationStatusCommand(id, req.Status), ct);
@@ -78,6 +87,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpDelete("reservations/{id:guid}")]
+    [RequirePermission("real-estate.sales.delete")]
     public async Task<IActionResult> DeleteReservation(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteReservationCommand(id), ct);
@@ -86,6 +96,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
 
     // ── Bookings ──────────────────────────────────────────────────────────────
     [HttpGet("bookings")]
+    [RequirePermission("real-estate.sales.view")]
     public async Task<IActionResult> GetBookings(CancellationToken ct)
     {
         var result = await sender.Send(new GetBookingsQuery(), ct);
@@ -93,6 +104,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPost("bookings")]
+    [RequirePermission("real-estate.sales.create")]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -100,6 +112,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPost("bookings/{id:guid}/payment")]
+    [RequirePermission("real-estate.sales.edit")]
     public async Task<IActionResult> RecordPayment(Guid id, [FromBody] PaymentReq req, CancellationToken ct)
     {
         var result = await sender.Send(new RecordBookingPaymentCommand(id, req.Amount), ct);
@@ -107,6 +120,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpPatch("bookings/{id:guid}/status")]
+    [RequirePermission("real-estate.sales.edit")]
     public async Task<IActionResult> BookingStatus(Guid id, [FromBody] StatusReq req, CancellationToken ct)
     {
         var result = await sender.Send(new SetBookingStatusCommand(id, req.Status), ct);
@@ -114,6 +128,7 @@ public sealed class RealEstateSalesController(ISender sender) : RealEstateContro
     }
 
     [HttpDelete("bookings/{id:guid}")]
+    [RequirePermission("real-estate.sales.delete")]
     public async Task<IActionResult> DeleteBooking(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeleteBookingCommand(id), ct);

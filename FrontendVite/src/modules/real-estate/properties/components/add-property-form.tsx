@@ -18,6 +18,20 @@ function typeToCode(t: string): string {
   return "residential";
 }
 
+/**
+ * Inverse of typeToCode, for prefilling the edit form.
+ *
+ * Lossy by nature: the backend stores only three codes, so eight display types collapse into them
+ * and a "Warehouse" reopens as "Commercial Building". That is a limitation of the stored model,
+ * not of this mapping — but it is better than the previous behaviour, which reset every edited
+ * property to "Residential Tower" regardless of what it was.
+ */
+function codeToType(code: string): string {
+  if (code === "mixed") return "Mixed-Use";
+  if (code === "commercial") return "Commercial Building";
+  return "Residential Tower";
+}
+
 interface AddPropertyFormProps {
   open: boolean;
   onClose: () => void;
@@ -55,12 +69,20 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
   React.useEffect(() => {
     if (!open) { reset(); return; }
     if (editing) {
+      // EVERY field the payload sends must be prefilled. The update is a full replace, so a field
+      // left blank here is not "unchanged" — it is overwritten with 0/null on save. Market value,
+      // total area, description and the type were all missing, so editing a property silently
+      // wiped them.
       setName(editing.name ?? "");
+      setPropertyType(codeToType(editing.propertyType));
       setEmirate(editing.location?.emirate || "Dubai");
       setArea(editing.location?.city ?? "");
       setAddress(editing.location?.address ?? "");
       setTotalUnits(String(editing.totalUnits ?? ""));
+      setTotalArea(editing.totalArea ? String(editing.totalArea) : "");
+      setCurrentValue(editing.marketValue ? String(editing.marketValue) : "");
       setPropertyManager(editing.developer ?? "");
+      setNotes(editing.description ?? "");
     }
   }, [open, editing]);
 

@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,8 @@ using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.RealEstate.Application;
+using Softaxis.RealEstate.Application.Abstractions;
+using Softaxis.RealEstate.Infrastructure.Services;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 using Softaxis.RealEstate.Infrastructure.Persistence.Seed;
 
@@ -31,6 +34,12 @@ public static class InfrastructureExtensions
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
 
+        // Rent + expiry reminders. The hosted service does the nightly sweep; the sender is shared
+        // with the "run now" endpoint so both decide what to send the same way.
+        services.AddScoped<IRealEstateEmailService, SmtpRealEstateEmailService>();
+        services.AddScoped<IRentAlertSender, RentAlertSender>();
+        services.AddHostedService<RentAlertBackgroundService>();
+
         // ── FluentValidation — register all validators from Application ───────
         services.AddValidatorsFromAssembly(typeof(AssemblyReference).Assembly);
 
@@ -41,7 +50,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RealEstateDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
         if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
             await DemoTenantSeeder.RunAsync(() => RealEstateSeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))

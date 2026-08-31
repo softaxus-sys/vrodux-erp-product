@@ -33,6 +33,12 @@ const STATUS_CONFIG: Record<TenantStatus, { label: string; className: string }> 
   blacklisted: { label: "Blacklisted", className: "text-destructive bg-destructive/10" },
 };
 
+const STATUS_FALLBACK = { label: "Unknown", className: "text-muted-foreground bg-muted" };
+
+/** Never index the map bare: an unrecognised status must degrade to a grey chip, not take the
+ *  page down. The properties drawer did exactly that and crashed on every property. */
+const getTenantStatus = (s: string) => STATUS_CONFIG[s as TenantStatus] ?? STATUS_FALLBACK;
+
 const PAYMENT_BADGE: Record<string, string> = {
   excellent: "text-success bg-success/10",
   good: "text-primary bg-primary/10",
@@ -316,10 +322,10 @@ export function TenantsView() {
                       <span
                         className={cn(
                           "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-                          STATUS_CONFIG[tenant.status].className
+                          getTenantStatus(tenant.status).className
                         )}
                       >
-                        {STATUS_CONFIG[tenant.status].label}
+                        {getTenantStatus(tenant.status).label}
                       </span>
                     </td>
                   </motion.tr>

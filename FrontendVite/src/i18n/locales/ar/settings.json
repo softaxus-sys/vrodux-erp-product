@@ -867,6 +867,8 @@
       "leave-request": "طلب إجازة شخصية",
       "attendance": "تسجيل حضوره",
       "payslip": "عرض قسائم راتبه",
+      "record": "تسجيل دفعة الإيجار",
+      "remind": "إرسال تذكير بالإيجار",
       "import": "استيراد بيانات خارجية"
     },
     "actionShort": {
@@ -885,6 +887,8 @@
       "leave-request": "إجازة",
       "attendance": "حضور",
       "payslip": "راتب",
+      "record": "تسجيل",
+      "remind": "تذكير",
       "import": "استيراد"
     },
     "group": {
@@ -902,7 +906,8 @@
       "healthcare": "الرعاية الصحية",
       "insurance": "التأمين",
       "visa": "خدمات التأشيرات",
-      "restaurant": "المطاعم"
+      "restaurant": "المطاعم",
+      "real-estate": "العقارات"
     },
     "module": {
       "b2b.contracts": "العقود",

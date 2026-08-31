@@ -5347,3 +5347,342 @@ plain text.
   nothing" → the assistant calls `use_module("project-management")`, then proposes
   `projects_create_issue` for confirmation; the agent picker now lists Restaurant/Visa/POS and the
   four industry packs; a reply containing `**bold**`, a list and a table renders formatted.
+
+---
+
+## Module 50 — Real Estate: rent schedules, rent/overdue reminders, lease-expiry notices
+
+Requested: alert tenants before rent falls due, chase them when it is not paid, and warn before a
+lease expires — all by email.
+
+### The blocker: there was nothing to alert on
+`LeaseContract` held `StartDate`, `EndDate`, `AnnualRent`, `Cheques` and a single running
+`TotalPaid`. **No due dates, no payment frequency, no per-payment records.** Nothing could know rent
+was *due*, let alone *late*, so this is built on a new rent schedule rather than on top of one.
+
+Three other gaps found while surveying the module:
+- **`ContractsController` was read-only** (GET list + summary). The frontend called
+  `POST`/`DELETE /api/real-estate/contracts`, which did not exist — **Add Contract was dead UI**.
+  Same for `createUnit`/`deleteUnit`/`createBroker`/`deleteBroker`.
+- **Real Estate had no permission keys at all** and no `[RequirePermission]` anywhere — the last
+  unaudited module. Every endpoint was `[Authorize]`-only.
+- The frontend `ContractDto` described a contract that does not exist (`type`, `brokerId`,
+  `rentAmount`, `saleAmount`, `depositAmount`, `contractDoc`, `paymentFrequency`,
+  `nextPaymentDate`), so all of those were `undefined` at runtime — the same silent-mismatch class
+  as the WPS `payslips`/`slips` bug (Module 46c). `UnitDto`/`TenantDto` have the same drift (below).
+
+### Rent schedule
+`RentInstallment` (contract, number, `DueDate` as `yyyy-MM-dd`, amount, amount paid, status, paid
+date/method/reference). `LeaseContract.PaymentFrequency` = monthly / quarterly / semi_annual /
+annual; `GenerateSchedule()` cuts the term into dated installments.
+
+- **Pro rata by term, not by name.** `AnnualRent` is a yearly rate, so a 6-month lease owes half.
+- **The remainder lands on the last installment**, so the schedule sums to the total *exactly*. A
+  naive divide leaves 100,000/12 short by 0.04, which then shows as an outstanding balance nobody
+  can ever clear. **Verified by execution**: 12×monthly of 100,000 → eleven at 8,333.33 + one at
+  8,333.37; 99,999.99 half-yearly → 50,000.00 + 49,999.99; 6-month at 120,000/yr → 60,000 total;
+  24-month quarterly at 120,000/yr → 8 × 30,000.
+- **Regeneration is refused once any money is recorded** — rebuilding would discard payments taken
+  against the old rows. Verified.
+- **There is deliberately no stored "overdue" status.** Lateness is a function of today's date, so a
+  stored flag is wrong from the moment the clock passes it until something re-runs. `overdue` is
+  derived at read time; the stored status stays pending/partial.
+- Payment settles at a 0.01 tolerance, so a transfer landing 0.004 short does not leave the row
+  forever "partial" and forever generating chasers. **Overpayment is refused**, not absorbed: it is
+  nearly always a payment entered against the wrong installment, and absorbing it hides the real one.
+
+### The reminder ladder
+`RentAlertSettings` — one row per workspace, **seeded on first read, never at startup** (the startup
+seed has no ambient tenant, so the row would land `TenantId = NULL` and be invisible to the very
+workspace it was for; Module 5g hit exactly this). Holds: enabled, days-before list (default
+`30,7,1`), overdue repeat (3 days) and cap (6), expiry days-before (`90,60,30`), CC list, "CC
+everyone with Real Estate access", and a **time zone** (default `Asia/Dubai`).
+
+**The time zone is stored, not assumed.** Rent due today in Dubai is still yesterday in UTC for four
+hours — Module 43 hit the same thing with attendance. An unresolvable id falls back to UTC rather
+than throwing, but the update handler rejects one up front so it cannot be saved.
+
+**Rungs match by "tightest applicable", not by exact day.** An exact match (`daysUntil == 30`) sends
+*nothing at all* if the service was down that day — the one failure mode this feature exists to
+prevent. Taking the tightest unsent rung also means a first run against an existing book sends one
+notice per payment, not one per configured lead time. `0` is always implicitly in play, so a payment
+falling due today is announced even when the ladder stops at 1.
+
+### Idempotency: claim first, then send
+`RentAlertLog` + a **tenant-scoped unique index on (contract, installment, kind, offset key)**. The
+sweep re-evaluates every open installment daily; without this a tenant is emailed the same "due in 7
+days" notice every day until it falls due.
+
+`ClaimAndSendAsync` writes the ledger row **before** sending — the opposite of the obvious order.
+Sending first means a crash in between re-sends the notice next pass, and a tenant emailed the same
+demand twice is a complaint. Claiming first means the worst case is a row recorded as *failed* and
+visibly not delivered, which an operator can see and re-send. A duplicate claim (second worker,
+retried run) hits the unique index and is skipped. Manual "send now" uses a `manual:<timestamp>` key
+so it neither no-ops nor consumes a rung the automatic ladder still needs.
+
+### Delivery
+`IRealEstateEmailService` + `SmtpRealEstateEmailService` — the service's own small interface, per
+this codebase's one-per-service convention (Identity, Restaurant), reading the same shared `Email`
+config section. **Returns `bool`**: false when SMTP is unconfigured, so the log records the attempt
+honestly instead of claiming a send that never happened. The settings screen surfaces that as a
+banner, and `SendRentReminderHandler` returns a *failure*, not a cheerful 200 — "sent" when nothing
+left the building is the most misleading thing this feature could say.
+
+Recipients: tenant in **To**; CC = the configured list, plus (opt-in) every user holding a
+`real-estate.*` permission, resolved by raw cross-schema SQL. **Not every workspace user** — that
+list includes HR-only and self-service accounts with no business seeing a tenant's arrears.
+`[identity]` is a reserved SQL Server keyword and must be bracketed (Module 5g). Scope note:
+role-derived only; per-user grants/denies (Module 5h) are not applied. A failure to build the CC
+list never stops the tenant's own reminder. Templates inline all CSS (mail clients strip
+stylesheets) and HTML-encode every interpolated value — a tenant named `Smith & Co <Ltd>` would
+otherwise break the markup.
+
+### `RentAlertBackgroundService`
+Daily, **5-minute startup delay** — every `MigrateAndSeed*` runs awaited before `app.RunAsync()`, so
+work on the boot path delays `/health` and can trip the deploy's health window into a rollback (same
+reasoning as `TrialLifecycleService`). `try/catch`-guarded at both levels: one workspace's bad data
+must not stop every other workspace's rent, and an unhandled exception would kill the service for the
+process lifetime. Fresh DI scope per workspace, and `TenantAmbient` is **cleared in a `finally`** —
+it is an `AsyncLocal` and would otherwise leak into whatever runs next.
+
+### Permissions — the module's first
+`real-estate.properties/units/tenants/contracts/brokers/sales` (view/create/edit/delete),
+`real-estate.rent` (**view/record/remind** — taking a cheque at the counter is a different decision
+from editing the rent), `real-estate.alerts` (view/edit). Migration `AddRealEstatePermissions`
+(29 rows; admins gain them via `SyncAdministratorPermissionsAsync` on startup).
+`[RequirePermission]` applied across all 7 controllers. `ModuleRoleCatalogue` gained
+`["real-estate"] = "Real Estate"`; `remind` added to `PrivilegedActions`.
+
+**`record` and `remind` were added to `ACTION_ORDER`** — an action missing from that list renders no
+column at all and cannot be granted through the UI (Module 42c).
+
+### Frontend
+`ContractDto` replaced with the real shape plus the derived fields the schedule makes possible
+(`nextDueDate`, `overdueCount`, `overdueAmount`, `daysToExpiry`). Contracts view rewritten (overdue
+sorts first, then soonest payment); contract drawer gained a **rent schedule tab** — record payment,
+waive, send this reminder now; Add Contract wired to the real endpoint with property → vacant-unit →
+tenant selectors (offering an occupied unit only produces a 409 after the form is filled in); new
+**Rent & Expiry Alerts** page at `/real-estate/rent-alerts` with the settings, live overdue/due/
+expiring queues, a **Preview (dry run)** button, and a sent log that shows *why* a notice failed.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors, 5 pre-existing warnings ✅
+- **Frontend `tsc`:** 277 errors, **unchanged baseline**, none in a touched file · **`vite build`:** ✅
+- **Schedule math verified by execution**, not assertion (figures above).
+- Migrations `AddRentSchedulingAndAlerts` (Real Estate) + `AddRealEstatePermissions` (Identity)
+  created; both auto-apply on startup.
+- **Pending (needs republish + restart) — not runtime-verified against a live SMTP server:** create
+  a lease → schedule generates; set the ladder and press **Preview** to see what would send; **Run
+  now** and confirm the tenant receives it and the log shows it sent; record a payment and confirm
+  the chasers stop; let one pass its due date and confirm the overdue ladder starts.
+
+### Flagged, NOT fixed (scope)
+- **`UnitDto` and `TenantDto` carry the same fictional-field drift `ContractDto` did.** The units
+  endpoint returns `unitType`/`rentPerYear`/`salePrice`/`currentTenantName`; the frontend type
+  declares `type`/`rentPricePA`/`bedrooms`/`bathrooms`/`contractExpiry`/`lastMaintenanceDate`, none
+  of which exist — so those columns are blank in the Units and Tenants screens today. The **real**
+  fields were added alongside the fictional ones and the new lease form uses them; rewriting
+  `units-view` and `tenants-view` (~50 usages) is its own task.
+- `createUnit` / `deleteUnit` / `createBroker` / `deleteBroker` still call endpoints that do not
+  exist — Units and Brokers remain read-only on the server.
+- Rent payments are recorded in Real Estate only; posting them to Finance as receivables was
+  considered and deliberately not built (the self-contained option was chosen).
+
+### Module 50b — Add Tenant 400, field-level validation errors, advance rent
+
+**Three follow-ups from using the module.**
+
+#### 1. Add Tenant returned 400 "The Name field is required"
+`CreateTenantCommand` takes `Name`/`NationalId`/`CompanyName`; the form sent `fullName`/`emiratesId`/
+`company`. It also sent six fields — `passportNo`, `trn`, `occupation`, `monthlyIncome`,
+`emergencyContact`, `notes` — that the entity had nowhere to store, so even once the names matched
+they would have been **silently discarded** (the Module 3 payroll-allowances bug again).
+
+- `Tenant` gained `PassportNumber`, `Trn`, `Occupation`, `MonthlyIncome`, `EmergencyContact`,
+  `Notes` (+ `SetProfile`, `SetStatus`, `Update`). Migration `AddTenantProfileFields`, applied.
+- **`createTenant` was typed `Record<string, unknown>`** — which is precisely why the drift went
+  unnoticed. Now a real `CreateTenantRequest`, so the compiler catches the next one.
+- `CreateTenantHandler` rejects a duplicate tenant email with a readable `Tenant.Duplicate`:
+  reminders are addressed by tenant, so two records sharing an address means one person gets both
+  leases' notices and nobody can tell which is which.
+- Validator messages renamed to the labels the user sees ("Full name is required", not "The Name
+  field is required"), and the form now gates its button on nationality — which the API requires —
+  instead of letting someone fill in fourteen fields and get a 400 back.
+
+#### 2. Validation failures now land on the field, not in an anonymous toast
+The shared client **ignored the `errors` dictionary entirely**, so a ProblemDetails 400 fell through
+every `detail`/`description`/`message` lookup to a bare **"HTTP 400"** toast — the response named
+the exact field and the user was told nothing.
+
+- `ApiError` gained `fieldErrors` + `fieldError(name)` + `hasFieldErrors`. `extractFieldErrors`
+  reads both shapes this backend produces: ASP.NET `{ errors: { Name: [...] } }` and
+  FluentValidation `{ failures: [{ propertyName, errorMessage }] }`. Keys are lower-cased, because
+  the server answers in PascalCase and forms think in camelCase. Applied to **both** clients — the
+  envelope one too, since Identity can fail model binding before its envelope exists.
+- The message now falls back to the first field message, then `title`, before `HTTP {status}`.
+- **`useFieldErrors()`** (`hooks/use-field-errors.ts`) + **`<FieldError>`** (`components/ui/`).
+  `capture(e)` only takes validation failures, so a generic error is still reported once by the
+  mutation hook's toast rather than twice. `clearField` fires on edit — a message left up while the
+  user fixes the value reads as "still wrong" when it no longer is. `role="alert"` because red text
+  appearing below an input the user has already left is no signal to a screen reader.
+- Wired into the Add Tenant form as the **reference implementation** (same approach as `<Can>` in
+  Module 5h): per-field message, red border, `aria-invalid`, plus a form-level banner for ASP.NET's
+  unnamed `""` bucket, which would otherwise be invisible.
+
+#### 3. Advance rent at signing
+`LeaseContract.ApplyAdvancePayment(amount, date, method, reference)` fills installments **in order**
+until the advance runs out, and returns what was applied.
+
+It cascades rather than paying only the first: an advance is usually "first and last month" or a
+full year of cheques handed over on day one, and splitting that across twelve rows by hand is
+exactly the chore that gets skipped — leaving a tenant who has already paid being chased for it.
+
+- `CreateContractCommand` gained `AdvanceRentAmount` + date/method/reference (all optional,
+  trailing). The handler refuses an advance larger than the whole schedule rather than absorbing it,
+  and updates the tenant's stats with what was collected.
+- `CreatedContractDto` returns `AdvanceApplied`, `InstallmentsSettledByAdvance` and `NextDueDate`,
+  and the success toast states all three — that is the question the person creating the lease has.
+- Form: an **Advance rent received** panel with one-tap "First payment / First two / Full year"
+  buttons computed from the schedule, and a live line saying either *"the first payment is due on
+  {startDate}, so reminders begin straight away"* or *"covers the first payment — reminders start
+  from the one after it"*.
+
+**"Start chasing from day one" already held**: `GenerateSchedule` dates installment 1 on the lease
+start date, so with no advance it is due (or overdue) immediately and the ladder fires.
+**"Stop once paid" already held too**: the sweep iterates `!i.IsSettled`, and `paid`/`waived` are
+settled — so a paid installment leaves the reminder queue permanently, for the tenant and every
+CC'd user alike.
+
+**Verified by execution** (domain-level, not asserted): no advance → 4/4 unsettled, next due
+2026-01-01; one quarter → 1 settled, next due 2026-04-01; full year → 0 in the reminder queue,
+`nextDue` none; 1.5 months → row 1 paid, row 2 `partial` with a real balance and still in the queue;
+an advance beyond the schedule caps at the scheduled total; and a settled installment stops
+reporting overdue.
+
+- **Full backend solution:** 0 errors ✅ · **`tsc`:** 277, unchanged baseline · **`vite build`:** ✅
+- Migration `AddTenantProfileFields` created **and applied**; gateway restarts clean.
+
+### Module 50c — Startup: a migration lock-release failure no longer kills the gateway
+
+Reported as `SqlException: Cannot release the application lock ... '__EFMigrationsLock' ... because
+it is not currently held`, thrown from `MigrateAndSeedCrmAsync`.
+
+**It fires after the work has already succeeded.** EF takes a **session-scoped** `sp_getapplock`
+before migrating and releases it in `SqlServerMigrationDatabaseLock.Dispose()`. A session lock dies
+with its session, so if that connection is dropped or reset in between — a killed connection, a pool
+reset, a second instance racing the same database — SQL Server has already released it and the
+explicit release fails with **SQL error 1223** (confirmed by reproducing it directly).
+
+CRM had no pending migrations at the time, so nothing was half-applied. But because the startup
+block awaits each service in turn, this cleanup error **took down the whole gateway and skipped the
+eight services queued after CRM** — which is why the Real Estate migration had not applied.
+
+**Fix:** `MigrationRunner.MigrateTolerantOfLockReleaseAsync()` (BuildingBlocks), applied to all
+**16** `MigrateAsync()` startup call sites. It swallows **only** 1223; anything else still
+propagates, so a genuine migration failure still fails loudly rather than leaving the app running
+against a half-migrated schema.
+
+**Operational note:** running the VroduxERP Windows Service and an IDE instance at the same time
+puts two processes on the same database and the same lock — a plausible route to exactly this.
+
+### Module 50d — Properties page crashed on open (`Cannot read properties of undefined (reading 'className')`)
+
+`properties-drawer.tsx` ran `STATUS_CONFIG[property.status].className`. Its map was keyed
+`active` / `inactive` / `under_development`; `Property.Status` is `available` /
+`partially_occupied` / `fully_occupied` (occupancy-derived, set by `UpdateOccupancy`). **No
+overlap at all**, so the lookup was `undefined` for every property and the drawer took down the
+whole page. Confirmed against live data: the tenant's properties are `available` ×1,
+`partially_occupied` ×2 — `active` has never existed.
+
+The list view survived only because it already had a `?? STATUS_FALLBACK` guard, and quietly
+rendered every row as "Unknown".
+
+**The `PropertyDto` was fictional too**, the same drift as `ContractDto`. Declared but never
+returned: `propertyCode`, `type`, `vacantUnits`, `totalValue`, `annualRent`, `managedBy`,
+`yearBuilt`, `facilities`. So the drawer also called `.map()` on an undefined `facilities`, and
+`.toString()` on an undefined `yearBuilt`. Now mirrors the API: `propertyNumber`, `propertyType`,
+`location`, `totalArea`, `totalUnits`, `occupiedUnits`, `marketValue`, `developer`, `description`,
+`occupancyRate`, `units[]`. `RePropertySummaryDto` was wrong end to end and was replaced too.
+
+**Rent is derived, not invented.** A property has no rent field — the API returns its `units`, and
+rent lives on those. `annualRent` was undefined and reached `formatCurrency` as NaN. The drawer now
+computes let-rent, full-occupancy rent, average per let unit and gross yield from the units, each
+guarded against a zero denominator (dividing by zero let units produced `Infinity`, which rendered
+as a nonsense figure rather than failing visibly). The "Facilities & Amenities" block — reading a
+field no endpoint has ever sent — was replaced with the unit list, which is both real and what
+someone opening a property actually wants.
+
+**Swept the same pattern module-wide.** Four more unguarded `STATUS_CONFIG[x].className` lookups in
+Units and Tenants. Their keys happen to match today's data (`vacant`/`rented`, `active`), so they do
+not crash *now* — but they are one new status value away from the identical page-kill, and setting
+unit status from bookings is on the table. All four now use a guarded accessor. **Zero bare indexes
+remain in the module.**
+
+This is the third instance of the same root cause in this codebase (Finance journals `voided`,
+Module 4 #1; the WPS `payslips`/`slips` mismatch, Module 46c). The rule worth keeping: **never index
+a config map bare, and never trust a hand-written DTO that no compiler checks against the server.**
+
+- **`tsc`:** 277, unchanged baseline, none in a touched file · **`vite build`:** ✅ · Frontend only,
+  no backend change, no migration.
+- **Not confirmed in the browser** — the preview pane has no session and I did not use the user's
+  credentials. Verified instead by (a) reading the real status values out of the database, and
+  (b) proving no unguarded lookup remains.
+
+### Module 50e — Property drawer actions wired, unit create/update/delete built, edit no longer wipes data
+
+Reported: **View All Units / Generate Report / Edit / Print** all dead in the property drawer, and
+the Add Unit property dropdown showing a static list.
+
+#### The four dead buttons
+None had an `onClick`. Now:
+- **Edit** → opens `AddPropertyForm` with `editing` (the form already supported it; nothing had
+  ever passed the prop). Parent clears `editing` on close, or the next "Add Property" would open
+  in edit mode and overwrite the last-edited property.
+- **Print** → `exportPdf` property profile.
+- **Generate Report** → `exportPdf` unit-by-unit schedule, landscape, with occupancy and rent in
+  the subtitle. Refuses on a property with no units — an empty table reads as a broken export
+  rather than an empty property.
+- **View All Units** → navigates to `/real-estate/units?propertyId=…`; the units list seeds its
+  filter from the param and then strips it, so the filter can still be cleared.
+
+#### 🔴 Editing a property silently wiped four fields
+`AddPropertyForm`'s edit prefill set only name, emirate, city, address, totalUnits and developer.
+The update is a **full replace**, so every unmissed field was overwritten on save: `marketValue` →
+0, `totalArea` → 0, `description` → null, and `propertyType` reset to the default "Residential
+Tower" regardless of what it was. Now every field the payload sends is prefilled, via a new
+`codeToType` (lossy by nature — the backend stores three codes for eight display types, so a
+"Warehouse" reopens as "Commercial Building"; that is the stored model's limit, and still far
+better than resetting everything to Residential).
+
+#### Add Unit was dead three times over
+1. The property dropdown was **five hardcoded invented buildings**.
+2. It submitted `propertyName` as a **string**; the API needs a `propertyId` GUID.
+3. **`POST /api/real-estate/units` did not exist** — `UnitsController` was read-only.
+
+Built `CreateUnitCommand` / `UpdateUnitCommand` / `DeleteUnitCommand` + handlers + POST/PUT/DELETE
+(gated `real-estate.units.create|edit|delete`). Guards that matter:
+- **Duplicate unit number within a property is rejected.** A unit number is how a lease, a tenant
+  and a rent reminder all refer to the unit; two "101"s in one building makes all three ambiguous.
+- **A unit with an active lease cannot be deleted** — it would orphan the lease, its rent schedule
+  and its reminders, leaving a tenant chased for a unit that no longer exists.
+- New `PropertyCounts.RefreshAsync` recomputes the parent's `TotalUnits` and `OccupiedUnits` from
+  the real rows after add/delete. `TotalUnits` was previously a number typed on the property form,
+  independent of how many units exist — so a property could claim 120 while holding 3, and the
+  occupancy percentage derived from it was meaningless. Order matters: the count is set *before*
+  `UpdateOccupancy`, which derives the status by comparing against it.
+
+**Seven more silently-discarded form fields.** Add Unit collects furnishing, view, bedrooms,
+bathrooms, parking, service charge and notes — none of which `PropertyUnit` could store. Added
+rather than shipping inputs that vanish (same call as the tenant profile fields in 50b). Migration
+`AddUnitDetailFields`.
+
+`createUnit` was `Record<string, unknown>` — which is why the wrong field names went unnoticed.
+Now `UpsertUnitRequest`, so the compiler catches the next one. Same fix as `createTenant` in 50b;
+**`createBroker` is still untyped and still calls a nonexistent endpoint** — Brokers remains
+read-only on the server, flagged not fixed.
+
+- **RealEstate.API:** 0 errors, 0 warnings ✅ · **`tsc`:** 277, unchanged baseline · **`vite
+  build`:** ✅
+- The full-solution build reports 8 **MSB3027/MSB3021 file locks**, not compile errors — the
+  running gateway (and Visual Studio) hold the RealEstate DLLs.
+- Migration `AddUnitDetailFields` created; **needs a gateway restart to apply**.

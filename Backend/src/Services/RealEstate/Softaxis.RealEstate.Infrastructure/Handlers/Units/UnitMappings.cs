@@ -7,5 +7,6 @@ internal static class UnitMappings
 {
     public static UnitDto ToDto(PropertyUnit u) => new(
         u.Id, u.PropertyId, u.UnitNumber, u.UnitType, u.Area, u.Floor,
-        u.RentPerYear, u.SalePrice, u.Status, u.CurrentTenantId, u.CurrentTenantName);
+        u.RentPerYear, u.SalePrice, u.Status, u.CurrentTenantId, u.CurrentTenantName,
+        u.Furnishing, u.View, u.Bedrooms, u.Bathrooms, u.Parking, u.ServiceCharge, u.Notes);
 }

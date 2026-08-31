@@ -8,5 +8,6 @@ internal static class TenantMappings
     public static TenantDto ToDto(Tenant t) => new(
         t.Id, t.TenantNumber, t.Name, t.TenantType, t.Email, t.Phone,
         t.NationalId, t.CompanyName, t.TradeLicense, t.Nationality,
-        t.Status, t.ActiveContracts, t.TotalPaid);
+        t.Status, t.ActiveContracts, t.TotalPaid,
+        t.PassportNumber, t.Trn, t.Occupation, t.MonthlyIncome, t.EmergencyContact, t.Notes);
 }

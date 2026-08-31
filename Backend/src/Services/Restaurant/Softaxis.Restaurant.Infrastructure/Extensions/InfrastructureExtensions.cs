@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
 
         // One-time repair (idempotent): payment rows written by the old raw-SQL RecordPayment
         // landed with TenantId = NULL (raw SQL bypasses StampTenantId), so the tenant query

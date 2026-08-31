@@ -18,6 +18,12 @@ const STATUS_CONFIG: Record<UnitStatus, { label: string; className: string }> = 
   sold: { label: "Sold", className: "text-muted-foreground bg-muted" },
 };
 
+const STATUS_FALLBACK = { label: "Unknown", className: "text-muted-foreground bg-muted" };
+
+/** Never index the map bare: an unrecognised status must degrade to a grey chip, not take the
+ *  page down. The properties drawer did exactly that and crashed on every property. */
+const getUnitStatus = (s: string) => STATUS_CONFIG[s as UnitStatus] ?? STATUS_FALLBACK;
+
 const TYPE_LABELS: Record<string, string> = {
   apartment: "Apartment",
   villa: "Villa",
@@ -112,10 +118,10 @@ export function UnitsDrawer({ open, onClose, unit }: Props) {
                     <span
                       className={cn(
                         "text-[11px] font-semibold px-2.5 py-1 rounded-full shrink-0",
-                        STATUS_CONFIG[unit.status].className
+                        getUnitStatus(unit.status).className
                       )}
                     >
-                      {STATUS_CONFIG[unit.status].label}
+                      {getUnitStatus(unit.status).label}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">

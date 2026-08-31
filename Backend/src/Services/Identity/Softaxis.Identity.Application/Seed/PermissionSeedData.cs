@@ -165,6 +165,22 @@ public static class PermissionSeedData
         ["restaurant.notifications"] = ["view","edit"],
         // Registered POS terminals/tablets — inventory/observability, not access control (Epic 9)
         ["restaurant.devices"]      = ["view","edit"],
+
+        // Real Estate (properties, units, tenants, leases, brokers).
+        // The module previously had NO permission keys at all and no enforcement anywhere -
+        // every endpoint was [Authorize]-only, so any signed-in user could read and write it.
+        ["real-estate.properties"] = ["view","create","edit","delete"],
+        ["real-estate.units"]      = ["view","create","edit","delete"],
+        ["real-estate.tenants"]    = ["view","create","edit","delete"],
+        ["real-estate.contracts"]  = ["view","create","edit","delete"],
+        ["real-estate.brokers"]    = ["view","create","edit","delete"],
+        // Rent collection: recording payments is a separate decision from editing a lease.
+        ["real-estate.rent"]       = ["view","record","remind"],
+        // Who may change the reminder schedule and the CC list that goes with it.
+        ["real-estate.alerts"]     = ["view","edit"],
+        // Sales pipeline for property SALES (site visits, reservations, bookings) — distinct from
+        // leasing above, and from the generic `sales` module, which is unrelated to property.
+        ["real-estate.sales"]      = ["view","create","edit","delete"],
     };
 
     public static IReadOnlyList<Permission> GetPermissions()

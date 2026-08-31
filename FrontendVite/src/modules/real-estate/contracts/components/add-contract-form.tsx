@@ -1,218 +1,314 @@
-﻿import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import * as React from "react";
+import { motion } from "framer-motion";
+import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatCurrency } from "@/lib/utils";
-import { useCreateContract } from "@/hooks/real-estate/use-re";
-
-const CONTRACT_TYPES  = ["Lease", "Sale", "Management", "Service"];
-const PAYMENT_FREQ    = ["Monthly", "Quarterly", "Semi-Annual", "Annual", "One-Time"];
-const PAYMENT_METHODS = ["Bank Transfer", "Cheque", "Cash", "Credit Card"];
-const CURRENCIES      = ["AED", "USD", "EUR"];
+import { cn, formatCurrency } from "@/lib/utils";
+import { useCurrency } from "@/hooks/use-currency";
+import type { PaymentFrequency } from "@/lib/real-estate/re.api";
+import { useCreateContract, useProperties, useTenants, useUnits } from "@/hooks/real-estate/use-re";
 
 interface AddContractFormProps {
   open: boolean;
   onClose: () => void;
 }
 
+const TODAY = () => new Date().toISOString().split("T")[0];
+
+/** A year from today, matching the standard UAE lease term — never a hardcoded date. */
+function oneYearOut() {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split("T")[0];
+}
+
+const FREQUENCIES: { value: PaymentFrequency; label: string; per: number }[] = [
+  { value: "monthly",     label: "Monthly",     per: 12 },
+  { value: "quarterly",   label: "Quarterly",   per: 4 },
+  { value: "semi_annual", label: "Half-yearly", per: 2 },
+  { value: "annual",      label: "Annual",      per: 1 },
+];
+
 export function AddContractForm({ open, onClose }: AddContractFormProps) {
-  const createContract = useCreateContract();
-  const [contractType, setContractType] = React.useState("Lease");
-  const [unit, setUnit]                 = React.useState("");
-  const [tenantName, setTenantName]     = React.useState("");
-  const [tenantEmail, setTenantEmail]   = React.useState("");
-  const [tenantPhone, setTenantPhone]   = React.useState("");
-  const [startDate, setStartDate]       = React.useState("");
-  const [endDate, setEndDate]           = React.useState("");
-  const [rentAmount, setRentAmount]     = React.useState("");
-  const [currency, setCurrency]         = React.useState("AED");
-  const [paymentFreq, setPaymentFreq]   = React.useState("Monthly");
-  const [paymentMethod, setPaymentMethod] = React.useState("Bank Transfer");
-  const [deposit, setDeposit]           = React.useState("");
-  const [noOfCheques, setNoOfCheques]   = React.useState("1");
-  const [brokerName, setBrokerName]     = React.useState("");
-  const [commission, setCommission]     = React.useState("");
-  const [notes, setNotes]               = React.useState("");
+  const currency = useCurrency();
+  const create   = useCreateContract();
 
-  const annualRent = React.useMemo(() => {
-    const r = parseFloat(rentAmount) || 0;
-    const multiplier: Record<string, number> = { Monthly: 12, Quarterly: 4, "Semi-Annual": 2, Annual: 1, "One-Time": 1 };
-    return r * (multiplier[paymentFreq] || 1);
-  }, [rentAmount, paymentFreq]);
+  const { data: properties = [] } = useProperties();
+  const { data: units = [] }      = useUnits();
+  const { data: tenants = [] }    = useTenants();
 
-  const isValid = unit.trim() && tenantName.trim() && startDate && endDate && rentAmount;
+  const [propertyId, setPropertyId] = React.useState("");
+  const [unitId, setUnitId]         = React.useState("");
+  const [tenantId, setTenantId]     = React.useState("");
+  const [startDate, setStartDate]   = React.useState(TODAY());
+  const [endDate, setEndDate]       = React.useState(oneYearOut());
+  const [annualRent, setAnnualRent] = React.useState("");
+  const [deposit, setDeposit]       = React.useState("");
+  const [frequency, setFrequency]   = React.useState<PaymentFrequency>("quarterly");
+  const [ejari, setEjari]           = React.useState("");
+  const [notes, setNotes]           = React.useState("");
 
-  const reset = () => {
-    setContractType("Lease"); setUnit(""); setTenantName(""); setTenantEmail(""); setTenantPhone("");
-    setStartDate(""); setEndDate(""); setRentAmount(""); setCurrency("AED"); setPaymentFreq("Monthly");
-    setPaymentMethod("Bank Transfer"); setDeposit(""); setNoOfCheques("1");
-    setBrokerName(""); setCommission(""); setNotes("");
-  };
+  const [advance, setAdvance]           = React.useState("");
+  const [advanceDate, setAdvanceDate]   = React.useState(TODAY());
+  const [advanceMethod, setAdvanceMethod]       = React.useState("cheque");
+  const [advanceReference, setAdvanceReference] = React.useState("");
 
-  React.useEffect(() => { if (!open) reset(); }, [open]);
+  // Only vacant units of the chosen property can be let. Offering an occupied one just produces a
+  // 409 from the server's active-lease guard after the user has filled the whole form in.
+  const availableUnits = React.useMemo(
+    () => units.filter(u => u.propertyId === propertyId && (u.status === "vacant" || u.status === "reserved")),
+    [units, propertyId]);
 
-  const handleCreate = async (asDraft: boolean) => {
+  React.useEffect(() => { setUnitId(""); }, [propertyId]);
+
+  // Prefill the rent from the unit's asking price — it is right most of the time and still editable.
+  React.useEffect(() => {
+    const unit = units.find(u => u.id === unitId);
+    if (unit && !annualRent) setAnnualRent(String(unit.rentPerYear ?? ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unitId]);
+
+  const rent  = parseFloat(annualRent) || 0;
+  const per   = FREQUENCIES.find(f => f.value === frequency)?.per ?? 1;
+  const each  = per > 0 ? rent / per : rent;
+
+  const advanceValue = parseFloat(advance) || 0;
+  const advanceTooBig = advanceValue > rent + 0.01;
+
+  // Whether the tenant will be chased on day one. The first installment falls due on the lease
+  // start date, so with no advance the reminder ladder fires immediately — worth stating in the
+  // form rather than letting it surprise someone after they save.
+  const coversFirst = advanceValue >= each - 0.01;
+
+  const valid = !!propertyId && !!unitId && !!tenantId && !!startDate && !!endDate
+             && endDate > startDate && rent > 0 && !advanceTooBig;
+
+  const submit = async () => {
     try {
-      await createContract.mutateAsync({
-        contractType: contractType.toLowerCase(), unit, tenantName, tenantEmail, tenantPhone,
-        startDate, endDate, rentAmount: parseFloat(rentAmount) || 0, annualRent,
-        currency, paymentFreq, paymentMethod, deposit: parseFloat(deposit) || undefined,
-        noOfCheques: parseInt(noOfCheques) || 1, brokerName: brokerName.trim() || undefined,
-        commission: parseFloat(commission) || undefined, notes: notes.trim() || undefined,
-        status: asDraft ? 'draft' : 'active',
+      await create.mutateAsync({
+        propertyId, unitId, tenantId, startDate, endDate,
+        annualRent: rent,
+        securityDeposit: parseFloat(deposit) || 0,
+        paymentFrequency: frequency,
+        ejariNumber: ejari.trim() || null,
+        notes: notes.trim() || null,
+        advanceRentAmount: advanceValue || undefined,
+        advancePaidDate: advanceValue ? advanceDate : undefined,
+        advanceMethod: advanceValue ? advanceMethod : undefined,
+        advanceReference: advanceValue ? advanceReference.trim() || undefined : undefined,
       });
       onClose();
-    } catch { /* hook toasts */ }
+    } catch {
+      // The hook surfaced the error; keep the drawer open so nothing typed is lost.
+    }
   };
 
+  if (!open) return null;
+
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div
-            className="fixed right-0 top-0 h-full w-full max-w-xl bg-card border-l border-border z-50 flex flex-col shadow-2xl"
-            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 280 }}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-              <div>
-                <h2 className="text-base font-bold text-foreground">New Contract</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Create a tenancy or sale agreement</p>
-              </div>
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+      <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+        transition={{ type: "spring", damping: 28, stiffness: 280 }}
+        className="fixed top-0 end-0 h-full w-full max-w-[520px] bg-background border-s border-border shadow-2xl z-50 flex flex-col">
+
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+          <div>
+            <p className="font-bold text-base">New lease</p>
+            <p className="text-xs text-muted-foreground">The rent schedule is generated automatically.</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <Field label="Property">
+            <select value={propertyId} onChange={e => setPropertyId(e.target.value)}
+              className="w-full h-9 text-sm rounded-md border border-input bg-card px-3">
+              <option value="">Select a property…</option>
+              {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Unit" hint={propertyId && availableUnits.length === 0 ? "No vacant units in this property." : undefined}>
+            <select value={unitId} onChange={e => setUnitId(e.target.value)} disabled={!propertyId}
+              className="w-full h-9 text-sm rounded-md border border-input bg-card px-3 disabled:opacity-50">
+              <option value="">{propertyId ? "Select a unit…" : "Choose a property first"}</option>
+              {availableUnits.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.unitNumber} — {u.unitType}{u.rentPerYear ? ` · ${formatCurrency(u.rentPerYear, currency)}/yr` : ""}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Tenant">
+            <select value={tenantId} onChange={e => setTenantId(e.target.value)}
+              className="w-full h-9 text-sm rounded-md border border-input bg-card px-3">
+              <option value="">Select a tenant…</option>
+              {tenants.map(t => <option key={t.id} value={t.id}>{t.name}{t.email ? ` — ${t.email}` : ""}</option>)}
+            </select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Reminders are emailed to this tenant, so their email address must be on file.
+            </p>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Start date">
+              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 text-sm" />
+            </Field>
+            <Field label="End date" hint={endDate && startDate && endDate <= startDate ? "Must be after the start date." : undefined}>
+              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                className={cn("h-9 text-sm", endDate && startDate && endDate <= startDate && "border-destructive")} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Annual rent">
+              <Input type="number" min={0} step={1000} value={annualRent}
+                onChange={e => setAnnualRent(e.target.value)} placeholder="0" className="h-9 text-sm text-end" />
+            </Field>
+            <Field label="Security deposit">
+              <Input type="number" min={0} step={500} value={deposit}
+                onChange={e => setDeposit(e.target.value)} placeholder="0" className="h-9 text-sm text-end" />
+            </Field>
+          </div>
+
+          <Field label="Payment frequency">
+            <div className="grid grid-cols-4 gap-1.5">
+              {FREQUENCIES.map(f => (
+                <button key={f.value} type="button" onClick={() => setFrequency(f.value)}
+                  className={cn("px-2 py-2 text-xs rounded-lg font-medium border",
+                    frequency === f.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:bg-muted/40")}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {rent > 0 && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                {per} payment{per === 1 ? "" : "s"} of about {formatCurrency(each, currency)}.
+                The exact split is calculated from the lease term.
+              </p>
+            )}
+          </Field>
+
+          {/* ── Advance rent ─────────────────────────────────────────── */}
+          <div className="rounded-lg border border-border p-3 space-y-3">
+            <div>
+              <p className="text-sm font-medium">Advance rent received</p>
+              <p className="text-[11px] text-muted-foreground">
+                Rent handed over at signing. It settles the schedule from the first payment onward,
+                so the tenant is not chased for money they have already paid.
+              </p>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {/* Type */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contract Type</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {CONTRACT_TYPES.map(t => (
-                    <button key={t} onClick={() => setContractType(t)}
-                      className={`py-2 rounded-lg border-2 text-xs font-medium transition-all ${
-                        contractType === t ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
-                      }`}>{t}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Unit & Parties */}
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Property & Parties</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Unit / Property *</label>
-                    <Input value={unit} onChange={e => setUnit(e.target.value)} placeholder="e.g. Marina Heights – Unit 201" className="h-9 text-sm" />
-                  </div>
-                  <div className="col-span-2 space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tenant / Buyer Name *</label>
-                    <Input value={tenantName} onChange={e => setTenantName(e.target.value)} placeholder="Full name…" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</label>
-                    <Input type="email" value={tenantEmail} onChange={e => setTenantEmail(e.target.value)} placeholder="email@example.com" className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone</label>
-                    <Input value={tenantPhone} onChange={e => setTenantPhone(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
-                  </div>
-                </div>
+                <label className="text-xs text-muted-foreground">Amount</label>
+                <Input type="number" min={0} step={500} value={advance}
+                  onChange={e => setAdvance(e.target.value)} placeholder="0"
+                  className={cn("h-9 text-sm text-end", advanceTooBig && "border-destructive")} />
               </div>
-
-              {/* Contract Period */}
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Contract Period</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Start Date *</label>
-                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="h-9 text-sm" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">End Date *</label>
-                    <Input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} className="h-9 text-sm" />
-                  </div>
-                </div>
+                <label className="text-xs text-muted-foreground">Received on</label>
+                <Input type="date" value={advanceDate} onChange={e => setAdvanceDate(e.target.value)}
+                  disabled={!advanceValue} className="h-9 text-sm disabled:opacity-50" />
               </div>
+            </div>
 
-              {/* Financial Terms */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Financial Terms</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Currency</label>
-                    <select value={currency} onChange={e => setCurrency(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {CURRENCIES.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment Frequency</label>
-                    <select value={paymentFreq} onChange={e => setPaymentFreq(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {PAYMENT_FREQ.map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rent Amount *</label>
-                    <Input type="number" min={0} step={1000} value={rentAmount} onChange={e => setRentAmount(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Security Deposit</label>
-                    <Input type="number" min={0} step={1000} value={deposit} onChange={e => setDeposit(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Payment Method</label>
-                    <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">No. of Cheques</label>
-                    <Input type="number" min={1} max={12} value={noOfCheques} onChange={e => setNoOfCheques(e.target.value)} className="h-9 text-sm" />
-                  </div>
-                </div>
-                {annualRent > 0 && (
-                  <div className="flex items-center justify-between mt-3 px-3 py-2.5 bg-primary/5 border border-primary/20 rounded-xl">
-                    <span className="text-xs text-muted-foreground">Annual Rent Value</span>
-                    <span className="text-sm font-bold text-primary">{formatCurrency(annualRent, currency)}</span>
-                  </div>
+            {rent > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => setAdvance(String(Math.round(each)))}
+                  className="px-2 py-1 text-[11px] rounded-md border border-border hover:bg-muted/40">
+                  First payment ({formatCurrency(each, currency)})
+                </button>
+                {per > 1 && (
+                  <button type="button" onClick={() => setAdvance(String(Math.round(each * 2)))}
+                    className="px-2 py-1 text-[11px] rounded-md border border-border hover:bg-muted/40">
+                    First two
+                  </button>
+                )}
+                <button type="button" onClick={() => setAdvance(String(Math.round(rent)))}
+                  className="px-2 py-1 text-[11px] rounded-md border border-border hover:bg-muted/40">
+                  Full year
+                </button>
+                {advanceValue > 0 && (
+                  <button type="button" onClick={() => setAdvance("")}
+                    className="px-2 py-1 text-[11px] rounded-md text-muted-foreground hover:bg-muted/40">
+                    Clear
+                  </button>
                 )}
               </div>
+            )}
 
-              {/* Broker */}
+            {advanceValue > 0 && (
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Broker Name</label>
-                  <Input value={brokerName} onChange={e => setBrokerName(e.target.value)} placeholder="Broker / agent…" className="h-9 text-sm" />
+                <div>
+                  <label className="text-xs text-muted-foreground">Method</label>
+                  <select value={advanceMethod} onChange={e => setAdvanceMethod(e.target.value)}
+                    className="w-full h-9 text-sm rounded-md border border-input bg-card px-3">
+                    <option value="cheque">Cheque</option>
+                    <option value="bank_transfer">Bank transfer</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Commission (AED)</label>
-                  <Input type="number" min={0} step={500} value={commission} onChange={e => setCommission(e.target.value)} placeholder="0" className="h-9 text-sm text-right" />
+                <div>
+                  <label className="text-xs text-muted-foreground">Reference</label>
+                  <Input value={advanceReference} onChange={e => setAdvanceReference(e.target.value)}
+                    placeholder="Cheque no. / txn id" className="h-9 text-sm" />
                 </div>
               </div>
+            )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Special terms, Ejari notes, maintenance responsibilities…" rows={2}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
-              </div>
-            </div>
+            {advanceTooBig ? (
+              <p className="text-[11px] text-destructive">
+                That is more than the whole lease is worth ({formatCurrency(rent, currency)}).
+              </p>
+            ) : rent > 0 && !coversFirst ? (
+              <p className="text-[11px] text-warning">
+                The first payment is due on {startDate || "the start date"}, so reminders begin straight away.
+              </p>
+            ) : advanceValue > 0 ? (
+              <p className="text-[11px] text-success">
+                Covers the first payment — reminders start from the one after it.
+              </p>
+            ) : null}
+          </div>
 
-            <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => handleCreate(true)} disabled={!isValid || createContract.isPending}>Save as Draft</Button>
-                <Button onClick={() => handleCreate(false)} disabled={!isValid || createContract.isPending}>Create Contract</Button>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          <Field label="Ejari number (optional)">
+            <Input value={ejari} onChange={e => setEjari(e.target.value)} className="h-9 text-sm" />
+          </Field>
+
+          <Field label="Notes (optional)">
+            <Input value={notes} onChange={e => setNotes(e.target.value)} className="h-9 text-sm" />
+          </Field>
+        </div>
+
+        <div className="border-t border-border px-6 py-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={!valid || create.isPending}>
+            {create.isPending && <Loader2 className="w-4 h-4 me-2 animate-spin" />}
+            Create lease
+          </Button>
+        </div>
+      </motion.div>
+    </>
   );
 }
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <div className="mt-1">{children}</div>
+      {hint && <p className="text-[11px] text-warning mt-1">{hint}</p>}
+    </div>
+  );
+}

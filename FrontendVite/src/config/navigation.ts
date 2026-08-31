@@ -467,6 +467,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "tenants", label: "Tenants", href: "/real-estate/tenants", icon: "Users" },
           { id: "contracts", label: "Contracts", href: "/real-estate/contracts", icon: "FileSignature" },
           { id: "brokers", label: "Brokers", href: "/real-estate/brokers", icon: "Handshake" },
+          { id: "re-rent-alerts", label: "Rent & Expiry Alerts", href: "/real-estate/rent-alerts", icon: "Bell" },
         ],
       },
       {

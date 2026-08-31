@@ -38,16 +38,23 @@ const TYPE_LABELS: Record<PropertyType, string> = {
   retail: "Retail",
 };
 
+// The values the API actually returns. Previously "active" / "inactive" / "under_development",
+// none of which the server ever sends — so every row fell through to the fallback and read
+// "Unknown". (The fallback here is why the LIST survived while the drawer, which indexed the same
+// map bare, crashed the page.)
 const STATUS_CONFIG: Record<PropertyStatus, { label: string; className: string }> = {
-  active: { label: "Active", className: "text-success bg-success/10" },
-  inactive: { label: "Inactive", className: "text-muted-foreground bg-muted" },
-  under_development: { label: "In Development", className: "text-warning bg-warning/10" },
+  available:          { label: "Available",  className: "text-warning bg-warning/10" },
+  partially_occupied: { label: "Partial",    className: "text-primary bg-primary/10" },
+  fully_occupied:     { label: "Full",       className: "text-success bg-success/10" },
 };
 
 const STATUS_FALLBACK = { label: "Unknown", className: "text-muted-foreground bg-muted" };
 const getStatus = (s: string) => STATUS_CONFIG[s as PropertyStatus] ?? STATUS_FALLBACK;
 const getTypeBadge = (t: string) => TYPE_BADGE[t as PropertyType] ?? "bg-muted text-muted-foreground";
 const getTypeLabel = (t: string) => TYPE_LABELS[t as PropertyType] ?? t;
+
+/** Vacancy is derived — the API reports occupied, not vacant. */
+const vacantOf = (p: Property) => Math.max(0, p.totalUnits - p.occupiedUnits);
 
 export function PropertiesView() {
   const currency = useCurrency();
@@ -56,6 +63,7 @@ export function PropertiesView() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Property | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [editing, setEditing] = React.useState<Property | null>(null);
 
   const { data: properties = [] } = useProperties();
   const { data: propertySummary } = usePropertySummary();
@@ -63,13 +71,15 @@ export function PropertiesView() {
   const STAT_CARDS = [
     {
       label: "Total Properties",
-      value: (propertySummary?.totalProperties ?? properties.length).toString(),
+      value: (propertySummary?.total ?? properties.length).toString(),
       icon: Building2,
       color: "text-primary bg-primary/10",
     },
     {
-      label: "Active",
-      value: (propertySummary?.activeProperties ?? properties.filter(p => p.status === "active").length).toString(),
+      // Was "Active", counting p.status === "active" — a value the API never returns, so it
+      // always read 0. Occupied units is the figure the summary endpoint actually provides.
+      label: "Occupied Units",
+      value: (propertySummary?.occupiedUnits ?? properties.reduce((s, p) => s + p.occupiedUnits, 0)).toLocaleString(),
       icon: Home,
       color: "text-success bg-success/10",
     },
@@ -81,19 +91,24 @@ export function PropertiesView() {
     },
     {
       label: "Avg Occupancy",
-      value: `${propertySummary?.avgOccupancyRate ?? (properties.length > 0 ? Math.round(properties.reduce((s, p) => s + p.occupancyRate, 0) / properties.length) : 0)}%`,
+      value: `${propertySummary?.occupancyRate ?? (properties.length > 0 ? Math.round(properties.reduce((s, p) => s + p.occupancyRate, 0) / properties.length) : 0)}%`,
       icon: Percent,
       color: "text-warning bg-warning/10",
     },
     {
       label: "Portfolio Value",
-      value: formatCurrency(propertySummary?.totalPortfolioValue ?? properties.reduce((s, p) => s + p.totalValue, 0), currency),
+      value: formatCurrency(propertySummary?.totalMarketValue ?? properties.reduce((s, p) => s + p.marketValue, 0), currency),
       icon: DollarSign,
       color: "text-purple-600 bg-purple-500/10",
     },
     {
-      label: "Annual Rent",
-      value: formatCurrency(propertySummary?.totalAnnualRent ?? properties.reduce((s, p) => s + p.annualRent, 0), currency),
+      // The property carries no rent of its own; it lives on the units the API returns with it.
+      // The old p.annualRent did not exist and summed to NaN.
+      label: "Annual Rent (let)",
+      value: formatCurrency(
+        properties.reduce((s, p) =>
+          s + (p.units ?? []).filter(u => u.status === "rented").reduce((n, u) => n + (u.rentPerYear ?? 0), 0), 0),
+        currency),
       icon: TrendingUp,
       color: "text-success bg-success/10",
     },
@@ -105,10 +120,10 @@ export function PropertiesView() {
       const matchSearch =
         !search ||
         p.name.toLowerCase().includes(q) ||
-        p.propertyCode.toLowerCase().includes(q) ||
-        p.location.city.toLowerCase().includes(q) ||
-        p.developer.toLowerCase().includes(q);
-      const matchType = typeFilter === "all" || p.type === typeFilter;
+        p.propertyNumber.toLowerCase().includes(q) ||
+        (p.location?.city ?? "").toLowerCase().includes(q) ||
+        (p.developer ?? "").toLowerCase().includes(q);
+      const matchType = typeFilter === "all" || p.propertyType === typeFilter;
       return matchSearch && matchType;
     });
   }, [search, typeFilter, properties]);
@@ -240,39 +255,39 @@ export function PropertiesView() {
                   >
                     <td className="px-4 py-3">
                       <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded">
-                        {prop.propertyCode}
+                        {prop.propertyNumber}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-semibold text-sm leading-tight">{prop.name}</p>
-                        <p className="text-[11px] text-muted-foreground">{prop.developer}</p>
+                        <p className="text-[11px] text-muted-foreground">{prop.developer ?? "—"}</p>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span
                         className={cn(
                           "px-2 py-0.5 rounded-full text-[11px] font-semibold",
-                          getTypeBadge(prop.type)
+                          getTypeBadge(prop.propertyType)
                         )}
                       >
-                        {getTypeLabel(prop.type)}
+                        {getTypeLabel(prop.propertyType)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">{prop.location.city}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{prop.location?.city ?? "—"}</td>
                     <td className="px-4 py-3 text-right text-sm font-medium">{prop.totalUnits}</td>
                     <td className="px-4 py-3 text-right">
                       <span
                         className={cn(
                           "text-sm font-semibold",
-                          prop.vacantUnits > 10
+                          vacantOf(prop) > 10
                             ? "text-warning"
-                            : prop.vacantUnits > 0
+                            : vacantOf(prop) > 0
                               ? "text-muted-foreground"
                               : "text-success"
                         )}
                       >
-                        {prop.vacantUnits}
+                        {vacantOf(prop)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -296,7 +311,7 @@ export function PropertiesView() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-semibold whitespace-nowrap">
-                      {formatCurrency(prop.totalValue, currency)}
+                      {formatCurrency(prop.marketValue, currency)}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -321,8 +336,19 @@ export function PropertiesView() {
         </div>
       </div>
 
-      <PropertiesDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} property={selected} />
-      <AddPropertyForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <PropertiesDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        property={selected}
+        onEdit={(p) => { setEditing(p); setDrawerOpen(false); setShowAddForm(true); }}
+      />
+      <AddPropertyForm
+        open={showAddForm}
+        editing={editing}
+        // Cleared on close, or the next "Add Property" would open the form still in edit mode and
+        // overwrite the property that was edited last.
+        onClose={() => { setShowAddForm(false); setEditing(null); }}
+      />
     </div>
   );
 }

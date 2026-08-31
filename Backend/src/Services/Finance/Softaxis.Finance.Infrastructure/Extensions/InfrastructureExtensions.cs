@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -58,7 +59,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
         // Demo-tenant mode: run the FULL seed (reference + demo business) under the demo tenant's
         // ambient context, so the chart of accounts, FX, and demo records are all stamped with the
         // demo tenant id (intended for a fresh/dedicated demo database — never the production DB).

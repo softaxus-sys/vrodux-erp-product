@@ -19,6 +19,9 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     public DbSet<SiteVisit> SiteVisits => Set<SiteVisit>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<RentInstallment> RentInstallments => Set<RentInstallment>();
+    public DbSet<RentAlertSettings> RentAlertSettings => Set<RentAlertSettings>();
+    public DbSet<RentAlertLog> RentAlertLogs => Set<RentAlertLog>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -26,6 +29,23 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         mb.ApplyConfigurationsFromAssembly(typeof(RealEstateConfigurations).Assembly);
         SalesLifecycleConfig.Apply(mb);
         TenantIsolation.ApplyTenantId(mb, this, "Softaxis.RealEstate.Domain", OwnerTenant);
+
+        // MUST come after ApplyTenantId — the tenant column is a shadow property that does not
+        // exist before it, so this cannot live in an IEntityTypeConfiguration.
+        //
+        // This index IS the reminder idempotency guarantee. The sweep re-evaluates every open
+        // installment daily; without a unique constraint on what has already gone out, an
+        // interrupted run or a second worker re-sends the same notice.
+        TenantIsolation.TenantUniqueIndex<RentAlertLog>(
+            mb,
+            [nameof(RentAlertLog.ContractId), nameof(RentAlertLog.InstallmentId),
+             nameof(RentAlertLog.Kind), nameof(RentAlertLog.OffsetKey)],
+            excludeSoftDeleted: false,
+            column: OwnerTenant);
+
+        // One settings row per workspace.
+        TenantIsolation.TenantUniqueIndex<RentAlertSettings>(
+            mb, [], excludeSoftDeleted: false, column: OwnerTenant);
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

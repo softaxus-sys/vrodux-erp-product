@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
+import { useSearchParams } from "react-router-dom";
 import {
   Search, Home, AlertTriangle, CheckCircle2,
   Wrench, TrendingUp, DollarSign, Plus,
@@ -32,6 +33,12 @@ const STATUS_CONFIG: Record<UnitStatus, { label: string; className: string }> = 
   sold: { label: "Sold", className: "text-muted-foreground bg-muted" },
 };
 
+const STATUS_FALLBACK = { label: "Unknown", className: "text-muted-foreground bg-muted" };
+
+/** Never index the map bare: an unrecognised status must degrade to a grey chip, not take the
+ *  page down. The properties drawer did exactly that and crashed on every property. */
+const getUnitStatus = (s: string) => STATUS_CONFIG[s as UnitStatus] ?? STATUS_FALLBACK;
+
 const TYPE_LABELS: Record<string, string> = {
   apartment: "Apartment",
   villa: "Villa",
@@ -51,7 +58,19 @@ export function UnitsView() {
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
-  const [propertyFilter, setPropertyFilter] = React.useState("all");
+  // Seeded from ?propertyId= so the property drawer's "View All Units" lands on this page already
+  // filtered, rather than dropping the user into the full list of every unit in the portfolio.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [propertyFilter, setPropertyFilter] = React.useState(searchParams.get("propertyId") ?? "all");
+
+  // Strip the param once consumed, or "back to catalogue" style navigation re-applies it and the
+  // filter cannot be cleared.
+  React.useEffect(() => {
+    if (!searchParams.get("propertyId")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("propertyId");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Unit | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
@@ -310,10 +329,10 @@ export function UnitsView() {
                       <span
                         className={cn(
                           "text-[11px] font-semibold px-2 py-0.5 rounded-full",
-                          STATUS_CONFIG[unit.status].className
+                          getUnitStatus(unit.status).className
                         )}
                       >
-                        {STATUS_CONFIG[unit.status].label}
+                        {getUnitStatus(unit.status).label}
                       </span>
                     </td>
                   </motion.tr>

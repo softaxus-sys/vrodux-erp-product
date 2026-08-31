@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Infrastructure.Seeding;
@@ -42,7 +43,7 @@ public static class InfrastructureExtensions
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InventoryDbContext>();
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
 
         // One-time repair (idempotent): rows written by the old raw-SQL POS cross-schema
         // sale/refund path landed with TenantId = NULL (raw SQL bypasses StampTenantId), so

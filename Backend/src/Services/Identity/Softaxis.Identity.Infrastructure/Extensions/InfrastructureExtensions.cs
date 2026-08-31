@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -137,7 +138,7 @@ public static class InfrastructureExtensions
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
         var configuration  = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        await db.Database.MigrateAsync();
+        await db.Database.MigrateTolerantOfLockReleaseAsync();
         await SeedAdminAsync(db);
         await SeedSuperAdminAsync(db, passwordHasher, configuration);   // config-driven — no-op unless SuperAdmin creds are set
 

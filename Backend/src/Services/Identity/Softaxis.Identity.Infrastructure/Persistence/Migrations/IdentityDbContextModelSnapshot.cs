@@ -2475,6 +2475,209 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "edit",
                             Description = "Edit restaurant devices",
                             ModuleId = "restaurant.devices"
+                        },
+                        new
+                        {
+                            Id = new Guid("76514e29-57dd-e772-7640-aaca4d6634e4"),
+                            Action = "view",
+                            Description = "View real-estate properties",
+                            ModuleId = "real-estate.properties"
+                        },
+                        new
+                        {
+                            Id = new Guid("efa78dba-684d-3119-92de-5ac9056927f1"),
+                            Action = "create",
+                            Description = "Create real-estate properties",
+                            ModuleId = "real-estate.properties"
+                        },
+                        new
+                        {
+                            Id = new Guid("6d30b219-643d-a24f-ea08-167c993ab47c"),
+                            Action = "edit",
+                            Description = "Edit real-estate properties",
+                            ModuleId = "real-estate.properties"
+                        },
+                        new
+                        {
+                            Id = new Guid("a3f90ee3-ddc3-35d1-df2f-53d1716efdd4"),
+                            Action = "delete",
+                            Description = "Delete real-estate properties",
+                            ModuleId = "real-estate.properties"
+                        },
+                        new
+                        {
+                            Id = new Guid("3bd10f32-38f6-48b9-7589-73f0ad21679e"),
+                            Action = "view",
+                            Description = "View real-estate units",
+                            ModuleId = "real-estate.units"
+                        },
+                        new
+                        {
+                            Id = new Guid("97a944b5-4e64-fd5b-76c8-f2b73172c107"),
+                            Action = "create",
+                            Description = "Create real-estate units",
+                            ModuleId = "real-estate.units"
+                        },
+                        new
+                        {
+                            Id = new Guid("4d476c66-aaea-d35d-eda6-02e03ca1c169"),
+                            Action = "edit",
+                            Description = "Edit real-estate units",
+                            ModuleId = "real-estate.units"
+                        },
+                        new
+                        {
+                            Id = new Guid("73fae703-be00-4f5c-2788-ed602e032ae2"),
+                            Action = "delete",
+                            Description = "Delete real-estate units",
+                            ModuleId = "real-estate.units"
+                        },
+                        new
+                        {
+                            Id = new Guid("46228751-6453-55b1-46a5-a04622f09f63"),
+                            Action = "view",
+                            Description = "View real-estate tenants",
+                            ModuleId = "real-estate.tenants"
+                        },
+                        new
+                        {
+                            Id = new Guid("22f91dd9-eea3-b9b9-2cd0-1ea6fb3026ba"),
+                            Action = "create",
+                            Description = "Create real-estate tenants",
+                            ModuleId = "real-estate.tenants"
+                        },
+                        new
+                        {
+                            Id = new Guid("34be49d0-1b26-2754-7c66-d79ebf4e1634"),
+                            Action = "edit",
+                            Description = "Edit real-estate tenants",
+                            ModuleId = "real-estate.tenants"
+                        },
+                        new
+                        {
+                            Id = new Guid("4cb38c2a-3889-8459-66f2-380e10194bfc"),
+                            Action = "delete",
+                            Description = "Delete real-estate tenants",
+                            ModuleId = "real-estate.tenants"
+                        },
+                        new
+                        {
+                            Id = new Guid("32c092d2-2d35-9e42-80bb-d0914ea4babe"),
+                            Action = "view",
+                            Description = "View real-estate contracts",
+                            ModuleId = "real-estate.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("d9c95c34-e1de-b44d-2586-23d18dc04fff"),
+                            Action = "create",
+                            Description = "Create real-estate contracts",
+                            ModuleId = "real-estate.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("6232f824-6933-0193-081f-69c7caef3962"),
+                            Action = "edit",
+                            Description = "Edit real-estate contracts",
+                            ModuleId = "real-estate.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("f043655d-f024-f61c-f89f-8a9ad8c4072b"),
+                            Action = "delete",
+                            Description = "Delete real-estate contracts",
+                            ModuleId = "real-estate.contracts"
+                        },
+                        new
+                        {
+                            Id = new Guid("0630b446-2037-6ddb-7ab3-502899d6551f"),
+                            Action = "view",
+                            Description = "View real-estate brokers",
+                            ModuleId = "real-estate.brokers"
+                        },
+                        new
+                        {
+                            Id = new Guid("33e5b521-cfce-d55f-e5dd-f3120a91100e"),
+                            Action = "create",
+                            Description = "Create real-estate brokers",
+                            ModuleId = "real-estate.brokers"
+                        },
+                        new
+                        {
+                            Id = new Guid("484758d0-e98f-687e-3d37-eef21c299436"),
+                            Action = "edit",
+                            Description = "Edit real-estate brokers",
+                            ModuleId = "real-estate.brokers"
+                        },
+                        new
+                        {
+                            Id = new Guid("59d3309f-83fc-04ee-b456-8df47dede005"),
+                            Action = "delete",
+                            Description = "Delete real-estate brokers",
+                            ModuleId = "real-estate.brokers"
+                        },
+                        new
+                        {
+                            Id = new Guid("13405b97-5a5b-f0d0-789f-72461d66a27e"),
+                            Action = "view",
+                            Description = "View real-estate rent",
+                            ModuleId = "real-estate.rent"
+                        },
+                        new
+                        {
+                            Id = new Guid("6f3619cb-7de8-b9fc-4bf9-48f365b57e6a"),
+                            Action = "record",
+                            Description = "Record real-estate rent",
+                            ModuleId = "real-estate.rent"
+                        },
+                        new
+                        {
+                            Id = new Guid("3e906d97-5b2c-14e3-612f-fd972c529a43"),
+                            Action = "remind",
+                            Description = "Remind real-estate rent",
+                            ModuleId = "real-estate.rent"
+                        },
+                        new
+                        {
+                            Id = new Guid("07fee2ac-cb8b-8bb6-53e1-552cb9910cc8"),
+                            Action = "view",
+                            Description = "View real-estate alerts",
+                            ModuleId = "real-estate.alerts"
+                        },
+                        new
+                        {
+                            Id = new Guid("cf8f0945-d969-1527-ac58-a4b8a5e9caa3"),
+                            Action = "edit",
+                            Description = "Edit real-estate alerts",
+                            ModuleId = "real-estate.alerts"
+                        },
+                        new
+                        {
+                            Id = new Guid("c17cb5f1-f820-98ab-d211-4117198b1dd9"),
+                            Action = "view",
+                            Description = "View real-estate sales",
+                            ModuleId = "real-estate.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("10d74235-fc94-84bd-bedc-b64e1270a19c"),
+                            Action = "create",
+                            Description = "Create real-estate sales",
+                            ModuleId = "real-estate.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("91c0e44f-44e3-c155-f2cc-07f9ea97a0c5"),
+                            Action = "edit",
+                            Description = "Edit real-estate sales",
+                            ModuleId = "real-estate.sales"
+                        },
+                        new
+                        {
+                            Id = new Guid("3004852b-855e-2a4c-a149-f15380100644"),
+                            Action = "delete",
+                            Description = "Delete real-estate sales",
+                            ModuleId = "real-estate.sales"
                         });
                 });
 

@@ -3,12 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateUnit } from "@/hooks/real-estate/use-re";
+import { useCreateUnit, useProperties } from "@/hooks/real-estate/use-re";
 
 const UNIT_TYPES    = ["Studio", "1 BR", "2 BR", "3 BR", "4 BR", "5+ BR", "Penthouse", "Duplex", "Office", "Retail", "Warehouse", "Parking"];
 const FURNISHING    = ["Unfurnished", "Semi-Furnished", "Fully Furnished"];
 const VIEW_OPTIONS  = ["Sea View", "City View", "Garden View", "Pool View", "Street View", "Internal"];
-const PROPERTIES    = ["Marina Heights Tower A", "Business Bay Plaza", "DIFC Gate Village", "JLT Cluster Q", "Downtown Residences"];
 
 interface AddUnitFormProps {
   open: boolean;
@@ -17,6 +16,9 @@ interface AddUnitFormProps {
 
 export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
   const createUnit = useCreateUnit();
+  // Was a hardcoded list of five invented buildings, and it submitted the NAME as a string —
+  // the API needs the property id, so nothing could ever have been saved against a real property.
+  const { data: properties = [] } = useProperties();
   const [property, setProperty]       = React.useState("");
   const [unitNo, setUnitNo]           = React.useState("");
   const [floor, setFloor]             = React.useState("");
@@ -44,13 +46,23 @@ export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
 
   const handleSave = async () => {
     try {
+      // Field names must match the API. They previously did not (propertyName, annualRent,
+      // sellingPrice), and the endpoint did not exist at all, so Add Unit silently did nothing.
       await createUnit.mutateAsync({
-        propertyName: property, unitNumber: unitNo, floor: parseInt(floor) || undefined,
-        unitType, area: parseFloat(area) || undefined, furnishing: furnishing.toLowerCase().replace(' ', '_'),
-        view, bedrooms: parseInt(bedrooms) || undefined, bathrooms: parseInt(bathrooms) || undefined,
-        parking: parseInt(parking) || 0, annualRent: parseFloat(annualRent) || undefined,
-        sellingPrice: parseFloat(sellingPrice) || undefined, serviceCharge: parseFloat(serviceCharge) || undefined,
-        notes: notes.trim() || undefined, status: 'available',
+        propertyId: property,
+        unitNumber: unitNo.trim(),
+        unitType,
+        area: parseFloat(area) || 0,
+        floor: parseInt(floor) || 0,
+        rentPerYear: parseFloat(annualRent) || 0,
+        salePrice: parseFloat(sellingPrice) || 0,
+        furnishing: furnishing.toLowerCase().replace(/[ -]/g, "_"),
+        view,
+        bedrooms: parseInt(bedrooms) || undefined,
+        bathrooms: parseInt(bathrooms) || undefined,
+        parking: parseInt(parking) || 0,
+        serviceCharge: parseFloat(serviceCharge) || 0,
+        notes: notes.trim() || undefined,
       });
       onClose();
     } catch { /* hook toasts */ }
@@ -85,7 +97,7 @@ export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
                 <select value={property} onChange={e => setProperty(e.target.value)}
                   className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                   <option value="">Select property…</option>
-                  {PROPERTIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
 

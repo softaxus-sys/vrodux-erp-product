@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.RealEstate.API.Authorization;
 using Softaxis.RealEstate.API.Controllers.Common;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Queries;
@@ -11,6 +12,7 @@ namespace Softaxis.RealEstate.API.Controllers;
 public sealed class PropertiesController(ISender sender) : RealEstateControllerBase
 {
     [HttpGet("summary")]
+    [RequirePermission("real-estate.properties.view")]
     public async Task<IActionResult> GetSummary(CancellationToken ct)
     {
         var result = await sender.Send(new GetPropertiesSummaryQuery(), ct);
@@ -18,6 +20,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     }
 
     [HttpGet]
+    [RequirePermission("real-estate.properties.view")]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
         var result = await sender.Send(new GetPropertiesQuery(), ct);
@@ -25,6 +28,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     }
 
     [HttpGet("{id:guid}")]
+    [RequirePermission("real-estate.properties.view")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new GetPropertyByIdQuery(id), ct);
@@ -32,6 +36,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     }
 
     [HttpPost]
+    [RequirePermission("real-estate.properties.create")]
     public async Task<IActionResult> Create([FromBody] CreatePropertyCommand cmd, CancellationToken ct)
     {
         var result = await sender.Send(cmd, ct);
@@ -39,6 +44,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     }
 
     [HttpPut("{id:guid}")]
+    [RequirePermission("real-estate.properties.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePropertyRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdatePropertyCommand(id, req.Name, req.PropertyType, req.Address,
@@ -47,6 +53,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     }
 
     [HttpDelete("{id:guid}")]
+    [RequirePermission("real-estate.properties.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var result = await sender.Send(new DeletePropertyCommand(id), ct);

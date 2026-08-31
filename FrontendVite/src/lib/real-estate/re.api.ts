@@ -1,34 +1,60 @@
 import { rawApiClient } from "@/lib/api-client";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/real-estate`;
+const ALERTS = `${BASE}/rent-alerts`;
+
+/** Builds a query string from defined values only, so an unset filter is omitted rather than
+ * sent as the literal "undefined". */
+function qs(params?: Record<string, string | undefined>) {
+  if (!params) return "";
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
+  return entries.length ? `?${new URLSearchParams(entries as [string, string][])}` : "";
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type PropertyType   = "residential" | "commercial" | "mixed_use" | "industrial" | "retail";
-export type PropertyStatus = "active" | "inactive" | "under_development";
+/** Occupancy-derived, set by the server from how many units are let. The old
+ *  "active | inactive | under_development" values were never returned by anything, so every
+ *  lookup keyed on them resolved to undefined. */
+export type PropertyStatus = "available" | "partially_occupied" | "fully_occupied";
 export type UnitType       = "apartment" | "villa" | "office" | "retail_shop" | "warehouse" | "studio";
 export type UnitStatus     = "vacant" | "rented" | "reserved" | "maintenance" | "for_sale" | "sold";
 export type TenantStatus   = "active" | "inactive" | "blacklisted";
-export type ContractStatus = "draft" | "active" | "expiring_soon" | "expired" | "terminated";
+export type ContractStatus = "active" | "expired" | "terminated" | "renewed";
 export type BrokerStatus   = "active" | "inactive";
 export type PaymentHistory = "excellent" | "good" | "fair" | "poor";
 
+export interface PropertyUnitSummaryDto {
+  id: string;
+  unitNumber: string;
+  unitType: string;
+  area: number;
+  floor: number;
+  rentPerYear: number;
+  salePrice: number;
+  status: UnitStatus;
+  currentTenantId: string | null;
+  currentTenantName: string | null;
+}
+
 export interface PropertyDto {
   id: string;
-  propertyCode: string;
+  propertyNumber: string;
   name: string;
-  type: PropertyType;
+  propertyType: string;
   status: PropertyStatus;
   location: { address: string; city: string; emirate: string };
-  developer: string;
+  totalArea: number;
   totalUnits: number;
-  vacantUnits: number;
+  occupiedUnits: number;
+  marketValue: number;
+  developer: string | null;
+  description: string | null;
   occupancyRate: number;
-  totalValue: number;
-  annualRent: number;
-  managedBy: string;
-  yearBuilt: number;
-  facilities: string[];
+  /** Only populated by GET /properties/{id}; the list returns it too but it is the detail that
+   *  matters — rent per property is derived from these, since the property has no rent of its own. */
+  units: PropertyUnitSummaryDto[];
 }
 
 export interface UnitDto {
@@ -49,6 +75,14 @@ export interface UnitDto {
   contractId: string | null;
   contractExpiry: string | null;
   lastMaintenanceDate: string | null;
+
+  // The fields above this line are NOT all returned by the API (see note on ContractDto).
+  // These are the ones the units endpoint actually sends:
+  unitType: string;
+  rentPerYear: number;
+  salePrice: number;
+  currentTenantId: string | null;
+  currentTenantName: string | null;
 }
 
 export interface TenantDto {
@@ -70,6 +104,16 @@ export interface TenantDto {
   paymentHistory: PaymentHistory;
   joinDate: string;
   notes: string;
+
+  // Actually returned by the tenants endpoint:
+  tenantNumber: string;
+  tenantType: string;
+  activeContracts: number;
+  totalPaid: number;
+  passportNumber: string | null;
+  occupation: string | null;
+  monthlyIncome: number | null;
+  emergencyContact: string | null;
 }
 
 export interface BrokerDto {
@@ -90,41 +134,225 @@ export interface BrokerDto {
   joinDate: string;
 }
 
+
+/** Mirrors CreateUnitCommand field for field. Typed, not Record<string, unknown> — the untyped
+ *  version is why the form could post propertyName/annualRent/sellingPrice unnoticed. */
+export interface UpsertUnitRequest {
+  propertyId: string;
+  unitNumber: string;
+  unitType: string;
+  area: number;
+  floor: number;
+  rentPerYear: number;
+  salePrice: number;
+  furnishing?: string;
+  view?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  parking?: number;
+  serviceCharge?: number;
+  notes?: string;
+}
+
+/** Mirrors CreateTenantCommand field for field. */
+export interface CreateTenantRequest {
+  name: string;
+  tenantType: "individual" | "company";
+  email: string;
+  phone: string;
+  nationality: string;
+  nationalId?: string;
+  companyName?: string;
+  tradeLicense?: string;
+  passportNumber?: string;
+  trn?: string;
+  occupation?: string;
+  monthlyIncome?: number;
+  emergencyContact?: string;
+  notes?: string;
+  status?: string;
+}
+
+// ── Lease contracts + rent schedule ───────────────────────────────────────────
+//
+// This block previously described a contract that does not exist: `type`, `brokerId`,
+// `rentAmount`, `saleAmount`, `depositAmount` and `contractDoc` were never returned by any
+// endpoint, so every one of them was `undefined` at runtime. It now mirrors the API exactly.
+
+export type PaymentFrequency   = "monthly" | "quarterly" | "semi_annual" | "annual";
+export type InstallmentStatus  = "pending" | "partial" | "paid" | "waived" | "overdue";
+
 export interface ContractDto {
   id: string;
   contractNumber: string;
-  type: "lease" | "sale";
-  status: ContractStatus;
   propertyId: string;
   propertyName: string;
   unitId: string;
   unitNumber: string;
   tenantId: string;
   tenantName: string;
-  brokerId: string | null;
-  brokerName: string | null;
   startDate: string;
   endDate: string;
-  rentAmount: number | null;
-  saleAmount: number | null;
-  depositAmount: number;
-  paymentFrequency: "monthly" | "quarterly" | "annual";
-  nextPaymentDate: string | null;
+  annualRent: number;
+  cheques: number;
+  securityDeposit: number;
+  status: ContractStatus;
+  totalPaid: number;
+  balance: number;
+  ejariNumber: string | null;
+  notes: string | null;
+  paymentFrequency: PaymentFrequency;
+  nextDueDate: string | null;
+  nextDueAmount: number;
   lastPaymentDate: string | null;
-  contractDoc: string;
-  notes: string;
+  overdueCount: number;
+  overdueAmount: number;
+  installmentCount: number;
+  daysToExpiry: number | null;
+}
+
+export interface RentInstallmentDto {
+  id: string;
+  contractId: string;
+  installmentNumber: number;
+  dueDate: string;
+  amount: number;
+  amountPaid: number;
+  balance: number;
+  /** "overdue" is derived server-side against today, never stored. */
+  status: InstallmentStatus;
+  daysOverdue: number;
+  paidDate: string | null;
+  paymentMethod: string | null;
+  reference: string | null;
+  notes: string | null;
+}
+
+export interface ContractDetailDto {
+  contract: ContractDto;
+  installments: RentInstallmentDto[];
+}
+
+export interface RentDueItemDto {
+  installmentId: string;
+  contractId: string;
+  contractNumber: string;
+  tenantId: string;
+  tenantName: string;
+  tenantEmail: string;
+  propertyName: string;
+  unitNumber: string;
+  dueDate: string;
+  amount: number;
+  balance: number;
+  status: InstallmentStatus;
+  daysOverdue: number;
+  daysUntilDue: number;
+}
+
+export interface CreateContractRequest {
+  propertyId: string;
+  unitId: string;
+  tenantId: string;
+  startDate: string;
+  endDate: string;
+  annualRent: number;
+  securityDeposit: number;
+  paymentFrequency: PaymentFrequency;
+  ejariNumber?: string | null;
+  notes?: string | null;
+  /** Rent taken at signing. Applied across the schedule from installment 1 onward, so a tenant
+   *  who has already paid is not chased for it on day one. */
+  advanceRentAmount?: number;
+  advancePaidDate?: string;
+  advanceMethod?: string;
+  advanceReference?: string;
+}
+
+export interface CreatedContractDto {
+  id: string;
+  contractNumber: string;
+  installmentsCreated: number;
+  advanceApplied: number;
+  installmentsSettledByAdvance: number;
+  /** The first payment the tenant will actually be reminded about. */
+  nextDueDate: string | null;
+}
+
+export interface UpdateContractRequest {
+  startDate: string;
+  endDate: string;
+  annualRent: number;
+  securityDeposit: number;
+  paymentFrequency: PaymentFrequency;
+  ejariNumber?: string | null;
+  notes?: string | null;
+  regenerateSchedule?: boolean;
+}
+
+// ── Rent + expiry alerts ──────────────────────────────────────────────────────
+
+export interface RentAlertSettingsDto {
+  enabled: boolean;
+  dueReminderDaysBefore: string;
+  overdueRepeatDays: number;
+  overdueMaxReminders: number;
+  expiryReminderDaysBefore: string;
+  ccEmails: string | null;
+  ccAllRealEstateUsers: boolean;
+  timeZoneId: string;
+  /** False when the deployment has no SMTP account — nothing will actually be delivered. */
+  emailConfigured: boolean;
+}
+
+export interface RentAlertLogDto {
+  id: string;
+  contractId: string;
+  installmentId: string | null;
+  kind: "rent_due" | "rent_overdue" | "contract_expiry";
+  offsetKey: string;
+  toEmail: string;
+  ccEmails: string | null;
+  sent: boolean;
+  failureReason: string | null;
+  createdAt: string;
+}
+
+export interface ExpiringContractDto {
+  contractId: string;
+  contractNumber: string;
+  tenantId: string;
+  tenantName: string;
+  tenantEmail: string;
+  propertyName: string;
+  unitNumber: string;
+  endDate: string;
+  daysToExpiry: number;
+  annualRent: number;
+  outstanding: number;
+  status: ContractStatus;
+}
+
+export interface RentAlertRunResultDto {
+  dueRemindersSent: number;
+  overdueRemindersSent: number;
+  expiryRemindersSent: number;
+  skipped: number;
+  failed: number;
+  messages: string[];
 }
 
 // ── Summary DTOs ──────────────────────────────────────────────────────────────
 
 export interface RePropertySummaryDto {
-  totalProperties: number;
-  activeProperties: number;
+  total: number;
+  residential: number;
+  commercial: number;
+  mixed: number;
   totalUnits: number;
-  vacantUnits: number;
-  totalPortfolioValue: number;
-  avgOccupancyRate: number;
-  totalAnnualRent: number;
+  occupiedUnits: number;
+  occupancyRate: number;
+  totalMarketValue: number;
 }
 
 export interface ReUnitSummaryDto {
@@ -156,10 +384,16 @@ export interface ReBrokerSummaryDto {
 export interface ReContractSummaryDto {
   total: number;
   active: number;
-  expiringSoon: number;
   expired: number;
-  leaseCount: number;
-  saleCount: number;
+  terminated: number;
+  totalAnnualRent: number;
+  totalCollected: number;
+  outstanding: number;
+  expiringSoon: number;
+  overdueInstallments: number;
+  overdueAmount: number;
+  dueThisMonth: number;
+  dueThisMonthAmount: number;
 }
 
 // ── API client ────────────────────────────────────────────────────────────────
@@ -186,12 +420,18 @@ export const reApi = {
 
   getUnits:            (): Promise<UnitDto[]>              => rawApiClient.get(`${BASE}/units`),
   getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient.get(`${BASE}/units/summary`),
-  createUnit:          (data: Record<string, unknown>): Promise<UnitDto> => rawApiClient.post(`${BASE}/units`, data),
+  createUnit:          (data: UpsertUnitRequest): Promise<UnitDto> => rawApiClient.post(`${BASE}/units`, data),
+  updateUnit:          (id: string, data: UpsertUnitRequest): Promise<void> =>
+    rawApiClient.put(`${BASE}/units/${id}`, data),
   deleteUnit:          (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/units/${id}`),
 
   getTenants:          (): Promise<TenantDto[]>            => rawApiClient.get(`${BASE}/tenants`),
   getTenantSummary:    (): Promise<ReTenantSummaryDto>     => rawApiClient.get(`${BASE}/tenants/summary`),
-  createTenant:        (data: Record<string, unknown>): Promise<TenantDto> => rawApiClient.post(`${BASE}/tenants`, data),
+  // Typed deliberately. This was `Record<string, unknown>`, which is why the form could send
+  // fullName/emiratesId/company — names the API has no counterpart for — and nothing caught it
+  // until the server returned "The Name field is required".
+  createTenant:        (data: CreateTenantRequest): Promise<{ id: string; tenantNumber: string; name: string }> =>
+    rawApiClient.post(`${BASE}/tenants`, data),
   deleteTenant:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/tenants/${id}`),
 
   getBrokers:          (): Promise<BrokerDto[]>            => rawApiClient.get(`${BASE}/brokers`),
@@ -199,8 +439,40 @@ export const reApi = {
   createBroker:        (data: Record<string, unknown>): Promise<BrokerDto> => rawApiClient.post(`${BASE}/brokers`, data),
   deleteBroker:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/brokers/${id}`),
 
-  getContracts:        (): Promise<ContractDto[]>          => rawApiClient.get(`${BASE}/contracts`),
+  getContracts:        (params?: { tenantId?: string; status?: string }): Promise<ContractDto[]> =>
+    rawApiClient.get(`${BASE}/contracts${qs(params)}`),
   getContractSummary:  (): Promise<ReContractSummaryDto>   => rawApiClient.get(`${BASE}/contracts/summary`),
-  createContract:      (data: Record<string, unknown>): Promise<ContractDto> => rawApiClient.post(`${BASE}/contracts`, data),
+  getContract:         (id: string): Promise<ContractDetailDto> => rawApiClient.get(`${BASE}/contracts/${id}`),
+  createContract:      (data: CreateContractRequest): Promise<CreatedContractDto> =>
+    rawApiClient.post(`${BASE}/contracts`, data),
+  updateContract:      (id: string, data: UpdateContractRequest): Promise<void> =>
+    rawApiClient.put(`${BASE}/contracts/${id}`, data),
+  setContractStatus:   (id: string, status: ContractStatus): Promise<void> =>
+    rawApiClient.patch(`${BASE}/contracts/${id}/status`, { status }),
   deleteContract:      (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/contracts/${id}`),
+
+  // ── Rent schedule ──────────────────────────────────────────────────────────
+  generateSchedule:    (id: string, replaceExisting = false): Promise<RentInstallmentDto[]> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/schedule`, { replaceExisting }),
+  recordRentPayment:   (id: string, installmentId: string, data: {
+    amount: number; paidDate: string; method?: string | null; reference?: string | null; notes?: string | null;
+  }): Promise<RentInstallmentDto> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/installments/${installmentId}/payment`, data),
+  waiveInstallment:    (id: string, installmentId: string, reason?: string | null): Promise<void> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/installments/${installmentId}/waive`, { reason }),
+  getRentDue:          (withinDays = 30, includeOverdue = true): Promise<RentDueItemDto[]> =>
+    rawApiClient.get(`${BASE}/contracts/rent-due?withinDays=${withinDays}&includeOverdue=${includeOverdue}`),
+  sendRentReminder:    (id: string, installmentId?: string): Promise<string> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/remind${installmentId ? `?installmentId=${installmentId}` : ""}`, {}),
+
+  // ── Rent + expiry alerts ───────────────────────────────────────────────────
+  getAlertSettings:    (): Promise<RentAlertSettingsDto> => rawApiClient.get(`${ALERTS}/settings`),
+  updateAlertSettings: (data: Omit<RentAlertSettingsDto, "emailConfigured">): Promise<RentAlertSettingsDto> =>
+    rawApiClient.put(`${ALERTS}/settings`, data),
+  getAlertLogs:        (contractId?: string, limit = 100): Promise<RentAlertLogDto[]> =>
+    rawApiClient.get(`${ALERTS}/logs?limit=${limit}${contractId ? `&contractId=${contractId}` : ""}`),
+  getExpiringContracts:(withinDays = 90): Promise<ExpiringContractDto[]> =>
+    rawApiClient.get(`${ALERTS}/expiring?withinDays=${withinDays}`),
+  runAlertSweep:       (dryRun = false): Promise<RentAlertRunResultDto> =>
+    rawApiClient.post(`${ALERTS}/run`, { dryRun }),
 };

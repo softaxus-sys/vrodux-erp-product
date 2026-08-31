@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -143,7 +144,7 @@ public static class InfrastructureExtensions
         try
         {
             var db = scope.ServiceProvider.GetRequiredService<AiAssistantDbContext>();
-            await db.Database.MigrateAsync();
+            await db.Database.MigrateTolerantOfLockReleaseAsync();
         }
         catch (Exception ex)
         {

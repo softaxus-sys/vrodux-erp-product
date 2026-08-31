@@ -4,8 +4,11 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCreateTenant } from "@/hooks/real-estate/use-re";
+import { useFieldErrors } from "@/hooks/use-field-errors";
+import { FieldError } from "@/components/ui/field-error";
+import { cn } from "@/lib/utils";
 
-const TENANT_TYPES   = ["Individual", "Company"];
+const TENANT_TYPES = ["Individual", "Company"] as const;
 const NATIONALITIES  = ["UAE", "Indian", "Pakistani", "Filipino", "Egyptian", "British", "American", "European", "Other"];
 
 interface AddTenantFormProps {
@@ -15,7 +18,9 @@ interface AddTenantFormProps {
 
 export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
   const createTenant = useCreateTenant();
-  const [tenantType, setTenantType]   = React.useState("Individual");
+  // Validation messages the server sent back, bound to the field each one names.
+  const fieldErrors = useFieldErrors();
+  const [tenantType, setTenantType]   = React.useState<"Individual" | "Company">("Individual");
   const [name, setName]               = React.useState("");
   const [email, setEmail]             = React.useState("");
   const [phone, setPhone]             = React.useState("");
@@ -29,27 +34,48 @@ export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
   const [emergencyContact, setEmergencyContact] = React.useState("");
   const [notes, setNotes]             = React.useState("");
 
-  const isValid = name.trim() && email.trim() && phone.trim();
+  // Nationality is required by the API, so gate the button on it rather than letting the user
+  // submit a full form and receive a 400.
+  const isValid = name.trim() && email.trim() && phone.trim() && nationality.trim();
 
   const reset = () => {
     setTenantType("Individual"); setName(""); setEmail(""); setPhone(""); setNationality("");
     setEmiratesId(""); setPassportNo(""); setCompany(""); setTrn(""); setOccupation("");
     setMonthlyIncome(""); setEmergencyContact(""); setNotes("");
+    fieldErrors.clear();
   };
 
   React.useEffect(() => { if (!open) reset(); }, [open]);
 
   const handleSave = async () => {
+    // Clear first, or a field the user has since corrected keeps showing its old message.
+    fieldErrors.clear();
     try {
+      // These names must match CreateTenantCommand exactly. They previously did not — fullName,
+      // emiratesId and company had no counterpart — so the API rejected the whole request with
+      // "The Name field is required" and the other six fields were dropped on the floor.
       await createTenant.mutateAsync({
-        fullName: name, tenantType: tenantType.toLowerCase(), email, phone, nationality,
-        emiratesId: emiratesId.trim() || undefined, passportNo: passportNo.trim() || undefined,
-        company: company.trim() || undefined, trn: trn.trim() || undefined,
-        occupation: occupation.trim() || undefined, monthlyIncome: parseFloat(monthlyIncome) || undefined,
-        emergencyContact: emergencyContact.trim() || undefined, notes: notes.trim() || undefined, status: 'active',
+        name: name.trim(),
+        tenantType: tenantType.toLowerCase() as "individual" | "company",
+        email: email.trim(),
+        phone: phone.trim(),
+        nationality: nationality.trim(),
+        nationalId: emiratesId.trim() || undefined,
+        companyName: company.trim() || undefined,
+        passportNumber: passportNo.trim() || undefined,
+        trn: trn.trim() || undefined,
+        occupation: occupation.trim() || undefined,
+        monthlyIncome: parseFloat(monthlyIncome) || undefined,
+        emergencyContact: emergencyContact.trim() || undefined,
+        notes: notes.trim() || undefined,
+        status: "active",
       });
       onClose();
-    } catch { /* hook toasts */ }
+    } catch (e) {
+      // Field-level failures land on the inputs. Anything else is left to the mutation hook's
+      // toast, so a generic error is still reported exactly once and not twice.
+      fieldErrors.capture(e);
+    }
   };
 
   return (
@@ -72,6 +98,14 @@ export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Errors the server reported without naming a field would otherwise be invisible,
+                  since every other message is rendered against a specific input. */}
+              {fieldErrors.formError && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2">
+                  <FieldError message={fieldErrors.formError} className="mt-0" />
+                </div>
+              )}
+
               {/* Type */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tenant Type</label>
@@ -91,23 +125,40 @@ export function AddTenantForm({ open, onClose }: AddTenantFormProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2 space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Full Name *</label>
-                    <Input value={name} onChange={e => setName(e.target.value)} placeholder="Tenant full name…" className="h-9 text-sm" />
+                    {/* The message clears as soon as the field is edited — leaving it up while the
+                        user fixes the value reads as "still wrong" when it no longer is. */}
+                    <Input value={name} onChange={e => { setName(e.target.value); fieldErrors.clearField("name"); }}
+                      aria-invalid={!!fieldErrors.get("name")}
+                      placeholder="Tenant full name…"
+                      className={cn("h-9 text-sm", fieldErrors.get("name") && "border-destructive")} />
+                    <FieldError message={fieldErrors.get("name")} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email *</label>
-                    <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" className="h-9 text-sm" />
+                    <Input type="email" value={email} onChange={e => { setEmail(e.target.value); fieldErrors.clearField("email"); }}
+                      aria-invalid={!!fieldErrors.get("email")}
+                      placeholder="email@example.com"
+                      className={cn("h-9 text-sm", fieldErrors.get("email") && "border-destructive")} />
+                    <FieldError message={fieldErrors.get("email")} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phone *</label>
-                    <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+971 XX XXX XXXX" className="h-9 text-sm" />
+                    <Input value={phone} onChange={e => { setPhone(e.target.value); fieldErrors.clearField("phone"); }}
+                      aria-invalid={!!fieldErrors.get("phone")}
+                      placeholder="+971 XX XXX XXXX"
+                      className={cn("h-9 text-sm", fieldErrors.get("phone") && "border-destructive")} />
+                    <FieldError message={fieldErrors.get("phone")} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nationality</label>
-                    <select value={nationality} onChange={e => setNationality(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Nationality *</label>
+                    <select value={nationality} onChange={e => { setNationality(e.target.value); fieldErrors.clearField("nationality"); }}
+                      aria-invalid={!!fieldErrors.get("nationality")}
+                      className={cn("w-full h-9 px-3 rounded-lg border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30",
+                        fieldErrors.get("nationality") ? "border-destructive" : "border-border")}>
                       <option value="">Select…</option>
                       {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
+                    <FieldError message={fieldErrors.get("nationality")} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Occupation</label>

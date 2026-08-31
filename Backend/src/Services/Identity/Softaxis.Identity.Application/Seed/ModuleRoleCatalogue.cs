@@ -23,7 +23,7 @@ public static class ModuleRoleCatalogue
 {
     /// <summary>Actions reserved for a manager — destructive, financial or approval authority.</summary>
     private static readonly HashSet<string> PrivilegedActions =
-        new(StringComparer.OrdinalIgnoreCase) { "delete", "approve", "void", "refund", "discount", "create-login", "import" };
+        new(StringComparer.OrdinalIgnoreCase) { "delete", "approve", "void", "refund", "discount", "create-login", "import", "remind" };
 
     /// <summary>Display label per module prefix. A module absent here gets no default roles.</summary>
     public static readonly IReadOnlyDictionary<string, string> ModuleLabels =
@@ -43,6 +43,7 @@ public static class ModuleRoleCatalogue
             ["insurance"]          = "Insurance",
             ["visa"]               = "Visa",
             ["restaurant"]         = "Restaurant",
+            ["real-estate"]        = "Real Estate",
         };
 
     /// <summary>True when a permission belongs to <paramref name="module"/> (its first dotted segment).</summary>

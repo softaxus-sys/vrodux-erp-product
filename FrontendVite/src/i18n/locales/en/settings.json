@@ -863,6 +863,8 @@
       "leave-request": "Request own leave",
       "attendance": "Mark own attendance",
       "payslip": "View own payslips",
+      "record": "Record rent payment",
+      "remind": "Send rent reminder",
       "import": "Import external data"
     },
     "actionShort": {
@@ -881,6 +883,8 @@
       "leave-request": "LEAVE",
       "attendance": "ATT",
       "payslip": "PAY",
+      "record": "REC",
+      "remind": "REM",
       "import": "IMP"
     },
     "group": {
@@ -898,7 +902,8 @@
       "healthcare": "Healthcare",
       "insurance": "Insurance",
       "visa": "Visa Services",
-      "restaurant": "Restaurant"
+      "restaurant": "Restaurant",
+      "real-estate": "Real Estate"
     },
     "module": {
       "b2b.contracts": "Contracts",
