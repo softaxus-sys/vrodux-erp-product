@@ -111,6 +111,8 @@ const DEFAULTS = {
     // Stored as a data URI in app_settings (nvarchar(max)), the same approach as the employee
     // avatar. There is no blob store in this product, and a logo is a handful of KB.
     logoUrl: "",
+    signatureUrl: "",
+    stampUrl: "",
   },
   regional: {
     country: "",                // ISO country code — source of truth for POS/reports/receipt
@@ -253,6 +255,64 @@ function FormField({ label, children, hint }: { label: string; children: React.R
       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
       {children}
       {hint && <p className="text-xs text-muted-foreground/70">{hint}</p>}
+    </div>
+  );
+}
+
+// ─── Document image (signature / stamp) ───────────────────────────────────────
+/**
+ * A letterhead image with a preview. The preview matters more than usual here: a signature or
+ * stamp with an opaque white background looks fine in a file browser and wrong on a document, and
+ * the checkerboard makes that obvious before it reaches a customer.
+ */
+function DocumentImageField({
+  label, hint, value, inputRef, onPick, onRemove, uploadLabel, removeLabel, emptyLabel,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: () => void;
+  uploadLabel: string;
+  removeLabel: string;
+  emptyLabel: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+
+      <div
+        className="h-24 rounded-lg border border-dashed border-border grid place-items-center overflow-hidden"
+        // Checkerboard: shows transparency, so an opaque background is visible at a glance.
+        style={{
+          backgroundImage:
+            "linear-gradient(45deg,#e5e7eb 25%,transparent 25%,transparent 75%,#e5e7eb 75%)," +
+            "linear-gradient(45deg,#e5e7eb 25%,transparent 25%,transparent 75%,#e5e7eb 75%)",
+          backgroundSize: "12px 12px",
+          backgroundPosition: "0 0, 6px 6px",
+        }}
+      >
+        {value
+          ? <img src={value} alt="" className="max-h-full max-w-full object-contain" />
+          : <span className="text-xs text-muted-foreground">{emptyLabel}</span>}
+      </div>
+
+      <input ref={inputRef} type="file" className="hidden"
+        accept="image/png,image/jpeg,image/svg+xml,image/webp" onChange={onPick} />
+
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => inputRef.current?.click()}>
+          {uploadLabel}
+        </Button>
+        {value && (
+          <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={onRemove}>
+            {removeLabel}
+          </Button>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -482,6 +542,8 @@ export function GeneralSettingsView() {
         poBox:          toStr(c.poBox,          D.company.poBox),
         taxNumber:      toStr(c.taxNumber,      D.company.taxNumber),
         logoUrl:        toStr(c.logoUrl,        D.company.logoUrl),
+        signatureUrl:   toStr(c.signatureUrl,   D.company.signatureUrl),
+        stampUrl:       toStr(c.stampUrl,       D.company.stampUrl),
       };
 
       // The country chosen during onboarding is the source of truth here — it is stored on the
@@ -703,32 +765,42 @@ export function GeneralSettingsView() {
   // Read as a data URI and stored in app_settings alongside the rest of the company profile.
   // There is no blob store in this product and a logo is a few KB, so a URI keeps the whole
   // letterhead in one place — which is what the quotation and invoice documents read.
-  const logoInputRef = React.useRef<HTMLInputElement>(null);
+  const logoInputRef      = React.useRef<HTMLInputElement>(null);
+  const signatureInputRef = React.useRef<HTMLInputElement>(null);
+  const stampInputRef     = React.useRef<HTMLInputElement>(null);
 
-  const handleLogoPick = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    // Reset immediately so re-picking the same file still fires a change event.
-    e.target.value = "";
-    if (!file) return;
+  /**
+   * Shared by the logo, the authorised signature and the company stamp — all three are letterhead
+   * images stored the same way, so they get the same validation rather than three near-copies that
+   * drift apart.
+   */
+  const handleImagePick = (field: "logoUrl" | "signatureUrl" | "stampUrl") =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      // Reset immediately so re-picking the same file still fires a change event.
+      e.target.value = "";
+      if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error(t("general.company.logoNotImage", { defaultValue: "Choose an image file." }));
-      return;
-    }
-    // 1 MB of source file is roughly 1.4 MB once base64-encoded. Beyond that the settings
-    // payload starts to slow every save, and a letterhead does not need it.
-    if (file.size > 1024 * 1024) {
-      toast.error(t("general.company.logoTooLarge", {
-        defaultValue: "That image is over 1 MB. Please use a smaller one." }));
-      return;
-    }
+      if (!file.type.startsWith("image/")) {
+        toast.error(t("general.company.logoNotImage", { defaultValue: "Choose an image file." }));
+        return;
+      }
+      // 1 MB of source file is roughly 1.4 MB once base64-encoded. Beyond that the settings
+      // payload starts to slow every save, and a letterhead does not need it.
+      if (file.size > 1024 * 1024) {
+        toast.error(t("general.company.logoTooLarge", {
+          defaultValue: "That image is over 1 MB. Please use a smaller one." }));
+        return;
+      }
 
-    const reader = new FileReader();
-    reader.onload = () => updateCompany("logoUrl", String(reader.result ?? ""));
-    reader.onerror = () => toast.error(t("general.company.logoFailed", {
-      defaultValue: "That image could not be read." }));
-    reader.readAsDataURL(file);
-  };
+      const reader = new FileReader();
+      reader.onload = () => updateCompany(field, String(reader.result ?? ""));
+      reader.onerror = () => toast.error(t("general.company.logoFailed", {
+        defaultValue: "That image could not be read." }));
+      reader.readAsDataURL(file);
+    };
+
+  const handleLogoPick = handleImagePick("logoUrl");
   const updateRegional      = (key: string, value: string)          => { setRegional(p => ({ ...p, [key]: value }));      setIsDirty(true); };
   const updateAppearance    = (key: string, value: boolean | string) => {
     setAppearance(p => ({ ...p, [key]: value }));
@@ -833,6 +905,35 @@ export function GeneralSettingsView() {
                 defaultValue: "PNG, JPG, SVG or WebP, up to 1 MB. Appears on quotations, invoices and printed documents." })}
             </p>
           </div>
+        </div>
+
+        {/* Signature + stamp. Stored exactly like the logo (data URI in app_settings) and read by
+            the same document branding, so an invoice can carry a real letterhead and sign-off. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-6 pb-6 border-b border-border">
+          <DocumentImageField
+            label={t("general.company.signature", { defaultValue: "Authorised signature" })}
+            hint={t("general.company.signatureHint", {
+              defaultValue: "Signed on a white background, ideally a transparent PNG." })}
+            value={company.signatureUrl}
+            inputRef={signatureInputRef}
+            onPick={handleImagePick("signatureUrl")}
+            onRemove={() => updateCompany("signatureUrl", "")}
+            uploadLabel={t("general.company.upload", { defaultValue: "Upload" })}
+            removeLabel={t("general.company.removeLogo", { defaultValue: "Remove" })}
+            emptyLabel={t("general.company.noSignature", { defaultValue: "No signature" })}
+          />
+          <DocumentImageField
+            label={t("general.company.stamp", { defaultValue: "Company stamp" })}
+            hint={t("general.company.stampHint", {
+              defaultValue: "Your official stamp or seal. A transparent PNG sits best over a document." })}
+            value={company.stampUrl}
+            inputRef={stampInputRef}
+            onPick={handleImagePick("stampUrl")}
+            onRemove={() => updateCompany("stampUrl", "")}
+            uploadLabel={t("general.company.upload", { defaultValue: "Upload" })}
+            removeLabel={t("general.company.removeLogo", { defaultValue: "Remove" })}
+            emptyLabel={t("general.company.noStamp", { defaultValue: "No stamp" })}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

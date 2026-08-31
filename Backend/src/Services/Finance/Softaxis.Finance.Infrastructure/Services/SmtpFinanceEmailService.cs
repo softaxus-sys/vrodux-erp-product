@@ -22,7 +22,9 @@ internal sealed class SmtpFinanceEmailService(
     }
 
     public async Task<bool> SendInvoiceAsync(string toEmail, string toName, IReadOnlyList<string> cc,
-        string subject, string html, CancellationToken ct = default)
+        string subject, string html,
+        IReadOnlyList<InlineImage>? inlineImages = null,
+        CancellationToken ct = default)
     {
         var section  = configuration.GetSection("Email");
         var host     = section["SmtpHost"];
@@ -50,7 +52,7 @@ internal sealed class SmtpFinanceEmailService(
             catch (Exception ex) { logger.LogWarning(ex, "Skipping invalid CC address {Address}.", address); }
         }
         message.Subject = subject;
-        message.Body = new TextPart("html") { Text = html };
+        message.Body = BuildBody(html, inlineImages);
 
         try
         {
@@ -68,5 +70,63 @@ internal sealed class SmtpFinanceEmailService(
             logger.LogError(ex, "Failed to send \"{Subject}\" to {Email}.", subject, toEmail);
             return false;
         }
+    }
+    /// <summary>
+    /// Builds the message body, embedding any letterhead images as linked resources.
+    ///
+    /// A data URI in an <c>&lt;img src&gt;</c> is stripped by Gmail and blocked by Outlook, so the
+    /// logo, signature and stamp have to travel as real MIME parts referenced by <c>cid:</c>.
+    /// A malformed data URI is skipped rather than thrown on — a bad logo must never stop an
+    /// invoice going out.
+    /// </summary>
+    private MimeEntity BuildBody(string html, IReadOnlyList<InlineImage>? images)
+    {
+        var builder = new BodyBuilder { HtmlBody = html };
+
+        foreach (var image in images ?? [])
+        {
+            try
+            {
+                if (!TryParseDataUri(image.DataUri, out var mediaType, out var subType, out var bytes))
+                    continue;
+
+                var resource = builder.LinkedResources.Add($"{image.ContentId}", bytes,
+                    new ContentType(mediaType, subType));
+                resource.ContentId = image.ContentId;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Skipping letterhead image {ContentId}.", image.ContentId);
+            }
+        }
+
+        return builder.ToMessageBody();
+    }
+
+    /// <summary>Splits "data:image/png;base64,AAAA" into its media type and bytes.</summary>
+    private static bool TryParseDataUri(string uri, out string mediaType, out string subType, out byte[] bytes)
+    {
+        mediaType = "image"; subType = "png"; bytes = [];
+        if (string.IsNullOrWhiteSpace(uri) || !uri.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var comma = uri.IndexOf(',');
+        if (comma < 0) return false;
+
+        var header = uri[5..comma];                     // e.g. "image/png;base64"
+        if (!header.Contains("base64", StringComparison.OrdinalIgnoreCase)) return false;
+
+        var mime = header.Split(';')[0];
+        var slash = mime.IndexOf('/');
+        if (slash > 0)
+        {
+            mediaType = mime[..slash];
+            subType   = mime[(slash + 1)..];
+        }
+
+        try { bytes = Convert.FromBase64String(uri[(comma + 1)..]); }
+        catch (FormatException) { return false; }
+
+        return bytes.Length > 0;
     }
 }

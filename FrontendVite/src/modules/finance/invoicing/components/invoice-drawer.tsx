@@ -20,7 +20,7 @@ import {
 } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 import { printInvoice } from "./invoice-print";
-import { useCompanyName } from "@/hooks/use-company-name";
+import { useCompanyBranding } from "@/hooks/use-company-name";
 
 interface InvoiceDrawerProps {
   open: boolean;
@@ -292,12 +292,12 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
   const cancelInvoice = useCancelInvoice();
   const { data: detail } = useInvoiceById(invoice.id);
 
-  // The legal name from Settings → General, falling back to the workspace name.
-  const companyName = useCompanyName();
+  // Letterhead from Settings → General: name, address, TRN, logo, signature and stamp.
+  const branding = useCompanyBranding();
 
   const handlePrint = () => {
     if (!detail) { toast.error(t("invoicing.drawer.view.printLoading")); return; }
-    printInvoice(detail, companyName);
+    printInvoice(detail, branding);
   };
 
   if (editMode) {

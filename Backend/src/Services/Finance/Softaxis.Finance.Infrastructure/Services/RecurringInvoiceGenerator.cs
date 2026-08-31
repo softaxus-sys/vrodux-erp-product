@@ -10,6 +10,22 @@ namespace Softaxis.Finance.Infrastructure.Services;
 public sealed record RecurringRunResult(int Created, int Emailed, int EmailFailed);
 
 /// <summary>
+/// The issuing company as it should appear on an invoice, read from Settings → General → Company.
+/// Mirrors the frontend's CompanyBranding so the printed and emailed copies match.
+/// </summary>
+public sealed record InvoiceBranding(
+    string  Name,
+    string? Address,
+    string? Phone,
+    string? Email,
+    string? Website,
+    string? TaxNumber,
+    string? RegistrationNo,
+    string? LogoUrl,
+    string? SignatureUrl,
+    string? StampUrl);
+
+/// <summary>
 /// Materialises real invoices from recurring-invoice templates. Used by both the manual API
 /// trigger and the daily background job.
 ///
@@ -62,7 +78,7 @@ public static class RecurringInvoiceGenerator
 
         if (due.Count == 0) return new RecurringRunResult(0, 0, 0);
 
-        var companyName = await ResolveCompanyNameAsync(db, ct);
+        var branding = await ResolveBrandingAsync(db, ct);
 
         var created = 0;
         var toEmail = new List<(Invoice Invoice, RecurringInvoice Template)>();
@@ -94,7 +110,7 @@ public static class RecurringInvoiceGenerator
         {
             foreach (var (invoice, template) in toEmail)
             {
-                if (await SendInvoiceAsync(db, invoice, template.CcList, template.CcEmails, email, ct, companyName))
+                if (await SendInvoiceAsync(db, invoice, template.CcList, template.CcEmails, email, ct, branding))
                     emailed++;
                 else
                     failed++;
@@ -113,15 +129,16 @@ public static class RecurringInvoiceGenerator
     /// <returns>true only if the mail server accepted it.</returns>
     public static async Task<bool> SendInvoiceAsync(
         FinanceDbContext db, Invoice invoice, IReadOnlyList<string> cc, string? ccRaw,
-        IFinanceEmailService email, CancellationToken ct, string? companyName = null)
+        IFinanceEmailService email, CancellationToken ct, InvoiceBranding? branding = null)
     {
         if (string.IsNullOrWhiteSpace(invoice.CustomerEmail)) return false;
 
-        companyName ??= await ResolveCompanyNameAsync(db, ct);
+        branding ??= await ResolveBrandingAsync(db, ct);
 
-        var body = InvoiceEmailTemplate.Build(invoice, companyName);
+        var body = InvoiceEmailTemplate.Build(invoice, branding);
         var sent = await email.SendInvoiceAsync(
-            invoice.CustomerEmail!, invoice.CustomerName, cc, body.Subject, body.Html, ct);
+            invoice.CustomerEmail!, invoice.CustomerName, cc, body.Subject, body.Html,
+            body.InlineImages, ct);
 
         // Recorded only on a real send. Marking it "sent" after a failure would show delivered for
         // something nobody received — the one thing this must never claim.
@@ -130,51 +147,71 @@ public static class RecurringInvoiceGenerator
         return sent;
     }
 
+    private sealed class SettingRow
+    {
+        public string SettingKey { get; set; } = string.Empty;
+        public string? Value     { get; set; }
+    }
+
     /// <summary>
-    /// The workspace's display name, used as the sender in the invoice email — a customer should
-    /// see who is billing them, not a generic label.
+    /// The letterhead, read from the same Settings → General → Company block the printed invoice
+    /// uses — so the emailed and printed copies of one invoice cannot disagree about who issued it.
     ///
     /// Cross-schema read: every service points at the same physical database, different schema.
-    /// <c>identity</c> is a RESERVED SQL Server keyword and MUST be bracketed.
+    /// <c>identity</c> is a RESERVED SQL Server keyword and MUST be bracketed. <c>UserId IS NULL</c>
+    /// selects the company-wide value rather than someone's personal override.
     /// </summary>
-    private static async Task<string> ResolveCompanyNameAsync(FinanceDbContext db, CancellationToken ct)
+    private static async Task<InvoiceBranding> ResolveBrandingAsync(FinanceDbContext db, CancellationToken ct)
     {
         var tenantId = TenantAmbient.TenantId ?? Guid.Empty;
-
-        // Same precedence the printed invoice uses (legal name → trading name → workspace name), so
-        // the emailed and printed copies of the same invoice never disagree about who issued it.
-        // `UserId IS NULL` selects the company-wide value rather than someone's personal override.
-        try
-        {
-            var configured = await db.Database
-                .SqlQuery<string?>($@"
-                    SELECT TOP 1 [Value] FROM [identity].[app_settings]
-                    WHERE [Category] = 'company' AND [TenantId] = {tenantId} AND [UserId] IS NULL
-                      AND [Key] IN ('legalName', 'name') AND LTRIM(RTRIM([Value])) <> ''
-                    ORDER BY CASE WHEN [Key] = 'legalName' THEN 0 ELSE 1 END")
-                .ToListAsync(ct);
-
-            var name = configured.FirstOrDefault();
-            if (!string.IsNullOrWhiteSpace(name)) return name!;
-        }
-        catch
-        {
-            // Settings are optional; fall through to the workspace name.
-        }
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
             var rows = await db.Database
-                .SqlQuery<string?>($"SELECT [Name] FROM [identity].[tenants] WHERE [Id] = {tenantId}")
+                .SqlQuery<SettingRow>($"""
+                    SELECT [Key] AS SettingKey, [Value]
+                    FROM [identity].[app_settings]
+                    WHERE [Category] = 'company' AND [TenantId] = {tenantId} AND [UserId] IS NULL
+                    """)
                 .ToListAsync(ct);
 
-            var name = rows.FirstOrDefault();
-            return string.IsNullOrWhiteSpace(name) ? "Accounts" : name!;
+            foreach (var r in rows.Where(r => !string.IsNullOrWhiteSpace(r.Value)))
+                map[r.SettingKey] = r.Value!.Trim();
         }
         catch
         {
-            // A lookup failure must not stop invoicing; the email just carries a neutral sender name.
-            return "Accounts";
+            // Settings are optional; the workspace name below is a perfectly good letterhead.
         }
+
+        var name = Pick(map, "legalName", "name");
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            try
+            {
+                var rows = await db.Database
+                    .SqlQuery<string?>($"SELECT [Name] FROM [identity].[tenants] WHERE [Id] = {tenantId}")
+                    .ToListAsync(ct);
+                name = rows.FirstOrDefault();
+            }
+            catch
+            {
+                // A lookup failure must not stop invoicing; the email carries a neutral sender name.
+            }
+        }
+
+        return new InvoiceBranding(
+            string.IsNullOrWhiteSpace(name) ? "Accounts" : name!,
+            Pick(map, "address"), Pick(map, "phone"), Pick(map, "email"), Pick(map, "website"),
+            Pick(map, "taxNumber"), Pick(map, "registrationNo"),
+            Pick(map, "logoUrl"), Pick(map, "signatureUrl"), Pick(map, "stampUrl"));
+    }
+
+    private static string? Pick(Dictionary<string, string> map, params string[] keys)
+    {
+        foreach (var k in keys)
+            if (map.TryGetValue(k, out var v) && !string.IsNullOrWhiteSpace(v)) return v;
+        return null;
     }
 }

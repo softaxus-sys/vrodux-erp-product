@@ -1,7 +1,7 @@
 import type { InvoiceDetailDto } from "@/lib/finance/finance.api";
 import { formatCurrency } from "@/lib/utils";
 import { getTenantCurrency } from "@/hooks/use-currency";
-import { getTenantName } from "@/hooks/use-company-name";
+import { getTenantName, type CompanyBranding } from "@/hooks/use-company-name";
 import { toast } from "sonner";
 
 function esc(s: string): string {
@@ -12,15 +12,46 @@ function esc(s: string): string {
  * Opens a print-ready window with a professional A4 invoice. The browser's
  * print dialog doubles as "Save as PDF", so this powers both Print and PDF.
  */
-export function printInvoice(inv: InvoiceDetailDto, company?: string) {
+export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBranding> | string) {
+  // Accepts the full letterhead. A bare string is still honoured so any older caller keeps working.
+  const b: Partial<CompanyBranding> = typeof branding === "string" ? { name: branding } : (branding ?? {});
+
   // Falls back to the workspace name rather than the literal "Your Company" this used to default
   // to — which is what every printed invoice actually said.
-  const companyName = company?.trim() || getTenantName() || "Invoice";
+  const companyName = b.name?.trim() || getTenantName() || "Invoice";
   const CUR = getTenantCurrency();
   const win = window.open("", "_blank", "width=900,height=1100");
   if (!win) { toast.error("Pop-up blocked — allow pop-ups to print the invoice."); return; }
 
   const statusLabel = inv.status.charAt(0).toUpperCase() + inv.status.slice(1);
+
+  // Only the details that were actually filled in. A blank "TRN:" line looks like a fault, and an
+  // empty address block pushes the table down for nothing.
+  const issuerLines = [
+    b.address,
+    [b.phone, b.email].filter(Boolean).join(" · "),
+    b.website,
+    b.taxNumber ? `TRN: ${b.taxNumber}` : "",
+    b.registrationNo ? `Reg: ${b.registrationNo}` : "",
+  ]
+    .map(v => (v ?? "").trim())
+    .filter(Boolean)
+    .map(v => `<div class="issuer-line">${esc(v)}</div>`)
+    .join("");
+
+  // The sign-off. Rendered only when something exists, so a workspace that has not uploaded a
+  // signature does not get an empty box with a stray line under it.
+  const signOff = (b.signatureUrl || b.stampUrl)
+    ? `<div class="signoff">
+         <div class="sig">
+           ${b.signatureUrl ? `<img src="${esc(b.signatureUrl)}" alt="" />` : ""}
+           <div class="sig-line"></div>
+           <div class="muted">Authorised signatory</div>
+           <div class="muted">for ${esc(companyName)}</div>
+         </div>
+         ${b.stampUrl ? `<div class="stamp"><img src="${esc(b.stampUrl)}" alt="" /></div>` : ""}
+       </div>`
+    : "";
   const rows = inv.items.map(i => `
     <tr>
       <td>${esc(i.description)}</td>
@@ -50,13 +81,34 @@ export function printInvoice(inv: InvoiceDetailDto, company?: string) {
     .totals .grand { border-top: 2px solid #1a1a1a; margin-top: 6px; padding-top: 10px; font-size: 17px; font-weight: 800; }
     .notes { margin-top: 28px; font-size: 12px; color: #555; border-top: 1px solid #eee; padding-top: 12px; }
     .toolbar { text-align: center; margin-bottom: 20px; }
-    @media print { .toolbar { display: none; } body { padding: 0; } @page { margin: 16mm; } }
+    .issuer { display: flex; gap: 14px; align-items: flex-start; }
+    .logo { max-height: 56px; max-width: 180px; object-fit: contain; }
+    .issuer-line { font-size: 11px; color: #666; line-height: 1.5; }
+    .signoff { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 48px; gap: 32px; }
+    .sig { width: 240px; }
+    .sig img { max-height: 64px; max-width: 220px; object-fit: contain; display: block; margin-bottom: 4px; }
+    .sig-line { border-top: 1px solid #1a1a1a; margin-bottom: 6px; }
+    .stamp img { max-height: 110px; max-width: 160px; object-fit: contain; opacity: .9; }
+    /* The sign-off must not be split across a page break — half a signature reads as a forgery. */
+    @media print {
+      .toolbar { display: none; }
+      body { padding: 0; }
+      @page { margin: 16mm; }
+      .signoff { break-inside: avoid; page-break-inside: avoid; }
+    }
   </style></head><body>
     <div class="toolbar">
       <button onclick="window.print()" style="padding:9px 22px;font-size:14px;cursor:pointer;border-radius:6px;border:none;background:#2563eb;color:#fff;font-weight:600">Print / Save as PDF</button>
     </div>
     <div class="head">
-      <div><div class="company">${esc(companyName)}</div><div class="muted">Tax Invoice</div></div>
+      <div class="issuer">
+        ${b.logoUrl ? `<img class="logo" src="${esc(b.logoUrl)}" alt="" />` : ""}
+        <div>
+          <div class="company">${esc(companyName)}</div>
+          <div class="muted">Tax Invoice</div>
+          ${issuerLines}
+        </div>
+      </div>
       <div class="title">
         <h1>INVOICE</h1>
         <div class="muted">${esc(inv.invoiceNumber)}</div>
@@ -85,6 +137,7 @@ export function printInvoice(inv: InvoiceDetailDto, company?: string) {
       <div class="row grand"><span>Total</span><span>${esc(formatCurrency(inv.total, CUR))}</span></div>
     </div>
     ${inv.notes ? `<div class="notes"><strong>Notes:</strong> ${esc(inv.notes)}</div>` : ""}
+    ${signOff}
   </body></html>`);
   win.document.close();
 }
