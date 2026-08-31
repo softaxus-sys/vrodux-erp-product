@@ -13,6 +13,7 @@ import type { UnitDto as Unit, UnitStatus } from "@/lib/real-estate/re.api";
 import { useUnits, useUnitSummary, useProperties } from "@/hooks/real-estate/use-re";
 import { UnitsDrawer } from "./units-drawer";
 import { AddUnitForm } from "./add-unit-form";
+import { Pager } from "@/components/ui/pager";
 
 const STATUS_FILTERS: { label: string; value: string }[] = [
   { label: "All", value: "all" },
@@ -54,6 +55,8 @@ function isExpiringSoon(date: string | null): boolean {
   return diff > 0 && diff < 60 * 24 * 60 * 60 * 1000;
 }
 
+const PAGE_SIZE = 30;
+
 export function UnitsView() {
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
@@ -75,9 +78,35 @@ export function UnitsView() {
   const [selected, setSelected] = React.useState<Unit | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const { data: units = [] } = useUnits();
+  const [page, setPage] = React.useState(1);
+
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // Every filter now narrows in SQL. Filtering in the browser cannot survive paging: it would
+  // filter within one page and under-report.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, propertyFilter]);
+
+  const { data: paged, isFetching } = useUnits({
+    search: debouncedSearch || undefined,
+    status: statusFilter,
+    propertyId: propertyFilter === "all" ? undefined : propertyFilter,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const units      = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
+
   const { data: unitSummary } = useUnitSummary();
-  const { data: properties = [] } = useProperties();
+  // The property dropdown lists every property; a portfolio big enough to need paging here needs
+  // a searchable picker, which is a separate change. Bounded at the server maximum for now.
+  const { data: propertyPage } = useProperties({ pageSize: 200 });
+  const properties = propertyPage?.items ?? [];
 
   const STAT_CARDS = [
     {
@@ -117,20 +146,6 @@ export function UnitsView() {
       color: "text-success bg-success/10",
     },
   ];
-
-  const filtered = React.useMemo(() => {
-    return units.filter((u) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !search ||
-        u.unitNumber.toLowerCase().includes(q) ||
-        u.propertyName.toLowerCase().includes(q) ||
-        (u.tenantName ?? "").toLowerCase().includes(q);
-      const matchStatus = statusFilter === "all" || u.status === statusFilter;
-      const matchProp = propertyFilter === "all" || u.propertyId === propertyFilter;
-      return matchSearch && matchStatus && matchProp;
-    });
-  }, [search, statusFilter, propertyFilter, units]);
 
   const handleView = (u: Unit) => {
     setSelected(u);
@@ -258,14 +273,14 @@ export function UnitsView() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {totalCount === 0 ? (
                 <tr>
                   <td colSpan={10} className="text-center py-16 text-muted-foreground text-sm">
                     No units found.
                   </td>
                 </tr>
               ) : (
-                filtered.map((unit, i) => (
+                units.map((unit, i) => (
                   <motion.tr
                     key={unit.id}
                     initial={{ opacity: 0, y: 4 }}
@@ -341,11 +356,11 @@ export function UnitsView() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          <span>
-            Showing {filtered.length} of {units.length} units
-          </span>
-        </div>
+        {totalCount > 0 && (
+          <div className="border-t border-border">
+            <Pager page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} busy={isFetching} onPage={setPage} />
+          </div>
+        )}
       </div>
 
       <UnitsDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} unit={selected} />

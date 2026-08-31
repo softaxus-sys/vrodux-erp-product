@@ -100,6 +100,8 @@ function BrokerDrawer({ broker, open, onClose }: { broker: Broker | null; open: 
   );
 }
 
+const PAGE_SIZE = 30;
+
 export function BrokersView() {
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
@@ -108,7 +110,28 @@ export function BrokersView() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const { data: brokers = [] } = useBrokers();
+  const [page, setPage] = React.useState(1);
+
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // Both filters now narrow in SQL. Filtering in the browser cannot survive paging: it would
+  // filter within one page and under-report.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+  const { data: paged, isFetching } = useBrokers({
+    search: debouncedSearch || undefined,
+    status: statusFilter,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const brokers    = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
   const { data: brokerSummary } = useBrokerSummary();
 
   const filtered = React.useMemo(() => {
@@ -177,10 +200,10 @@ export function BrokersView() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {totalCount === 0 ? (
               <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">No brokers found.</td></tr>
-            ) : filtered.map((b, i) => {
-              const sc = STATUS_CONFIG[b.status];
+            ) : brokers.map((b, i) => {
+              const sc = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.inactive;
               return (
                 <motion.tr key={b.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
                   onClick={() => { setSelected(b); setDrawerOpen(true); }}

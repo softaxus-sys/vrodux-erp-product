@@ -34,9 +34,12 @@ export function AddContractForm({ open, onClose }: AddContractFormProps) {
   const currency = useCurrency();
   const create   = useCreateContract();
 
-  const { data: properties = [] } = useProperties();
-  const { data: units = [] }      = useUnits();
-  const { data: tenants = [] }    = useTenants();
+  // Dropdown feeds. Bounded at the server maximum rather than fetching the whole portfolio;
+  // a tenant with more than this needs a searchable picker, which is a separate change.
+  const { data: propertyPage } = useProperties({ pageSize: 200 });
+  const { data: tenantPage }   = useTenants({ pageSize: 200 });
+  const properties = propertyPage?.items ?? [];
+  const tenants    = tenantPage?.items ?? [];
 
   const [propertyId, setPropertyId] = React.useState("");
   const [unitId, setUnitId]         = React.useState("");
@@ -56,9 +59,13 @@ export function AddContractForm({ open, onClose }: AddContractFormProps) {
 
   // Only vacant units of the chosen property can be let. Offering an occupied one just produces a
   // 409 from the server's active-lease guard after the user has filled the whole form in.
+  // Both narrowings now happen in SQL, so this fetches only the chosen property's units rather
+  // than every unit in the portfolio.
+  const { data: unitPage } = useUnits({ propertyId: propertyId || undefined, pageSize: 200 });
+  const units = React.useMemo(() => unitPage?.items ?? [], [unitPage]);
   const availableUnits = React.useMemo(
-    () => units.filter(u => u.propertyId === propertyId && (u.status === "vacant" || u.status === "reserved")),
-    [units, propertyId]);
+    () => units.filter(u => u.status === "vacant" || u.status === "reserved"),
+    [units]);
 
   React.useEffect(() => { setUnitId(""); }, [propertyId]);
 

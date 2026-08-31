@@ -12,6 +12,9 @@ import type { PropertyDto as Property, PropertyType, PropertyStatus } from "@/li
 import { useProperties, usePropertySummary } from "@/hooks/real-estate/use-re";
 import { PropertiesDrawer } from "./properties-drawer";
 import { AddPropertyForm } from "./add-property-form";
+import { Pager } from "@/components/ui/pager";
+
+const PAGE_SIZE = 30;
 
 const TYPE_FILTERS: { label: string; value: string }[] = [
   { label: "All", value: "all" },
@@ -65,7 +68,29 @@ export function PropertiesView() {
   const [showAddForm, setShowAddForm] = React.useState(false);
   const [editing, setEditing] = React.useState<Property | null>(null);
 
-  const { data: properties = [] } = useProperties();
+  const [page, setPage] = React.useState(1);
+
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // Both filters now narrow in SQL. Filtering in the browser cannot survive paging: it would
+  // filter within one page and under-report.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter]);
+
+  const { data: paged, isFetching } = useProperties({
+    search: debouncedSearch || undefined,
+    propertyType: typeFilter,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const properties = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
+
   const { data: propertySummary } = usePropertySummary();
 
   const STAT_CARDS = [
@@ -113,20 +138,6 @@ export function PropertiesView() {
       color: "text-success bg-success/10",
     },
   ];
-
-  const filtered = React.useMemo(() => {
-    return properties.filter((p) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !search ||
-        p.name.toLowerCase().includes(q) ||
-        p.propertyNumber.toLowerCase().includes(q) ||
-        (p.location?.city ?? "").toLowerCase().includes(q) ||
-        (p.developer ?? "").toLowerCase().includes(q);
-      const matchType = typeFilter === "all" || p.propertyType === typeFilter;
-      return matchSearch && matchType;
-    });
-  }, [search, typeFilter, properties]);
 
   const handleView = (p: Property) => {
     setSelected(p);
@@ -237,14 +248,14 @@ export function PropertiesView() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {totalCount === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-16 text-muted-foreground text-sm">
                     No properties found.
                   </td>
                 </tr>
               ) : (
-                filtered.map((prop, i) => (
+                properties.map((prop, i) => (
                   <motion.tr
                     key={prop.id}
                     initial={{ opacity: 0, y: 4 }}
@@ -329,11 +340,11 @@ export function PropertiesView() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          <span>
-            Showing {filtered.length} of {properties.length} properties
-          </span>
-        </div>
+        {totalCount > 0 && (
+          <div className="border-t border-border">
+            <Pager page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} busy={isFetching} onPage={setPage} />
+          </div>
+        )}
       </div>
 
       <PropertiesDrawer

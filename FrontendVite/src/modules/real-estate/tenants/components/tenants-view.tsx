@@ -11,6 +11,7 @@ import { cn, formatCurrency, getInitials } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { TenantDto as Tenant, TenantStatus } from "@/lib/real-estate/re.api";
 import { useTenants, useTenantSummary, useUnits } from "@/hooks/real-estate/use-re";
+import { Pager } from "@/components/ui/pager";
 import { TenantsDrawer } from "./tenants-drawer";
 import { AddTenantForm } from "./add-tenant-form";
 
@@ -46,6 +47,8 @@ const PAYMENT_BADGE: Record<string, string> = {
   poor: "text-destructive bg-destructive/10",
 };
 
+const PAGE_SIZE = 30;
+
 export function TenantsView() {
   const currency = useCurrency();
   const [search, setSearch] = React.useState("");
@@ -55,9 +58,34 @@ export function TenantsView() {
   const [selected, setSelected] = React.useState<Tenant | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const { data: tenants = [] } = useTenants();
+  const [page, setPage] = React.useState(1);
+
+  // Typing now hits the server, so the request waits until they stop.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(id);
+  }, [search]);
+
+  // Every filter now narrows in SQL. Filtering in the browser cannot survive paging: it would
+  // filter within one page and under-report.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, typeFilter]);
+
+  const { data: paged, isFetching } = useTenants({
+    search: debouncedSearch || undefined,
+    status: statusFilter,
+    tenantType: typeFilter,
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const tenants    = paged?.items ?? [];
+  const totalCount = paged?.totalCount ?? 0;
+  const totalPages = paged?.totalPages ?? 1;
   const { data: tenantSummary } = useTenantSummary();
-  const { data: units = [] } = useUnits();
+  // The drawer looks a tenant's units up from this list. Bounded at the server maximum; scoping
+  // it to the selected tenant needs a tenantId filter on the units endpoint, which is a separate change.
+  const { data: unitPage } = useUnits({ pageSize: 200 });
+  const units = unitPage?.items ?? [];
 
   const avgPaymentScore = React.useMemo(() => {
     if (tenants.length === 0) return 0;
@@ -108,21 +136,6 @@ export function TenantsView() {
       color: "text-warning bg-warning/10",
     },
   ];
-
-  const filtered = React.useMemo(() => {
-    return tenants.filter((t) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !search ||
-        t.name.toLowerCase().includes(q) ||
-        t.tenantCode.toLowerCase().includes(q) ||
-        t.email.toLowerCase().includes(q) ||
-        t.contactPerson.toLowerCase().includes(q);
-      const matchType = typeFilter === "all" || t.type === typeFilter;
-      const matchStatus = statusFilter === "all" || t.status === statusFilter;
-      return matchSearch && matchType && matchStatus;
-    });
-  }, [search, typeFilter, statusFilter, tenants]);
 
   const handleView = (t: Tenant) => {
     setSelected(t);
@@ -247,14 +260,14 @@ export function TenantsView() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {totalCount === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-16 text-muted-foreground text-sm">
                     No tenants found.
                   </td>
                 </tr>
               ) : (
-                filtered.map((tenant, i) => (
+                tenants.map((tenant, i) => (
                   <motion.tr
                     key={tenant.id}
                     initial={{ opacity: 0, y: 4 }}
@@ -334,11 +347,11 @@ export function TenantsView() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border text-xs text-muted-foreground">
-          <span>
-            Showing {filtered.length} of {tenants.length} tenants
-          </span>
-        </div>
+        {totalCount > 0 && (
+          <div className="border-t border-border">
+            <Pager page={page} totalPages={totalPages} totalCount={totalCount} pageSize={PAGE_SIZE} busy={isFetching} onPage={setPage} />
+          </div>
+        )}
       </div>
 
       <TenantsDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} tenant={selected} units={units} />

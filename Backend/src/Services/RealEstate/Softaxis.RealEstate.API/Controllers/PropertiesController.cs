@@ -21,9 +21,15 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
 
     [HttpGet]
     [RequirePermission("real-estate.properties.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? propertyType = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetPropertiesQuery(), ct);
+        var result = await sender.Send(new GetPropertiesQuery(search, status, propertyType, page, pageSize), ct);
         return OkOrError(result);
     }
 

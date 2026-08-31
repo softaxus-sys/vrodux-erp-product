@@ -38,8 +38,12 @@ export function SalesPipelineView() {
   const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("visits");
   const { data: summary } = useReSalesSummary();
-  const { data: properties = [] } = useQuery({ queryKey: ["re-properties"], queryFn: reApi.getProperties });
-  const { data: units = [] } = useQuery({ queryKey: ["re-units"], queryFn: reApi.getUnits });
+  // Dropdown feeds for the three tabs' forms. Bounded at the server maximum rather than fetching
+  // the whole portfolio; a tenant with more than this needs a searchable picker.
+  const { data: propertyPage } = useQuery({ queryKey: ["re-properties", 200], queryFn: () => reApi.getProperties({ pageSize: 200 }) });
+  const { data: unitPage }     = useQuery({ queryKey: ["re-units", 200],      queryFn: () => reApi.getUnits({ pageSize: 200 }) });
+  const properties = propertyPage?.items ?? [];
+  const units      = unitPage?.items ?? [];
 
   const propName = (id: string) => properties.find((p: { id: string }) => p.id === id)?.name ?? "—";
   const unitsForProp = (pid: string) => units.filter((u: { propertyId?: string }) => !pid || u.propertyId === pid);

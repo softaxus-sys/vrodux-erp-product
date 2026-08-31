@@ -411,21 +411,61 @@ export interface UpsertPropertyInput {
   description?: string | null;
 }
 
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+/** Server-side paging + search shared by the property, unit, tenant and broker lists. */
+export interface RePageParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+}
+
 export const reApi = {
-  getProperties:       (): Promise<PropertyDto[]>          => rawApiClient.get(`${BASE}/properties`),
+  getProperties: (p: RePageParams & { propertyType?: string } = {}): Promise<PagedResult<PropertyDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    if (p.status && p.status !== "all") qs.set("status", p.status);
+    if (p.propertyType && p.propertyType !== "all") qs.set("propertyType", p.propertyType);
+    return rawApiClient.get(`${BASE}/properties?${qs}`);
+  },
   getPropertySummary:  (): Promise<RePropertySummaryDto>   => rawApiClient.get(`${BASE}/properties/summary`),
   createProperty:      (data: UpsertPropertyInput)         => rawApiClient.post(`${BASE}/properties`, data),
   updateProperty:      (id: string, data: UpsertPropertyInput) => rawApiClient.put(`${BASE}/properties/${id}`, data),
   deleteProperty:      (id: string)                        => rawApiClient.delete(`${BASE}/properties/${id}`),
 
-  getUnits:            (): Promise<UnitDto[]>              => rawApiClient.get(`${BASE}/units`),
+  getUnits: (p: RePageParams & { propertyId?: string } = {}): Promise<PagedResult<UnitDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    if (p.status && p.status !== "all") qs.set("status", p.status);
+    if ((p as { propertyId?: string }).propertyId) qs.set("propertyId", (p as { propertyId?: string }).propertyId!);
+    return rawApiClient.get(`${BASE}/units?${qs}`);
+  },
   getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient.get(`${BASE}/units/summary`),
   createUnit:          (data: UpsertUnitRequest): Promise<UnitDto> => rawApiClient.post(`${BASE}/units`, data),
   updateUnit:          (id: string, data: UpsertUnitRequest): Promise<void> =>
     rawApiClient.put(`${BASE}/units/${id}`, data),
   deleteUnit:          (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/units/${id}`),
 
-  getTenants:          (): Promise<TenantDto[]>            => rawApiClient.get(`${BASE}/tenants`),
+  getTenants: (p: RePageParams & { tenantType?: string } = {}): Promise<PagedResult<TenantDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    if (p.status && p.status !== "all") qs.set("status", p.status);
+    if (p.tenantType && p.tenantType !== "all") qs.set("tenantType", p.tenantType);
+    return rawApiClient.get(`${BASE}/tenants?${qs}`);
+  },
   getTenantSummary:    (): Promise<ReTenantSummaryDto>     => rawApiClient.get(`${BASE}/tenants/summary`),
   // Typed deliberately. This was `Record<string, unknown>`, which is why the form could send
   // fullName/emiratesId/company — names the API has no counterpart for — and nothing caught it
@@ -434,7 +474,14 @@ export const reApi = {
     rawApiClient.post(`${BASE}/tenants`, data),
   deleteTenant:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/tenants/${id}`),
 
-  getBrokers:          (): Promise<BrokerDto[]>            => rawApiClient.get(`${BASE}/brokers`),
+  getBrokers: (p: RePageParams = {}): Promise<PagedResult<BrokerDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    if (p.status && p.status !== "all") qs.set("status", p.status);
+    return rawApiClient.get(`${BASE}/brokers?${qs}`);
+  },
   getBrokerSummary:    (): Promise<ReBrokerSummaryDto>     => rawApiClient.get(`${BASE}/brokers/summary`),
   createBroker:        (data: Record<string, unknown>): Promise<BrokerDto> => rawApiClient.post(`${BASE}/brokers`, data),
   deleteBroker:        (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/brokers/${id}`),

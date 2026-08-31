@@ -20,9 +20,14 @@ public sealed class BrokersController(ISender sender) : RealEstateControllerBase
 
     [HttpGet]
     [RequirePermission("real-estate.brokers.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetBrokersQuery(), ct);
+        var result = await sender.Send(new GetBrokersQuery(search, status, page, pageSize), ct);
         return OkOrError(result);
     }
 }

@@ -21,9 +21,15 @@ public sealed class TenantsController(ISender sender) : RealEstateControllerBase
 
     [HttpGet]
     [RequirePermission("real-estate.tenants.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? tenantType = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetTenantsQuery(), ct);
+        var result = await sender.Send(new GetTenantsQuery(search, status, tenantType, page, pageSize), ct);
         return OkOrError(result);
     }
 

@@ -21,9 +21,15 @@ public sealed class UnitsController(ISender sender) : RealEstateControllerBase
 
     [HttpGet]
     [RequirePermission("real-estate.units.view")]
-    public async Task<IActionResult> GetAll([FromQuery] Guid? propertyId, CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] Guid? propertyId = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetUnitsQuery(propertyId), ct);
+        var result = await sender.Send(new GetUnitsQuery(propertyId, search, status, page, pageSize), ct);
         return OkOrError(result);
     }
 

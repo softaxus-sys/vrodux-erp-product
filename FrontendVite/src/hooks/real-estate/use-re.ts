@@ -9,11 +9,20 @@ import {
   type UpdateContractRequest,
   type ContractStatus,
   type RentAlertSettingsDto,
+  type RePageParams,
 } from "@/lib/real-estate/re.api";
 
 const QK = "real-estate";
 
-export function useProperties()      { return useQuery({ queryKey: [QK, "properties"],        queryFn: reApi.getProperties,      staleTime: 60_000 }); }
+export function useProperties(params: RePageParams & { propertyType?: string } = {}) {
+  return useQuery({
+    queryKey: [QK, "properties", params],
+    queryFn:  () => reApi.getProperties(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
 export function usePropertySummary() { return useQuery({ queryKey: [QK, "property-summary"],  queryFn: reApi.getPropertySummary,  staleTime: 60_000 }); }
 
 // ── Property mutations ──────────────────────────────────────────────────────
@@ -37,21 +46,45 @@ export function useDeleteProperty() {
   return useMutation({ mutationFn: (id: string) => reApi.deleteProperty(id), onSuccess: invalidate });
 }
 
-export function useUnits()           { return useQuery({ queryKey: [QK, "units"],              queryFn: reApi.getUnits,            staleTime: 60_000 }); }
+export function useUnits(params: RePageParams & { propertyId?: string } = {}) {
+  return useQuery({
+    queryKey: [QK, "units", params],
+    queryFn:  () => reApi.getUnits(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
 export function useUnitSummary()     { return useQuery({ queryKey: [QK, "unit-summary"],       queryFn: reApi.getUnitSummary,      staleTime: 60_000 }); }
 export function useCreateUnit() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (d: UpsertUnitRequest) => reApi.createUnit(d), onSuccess: () => { qc.invalidateQueries({ queryKey: [QK, "units"] }); qc.invalidateQueries({ queryKey: [QK, "unit-summary"] }); toast.success("Unit saved."); }, onError: (e: Error) => toast.error(e.message) });
 }
 
-export function useTenants()         { return useQuery({ queryKey: [QK, "tenants"],            queryFn: reApi.getTenants,          staleTime: 60_000 }); }
+export function useTenants(params: RePageParams & { tenantType?: string } = {}) {
+  return useQuery({
+    queryKey: [QK, "tenants", params],
+    queryFn:  () => reApi.getTenants(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
 export function useTenantSummary()   { return useQuery({ queryKey: [QK, "tenant-summary"],     queryFn: reApi.getTenantSummary,    staleTime: 60_000 }); }
 export function useCreateTenant() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (d: CreateTenantRequest) => reApi.createTenant(d), onSuccess: () => { qc.invalidateQueries({ queryKey: [QK, "tenants"] }); qc.invalidateQueries({ queryKey: [QK, "tenant-summary"] }); toast.success("Tenant saved."); }, onError: (e: Error) => toast.error(e.message) });
 }
 
-export function useBrokers()         { return useQuery({ queryKey: [QK, "brokers"],            queryFn: reApi.getBrokers,          staleTime: 60_000 }); }
+export function useBrokers(params: RePageParams = {}) {
+  return useQuery({
+    queryKey: [QK, "brokers", params],
+    queryFn:  () => reApi.getBrokers(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
 export function useBrokerSummary()   { return useQuery({ queryKey: [QK, "broker-summary"],     queryFn: reApi.getBrokerSummary,    staleTime: 60_000 }); }
 export function useCreateBroker() {
   const qc = useQueryClient();

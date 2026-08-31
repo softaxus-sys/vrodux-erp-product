@@ -18,7 +18,9 @@ export function AddUnitForm({ open, onClose }: AddUnitFormProps) {
   const createUnit = useCreateUnit();
   // Was a hardcoded list of five invented buildings, and it submitted the NAME as a string —
   // the API needs the property id, so nothing could ever have been saved against a real property.
-  const { data: properties = [] } = useProperties();
+  // Dropdown feed. Bounded at the server maximum rather than fetching the whole portfolio.
+  const { data: propertyPage } = useProperties({ pageSize: 200 });
+  const properties = propertyPage?.items ?? [];
   const [property, setProperty]       = React.useState("");
   const [unitNo, setUnitNo]           = React.useState("");
   const [floor, setFloor]             = React.useState("");
