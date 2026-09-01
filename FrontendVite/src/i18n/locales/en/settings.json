@@ -516,6 +516,8 @@
     "toastSaved": "Settings saved successfully.",
     "toastSaveFailed": "Failed to save settings. Please check your connection and try again.",
     "toastCached": "Loaded from local cache — backend unreachable.",
+    "toastCurrencyNotPersisted": "Settings saved, but the operating currency could not be applied tenant-wide. It may revert on your next sign-in.",
+    "toastCurrencyNeedsRelogin": "Currency saved. Sign out and back in so new records are recorded in {{code}}.",
     "company": {
       "title": "Company Profile",
       "description": "Legal name, industry, and contact details",
