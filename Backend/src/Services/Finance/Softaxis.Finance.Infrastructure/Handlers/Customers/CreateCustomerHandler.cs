@@ -36,6 +36,6 @@ internal sealed class CreateCustomerHandler(FinanceDbContext db)
         return Result.Success(new CustomerDto(
             customer.Id, customer.Code, customer.Name, customer.Email, customer.Phone, customer.Address,
             customer.AccountId, account?.AccountNumber, account?.Name,
-            customer.IsActive, customer.CreatedAt, customer.UpdatedAt));
+            customer.CcEmails, customer.IsActive, customer.CreatedAt, customer.UpdatedAt));
     }
 }

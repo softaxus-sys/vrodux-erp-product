@@ -19,7 +19,7 @@ internal sealed class GetCustomerByIdHandler(FinanceDbContext db)
             .Select(x => new
             {
                 x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address, x.AccountId,
-                x.IsActive, x.CreatedAt, x.UpdatedAt
+                x.CcEmails, x.IsActive, x.CreatedAt, x.UpdatedAt
             })
             .FirstOrDefaultAsync(ct);
 
@@ -36,6 +36,6 @@ internal sealed class GetCustomerByIdHandler(FinanceDbContext db)
         return Result.Success(new CustomerDto(
             customer.Id, customer.Code, customer.Name, customer.Email, customer.Phone, customer.Address,
             customer.AccountId, account?.AccountNumber, account?.Name,
-            customer.IsActive, customer.CreatedAt, customer.UpdatedAt));
+            customer.CcEmails, customer.IsActive, customer.CreatedAt, customer.UpdatedAt));
     }
 }

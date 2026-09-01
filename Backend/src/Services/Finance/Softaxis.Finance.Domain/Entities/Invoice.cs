@@ -12,7 +12,8 @@ public sealed class Invoice
         string  invoiceDate,
         string  dueDate,
         decimal taxRate,
-        string? notes)
+        string? notes,
+        string? ccEmails = null)
     {
         Id             = Guid.NewGuid();
         InvoiceNumber  = $"INV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
@@ -23,6 +24,7 @@ public sealed class Invoice
         TaxRate        = taxRate;
         Status         = "draft";  // draft | sent | partially_paid | paid | overdue | cancelled
         Notes          = notes?.Trim();
+        CcEmails       = NormaliseCc(ccEmails);
         CreatedAt      = DateTime.UtcNow;
     }
 
@@ -54,6 +56,26 @@ public sealed class Invoice
     public string?   EmailSentTo  { get; private set; }
     public string?   EmailCc      { get; private set; }
 
+    /// <summary>
+    /// The customer's own people to copy — their accounts inbox, whoever actually pays. Set on
+    /// the invoice because invoices carry a free-text customer, not always a linked record.
+    /// Distinct from <c>EmailCc</c>, which records who was <i>actually</i> copied on a send.
+    /// </summary>
+    public string?   CcEmails     { get; private set; }
+
+    public IReadOnlyList<string> CcList =>
+        (CcEmails ?? string.Empty)
+            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    /// <summary>Accepts commas and semicolons because people paste from both.</summary>
+    private static string? NormaliseCc(string? raw) =>
+        string.IsNullOrWhiteSpace(raw) ? null : string.Join(", ",
+            raw.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+               .Select(x => x.ToLowerInvariant())
+               .Distinct(StringComparer.OrdinalIgnoreCase));
+
     public Guid?     JournalEntryId { get; private set; }
     public Guid?     PaymentJournalEntryId { get; private set; }
 
@@ -64,7 +86,7 @@ public sealed class Invoice
     public decimal Total     => SubTotal + TaxAmount;
     public decimal AmountDue => Total - AmountPaid;
 
-    public void Update(string customerName, string? customerEmail, string invoiceDate, string dueDate, decimal taxRate, string? notes, string status)
+    public void Update(string customerName, string? customerEmail, string invoiceDate, string dueDate, decimal taxRate, string? notes, string status, string? ccEmails = null)
     {
         CustomerName  = customerName.Trim();
         CustomerEmail = customerEmail?.Trim().ToLowerInvariant();
@@ -72,6 +94,7 @@ public sealed class Invoice
         DueDate       = dueDate;
         TaxRate       = taxRate;
         Notes         = notes?.Trim();
+        CcEmails      = NormaliseCc(ccEmails);
         Status        = status;
         if (status == "paid") PaidAt = DateTime.UtcNow;
         UpdatedAt     = DateTime.UtcNow;

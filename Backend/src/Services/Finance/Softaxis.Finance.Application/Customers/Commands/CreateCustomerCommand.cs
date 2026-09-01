@@ -11,6 +11,8 @@ public sealed record CreateCustomerCommand(
     string? Phone     = null,
     string? Address   = null,
     Guid?   AccountId = null,
+    /// <summary>Their people to copy on invoices and receipts. Comma or semicolon separated.</summary>
+    string? CcEmails  = null,
     bool    IsActive  = true
 ) : ICommand<CustomerDto>;
 
@@ -26,6 +28,9 @@ public sealed class CreateCustomerValidator : AbstractValidator<CreateCustomerCo
             .EmailAddress().WithMessage("Email must be a valid email address.")
             .MaximumLength(200)
             .When(x => !string.IsNullOrWhiteSpace(x.Email));
+
+        RuleFor(x => x.CcEmails)
+            .MaximumLength(2000).WithMessage("CC list must be ≤ 2000 characters.");
 
         RuleFor(x => x.Phone)
             .MaximumLength(30).WithMessage("Phone must be ≤ 30 characters.")

@@ -59,6 +59,7 @@ function EditInvoice({
 
   const [customerName,  setCustomerName]  = React.useState(invoice.customerName);
   const [customerEmail, setCustomerEmail] = React.useState(invoice.customerEmail ?? "");
+  const [ccEmails, setCcEmails] = React.useState(invoice.ccEmails ?? "");
   const [invoiceDate,   setInvoiceDate]   = React.useState(invoice.invoiceDate);
   const [dueDate,       setDueDate]       = React.useState(invoice.dueDate);
   const [taxRate,       setTaxRate]       = React.useState(invoice.taxRate);
@@ -102,6 +103,7 @@ function EditInvoice({
         data: {
           customerName:  customerName.trim(),
           customerEmail: customerEmail.trim() || undefined,
+          ccEmails:      ccEmails.trim() || undefined,
           invoiceDate,
           dueDate,
           taxRate,
@@ -157,6 +159,12 @@ function EditInvoice({
             <Label>{t("invoicing.drawer.form.customerEmail")}</Label>
             <Input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
               placeholder={t("invoicing.drawer.form.customerEmailPh")} />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
+            <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
+              placeholder={t("invoicing.drawer.form.ccEmailsPh")} />
+            <p className="text-xs text-muted-foreground">{t("invoicing.drawer.form.ccEmailsHint")}</p>
           </div>
           <div className="space-y-1.5">
             <Label>{t("invoicing.drawer.form.invoiceDate")}</Label>
@@ -490,6 +498,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
 
   const [customerName,  setCustomerName]  = React.useState("");
   const [customerEmail, setCustomerEmail] = React.useState("");
+  const [ccEmails, setCcEmails] = React.useState("");
   const [invoiceDate,   setInvoiceDate]   = React.useState(new Date().toISOString().split("T")[0]);
   const [dueDate,       setDueDate]       = React.useState("");
   const [taxRate]                         = React.useState(5);
@@ -515,6 +524,7 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
       await createInvoice.mutateAsync({
         customerName:  customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
+        ccEmails:      ccEmails.trim() || undefined,
         invoiceDate,
         dueDate,
         taxRate,
@@ -553,6 +563,12 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
             <Label>{t("invoicing.drawer.form.customerEmail")}</Label>
             <Input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
               placeholder={t("invoicing.drawer.form.customerEmailPh")} />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
+            <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
+              placeholder={t("invoicing.drawer.form.ccEmailsPh")} />
+            <p className="text-xs text-muted-foreground">{t("invoicing.drawer.form.ccEmailsHint")}</p>
           </div>
           <div className="space-y-1.5">
             <Label>{t("invoicing.drawer.form.invoiceDate")}</Label>

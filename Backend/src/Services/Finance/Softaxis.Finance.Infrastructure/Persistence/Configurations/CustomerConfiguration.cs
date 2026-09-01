@@ -18,9 +18,13 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(x => x.Email).HasMaxLength(200);
         builder.Property(x => x.Phone).HasMaxLength(30);
         builder.Property(x => x.Address).HasMaxLength(500);
+        builder.Property(x => x.CcEmails).HasMaxLength(2000);
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
+
+        // Derived from CcEmails on read — not a column.
+        builder.Ignore(x => x.CcList);
 
         builder.HasQueryFilter(x => !x.IsDeleted);
 

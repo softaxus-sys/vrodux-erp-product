@@ -108,11 +108,16 @@ internal sealed class MarkInvoicePaidHandler(
         try
         {
             var branding = await RecurringInvoiceGenerator.ResolveBrandingAsync(db, ct);
+
+            // Copy the customer's own accounts contacts, not just ours — the same people who were
+            // chasing the invoice are the ones who need to see it settled.
+            var (cc, _) = await RecurringInvoiceGenerator.MergeCustomerCcAsync(
+                db, invoice.CustomerId, branding.CcList.Concat(invoice.CcList).ToList(), ct);
             var body = PaymentReceiptEmailTemplate.Build(
                 invoice, branding, amountReceived, receivedOn, method: null);
 
             var sent = await email.SendInvoiceAsync(
-                invoice.CustomerEmail!, invoice.CustomerName, branding.CcList,
+                invoice.CustomerEmail!, invoice.CustomerName, cc,
                 body.Subject, body.Html, body.InlineImages,
                 // The paid invoice travels with its receipt — the PDF renders a PAID mark,
                 // so the customer files one document showing both the charge and that it is settled.

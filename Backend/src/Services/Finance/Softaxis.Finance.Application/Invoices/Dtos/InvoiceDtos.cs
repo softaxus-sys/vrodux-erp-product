@@ -42,6 +42,7 @@ public sealed record InvoiceDto(
     decimal   Total,
     string    Status,
     string?   Notes,
+    string?   CcEmails,
     IReadOnlyList<InvoiceItemDto> Items,
     DateTime? PaidAt,
     DateTime  CreatedAt,

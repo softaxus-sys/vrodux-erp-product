@@ -164,20 +164,60 @@ public static class RecurringInvoiceGenerator
 
         branding ??= await ResolveBrandingAsync(db, ct);
 
+        // The customer's own people come along too — their accounts inbox is usually who actually
+        // pays, and copying only our side means the invoice lands with one person who forwards it.
+        var (allCc, allCcRaw) = await MergeCustomerCcAsync(
+            db, invoice.CustomerId, cc.Concat(invoice.CcList).ToList(), ct);
+
         var body = InvoiceEmailTemplate.Build(invoice, branding);
 
         // The PDF the customer files. Best-effort — see TryBuildAttachment.
         var attachments = InvoicePdfBuilder.TryBuildAttachment(invoice, branding);
 
         var sent = await email.SendInvoiceAsync(
-            invoice.CustomerEmail!, invoice.CustomerName, cc, body.Subject, body.Html,
+            invoice.CustomerEmail!, invoice.CustomerName, allCc, body.Subject, body.Html,
             body.InlineImages, attachments, ct);
 
         // Recorded only on a real send. Marking it "sent" after a failure would show delivered for
         // something nobody received — the one thing this must never claim.
-        if (sent) invoice.RecordEmailSent(invoice.CustomerEmail!, ccRaw);
+        if (sent) invoice.RecordEmailSent(invoice.CustomerEmail!, allCcRaw);
 
         return sent;
+    }
+
+    /// <summary>
+    /// Unions the workspace CC list (our side) with the customer's own standing CC list (their
+    /// side), de-duplicated case-insensitively so a shared address is not copied twice.
+    ///
+    /// <para>Resolved at send time from the customer record rather than snapshotted onto the
+    /// invoice, so correcting a customer's contacts fixes every future send. An invoice with no
+    /// linked customer (free-text name) simply gets no customer CC — matching by name would copy
+    /// the wrong company on a near-miss.</para>
+    /// </summary>
+    public static async Task<(IReadOnlyList<string> Cc, string? CcRaw)> MergeCustomerCcAsync(
+        FinanceDbContext db, Guid? customerId, IReadOnlyList<string> baseCc, CancellationToken ct)
+    {
+        // The raw string is always rebuilt from the final list, never passed through: it is what
+        // gets recorded as "who we copied", so it must match what actually went out.
+        var deduped = baseCc.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        string? Raw(IReadOnlyList<string> l) => l.Count == 0 ? null : string.Join(", ", l);
+
+        if (customerId is null) return (deduped, Raw(deduped));
+
+        var customerCc = await db.Customers.AsNoTracking()
+            .Where(c => c.Id == customerId && !c.IsDeleted)
+            .Select(c => c.CcEmails)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(customerCc)) return (deduped, Raw(deduped));
+
+        var merged = deduped
+            .Concat(customerCc.Split([',', ';'],
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return (merged, Raw(merged));
     }
 
     private sealed class SettingRow

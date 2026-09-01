@@ -42,6 +42,8 @@ export interface InvoiceDto {
   invoiceNumber: string;      // backend: invoiceNumber
   customerName: string;
   customerEmail: string;
+  /** Customer-side CC, as typed. Distinct from what was actually copied on a send. */
+  ccEmails?: string | null;
   invoiceDate: string;        // backend: invoiceDate  (was issueDate)
   dueDate: string;
   taxRate: number;
@@ -547,6 +549,8 @@ export interface InvoiceItemRequest {
 export interface CreateInvoiceRequest {
   customerName: string;
   customerEmail?: string | null;
+  /** The customer's own people to copy — their accounts inbox. Comma or semicolon separated. */
+  ccEmails?: string | null;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;
@@ -557,6 +561,7 @@ export interface CreateInvoiceRequest {
 export interface UpdateInvoiceRequest {
   customerName: string;
   customerEmail?: string | null;
+  ccEmails?: string | null;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;

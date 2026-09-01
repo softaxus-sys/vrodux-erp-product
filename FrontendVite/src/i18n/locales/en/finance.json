@@ -74,7 +74,10 @@
         "vatPct": "VAT ({{rate}}%)",
         "notes": "Notes",
         "notesPh": "Payment terms, special instructions...",
-        "atLeastOneItem": "Add at least one line item."
+        "atLeastOneItem": "Add at least one line item.",
+        "ccEmails": "CC (customer side)",
+        "ccEmailsPh": "accounts@client.com, ap@client.com",
+        "ccEmailsHint": "Copied on the invoice and the payment receipt. Separate several with commas."
       },
       "edit": {
         "title": "Edit Invoice",

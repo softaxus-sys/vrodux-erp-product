@@ -71,14 +71,15 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
 
     public sealed record UpdateInvoiceRequest(
         string CustomerName, string? CustomerEmail, string InvoiceDate, string DueDate,
-        decimal TaxRate, string? Notes, string Status, IReadOnlyList<InvoiceItemRequest> Items);
+        decimal TaxRate, string? Notes, string Status, IReadOnlyList<InvoiceItemRequest> Items,
+        string? CcEmails = null);
 
     [HttpPut("{id:guid}")]
     [RequirePermission("finance.invoicing.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateInvoiceRequest req, CancellationToken ct)
     {
         var result = await sender.Send(new UpdateInvoiceCommand(id, req.CustomerName, req.CustomerEmail,
-            req.InvoiceDate, req.DueDate, req.TaxRate, req.Notes, req.Status, req.Items), ct);
+            req.InvoiceDate, req.DueDate, req.TaxRate, req.Notes, req.Status, req.Items, req.CcEmails), ct);
         return NoContentOrError(result);
     }
 

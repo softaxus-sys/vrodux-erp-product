@@ -28,7 +28,7 @@ internal sealed class GetCustomersHandler(FinanceDbContext db)
             .Select(x => new
             {
                 x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address, x.AccountId,
-                x.IsActive, x.CreatedAt, x.UpdatedAt
+                x.CcEmails, x.IsActive, x.CreatedAt, x.UpdatedAt
             })
             .ToListAsync(ct);
 
@@ -44,7 +44,7 @@ internal sealed class GetCustomersHandler(FinanceDbContext db)
             return new CustomerDto(
                 x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address,
                 x.AccountId, account?.AccountNumber, account?.Name,
-                x.IsActive, x.CreatedAt, x.UpdatedAt);
+                x.CcEmails, x.IsActive, x.CreatedAt, x.UpdatedAt);
         }).ToList();
 
         return Result.Success<IReadOnlyList<CustomerDto>>(items);

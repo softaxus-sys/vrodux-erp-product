@@ -10,6 +10,7 @@ public sealed record CustomerDto(
     Guid?     AccountId,
     string?   AccountNumber,
     string?   AccountName,
+    string?   CcEmails,
     bool      IsActive,
     DateTime  CreatedAt,
     DateTime? UpdatedAt);

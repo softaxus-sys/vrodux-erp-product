@@ -135,8 +135,12 @@ internal sealed class PostReceiptVoucherHandler(
             var branding = await RecurringInvoiceGenerator.ResolveBrandingAsync(db, ct);
             var body = VoucherReceiptEmailTemplate.Build(voucher, branding, applied);
 
+            // Copy the customer's own accounts contacts alongside ours.
+            var (cc, _) = await RecurringInvoiceGenerator.MergeCustomerCcAsync(
+                db, voucher.CustomerId, branding.CcList, ct);
+
             var sent = await email.SendInvoiceAsync(
-                toEmail!, voucher.CustomerName, branding.CcList,
+                toEmail!, voucher.CustomerName, cc,
                 // No PDF attached here, deliberately: one voucher can settle several invoices, so
                 // there is no single document to send. The receipt itemises what it was applied to.
                 body.Subject, body.Html, body.InlineImages, null, ct);

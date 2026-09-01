@@ -11,6 +11,8 @@ public sealed record UpdateCustomerCommand(
     string? Phone     = null,
     string? Address   = null,
     Guid?   AccountId = null,
+    /// <summary>Their people to copy on invoices and receipts. Comma or semicolon separated.</summary>
+    string? CcEmails  = null,
     bool    IsActive  = true
 ) : ICommand;
 

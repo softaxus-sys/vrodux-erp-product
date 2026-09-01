@@ -12,7 +12,7 @@ internal sealed class CreateInvoiceHandler(FinanceDbContext db) : ICommandHandle
     public async Task<Result<InvoiceDto>> Handle(CreateInvoiceCommand cmd, CancellationToken ct)
     {
         var invoice = new Invoice(cmd.CustomerName, cmd.CustomerEmail,
-            cmd.InvoiceDate, cmd.DueDate, cmd.TaxRate, cmd.Notes);
+            cmd.InvoiceDate, cmd.DueDate, cmd.TaxRate, cmd.Notes, cmd.CcEmails);
 
         foreach (var item in cmd.Items)
             invoice.Items.Add(new InvoiceItem(invoice.Id, item.Description, item.Quantity, item.UnitPrice));
