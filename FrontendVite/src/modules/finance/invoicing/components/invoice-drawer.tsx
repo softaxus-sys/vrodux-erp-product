@@ -53,7 +53,10 @@ function EditInvoice({
   onCancel: () => void;
 }) {
   const { t } = useTranslation("finance");
-  const currency = useCurrency();
+  const tenantCurrency = useCurrency();
+  // This invoice own recorded currency, not the workspace current one — the emailed PDF renders the
+  // stored value, and a screen that disagrees with the document sent to the customer is a defect.
+  const currency = invoice.currencyCode?.trim() || tenantCurrency;
   const { data: detail, isLoading } = useInvoiceById(invoice.id);
   const updateInvoice = useUpdateInvoice();
 

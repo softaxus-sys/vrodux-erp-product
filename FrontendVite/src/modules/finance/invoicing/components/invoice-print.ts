@@ -19,7 +19,9 @@ export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBr
   // Falls back to the workspace name rather than the literal "Your Company" this used to default
   // to — which is what every printed invoice actually said.
   const companyName = b.name?.trim() || getTenantName() || "Invoice";
-  const CUR = getTenantCurrency();
+  // The invoice own recorded currency — the backend PDF and email render this, so the printed copy
+  // must too or one document says two different things. Older rows without it fall back.
+  const CUR = inv.currencyCode?.trim() || getTenantCurrency();
   const win = window.open("", "_blank", "width=900,height=1100");
   if (!win) { toast.error("Pop-up blocked — allow pop-ups to print the invoice."); return; }
 

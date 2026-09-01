@@ -50,6 +50,9 @@ export interface InvoiceDto {
   subTotal: number;           // backend: subTotal     (was subtotal)
   taxAmount: number;
   total: number;
+  /** The currency this invoice is RECORDED in — what the emailed PDF renders. May differ from the
+   *  tenant current operating currency for older invoices, so per-invoice display must use this. */
+  currencyCode?: string | null;
   status: InvoiceStatus;
   itemCount: number;          // backend: itemCount    (list returns count, not items array)
   paidAt?: string | null;     // backend: paidAt       (was paidDate)
@@ -92,6 +95,8 @@ export interface InvoiceDetailDto {
   subTotal: number;
   taxAmount: number;
   total: number;
+  /** The currency this invoice is RECORDED in — what the emailed PDF renders. */
+  currencyCode?: string | null;
   status: InvoiceStatus;
   notes?: string | null;
   items: InvoiceItemDto[];

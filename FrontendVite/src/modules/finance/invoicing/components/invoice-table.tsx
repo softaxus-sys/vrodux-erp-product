@@ -31,7 +31,9 @@ interface InvoiceTableProps {
 
 export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTableProps) {
   const { t } = useTranslation("finance");
-  const currency = useCurrency();
+  // Only the fallback: each row renders the currency that invoice was recorded in, so the list
+  // agrees with the invoice screen and with the PDF the customer receives.
+  const tenantCurrency = useCurrency();
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [sortField, setSortField] = React.useState<SortField>("invoiceDate");
@@ -169,7 +171,7 @@ export function InvoiceTable({ invoices, onView, onDelete, onSend }: InvoiceTabl
                       </span>
                     </td>
                     <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                      {formatCurrency(inv.total, currency)}
+                      {formatCurrency(inv.total, inv.currencyCode?.trim() || tenantCurrency)}
                     </td>
                     <td className="px-4 py-3">
                       <InvoiceStatusBadge status={inv.status} />

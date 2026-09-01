@@ -23,6 +23,9 @@ public sealed record InvoiceSummaryDto(
     decimal   SubTotal,
     decimal   TaxAmount,
     decimal   Total,
+    /// <summary>The currency this invoice is recorded in. The emailed PDF renders it, so the UI must
+    /// show the same one rather than the tenant current operating currency.</summary>
+    string    CurrencyCode,
     string    Status,
     int       ItemCount,
     DateTime? PaidAt,
@@ -40,6 +43,9 @@ public sealed record InvoiceDto(
     decimal   SubTotal,
     decimal   TaxAmount,
     decimal   Total,
+    /// <summary>The currency this invoice is recorded in. The emailed PDF renders it, so the UI must
+    /// show the same one rather than the tenant current operating currency.</summary>
+    string    CurrencyCode,
     string    Status,
     string?   Notes,
     string?   CcEmails,

@@ -77,8 +77,17 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
             if (!string.IsNullOrWhiteSpace(tenant.Industry))
                 claims.Add(new Claim("industry", tenant.Industry));
 
-            // Operating/display currency — drives formatCurrency across the app (USD default).
-            claims.Add(new Claim("currency", string.IsNullOrWhiteSpace(tenant.Currency) ? "USD" : tenant.Currency));
+            // Operating/display currency — drives formatCurrency across the app AND, because
+            // TenantAmbientMiddleware publishes this same claim into TenantAmbient, the CurrencyCode
+            // stamped on every new invoice, expense and voucher.
+            //
+            // Emitted ONLY when the tenant actually has one. This used to fall back to a hardcoded
+            // "USD", which contradicted TenantCurrency.Fallback (AED) on the receiving side: a tenant
+            // with no persisted currency saw its own country currency on screen while its records were
+            // silently written as USD, so the emailed invoice and the invoice screen disagreed.
+            // With no claim, each side applies its own documented fallback and neither invents USD.
+            if (!string.IsNullOrWhiteSpace(tenant.Currency))
+                claims.Add(new Claim("currency", tenant.Currency));
 
             // Country chosen at signup. Without this claim the frontend had no way to know the
             // tenant's country and fell back to a hardcoded "Pakistan", so a UAE tenant saw a

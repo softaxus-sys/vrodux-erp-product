@@ -33,7 +33,7 @@ internal sealed class GetInvoicesHandler(FinanceDbContext db) : IQueryHandler<Ge
                 x.Items.Sum(i => i.Quantity * i.UnitPrice),
                 x.Items.Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
                 x.Items.Sum(i => i.Quantity * i.UnitPrice) + x.Items.Sum(i => i.Quantity * i.UnitPrice) * x.TaxRate / 100,
-                x.Status, x.Items.Count, x.PaidAt, x.CreatedAt, x.UpdatedAt))
+                x.CurrencyCode, x.Status, x.Items.Count, x.PaidAt, x.CreatedAt, x.UpdatedAt))
             .ToListAsync(ct);
 
         return Result.Success(new PagedResult<InvoiceSummaryDto>(
