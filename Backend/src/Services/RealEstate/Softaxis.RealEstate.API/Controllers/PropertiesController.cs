@@ -41,6 +41,12 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
         return OkOrError(result);
     }
 
+    /// <summary>Bulk import from a spreadsheet. Gated on create — it creates properties.</summary>
+    [HttpPost("import")]
+    [RequirePermission("real-estate.properties.create")]
+    public async Task<IActionResult> Import([FromBody] ImportPropertiesCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
+
     [HttpPost]
     [RequirePermission("real-estate.properties.create")]
     public async Task<IActionResult> Create([FromBody] CreatePropertyCommand cmd, CancellationToken ct)

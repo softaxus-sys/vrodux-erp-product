@@ -37,6 +37,16 @@ export function useCreateProperty() {
   const invalidate = useInvalidateProperties();
   return useMutation({ mutationFn: (d: UpsertPropertyInput) => reApi.createProperty(d), onSuccess: invalidate });
 }
+/** Refreshes the property list; the summary counts change too. */
+export function useImportProperties() {
+  const invalidate = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (rows: Record<string, string>[]) => reApi.importProperties(rows),
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useUpdateProperty() {
   const invalidate = useInvalidateProperties();
   return useMutation({ mutationFn: (v: { id: string; data: UpsertPropertyInput }) => reApi.updateProperty(v.id, v.data), onSuccess: invalidate });
@@ -59,6 +69,22 @@ export function useUnitSummary()     { return useQuery({ queryKey: [QK, "unit-su
 export function useCreateUnit() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (d: UpsertUnitRequest) => reApi.createUnit(d), onSuccess: () => { qc.invalidateQueries({ queryKey: [QK, "units"] }); qc.invalidateQueries({ queryKey: [QK, "unit-summary"] }); toast.success("Unit saved."); }, onError: (e: Error) => toast.error(e.message) });
+}
+
+/** Imported units change their property unit counts and occupancy, so refresh properties too. */
+export function useImportUnits() {
+  const qc = useQueryClient();
+  const invalidateProperties = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (v: { rows: Record<string, string>[]; propertyId?: string }) =>
+      reApi.importUnits(v.rows, v.propertyId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "units"] });
+      qc.invalidateQueries({ queryKey: [QK, "unit-summary"] });
+      invalidateProperties();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 }
 
 export function useTenants(params: RePageParams & { tenantType?: string } = {}) {

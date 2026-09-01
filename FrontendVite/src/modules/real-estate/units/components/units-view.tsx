@@ -3,14 +3,17 @@ import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
   Search, Home, AlertTriangle, CheckCircle2,
-  Wrench, TrendingUp, DollarSign, Plus,
+  Wrench, TrendingUp, DollarSign, Plus, UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { UnitDto as Unit, UnitStatus } from "@/lib/real-estate/re.api";
-import { useUnits, useUnitSummary, useProperties } from "@/hooks/real-estate/use-re";
+import { useUnits, useUnitSummary, useProperties, useImportUnits } from "@/hooks/real-estate/use-re";
+import { Can } from "@/components/auth/can";
+import { SpreadsheetImportModal } from "@/components/ui/spreadsheet-import-modal";
+import { UNIT_IMPORT_FIELDS } from "./unit-import-fields";
 import { UnitsDrawer } from "./units-drawer";
 import { AddUnitForm } from "./add-unit-form";
 import { Pager } from "@/components/ui/pager";
@@ -77,6 +80,11 @@ export function UnitsView() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Unit | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [showImport, setShowImport]   = React.useState(false);
+  // When the page is filtered to one building, an import belongs to that building — the sheet then
+  // needs no Property column at all, which is how a per-building unit list usually arrives.
+  const scopedPropertyId = propertyFilter !== "all" ? propertyFilter : undefined;
+  const importUnits = useImportUnits();
 
   const [page, setPage] = React.useState(1);
 
@@ -162,9 +170,16 @@ export function UnitsView() {
             View and manage all units across the real estate portfolio.
           </p>
         </div>
-        <Button size="sm" className="gap-2 shrink-0" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" /> Add Unit
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Can permission="real-estate.units.create">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowImport(true)}>
+              <UploadCloud className="h-4 w-4" /> Import
+            </Button>
+          </Can>
+          <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" /> Add Unit
+          </Button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -364,6 +379,18 @@ export function UnitsView() {
       </div>
 
       <UnitsDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} unit={selected} />
+      <SpreadsheetImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import units"
+        description={scopedPropertyId
+          ? "One row per unit. Every row lands in the property you have filtered to, so a Property column is not needed."
+          : "One row per unit. Each row needs a Property column naming its building — or filter to a property first and every row lands there."}
+        fields={UNIT_IMPORT_FIELDS}
+        noun="units"
+        onImport={rows => importUnits.mutateAsync({ rows, propertyId: scopedPropertyId })}
+      />
+
       <AddUnitForm open={showAddForm} onClose={() => setShowAddForm(false)} />
     </div>
   );

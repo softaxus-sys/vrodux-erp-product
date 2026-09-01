@@ -1,5 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
+import type { ImportOutcome } from "@/components/ui/spreadsheet-import-modal";
+
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/real-estate`;
 const ALERTS = `${BASE}/rent-alerts`;
 
@@ -439,6 +441,9 @@ export const reApi = {
   },
   getPropertySummary:  (): Promise<RePropertySummaryDto>   => rawApiClient.get(`${BASE}/properties/summary`),
   createProperty:      (data: UpsertPropertyInput)         => rawApiClient.post(`${BASE}/properties`, data),
+  /** Bulk import. Rows the server could not take come back described, not silently dropped. */
+  importProperties:    (rows: Record<string, string>[]): Promise<ImportOutcome> =>
+    rawApiClient.post(`${BASE}/properties/import`, { rows }),
   updateProperty:      (id: string, data: UpsertPropertyInput) => rawApiClient.put(`${BASE}/properties/${id}`, data),
   deleteProperty:      (id: string)                        => rawApiClient.delete(`${BASE}/properties/${id}`),
 
@@ -453,6 +458,9 @@ export const reApi = {
   },
   getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient.get(`${BASE}/units/summary`),
   createUnit:          (data: UpsertUnitRequest): Promise<UnitDto> => rawApiClient.post(`${BASE}/units`, data),
+  /** Bulk import. propertyId scopes the whole sheet to one building; otherwise each row names its own. */
+  importUnits:         (rows: Record<string, string>[], propertyId?: string): Promise<ImportOutcome> =>
+    rawApiClient.post(`${BASE}/units/import`, { rows, propertyId }),
   updateUnit:          (id: string, data: UpsertUnitRequest): Promise<void> =>
     rawApiClient.put(`${BASE}/units/${id}`, data),
   deleteUnit:          (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/units/${id}`),

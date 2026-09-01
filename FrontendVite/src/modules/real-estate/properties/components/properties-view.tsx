@@ -2,14 +2,17 @@
 import { motion } from "framer-motion";
 import {
   Search, Building2, Home, TrendingUp, DollarSign,
-  Percent, Plus, BarChart3,
+  Percent, Plus, BarChart3, UploadCloud,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { PropertyDto as Property, PropertyType, PropertyStatus } from "@/lib/real-estate/re.api";
-import { useProperties, usePropertySummary } from "@/hooks/real-estate/use-re";
+import { useProperties, usePropertySummary, useImportProperties } from "@/hooks/real-estate/use-re";
+import { Can } from "@/components/auth/can";
+import { SpreadsheetImportModal } from "@/components/ui/spreadsheet-import-modal";
+import { PROPERTY_IMPORT_FIELDS } from "./property-import-fields";
 import { PropertiesDrawer } from "./properties-drawer";
 import { AddPropertyForm } from "./add-property-form";
 import { Pager } from "@/components/ui/pager";
@@ -66,6 +69,8 @@ export function PropertiesView() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selected, setSelected] = React.useState<Property | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [showImport, setShowImport]   = React.useState(false);
+  const importProperties = useImportProperties();
   const [editing, setEditing] = React.useState<Property | null>(null);
 
   const [page, setPage] = React.useState(1);
@@ -154,9 +159,16 @@ export function PropertiesView() {
             Manage real estate properties, listings, and portfolio details.
           </p>
         </div>
-        <Button size="sm" className="gap-2 shrink-0" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" /> Add Property
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Can permission="real-estate.properties.create">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowImport(true)}>
+              <UploadCloud className="h-4 w-4" /> Import
+            </Button>
+          </Can>
+          <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+            <Plus className="h-4 w-4" /> Add Property
+          </Button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -353,6 +365,16 @@ export function PropertiesView() {
         property={selected}
         onEdit={(p) => { setEditing(p); setDrawerOpen(false); setShowAddForm(true); }}
       />
+      <SpreadsheetImportModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        title="Import properties"
+        description="One row per building. Only the name is required — the rest can be filled in afterwards."
+        fields={PROPERTY_IMPORT_FIELDS}
+        noun="properties"
+        onImport={rows => importProperties.mutateAsync(rows)}
+      />
+
       <AddPropertyForm
         open={showAddForm}
         editing={editing}

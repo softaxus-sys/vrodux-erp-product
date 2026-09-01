@@ -43,6 +43,12 @@ public sealed class UnitsController(ISender sender) : RealEstateControllerBase
         string? Furnishing = null, string? View = null, int? Bedrooms = null, int? Bathrooms = null,
         int Parking = 0, decimal ServiceCharge = 0, string? Notes = null);
 
+    /// <summary>Bulk import from a spreadsheet. Gated on create — it creates units.</summary>
+    [HttpPost("import")]
+    [RequirePermission("real-estate.units.create")]
+    public async Task<IActionResult> Import([FromBody] ImportUnitsCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
+
     [HttpPost]
     [RequirePermission("real-estate.units.create")]
     public async Task<IActionResult> Create([FromBody] UpsertUnitRequest req, CancellationToken ct) =>
