@@ -56,6 +56,24 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
             .ToList();
         TenantIsolation.ApplyTenantId(modelBuilder, this, tenantOwned);
 
+        // Covering index for the leads LIST query — its exact filter and its default sort.
+        //
+        // Declared here rather than in LeadConfiguration because TenantId is a shadow property:
+        // it does not exist until ApplyTenantId has run, so an IEntityTypeConfiguration cannot
+        // name it. (Same reason TenantIsolation.TenantUniqueIndex is called from the contexts.)
+        //
+        // Without it the query scans and then SORTS every matching lead to return 25. Measured on
+        // ~6,000 leads: 605 physical reads and a sort worktable, versus 1 physical read and no
+        // worktable with the index. The sort is the part that matters — it needs a memory grant,
+        // and under startup load (three backfills each reading the whole table) that grant queues
+        // and the query passes the 30 s command timeout. Idle it still returned in ~76 ms, which
+        // is why the problem only ever showed up on a busy database.
+        modelBuilder.Entity<Lead>()
+            .HasIndex("TenantId", "IsDeleted", "LeadDate", "Id")
+            .HasDatabaseName("IX_leads_TenantId_IsDeleted_LeadDate_Id")
+            .IsDescending(false, false, true, false)
+            .IncludeProperties(l => l.Status);
+
         // Read-only cross-schema views of Identity's teams, used by LeadAccessGuard for the
         // team-lead visibility tier. Mapped after ApplyTenantId and outside the CRM.Domain
         // namespace, so they get no shadow TenantId and no tenant query filter.

@@ -80,14 +80,26 @@ internal sealed class GetLeadsPagedHandler(CrmDbContext db, ILeadAccessGuard acc
             _                => q.OrderByDescending(x => x.LeadDate).ThenBy(x => x.Id),
         };
 
-        var items = await q.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        // Projected, NOT materialised as entities. Selecting whole Leads pulls Notes, Message and
+        // CustomFields off disk — on this data 5.7 MB of CustomFields and 3.5 MB of Notes across
+        // ~6,000 leads, which LeadListProjection measured at 892 physical LOB reads and 41 seconds
+        // of I/O against 141 ms of CPU. The mapping then threw all of it away (forList: true), so
+        // the cost bought nothing. Warm and idle it still returned in ~76 ms, which is why it looked
+        // fine; under startup load it went past the 30 s command timeout.
+        var items = await q
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(LeadListProjection.Select)
+            .ToListAsync(ct);
 
-        var outcomes = await ConvertedDealOutcomes.LoadAsync(db, items, ct);
+        // Takes the raw ConvertedDealId strings, so this stays on the light projection.
+        var outcomes = await ConvertedDealOutcomes.LoadAsync(
+            db, items.Select(i => i.ConvertedDealId), ct);
 
-        var dtos = items.Select(l =>
+        var dtos = items.Select(row =>
         {
-            var (stage, value) = ConvertedDealOutcomes.For(outcomes, l);
-            return LeadMappings.ToDto(l, stage, value, forList: true);
+            var (stage, value) = LeadListProjection.OutcomeFor(outcomes, row);
+            return LeadListProjection.ToDto(row, stage, value);
         }).ToList();
 
         return Result.Success(PagedResult<LeadDto>.Create(dtos, total, page, pageSize));
