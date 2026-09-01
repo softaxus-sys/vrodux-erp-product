@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.CRM.Application.Leads.Dtos;
 using Softaxis.CRM.Application.Leads.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;

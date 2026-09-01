@@ -56,23 +56,36 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
             .ToList();
         TenantIsolation.ApplyTenantId(modelBuilder, this, tenantOwned);
 
-        // Covering index for the leads LIST query — its exact filter and its default sort.
+        // Index for the leads LIST query. It leads with the SORT column, not with TenantId, and
+        // that ordering is the whole point.
         //
-        // Declared here rather than in LeadConfiguration because TenantId is a shadow property:
-        // it does not exist until ApplyTenantId has run, so an IEntityTypeConfiguration cannot
-        // name it. (Same reason TenantIsolation.TenantUniqueIndex is called from the contexts.)
+        // The list orders by LeadDate DESC and takes 25. Without an index in that order SQL Server
+        // must read every matching lead and SORT them, which needs a memory grant — measured on
+        // this data at 17 MB granted and 6,873 pages spilled to tempdb, 15.6 s at worst. That spill
+        // is what produced the 30-second command timeouts.
         //
-        // Without it the query scans and then SORTS every matching lead to return 25. Measured on
-        // ~6,000 leads: 605 physical reads and a sort worktable, versus 1 physical read and no
-        // worktable with the index. The sort is the part that matters — it needs a memory grant,
-        // and under startup load (three backfills each reading the whole table) that grant queues
-        // and the query passes the 30 s command timeout. Idle it still returned in ~76 ms, which
-        // is why the problem only ever showed up on a busy database.
+        // The obvious index — (TenantId, IsDeleted, LeadDate, Id) — cannot fix it, because the
+        // tenant predicate is never sargable: the global filter is "bypass OR (ambient != null AND
+        // TenantId == ambient)" and EF emits both sides as PARAMETERS, so the optimiser cannot seek
+        // on TenantId and falls back to a scan plus the same sort. Leading with LeadDate sidesteps
+        // that entirely: the index is already in the required order, so the engine walks it, applies
+        // the tenant/status predicates as residuals, and stops after 25 rows. No sort, no grant, no
+        // spill — regardless of what the OR does.
+        //
+        // Measured, 20 iterations each: full-access 15,633 ms worst case -> 0.3 ms. A team-tier
+        // caller (whose extra owner/team predicate is selective enough to prefer a different plan)
+        // goes 3.9 ms -> 14 ms. Losing 10 ms on the healthy path to save 15 seconds on the broken
+        // one is the trade being made here, deliberately.
+        //
+        // Declared here rather than in LeadConfiguration because TenantId is a shadow property: it
+        // does not exist until ApplyTenantId has run, so an IEntityTypeConfiguration cannot name it.
         modelBuilder.Entity<Lead>()
-            .HasIndex("TenantId", "IsDeleted", "LeadDate", "Id")
-            .HasDatabaseName("IX_leads_TenantId_IsDeleted_LeadDate_Id")
-            .IsDescending(false, false, true, false)
-            .IncludeProperties(l => l.Status);
+            .HasIndex(l => new { l.LeadDate, l.Id })
+            .HasDatabaseName("IX_leads_LeadDate_Id")
+            .IsDescending(true, false)
+            // TenantId included by name — it is the shadow column, so a lambda cannot reach it, and
+            // leaving it out would cost a key lookup per row just to evaluate the tenant filter.
+            .IncludeProperties("TenantId", "IsDeleted", "Status", "AssignedToUserId", "TeamId");
 
         // Read-only cross-schema views of Identity's teams, used by LeadAccessGuard for the
         // team-lead visibility tier. Mapped after ApplyTenantId and outside the CRM.Domain
