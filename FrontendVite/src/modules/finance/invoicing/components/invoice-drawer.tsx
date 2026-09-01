@@ -20,6 +20,7 @@ import {
 } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
 import { printInvoice } from "./invoice-print";
+import { financeApi } from "@/lib/finance/finance.api";
 import { useCompanyBranding } from "@/hooks/use-company-name";
 
 interface InvoiceDrawerProps {
@@ -300,9 +301,19 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
   // Letterhead from Settings → General: name, address, TRN, logo, signature and stamp.
   const branding = useCompanyBranding();
 
-  const handlePrint = () => {
+  // Opens the server-generated PDF — byte-for-byte the file attached to the customer's email, so
+  // what is opened here and what the customer received are the same document. Falls back to the
+  // browser print view only if that request fails, rather than leaving the button dead.
+  const handlePrint = async () => {
     if (!detail) { toast.error(t("invoicing.drawer.view.printLoading")); return; }
-    printInvoice(detail, branding);
+    try {
+      const url = await financeApi.getInvoicePdfObjectUrl(invoice.id);
+      window.open(url, "_blank", "noopener");
+      // Released once the new tab has taken it; revoking immediately would blank the tab.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      printInvoice(detail, branding);
+    }
   };
 
   if (editMode) {

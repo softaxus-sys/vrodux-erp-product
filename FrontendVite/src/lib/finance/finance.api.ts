@@ -811,6 +811,10 @@ export const financeApi = {
   },
   deleteExpenseReceipt: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/expenses/${id}/receipt`),
   /** Fetches the receipt with the auth header and returns an object URL for viewing/downloading. */
+  /** The invoice PDF the server generates — the same file attached to the customer's email,
+   *  so what staff open and what the customer receives are the same document. */
+  getInvoicePdfObjectUrl: (id: string): Promise<string> => fetchBlobUrl(`${BASE}/invoices/${id}/pdf`),
+
   getExpenseReceiptObjectUrl: (id: string): Promise<string> => fetchBlobUrl(`${BASE}/expenses/${id}/receipt`),
 
   // General Ledger

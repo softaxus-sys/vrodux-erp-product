@@ -27,7 +27,17 @@ public sealed record InvoiceBranding(
     // Workspace-wide addresses copied on invoice and receipt emails, from Settings → General →
     // Company. A one-off invoice has no recurring template to take a CC from, so without this a
     // receipt would reach the customer and nobody internally.
-    string? CcEmails = null)
+    string? CcEmails = null,
+    // Remittance details, from the same Settings → General → Company block. An invoice that does
+    // not say where to pay makes the customer ask, so this is printed on the document and the PDF
+    // whenever any of it is filled in. All optional: a workspace that takes payment by card or cash
+    // simply leaves them blank and the block is omitted entirely rather than printed empty.
+    string? BankName = null,
+    string? BankAccountName = null,
+    string? BankAccountNumber = null,
+    string? BankIban = null,
+    string? BankSwift = null,
+    string? BankBranch = null)
 {
     /// <summary>Split on comma or semicolon and de-duplicated.</summary>
     public IReadOnlyList<string> CcList =>
@@ -35,6 +45,13 @@ public sealed record InvoiceBranding(
             .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+    /// <summary>True when there is at least one bank detail worth printing. A workspace that takes
+    /// payment by card or cash leaves them blank, and the block is omitted rather than shown empty.</summary>
+    public bool HasBankDetails =>
+        !string.IsNullOrWhiteSpace(BankName)          || !string.IsNullOrWhiteSpace(BankAccountName)
+     || !string.IsNullOrWhiteSpace(BankAccountNumber) || !string.IsNullOrWhiteSpace(BankIban)
+     || !string.IsNullOrWhiteSpace(BankSwift)         || !string.IsNullOrWhiteSpace(BankBranch);
 };
 
 /// <summary>
@@ -148,9 +165,13 @@ public static class RecurringInvoiceGenerator
         branding ??= await ResolveBrandingAsync(db, ct);
 
         var body = InvoiceEmailTemplate.Build(invoice, branding);
+
+        // The PDF the customer files. Best-effort — see TryBuildAttachment.
+        var attachments = InvoicePdfBuilder.TryBuildAttachment(invoice, branding);
+
         var sent = await email.SendInvoiceAsync(
             invoice.CustomerEmail!, invoice.CustomerName, cc, body.Subject, body.Html,
-            body.InlineImages, ct);
+            body.InlineImages, attachments, ct);
 
         // Recorded only on a real send. Marking it "sent" after a failure would show delivered for
         // something nobody received — the one thing this must never claim.
@@ -218,7 +239,9 @@ public static class RecurringInvoiceGenerator
             Pick(map, "address"), Pick(map, "phone"), Pick(map, "email"), Pick(map, "website"),
             Pick(map, "taxNumber"), Pick(map, "registrationNo"),
             Pick(map, "logoUrl"), Pick(map, "signatureUrl"), Pick(map, "stampUrl"),
-            Pick(map, "invoiceCcEmails"));
+            Pick(map, "invoiceCcEmails"),
+            Pick(map, "bankName"), Pick(map, "bankAccountName"), Pick(map, "bankAccountNumber"),
+            Pick(map, "bankIban"), Pick(map, "bankSwift"), Pick(map, "bankBranch"));
     }
 
     private static string? Pick(Dictionary<string, string> map, params string[] keys)

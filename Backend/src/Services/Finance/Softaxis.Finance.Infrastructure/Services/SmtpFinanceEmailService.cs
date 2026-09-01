@@ -24,6 +24,7 @@ internal sealed class SmtpFinanceEmailService(
     public async Task<bool> SendInvoiceAsync(string toEmail, string toName, IReadOnlyList<string> cc,
         string subject, string html,
         IReadOnlyList<InlineImage>? inlineImages = null,
+        IReadOnlyList<EmailAttachment>? attachments = null,
         CancellationToken ct = default)
     {
         var section  = configuration.GetSection("Email");
@@ -52,7 +53,7 @@ internal sealed class SmtpFinanceEmailService(
             catch (Exception ex) { logger.LogWarning(ex, "Skipping invalid CC address {Address}.", address); }
         }
         message.Subject = subject;
-        message.Body = BuildBody(html, inlineImages);
+        message.Body = BuildBody(html, inlineImages, attachments);
 
         try
         {
@@ -79,7 +80,8 @@ internal sealed class SmtpFinanceEmailService(
     /// A malformed data URI is skipped rather than thrown on — a bad logo must never stop an
     /// invoice going out.
     /// </summary>
-    private MimeEntity BuildBody(string html, IReadOnlyList<InlineImage>? images)
+    private MimeEntity BuildBody(string html, IReadOnlyList<InlineImage>? images,
+        IReadOnlyList<EmailAttachment>? attachments = null)
     {
         var builder = new BodyBuilder { HtmlBody = html };
 
@@ -97,6 +99,23 @@ internal sealed class SmtpFinanceEmailService(
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Skipping letterhead image {ContentId}.", image.ContentId);
+            }
+        }
+
+        foreach (var file in attachments ?? [])
+        {
+            try
+            {
+                var slash = file.ContentType.IndexOf('/');
+                var type  = slash > 0 ? file.ContentType[..slash]      : "application";
+                var sub   = slash > 0 ? file.ContentType[(slash + 1)..] : "octet-stream";
+                builder.Attachments.Add(file.FileName, file.Content, new ContentType(type, sub));
+            }
+            catch (Exception ex)
+            {
+                // Same rule as the letterhead images: an attachment that cannot be built must not
+                // stop the invoice reaching the customer. It is logged, and the email still goes.
+                logger.LogWarning(ex, "Skipping attachment {FileName}.", file.FileName);
             }
         }
 

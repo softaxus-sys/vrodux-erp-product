@@ -22,6 +22,11 @@ public static class InfrastructureExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        // QuestPDF refuses to render until a licence is declared. Set here, at composition, so the
+        // obligation is stated once where the service is wired rather than hidden in a static ctor.
+        // Community edition: free while company revenue is under the threshold its licence states.
+        InvoicePdfBuilder.Configure();
+
         // ── Database ──────────────────────────────────────────────────────────
         services.AddDbContext<FinanceDbContext>(opts =>
             opts.UseSqlServer(

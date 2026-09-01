@@ -43,6 +43,23 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
         return OkOrError(result);
     }
 
+    /// <summary>
+    /// The invoice as a PDF — byte-for-byte the document attached to the customer's email, so the
+    /// copy staff download and the copy the customer receives can never differ.
+    /// </summary>
+    [HttpGet("{id:guid}/pdf")]
+    [RequirePermission("finance.invoicing.view")]
+    public async Task<IActionResult> GetPdf(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetInvoicePdfQuery(id), ct);
+        if (!result.IsSuccess) return OkOrError(result);
+
+        // inline, so the browser previews it in a tab; the frontend adds a download attribute when
+        // the user asks to save rather than view.
+        Response.Headers.ContentDisposition = $"inline; filename=\"{result.Value.FileName}\"";
+        return File(result.Value.Content, "application/pdf");
+    }
+
     [HttpPost]
     [RequirePermission("finance.invoicing.create")]
     public async Task<IActionResult> Create([FromBody] CreateInvoiceCommand cmd, CancellationToken ct)

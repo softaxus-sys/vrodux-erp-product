@@ -114,6 +114,14 @@ const DEFAULTS = {
     signatureUrl: "",
     stampUrl: "",
     invoiceCcEmails: "",
+    // Remittance details printed on the invoice document and its PDF. All optional — a business
+    // taking card or cash leaves them blank and the block is omitted rather than printed empty.
+    bankName: "",
+    bankAccountName: "",
+    bankAccountNumber: "",
+    bankIban: "",
+    bankSwift: "",
+    bankBranch: "",
   },
   regional: {
     country: "",                // ISO country code — source of truth for POS/reports/receipt
@@ -546,6 +554,12 @@ export function GeneralSettingsView() {
         signatureUrl:   toStr(c.signatureUrl,   D.company.signatureUrl),
         stampUrl:       toStr(c.stampUrl,       D.company.stampUrl),
         invoiceCcEmails: toStr(c.invoiceCcEmails, D.company.invoiceCcEmails),
+        bankName:          toStr(c.bankName,          D.company.bankName),
+        bankAccountName:   toStr(c.bankAccountName,   D.company.bankAccountName),
+        bankAccountNumber: toStr(c.bankAccountNumber, D.company.bankAccountNumber),
+        bankIban:          toStr(c.bankIban,          D.company.bankIban),
+        bankSwift:         toStr(c.bankSwift,         D.company.bankSwift),
+        bankBranch:        toStr(c.bankBranch,        D.company.bankBranch),
       };
 
       // The country chosen during onboarding is the source of truth here — it is stored on the
@@ -954,6 +968,43 @@ export function GeneralSettingsView() {
               className="h-9 text-sm"
             />
           </FormField>
+        </div>
+
+        {/* Where customers pay. Printed on the invoice document and its PDF attachment; the whole
+            block is omitted from both when every field is blank. */}
+        <div className="pt-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            {t("general.company.bankHeading", { defaultValue: "Bank Account (for invoice payments)" })}
+          </p>
+          <p className="text-xs text-muted-foreground mb-3">
+            {t("general.company.bankHint", { defaultValue: "Shown on invoices and on the PDF attached to invoice emails. Leave blank if you do not take bank transfers — the section is then left off the invoice entirely." })}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label={t("general.company.bankName", { defaultValue: "Bank name" })}>
+              <Input value={company.bankName} onChange={e => updateCompany("bankName", e.target.value)}
+                placeholder="Emirates NBD" className="h-9 text-sm" />
+            </FormField>
+            <FormField label={t("general.company.bankAccountName", { defaultValue: "Account name" })}>
+              <Input value={company.bankAccountName} onChange={e => updateCompany("bankAccountName", e.target.value)}
+                placeholder={company.legalName || company.name} className="h-9 text-sm" />
+            </FormField>
+            <FormField label={t("general.company.bankAccountNumber", { defaultValue: "Account number" })}>
+              <Input value={company.bankAccountNumber} onChange={e => updateCompany("bankAccountNumber", e.target.value)}
+                className="h-9 text-sm" />
+            </FormField>
+            <FormField label={t("general.company.bankIban", { defaultValue: "IBAN" })}>
+              <Input value={company.bankIban} onChange={e => updateCompany("bankIban", e.target.value)}
+                placeholder="AE07 0331 2345 6789 0123 456" className="h-9 text-sm font-mono" />
+            </FormField>
+            <FormField label={t("general.company.bankSwift", { defaultValue: "SWIFT / BIC" })}>
+              <Input value={company.bankSwift} onChange={e => updateCompany("bankSwift", e.target.value)}
+                placeholder="EBILAEAD" className="h-9 text-sm font-mono" />
+            </FormField>
+            <FormField label={t("general.company.bankBranch", { defaultValue: "Branch" })}>
+              <Input value={company.bankBranch} onChange={e => updateCompany("bankBranch", e.target.value)}
+                className="h-9 text-sm" />
+            </FormField>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

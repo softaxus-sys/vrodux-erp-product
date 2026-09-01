@@ -137,7 +137,9 @@ internal sealed class PostReceiptVoucherHandler(
 
             var sent = await email.SendInvoiceAsync(
                 toEmail!, voucher.CustomerName, branding.CcList,
-                body.Subject, body.Html, body.InlineImages, ct);
+                // No PDF attached here, deliberately: one voucher can settle several invoices, so
+                // there is no single document to send. The receipt itemises what it was applied to.
+                body.Subject, body.Html, body.InlineImages, null, ct);
 
             // Recorded only on a real send, so a voucher never claims a receipt nobody received.
             if (sent)

@@ -113,7 +113,10 @@ internal sealed class MarkInvoicePaidHandler(
 
             var sent = await email.SendInvoiceAsync(
                 invoice.CustomerEmail!, invoice.CustomerName, branding.CcList,
-                body.Subject, body.Html, body.InlineImages, ct);
+                body.Subject, body.Html, body.InlineImages,
+                // The paid invoice travels with its receipt — the PDF renders a PAID mark,
+                // so the customer files one document showing both the charge and that it is settled.
+                InvoicePdfBuilder.TryBuildAttachment(invoice, branding), ct);
 
             // Recorded only on a real send, so the invoice never claims a receipt nobody received.
             if (sent)

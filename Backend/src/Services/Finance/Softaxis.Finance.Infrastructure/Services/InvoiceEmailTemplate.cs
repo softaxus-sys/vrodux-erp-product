@@ -69,6 +69,32 @@ internal static class InvoiceEmailTemplate
             : $@"<p style=""margin-top:20px;padding-top:14px;border-top:1px solid #f1f5f9;
                     font-size:11px;color:#9ca3af;line-height:1.6"">{issuerDetails}</p>";
 
+        // Where to pay. Rendered only when the workspace has filled any of it in — a business
+        // taking card or cash leaves it blank and gets no empty block. Mirrors the PDF exactly, so
+        // the emailed and attached copies of one invoice cannot disagree about the account.
+        string BankRow(string label, string? value) =>
+            string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : $@"<tr><td style=""padding:3px 0;color:#6b7280"">{E(label)}</td>
+                      <td style=""text-align:right;color:#111827;font-weight:600"">{E(value!)}</td></tr>";
+
+        var bankRows = string.Concat(
+            BankRow("Bank",           brand.BankName),
+            BankRow("Account name",   brand.BankAccountName),
+            BankRow("Account number", brand.BankAccountNumber),
+            BankRow("IBAN",           brand.BankIban),
+            BankRow("SWIFT / BIC",    brand.BankSwift),
+            BankRow("Branch",         brand.BankBranch));
+
+        var bankBlock = !brand.HasBankDetails ? string.Empty : $@"
+      <div style=""margin-top:22px;background:#f9fafb;border:1px solid #f1f5f9;border-radius:8px;padding:14px"">
+        <p style=""margin:0 0 8px;font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.06em"">PAYMENT DETAILS</p>
+        <table style=""width:100%;border-collapse:collapse;font-size:13px"">{bankRows}</table>
+        <p style=""margin:10px 0 0;font-size:11px;color:#6b7280;font-style:italic"">
+          Please quote invoice {E(invoice.InvoiceNumber)} as the payment reference.
+        </p>
+      </div>";
+
         // Rendered only when something exists, so a workspace with no signature does not get an
         // empty box and a stray rule.
         var signOff = (signSrc.Length > 0 || stampSrc.Length > 0)
@@ -127,6 +153,8 @@ internal static class InvoiceEmailTemplate
         <tr><td style=""padding:3px 0"">Invoice date</td><td style=""text-align:right;color:#111827"">{E(invoice.InvoiceDate)}</td></tr>
         <tr><td style=""padding:3px 0"">Due date</td><td style=""text-align:right;color:#111827"">{E(invoice.DueDate)}</td></tr>
       </table>
+
+      {bankBlock}
 
       {(string.IsNullOrWhiteSpace(invoice.Notes) ? string.Empty :
         $@"<p style=""margin-top:20px;font-size:13px;color:#6b7280"">{E(invoice.Notes)}</p>")}
