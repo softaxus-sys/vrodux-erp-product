@@ -12,6 +12,24 @@ export interface GetProductsParams {
   isLowStock?: boolean;
 }
 
+export interface StockByCategoryDto {
+  category: string;
+  inStock: number;
+  lowStock: number;
+  outOfStock: number;
+}
+
+export interface CategoryValuationDto {
+  name: string;
+  /** Stock at cost: quantity × cost price. */
+  value: number;
+}
+
+export interface InventoryDashboardDto {
+  stockByCategory: StockByCategoryDto[];
+  valuation: CategoryValuationDto[];
+}
+
 export const inventoryProductsApi = {
   getAll: (params: GetProductsParams = {}): Promise<PagedResult<ProductSummaryDto>> => {
     const qs = new URLSearchParams();
@@ -23,6 +41,10 @@ export const inventoryProductsApi = {
     if (params.isLowStock !== undefined) qs.set("isLowStock", String(params.isLowStock));
     return apiClient.get<PagedResult<ProductSummaryDto>>(`${BASE}?${qs}`);
   },
+
+  /** Per-category stock and valuation, aggregated in SQL for the dashboard charts. */
+  getDashboard: (): Promise<InventoryDashboardDto> =>
+    apiClient.get<InventoryDashboardDto>(`${BASE}/dashboard`),
 
   getById: (id: string): Promise<ProductDto> =>
     apiClient.get<ProductDto>(`${BASE}/${id}`),

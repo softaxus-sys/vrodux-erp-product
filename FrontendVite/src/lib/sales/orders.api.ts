@@ -2,6 +2,8 @@ import { rawApiClient, type PagedResult } from "@/lib/api-client";
 import type { SalesOrderDto, SalesOrderSummaryDto } from "@/lib/pos/types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/orders`;
+// Its own controller — the orders one injects a DbContext directly and is flagged tech debt.
+const DASHBOARD = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/dashboard`;
 
 export interface GetSalesOrdersParams {
   page?: number;
@@ -32,7 +34,15 @@ export interface UpdateSalesOrderRequest extends CreateSalesOrderRequest {
   status: string;
 }
 
+export interface MonthlyOrderDto { month: number; value: number; orders: number; }
+export interface OrderStatusCountDto { status: string; count: number; }
+export interface SalesDashboardDto { monthly: MonthlyOrderDto[]; byStatus: OrderStatusCountDto[]; }
+
 export const salesOrdersApi = {
+  /** Monthly value and status split, aggregated in SQL for the dashboard charts. */
+  getDashboard: (year?: number): Promise<SalesDashboardDto> =>
+    rawApiClient.get(`${DASHBOARD}${year ? `?year=${year}` : ""}`),
+
   getAll: (params: GetSalesOrdersParams = {}): Promise<PagedResult<SalesOrderSummaryDto>> => {
     const qs = new URLSearchParams();
     if (params.page)       qs.set("page",       String(params.page));

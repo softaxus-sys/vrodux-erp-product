@@ -32,6 +32,19 @@ export function useTransactions(params: GetTransactionsParams = {}) {
   });
 }
 
+/**
+ * Today's takings by hour and the payment-method split, aggregated in SQL.
+ * A chart cannot be paged, so this exists instead of totalling a 500-row page of transactions
+ * in the browser — which past 500 described a subset with nothing on screen saying so.
+ */
+export function usePosDashboard() {
+  return useQuery({
+    queryKey: [...txnKeys.all, "dashboard"],
+    queryFn:  () => transactionsApi.getDashboard(),
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useTransaction(id: string) {
   return useQuery<POSTransactionDto>({
     queryKey: txnKeys.detail(id),

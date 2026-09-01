@@ -23,6 +23,19 @@ export function useInventoryProducts(params: GetProductsParams = {}) {
   });
 }
 
+/**
+ * Per-category stock and valuation for the dashboard charts, aggregated in SQL.
+ * A chart cannot be paged, so this exists instead of reading a large page of products
+ * and totalling them in the browser.
+ */
+export function useInventoryDashboard() {
+  return useQuery({
+    queryKey: [...inventoryProductKeys.all, "dashboard"],
+    queryFn:  () => inventoryProductsApi.getDashboard(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useInventoryProduct(id: string) {
   return useQuery<ProductDto>({
     queryKey: inventoryProductKeys.detail(id),

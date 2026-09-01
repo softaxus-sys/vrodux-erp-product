@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.Inventory.Application.Abstractions;
 using Softaxis.Inventory.Application.DTOs;
+using Softaxis.Inventory.Application.Products.Queries.GetInventoryDashboard;
 using Softaxis.Inventory.Infrastructure.Persistence;
 
 namespace Softaxis.Inventory.Infrastructure.Services;
@@ -367,5 +368,71 @@ public sealed class ProductReadService(InventoryDbContext db) : IProductReadServ
             row.StockQuantity, row.ReorderLevel,
             row.IsActive, row.TrackInventory, row.IsLowStock,
             row.ImageUrl, row.CreatedAt, row.UpdatedAt);
+    }
+
+    private sealed record CatRow(string Category, int InStock, int LowStock, int OutOfStock, decimal Value);
+
+    public async Task<InventoryDashboardDto> GetDashboardAsync(CancellationToken ct = default)
+    {
+        // Same union and the same tenant guard the list uses — the charts must agree with the grid.
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
+        var rows = await db.Database
+            .SqlQuery<CatRow>($"""
+                WITH Combined AS (
+                    SELECT ISNULL(c.Name, 'Uncategorised') AS Category,
+                           p.StockQuantity, p.ReorderLevel, p.TrackInventory, p.CostPrice
+                    FROM  [pos].[products] p
+                    INNER JOIN [pos].[product_categories] c ON c.Id = p.CategoryId
+                    WHERE p.IsDeleted = 0 AND ({bypass} = 1 OR p.TenantId = {tenant})
+
+                    UNION ALL
+
+                    SELECT ISNULL(c.Name, 'Uncategorised') AS Category,
+                           p.StockQuantity, p.ReorderLevel, p.TrackInventory, p.CostPrice
+                    FROM  [inventory].[products] p
+                    INNER JOIN [inventory].[product_categories] c ON c.Id = p.CategoryId
+                    WHERE p.IsDeleted = 0 AND ({bypass} = 1 OR p.TenantId = {tenant})
+                )
+                SELECT
+                    Category,
+                    SUM(CASE WHEN StockQuantity <= 0 THEN 0
+                             WHEN TrackInventory = 1 AND ReorderLevel > 0
+                                  AND StockQuantity <= ReorderLevel THEN 0
+                             ELSE 1 END)                                AS InStock,
+                    SUM(CASE WHEN StockQuantity > 0 AND TrackInventory = 1
+                                  AND ReorderLevel > 0
+                                  AND StockQuantity <= ReorderLevel
+                             THEN 1 ELSE 0 END)                         AS LowStock,
+                    SUM(CASE WHEN StockQuantity <= 0 THEN 1 ELSE 0 END) AS OutOfStock,
+                    SUM(StockQuantity * CostPrice)                      AS Value
+                FROM   Combined
+                GROUP  BY Category
+                """)
+            .ToListAsync(ct);
+
+        // Top 6 categories by product count — the chart has room for six bars.
+        var byCategory = rows
+            .OrderByDescending(r => r.InStock + r.LowStock + r.OutOfStock)
+            .Take(6)
+            .Select(r => new StockByCategoryDto(r.Category, r.InStock, r.LowStock, r.OutOfStock))
+            .ToList();
+
+        // Valuation: top 4 plus an "Other" bucket, so the donut stays readable and still totals
+        // the whole portfolio rather than quietly dropping the tail.
+        var valued = rows
+            .Where(r => r.Value > 0)
+            .OrderByDescending(r => r.Value)
+            .Select(r => new CategoryValuationDto(r.Category, r.Value))
+            .ToList();
+
+        var valuation = valued.Count <= 5
+            ? valued
+            : valued.Take(4)
+                .Append(new CategoryValuationDto("Other", valued.Skip(4).Sum(v => v.Value)))
+                .ToList();
+
+        return new InventoryDashboardDto(byCategory, valuation);
     }
 }

@@ -17,6 +17,15 @@ export const purchaseOrderKeys = {
   detail:  (id: string) => [...purchaseOrderKeys.details(), id] as const,
 };
 
+/** Monthly spend and the biggest vendors for the dashboard charts, aggregated in SQL. */
+export function usePurchaseDashboard(year?: number) {
+  return useQuery({
+    queryKey: [purchaseOrderKeys.all, "dashboard", year ?? "current"],
+    queryFn:  () => purchaseOrdersApi.getDashboard(year),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function usePurchaseOrders(params: GetPurchaseOrdersParams = {}) {
   return useQuery<PagedResult<PurchaseOrderSummaryDto>>({
     queryKey: purchaseOrderKeys.list(params),

@@ -30,7 +30,18 @@ export interface UpdatePurchaseOrderRequest extends CreatePurchaseOrderRequest {
   status: string;
 }
 
+export interface MonthlyPurchaseDto { month: number; amount: number; orders: number; }
+export interface VendorSpendDto { vendor: string; amount: number; orders: number; }
+export interface PurchaseDashboardDto { monthly: MonthlyPurchaseDto[]; topVendors: VendorSpendDto[]; }
+
+// Its own controller — the orders one injects a DbContext directly and is flagged tech debt.
+const DASHBOARD = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/purchase/dashboard`;
+
 export const purchaseOrdersApi = {
+  /** Monthly spend and the biggest vendors, aggregated in SQL for the dashboard charts. */
+  getDashboard: (year?: number): Promise<PurchaseDashboardDto> =>
+    rawApiClient.get(`${DASHBOARD}${year ? `?year=${year}` : ""}`),
+
   getAll: (params: GetPurchaseOrdersParams = {}): Promise<PagedResult<PurchaseOrderSummaryDto>> => {
     const qs = new URLSearchParams();
     if (params.page)     qs.set("page",     String(params.page));

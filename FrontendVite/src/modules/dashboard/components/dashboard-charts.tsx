@@ -17,10 +17,10 @@ import { useCrmDashboard } from "@/hooks/crm/use-crm";
 import { useInvoices, useExpenses } from "@/hooks/finance/use-finance";
 import type { InvoiceDto, ExpenseDto } from "@/lib/finance/finance.api";
 import { useEmployees, useLeaveRequests, useAttendance } from "@/hooks/hr/use-hr";
-import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
-import { useSalesOrders } from "@/hooks/sales/use-sales-orders";
-import { usePurchaseOrders } from "@/hooks/purchase/use-purchase-orders";
-import { useTransactions } from "@/hooks/pos/use-transactions";
+import { useInventoryDashboard } from "@/hooks/inventory/use-inventory-products";
+import { useSalesDashboard } from "@/hooks/sales/use-sales-orders";
+import { usePurchaseDashboard } from "@/hooks/purchase/use-purchase-orders";
+import { usePosDashboard } from "@/hooks/pos/use-transactions";
 import { useRooms, useBookings } from "@/hooks/hospitality/use-hospitality";
 import { formatCurrency } from "@/lib/utils";
 
@@ -480,35 +480,31 @@ function HrCharts() {
 function SalesCharts() {
   const { t } = useTranslation("dashboard");
   const currency = useCurrency();
-  const { data } = useSalesOrders({ pageSize: 500 });
-  const orders = data?.items ?? [];
+  // One aggregate call. This used to total a 500-row page of orders here, so past 500 orders
+  // the chart described a subset with nothing on screen saying so.
+  const { data } = useSalesDashboard();
 
-  // Real monthly order value (this calendar year, up to current month)
+  // The server returns only the months that have orders; the chart wants all twelve up to today.
   const monthly = React.useMemo(() => {
-    const year = new Date().getFullYear();
     const b = MONTHS.map((m) => ({ month: m, value: 0, orders: 0 }));
-    for (const o of orders) {
-      const d = o.createdAt ? new Date(o.createdAt) : null;
-      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() > MONTH_IDX) continue;
-      b[d.getMonth()].value += o.total ?? 0;
-      b[d.getMonth()].orders += 1;
+    for (const row of data?.monthly ?? []) {
+      const i = row.month - 1;
+      if (i < 0 || i > MONTH_IDX) continue;
+      b[i].value = row.value;
+      b[i].orders = row.orders;
     }
     return b;
-  }, [orders]);
+  }, [data]);
 
-  // Real order-status distribution
-  const statusDist = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const o of orders) {
-      const key = titleCase(o.status || "unknown");
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [orders]);
+  const statusDist = React.useMemo(
+    () => (data?.byStatus ?? []).map((s) => ({ name: titleCase(s.status || "unknown"), value: s.count })),
+    [data]);
+
+  const orderCount = (data?.byStatus ?? []).reduce((n, s) => n + s.count, 0);
 
   const totalValue = monthly.reduce((s, d) => s + d.value, 0);
   const statusColors = [P.violet, P.blue, P.teal, P.green, P.amber, P.red, P.pink];
-  const hasOrders = orders.length > 0;
+  const hasOrders = orderCount > 0;
 
   return (
     <ChartSection delay={0.15}>
@@ -516,7 +512,7 @@ function SalesCharts() {
         icon={ShoppingCart}
         title={t("charts.sales.title")}
         color={P.violet}
-        description={t("charts.sales.desc", { orders: orders.length, value: fmt(totalValue) })}
+        description={t("charts.sales.desc", { orders: orderCount, value: fmt(totalValue) })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -721,41 +717,13 @@ function CrmCharts() {
 function InventoryCharts() {
   const { t } = useTranslation("dashboard");
   const currency = useCurrency();
-  const { data } = useInventoryProducts({ pageSize: 1000 });
-  const products = data?.items ?? [];
-
-  // Real stock-level classification grouped by category (top 6)
-  const stockByCat = React.useMemo(() => {
-    const map = new Map<string, { category: string; inStock: number; lowStock: number; outOfStock: number }>();
-    for (const p of products) {
-      const key = p.categoryName?.trim() || "Uncategorised";
-      const row = map.get(key) ?? { category: key, inStock: 0, lowStock: 0, outOfStock: 0 };
-      if ((p.stockQuantity ?? 0) <= 0) row.outOfStock += 1;
-      else if (p.isLowStock || (p.reorderLevel > 0 && p.stockQuantity <= p.reorderLevel)) row.lowStock += 1;
-      else row.inStock += 1;
-      map.set(key, row);
-    }
-    return [...map.values()]
-      .sort((a, b) => (b.inStock + b.lowStock + b.outOfStock) - (a.inStock + a.lowStock + a.outOfStock))
-      .slice(0, 6);
-  }, [products]);
-
-  // Real inventory valuation at cost, grouped by category (top 5 + Other)
-  const valuation = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const p of products) {
-      const key = p.categoryName?.trim() || "Uncategorised";
-      map.set(key, (map.get(key) ?? 0) + (p.stockQuantity ?? 0) * (p.costPrice ?? 0));
-    }
-    const sorted = [...map.entries()]
-      .map(([name, value]) => ({ name, value }))
-      .filter((x) => x.value > 0)
-      .sort((a, b) => b.value - a.value);
-    if (sorted.length <= 5) return sorted;
-    const top = sorted.slice(0, 4);
-    const other = sorted.slice(4).reduce((s, d) => s + d.value, 0);
-    return [...top, { name: "Other", value: other }];
-  }, [products]);
+  // One aggregate call. This used to read a 1,000-row page of products and total them here —
+  // both a large read and quietly wrong: a tenant with more than a thousand products got figures
+  // for an arbitrary subset, with nothing on screen saying so.
+  const { data } = useInventoryDashboard();
+  const stockByCat = data?.stockByCategory ?? [];
+  const valuation  = data?.valuation ?? [];
+  const productCount = stockByCat.reduce((n, c) => n + c.inStock + c.lowStock + c.outOfStock, 0);
 
   const valColors = [P.orange, P.blue, P.teal, P.green, P.violet];
   const hasStock = stockByCat.length > 0;
@@ -767,7 +735,7 @@ function InventoryCharts() {
         icon={Package}
         title={t("charts.inventory.title")}
         color={P.orange}
-        description={t("charts.inventory.desc", { count: products.length })}
+        description={t("charts.inventory.desc", { count: productCount })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -848,47 +816,25 @@ function InventoryCharts() {
 function PosCharts() {
   const { t } = useTranslation("dashboard");
   const currency = useCurrency();
-  const { data } = useTransactions({ pageSize: 500 });
-  const txns = data?.items ?? [];
+  // One aggregate call, scoped to today at the till. This used to filter a 500-row page of
+  // transactions here — so past 500 the day's takings were computed from a subset.
+  const { data } = usePosDashboard();
 
-  const today = new Date().toISOString().slice(0, 10);
+  const hourly = React.useMemo(
+    () => (data?.hourly ?? []).map((h) => ({
+      hour: `${String(h.hour).padStart(2, "0")}:00`,
+      sales: h.sales,
+      txn: h.transactions,
+    })),
+    [data]);
 
-  // Today's completed sales (exclude voided/refunded)
-  const todays = React.useMemo(
-    () => txns.filter((t) =>
-      (t.completedAt ?? "").slice(0, 10) === today &&
-      t.status !== "voided" && t.status !== "refunded"),
-    [txns, today],
-  );
+  const methods = React.useMemo(
+    () => (data?.methods ?? []).map((m) => ({ name: titleCase(m.method || "Other"), value: m.count })),
+    [data]);
 
-  // Real hourly sales for today
-  const hourly = React.useMemo(() => {
-    const map = new Map<number, { sales: number; txn: number }>();
-    for (const t of todays) {
-      const d = new Date(t.completedAt);
-      if (isNaN(d.getTime())) continue;
-      const h = d.getHours();
-      const row = map.get(h) ?? { sales: 0, txn: 0 };
-      row.sales += t.totalAmount ?? 0;
-      row.txn += 1;
-      map.set(h, row);
-    }
-    return [...map.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([h, v]) => ({ hour: `${String(h).padStart(2, "0")}:00`, ...v }));
-  }, [todays]);
+  const totalSales = data?.totalSales ?? 0;
+  const txnCount   = data?.totalTransactions ?? 0;
 
-  // Real payment-method split (all transactions)
-  const methods = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const t of txns) {
-      const key = titleCase(t.primaryPaymentMethod || "Other");
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return [...map.entries()].map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [txns]);
-
-  const totalSales = todays.reduce((s, t) => s + (t.totalAmount ?? 0), 0);
   const methodColors = [P.sky, P.green, P.violet, P.amber, P.pink, P.teal];
   const hasHourly = hourly.length > 0;
   const hasMethods = methods.length > 0;
@@ -899,7 +845,7 @@ function PosCharts() {
         icon={CreditCard}
         title={t("charts.pos.title")}
         color={P.sky}
-        description={t("charts.pos.desc", { count: todays.length, sales: formatCurrency(totalSales, currency) })}
+        description={t("charts.pos.desc", { count: txnCount, sales: formatCurrency(totalSales, currency) })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 
@@ -979,36 +925,26 @@ function PosCharts() {
 function PurchaseCharts() {
   const { t } = useTranslation("dashboard");
   const currency = useCurrency();
-  const { data } = usePurchaseOrders({ pageSize: 500 });
-  const orders = data?.items ?? [];
+  // One aggregate call. This used to total a 500-row page of orders here, so past 500 orders
+  // the monthly trend and vendor ranking described a subset.
+  const { data } = usePurchaseDashboard();
 
-  // Real monthly PO count + amount (this calendar year, up to current month)
+  // The server returns only the months that have orders; the chart wants all twelve up to today.
   const monthly = React.useMemo(() => {
-    const year = new Date().getFullYear();
-    const b = MONTHS.map((m) => ({ month: m, orders: 0, amount: 0 }));
-    for (const o of orders) {
-      const d = o.createdAt ? new Date(o.createdAt) : null;
-      if (!d || isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() > MONTH_IDX) continue;
-      b[d.getMonth()].orders += 1;
-      b[d.getMonth()].amount += o.total ?? 0;
+    const b = MONTHS.map((m) => ({ month: m, amount: 0, orders: 0 }));
+    for (const row of data?.monthly ?? []) {
+      const i = row.month - 1;
+      if (i < 0 || i > MONTH_IDX) continue;
+      b[i].amount = row.amount;
+      b[i].orders = row.orders;
     }
     return b;
-  }, [orders]);
+  }, [data]);
 
-  // Real top vendors by spend (top 5)
-  const topVendors = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const o of orders) {
-      const key = o.vendorName?.trim() || "Unknown";
-      map.set(key, (map.get(key) ?? 0) + (o.total ?? 0));
-    }
-    return [...map.entries()]
-      .map(([vendor, amount]) => ({ vendor, amount }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
-  }, [orders]);
+  const topVendors = data?.topVendors ?? [];
+  const orderCount = (data?.monthly ?? []).reduce((n, m) => n + m.orders, 0);
 
-  const hasOrders  = orders.length > 0;
+  const hasOrders  = orderCount > 0;
   const hasVendors = topVendors.length > 0 && topVendors[0].amount > 0;
   const vendorColors = [P.lime, P.green, P.teal, P.blue, P.violet];
 
@@ -1018,7 +954,7 @@ function PurchaseCharts() {
         icon={Truck}
         title={t("charts.purchase.title")}
         color={P.lime}
-        description={t("charts.purchase.desc", { count: orders.length })}
+        description={t("charts.purchase.desc", { count: orderCount })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
 

@@ -17,6 +17,15 @@ export const salesOrderKeys = {
   detail:  (id: string) => [...salesOrderKeys.details(), id] as const,
 };
 
+/** Monthly value and status split for the dashboard charts, aggregated in SQL. A chart cannot be paged, so this exists instead of totalling a large page of orders in the browser. */
+export function useSalesDashboard(year?: number) {
+  return useQuery({
+    queryKey: [salesOrderKeys.all, "dashboard", year ?? "current"],
+    queryFn:  () => salesOrdersApi.getDashboard(year),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useSalesOrders(params: GetSalesOrdersParams = {}) {
   return useQuery<PagedResult<SalesOrderSummaryDto>>({
     queryKey: salesOrderKeys.list(params),

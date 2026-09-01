@@ -8,6 +8,7 @@ using Softaxis.POS.Application.Transactions.Commands.RecallTransaction;
 using Softaxis.POS.Application.Transactions.Commands.RefundTransaction;
 using Softaxis.POS.Application.Transactions.Commands.VoidTransaction;
 using Softaxis.POS.Application.Transactions.Queries.GetTransactionById;
+using Softaxis.POS.Application.Transactions.Queries.GetPosDashboard;
 using Softaxis.POS.Application.Transactions.Queries.GetTransactions;
 
 namespace Softaxis.POS.API.Controllers;
@@ -31,6 +32,15 @@ public sealed class TransactionsController(ISender sender) : BaseApiController(s
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(
             new GetTransactionsQuery(page, pageSize, sessionId, cashierId, customerId, type, status, from, to, search), ct));
+
+    /// <summary>Today's takings by hour and the payment-method split, aggregated in SQL for the
+    /// dashboard charts.</summary>
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboard(
+        [FromQuery] string? date = null,
+        [FromQuery] int utcOffsetMinutes = 0,
+        CancellationToken ct = default)
+        => HandleResult(await Sender.Send(new GetPosDashboardQuery(date, utcOffsetMinutes), ct));
 
     /// <summary>Get full transaction detail (with line items and payments).</summary>
     [HttpGet("{id:guid}")]

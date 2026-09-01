@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Inventory.API.Authorization;
 using Softaxis.Inventory.Application.Products.Commands.ActivateProduct;
+using Softaxis.Inventory.Application.Products.Queries.GetInventoryDashboard;
 using Softaxis.Inventory.Application.Products.Commands.CreateProduct;
 using Softaxis.Inventory.Application.Products.Commands.DeactivateProduct;
 using Softaxis.Inventory.Application.Products.Commands.DeleteProduct;
@@ -31,6 +32,13 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(
             new GetProductsQuery(page, pageSize, search, categoryId, isActive, isLowStock), ct));
+
+    // ── GET /api/inventory/products/dashboard ────────────────────────────────
+    /// <summary>Per-category stock and valuation, aggregated in SQL for the dashboard charts.</summary>
+    [HttpGet("dashboard")]
+    [RequirePermission("inventory.stock.view")]
+    public async Task<IActionResult> GetDashboard(CancellationToken ct)
+        => HandleResult(await Sender.Send(new GetInventoryDashboardQuery(), ct));
 
     // ── GET /api/inventory/products/{id} ─────────────────────────────────────
     [HttpGet("{id:guid}")]

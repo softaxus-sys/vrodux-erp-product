@@ -71,6 +71,39 @@ public sealed class POSTransactionRepository(POSDbContext db) : IPOSTransactionR
         return PagedResult<POSTransaction>.Create(items, total, page, pageSize);
     }
 
+    public async Task<(IReadOnlyList<(int Hour, decimal Sales, int Count)> Hourly,
+                       IReadOnlyList<(string Method, int Count)> Methods,
+                       decimal TotalSales,
+                       int TotalCount)>
+        GetDailyBreakdownAsync(DateTime dayStartUtc, DateTime dayEndUtc, CancellationToken ct = default)
+    {
+        // Voided and refunded sales are excluded — the chart reports takings, not attempts.
+        var day = db.Transactions.AsNoTracking()
+            .Where(t => t.Status == TransactionStatus.Completed
+                     && t.CompletedAt >= dayStartUtc
+                     && t.CompletedAt <  dayEndUtc);
+
+        var hourly = await day
+            .GroupBy(t => t.CompletedAt.Hour)
+            .Select(g => new { Hour = g.Key, Sales = g.Sum(t => t.TotalAmount), Count = g.Count() })
+            .OrderBy(x => x.Hour)
+            .ToListAsync(ct);
+
+        // A transaction's "method" is its largest payment — split tenders would otherwise be
+        // counted several times and the split would not sum to the transaction count.
+        var methods = await day
+            .Select(t => t.Payments.OrderByDescending(p => p.Amount).Select(p => p.Method).FirstOrDefault())
+            .GroupBy(m => m)
+            .Select(g => new { Method = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        return (
+            hourly.Select(h => (h.Hour, h.Sales, h.Count)).ToList(),
+            methods.OrderByDescending(m => m.Count).Select(m => (m.Method.ToString(), m.Count)).ToList(),
+            hourly.Sum(h => h.Sales),
+            hourly.Sum(h => h.Count));
+    }
+
     public void Add(POSTransaction transaction)    => db.Transactions.Add(transaction);
     public void Update(POSTransaction transaction) => db.Transactions.Update(transaction);
 }

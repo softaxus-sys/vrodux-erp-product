@@ -24,7 +24,29 @@ export interface GetTransactionsParams {
   search?: string;
 }
 
+export interface HourlySalesDto { hour: number; sales: number; transactions: number; }
+export interface PaymentMethodCountDto { method: string; count: number; }
+export interface PosDashboardDto {
+  hourly: HourlySalesDto[];
+  methods: PaymentMethodCountDto[];
+  totalSales: number;
+  totalTransactions: number;
+}
+
 export const transactionsApi = {
+  /**
+   * Today's takings by hour and the payment-method split, aggregated in SQL.
+   * The local date and UTC offset are sent by the caller because "today" at a till means the
+   * terminal's day — deriving it from UTC would roll the day over mid-evening in the Gulf.
+   */
+  getDashboard: (): Promise<PosDashboardDto> => {
+    const now = new Date();
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    // getTimezoneOffset is minutes to ADD to local to get UTC, so negate it.
+    const utcOffsetMinutes = -now.getTimezoneOffset();
+    return rawApiClient.get(`${BASE}/dashboard?date=${date}&utcOffsetMinutes=${utcOffsetMinutes}`);
+  },
+
   getAll: (params: GetTransactionsParams = {}): Promise<PagedResult<POSTransactionSummaryDto>> => {
     const qs = new URLSearchParams();
     if (params.page)       qs.set("page",       String(params.page));

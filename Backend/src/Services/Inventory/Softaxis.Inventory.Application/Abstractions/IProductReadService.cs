@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.Inventory.Application.DTOs;
+using Softaxis.Inventory.Application.Products.Queries.GetInventoryDashboard;
 
 namespace Softaxis.Inventory.Application.Abstractions;
 
@@ -29,4 +30,10 @@ public interface IProductReadService
     /// Returns null if not found in either.
     /// </summary>
     Task<ProductDto?> GetByBarcodeAsync(string barcode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Per-category stock counts and valuation for the dashboard, aggregated in SQL over the same
+    /// union the list uses — so the charts and the product grid cannot disagree.
+    /// </summary>
+    Task<InventoryDashboardDto> GetDashboardAsync(CancellationToken ct = default);
 }
