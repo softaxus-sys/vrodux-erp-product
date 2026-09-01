@@ -4,9 +4,13 @@ namespace Softaxis.Inventory.Domain.Repositories;
 
 public interface IStockTransferRepository
 {
-    Task<IReadOnlyList<StockTransfer>> GetSummaryDataAsync(CancellationToken ct = default);
+    /// <summary>One page of transfers, newest first, with their items. Returns the page and the total.</summary>
+    Task<(IReadOnlyList<StockTransfer> Items, int Total)> GetPagedAsync(
+        string? status, string? search, int page, int pageSize, CancellationToken ct = default);
 
-    Task<IReadOnlyList<StockTransfer>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>Status counts and total value, aggregated in SQL — never materialises the rows.</summary>
+    Task<(int Total, int Draft, int Pending, int InTransit, int Received, int Cancelled, decimal TotalValue)>
+        GetSummaryAsync(CancellationToken ct = default);
 
     Task<StockTransfer?> GetByIdAsync(Guid id, CancellationToken ct = default);
 

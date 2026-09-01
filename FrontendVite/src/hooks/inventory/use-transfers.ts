@@ -1,13 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { transfersApi, type CreateTransferPayload } from "@/lib/inventory/transfers.api";
+import { transfersApi, type CreateTransferPayload, type TransferPageParams } from "@/lib/inventory/transfers.api";
 
 const QK = "inventory-transfers";
 
-export function useStockTransfers() {
+export function useStockTransfers(params: TransferPageParams = {}) {
   return useQuery({
-    queryKey: [QK],
-    queryFn:  transfersApi.getAll,
+    queryKey: [QK, params],
+    queryFn:  () => transfersApi.getAll(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
     staleTime: 60_000,
   });
 }

@@ -25,8 +25,13 @@ public sealed class StockTransfersController(ISender sender) : BaseApiController
 
     [HttpGet]
     [RequirePermission("inventory.transfers.view")]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
-        => HandleResult(await Sender.Send(new GetStockTransfersQuery(), ct));
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
+        => HandleResult(await Sender.Send(new GetStockTransfersQuery(status, search, page, pageSize), ct));
 
     [HttpGet("{id:guid}")]
     [RequirePermission("inventory.transfers.view")]

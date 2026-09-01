@@ -42,8 +42,12 @@ public sealed class CustomersController(ISender sender) : BaseApiController(send
     /// <summary>GET /api/customers/{id}/wallet-transactions</summary>
     [HttpGet("{id:guid}/wallet-transactions")]
     [RequirePermission("pos.customers.view")]
-    public async Task<IActionResult> GetWalletTransactions(Guid id, CancellationToken ct = default)
-        => HandleResult(await Sender.Send(new GetWalletTransactionsQuery(id), ct));
+    public async Task<IActionResult> GetWalletTransactions(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
+        => HandleResult(await Sender.Send(new GetWalletTransactionsQuery(id, page, pageSize), ct));
 
     /// <summary>POST /api/customers/{id}/wallet/topup</summary>
     [HttpPost("{id:guid}/wallet/topup")]

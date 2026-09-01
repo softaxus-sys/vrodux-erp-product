@@ -81,7 +81,9 @@ function CustomerRow({ c, currency, onClick }: { c: CustomerSummaryDto; currency
 
 function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onClose: () => void }) {
   const { data: c, isLoading } = useCustomer(customerId);
-  const { data: transactions = [] } = useWalletTransactions(customerId);
+  const [txnPage, setTxnPage] = React.useState(1);
+  const { data: txns } = useWalletTransactions(customerId, txnPage);
+  const transactions = txns?.items ?? [];
   const currency = useCurrency();
 
   const topUp = useTopUpWallet(customerId);
@@ -155,6 +157,21 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* A regular's ledger runs to hundreds of rows, so only this page is loaded. */}
+              {(txns?.totalPages ?? 1) > 1 && (
+                <div className="flex items-center justify-between mt-3 text-xs">
+                  <span className="text-muted-foreground">
+                    Page {txnPage} of {txns!.totalPages} · {txns!.totalCount} entries
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="h-7" disabled={txnPage <= 1}
+                            onClick={() => setTxnPage(p => Math.max(1, p - 1))}>Prev</Button>
+                    <Button variant="outline" size="sm" className="h-7" disabled={txnPage >= (txns?.totalPages ?? 1)}
+                            onClick={() => setTxnPage(p => p + 1)}>Next</Button>
+                  </div>
                 </div>
               )}
             </div>

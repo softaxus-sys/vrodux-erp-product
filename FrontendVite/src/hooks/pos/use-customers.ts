@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { customersApi } from "@/lib/pos/customers.api";
-import type { CustomerDto, CustomerSummaryDto, CustomerWalletTransactionDto } from "@/lib/pos/types";
+import type { CustomerDto, CustomerSummaryDto } from "@/lib/pos/types";
 import type { PagedResult } from "@/lib/api-client";
 import { toast } from "sonner";
 
@@ -89,10 +89,12 @@ export function useDeleteCustomer() {
 
 // ── Wallet / house account ───────────────────────────────────────────────────
 
-export function useWalletTransactions(customerId: string, enabled = true) {
-  return useQuery<CustomerWalletTransactionDto[]>({
-    queryKey: [...customerKeys.detail(customerId), "wallet-transactions"],
-    queryFn: () => customersApi.getWalletTransactions(customerId),
+export function useWalletTransactions(customerId: string, page = 1, enabled = true) {
+  return useQuery({
+    queryKey: [...customerKeys.detail(customerId), "wallet-transactions", page],
+    queryFn: () => customersApi.getWalletTransactions(customerId, page),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the ledger.
+    placeholderData: (prev) => prev,
     enabled: enabled && !!customerId,
   });
 }

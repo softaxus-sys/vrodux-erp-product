@@ -1,5 +1,5 @@
 ﻿import { apiClient, type PagedResult } from "@/lib/api-client";
-import type { CustomerDto, CustomerSummaryDto, CustomerWalletTransactionDto } from "./types";
+import type { CustomerDto, CustomerSummaryDto, WalletTransactionsPage } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/customers`;
 
@@ -41,8 +41,8 @@ export const customersApi = {
   delete: (id: string): Promise<void> =>
     apiClient.delete<void>(`${BASE}/${id}`),
 
-  getWalletTransactions: (id: string): Promise<CustomerWalletTransactionDto[]> =>
-    apiClient.get<CustomerWalletTransactionDto[]>(`${BASE}/${id}/wallet-transactions`),
+  getWalletTransactions: (id: string, page = 1, pageSize = 30): Promise<WalletTransactionsPage> =>
+    apiClient.get<WalletTransactionsPage>(`${BASE}/${id}/wallet-transactions?page=${page}&pageSize=${pageSize}`),
 
   topUpWallet: (id: string, amount: number, notes?: string | null): Promise<CustomerDto> =>
     apiClient.post<CustomerDto>(`${BASE}/${id}/wallet/topup`, { amount, notes }),

@@ -204,6 +204,15 @@ export interface CustomerWalletTransactionDto {
   createdAt: string;
 }
 
+/** One page of a customer's wallet ledger. */
+export interface WalletTransactionsPage {
+  items: CustomerWalletTransactionDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export interface PaymentMethodSummaryDto {

@@ -10,15 +10,15 @@ public sealed class GetStockTransfersSummaryQueryHandler(IStockTransferRepositor
 {
     public async Task<Result<StockTransferSummaryDto>> Handle(GetStockTransfersSummaryQuery query, CancellationToken ct)
     {
-        var all = await repo.GetSummaryDataAsync(ct);
+        var s = await repo.GetSummaryAsync(ct);
 
         return Result.Success(new StockTransferSummaryDto(
-            Total:      all.Count,
-            Draft:      all.Count(x => x.Status == "draft"),
-            Pending:    all.Count(x => x.Status == "pending"),
-            InTransit:  all.Count(x => x.Status == "in_transit"),
-            Received:   all.Count(x => x.Status == "received"),
-            Cancelled:  all.Count(x => x.Status == "cancelled"),
-            TotalValue: all.Sum(x => x.TotalValue)));
+            Total:      s.Total,
+            Draft:      s.Draft,
+            Pending:    s.Pending,
+            InTransit:  s.InTransit,
+            Received:   s.Received,
+            Cancelled:  s.Cancelled,
+            TotalValue: s.TotalValue));
     }
 }

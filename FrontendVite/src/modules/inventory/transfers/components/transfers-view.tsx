@@ -16,7 +16,10 @@ import {
   useSubmitTransfer, useApproveTransfer, useReceiveTransfer,
 } from "@/hooks/inventory/use-transfers";
 import { useAuthStore } from "@/store/auth.store";
-import { ClientPagination, useClientPagination } from "@/components/ui/client-pagination";
+import { ClientPagination } from "@/components/ui/client-pagination";
+
+/** A warehouse works a screenful at a time; the rest is a page away. */
+const PAGE_SIZE = 25;
 import { AddTransferForm } from "./add-transfer-form";
 import { Can } from "@/components/auth/can";
 
@@ -134,7 +137,24 @@ export function TransfersView() {
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const { data: stockTransfers = [] } = useStockTransfers();
+  const [page, setPage] = React.useState(1);
+
+  // Debounced so typing a transfer number does not fire a query per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Any change to what is being asked for starts again at page one.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+  const { data: transfersPage } = useStockTransfers({
+    page,
+    pageSize: PAGE_SIZE,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    search: debouncedSearch || undefined,
+  });
   const { data: transfersSummary } = useTransfersSummary();
 
   const userName = useAuthStore(s => s.user)?.name ?? "System";
@@ -144,24 +164,15 @@ export function TransfersView() {
   const workflowBusy = submitTransfer.isPending || approveTransfer.isPending || receiveTransfer.isPending;
   const closeDrawer = () => setDrawerOpen(false);
 
-  const filtered = React.useMemo(() => {
-    let list = stockTransfers;
-    if (statusFilter !== "all") list = list.filter(t => t.status === statusFilter);
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      list = list.filter(t => t.transferNumber.toLowerCase().includes(s) || t.fromWarehouseName.toLowerCase().includes(s) || t.toWarehouseName.toLowerCase().includes(s));
-    }
-    return list;
-  }, [search, statusFilter, stockTransfers]);
-
-  const pg = useClientPagination(filtered, 25);
+  // The server has already filtered and paged; this is just the current page.
+  const filtered = transfersPage?.items ?? [];
 
   const STATS = [
-    { label: tr("transfers.stats.total"),      value: transfersSummary?.total      ?? stockTransfers.length,                                               icon: ArrowLeftRight, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: tr("transfers.stats.pending"),    value: transfersSummary?.pending    ?? stockTransfers.filter(t => t.status === "pending").length,           icon: Clock,          color: "text-warning",   bg: "bg-warning/10" },
-    { label: tr("transfers.stats.inTransit"),  value: transfersSummary?.inTransit  ?? stockTransfers.filter(t => t.status === "in_transit").length,        icon: Truck,          color: "text-primary",   bg: "bg-primary/10" },
-    { label: tr("transfers.stats.received"),   value: transfersSummary?.received   ?? stockTransfers.filter(t => t.status === "received").length,          icon: CheckCircle2,   color: "text-success",   bg: "bg-success/10" },
-    { label: tr("transfers.stats.totalValue"), value: formatCurrency(transfersSummary?.totalValue ?? stockTransfers.reduce((s, t) => s + t.totalValue, 0), currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
+    { label: tr("transfers.stats.total"),      value: transfersSummary?.total ?? 0,                                               icon: ArrowLeftRight, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: tr("transfers.stats.pending"),    value: transfersSummary?.pending ?? 0,           icon: Clock,          color: "text-warning",   bg: "bg-warning/10" },
+    { label: tr("transfers.stats.inTransit"),  value: transfersSummary?.inTransit ?? 0,        icon: Truck,          color: "text-primary",   bg: "bg-primary/10" },
+    { label: tr("transfers.stats.received"),   value: transfersSummary?.received ?? 0,          icon: CheckCircle2,   color: "text-success",   bg: "bg-success/10" },
+    { label: tr("transfers.stats.totalValue"), value: formatCurrency(transfersSummary?.totalValue ?? 0, currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
   ];
 
   const FILTER_KEYS = ["all", "draft", "pending", "in_transit", "received", "cancelled"];
@@ -216,7 +227,7 @@ export function TransfersView() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{tr("transfers.empty")}</td></tr>
-            ) : pg.pageItems.map((t, i) => {
+            ) : filtered.map((t, i) => {
               const sc = STATUS_CONFIG[t.status] ?? STATUS_FALLBACK;
               return (
                 <motion.tr key={t.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
@@ -248,9 +259,9 @@ export function TransfersView() {
         </table>
       </motion.div>
       <ClientPagination
-        page={pg.page} totalPages={pg.totalPages} totalCount={pg.totalCount}
-        hasPrev={pg.hasPrev} hasNext={pg.hasNext}
-        onPrev={() => pg.setPage(p => p - 1)} onNext={() => pg.setPage(p => p + 1)}
+        page={page} totalPages={transfersPage?.totalPages ?? 1} totalCount={transfersPage?.totalCount ?? 0}
+        hasPrev={page > 1} hasNext={page < (transfersPage?.totalPages ?? 1)}
+        onPrev={() => setPage(p => Math.max(1, p - 1))} onNext={() => setPage(p => p + 1)}
         label={tr("transfers.label")}
       />
       <TransferDrawer
