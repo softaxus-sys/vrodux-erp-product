@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Printer, Send, Download, CheckCircle2,
-  Plus, Trash2, Pencil, ArrowLeft, XCircle, AlertTriangle,
+  Plus, Trash2, Pencil, ArrowLeft, XCircle, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { InvoiceQuotationsPanel } from "./invoice-quotations-panel";
 import type { InvoiceDto as Invoice } from "@/lib/finance/finance.api";
 import {
   useCreateInvoice, useUpdateInvoice,
-  useSendInvoice, useMarkInvoicePaid, useCancelInvoice,
+  useSendInvoice, useMarkInvoicePaid, useCancelInvoice, useResetInvoiceStatus,
   useInvoiceById,
 } from "@/hooks/finance/use-finance";
 import { toast } from "sonner";
@@ -303,10 +303,12 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
   const currency = useCurrency();
   const [editMode, setEditMode] = React.useState(false);
   const [confirmCancel, setConfirmCancel] = React.useState(false);
+  const [confirmReset, setConfirmReset]   = React.useState(false);
 
   const sendInvoice   = useSendInvoice();
   const markPaid      = useMarkInvoicePaid();
   const cancelInvoice = useCancelInvoice();
+  const resetInvoice  = useResetInvoiceStatus();
   const { data: detail } = useInvoiceById(invoice.id);
 
   // Letterhead from Settings → General: name, address, TRN, logo, signature and stamp.
@@ -367,7 +369,17 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
     }
   };
 
-  const isPending = sendInvoice.isPending || markPaid.isPending || cancelInvoice.isPending;
+  const doReset = async () => {
+    setConfirmReset(false);
+    try {
+      await resetInvoice.mutateAsync(invoice.id);
+      onClose();
+    } catch {
+      // The hook toasts the reason — a receipt voucher settling it, or a closed period.
+    }
+  };
+
+  const isPending = sendInvoice.isPending || markPaid.isPending || cancelInvoice.isPending || resetInvoice.isPending;
 
   return (
     <div className="flex flex-col h-full">
@@ -410,6 +422,13 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
           <Button size="sm" variant="outline" className="gap-2" onClick={handlePrint} disabled={!detail}>
             <Download className="h-3.5 w-3.5" /> {t("invoicing.drawer.view.pdf")}
           </Button>
+          {!isDraft && (
+            <Button size="sm" variant="outline" className="gap-2"
+              onClick={() => setConfirmReset(true)} disabled={isPending}>
+              <RotateCcw className="h-3.5 w-3.5" />
+              {resetInvoice.isPending ? t("invoicing.drawer.view.resetting") : t("invoicing.drawer.view.resetStatus")}
+            </Button>
+          )}
           {isDraft && (
             <Button size="sm" variant="ghost"
               className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/5"
@@ -463,6 +482,33 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
         {/* Quotations this invoice was raised from. Renders nothing for tenants without Sales. */}
         <InvoiceQuotationsPanel invoiceId={invoice.id} invoiceNumber={invoice.invoiceNumber} />
       </div>
+
+      {/* Reset confirmation — states what is reversed, because the ledger changes too. */}
+      {confirmReset && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
+                <RotateCcw className="h-5 w-5 text-warning" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm">{t("invoicing.drawer.view.resetConfirmTitle")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("invoicing.drawer.view.resetConfirmBody", { number: invoice.invoiceNumber })}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setConfirmReset(false)}>
+                {t("invoicing.drawer.view.keep")}
+              </Button>
+              <Button size="sm" onClick={doReset} disabled={resetInvoice.isPending}>
+                {resetInvoice.isPending ? t("invoicing.drawer.view.resetting") : t("invoicing.drawer.view.resetStatus")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancel confirmation modal */}
       {confirmCancel && (

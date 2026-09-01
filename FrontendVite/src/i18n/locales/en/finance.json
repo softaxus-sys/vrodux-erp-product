@@ -123,7 +123,11 @@
         "total": "Total",
         "cancelConfirmTitle": "Cancel Invoice?",
         "cancelConfirmBody": "{{number}} — This cannot be undone.",
-        "keep": "Keep"
+        "keep": "Keep",
+        "resetStatus": "Reset to draft",
+        "resetting": "Resetting…",
+        "resetConfirmTitle": "Reset this invoice to draft?",
+        "resetConfirmBody": "{{number}} goes back to draft so you can correct and re-issue it. Its ledger entries are reversed and any recorded payment is cleared. The record that it was emailed is kept."
       }
     }
   },

@@ -107,6 +107,19 @@ public sealed class InvoicesController(ISender sender) : FinanceControllerBase
         return NoContentOrError(result);
     }
 
+    /// <summary>
+    /// Returns the invoice to draft so a mistake can be corrected and the invoice re-issued.
+    /// Reverses both ledger legs first. Gated on edit rather than a key of its own — there is no
+    /// seeded finance.invoicing.reset, and this is a correction of an existing invoice.
+    /// </summary>
+    [HttpPost("{id:guid}/reset")]
+    [RequirePermission("finance.invoicing.edit")]
+    public async Task<IActionResult> ResetStatus(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new ResetInvoiceStatusCommand(id), ct);
+        return NoContentOrError(result);
+    }
+
     [HttpDelete("{id:guid}")]
     [RequirePermission("finance.invoicing.delete")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

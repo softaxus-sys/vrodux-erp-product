@@ -520,6 +520,22 @@ export function useMarkInvoicePaid() {
   });
 }
 
+export function useResetInvoiceStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.resetInvoiceStatus(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: [QK, "invoices"] });
+      qc.invalidateQueries({ queryKey: [QK, "invoices", id] });
+      qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
+      // The ledger changed too, so anything reading it is now stale.
+      qc.invalidateQueries({ queryKey: [QK, "journals"] });
+      toast.success("Invoice reset to draft.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCancelInvoice() {
   const qc = useQueryClient();
   return useMutation({

@@ -732,6 +732,8 @@ export const financeApi = {
   sendInvoice:       (id: string): Promise<SendInvoiceResult>  => rawApiClient.post(`${BASE}/invoices/${id}/send`),
   markInvoicePaid:   (id: string): Promise<void>             => rawApiClient.post(`${BASE}/invoices/${id}/pay`),
   cancelInvoice:     (id: string): Promise<void>             => rawApiClient.post(`${BASE}/invoices/${id}/cancel`),
+  /** Back to draft for correction. Reverses both ledger legs; refused if a receipt voucher settled it. */
+  resetInvoiceStatus:(id: string): Promise<void>             => rawApiClient.post(`${BASE}/invoices/${id}/reset`),
 
   // Accounting
   getAccounts: (params?: { search?: string; accountType?: string; isActive?: boolean }): Promise<AccountDto[]> => {

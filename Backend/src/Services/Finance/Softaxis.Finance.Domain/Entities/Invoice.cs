@@ -140,6 +140,25 @@ public sealed class Invoice
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Returns the invoice to draft so it can be corrected and re-issued.
+    ///
+    /// <para>Clears the payment figures, because a draft that still reports money received would
+    /// misstate the receivable. The caller is responsible for reversing the ledger first — this
+    /// method only moves the invoice, it does not know about journal entries.</para>
+    ///
+    /// <para>The delivery record (EmailSentAt / ReceiptSentAt) is deliberately NOT cleared: an email
+    /// that was sent is a historical fact, and erasing it would leave no way to tell that the
+    /// customer already holds an earlier version of this invoice.</para>
+    /// </summary>
+    public void ResetToDraft()
+    {
+        Status     = "draft";
+        AmountPaid = 0;
+        PaidAt     = null;
+        UpdatedAt  = DateTime.UtcNow;
+    }
+
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }

@@ -54,6 +54,18 @@ public sealed record SendInvoiceCommand(Guid Id) : ICommand<SendInvoiceResultDto
 /// or the mail server refused it. The invoice is still issued and posted in every case.</param>
 public sealed record SendInvoiceResultDto(bool EmailSent, string? SentTo);
 
+/// <summary>
+/// Returns an invoice to draft so a mistake can be corrected and the invoice re-issued.
+///
+/// <para>Distinct from cancelling: cancel ends the invoice, this reopens it. Both reverse the same
+/// two ledger legs, so neither leaves a stranded posting behind.</para>
+///
+/// <para>Refused when the invoice was settled through a receipt voucher — the voucher owns that
+/// allocation, and zeroing the invoice here would leave the two disagreeing and double-reverse when
+/// the voucher is later voided. Void the voucher instead.</para>
+/// </summary>
+public sealed record ResetInvoiceStatusCommand(Guid Id) : ICommand;
+
 public sealed record CancelInvoiceCommand(Guid Id) : ICommand;
 
 public sealed record DeleteInvoiceCommand(Guid Id) : ICommand;
