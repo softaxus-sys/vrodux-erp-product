@@ -18,9 +18,15 @@ public sealed class HousekeepingController(ISender sender) : HospitalityControll
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? status = null,
+        [FromQuery] string? taskType = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetHousekeepingTasksQuery(), ct);
+        var result = await sender.Send(new GetHousekeepingTasksQuery(status, taskType, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

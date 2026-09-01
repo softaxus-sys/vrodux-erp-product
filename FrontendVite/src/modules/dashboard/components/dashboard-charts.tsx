@@ -21,7 +21,7 @@ import { useInventoryDashboard } from "@/hooks/inventory/use-inventory-products"
 import { useSalesDashboard } from "@/hooks/sales/use-sales-orders";
 import { usePurchaseDashboard } from "@/hooks/purchase/use-purchase-orders";
 import { usePosDashboard } from "@/hooks/pos/use-transactions";
-import { useRooms, useBookings } from "@/hooks/hospitality/use-hospitality";
+import { useRooms, useBookingsSummary } from "@/hooks/hospitality/use-hospitality";
 import { formatCurrency } from "@/lib/utils";
 
 // ── Palette ────────────────────────────────────────────────────────────────────
@@ -1032,7 +1032,9 @@ function PurchaseCharts() {
 function HospitalityCharts() {
   const { t } = useTranslation("dashboard");
   const { data: rooms = [] }    = useRooms();
-  const { data: bookings = [] } = useBookings();
+  // The summary endpoint already returns exactly these status counts, so the chart reads that
+  // instead of downloading every booking to tally them here.
+  const { data: bookingsSummary } = useBookingsSummary();
 
   // Real room-status distribution
   const roomStatus = React.useMemo(() => {
@@ -1042,12 +1044,13 @@ function HospitalityCharts() {
     return order.filter((s) => map.has(s)).map((s) => ({ status: titleCase(s), count: map.get(s)! }));
   }, [rooms]);
 
-  // Real booking-status distribution
-  const bookingStatus = React.useMemo(() => {
-    const map = new Map<string, number>();
-    for (const b of bookings) map.set(b.status, (map.get(b.status) ?? 0) + 1);
-    return [...map.entries()].map(([k, value]) => ({ name: titleCase(k), value })).sort((a, b) => b.value - a.value);
-  }, [bookings]);
+  // Real booking-status distribution, straight from the summary.
+  const bookingStatus = React.useMemo(() => ([
+    { name: titleCase("confirmed"),   value: bookingsSummary?.confirmed  ?? 0 },
+    { name: titleCase("checked_in"),  value: bookingsSummary?.checkedIn  ?? 0 },
+    { name: titleCase("checked_out"), value: bookingsSummary?.checkedOut ?? 0 },
+    { name: titleCase("cancelled"),   value: bookingsSummary?.cancelled  ?? 0 },
+  ].filter(x => x.value > 0).sort((a, b) => b.value - a.value)), [bookingsSummary]);
 
   const bookingColors = [P.teal, P.sky, P.violet, P.amber, P.red];
   const hasRooms    = roomStatus.length > 0;
@@ -1059,7 +1062,7 @@ function HospitalityCharts() {
         icon={Building2}
         title={t("charts.hospitality.title")}
         color={P.teal}
-        description={t("charts.hospitality.desc", { rooms: rooms.length, bookings: bookings.length })}
+        description={t("charts.hospitality.desc", { rooms: rooms.length, bookings: bookingsSummary?.total ?? 0 })}
       />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="xl:col-span-2">

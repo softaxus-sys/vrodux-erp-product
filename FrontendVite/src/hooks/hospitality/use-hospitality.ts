@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { hospitalityApi } from "@/lib/hospitality/hospitality.api";
+import { hospitalityApi, type HospPageParams, type HKTaskParams } from "@/lib/hospitality/hospitality.api";
 
 const QK = "hospitality";
 
@@ -20,10 +20,12 @@ export function useRoomsSummary() {
   });
 }
 
-export function useBookings() {
+export function useBookings(params: HospPageParams & { search?: string } = {}) {
   return useQuery({
-    queryKey: [QK, "bookings"],
-    queryFn:  hospitalityApi.getBookings,
+    queryKey: [QK, "bookings", params],
+    queryFn:  () => hospitalityApi.getBookings(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -36,10 +38,12 @@ export function useBookingsSummary() {
   });
 }
 
-export function useHKTasks() {
+export function useHKTasks(params: HKTaskParams = {}) {
   return useQuery({
-    queryKey: [QK, "hk-tasks"],
-    queryFn:  hospitalityApi.getHKTasks,
+    queryKey: [QK, "hk-tasks", params],
+    queryFn:  () => hospitalityApi.getHKTasks(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
     staleTime: 2 * 60 * 1000,
   });
 }

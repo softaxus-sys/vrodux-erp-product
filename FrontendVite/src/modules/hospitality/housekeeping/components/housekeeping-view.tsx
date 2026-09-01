@@ -9,6 +9,10 @@ import {
 import type { HKTaskDto as HKTask, HKStatus, TaskType, Priority } from "@/lib/hospitality/hospitality.api";
 import { useHKTasks, useHKSummary } from "@/hooks/hospitality/use-hospitality";
 import { AddHKTaskForm } from "./add-hk-task-form";
+import { Pager } from "@/components/ui/pager";
+
+/** Housekeeping works a floor at a time; the rest is a page away. */
+const PAGE_SIZE = 30;
 
 const STATUS_CONFIG: Record<HKStatus, { label: string; color: string; bg: string; dot: string; border: string }> = {
   pending:     { label: "Pending",     color: "text-muted-foreground", bg: "bg-muted/30",       dot: "bg-muted-foreground", border: "border-border" },
@@ -282,27 +286,34 @@ function TaskRow({ task, onClick }: { task: HKTask; onClick: () => void }) {
 
 // ─── Main View ────────────────────────────────────────────────────────────────
 export function HousekeepingView() {
-  const { data: hkTasks = [] } = useHKTasks();
-  const { data: hkSummary } = useHKSummary();
-
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [typeFilter, setTypeFilter] = React.useState("all");
+  const [page, setPage] = React.useState(1);
   const [selectedTask, setSelectedTask] = React.useState<HKTask | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const filtered = React.useMemo(() => {
-    return hkTasks.filter(t => {
-      const q = search.toLowerCase();
-      const matchSearch = !q ||
-        t.taskNumber.toLowerCase().includes(q) ||
-        t.roomNumber.includes(q) ||
-        t.assignedTo.toLowerCase().includes(q);
-      const matchStatus = statusFilter === "all" || t.status === statusFilter;
-      const matchType = typeFilter === "all" || t.taskType === typeFilter;
-      return matchSearch && matchStatus && matchType;
-    });
-  }, [hkTasks, search, statusFilter, typeFilter]);
+  // Debounced so typing a room number doesn't fire a query per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Any change to what is being asked for starts again at page one.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, typeFilter]);
+
+  const { data: hkPage, isFetching } = useHKTasks({
+    page,
+    pageSize: PAGE_SIZE,
+    status:   statusFilter === "all" ? undefined : statusFilter,
+    taskType: typeFilter   === "all" ? undefined : typeFilter,
+    search:   debouncedSearch || undefined,
+  });
+  const { data: hkSummary } = useHKSummary();
+
+  // The server has already filtered and paged; this is just the current page.
+  const filtered = hkPage?.items ?? [];
 
   const taskTypeOptions = [
     { value: "all", label: "All Types" },
@@ -320,7 +331,7 @@ export function HousekeepingView() {
         <div>
           <h1 className="text-xl font-bold text-foreground">Housekeeping</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Today's tasks — {hkSummary?.total ?? hkTasks.length} total · {hkSummary?.urgent ?? 0} urgent
+            Today's tasks — {hkSummary?.total ?? 0} total · {hkSummary?.urgent ?? 0} urgent
           </p>
         </div>
         <Button size="sm" onClick={() => setShowAddForm(true)}>
@@ -331,15 +342,11 @@ export function HousekeepingView() {
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          <StatCard label="Total Tasks" value={hkSummary?.total ?? hkTasks.length} accent="bg-primary" />
-          <StatCard label="Pending" value={hkSummary?.pending ?? hkTasks.filter(t => t.status === "pending").length} accent="bg-muted-foreground" />
-          <StatCard label="In Progress" value={hkSummary?.inProgress ?? hkTasks.filter(t => t.status === "in_progress").length} accent="bg-warning" />
-          <StatCard label="Completed" value={hkSummary?.completed ?? hkTasks.filter(t => t.status === "completed").length} accent="bg-success" />
-          <StatCard label="Inspected" value={hkSummary?.inspected ?? hkTasks.filter(t => t.status === "inspected").length} accent="bg-primary" />
-          <StatCard label="Urgent" value={hkSummary?.urgent ?? hkTasks.filter(t => t.priority === "urgent").length} accent="bg-destructive"
-            icon={<Zap className="w-3.5 h-3.5 text-destructive" />} />
-          <StatCard label="Checkouts" value={hkSummary?.checkouts ?? hkTasks.filter(t => t.taskType === "checkout").length} accent="bg-warning" />
-          <StatCard label="Stayovers" value={hkSummary?.stayovers ?? hkTasks.filter(t => t.taskType === "stayover").length} accent="bg-blue-500" />
+          <StatCard label="Total Tasks" value={hkSummary?.total ?? 0} accent="bg-primary" />
+          <StatCard label="Pending" value={hkSummary?.pending ?? 0} accent="bg-warning" />
+          <StatCard label="Completed" value={hkSummary?.completed ?? 0} accent="bg-primary" />
+          <StatCard label="Urgent" value={hkSummary?.urgent ?? 0} accent="bg-warning" />
+          <StatCard label="Stayovers" value={hkSummary?.stayovers ?? 0} accent="bg-blue-500" />
         </div>
 
         {/* Filters */}

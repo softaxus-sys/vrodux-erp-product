@@ -127,16 +127,44 @@ export interface HKSummaryDto {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
+/** Paging for the hospitality lists that grow with trading — bookings and housekeeping tasks. */
+export interface HospPageParams { page?: number; pageSize?: number; status?: string; }
+
+export interface HKTaskParams extends HospPageParams { taskType?: string; search?: string; }
+
+export interface HospPaged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export const hospitalityApi = {
   getRooms:           (): Promise<RoomDto[]>          => rawApiClient.get(`${BASE}/rooms`),
   getRoomsSummary:    (): Promise<RoomsSummaryDto>    => rawApiClient.get(`${BASE}/rooms/summary`),
   createRoom:         (data: Record<string, unknown>): Promise<RoomDto> => rawApiClient.post(`${BASE}/rooms`, data),
 
-  getBookings:        (): Promise<BookingDto[]>       => rawApiClient.get(`${BASE}/bookings`),
+  getBookings: (p: HospPageParams & { search?: string } = {}): Promise<HospPaged<BookingDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.status) qs.set("status", p.status);
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    return rawApiClient.get(`${BASE}/bookings?${qs}`);
+  },
   getBookingsSummary: (): Promise<BookingsSummaryDto> => rawApiClient.get(`${BASE}/bookings/summary`),
   createBooking:      (data: Record<string, unknown>): Promise<BookingDto> => rawApiClient.post(`${BASE}/bookings`, data),
 
-  getHKTasks:         (): Promise<HKTaskDto[]>        => rawApiClient.get(`${BASE}/housekeeping`),
+  getHKTasks: (p: HKTaskParams = {}): Promise<HospPaged<HKTaskDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.status) qs.set("status", p.status);
+    if (p.taskType) qs.set("taskType", p.taskType);
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    return rawApiClient.get(`${BASE}/housekeeping?${qs}`);
+  },
   getHKSummary:       (): Promise<HKSummaryDto>       => rawApiClient.get(`${BASE}/housekeeping/summary`),
   createHKTask:       (data: Record<string, unknown>): Promise<HKTaskDto> => rawApiClient.post(`${BASE}/housekeeping`, data),
 };

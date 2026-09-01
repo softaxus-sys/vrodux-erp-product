@@ -11,6 +11,10 @@ import { useCurrency } from "@/hooks/use-currency";
 import type { BookingDto as Booking, BookingStatus, BookingSource } from "@/lib/hospitality/hospitality.api";
 import { useBookings, useBookingsSummary } from "@/hooks/hospitality/use-hospitality";
 import { AddBookingForm } from "./add-booking-form";
+import { Pager } from "@/components/ui/pager";
+
+/** A front desk works a screenful at a time; the rest is a page away. */
+const PAGE_SIZE = 30;
 
 const STATUS_CONFIG: Record<BookingStatus, { label: string; color: string; bg: string; dot: string }> = {
   confirmed:    { label: "Confirmed",    color: "text-primary",     bg: "bg-primary/10",                    dot: "bg-primary" },
@@ -128,29 +132,38 @@ const STATUS_FILTER_LABELS: Record<typeof STATUS_FILTERS[number], string> = {
 
 export function BookingsView() {
   const currency = useCurrency();
-  const { data: bookings = [] } = useBookings();
-  const { data: bookingsSummary } = useBookingsSummary();
-
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<BookingStatus | "all">("all");
+  const [page, setPage] = React.useState(1);
   const [selected, setSelected] = React.useState<Booking | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
 
-  const filtered = React.useMemo(() => {
-    let list = bookings;
-    if (statusFilter !== "all") list = list.filter(b => b.status === statusFilter);
-    if (search.trim()) {
-      const s = search.toLowerCase();
-      list = list.filter(b => b.guestName.toLowerCase().includes(s) || b.bookingNumber.toLowerCase().includes(s) || b.roomNumber.includes(s));
-    }
-    return list;
-  }, [bookings, search, statusFilter]);
+  // Debounced so typing a guest name doesn't fire a query per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  React.useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Any change to what is being asked for starts again at page one.
+  React.useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
+  const { data: bookingsPage, isFetching } = useBookings({
+    page,
+    pageSize: PAGE_SIZE,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    search: debouncedSearch || undefined,
+  });
+  const { data: bookingsSummary } = useBookingsSummary();
+
+  // The server has already filtered and paged; this is just the current page.
+  const filtered = bookingsPage?.items ?? [];
 
   const STATS = [
-    { label: "Total Bookings", value: bookingsSummary?.total ?? bookings.length, icon: CalendarCheck, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: "Checked In", value: bookingsSummary?.checkedIn ?? bookings.filter(b => b.status === "checked_in").length, icon: BedDouble, color: "text-success", bg: "bg-success/10" },
-    { label: "Arriving Today", value: bookingsSummary?.confirmed ?? bookings.filter(b => b.status === "confirmed").length, icon: LogIn, color: "text-primary", bg: "bg-primary/10" },
+    { label: "Total Bookings", value: bookingsSummary?.total ?? 0, icon: CalendarCheck, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: "Checked In", value: bookingsSummary?.checkedIn ?? 0, icon: BedDouble, color: "text-success", bg: "bg-success/10" },
+    { label: "Arriving Today", value: bookingsSummary?.confirmed ?? 0, icon: LogIn, color: "text-primary", bg: "bg-primary/10" },
     { label: "Occupancy", value: `${bookingsSummary?.occupancyRate ?? 0}%`, icon: Users, color: "text-warning", bg: "bg-warning/10" },
     { label: "Revenue", value: formatCurrency(bookingsSummary?.totalRevenue ?? 0, currency), icon: DollarSign, color: "text-success", bg: "bg-success/10", isText: true },
   ];

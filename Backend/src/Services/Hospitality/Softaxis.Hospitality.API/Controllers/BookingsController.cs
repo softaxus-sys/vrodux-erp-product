@@ -18,9 +18,14 @@ public sealed class BookingsController(ISender sender) : HospitalityControllerBa
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetBookingsQuery(), ct);
+        var result = await sender.Send(new GetBookingsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
