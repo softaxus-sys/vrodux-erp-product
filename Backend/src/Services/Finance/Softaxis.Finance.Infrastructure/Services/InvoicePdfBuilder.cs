@@ -1,6 +1,7 @@
 using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
+using Microsoft.Extensions.Logging;
 using QuestPDF.Infrastructure;
 using Softaxis.Finance.Application.Abstractions;
 using Softaxis.Finance.Domain.Entities;
@@ -53,14 +54,19 @@ internal static class InvoicePdfBuilder
     /// receives the invoice in the body but without the PDF is inconvenienced; a customer who
     /// receives nothing because the renderer threw has not been invoiced at all.</para>
     /// </summary>
-    public static IReadOnlyList<EmailAttachment>? TryBuildAttachment(Invoice invoice, InvoiceBranding brand)
+    public static IReadOnlyList<EmailAttachment>? TryBuildAttachment(
+        Invoice invoice, InvoiceBranding brand, ILogger? logger = null)
     {
         try
         {
             return [new EmailAttachment(FileName(invoice), Build(invoice, brand), "application/pdf")];
         }
-        catch
+        catch (Exception ex)
         {
+            // Best-effort, but never SILENT: a swallowed failure here would send the invoice with no
+            // attachment and leave nothing to explain why, which is the hardest kind of bug to chase.
+            logger?.LogError(ex, "Could not render the PDF for invoice {InvoiceNumber}; " +
+                "the email will be sent without the attachment.", invoice.InvoiceNumber);
             return null;
         }
     }

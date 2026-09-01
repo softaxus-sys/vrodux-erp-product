@@ -35,7 +35,19 @@ public sealed class UpdateInvoiceValidator : AbstractValidator<UpdateInvoiceComm
 
 public sealed record MarkInvoicePaidCommand(Guid Id) : ICommand;
 
-public sealed record SendInvoiceCommand(Guid Id) : ICommand;
+/// <summary>
+/// Issue the invoice: post it to the ledger and email it to the customer with the PDF attached.
+///
+/// <para>Returns whether the email actually left, because those two things can differ. The ledger
+/// posting is committed first — an invoice that is posted but not emailed can be re-sent, whereas
+/// an email for an invoice that failed to save is a bill the customer holds and the books do not.
+/// The caller is told which happened rather than being shown an unconditional "sent".</para>
+/// </summary>
+public sealed record SendInvoiceCommand(Guid Id) : ICommand<SendInvoiceResultDto>;
+
+/// <param name="EmailSent">False when SMTP is unconfigured, the customer has no address on file,
+/// or the mail server refused it. The invoice is still issued and posted in every case.</param>
+public sealed record SendInvoiceResultDto(bool EmailSent, string? SentTo);
 
 public sealed record CancelInvoiceCommand(Guid Id) : ICommand;
 

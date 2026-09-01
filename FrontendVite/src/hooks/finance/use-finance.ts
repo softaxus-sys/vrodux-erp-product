@@ -487,11 +487,20 @@ export function useSendInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => financeApi.sendInvoice(id),
-    onSuccess: (_data, id) => {
+    onSuccess: (data, id) => {
       qc.invalidateQueries({ queryKey: [QK, "invoices"] });
       qc.invalidateQueries({ queryKey: [QK, "invoices", id] });
       qc.invalidateQueries({ queryKey: [QK, "invoice-summary"] });
-      toast.success("Invoice sent.");
+      // Reports what actually happened. This said "Invoice sent." unconditionally, which is how a
+      // handler that emailed nothing at all went unnoticed — the invoice showed as sent, the
+      // ledger was posted, and the customer received nothing.
+      if (data?.emailSent) {
+        toast.success(`Invoice emailed to ${data.sentTo ?? "the customer"}.`);
+      } else {
+        toast.warning(
+          "Invoice issued and posted, but the email was not sent. " +
+          "Check the customer has an email address and that SMTP is configured.");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

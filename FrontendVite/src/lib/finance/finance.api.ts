@@ -55,6 +55,13 @@ export interface InvoiceDto {
   updatedAt?: string | null;
 }
 
+/** Issuing an invoice posts it to the ledger AND emails it — those can differ, so the result says
+ *  whether the email actually left rather than the UI assuming it did. */
+export interface SendInvoiceResult {
+  emailSent: boolean;
+  sentTo?: string | null;
+}
+
 export interface InvoiceSummaryDto {
   totalInvoices: number;
   totalAmount: number;
@@ -712,7 +719,7 @@ export const financeApi = {
   createInvoice:     (data: CreateInvoiceRequest): Promise<InvoiceDto> => rawApiClient.post(`${BASE}/invoices`, data),
   updateInvoice:     (id: string, data: UpdateInvoiceRequest): Promise<void> => rawApiClient.put(`${BASE}/invoices/${id}`, data),
   deleteInvoice:     (id: string): Promise<void>             => rawApiClient.delete(`${BASE}/invoices/${id}`),
-  sendInvoice:       (id: string): Promise<void>             => rawApiClient.post(`${BASE}/invoices/${id}/send`),
+  sendInvoice:       (id: string): Promise<SendInvoiceResult>  => rawApiClient.post(`${BASE}/invoices/${id}/send`),
   markInvoicePaid:   (id: string): Promise<void>             => rawApiClient.post(`${BASE}/invoices/${id}/pay`),
   cancelInvoice:     (id: string): Promise<void>             => rawApiClient.post(`${BASE}/invoices/${id}/cancel`),
 
