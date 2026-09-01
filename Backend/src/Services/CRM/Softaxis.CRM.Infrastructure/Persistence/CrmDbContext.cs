@@ -85,7 +85,14 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
             .IsDescending(true, false)
             // TenantId included by name — it is the shadow column, so a lambda cannot reach it, and
             // leaving it out would cost a key lookup per row just to evaluate the tenant filter.
-            .IncludeProperties("TenantId", "IsDeleted", "Status", "AssignedToUserId", "TeamId");
+            //
+            // EstimatedValue and CreatedAt are here for the SUMMARY query rather than the list. That
+            // one aggregates over every matching lead, so it must read them all — but with these two
+            // columns present it can do so from this narrow index instead of the clustered one:
+            // 1,914 logical reads down to 83. Two more columns costs roughly 17 bytes a row.
+            .IncludeProperties(
+                "TenantId", "IsDeleted", "Status", "AssignedToUserId", "TeamId",
+                "EstimatedValue", "CreatedAt");
 
         // Read-only cross-schema views of Identity's teams, used by LeadAccessGuard for the
         // team-lead visibility tier. Mapped after ApplyTenantId and outside the CRM.Domain
