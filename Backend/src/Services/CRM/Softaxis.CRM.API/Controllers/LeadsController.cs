@@ -75,6 +75,18 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
         return OkOrError(result);
     }
 
+    /// <summary>
+    /// The lead's complete journey — creation, handoffs, status changes, logged activity and
+    /// conversion — merged chronologically, newest first.
+    /// </summary>
+    [HttpGet("{id:guid}/journey")]
+    [RequireAnyPermission(ViewAny, ViewTeam, ViewAssigned)]
+    public async Task<IActionResult> GetJourney(Guid id, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetLeadJourneyQuery(id), ct);
+        return OkOrError(result);
+    }
+
     [HttpPost]
     [RequirePermission("crm.leads.create")]
     public async Task<IActionResult> Create([FromBody] CreateLeadCommand cmd, CancellationToken ct)

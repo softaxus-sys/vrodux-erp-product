@@ -93,6 +93,20 @@ internal sealed class DealStageHistoryConfiguration : IEntityTypeConfiguration<D
     }
 }
 
+internal sealed class LeadStatusHistoryConfiguration : IEntityTypeConfiguration<LeadStatusHistory>
+{
+    public void Configure(EntityTypeBuilder<LeadStatusHistory> builder)
+    {
+        builder.ToTable("lead_status_history");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.FromStatus).HasMaxLength(30);
+        builder.Property(x => x.ToStatus).IsRequired().HasMaxLength(30);
+        builder.Property(x => x.ChangedByName).HasMaxLength(200);
+        // The journey reads one lead's trail in order; that is what this covers.
+        builder.HasIndex(x => new { x.LeadId, x.CreatedAt });
+    }
+}
+
 internal sealed class CrmCustomerConfiguration : IEntityTypeConfiguration<CrmCustomer>
 {
     public void Configure(EntityTypeBuilder<CrmCustomer> builder)

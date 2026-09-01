@@ -47,6 +47,7 @@ public static class InfrastructureExtensions
         // ── Role-based lead access scoping (full vs assigned-only) ───────────
         services.AddScoped<Services.ILeadAccessGuard, Services.LeadAccessGuard>();
         services.AddScoped<Services.IDealStageRecorder, Services.DealStageRecorder>();
+        services.AddScoped<Services.ILeadStatusRecorder, Services.LeadStatusRecorder>();
 
         // The batched Property Finder import keeps its plan here between slices.
         services.AddMemoryCache();

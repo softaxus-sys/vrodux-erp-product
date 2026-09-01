@@ -122,7 +122,8 @@
     "tab": {
       "overview": "Overview",
       "activity": "Activity",
-      "documents": "Documents"
+      "documents": "Documents",
+      "journey": "Journey"
     },
     "leadScore": "Lead Score",
     "scoreValue": "{{score}}/100 · {{label}}",
@@ -946,5 +947,22 @@
       "note": "Won value is summed from linked opportunities. Recorded revenue is the figure stored on the account record itself — shown separately because the two are maintained independently and often disagree.",
       "recordedRevenue": "Recorded revenue"
     }
+  },
+  "journey": {
+    "loading": "Loading journey…",
+    "error": "Couldn't load this lead's journey.",
+    "retry": "Try again",
+    "empty": "Nothing has happened on this lead yet.",
+    "created": "Lead created",
+    "createdFrom": "Lead created from {{source}}",
+    "assigned": "Assigned to {{to}}",
+    "reassigned": "Handed over from {{from}} to {{to}}",
+    "statusSet": "Status set to {{to}}",
+    "statusChanged": "Status moved from {{from}} to {{to}}",
+    "activity": "{{subject}}",
+    "activityDone": "{{subject}} — completed",
+    "converted": "Converted to an opportunity",
+    "dwell_one": "Spent {{count}} day at {{status}}",
+    "dwell_other": "Spent {{count}} days at {{status}}"
   }
 }

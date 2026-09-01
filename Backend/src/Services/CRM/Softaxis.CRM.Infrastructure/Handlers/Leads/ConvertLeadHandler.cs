@@ -8,7 +8,7 @@ using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class ConvertLeadHandler(CrmDbContext db, ILeadAccessGuard access) : ICommandHandler<ConvertLeadCommand, ConvertLeadResultDto>
+internal sealed class ConvertLeadHandler(CrmDbContext db, ILeadAccessGuard access, ILeadStatusRecorder statusRecorder) : ICommandHandler<ConvertLeadCommand, ConvertLeadResultDto>
 {
     public async Task<Result<ConvertLeadResultDto>> Handle(ConvertLeadCommand cmd, CancellationToken ct)
     {
@@ -64,7 +64,9 @@ internal sealed class ConvertLeadHandler(CrmDbContext db, ILeadAccessGuard acces
         if (contact is not null)
             db.DealContacts.Add(new DealContact(deal.Id, contact.Id, "decision_maker"));
 
+        var previousStatus = l.Status;
         l.Convert(deal.Id.ToString(), customer.Id);
+        await statusRecorder.RecordChangeAsync(l, previousStatus, ct);
         await db.SaveChangesAsync(ct);
 
         return Result.Success(new ConvertLeadResultDto(customer.Id, deal.Id));

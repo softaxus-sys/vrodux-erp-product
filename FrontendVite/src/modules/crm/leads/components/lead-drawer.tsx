@@ -17,12 +17,13 @@ import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/ide
 import { useCurrency } from "@/hooks/use-currency";
 import { useAuthStore } from "@/store/auth.store";
 import { ActivityTimeline } from "@/modules/crm/activities/components/activity-timeline";
+import { LeadJourney } from "./lead-journey";
 import { Can } from "@/components/auth/can";
 import { NewCaseWizard } from "@/modules/visa/cases/components/new-case-wizard";
 
 import { DocumentsPanel } from "@/modules/crm/shared/components/documents-panel";
 
-type Tab = "overview" | "activity" | "documents";
+type Tab = "overview" | "journey" | "activity" | "documents";
 
 const STATUS_OPTIONS: LeadStatus[] = ["new", "contacted", "qualified", "unqualified", "converted", "lost"];
 
@@ -222,7 +223,7 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
 
             {/* Tabs */}
             <div className="flex border-b border-border px-6">
-              {(["overview","activity","documents"] as Tab[]).map(tk => (
+              {(["overview","journey","activity","documents"] as Tab[]).map(tk => (
                 <button key={tk} onClick={() => setTab(tk)}
                   className={cn("px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
                     tab === tk ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
@@ -457,6 +458,8 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
                   )}
                 </>
               )}
+
+              {tab === "journey" && <LeadJourney leadId={leadId} />}
 
               {tab === "activity" && (
                 <ActivityTimeline relatedToType="lead" relatedToId={leadId} relatedToName={lead.fullName} assignedTo={lead.assignedTo} />

@@ -512,6 +512,22 @@ export interface UpdateLeadRequest extends CreateLeadRequest {
 }
 
 /** One handoff in a lead's assignment history (newest first). */
+/** One entry in a lead's journey. Optional fields carry whatever the kind needs; null for the rest. */
+export interface LeadJourneyEntryDto {
+  id: string;
+  kind: "created" | "assigned" | "status" | "activity" | "converted";
+  at: string;
+  actorName?: string | null;
+  actorUserId?: string | null;
+  fromValue?: string | null;
+  toValue?: string | null;
+  title?: string | null;
+  detail?: string | null;
+  /** Days the lead sat in the status it just left. Null for transitions predating the history table. */
+  daysInPrevious?: number | null;
+  completed?: boolean | null;
+}
+
 export interface LeadAssignmentDto {
   id: string;
   fromUserId?: string | null;
@@ -636,6 +652,8 @@ export const crmApi = {
   convertLead:    (id: string, body: { dealTitle?: string; dealValue?: number; expectedCloseDate?: string }): Promise<{ customerId: string; dealId: string }> => rawApiClient.post(`${BASE}/leads/${id}/convert`, body),
   assignLead:     (id: string, body: { toUserId?: string | null; toUserName: string; note?: string | null; teamId?: string | null }): Promise<void> => rawApiClient.post(`${BASE}/leads/${id}/assign`, body),
   getLeadAssignments: (id: string): Promise<LeadAssignmentDto[]> => rawApiClient.get(`${BASE}/leads/${id}/assignments`),
+  /** The merged journey — creation, handoffs, status changes, activity, conversion. */
+  getLeadJourney: (id: string): Promise<LeadJourneyEntryDto[]> => rawApiClient.get(`${BASE}/leads/${id}/journey`),
   /** File many leads to a team at once; null teamId un-files them. Returns filed/skipped counts. */
   bulkFileLeadsToTeam: (leadIds: string[], teamId: string | null, assignToUserId: string | null = null): Promise<BulkFileResult> =>
     rawApiClient.post(`${BASE}/leads/bulk-file-to-team`, { leadIds, teamId, assignToUserId }),

@@ -46,9 +46,12 @@ internal static class LeadListProjection
 
     /// <summary>Mirrors LeadMappings.ToDto(..., forList: true): the three bulky fields are null.</summary>
     public static LeadDto ToDto(LeadListRow r, string? dealStage, decimal? dealValue) => new(
-        r.Id, r.FirstName, r.LastName, $"{r.FirstName} {r.LastName}".Trim(), r.Title, r.Company, r.Industry,
-        r.Email, r.Phone, r.Country, r.City, r.Source, r.Status, r.Priority, r.Score,
-        r.EstimatedValue, r.Currency, r.AssignedTo, r.CreatedDate, r.LastContactDate,
+        // These columns are nullable in the database while LeadDto promises non-null strings, so the
+        // empty-string default is applied here rather than handed a null the DTO says cannot occur.
+        r.Id, r.FirstName, r.LastName, $"{r.FirstName} {r.LastName}".Trim(),
+        r.Title ?? "", r.Company ?? "", r.Industry ?? "",
+        r.Email ?? "", r.Phone ?? "", r.Country ?? "", r.City ?? "", r.Source, r.Status, r.Priority, r.Score,
+        r.EstimatedValue, r.Currency, r.AssignedTo ?? "", r.CreatedDate ?? "", r.LastContactDate,
         r.NextFollowUp, null, r.ConvertedDealId, r.Tags, Array.Empty<object>(),
         r.CreatedAt, r.UpdatedAt, r.ConvertedCustomerId,
         r.WhatsApp, r.InterestedIn, r.Budget, null,

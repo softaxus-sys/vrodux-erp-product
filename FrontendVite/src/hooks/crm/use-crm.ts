@@ -107,7 +107,7 @@ function useCrmMutation<TArgs, TResult = unknown>(
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      const keys = opts?.invalidate ?? ["leads", "leads-summary", "lead", "lead-assignments",
+      const keys = opts?.invalidate ?? ["leads", "leads-summary", "lead", "lead-assignments", "lead-journey",
         "deals", "deals-summary", "customers", "customers-summary",
         "activities", "activities-summary", "dashboard"];
       keys.forEach(k => qc.invalidateQueries({ queryKey: [QK, k] }));
@@ -160,6 +160,10 @@ export function useBulkFileCustomersToTeam() {
 export function useLeadAssignments(id: string | null) {
   return useQuery({ queryKey: [QK, "lead-assignments", id], queryFn: () => crmApi.getLeadAssignments(id!), enabled: !!id });
 }
+export function useLeadJourney(id: string | null) {
+  return useQuery({ queryKey: [QK, "lead-journey", id], queryFn: () => crmApi.getLeadJourney(id!), enabled: !!id });
+}
+
 /** Bulk import — no default success toast (the caller shows a created/dup/failed summary). */
 export function useImportLeads()   { return useCrmMutation((leads: ImportLeadInput[]) => crmApi.importLeads(leads), { invalidate: ["leads", "leads-summary", "dashboard"] }); }
 

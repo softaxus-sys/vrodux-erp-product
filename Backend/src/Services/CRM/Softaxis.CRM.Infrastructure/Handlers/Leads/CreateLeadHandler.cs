@@ -11,7 +11,7 @@ using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser, ILeadAccessGuard access) : ICommandHandler<CreateLeadCommand, LeadDto>
+internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser, ILeadAccessGuard access, ILeadStatusRecorder statusRecorder) : ICommandHandler<CreateLeadCommand, LeadDto>
 {
     public async Task<Result<LeadDto>> Handle(CreateLeadCommand cmd, CancellationToken ct)
     {
@@ -47,6 +47,7 @@ internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, I
         l.RecalculateScore(0);
 
         db.Leads.Add(l);
+        statusRecorder.RecordCreated(l);
 
         // Seed the handoff history with the initial assignment when an owner is set.
         if (cmd.AssignedToUserId is { } toId)
