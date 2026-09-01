@@ -19,11 +19,24 @@ internal sealed class GetExchangeRatesHandler(FinanceDbContext db)
 
         if (query.LatestOnly)
         {
-            // Newest row per currency, resolved in SQL. Grouping then taking the first of each
-            // group keeps the whole history out of memory.
+            // Newest row per currency, resolved in SQL so the whole history stays out of memory.
+            //
+            // Written as "no newer row exists for this currency" (a correlated NOT EXISTS) rather
+            // than GroupBy(...).Select(g => g.OrderBy(...).First()), which reads more naturally but
+            // does NOT translate — EF throws KeyNotFoundException('EmptyProjectionMember') at query
+            // time, so it compiles and then fails on the first request.
+            //
+            // The tie-breakers are what keep it to exactly one row per currency: two rows can share
+            // a RateDate (a same-day re-refresh), and in principle a CreatedAt, so Id settles it.
+            //
+            // RateDate is a yyyy-MM-dd string, so it compares with string.Compare rather than ">" —
+            // ordinal order is chronological for that format (the convention used across HR too).
             var latest = await q
-                .GroupBy(x => x.CurrencyCode)
-                .Select(g => g.OrderByDescending(x => x.RateDate).ThenByDescending(x => x.CreatedAt).First())
+                .Where(x => !q.Any(y =>
+                    y.CurrencyCode == x.CurrencyCode &&
+                    (string.Compare(y.RateDate, x.RateDate) > 0
+                     || (y.RateDate == x.RateDate && y.CreatedAt > x.CreatedAt)
+                     || (y.RateDate == x.RateDate && y.CreatedAt == x.CreatedAt && y.Id > x.Id))))
                 .OrderBy(x => x.CurrencyCode)
                 .Select(x => new ExchangeRateDto(x.Id, x.CurrencyCode, x.RateDate, x.Rate, x.CreatedAt, x.UpdatedAt))
                 .ToListAsync(ct);
