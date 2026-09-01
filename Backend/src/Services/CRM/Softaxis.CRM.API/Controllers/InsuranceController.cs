@@ -27,9 +27,14 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     // ── Policies ──────────────────────────────────────────────────────────────
     [HttpGet("policies")]
     [RequirePermission("insurance.policies.view")]
-    public async Task<IActionResult> GetPolicies(CancellationToken ct)
+    public async Task<IActionResult> GetPolicies(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetPoliciesQuery(), ct);
+        var result = await sender.Send(new GetPoliciesQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -69,9 +74,14 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     // ── Renewals ──────────────────────────────────────────────────────────────
     [HttpGet("renewals")]
     [RequirePermission("insurance.renewals.view")]
-    public async Task<IActionResult> GetRenewals(CancellationToken ct)
+    public async Task<IActionResult> GetRenewals(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetRenewalsQuery(), ct);
+        var result = await sender.Send(new GetRenewalsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -102,9 +112,14 @@ public sealed class InsuranceController(ISender sender) : CrmControllerBase
     // ── Claims ────────────────────────────────────────────────────────────────
     [HttpGet("claims")]
     [RequirePermission("insurance.claims.view")]
-    public async Task<IActionResult> GetClaims(CancellationToken ct)
+    public async Task<IActionResult> GetClaims(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetClaimsQuery(), ct);
+        var result = await sender.Send(new GetClaimsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

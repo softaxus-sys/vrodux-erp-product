@@ -27,9 +27,14 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     // ── Patients ──────────────────────────────────────────────────────────────
     [HttpGet("patients")]
     [RequirePermission("healthcare.patients.view")]
-    public async Task<IActionResult> GetPatients(CancellationToken ct)
+    public async Task<IActionResult> GetPatients(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetPatientsQuery(), ct);
+        var result = await sender.Send(new GetPatientsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -61,9 +66,15 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     // ── Appointments ──────────────────────────────────────────────────────────
     [HttpGet("appointments")]
     [RequirePermission("healthcare.appointments.view")]
-    public async Task<IActionResult> GetAppointments([FromQuery] Guid? patientId, CancellationToken ct)
+    public async Task<IActionResult> GetAppointments(
+        [FromQuery] Guid? patientId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetAppointmentsQuery(patientId), ct);
+        var result = await sender.Send(new GetAppointmentsQuery(patientId, status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -94,9 +105,15 @@ public sealed class HealthcareController(ISender sender) : CrmControllerBase
     // ── Treatment Plans ───────────────────────────────────────────────────────
     [HttpGet("treatment-plans")]
     [RequirePermission("healthcare.treatment-plans.view")]
-    public async Task<IActionResult> GetPlans([FromQuery] Guid? patientId, CancellationToken ct)
+    public async Task<IActionResult> GetPlans(
+        [FromQuery] Guid? patientId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetTreatmentPlansQuery(patientId), ct);
+        var result = await sender.Send(new GetTreatmentPlansQuery(patientId, status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

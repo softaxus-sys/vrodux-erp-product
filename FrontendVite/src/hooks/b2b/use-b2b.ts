@@ -1,13 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { b2bApi, type CreateProposalReq, type CreateContractReq, type CreateTicketReq } from "@/lib/b2b/b2b.api";
+import { b2bApi, type CreateProposalReq, type CreateContractReq, type CreateTicketReq, type VerticalPageParams } from "@/lib/b2b/b2b.api";
 
 const QK = "b2b";
 
 export function useB2BSummary() { return useQuery({ queryKey: [QK, "summary"], queryFn: b2bApi.getSummary }); }
-export function useProposals() { return useQuery({ queryKey: [QK, "proposals"], queryFn: b2bApi.getProposals }); }
-export function useServiceContracts() { return useQuery({ queryKey: [QK, "contracts"], queryFn: b2bApi.getContracts }); }
-export function useSupportTickets() { return useQuery({ queryKey: [QK, "tickets"], queryFn: b2bApi.getTickets }); }
+export function useProposals(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "proposals"], params],
+    queryFn: () => b2bApi.getProposals(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useServiceContracts(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "contracts"], params],
+    queryFn: () => b2bApi.getContracts(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useSupportTickets(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "tickets"], params],
+    queryFn: () => b2bApi.getTickets(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
 
 function useM<T>(fn: (a: T) => Promise<unknown>, msg?: string) {
   const qc = useQueryClient();

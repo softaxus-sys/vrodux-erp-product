@@ -13,6 +13,13 @@ import {
 import type { StudentDto } from "@/lib/education/education.api";
 import { Can } from "@/components/auth/can";
 import { useCurrency } from "@/hooks/use-currency";
+import { VerticalPager } from "@/components/ui/vertical-pager";
+
+/** These tables sit several to a screen, so a page is deliberately short. */
+const VERTICAL_PAGE_SIZE = 25;
+
+/** Matches MaxPageSize on the server. */
+const PICKER_LIMIT = 200;
 
 type Tab = "admissions" | "students" | "enrollments";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
@@ -32,7 +39,11 @@ export function EducationView() {
   const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("admissions");
   const { data: s } = useEducationSummary();
-  const { data: students = [] } = useStudents();
+  // Feeds the student picker below, so it asks for the whole set rather than one page — a picker
+  // missing its options is worse than a long list. PICKER_LIMIT is the server cap; past that the
+  // control needs search-as-you-type, which is a different component.
+  const { data: studentsPage } = useStudents({ page: 1, pageSize: PICKER_LIMIT });
+  const students = studentsPage?.items ?? [];
   const stats = [
     { label: "Open Inquiries", value: s?.openInquiries ?? 0, icon: FileText, color: "text-blue-600 bg-blue-100" },
     { label: "Enrolled Students", value: s?.enrolledStudents ?? 0, icon: Users, color: "text-primary bg-primary/10" },
@@ -94,7 +105,9 @@ function Table({ cols, children, empty, emptyMsg }: { cols: string[]; children: 
 }
 
 function AdmissionsTab() {
-  const { data: rows = [] } = useAdmissions();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useAdmissions({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateAdmission(); const setStatus = useSetAdmissionStatus(); const enroll = useEnrollAdmission(); const del = useDeleteAdmission();
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(""); const [program, setProgram] = React.useState(""); const [term, setTerm] = React.useState("Fall 2026"); const [guardian, setGuardian] = React.useState("");
@@ -124,12 +137,18 @@ function AdmissionsTab() {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="admissions" onPage={setPage}
+      />
     </div>
   );
 }
 
 function StudentsTab() {
-  const { data: rows = [] } = useStudents();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useStudents({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateStudent(); const del = useDeleteStudent();
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(""); const [program, setProgram] = React.useState(""); const [gender, setGender] = React.useState("male"); const [guardian, setGuardian] = React.useState("");
@@ -155,13 +174,19 @@ function StudentsTab() {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="students" onPage={setPage}
+      />
     </div>
   );
 }
 
 function EnrollmentsTab({ students }: { students: StudentDto[] }) {
   const CUR = useCurrency();
-  const { data: rows = [] } = useEnrollments();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useEnrollments({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateEnrollment(); const pay = useRecordFee(); const del = useDeleteEnrollment();
   const [open, setOpen] = React.useState(false);
   const [sid, setSid] = React.useState(""); const [sname, setSname] = React.useState(""); const [course, setCourse] = React.useState(""); const [term, setTerm] = React.useState("Fall 2026"); const [fee, setFee] = React.useState("");
@@ -195,6 +220,10 @@ function EnrollmentsTab({ students }: { students: StudentDto[] }) {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="enrollments" onPage={setPage}
+      />
     </div>
   );
 }

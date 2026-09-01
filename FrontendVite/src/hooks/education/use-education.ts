@@ -1,13 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { educationApi, type CreateAdmissionReq, type CreateStudentReq, type CreateEnrollmentReq } from "@/lib/education/education.api";
+import { educationApi, type CreateAdmissionReq, type CreateStudentReq, type CreateEnrollmentReq, type VerticalPageParams } from "@/lib/education/education.api";
 
 const QK = "education";
 
 export function useEducationSummary() { return useQuery({ queryKey: [QK, "summary"], queryFn: educationApi.getSummary }); }
-export function useAdmissions()  { return useQuery({ queryKey: [QK, "admissions"], queryFn: educationApi.getAdmissions }); }
-export function useStudents()    { return useQuery({ queryKey: [QK, "students"], queryFn: educationApi.getStudents }); }
-export function useEnrollments() { return useQuery({ queryKey: [QK, "enrollments"], queryFn: educationApi.getEnrollments }); }
+export function useAdmissions(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "admissions"], params],
+    queryFn: () => educationApi.getAdmissions(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useStudents(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "students"], params],
+    queryFn: () => educationApi.getStudents(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useEnrollments(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "enrollments"], params],
+    queryFn: () => educationApi.getEnrollments(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
 
 function useM<T>(fn: (a: T) => Promise<unknown>, msg?: string) {
   const qc = useQueryClient();

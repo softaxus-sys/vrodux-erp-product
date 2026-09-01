@@ -27,9 +27,14 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     // ── Proposals ─────────────────────────────────────────────────────────────
     [HttpGet("proposals")]
     [RequirePermission("b2b.proposals.view")]
-    public async Task<IActionResult> GetProposals(CancellationToken ct)
+    public async Task<IActionResult> GetProposals(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetProposalsQuery(), ct);
+        var result = await sender.Send(new GetProposalsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -60,9 +65,14 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     // ── Service Contracts ─────────────────────────────────────────────────────
     [HttpGet("contracts")]
     [RequirePermission("b2b.contracts.view")]
-    public async Task<IActionResult> GetContracts(CancellationToken ct)
+    public async Task<IActionResult> GetContracts(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetContractsQuery(), ct);
+        var result = await sender.Send(new GetContractsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -93,9 +103,14 @@ public sealed class B2BController(ISender sender) : CrmControllerBase
     // ── Support Tickets ───────────────────────────────────────────────────────
     [HttpGet("tickets")]
     [RequirePermission("b2b.tickets.view")]
-    public async Task<IActionResult> GetTickets(CancellationToken ct)
+    public async Task<IActionResult> GetTickets(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetTicketsQuery(), ct);
+        var result = await sender.Send(new GetTicketsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

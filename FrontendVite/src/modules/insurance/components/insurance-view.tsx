@@ -13,6 +13,13 @@ import {
 import type { PolicyDto } from "@/lib/insurance/insurance.api";
 import { Can } from "@/components/auth/can";
 import { useCurrency } from "@/hooks/use-currency";
+import { VerticalPager } from "@/components/ui/vertical-pager";
+
+/** These tables sit several to a screen, so a page is deliberately short. */
+const VERTICAL_PAGE_SIZE = 25;
+
+/** Matches MaxPageSize on the server. */
+const PICKER_LIMIT = 200;
 
 type Tab = "policies" | "renewals" | "claims";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
@@ -35,7 +42,11 @@ export function InsuranceView() {
   const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("policies");
   const { data: s } = useInsuranceSummary();
-  const { data: policies = [] } = usePolicies();
+  // Feeds the policy picker below, so it asks for the whole set rather than one page — a picker
+  // missing its options is worse than a long list. PICKER_LIMIT is the server cap; past that the
+  // control needs search-as-you-type, which is a different component.
+  const { data: policiesPage } = usePolicies({ page: 1, pageSize: PICKER_LIMIT });
+  const policies = policiesPage?.items ?? [];
   const stats = [
     { label: "Active Policies", value: s?.activePolicies ?? 0, icon: ShieldCheck, color: "text-success bg-success/10" },
     { label: "Proposals", value: s?.proposals ?? 0, icon: FileText, color: "text-blue-600 bg-blue-100" },
@@ -99,7 +110,9 @@ function Table({ cols, children, empty, emptyMsg }: { cols: string[]; children: 
 
 function PoliciesTab() {
   const CUR = useCurrency();
-  const { data: rows = [] } = usePolicies();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = usePolicies({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreatePolicy(); const setStatus = useSetPolicyStatus(); const renew = useRenewPolicy(); const del = useDeletePolicy();
   const [open, setOpen] = React.useState(false);
   const [holder, setHolder] = React.useState(""); const [product, setProduct] = React.useState("health");
@@ -133,13 +146,19 @@ function PoliciesTab() {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="policies" onPage={setPage}
+      />
     </div>
   );
 }
 
 function RenewalsTab() {
   const CUR = useCurrency();
-  const { data: rows = [] } = useRenewals();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useRenewals({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const complete = useCompleteRenewal(); const del = useDeleteRenewal();
   return (
     <Table cols={["Policy #", "Holder", "Renewal Date", "New Premium", "Status", ""]} empty={rows.length === 0} emptyMsg="No renewals due. Raise one from an active policy.">
@@ -162,7 +181,9 @@ function RenewalsTab() {
 
 function ClaimsTab({ policies }: { policies: PolicyDto[] }) {
   const CUR = useCurrency();
-  const { data: rows = [] } = useClaims();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useClaims({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateClaim(); const approve = useApproveClaim(); const setStatus = useSetClaimStatus(); const del = useDeleteClaim();
   const [open, setOpen] = React.useState(false);
   const [policyId, setPolicyId] = React.useState(""); const [amount, setAmount] = React.useState(""); const [reason, setReason] = React.useState("");
@@ -195,6 +216,14 @@ function ClaimsTab({ policies }: { policies: PolicyDto[] }) {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="claims" onPage={setPage}
+      />
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="renewals" onPage={setPage}
+      />
     </div>
   );
 }

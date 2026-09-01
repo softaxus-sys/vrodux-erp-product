@@ -11,9 +11,11 @@ internal sealed class GetB2BSummaryHandler(CrmDbContext db) : IQueryHandler<GetB
 {
     public async Task<Result<B2BSummaryDto>> Handle(GetB2BSummaryQuery query, CancellationToken ct)
     {
-        var prop = await db.Proposals.AsNoTracking().Select(x => new { x.Status, x.Amount }).ToListAsync(ct);
-        var con  = await db.ServiceContracts.AsNoTracking().Select(x => new { x.Status, x.Value, x.ContractType }).ToListAsync(ct);
-        var tkt  = await db.SupportTickets.AsNoTracking().Select(x => new { x.Status, x.Priority }).ToListAsync(ct);
+        // ApplyTenantId replaces the configuration filter on IsDeleted, so it is applied by hand.
+        // Without it these totals counted rows the lists no longer show.
+        var prop = await db.Proposals.AsNoTracking().Where(x => !x.IsDeleted).Select(x => new { x.Status, x.Amount }).ToListAsync(ct);
+        var con  = await db.ServiceContracts.AsNoTracking().Where(x => !x.IsDeleted).Select(x => new { x.Status, x.Value, x.ContractType }).ToListAsync(ct);
+        var tkt  = await db.SupportTickets.AsNoTracking().Where(x => !x.IsDeleted).Select(x => new { x.Status, x.Priority }).ToListAsync(ct);
 
         return Result.Success(new B2BSummaryDto(
             prop.Count(x => x.Status is "draft" or "sent"),

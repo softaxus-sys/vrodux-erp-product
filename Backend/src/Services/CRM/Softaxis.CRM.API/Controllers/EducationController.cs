@@ -27,9 +27,14 @@ public sealed class EducationController(ISender sender) : CrmControllerBase
     // ── Admissions ────────────────────────────────────────────────────────────
     [HttpGet("admissions")]
     [RequirePermission("education.admissions.view")]
-    public async Task<IActionResult> GetAdmissions(CancellationToken ct)
+    public async Task<IActionResult> GetAdmissions(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetAdmissionsQuery(), ct);
+        var result = await sender.Send(new GetAdmissionsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -69,9 +74,14 @@ public sealed class EducationController(ISender sender) : CrmControllerBase
     // ── Students ──────────────────────────────────────────────────────────────
     [HttpGet("students")]
     [RequirePermission("education.students.view")]
-    public async Task<IActionResult> GetStudents(CancellationToken ct)
+    public async Task<IActionResult> GetStudents(
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetStudentsQuery(), ct);
+        var result = await sender.Send(new GetStudentsQuery(status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 
@@ -94,9 +104,15 @@ public sealed class EducationController(ISender sender) : CrmControllerBase
     // ── Enrollments ───────────────────────────────────────────────────────────
     [HttpGet("enrollments")]
     [RequirePermission("education.enrollments.view")]
-    public async Task<IActionResult> GetEnrollments([FromQuery] Guid? studentId, CancellationToken ct)
+    public async Task<IActionResult> GetEnrollments(
+        [FromQuery] Guid? studentId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetEnrollmentsQuery(studentId), ct);
+        var result = await sender.Send(new GetEnrollmentsQuery(studentId, status, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

@@ -24,20 +24,45 @@ export interface CreateProposalReq { leadId?: string | null; dealId?: string | n
 export interface CreateContractReq { proposalId?: string | null; dealId?: string | null; customerId?: string | null; clientName: string; title: string; contractType: string; value: number; startDate: string; endDate: string; slaTier?: string | null; notes?: string | null; }
 export interface CreateTicketReq { contractId?: string | null; customerId?: string | null; clientName: string; subject: string; priority?: string | null; description?: string | null; }
 
-export const b2bApi = {
-  getSummary:   (): Promise<B2BSummaryDto> => rawApiClient.get(`${BASE}/summary`),
+/** Paging for the vertical lists, which grow with the practice and are never pruned. */
+export interface VerticalPageParams { page?: number; pageSize?: number; status?: string; search?: string; }
 
-  getProposals: (): Promise<ProposalDto[]> => rawApiClient.get(`${BASE}/proposals`),
+export interface VerticalPage<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+export const b2bApi = {
+  getSummary:   (): Promise<B2BSummaryDto> => rawApiClient.get(`${BASE}/summary`),  getProposals: (p: VerticalPageParams = {}): Promise<VerticalPage<ProposalDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.status) qs.set("status", p.status);
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    return rawApiClient.get(`${BASE}/proposals?${qs}`);
+  },
   createProposal:(d: CreateProposalReq): Promise<ProposalDto> => rawApiClient.post(`${BASE}/proposals`, d),
   setProposalStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/proposals/${id}/status`, { status }),
-  deleteProposal:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/proposals/${id}`),
-
-  getContracts: (): Promise<ServiceContractDto[]> => rawApiClient.get(`${BASE}/contracts`),
+  deleteProposal:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/proposals/${id}`),  getContracts: (p: VerticalPageParams = {}): Promise<VerticalPage<ServiceContractDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.status) qs.set("status", p.status);
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    return rawApiClient.get(`${BASE}/contracts?${qs}`);
+  },
   createContract:(d: CreateContractReq): Promise<ServiceContractDto> => rawApiClient.post(`${BASE}/contracts`, d),
   setContractStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/contracts/${id}/status`, { status }),
-  deleteContract:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/contracts/${id}`),
-
-  getTickets:   (): Promise<SupportTicketDto[]> => rawApiClient.get(`${BASE}/tickets`),
+  deleteContract:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/contracts/${id}`),  getTickets: (p: VerticalPageParams = {}): Promise<VerticalPage<SupportTicketDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.status) qs.set("status", p.status);
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    return rawApiClient.get(`${BASE}/tickets?${qs}`);
+  },
   createTicket: (d: CreateTicketReq): Promise<SupportTicketDto> => rawApiClient.post(`${BASE}/tickets`, d),
   resolveTicket:(id: string, resolution?: string | null): Promise<void> => rawApiClient.post(`${BASE}/tickets/${id}/resolve`, { resolution }),
   setTicketStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/tickets/${id}/status`, { status }),

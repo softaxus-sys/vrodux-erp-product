@@ -11,9 +11,11 @@ internal sealed class GetInsuranceSummaryHandler(CrmDbContext db) : IQueryHandle
 {
     public async Task<Result<InsuranceSummaryDto>> Handle(GetInsuranceSummaryQuery query, CancellationToken ct)
     {
-        var pol = await db.Policies.AsNoTracking().Select(x => new { x.Status, x.Premium, x.SumInsured }).ToListAsync(ct);
-        var ren = await db.PolicyRenewals.AsNoTracking().CountAsync(x => x.Status == "due", ct);
-        var clm = await db.InsuranceClaims.AsNoTracking().Select(x => new { x.Status, x.ClaimAmount, x.ApprovedAmount }).ToListAsync(ct);
+        // ApplyTenantId replaces the configuration filter on IsDeleted, so it is applied by hand.
+        // Without it these totals counted rows the lists no longer show.
+        var pol = await db.Policies.AsNoTracking().Where(x => !x.IsDeleted).Select(x => new { x.Status, x.Premium, x.SumInsured }).ToListAsync(ct);
+        var ren = await db.PolicyRenewals.AsNoTracking().Where(x => !x.IsDeleted).CountAsync(x => x.Status == "due", ct);
+        var clm = await db.InsuranceClaims.AsNoTracking().Where(x => !x.IsDeleted).Select(x => new { x.Status, x.ClaimAmount, x.ApprovedAmount }).ToListAsync(ct);
 
         return Result.Success(new InsuranceSummaryDto(
             pol.Count,

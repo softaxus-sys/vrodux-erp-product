@@ -1,13 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { healthcareApi, type CreatePatientReq, type CreateApptReq, type CreatePlanReq } from "@/lib/healthcare/healthcare.api";
+import { healthcareApi, type CreatePatientReq, type CreateApptReq, type CreatePlanReq, type VerticalPageParams } from "@/lib/healthcare/healthcare.api";
 
 const QK = "healthcare";
 
 export function useHealthcareSummary() { return useQuery({ queryKey: [QK, "summary"], queryFn: healthcareApi.getSummary }); }
-export function usePatients()     { return useQuery({ queryKey: [QK, "patients"], queryFn: healthcareApi.getPatients }); }
-export function useAppointments() { return useQuery({ queryKey: [QK, "appointments"], queryFn: healthcareApi.getAppointments }); }
-export function useTreatmentPlans() { return useQuery({ queryKey: [QK, "plans"], queryFn: healthcareApi.getPlans }); }
+export function usePatients(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "patients"], params],
+    queryFn: () => healthcareApi.getPatients(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useAppointments(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "appointments"], params],
+    queryFn: () => healthcareApi.getAppointments(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useTreatmentPlans(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "plans"], params],
+    queryFn: () => healthcareApi.getPlans(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
 
 function useM<T>(fn: (a: T) => Promise<unknown>, msg?: string) {
   const qc = useQueryClient();

@@ -13,6 +13,13 @@ import {
 import type { ServiceContractDto } from "@/lib/b2b/b2b.api";
 import { Can } from "@/components/auth/can";
 import { useCurrency } from "@/hooks/use-currency";
+import { VerticalPager } from "@/components/ui/vertical-pager";
+
+/** These tables sit several to a screen, so a page is deliberately short. */
+const VERTICAL_PAGE_SIZE = 25;
+
+/** Matches MaxPageSize on the server. */
+const PICKER_LIMIT = 200;
 
 type Tab = "proposals" | "contracts" | "tickets";
 const TABS: { key: Tab; label: string; icon: typeof FileText }[] = [
@@ -40,7 +47,11 @@ export function B2BView() {
   const CUR = useCurrency();
   const [tab, setTab] = React.useState<Tab>("proposals");
   const { data: s } = useB2BSummary();
-  const { data: contracts = [] } = useServiceContracts();
+  // Feeds the contract picker below, so it asks for the whole set rather than one page — a picker
+  // missing its options is worse than a long list. PICKER_LIMIT is the server cap; past that the
+  // control needs search-as-you-type, which is a different component.
+  const { data: contractsPage } = useServiceContracts({ page: 1, pageSize: PICKER_LIMIT });
+  const contracts = contractsPage?.items ?? [];
   const stats = [
     { label: "Open Proposals", value: s?.openProposals ?? 0, icon: FileText, color: "text-blue-600 bg-blue-100" },
     { label: "Proposal Value", value: formatCurrency(s?.proposalsValue ?? 0, CUR), icon: DollarSign, color: "text-primary bg-primary/10" },
@@ -104,7 +115,9 @@ function Table({ cols, children, empty, emptyMsg }: { cols: string[]; children: 
 
 function ProposalsTab() {
   const CUR = useCurrency();
-  const { data: rows = [] } = useProposals();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useProposals({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateProposal(); const setStatus = useSetProposalStatus(); const del = useDeleteProposal();
   const [open, setOpen] = React.useState(false);
   const [client, setClient] = React.useState(""); const [title, setTitle] = React.useState(""); const [amount, setAmount] = React.useState("");
@@ -136,13 +149,19 @@ function ProposalsTab() {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="proposals" onPage={setPage}
+      />
     </div>
   );
 }
 
 function ContractsTab() {
   const CUR = useCurrency();
-  const { data: rows = [] } = useServiceContracts();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useServiceContracts({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateServiceContract(); const setStatus = useSetServiceContractStatus(); const del = useDeleteServiceContract();
   const [open, setOpen] = React.useState(false);
   const [client, setClient] = React.useState(""); const [title, setTitle] = React.useState(""); const [type, setType] = React.useState("amc");
@@ -181,12 +200,18 @@ function ContractsTab() {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="contracts" onPage={setPage}
+      />
     </div>
   );
 }
 
 function TicketsTab({ contracts }: { contracts: ServiceContractDto[] }) {
-  const { data: rows = [] } = useSupportTickets();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useSupportTickets({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateSupportTicket(); const resolve = useResolveTicket(); const setStatus = useSetTicketStatus(); const del = useDeleteSupportTicket();
   const [open, setOpen] = React.useState(false);
   const [contractId, setContractId] = React.useState(""); const [client, setClient] = React.useState("");
@@ -224,6 +249,10 @@ function TicketsTab({ contracts }: { contracts: ServiceContractDto[] }) {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="tickets" onPage={setPage}
+      />
     </div>
   );
 }

@@ -11,10 +11,12 @@ internal sealed class GetHealthcareSummaryHandler(CrmDbContext db) : IQueryHandl
 {
     public async Task<Result<HealthcareSummaryDto>> Handle(GetHealthcareSummaryQuery query, CancellationToken ct)
     {
+        // ApplyTenantId replaces the configuration filter on IsDeleted, so it is applied by hand.
+        // Without it these totals counted rows the lists no longer show.
         var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-        var patients = await db.Patients.AsNoTracking().CountAsync(ct);
-        var appts = await db.Appointments.AsNoTracking().Select(a => new { a.Status, a.ScheduledAt }).ToListAsync(ct);
-        var plans = await db.TreatmentPlans.AsNoTracking().CountAsync(x => x.Status == "active", ct);
+        var patients = await db.Patients.AsNoTracking().Where(x => !x.IsDeleted).CountAsync(ct);
+        var appts = await db.Appointments.AsNoTracking().Where(x => !x.IsDeleted).Select(a => new { a.Status, a.ScheduledAt }).ToListAsync(ct);
+        var plans = await db.TreatmentPlans.AsNoTracking().Where(x => !x.IsDeleted).CountAsync(x => x.Status == "active", ct);
 
         return Result.Success(new HealthcareSummaryDto(
             patients,

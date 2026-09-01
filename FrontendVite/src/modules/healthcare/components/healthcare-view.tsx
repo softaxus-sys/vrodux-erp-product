@@ -12,6 +12,13 @@ import {
 } from "@/hooks/healthcare/use-healthcare";
 import type { PatientDto } from "@/lib/healthcare/healthcare.api";
 import { Can } from "@/components/auth/can";
+import { VerticalPager } from "@/components/ui/vertical-pager";
+
+/** These tables sit several to a screen, so a page is deliberately short. */
+const VERTICAL_PAGE_SIZE = 25;
+
+/** Matches MaxPageSize on the server. */
+const PICKER_LIMIT = 200;
 
 type Tab = "patients" | "appointments" | "treatments";
 const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
@@ -29,7 +36,11 @@ const badge = (s: string) => ({
 export function HealthcareView() {
   const [tab, setTab] = React.useState<Tab>("patients");
   const { data: s } = useHealthcareSummary();
-  const { data: patients = [] } = usePatients();
+  // Feeds the patient picker below, so it asks for the whole set rather than one page — a picker
+  // missing its options is worse than a long list. PICKER_LIMIT is the server cap; past that the
+  // control needs search-as-you-type, which is a different component.
+  const { data: patientsPage } = usePatients({ page: 1, pageSize: PICKER_LIMIT });
+  const patients = patientsPage?.items ?? [];
   const stats = [
     { label: "Patients", value: s?.patients ?? 0, icon: Users, color: "text-primary bg-primary/10" },
     { label: "Scheduled", value: s?.scheduledAppointments ?? 0, icon: CalendarClock, color: "text-blue-600 bg-blue-100" },
@@ -100,7 +111,9 @@ function PatientSelect({ value, onChange, patients }: { value: string; onChange:
 }
 
 function PatientsTab() {
-  const { data: rows = [] } = usePatients();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = usePatients({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreatePatient(); const del = useDeletePatient();
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(""); const [gender, setGender] = React.useState("male"); const [phone, setPhone] = React.useState(""); const [doctor, setDoctor] = React.useState("");
@@ -127,12 +140,18 @@ function PatientsTab() {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="patients" onPage={setPage}
+      />
     </div>
   );
 }
 
 function AppointmentsTab({ patients }: { patients: PatientDto[] }) {
-  const { data: rows = [] } = useAppointments();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useAppointments({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreateAppointment(); const setStatus = useSetApptStatus(); const del = useDeleteAppointment();
   const [open, setOpen] = React.useState(false);
   const [pid, setPid] = React.useState(""); const [pname, setPname] = React.useState(""); const [doctor, setDoctor] = React.useState(""); const [when, setWhen] = React.useState(today()); const [reason, setReason] = React.useState("");
@@ -161,12 +180,18 @@ function AppointmentsTab({ patients }: { patients: PatientDto[] }) {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="appointments" onPage={setPage}
+      />
     </div>
   );
 }
 
 function TreatmentsTab({ patients }: { patients: PatientDto[] }) {
-  const { data: rows = [] } = useTreatmentPlans();
+  const [page, setPage] = React.useState(1);
+  const { data: pageData } = useTreatmentPlans({ page, pageSize: VERTICAL_PAGE_SIZE });
+  const rows = pageData?.items ?? [];
   const create = useCreatePlan(); const setStatus = useSetPlanStatus(); const del = useDeletePlan();
   const [open, setOpen] = React.useState(false);
   const [pid, setPid] = React.useState(""); const [pname, setPname] = React.useState(""); const [dx, setDx] = React.useState(""); const [plan, setPlan] = React.useState(""); const [doctor, setDoctor] = React.useState("");
@@ -195,6 +220,10 @@ function TreatmentsTab({ patients }: { patients: PatientDto[] }) {
           </tr>
         ))}
       </Table>
+      <VerticalPager
+        page={page} totalPages={pageData?.totalPages ?? 1} totalCount={pageData?.totalCount ?? 0}
+        label="plans" onPage={setPage}
+      />
     </div>
   );
 }

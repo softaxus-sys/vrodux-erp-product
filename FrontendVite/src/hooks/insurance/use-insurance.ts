@@ -1,13 +1,34 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { insuranceApi, type CreatePolicyReq, type RenewReq, type CreateClaimReq } from "@/lib/insurance/insurance.api";
+import { insuranceApi, type CreatePolicyReq, type RenewReq, type CreateClaimReq, type VerticalPageParams } from "@/lib/insurance/insurance.api";
 
 const QK = "insurance";
 
 export function useInsuranceSummary() { return useQuery({ queryKey: [QK, "summary"], queryFn: insuranceApi.getSummary }); }
-export function usePolicies() { return useQuery({ queryKey: [QK, "policies"], queryFn: insuranceApi.getPolicies }); }
-export function useRenewals() { return useQuery({ queryKey: [QK, "renewals"], queryFn: insuranceApi.getRenewals }); }
-export function useClaims()   { return useQuery({ queryKey: [QK, "claims"], queryFn: insuranceApi.getClaims }); }
+export function usePolicies(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "policies"], params],
+    queryFn: () => insuranceApi.getPolicies(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useRenewals(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "renewals"], params],
+    queryFn: () => insuranceApi.getRenewals(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
+export function useClaims(params: VerticalPageParams = {}) {
+  return useQuery({
+    queryKey: [...[QK, "claims"], params],
+    queryFn: () => insuranceApi.getClaims(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the table.
+    placeholderData: (prev) => prev,
+  });
+}
 
 function useM<T>(fn: (a: T) => Promise<unknown>, msg?: string) {
   const qc = useQueryClient();
