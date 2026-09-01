@@ -64,7 +64,14 @@ internal static class PaymentReceiptEmailTemplate
   <div style=""max-width:600px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb"">
     <div style=""background:#15803d;padding:20px 24px"">
       {(logoSrc.Length > 0
-        ? $@"<img src=""{logoSrc}"" alt="""" style=""max-height:36px;max-width:160px;margin-bottom:10px"" />"
+        // On a white plate, not straight onto the coloured header: a logo drawn in dark ink on a
+        // transparent background disappears against it. Same treatment as the invoice email, and a
+        // table rather than an inline-block div because Outlook renders with Word's engine.
+        ? $@"<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""margin-bottom:12px"">
+               <tr><td style=""background:#ffffff;border-radius:6px;padding:8px 12px"">
+                 <img src=""{logoSrc}"" alt="""" style=""max-height:32px;max-width:150px;display:block"" />
+               </td></tr>
+             </table>"
         : string.Empty)}
       <div style=""color:#ffffff;font-size:18px;font-weight:600"">Payment received</div>
       <div style=""color:#dcfce7;font-size:13px;margin-top:2px"">{E(companyName)}</div>

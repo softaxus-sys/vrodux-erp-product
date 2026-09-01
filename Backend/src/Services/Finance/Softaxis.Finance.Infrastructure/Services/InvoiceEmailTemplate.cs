@@ -123,7 +123,19 @@ internal static class InvoiceEmailTemplate
   <div style=""max-width:640px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb"">
     <div style=""background:#0f172a;padding:20px 24px"">
       {(logoSrc.Length > 0
-        ? $@"<img src=""{logoSrc}"" alt="""" style=""max-height:40px;max-width:170px;margin-bottom:10px"" />"
+        // On a white plate, not straight onto the dark header. A logo drawn in dark ink on a
+        // transparent background — which most are — simply disappears against #0f172a, which is
+        // exactly what happened here. We cannot know a tenant's logo colours, so instead of
+        // guessing (or lightening the header and hurting light logos) the logo always gets its own
+        // light backdrop and every logo stays legible.
+        //
+        // Built as a table rather than an inline-block div: Outlook renders with Word's engine,
+        // where inline-block is unreliable but table cells are not.
+        ? $@"<table role=""presentation"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""margin-bottom:12px"">
+               <tr><td style=""background:#ffffff;border-radius:6px;padding:8px 12px"">
+                 <img src=""{logoSrc}"" alt="""" style=""max-height:36px;max-width:160px;display:block"" />
+               </td></tr>
+             </table>"
         : string.Empty)}
       <div style=""color:#ffffff;font-size:18px;font-weight:600"">Invoice {E(invoice.InvoiceNumber)}</div>
       <div style=""color:#cbd5e1;font-size:13px;margin-top:2px"">{E(companyName)}</div>
