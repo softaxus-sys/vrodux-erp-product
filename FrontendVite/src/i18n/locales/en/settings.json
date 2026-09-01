@@ -417,6 +417,17 @@
         "hmacStep1": "Reveal / set your <b>signing secret</b> in the <c>Inbound URL</c> tab.",
         "hmacStep2": "Sign the raw body with <c>HMAC-SHA256</c> (lowercase hex) and send it as <c>X-PropertyFinder-Signature: sha256=&lt;hex&gt;</c> (or <c>X-Signature</c>). Unsigned requests are still accepted on the strength of the unguessable inbound URL."
       },
+      "bayut": {
+        "title": "Connect {{portal}} leads",
+        "desc": "Every enquiry on your {{portal}} listings — call, email, WhatsApp or SMS — is created as a CRM lead, with the property and message attached.",
+        "step1": "Email <b>support@bayut.com</b> and ask for the <b>Leads API</b> to be enabled for your account (requires a Profolio™ subscription). Bayut and Dubizzle share the same backend, so one request covers both.",
+        "step2": "Give Bayut's integration team the inbound URL above as the delivery destination for your enquiries.",
+        "note": "There is no self-serve webhook setting in {{portal}}'s own dashboard today — delivery is configured by Bayut's team once your account is enabled. If your account already forwards leads through an automation tool (Zapier / Make), point that at the URL above instead.",
+        "payloadTitle": "Payload Vrodux understands",
+        "payloadDesc": "Ask Bayut's team to send JSON shaped like this. The enquirer can be nested under client/contact; the listing under property/listing. Unknown fields are still saved under the lead's Form Responses.",
+        "testTitle": "Test it from a terminal",
+        "testDesc": "Fire a sample enquiry at your inbound URL to confirm the connection before Bayut's team goes live."
+      },
       "calendly": {
         "title": "Create a Calendly webhook",
         "desc": "Calendly delivers new bookings to your inbound URL. Webhooks require a Calendly paid plan / API access.",
