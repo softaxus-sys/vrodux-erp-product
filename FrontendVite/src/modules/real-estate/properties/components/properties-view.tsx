@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { PropertyDto as Property, PropertyType, PropertyStatus } from "@/lib/real-estate/re.api";
 import { useProperties, usePropertySummary } from "@/hooks/real-estate/use-re";
@@ -169,14 +169,14 @@ export function PropertiesView() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2"
+              className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2 min-w-0"
             >
               <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", s.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">{s.label}</p>
-                <p className="text-base font-bold leading-tight truncate">{s.value}</p>
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground truncate">{s.label}</p>
+                <p className={cn("font-bold leading-tight truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p>
               </div>
             </motion.div>
           );

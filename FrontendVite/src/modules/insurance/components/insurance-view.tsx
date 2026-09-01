@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ShieldCheck, FileText, RefreshCw, FileWarning, DollarSign, Plus, X, Trash2, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import {
   useInsuranceSummary, usePolicies, useRenewals, useClaims,
   useCreatePolicy, useSetPolicyStatus, useRenewPolicy, useDeletePolicy,
@@ -55,9 +55,9 @@ export function InsuranceView() {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {stats.map((x, i) => { const Icon = x.icon; return (
-          <motion.div key={x.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-card border border-border rounded-xl p-4">
+          <motion.div key={x.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="bg-card border border-border rounded-xl p-4 min-w-0">
             <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-2", x.color)}><Icon className="h-4.5 w-4.5" /></div>
-            <p className="text-xs text-muted-foreground">{x.label}</p><p className="font-bold text-base leading-tight mt-0.5">{x.value}</p>
+            <p className="text-xs text-muted-foreground truncate">{x.label}</p><p className={cn("font-bold leading-tight mt-0.5 truncate", fitTextClass(x.value, "lg"))} title={String(x.value)}>{x.value}</p>
           </motion.div>); })}
       </div>
       <div className="flex items-center gap-1.5">

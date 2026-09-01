@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import type { PurchaseApprovalDto as PurchaseApproval, ApprovalStatus, ApprovalPriority } from "@/lib/purchase/approvals.api";
 import { CATEGORY_LABELS } from "@/lib/purchase/approvals.api";
 import { useApprovals, useApprovalsSummary } from "@/hooks/purchase/use-approvals";
@@ -44,9 +44,14 @@ function StatCard({ card, index }: { card?: { label: string; value: number | str
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground truncate">{card.label}</p>
-        <p className="font-bold text-lg leading-tight">
-          {card.format === "currency" ? formatCurrency(card.value as number, currency) : card.value}
-        </p>
+        {(() => {
+          const display = card.format === "currency" ? formatCurrency(card.value as number, currency) : String(card.value);
+          return (
+            <p className={cn("font-bold leading-tight truncate", fitTextClass(display, "lg"))} title={display}>
+              {display}
+            </p>
+          );
+        })()}
       </div>
     </motion.div>
   );

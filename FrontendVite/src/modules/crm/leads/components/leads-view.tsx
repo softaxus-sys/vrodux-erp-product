@@ -15,7 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LeadDrawer } from "./lead-drawer";
 import { AddLeadForm } from "./add-lead-form";
 import { ImportLeadsModal } from "./import-leads-modal";
-import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, getInitials, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { sourceLabel, SOURCE_LABELS, URGENCY_META, leadHeat, buildLeadSummary, formatCompactValue, leadDate, type LeadDto as Lead, type LeadStatus, type LeadSource, type DealStage } from "@/lib/crm/crm.api";
 import { useLeads, useLeadsPaged, useLeadsSummary, useSetLeadStatus, useConvertLead } from "@/hooks/crm/use-crm";
@@ -576,7 +576,7 @@ export function LeadsView() {
                 <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${s.color}`}><s.icon className="h-4 w-4" /></div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground truncate">{s.label}</p>
-                  <p className="font-bold text-base leading-tight">{s.value}</p>
+                  <p className={cn("font-bold leading-tight truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p>
                   <p className="text-[11px] text-muted-foreground/70">{s.sub}</p>
                 </div>
               </CardContent>

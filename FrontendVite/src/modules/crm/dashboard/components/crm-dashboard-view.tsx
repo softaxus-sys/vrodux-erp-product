@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { TrendingUp, Users, Briefcase, Target, DollarSign, CheckCircle2, ListTodo, AlertTriangle } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCrmDashboard } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 
@@ -70,12 +70,12 @@ export function CrmDashboardView() {
           const Icon = s.icon;
           return (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className="bg-card border border-border rounded-xl p-4">
+              className="bg-card border border-border rounded-xl p-4 min-w-0">
               <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-2", s.bg)}>
                 <Icon className={cn("h-4.5 w-4.5", s.color)} />
               </div>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className="font-bold text-lg leading-tight mt-0.5">{s.value}</p>
+              <p className="text-xs text-muted-foreground truncate">{s.label}</p>
+              <p className={cn("font-bold leading-tight mt-0.5 truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p>
             </motion.div>
           );
         })}

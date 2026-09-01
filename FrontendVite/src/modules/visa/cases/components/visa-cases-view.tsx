@@ -8,7 +8,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useLazyList } from "@/hooks/use-lazy-list";
 import { Can } from "@/components/auth/can";
@@ -244,8 +244,8 @@ export function VisaCasesView() {
                 <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", s.color)}><s.icon className="h-4 w-4" /></div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground truncate">{s.label}</p>
-                  <p className="font-bold text-base leading-tight">{s.value}</p>
-                  <p className="text-[11px] text-muted-foreground/70">{s.sub}</p>
+                  <p className={cn("font-bold leading-tight truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p>
+                  <p className="text-[11px] text-muted-foreground/70 truncate">{s.sub}</p>
                 </div>
               </CardContent>
             </Card>

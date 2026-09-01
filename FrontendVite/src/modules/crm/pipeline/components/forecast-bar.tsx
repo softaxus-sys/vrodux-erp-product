@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Layers, Scale, CheckCircle2, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, fitTextClass, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { CrmSummaryDto } from "@/lib/crm/crm.api";
 
@@ -44,7 +44,10 @@ export function ForecastBar({ summary }: Props) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground truncate">{c.label}</p>
-                  <p className="font-bold text-base leading-tight">{formatCurrency(c.value, currency)}</p>
+                  <p className={cn("font-bold leading-tight truncate", fitTextClass(formatCurrency(c.value, currency), "lg"))}
+                     title={formatCurrency(c.value, currency)}>
+                    {formatCurrency(c.value, currency)}
+                  </p>
                   <p className="text-[11px] text-muted-foreground/70 truncate">{c.sub}</p>
                 </div>
               </motion.div>

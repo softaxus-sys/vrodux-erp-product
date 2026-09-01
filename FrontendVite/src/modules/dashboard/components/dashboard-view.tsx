@@ -10,7 +10,7 @@ import {
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from "@/components/ui/card";
-import { cn, formatCurrency, formatNumber, activeLocale } from "@/lib/utils";
+import { cn, formatCurrency, formatNumber, activeLocale, fitTextClass } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrency } from "@/hooks/use-currency";
 import { useUsers } from "@/hooks/identity/use-users";
@@ -66,8 +66,8 @@ function StatCard({ stat, index }: { stat: Stat; index: number }) {
           <Icon className={cn("h-5 w-5", a.text)} />
         </div>
       </div>
-      <p className="mt-3 text-3xl font-bold tracking-tight tabular-nums">{stat.value}</p>
-      {stat.sub && <p className="mt-1 text-xs text-muted-foreground">{stat.sub}</p>}
+      <p className={cn("mt-3 font-bold tracking-tight tabular-nums truncate", fitTextClass(stat.value, "3xl"))} title={stat.value}>{stat.value}</p>
+      {stat.sub && <p className="mt-1 text-xs text-muted-foreground truncate" title={stat.sub}>{stat.sub}</p>}
     </motion.div>
   );
 }
@@ -391,9 +391,12 @@ export function DashboardView() {
           <CardContent className="space-y-3">
             {canCrm ? (
               <>
-                <div className="rounded-xl border border-border bg-gradient-to-br from-violet-500/10 to-transparent p-4">
+                <div className="rounded-xl border border-border bg-gradient-to-br from-violet-500/10 to-transparent p-4 min-w-0">
                   <p className="text-xs text-muted-foreground">{t("pipeline.openValue")}</p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums">{formatCurrency(deals?.totalValue ?? 0, currency)}</p>
+                  <p className={cn("mt-1 font-bold tabular-nums truncate", fitTextClass(formatCurrency(deals?.totalValue ?? 0, currency), "2xl"))}
+                     title={formatCurrency(deals?.totalValue ?? 0, currency)}>
+                    {formatCurrency(deals?.totalValue ?? 0, currency)}
+                  </p>
                 </div>
                 {[
                   { label: t("pipeline.wonValue"), value: formatCurrency(deals?.wonValue ?? 0, currency), color: "text-success" },

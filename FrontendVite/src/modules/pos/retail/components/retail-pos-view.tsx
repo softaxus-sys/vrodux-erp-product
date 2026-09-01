@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
 import {
   Search, X, ShoppingCart, Trash2, Plus, Minus,
   Receipt, RotateCcw, Package, Scan,
@@ -176,10 +176,10 @@ function CartItemRow({ item, onInc, onDec, onRemove }: {
 
 function StatCard({ label, value, accent = "bg-primary" }: { label: string; value: string | number; accent?: string }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4 min-w-0">
       <div className={`w-1.5 h-1.5 rounded-full ${accent} mb-2`} />
-      <p className="text-xl font-bold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={cn("font-bold text-foreground truncate", fitTextClass(value, "xl"))} title={String(value)}>{value}</p>
+      <p className="text-xs text-muted-foreground truncate">{label}</p>
     </div>
   );
 }

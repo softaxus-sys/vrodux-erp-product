@@ -6,7 +6,7 @@ import {
   X, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { BudgetDto as Budget, BudgetStatus } from "@/lib/finance/finance.api";
 import { useBudgets, useBudgetingSummary, useChangeBudgetStatus } from "@/hooks/finance/use-finance";
@@ -118,19 +118,24 @@ function BudgetDrawer({ budget, onClose }: { budget: Budget; onClose: () => void
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">{t("budgeting.drawer.budgeted")}</p>
-              <p className="text-lg font-bold text-primary mt-1">{formatCurrency(budget.totalBudgeted, currency)}</p>
+            <div className="rounded-xl border border-border bg-card p-4 min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{t("budgeting.drawer.budgeted")}</p>
+              <p className={cn("font-bold text-primary mt-1 truncate", fitTextClass(formatCurrency(budget.totalBudgeted, currency), "lg"))}
+                 title={formatCurrency(budget.totalBudgeted, currency)}>
+                {formatCurrency(budget.totalBudgeted, currency)}
+              </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">{t("budgeting.drawer.actual")}</p>
-              <p className={cn("text-lg font-bold mt-1", budget.totalActual > budget.totalBudgeted ? "text-destructive" : "text-success")}>
+            <div className="rounded-xl border border-border bg-card p-4 min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{t("budgeting.drawer.actual")}</p>
+              <p className={cn("font-bold mt-1 truncate", fitTextClass(formatCurrency(budget.totalActual, currency), "lg"), budget.totalActual > budget.totalBudgeted ? "text-destructive" : "text-success")}
+                 title={formatCurrency(budget.totalActual, currency)}>
                 {formatCurrency(budget.totalActual, currency)}
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-card p-4">
-              <p className="text-xs text-muted-foreground">{t("budgeting.drawer.variance")}</p>
-              <p className={cn("text-lg font-bold mt-1", budget.variance > 0 ? "text-destructive" : "text-success")}>
+            <div className="rounded-xl border border-border bg-card p-4 min-w-0">
+              <p className="text-xs text-muted-foreground truncate">{t("budgeting.drawer.variance")}</p>
+              <p className={cn("font-bold mt-1 truncate", fitTextClass(`${budget.variance > 0 ? "+" : ""}${formatCurrency(Math.abs(budget.variance), currency)}`, "lg"), budget.variance > 0 ? "text-destructive" : "text-success")}
+                 title={`${budget.variance > 0 ? "+" : ""}${formatCurrency(Math.abs(budget.variance), currency)}`}>
                 {budget.variance > 0 ? "+" : ""}{formatCurrency(Math.abs(budget.variance), currency)}
               </p>
             </div>
@@ -232,13 +237,13 @@ export function BudgetingView() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-card border border-border rounded-xl p-4 space-y-2"
+            className="bg-card border border-border rounded-xl p-4 space-y-2 min-w-0"
           >
             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", card.bg)}>
               <card.icon className={cn("h-4 w-4", card.color)} />
             </div>
-            <p className="text-xs text-muted-foreground">{card.label}</p>
-            <p className={cn("text-base font-bold leading-tight", card.color)}>{card.value}</p>
+            <p className="text-xs text-muted-foreground truncate">{card.label}</p>
+            <p className={cn("font-bold leading-tight truncate", fitTextClass(card.value, "lg"), card.color)} title={String(card.value)}>{card.value}</p>
           </motion.div>
         ))}
       </div>

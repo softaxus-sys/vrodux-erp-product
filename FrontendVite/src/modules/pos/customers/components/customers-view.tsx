@@ -2,7 +2,7 @@ import * as React from "react";
 import { Users, Search, Wallet, CreditCard, Star, X, Loader2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import {
   useCustomers, useCustomer, useTopUpWallet, useSetCreditLimit, useRecordHouseAccountPayment, useWalletTransactions,
@@ -113,12 +113,15 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
             </div>
 
             {/* Wallet */}
-            <div className="border border-border rounded-xl p-4 space-y-3">
+            <div className="border border-border rounded-xl p-4 space-y-3 min-w-0">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold flex items-center gap-1.5"><Wallet className="w-4 h-4 text-primary" /> Wallet</p>
                 <Button size="sm" variant="outline" onClick={() => setShowTopUp(true)}><Plus className="w-3.5 h-3.5 mr-1" /> Top Up</Button>
               </div>
-              <p className="text-2xl font-bold text-foreground">{formatCurrency(c.walletBalance, currency)}</p>
+              <p className={cn("font-bold text-foreground truncate", fitTextClass(formatCurrency(c.walletBalance, currency), "2xl"))}
+                 title={formatCurrency(c.walletBalance, currency)}>
+                {formatCurrency(c.walletBalance, currency)}
+              </p>
             </div>
 
             {/* House account */}

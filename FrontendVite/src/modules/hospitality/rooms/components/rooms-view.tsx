@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { RoomDto as Room, RoomStatus, RoomType } from "@/lib/hospitality/hospitality.api";
 import { useRooms, useRoomsSummary } from "@/hooks/hospitality/use-hospitality";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, fitTextClass, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { AddRoomForm } from "./add-room-form";
 
@@ -139,9 +139,12 @@ function RoomDrawer({ room, onClose }: { room: Room; onClose: () => void }) {
           </div>
 
           {/* Rate */}
-          <div className="bg-muted/20 rounded-xl p-4">
+          <div className="bg-muted/20 rounded-xl p-4 min-w-0">
             <p className="text-xs text-muted-foreground mb-1">Rate Per Night</p>
-            <p className="text-2xl font-bold text-foreground">{formatCurrency(room.ratePerNight, currency)}</p>
+            <p className={cn("font-bold text-foreground truncate", fitTextClass(formatCurrency(room.ratePerNight, currency), "2xl"))}
+               title={formatCurrency(room.ratePerNight, currency)}>
+              {formatCurrency(room.ratePerNight, currency)}
+            </p>
           </div>
 
           {/* Flags */}

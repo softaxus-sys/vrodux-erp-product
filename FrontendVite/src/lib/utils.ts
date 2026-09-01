@@ -31,6 +31,36 @@ export function formatCurrency(
   }).format(value);
 }
 
+/**
+ * Tailwind font-size class for a stat-card value, shrunk to fit as the formatted string gets
+ * longer — a 7-digit amount ("AED 12,345,678") in the same slot as a 3-digit one used to overflow
+ * its card at a fixed `text-3xl`/`text-2xl`. `variant` names the size the value starts at (the
+ * card's normal/short-value size); each step down is one Tailwind size smaller.
+ *
+ * Pass the exact string being rendered (already through `formatCurrency`/`formatNumber`) — this
+ * sizes off what's actually on screen, not the raw number, so a currency symbol/thousands
+ * separators are accounted for.
+ */
+export type FitTextVariant = "3xl" | "2xl" | "xl" | "lg" | "base";
+
+const FIT_TEXT_SCALES: Record<FitTextVariant, readonly string[]> = {
+  "3xl": ["text-3xl", "text-2xl", "text-xl", "text-lg", "text-base", "text-sm"],
+  "2xl": ["text-2xl", "text-xl", "text-lg", "text-base", "text-sm"],
+  xl:    ["text-xl", "text-lg", "text-base", "text-sm"],
+  lg:    ["text-lg", "text-base", "text-sm", "text-xs"],
+  base:  ["text-base", "text-sm", "text-xs"],
+};
+
+/** Characters per size step before dropping to the next-smaller size. Tuned for a ~1-card-wide slot. */
+const FIT_TEXT_STEP_CHARS = 9;
+
+export function fitTextClass(value: string | number | null | undefined, variant: FitTextVariant = "3xl"): string {
+  const text = String(value ?? "");
+  const scale = FIT_TEXT_SCALES[variant];
+  const step = Math.min(Math.floor(text.length / FIT_TEXT_STEP_CHARS), scale.length - 1);
+  return scale[Math.max(step, 0)];
+}
+
 export function formatNumber(value: number, compact = false, locale: string = activeLocale()): string {
   if (compact) {
     return new Intl.NumberFormat(locale, {

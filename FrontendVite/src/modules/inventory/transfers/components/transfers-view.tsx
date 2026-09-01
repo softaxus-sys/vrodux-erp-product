@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { StockTransferDto as StockTransfer, TransferStatus } from "@/lib/inventory/types";
 import {
@@ -64,9 +64,12 @@ function TransferDrawer({ transfer, open, onClose, onSubmit, onApprove, onReceiv
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}><X className="h-4 w-4" /></Button>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 min-w-0">
               <p className="text-xs text-muted-foreground mb-1">{t("transfers.drawer.transferValue")}</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(transfer.totalValue, currency)}</p>
+              <p className={cn("font-bold text-primary truncate", fitTextClass(formatCurrency(transfer.totalValue, currency), "2xl"))}
+                 title={formatCurrency(transfer.totalValue, currency)}>
+                {formatCurrency(transfer.totalValue, currency)}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">{t("transfers.drawer.itemsCount", { count: (transfer.items ?? []).length })}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -177,9 +180,9 @@ export function TransfersView() {
           const Icon = s.icon;
           return (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-              className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+              className="bg-card border border-border rounded-xl p-4 flex items-center gap-3 min-w-0">
               <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shrink-0", s.bg)}><Icon className={cn("h-5 w-5", s.color)} /></div>
-              <div><p className="text-xs text-muted-foreground">{s.label}</p><p className="font-bold text-lg leading-tight">{s.value}</p></div>
+              <div className="min-w-0"><p className="text-xs text-muted-foreground truncate">{s.label}</p><p className={cn("font-bold leading-tight truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p></div>
             </motion.div>
           );
         })}

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { MapPin, CalendarClock, Handshake, Home, DollarSign, Plus, Check, Trash2, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { reApi } from "@/lib/real-estate/re.api";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -72,10 +72,10 @@ export function SalesPipelineView() {
           const Icon = s.icon;
           return (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              className="bg-card border border-border rounded-xl p-4">
+              className="bg-card border border-border rounded-xl p-4 min-w-0">
               <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-2", s.color)}><Icon className="h-4.5 w-4.5" /></div>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className="font-bold text-base leading-tight mt-0.5">{s.value}</p>
+              <p className="text-xs text-muted-foreground truncate">{s.label}</p>
+              <p className={cn("font-bold leading-tight mt-0.5 truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p>
             </motion.div>
           );
         })}

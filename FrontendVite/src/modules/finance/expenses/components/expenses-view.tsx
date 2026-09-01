@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, getInitials, fitTextClass } from "@/lib/utils";
 import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
 import { financeApi } from "@/lib/finance/finance.api";
 import type { ExpenseDto as Expense, ExpenseStatus } from "@/lib/finance/finance.api";
@@ -311,17 +311,22 @@ export function ExpensesView() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-card border border-border rounded-xl p-4 space-y-2"
+            className="bg-card border border-border rounded-xl p-4 space-y-2 min-w-0"
           >
             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", card.bg)}>
               <card.icon className={cn("h-4 w-4", card.color)} />
             </div>
-            <p className="text-xs text-muted-foreground">{card.label}</p>
-            <p className={cn("text-base font-bold leading-tight", card.color)}>
-              {card.format === "currency"
+            <p className="text-xs text-muted-foreground truncate">{card.label}</p>
+            {(() => {
+              const display = card.format === "currency"
                 ? formatCurrency(card.value as number, currency)
-                : card.value}
-            </p>
+                : String(card.value);
+              return (
+                <p className={cn("font-bold leading-tight truncate", fitTextClass(display, "lg"), card.color)} title={display}>
+                  {display}
+                </p>
+              );
+            })()}
           </motion.div>
         ))}
       </div>

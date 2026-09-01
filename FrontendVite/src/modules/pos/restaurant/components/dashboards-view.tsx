@@ -5,7 +5,7 @@ import {
   LayoutDashboard, DollarSign, ShoppingCart, TrendingUp, AlertTriangle,
   Utensils, Clock, ChefHat, Wallet, Package, Ban,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useShift } from "@/modules/pos/retail/components/shift-gate";
 import {
@@ -25,13 +25,17 @@ type TabId = typeof TABS[number]["id"];
 function StatCard({ icon: Icon, label, value, sub, tone }: {
   icon: React.ElementType; label: string; value: React.ReactNode; sub?: string; tone?: "default" | "warn";
 }) {
+  const isPlain = typeof value === "string" || typeof value === "number";
   return (
-    <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+    <div className="bg-card border border-border rounded-xl p-4 space-y-2 min-w-0">
       <div className={cn("flex items-center gap-2", tone === "warn" ? "text-destructive" : "text-muted-foreground")}>
-        <Icon className="h-4 w-4" /><span className="text-xs font-medium">{label}</span>
+        <Icon className="h-4 w-4 shrink-0" /><span className="text-xs font-medium truncate">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+      <p className={cn("font-bold text-foreground truncate", isPlain ? fitTextClass(value, "2xl") : "text-2xl")}
+         title={isPlain ? String(value) : undefined}>
+        {value}
+      </p>
+      {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
     </div>
   );
 }
