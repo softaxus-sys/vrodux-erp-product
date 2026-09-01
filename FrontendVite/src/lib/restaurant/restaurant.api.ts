@@ -271,6 +271,14 @@ export interface RestaurantOrder {
   customerId: string | null;
 }
 
+export interface PagedOrders {
+  items: RestaurantOrder[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface OrdersSummary {
   total: number; open: number; sent: number; ready: number; served: number;
   paid: number; cancelled: number; split: number; held: number;
@@ -479,8 +487,15 @@ export const restaurantApi = {
   deleteModifierGroup:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/modifier-groups/${id}`),
 
   // Orders
-  getOrders:        (status?: string): Promise<RestaurantOrder[]> =>
-    rawApiClient.get(`${BASE}/orders${status ? `?status=${status}` : ""}`),
+  /** Pass status "open" for everything still live — that is what the floor plan needs, and it is
+   *  bounded by table count rather than by every order the restaurant has ever taken. */
+  getOrders: (p: { status?: string; page?: number; pageSize?: number } = {}): Promise<PagedOrders> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 30));
+    if (p.status) qs.set("status", p.status);
+    return rawApiClient.get(`${BASE}/orders?${qs}`);
+  },
   getOrdersSummary: (): Promise<OrdersSummary> => rawApiClient.get(`${BASE}/orders/summary`),
   getOrder:         (id: string): Promise<RestaurantOrder> => rawApiClient.get(`${BASE}/orders/${id}`),
   createOrder:      (p: { tableId: string | null; waiter: string; covers: number; orderType: string; notes?: string | null; items: OrderLineInput[]; branchId?: string | null; sessionId?: string | null; customerId?: string | null }): Promise<RestaurantOrder> =>

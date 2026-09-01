@@ -63,8 +63,21 @@ export function useItemModifierGroups(itemId: string | null) {
     enabled: !!itemId,
   });
 }
-export function useOrders(status?: string) {
-  return useQuery({ queryKey: [...rKeys.orders(), status ?? "all"], queryFn: () => restaurantApi.getOrders(status), refetchInterval: 15_000 });
+/**
+ * Orders, paged in SQL.
+ *
+ * The floor plan should pass status "open" — it only ever needs the order currently on each table,
+ * which is bounded by table count. Without that it was reading every order the restaurant had ever
+ * taken, with items and modifiers, every 15 seconds.
+ */
+export function useOrders(params: { status?: string; page?: number; pageSize?: number } = {}) {
+  return useQuery({
+    queryKey: [...rKeys.orders(), params],
+    queryFn: () => restaurantApi.getOrders(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    refetchInterval: 15_000,
+  });
 }
 export function useOrdersSummary() {
   return useQuery({ queryKey: rKeys.ordersSummary(), queryFn: restaurantApi.getOrdersSummary, refetchInterval: 15_000 });

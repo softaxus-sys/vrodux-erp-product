@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Pager } from "@/components/ui/pager";
 import { Input } from "@/components/ui/input";
 import { LeftDrawer } from "@/components/ui/left-drawer";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -37,6 +38,10 @@ import { useShift } from "@/modules/pos/retail/components/shift-gate";
 import { useRestaurantRealtime } from "@/hooks/restaurant/use-restaurant-realtime";
 import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
+
+const ORDERS_PAGE_SIZE = 30;
+/** The floor plan needs one live order per table, so this is bounded by floor size, not history. */
+const OPEN_ORDERS_LIMIT = 200;
 
 const TABLE_STATUS: Record<TableStatus, { color: string; bg: string; border: string; dot: string }> = {
   available: { color: "text-success",          bg: "bg-success/10",  border: "border-success/30",  dot: "bg-success" },
@@ -1090,19 +1095,33 @@ export function RestaurantPOSView() {
 
   const { data: tables = [], isLoading: tablesLoading } = useTables();
   const { data: tablesSummary } = useTablesSummary();
-  const { data: orders = [] } = useOrders();
+  // Two different needs, so two different queries.
+  //
+  // The floor plan only ever wants what is live right now — one order per occupied table — which is
+  // bounded by how many tables exist. It used to read every order the restaurant had ever taken,
+  // with items and modifiers, every 15 seconds, and then throw the closed ones away here.
+  const { data: openPage } = useOrders({ status: "open", pageSize: OPEN_ORDERS_LIMIT });
+  const openOrders = React.useMemo(() => openPage?.items ?? [], [openPage]);
+
+  // The Orders tab is history, so it pages.
+  const [orderPage, setOrderPage] = React.useState(1);
+  const { data: historyPage, isFetching: ordersFetching } =
+    useOrders({ page: orderPage, pageSize: ORDERS_PAGE_SIZE });
+  const orders          = historyPage?.items ?? [];
+  const ordersTotal     = historyPage?.totalCount ?? 0;
+  const ordersTotalPages = historyPage?.totalPages ?? 1;
+
   const { data: ordersSummary } = useOrdersSummary();
 
   // active (non-closed) orders by id for quick lookup
   const orderByTable = React.useMemo(() => {
     const m = new Map<string, RestaurantOrder>();
-    for (const o of orders) {
-      if (o.status === "paid" || o.status === "cancelled") continue;
+    for (const o of openOrders) {
       if (o.parentOrderId) continue; // split children share the parent's tableId — only the parent represents "the table's order"
       m.set(o.tableId, o);
     }
     return m;
-  }, [orders]);
+  }, [openOrders]);
 
   const sections = React.useMemo(
     () => [...new Set(tables.map(t => t.section))].sort(),
@@ -1226,9 +1245,15 @@ export function RestaurantPOSView() {
                       </tr>
                     );
                   })}
-                  {orders.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-muted-foreground">{t("posView.noOrders")}</td></tr>}
+                  {ordersTotal === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-xs text-muted-foreground">{t("posView.noOrders")}</td></tr>}
                 </tbody>
               </table>
+              {ordersTotal > 0 && (
+                <div className="border-t border-border">
+                  <Pager page={orderPage} totalPages={ordersTotalPages} totalCount={ordersTotal}
+                    pageSize={ORDERS_PAGE_SIZE} busy={ordersFetching} onPage={setOrderPage} />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1240,7 +1265,7 @@ export function RestaurantPOSView() {
           <OrderDrawer
             table={selectedTable}
             order={selectedTable ? selectedOrder : takeawayOrder}
-            allOrders={orders}
+            allOrders={openOrders}
             isTakeaway={!selectedTable}
             currency={currency}
             onClose={closeDrawer}
