@@ -60,10 +60,33 @@ export interface ApplyLeavePayload {
 /** Raised when the signed-in user has no employee record linked — a normal state, not a fault. */
 export const NOT_LINKED_HINT = "not linked to an employee record";
 
+/** Paging for the self-service history lists — leave, attendance and payslips all grow for as
+ *  long as the person is employed, so none of them can be fetched whole. */
+export interface SelfPageParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SelfPaged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+function pageQs(p: SelfPageParams, defaultSize: number): string {
+  const qs = new URLSearchParams();
+  qs.set("page", String(p.page ?? 1));
+  qs.set("pageSize", String(p.pageSize ?? defaultSize));
+  return qs.toString();
+}
+
 export const selfApi = {
   getProfile: (): Promise<MyProfileDto> => rawApiClient.get(`${BASE}/profile`),
 
-  getLeaves: (): Promise<LeaveRequestDto[]> => rawApiClient.get(`${BASE}/leaves`),
+  getLeaves: (p: SelfPageParams = {}): Promise<SelfPaged<LeaveRequestDto>> =>
+    rawApiClient.get(`${BASE}/leaves?${pageQs(p, 25)}`),
 
   getLeaveBalances: (year?: number): Promise<LeaveBalanceLineDto[]> =>
     rawApiClient.get(`${BASE}/leave-balances${year ? `?year=${year}` : ""}`),
@@ -74,14 +97,13 @@ export const selfApi = {
   cancelLeave: (leaveId: string): Promise<void> =>
     rawApiClient.post(`${BASE}/leaves/${leaveId}/cancel`, {}),
 
-  getAttendance: (fromDate?: string, toDate?: string): Promise<AttendanceRecordDto[]> => {
-    const qs = new URLSearchParams();
-    if (fromDate) qs.set("fromDate", fromDate);
-    if (toDate)   qs.set("toDate", toDate);
-    const q = qs.toString();
+  getAttendance: (p: SelfPageParams & { fromDate?: string; toDate?: string } = {}): Promise<SelfPaged<AttendanceRecordDto>> => {
+    const qs = new URLSearchParams(pageQs(p, 31));
+    if (p.fromDate) qs.set("fromDate", p.fromDate);
+    if (p.toDate)   qs.set("toDate", p.toDate);
     // Same boundary mapping the admin client uses — the backend field names differ from the UI's.
-    return rawApiClient.get(`${BASE}/attendance${q ? `?${q}` : ""}`)
-      .then((r: any) => (Array.isArray(r) ? r : []).map(mapAttendance));
+    return rawApiClient.get(`${BASE}/attendance?${qs}`)
+      .then((r: any) => ({ ...r, items: (r.items ?? []).map(mapAttendance) }));
   },
 
   getAttendanceToday: (): Promise<MyAttendanceTodayDto> =>
@@ -90,5 +112,6 @@ export const selfApi = {
   checkIn:  (): Promise<MyAttendanceTodayDto> => rawApiClient.post(`${BASE}/attendance/check-in`, {}),
   checkOut: (): Promise<MyAttendanceTodayDto> => rawApiClient.post(`${BASE}/attendance/check-out`, {}),
 
-  getPayslips: (): Promise<EmployeePayslipDto[]> => rawApiClient.get(`${BASE}/payslips`),
+  getPayslips: (p: SelfPageParams = {}): Promise<SelfPaged<EmployeePayslipDto>> =>
+    rawApiClient.get(`${BASE}/payslips?${pageQs(p, 24)}`),
 };

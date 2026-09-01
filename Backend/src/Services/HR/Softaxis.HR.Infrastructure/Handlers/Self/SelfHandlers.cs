@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.HR.Application.Abstractions;
 using Softaxis.HR.Application.Attendance.Dtos;
+using Softaxis.HR.Application.Common.Dtos;
 using Softaxis.HR.Application.LeavePolicies.Dtos;
 using Softaxis.HR.Application.LeavePolicies.Queries;
 using Softaxis.HR.Application.Leaves.Dtos;
@@ -41,20 +42,34 @@ internal sealed class GetMyProfileHandler(HrDbContext db, ICurrentUser currentUs
 // ── Leave ────────────────────────────────────────────────────────────────────
 
 internal sealed class GetMyLeavesHandler(HrDbContext db, ICurrentUser currentUser)
-    : IQueryHandler<GetMyLeavesQuery, IReadOnlyList<LeaveDto>>
+    : IQueryHandler<GetMyLeavesQuery, PagedResult<LeaveDto>>
 {
-    public async Task<Result<IReadOnlyList<LeaveDto>>> Handle(GetMyLeavesQuery query, CancellationToken ct)
+    private const int MaxPageSize = 200;
+
+    public async Task<Result<PagedResult<LeaveDto>>> Handle(GetMyLeavesQuery query, CancellationToken ct)
     {
         var found = await CurrentEmployee.ResolveAsync(db, currentUser, ct);
-        if (!found.IsSuccess) return Result.Failure<IReadOnlyList<LeaveDto>>(found.Error);
+        if (!found.IsSuccess) return Result.Failure<PagedResult<LeaveDto>>(found.Error);
 
-        var rows = await db.Leaves
+        var page     = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
+
+        var q = db.Leaves
             .AsNoTracking()
-            .Where(l => !l.IsDeleted && l.EmployeeId == found.Value.Id)
+            .Where(l => !l.IsDeleted && l.EmployeeId == found.Value.Id);
+
+        // Counted before paging so the caller knows how many pages exist.
+        var total = await q.CountAsync(ct);
+
+        var rows = await q
             .OrderByDescending(l => l.StartDate)
+            .ThenBy(l => l.Id)              // stable: several requests can share a start date
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
 
-        return Result.Success<IReadOnlyList<LeaveDto>>(rows.Select(LeaveMappings.ToDto).ToList());
+        return Result.Success(PagedResult<LeaveDto>.Create(
+            rows.Select(LeaveMappings.ToDto).ToList(), total, page, pageSize));
     }
 }
 
@@ -184,13 +199,18 @@ internal sealed class GetMyAttendanceTodayHandler(HrDbContext db, ICurrentUser c
 }
 
 internal sealed class GetMyAttendanceHandler(HrDbContext db, ICurrentUser currentUser)
-    : IQueryHandler<GetMyAttendanceQuery, IReadOnlyList<AttendanceLogDto>>
+    : IQueryHandler<GetMyAttendanceQuery, PagedResult<AttendanceLogDto>>
 {
-    public async Task<Result<IReadOnlyList<AttendanceLogDto>>> Handle(
+    private const int MaxPageSize = 200;
+
+    public async Task<Result<PagedResult<AttendanceLogDto>>> Handle(
         GetMyAttendanceQuery query, CancellationToken ct)
     {
         var found = await CurrentEmployee.ResolveAsync(db, currentUser, ct);
-        if (!found.IsSuccess) return Result.Failure<IReadOnlyList<AttendanceLogDto>>(found.Error);
+        if (!found.IsSuccess) return Result.Failure<PagedResult<AttendanceLogDto>>(found.Error);
+
+        var page     = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
         var q = db.AttendanceLogs.AsNoTracking().Where(a => a.EmployeeId == found.Value.Id);
 
@@ -198,9 +218,18 @@ internal sealed class GetMyAttendanceHandler(HrDbContext db, ICurrentUser curren
         if (!string.IsNullOrWhiteSpace(query.FromDate)) q = q.Where(a => a.Date.CompareTo(query.FromDate) >= 0);
         if (!string.IsNullOrWhiteSpace(query.ToDate))   q = q.Where(a => a.Date.CompareTo(query.ToDate) <= 0);
 
-        var rows = await q.OrderByDescending(a => a.Date).Take(200).ToListAsync(ct);
-        return Result.Success<IReadOnlyList<AttendanceLogDto>>(
-            rows.Select(AttendanceMappings.ToDto).ToList());
+        // This was a bare Take(200) with no total: a year of daily records exceeds it, so the
+        // 201st row back was silently unreachable and nothing on screen said so.
+        var total = await q.CountAsync(ct);
+
+        var rows = await q
+            .OrderByDescending(a => a.Date)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return Result.Success(PagedResult<AttendanceLogDto>.Create(
+            rows.Select(AttendanceMappings.ToDto).ToList(), total, page, pageSize));
     }
 }
 
@@ -272,16 +301,17 @@ internal sealed class CheckOutHandler(HrDbContext db, ICurrentUser currentUser)
 // ── Payslips ─────────────────────────────────────────────────────────────────
 
 internal sealed class GetMyPayslipsHandler(HrDbContext db, ICurrentUser currentUser, ISender sender)
-    : IQueryHandler<GetMyPayslipsQuery, IReadOnlyList<EmployeePayslipDto>>
+    : IQueryHandler<GetMyPayslipsQuery, PagedResult<EmployeePayslipDto>>
 {
-    public async Task<Result<IReadOnlyList<EmployeePayslipDto>>> Handle(
+    public async Task<Result<PagedResult<EmployeePayslipDto>>> Handle(
         GetMyPayslipsQuery query, CancellationToken ct)
     {
         var found = await CurrentEmployee.ResolveAsync(db, currentUser, ct);
-        if (!found.IsSuccess) return Result.Failure<IReadOnlyList<EmployeePayslipDto>>(found.Error);
+        if (!found.IsSuccess) return Result.Failure<PagedResult<EmployeePayslipDto>>(found.Error);
 
         // Reuses the employee payslip query, which already returns processed/paid runs only —
-        // a draft run is not a payslip anyone has received.
-        return await sender.Send(new GetEmployeePayslipsQuery(found.Value.Id), ct);
+        // a draft run is not a payslip anyone has received. Paging is passed straight through,
+        // so the two screens cannot page differently.
+        return await sender.Send(new GetEmployeePayslipsQuery(found.Value.Id, query.Page, query.PageSize), ct);
     }
 }

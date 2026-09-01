@@ -91,9 +91,14 @@ public sealed class LeavesController(ISender sender) : HrControllerBase
     // ── GET /api/hr/leaves/balances ──────────────────────────────────────
     [HttpGet("balances")]
     [RequirePermission("hr.leaves.view")]
-    public async Task<IActionResult> GetAllBalances([FromQuery] int? year, CancellationToken ct)
+    public async Task<IActionResult> GetAllBalances(
+        [FromQuery] int? year = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetAllLeaveBalancesQuery(year), ct);
+        var result = await sender.Send(new GetAllLeaveBalancesQuery(year, search, page, pageSize), ct);
         return OkOrError(result);
     }
 

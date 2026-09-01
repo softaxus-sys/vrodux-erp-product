@@ -734,6 +734,21 @@ function mapPerformanceReview(raw: any): PerformanceReviewDto {
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 
+/** Paging shared by the HR lists that grow without bound — payslip history and the
+ *  all-employee leave balance table. */
+export interface HrPageParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface HrPaged<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export const hrApi = {
   // ── Employees ─────────────────────────────────────────────────────────────
   /** @param includeInactive the list page wants everyone; pickers want active staff only. */
@@ -811,8 +826,14 @@ export const hrApi = {
     rawApiClient.get(`${BASE}/leaves?pageSize=500${employeeId ? `&employeeId=${employeeId}` : ""}`).then((r: any) =>
       (r.items ?? r ?? []).map(mapLeave)),
 
-  getLeaveBalances: (year?: number): Promise<LeaveBalanceDto[]> =>
-    rawApiClient.get(`${BASE}/leaves/balances${year ? `?year=${year}` : ""}`),
+  getLeaveBalances: (p: HrPageParams & { year?: number; search?: string } = {}): Promise<HrPaged<LeaveBalanceDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 25));
+    if (p.year) qs.set("year", String(p.year));
+    if (p.search?.trim()) qs.set("search", p.search.trim());
+    return rawApiClient.get(`${BASE}/leaves/balances?${qs}`);
+  },
 
   getEmployeeLeaveBalances: (employeeId: string, year?: number): Promise<LeaveBalanceLineDto[]> =>
     rawApiClient.get(`${BASE}/leaves/balances/${employeeId}${year ? `?year=${year}` : ""}`),
@@ -858,8 +879,12 @@ export const hrApi = {
       .then((r: any) => ({ ...r, payslips: r.payslips ?? r.slips ?? [] })),
 
   /** Payslips issued to one employee — the API returns processed/paid runs only. */
-  getEmployeePayslips: (employeeId: string): Promise<EmployeePayslipDto[]> =>
-    rawApiClient.get(`${BASE}/payroll/employees/${employeeId}/slips`),
+  getEmployeePayslips: (employeeId: string, p: HrPageParams = {}): Promise<HrPaged<EmployeePayslipDto>> => {
+    const qs = new URLSearchParams();
+    qs.set("page", String(p.page ?? 1));
+    qs.set("pageSize", String(p.pageSize ?? 24));
+    return rawApiClient.get(`${BASE}/payroll/employees/${employeeId}/slips?${qs}`);
+  },
 
   getPayrollSummary: (): Promise<PayrollSummaryDto> =>
     rawApiClient.get(`${BASE}/payroll/summary`),

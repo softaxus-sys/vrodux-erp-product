@@ -114,7 +114,10 @@ function OverviewTab({ emp }: { emp: Employee }) {
 function PayrollTab({ emp }: { emp: Employee }) {
   const { t } = useTranslation("hr");
   const currency = useCurrency();
-  const { data: payslips, isLoading } = useEmployeePayslips(emp.id);
+  // The drawer shows the most recent six; asking the server for six is what keeps a long
+  // employment history off the wire, rather than fetching all of them and slicing.
+  const { data: payslipPage, isLoading } = useEmployeePayslips(emp.id, { pageSize: 6 });
+  const payslips = payslipPage?.items ?? [];
 
   // Allowances and deductions are not stored on the employee record — they are entered
   // per payroll run. So the structure below reports the latest issued payslip rather than
@@ -160,11 +163,11 @@ function PayrollTab({ emp }: { emp: Employee }) {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">{t("employees.drawer.recentPayslips")}</h3>
         {isLoading ? (
           <p className="text-xs text-muted-foreground">{t("employees.drawer.loadingPayslips")}</p>
-        ) : !payslips?.length ? (
+        ) : !payslips.length ? (
           <p className="text-xs text-muted-foreground">{t("employees.drawer.noPayslips")}</p>
         ) : (
           <div className="space-y-2">
-            {payslips.slice(0, 6).map(slip => (
+            {payslips.map(slip => (
               <div key={slip.slipId} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">

@@ -5,6 +5,7 @@ import {
   CalendarOff, Clock, FileText, LogIn, LogOut, Plus, AlertCircle, CheckCircle2, Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Pager } from "@/components/ui/pager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
@@ -19,6 +20,11 @@ import { exportPayslipPdf } from "./payslip-pdf";
 type Tab = "overview" | "leave" | "attendance" | "payslips";
 
 const TODAY = () => new Date().toISOString().split("T")[0];
+
+// These three lists grow for as long as the person is employed, so none of them is fetched whole.
+const LEAVE_PAGE_SIZE      = 25;
+const ATTENDANCE_PAGE_SIZE = 31;
+const PAYSLIP_PAGE_SIZE    = 24;
 
 const LEAVE_STATUS: Record<string, string> = {
   approved:  "text-success bg-success/10",
@@ -228,7 +234,11 @@ function OverviewTab({ currency }: { currency: string }) {
 
 function LeaveTab() {
   const { t } = useTranslation("hr");
-  const { data: leaves, isLoading } = useMyLeaves();
+  const [page, setPage] = React.useState(1);
+  const { data: leavePage, isLoading, isFetching } = useMyLeaves({ page, pageSize: LEAVE_PAGE_SIZE });
+  const leaves     = leavePage?.items ?? [];
+  const leaveTotal = leavePage?.totalCount ?? 0;
+  const totalPages = leavePage?.totalPages ?? 1;
   const { data: balances } = useMyLeaveBalances();
   const apply = useApplyForLeave();
   const cancel = useCancelMyLeave();
@@ -308,7 +318,7 @@ function LeaveTab() {
         <CardContent className="p-0">
           {isLoading ? (
             <p className="p-6 text-sm text-muted-foreground">{t("self.loading")}</p>
-          ) : !leaves?.length ? (
+          ) : leaveTotal === 0 ? (
             <p className="p-6 text-sm text-muted-foreground">{t("self.noLeaves")}</p>
           ) : (
             <div className="divide-y divide-border">
@@ -337,6 +347,12 @@ function LeaveTab() {
               ))}
             </div>
           )}
+          {leaveTotal > 0 && (
+            <div className="border-t border-border">
+              <Pager page={page} totalPages={totalPages} totalCount={leaveTotal}
+                pageSize={LEAVE_PAGE_SIZE} busy={isFetching} onPage={setPage} />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -345,14 +361,18 @@ function LeaveTab() {
 
 function AttendanceTab() {
   const { t } = useTranslation("hr");
-  const { data: rows, isLoading } = useMyAttendance();
+  const [page, setPage] = React.useState(1);
+  const { data: attPage, isLoading, isFetching } = useMyAttendance({ page, pageSize: ATTENDANCE_PAGE_SIZE });
+  const rows     = attPage?.items ?? [];
+  const attTotal = attPage?.totalCount ?? 0;
+  const totalPages = attPage?.totalPages ?? 1;
 
   return (
     <Card>
       <CardContent className="p-0">
         {isLoading ? (
           <p className="p-6 text-sm text-muted-foreground">{t("self.loading")}</p>
-        ) : !rows?.length ? (
+        ) : attTotal === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">{t("self.noAttendance")}</p>
         ) : (
           <div className="divide-y divide-border">
@@ -376,6 +396,12 @@ function AttendanceTab() {
             ))}
           </div>
         )}
+        {attTotal > 0 && (
+          <div className="border-t border-border">
+            <Pager page={page} totalPages={totalPages} totalCount={attTotal}
+              pageSize={ATTENDANCE_PAGE_SIZE} busy={isFetching} onPage={setPage} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -383,7 +409,11 @@ function AttendanceTab() {
 
 function PayslipsTab({ currency }: { currency: string }) {
   const { t } = useTranslation("hr");
-  const { data: slips, isLoading } = useMyPayslips();
+  const [page, setPage] = React.useState(1);
+  const { data: slipPage, isLoading, isFetching } = useMyPayslips({ page, pageSize: PAYSLIP_PAGE_SIZE });
+  const slips     = slipPage?.items ?? [];
+  const slipTotal = slipPage?.totalCount ?? 0;
+  const totalPages = slipPage?.totalPages ?? 1;
   // The employee's own record supplies the name, number and bank details on the document; the
   // payslip row carries only the figures.
   const { data: profile } = useMyProfile();
@@ -413,7 +443,7 @@ function PayslipsTab({ currency }: { currency: string }) {
       <CardContent className="p-0">
         {isLoading ? (
           <p className="p-6 text-sm text-muted-foreground">{t("self.loading")}</p>
-        ) : !slips?.length ? (
+        ) : slipTotal === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">{t("self.noPayslips")}</p>
         ) : (
           <div className="divide-y divide-border">
@@ -445,6 +475,12 @@ function PayslipsTab({ currency }: { currency: string }) {
                 </Button>
               </div>
             ))}
+          </div>
+        )}
+        {slipTotal > 0 && (
+          <div className="border-t border-border">
+            <Pager page={page} totalPages={totalPages} totalCount={slipTotal}
+              pageSize={PAYSLIP_PAGE_SIZE} busy={isFetching} onPage={setPage} />
           </div>
         )}
       </CardContent>

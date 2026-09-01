@@ -77,9 +77,12 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
     // ── GET /api/hr/payroll/employees/{employeeId}/slips ─────────────────
     [HttpGet("employees/{employeeId:guid}/slips")]
     [RequireAnyPermission("hr.payroll.view", FinanceApprove)]
-    public async Task<IActionResult> GetEmployeePayslips(Guid employeeId, CancellationToken ct)
+    public async Task<IActionResult> GetEmployeePayslips(
+        Guid employeeId,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 24,
+        CancellationToken ct = default)
     {
-        var result = await sender.Send(new GetEmployeePayslipsQuery(employeeId), ct);
+        var result = await sender.Send(new GetEmployeePayslipsQuery(employeeId, page, pageSize), ct);
         return OkOrError(result);
     }
 

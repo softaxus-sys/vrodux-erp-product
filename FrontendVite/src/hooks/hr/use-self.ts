@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { selfApi, type ApplyLeavePayload } from "@/lib/hr/self.api";
+import { selfApi, type ApplyLeavePayload, type SelfPageParams } from "@/lib/hr/self.api";
 
 const QK = "hr-self";
 
@@ -20,8 +20,14 @@ export function useMyProfile() {
   });
 }
 
-export function useMyLeaves() {
-  return useQuery({ queryKey: [QK, "leaves"], queryFn: selfApi.getLeaves, retry: false });
+export function useMyLeaves(params: SelfPageParams = {}) {
+  return useQuery({
+    queryKey: [QK, "leaves", params],
+    queryFn:  () => selfApi.getLeaves(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    retry: false,
+  });
 }
 
 export function useMyLeaveBalances(year?: number) {
@@ -32,10 +38,12 @@ export function useMyLeaveBalances(year?: number) {
   });
 }
 
-export function useMyAttendance(fromDate?: string, toDate?: string) {
+export function useMyAttendance(params: SelfPageParams & { fromDate?: string; toDate?: string } = {}) {
   return useQuery({
-    queryKey: [QK, "attendance", fromDate ?? "", toDate ?? ""],
-    queryFn:  () => selfApi.getAttendance(fromDate, toDate),
+    queryKey: [QK, "attendance", params],
+    queryFn:  () => selfApi.getAttendance(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
     retry: false,
   });
 }
@@ -48,8 +56,14 @@ export function useMyAttendanceToday() {
   });
 }
 
-export function useMyPayslips() {
-  return useQuery({ queryKey: [QK, "payslips"], queryFn: selfApi.getPayslips, retry: false });
+export function useMyPayslips(params: SelfPageParams = {}) {
+  return useQuery({
+    queryKey: [QK, "payslips", params],
+    queryFn:  () => selfApi.getPayslips(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    retry: false,
+  });
 }
 
 function useSelfMutation<TArgs, TResult>(

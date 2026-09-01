@@ -16,6 +16,7 @@ import {
   type CompleteReviewPayload,
   type CreateGoalPayload,
   type UpdateGoalPayload,
+  type HrPageParams,
 } from "@/lib/hr/hr.api";
 import { toast } from "sonner";
 
@@ -191,10 +192,12 @@ export function useLeaveRequests(employeeId?: string) {
   });
 }
 
-export function useLeaveBalances(year?: number) {
+export function useLeaveBalances(params: HrPageParams & { year?: number; search?: string } = {}) {
   return useQuery({
-    queryKey: [QK, "leave-balances", year ?? "current"],
-    queryFn:  () => hrApi.getLeaveBalances(year),
+    queryKey: [QK, "leave-balances", params],
+    queryFn:  () => hrApi.getLeaveBalances(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -365,10 +368,10 @@ export function usePayrollRunById(id: string | null) {
   });
 }
 
-export function useEmployeePayslips(employeeId: string | null) {
+export function useEmployeePayslips(employeeId: string | null, params: HrPageParams = {}) {
   return useQuery({
-    queryKey: [QK, "employee-payslips", employeeId],
-    queryFn:  () => hrApi.getEmployeePayslips(employeeId!),
+    queryKey: [QK, "employee-payslips", employeeId, params],
+    queryFn:  () => hrApi.getEmployeePayslips(employeeId!, params),
     enabled:  !!employeeId,
     staleTime: 2 * 60 * 1000,
   });

@@ -19,8 +19,11 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddLeaveForm } from "./add-leave-form";
+import { Pager } from "@/components/ui/pager";
 import { Can } from "@/components/auth/can";
 import { LeavePoliciesModal } from "./leave-policies-modal";
+
+const BALANCE_PAGE_SIZE = 25;
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
   pending:   { color: "text-warning",          bg: "bg-warning/10",     icon: Clock },
@@ -241,7 +244,13 @@ export function LeavesView() {
     rows: leaveRequests.map(r => [r.employeeName, r.department, r.leaveType, r.fromDate ?? "—", r.toDate ?? "—", r.days, r.status, r.reason]),
     landscape: true,
   });
-  const { data: leaveBalances = [] } = useLeaveBalances();
+  // Balances grow with headcount, and the leave aggregate underneath grows with headcount x
+  // requests, so this pages in SQL rather than loading the whole workforce.
+  const [balancePage, setBalancePage] = React.useState(1);
+  const { data: balancePaged, isFetching: balancesFetching } = useLeaveBalances({ page: balancePage, pageSize: BALANCE_PAGE_SIZE });
+  const leaveBalances    = balancePaged?.items ?? [];
+  const balanceTotal     = balancePaged?.totalCount ?? 0;
+  const balanceTotalPages = balancePaged?.totalPages ?? 1;
   const { data: leaveSummary } = useLeaveSummary();
 
   // Columns follow the tenant's own leave policies rather than a fixed annual/sick/unpaid trio.
@@ -416,7 +425,7 @@ export function LeavesView() {
       {activeTab === "balances" && (
         <Card>
           <CardContent className="p-0">
-            {!leaveBalances.length ? (
+            {balanceTotal === 0 ? (
               <p className="p-6 text-sm text-muted-foreground">{t("leaves.balances.empty")}</p>
             ) : (
               <div className="overflow-x-auto">
@@ -475,6 +484,12 @@ export function LeavesView() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {balanceTotal > 0 && (
+              <div className="border-t border-border">
+                <Pager page={balancePage} totalPages={balanceTotalPages} totalCount={balanceTotal}
+                  pageSize={BALANCE_PAGE_SIZE} busy={balancesFetching} onPage={setBalancePage} />
               </div>
             )}
           </CardContent>

@@ -36,8 +36,9 @@ public sealed class MeController(ISender sender) : HrControllerBase
     // ── Leave ────────────────────────────────────────────────────────────
     [HttpGet("leaves")]
     [RequirePermission("hr.self.leave-request")]
-    public async Task<IActionResult> MyLeaves(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetMyLeavesQuery(), ct));
+    public async Task<IActionResult> MyLeaves(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetMyLeavesQuery(page, pageSize), ct));
 
     [HttpGet("leave-balances")]
     [RequirePermission("hr.self.view")]
@@ -59,8 +60,9 @@ public sealed class MeController(ISender sender) : HrControllerBase
     [HttpGet("attendance")]
     [RequirePermission("hr.self.attendance")]
     public async Task<IActionResult> MyAttendance(
-        [FromQuery] string? fromDate, [FromQuery] string? toDate, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetMyAttendanceQuery(fromDate, toDate), ct));
+        [FromQuery] string? fromDate = null, [FromQuery] string? toDate = null,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 31, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetMyAttendanceQuery(fromDate, toDate, page, pageSize), ct));
 
     [HttpGet("attendance/today")]
     [RequirePermission("hr.self.attendance")]
@@ -80,6 +82,7 @@ public sealed class MeController(ISender sender) : HrControllerBase
     // ── Payslips ─────────────────────────────────────────────────────────
     [HttpGet("payslips")]
     [RequirePermission("hr.self.payslip")]
-    public async Task<IActionResult> MyPayslips(CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetMyPayslipsQuery(), ct));
+    public async Task<IActionResult> MyPayslips(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 24, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetMyPayslipsQuery(page, pageSize), ct));
 }
