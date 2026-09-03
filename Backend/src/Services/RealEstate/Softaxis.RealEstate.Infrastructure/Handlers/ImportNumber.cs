@@ -57,14 +57,18 @@ internal static class ImportNumber
         return negative ? "-" + digits : digits;
     }
 
-    /// <summary>Units that multiply the number written next to them, in the markets this serves.</summary>
-    private static readonly string[] Magnitudes = ["m", "mn", "k", "bn", "cr", "crore", "lakh", "lac"];
+    /// <summary>
+    /// True when a magnitude unit is attached to a number anywhere in the cell.
+    ///
+    /// <para>Checked mid-string, not just at the end, because real sheets append other things after
+    /// it: a rental stock list writes "48K/1" for 48,000 over one cheque and "425K/2CQ." for two.
+    /// A trailing-word check misses both, and stripping the punctuation turns them into 481 and
+    /// 4252 — numbers that look plausible enough to go unnoticed.</para>
+    /// </summary>
+    private static readonly System.Text.RegularExpressions.Regex MagnitudeUnit = new(
+        @"\d\s*(k|m|mn|bn|cr|crore|crores|lakh|lakhs|lac|lacs)\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase
+        | System.Text.RegularExpressions.RegexOptions.Compiled);
 
-    private static bool HasMagnitudeSuffix(string raw)
-    {
-        // Only the trailing word counts, so "Marina 2 Tower" is not read as a magnitude while
-        // "4.5 M" and "250k" are.
-        var tail = new string(raw.TrimEnd().Reverse().TakeWhile(char.IsLetter).Reverse().ToArray());
-        return tail.Length > 0 && Magnitudes.Contains(tail.ToLowerInvariant());
-    }
+    private static bool HasMagnitudeSuffix(string raw) => MagnitudeUnit.IsMatch(raw);
 }
