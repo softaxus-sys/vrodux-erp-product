@@ -37,6 +37,8 @@ export interface ImportOutcome {
   skipped: number;
   failed: number;
   problems: { row: number; message: string }[];
+  /** Anything the tallies do not cover, e.g. how many buildings an import also created. */
+  note?: string;
 }
 
 interface Props<K extends string> {
@@ -163,6 +165,8 @@ function Inner<K extends string>({
 
         const res = await onImport(payload);
         total.created += res.created;
+        // The last chunk wins: the note is a running statement about the whole import.
+        if (res.note) total.note = res.note;
         total.skipped += res.skipped;
         total.failed  += res.failed;
         // Row numbers come back relative to the chunk, so shift them into the file's own numbering
@@ -211,6 +215,10 @@ function Inner<K extends string>({
                 <Tile label="Skipped"  value={result.skipped} cls="text-warning" />
                 <Tile label="Failed"   value={result.failed}  cls="text-destructive" />
               </div>
+
+              {result.note && (
+                <p className="text-xs text-muted-foreground">{result.note}</p>
+              )}
 
               {result.skipped > 0 && (
                 <p className="text-xs text-muted-foreground">

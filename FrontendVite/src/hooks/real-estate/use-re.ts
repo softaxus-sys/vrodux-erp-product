@@ -87,6 +87,21 @@ export function useImportUnits() {
   });
 }
 
+/** Creates both buildings and units, so both lists and their summaries go stale. */
+export function useImportRentalStock() {
+  const qc = useQueryClient();
+  const invalidateProperties = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (rows: Record<string, string>[]) => reApi.importRentalStock(rows),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "units"] });
+      qc.invalidateQueries({ queryKey: [QK, "unit-summary"] });
+      invalidateProperties();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useTenants(params: RePageParams & { tenantType?: string } = {}) {
   return useQuery({
     queryKey: [QK, "tenants", params],

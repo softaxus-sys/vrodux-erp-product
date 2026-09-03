@@ -43,6 +43,15 @@ public sealed class UnitsController(ISender sender) : RealEstateControllerBase
         string? Furnishing = null, string? View = null, int? Bedrooms = null, int? Bathrooms = null,
         int Parking = 0, decimal ServiceCharge = 0, string? Notes = null);
 
+    /// <summary>
+    /// Imports an agency rental-stock sheet, creating the buildings it names as it goes. Gated on
+    /// units.create AND properties.create, because it does both.
+    /// </summary>
+    [HttpPost("import-rental-stock")]
+    [RequirePermission("real-estate.units.create")]
+    public async Task<IActionResult> ImportRentalStock([FromBody] ImportRentalStockCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
+
     /// <summary>Bulk import from a spreadsheet. Gated on create — it creates units.</summary>
     [HttpPost("import")]
     [RequirePermission("real-estate.units.create")]

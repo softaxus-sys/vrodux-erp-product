@@ -109,6 +109,16 @@ public sealed class PropertyUnit
         Status = "rented"; UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Records occupancy where no tenant record exists — an import knows a unit is let but not to
+    /// whom. Occupy() requires a tenant, and inventing one to satisfy it would put a fictional
+    /// person on the unit and into every report that counts tenants.
+    /// </summary>
+    public void SetOccupancy(string status)
+    {
+        Status = status; UpdatedAt = DateTime.UtcNow;
+    }
+
     public void Vacate() { CurrentTenantId = null; CurrentTenantName = null; Status = "vacant"; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }

@@ -459,6 +459,26 @@ export const reApi = {
   getUnitSummary:      (): Promise<ReUnitSummaryDto>       => rawApiClient.get(`${BASE}/units/summary`),
   createUnit:          (data: UpsertUnitRequest): Promise<UnitDto> => rawApiClient.post(`${BASE}/units`, data),
   /** Bulk import. propertyId scopes the whole sheet to one building; otherwise each row names its own. */
+  /** Agency rental-stock sheet: creates the buildings it names, then a unit per listing. */
+  importRentalStock:   async (rows: Record<string, string>[]): Promise<ImportOutcome> => {
+    const r: {
+      propertiesCreated: number; unitsCreated: number;
+      skipped: number; failed: number; problems: { row: number; message: string }[];
+    } = await rawApiClient.post(`${BASE}/units/import-rental-stock`, { rows });
+
+    // Mapped onto the shared outcome the modal renders. Buildings go in the note rather than the
+    // Created tile: "516 created" would be true but unreadable when it is two different things.
+    return {
+      created:  r.unitsCreated,
+      skipped:  r.skipped,
+      failed:   r.failed,
+      problems: r.problems,
+      note: r.propertiesCreated > 0
+        ? `${r.propertiesCreated} building${r.propertiesCreated === 1 ? "" : "s"} were created from this file.`
+        : undefined,
+    };
+  },
+
   importUnits:         (rows: Record<string, string>[], propertyId?: string): Promise<ImportOutcome> =>
     rawApiClient.post(`${BASE}/units/import`, { rows, propertyId }),
   updateUnit:          (id: string, data: UpsertUnitRequest): Promise<void> =>
