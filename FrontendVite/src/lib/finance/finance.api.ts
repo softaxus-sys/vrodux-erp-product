@@ -53,6 +53,9 @@ export interface InvoiceDto {
   /** The currency this invoice is RECORDED in — what the emailed PDF renders. May differ from the
    *  tenant current operating currency for older invoices, so per-invoice display must use this. */
   currencyCode?: string | null;
+  /** Pending automatic send (yyyy-MM-dd), or null once it has gone out. */
+  scheduledSendDate?: string | null;
+  remindBeforeDue?: boolean;
   status: InvoiceStatus;
   itemCount: number;          // backend: itemCount    (list returns count, not items array)
   paidAt?: string | null;     // backend: paidAt       (was paidDate)
@@ -97,6 +100,10 @@ export interface InvoiceDetailDto {
   total: number;
   /** The currency this invoice is RECORDED in — what the emailed PDF renders. */
   currencyCode?: string | null;
+  scheduledSendDate?: string | null;
+  remindBeforeDue?: boolean;
+  /** When the last due-date reminder actually left. */
+  lastReminderSentAt?: string | null;
   status: InvoiceStatus;
   notes?: string | null;
   items: InvoiceItemDto[];
@@ -556,6 +563,10 @@ export interface CreateInvoiceRequest {
   customerEmail?: string | null;
   /** The customer's own people to copy — their accounts inbox. Comma or semicolon separated. */
   ccEmails?: string | null;
+  /** Send automatically on this date instead of pressing Send. */
+  scheduledSendDate?: string | null;
+  /** Chase the customer as the due date nears. */
+  remindBeforeDue?: boolean;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;
@@ -567,6 +578,8 @@ export interface UpdateInvoiceRequest {
   customerName: string;
   customerEmail?: string | null;
   ccEmails?: string | null;
+  scheduledSendDate?: string | null;
+  remindBeforeDue?: boolean;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;

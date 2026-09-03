@@ -55,14 +55,30 @@ public sealed class RecurringInvoiceHostedService(
             // No ambient tenant here, so the global filter would hide everything: IgnoreQueryFilters
             // is required to see across workspaces, and the tenant column is a shadow property that
             // has to be read through EF.Property.
-            tenantIds = await db.RecurringInvoices
+            var fromTemplates = await db.RecurringInvoices
                 .IgnoreQueryFilters()
                 .Where(r => r.IsActive && !r.IsDeleted)
                 .Select(r => EF.Property<Guid?>(r, "TenantId"))
                 .Where(id => id != null)
                 .Distinct()
-                .Select(id => id!.Value)
                 .ToListAsync(ct);
+
+            // Workspaces with invoices but no recurring templates still have scheduled sends and
+            // due-date reminders to run. Enumerating templates alone would have skipped them
+            // entirely — and most workspaces have invoices long before they have a template.
+            var fromInvoices = await db.Invoices
+                .IgnoreQueryFilters()
+                .Where(x => !x.IsDeleted
+                         && (x.ScheduledSendDate != null || x.RemindBeforeDue))
+                .Select(x => EF.Property<Guid?>(x, "TenantId"))
+                .Where(id => id != null)
+                .Distinct()
+                .ToListAsync(ct);
+
+            tenantIds = fromTemplates.Concat(fromInvoices)
+                .Select(id => id!.Value)
+                .Distinct()
+                .ToList();
 
             if (tenantIds.Count == 0) return;
 
@@ -106,6 +122,17 @@ public sealed class RecurringInvoiceHostedService(
                     logger.LogInformation(
                         "RecurringInvoices: workspace {TenantId} — {Created} generated, {Emailed} emailed, {Failed} failed to send.",
                         tenantId, result.Created, result.Emailed, result.EmailFailed);
+
+                // Scheduled sends and due-date reminders ride the same daily pass: the workspace,
+                // its currency and the ambient tenant are already resolved here, and a second
+                // background service would have duplicated all of that plumbing to no benefit.
+                var schedule = await InvoiceScheduleSweep.RunAsync(db, email, DateTime.UtcNow, ct);
+
+                if (schedule.Sent > 0 || schedule.Reminded > 0 || schedule.SendFailed > 0 || schedule.RemindFailed > 0)
+                    logger.LogInformation(
+                        "Invoices: workspace {TenantId} — {Sent} scheduled sent ({SendFailed} failed), " +
+                        "{Reminded} reminders sent ({RemindFailed} failed).",
+                        tenantId, schedule.Sent, schedule.SendFailed, schedule.Reminded, schedule.RemindFailed);
             }
             catch (Exception ex)
             {

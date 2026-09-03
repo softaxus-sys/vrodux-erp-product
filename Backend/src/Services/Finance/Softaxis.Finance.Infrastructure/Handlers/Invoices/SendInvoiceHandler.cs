@@ -30,16 +30,7 @@ internal sealed class SendInvoiceHandler(
 
         invoice.Send();
 
-        var rate = await GlPoster.GetRateAsync(db, invoice.CurrencyCode, invoice.InvoiceDate, ct);
-        var lines = new List<GlPoster.Line>
-        {
-            new(GlPoster.AccountsReceivable, invoice.Total * rate, 0, $"Invoice {invoice.InvoiceNumber} - {invoice.CustomerName}"),
-            new(GlPoster.SalesRevenue, 0, invoice.SubTotal * rate, $"Sales - Invoice {invoice.InvoiceNumber}"),
-        };
-        if (invoice.TaxAmount > 0)
-            lines.Add(new(GlPoster.VatPayable, 0, invoice.TaxAmount * rate, $"VAT Output - Invoice {invoice.InvoiceNumber}"));
-
-        var journalEntryId = await GlPoster.PostAsync(db, invoice.InvoiceDate, $"Sales Invoice {invoice.InvoiceNumber}", invoice.InvoiceNumber, lines, ct);
+        var journalEntryId = await GlPoster.PostInvoiceSalesAsync(db, invoice, ct);
         invoice.SetJournalEntryId(journalEntryId);
 
         // Committed BEFORE the email. An invoice that is posted but not emailed can be re-sent; an

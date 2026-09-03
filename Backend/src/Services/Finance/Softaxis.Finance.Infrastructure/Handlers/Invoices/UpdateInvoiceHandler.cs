@@ -69,6 +69,9 @@ internal sealed class UpdateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         invoice.Update(cmd.CustomerName, cmd.CustomerEmail, cmd.InvoiceDate, cmd.DueDate,
             cmd.TaxRate, cmd.Notes, invoice.Status, cmd.CcEmails);
 
+        invoice.SetScheduledSend(cmd.ScheduledSendDate);
+        invoice.SetRemindBeforeDue(cmd.RemindBeforeDue);
+
         db.InvoiceItems.RemoveRange(invoice.Items);
         invoice.Items.Clear();
         foreach (var item in cmd.Items)

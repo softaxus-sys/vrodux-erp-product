@@ -8,7 +8,11 @@ public sealed record CreateInvoiceCommand(
     string CustomerName, string? CustomerEmail, string InvoiceDate, string DueDate,
     decimal TaxRate, string? Notes, IReadOnlyList<InvoiceItemRequest> Items,
     /// <summary>Customer-side CC — their accounts inbox. Comma or semicolon separated.</summary>
-    string? CcEmails = null) : ICommand<InvoiceDto>;
+    string? CcEmails = null,
+    /// <summary>Send automatically on this date (yyyy-MM-dd) instead of pressing Send.</summary>
+    string? ScheduledSendDate = null,
+    /// <summary>Chase the customer as the due date nears. On unless turned off for this invoice.</summary>
+    bool RemindBeforeDue = true) : ICommand<InvoiceDto>;
 
 public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -25,7 +29,9 @@ public sealed record UpdateInvoiceCommand(
     Guid Id, string CustomerName, string? CustomerEmail, string InvoiceDate, string DueDate,
     decimal TaxRate, string? Notes, string Status, IReadOnlyList<InvoiceItemRequest> Items,
     /// <summary>Customer-side CC — their accounts inbox. Comma or semicolon separated.</summary>
-    string? CcEmails = null) : ICommand;
+    string? CcEmails = null,
+    string? ScheduledSendDate = null,
+    bool RemindBeforeDue = true) : ICommand;
 
 public sealed class UpdateInvoiceValidator : AbstractValidator<UpdateInvoiceCommand>
 {

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Printer, Send, Download, CheckCircle2,
-  Plus, Trash2, Pencil, ArrowLeft, XCircle, AlertTriangle, RotateCcw,
+  Plus, Trash2, Pencil, ArrowLeft, XCircle, AlertTriangle, RotateCcw, CalendarClock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,8 @@ function EditInvoice({
   const [customerName,  setCustomerName]  = React.useState(invoice.customerName);
   const [customerEmail, setCustomerEmail] = React.useState(invoice.customerEmail ?? "");
   const [ccEmails, setCcEmails] = React.useState(invoice.ccEmails ?? "");
+  const [scheduledSendDate, setScheduledSendDate] = React.useState(invoice.scheduledSendDate ?? "");
+  const [remindBeforeDue, setRemindBeforeDue] = React.useState(invoice.remindBeforeDue ?? true);
   const [invoiceDate,   setInvoiceDate]   = React.useState(invoice.invoiceDate);
   const [dueDate,       setDueDate]       = React.useState(invoice.dueDate);
   const [taxRate,       setTaxRate]       = React.useState(invoice.taxRate);
@@ -107,6 +109,8 @@ function EditInvoice({
           customerName:  customerName.trim(),
           customerEmail: customerEmail.trim() || undefined,
           ccEmails:      ccEmails.trim() || undefined,
+          scheduledSendDate: scheduledSendDate || null,
+          remindBeforeDue,
           invoiceDate,
           dueDate,
           taxRate,
@@ -168,6 +172,24 @@ function EditInvoice({
             <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
               placeholder={t("invoicing.drawer.form.ccEmailsPh")} />
             <p className="text-xs text-muted-foreground">{t("invoicing.drawer.form.ccEmailsHint")}</p>
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.scheduledSend")}</Label>
+            <Input type="date" value={scheduledSendDate}
+                   onChange={e => setScheduledSendDate(e.target.value)} />
+            <p className="text-xs text-muted-foreground">{t("invoicing.drawer.form.scheduledSendHint")}</p>
+          </div>
+          <div className="col-span-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={remindBeforeDue} className="mt-0.5"
+                     onChange={e => setRemindBeforeDue(e.target.checked)} />
+              <span className="text-sm">
+                {t("invoicing.drawer.form.remindBeforeDue")}
+                <span className="block text-xs text-muted-foreground">
+                  {t("invoicing.drawer.form.remindBeforeDueHint")}
+                </span>
+              </span>
+            </label>
           </div>
           <div className="space-y-1.5">
             <Label>{t("invoicing.drawer.form.invoiceDate")}</Label>
@@ -442,6 +464,27 @@ function ViewInvoice({ invoice, onClose }: { invoice: Invoice; onClose: () => vo
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* A pending automatic send is not obvious from a "draft" badge, so it is stated. */}
+        {isDraft && detail?.scheduledSendDate && (
+          <div className="flex items-start gap-2 bg-primary/5 border border-primary/20 rounded-xl p-3">
+            <CalendarClock className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs">
+              {t("invoicing.drawer.view.scheduledFor", {
+                date: formatDate(detail.scheduledSendDate, "medium"),
+              })}
+            </p>
+          </div>
+        )}
+
+        {/* The delivery trail for reminders — "did the chaser actually go out" is the first question. */}
+        {detail?.lastReminderSentAt && (
+          <p className="text-xs text-muted-foreground">
+            {t("invoicing.drawer.view.lastReminder", {
+              date: formatDate(detail.lastReminderSentAt, "medium"),
+            })}
+          </p>
+        )}
+
         {/* Meta info */}
         <div className="space-y-0">
           <DetailRow label={t("invoicing.drawer.view.invoiceDate")} value={formatDate(invoice.invoiceDate, "medium")} />
@@ -548,6 +591,8 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
   const [customerName,  setCustomerName]  = React.useState("");
   const [customerEmail, setCustomerEmail] = React.useState("");
   const [ccEmails, setCcEmails] = React.useState("");
+  const [scheduledSendDate, setScheduledSendDate] = React.useState("");
+  const [remindBeforeDue, setRemindBeforeDue] = React.useState(true);
   const [invoiceDate,   setInvoiceDate]   = React.useState(new Date().toISOString().split("T")[0]);
   const [dueDate,       setDueDate]       = React.useState("");
   const [taxRate]                         = React.useState(5);
@@ -574,6 +619,8 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
         customerName:  customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
         ccEmails:      ccEmails.trim() || undefined,
+        scheduledSendDate: scheduledSendDate || null,
+        remindBeforeDue,
         invoiceDate,
         dueDate,
         taxRate,
@@ -618,6 +665,24 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
             <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)}
               placeholder={t("invoicing.drawer.form.ccEmailsPh")} />
             <p className="text-xs text-muted-foreground">{t("invoicing.drawer.form.ccEmailsHint")}</p>
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.scheduledSend")}</Label>
+            <Input type="date" value={scheduledSendDate}
+                   onChange={e => setScheduledSendDate(e.target.value)} />
+            <p className="text-xs text-muted-foreground">{t("invoicing.drawer.form.scheduledSendHint")}</p>
+          </div>
+          <div className="col-span-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={remindBeforeDue} className="mt-0.5"
+                     onChange={e => setRemindBeforeDue(e.target.checked)} />
+              <span className="text-sm">
+                {t("invoicing.drawer.form.remindBeforeDue")}
+                <span className="block text-xs text-muted-foreground">
+                  {t("invoicing.drawer.form.remindBeforeDueHint")}
+                </span>
+              </span>
+            </label>
           </div>
           <div className="space-y-1.5">
             <Label>{t("invoicing.drawer.form.invoiceDate")}</Label>

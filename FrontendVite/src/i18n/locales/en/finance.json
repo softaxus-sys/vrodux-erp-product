@@ -77,7 +77,11 @@
         "atLeastOneItem": "Add at least one line item.",
         "ccEmails": "CC (customer side)",
         "ccEmailsPh": "accounts@client.com, ap@client.com",
-        "ccEmailsHint": "Copied on the invoice and the payment receipt. Separate several with commas."
+        "ccEmailsHint": "Copied on the invoice and the payment receipt. Separate several with commas.",
+        "scheduledSend": "Send automatically on",
+        "scheduledSendHint": "Leave empty to send it yourself. On this date the invoice is emailed to the customer and posted to the ledger.",
+        "remindBeforeDue": "Remind the customer before the due date",
+        "remindBeforeDueHint": "A reminder goes out 7, 3 and 1 days before the due date while any amount is still outstanding."
       },
       "edit": {
         "title": "Edit Invoice",
@@ -127,7 +131,9 @@
         "resetStatus": "Reset to draft",
         "resetting": "Resetting…",
         "resetConfirmTitle": "Reset this invoice to draft?",
-        "resetConfirmBody": "{{number}} goes back to draft so you can correct and re-issue it. Its ledger entries are reversed and any recorded payment is cleared. The record that it was emailed is kept."
+        "resetConfirmBody": "{{number}} goes back to draft so you can correct and re-issue it. Its ledger entries are reversed and any recorded payment is cleared. The record that it was emailed is kept.",
+        "scheduledFor": "Scheduled to be emailed to the customer on {{date}}.",
+        "lastReminder": "Last due-date reminder sent {{date}}."
       }
     }
   },

@@ -26,6 +26,11 @@ internal sealed class InvoiceConfiguration : IEntityTypeConfiguration<Invoice>
         builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("draft");
         builder.Property(x => x.Notes).HasMaxLength(1000);
         builder.Property(x => x.CcEmails).HasMaxLength(2000);
+        builder.Property(x => x.ScheduledSendDate).HasMaxLength(10);
+        builder.Property(x => x.RemindBeforeDue).HasDefaultValue(true);
+
+        // The daily sweep filters on exactly this, and it runs across every workspace.
+        builder.HasIndex(x => x.ScheduledSendDate);
         builder.Property(x => x.AmountPaid).HasPrecision(18, 2);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);

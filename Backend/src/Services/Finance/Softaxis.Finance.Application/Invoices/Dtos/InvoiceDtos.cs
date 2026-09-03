@@ -27,6 +27,10 @@ public sealed record InvoiceSummaryDto(
     /// show the same one rather than the tenant current operating currency.</summary>
     string    CurrencyCode,
     string    Status,
+    string?   ScheduledSendDate,
+    // Carried on the list DTO too: the edit form initialises from it, and defaulting to true there
+    // would silently switch reminders back on for an invoice someone had deliberately opted out.
+    bool      RemindBeforeDue,
     int       ItemCount,
     DateTime? PaidAt,
     DateTime  CreatedAt,
@@ -49,6 +53,11 @@ public sealed record InvoiceDto(
     string    Status,
     string?   Notes,
     string?   CcEmails,
+    /// <summary>Pending automatic send, or null. Cleared once the invoice goes out.</summary>
+    string?   ScheduledSendDate,
+    bool      RemindBeforeDue,
+    /// <summary>When the last due-date reminder actually left.</summary>
+    DateTime? LastReminderSentAt,
     IReadOnlyList<InvoiceItemDto> Items,
     DateTime? PaidAt,
     DateTime  CreatedAt,

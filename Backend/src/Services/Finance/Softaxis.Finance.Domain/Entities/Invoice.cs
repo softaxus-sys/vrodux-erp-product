@@ -76,6 +76,33 @@ public sealed class Invoice
                .Select(x => x.ToLowerInvariant())
                .Distinct(StringComparer.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Send this invoice automatically on this date (yyyy-MM-dd), rather than pressing Send.
+    /// Cleared once it goes out, so it can never send twice.
+    ///
+    /// <para>A one-off. An invoice that should be raised again every month is a recurring template,
+    /// which already exists and owns its own schedule — this is for an invoice that already exists
+    /// and should reach the customer on a particular day.</para>
+    /// </summary>
+    public string?   ScheduledSendDate { get; private set; }
+
+    /// <summary>
+    /// Whether to chase the customer as the due date approaches. On by default, because that is why
+    /// a due date is recorded — but switchable per invoice, since the only other way to stop an
+    /// automated chaser going to a client would be to cancel the invoice.
+    /// </summary>
+    public bool      RemindBeforeDue { get; private set; } = true;
+
+    /// <summary>
+    /// The rung of the reminder ladder already sent, as days before the due date. Null means none.
+    /// Idempotency for the daily sweep — without it the customer is chased every single day.
+    /// Same approach as Tenant.LastTrialReminderDaysLeft rather than a whole log table.
+    /// </summary>
+    public int?      LastReminderDaysBefore { get; private set; }
+
+    /// <summary>When the last due-date reminder actually left, for the delivery trail.</summary>
+    public DateTime? LastReminderSentAt { get; private set; }
+
     public Guid?     JournalEntryId { get; private set; }
     public Guid?     PaymentJournalEntryId { get; private set; }
 
@@ -151,11 +178,42 @@ public sealed class Invoice
     /// that was sent is a historical fact, and erasing it would leave no way to tell that the
     /// customer already holds an earlier version of this invoice.</para>
     /// </summary>
+    /// <summary>Schedules (or clears) the automatic send. Null cancels a pending one.</summary>
+    public void SetScheduledSend(string? date)
+    {
+        ScheduledSendDate = string.IsNullOrWhiteSpace(date) ? null : date.Trim();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Clears the schedule once the invoice has gone out, so it cannot send again.</summary>
+    public void ClearScheduledSend()
+    {
+        ScheduledSendDate = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetRemindBeforeDue(bool remind)
+    {
+        RemindBeforeDue = remind;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Records which rung of the ladder was sent, so the next sweep does not repeat it.</summary>
+    public void RecordDueReminder(int daysBefore)
+    {
+        LastReminderDaysBefore = daysBefore;
+        LastReminderSentAt     = DateTime.UtcNow;
+        UpdatedAt              = DateTime.UtcNow;
+    }
+
     public void ResetToDraft()
     {
         Status     = "draft";
         AmountPaid = 0;
         PaidAt     = null;
+        // The ladder starts again: this invoice is about to be corrected and re-issued, possibly
+        // with a different due date, so a rung sent against the old one means nothing.
+        LastReminderDaysBefore = null;
         UpdatedAt  = DateTime.UtcNow;
     }
 

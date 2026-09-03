@@ -82,6 +82,32 @@ internal static class GlPoster
         return entry.Id;
     }
 
+    /// <summary>
+    /// Posts the sales entry an invoice raises when it goes out: receivable debited, revenue
+    /// credited, VAT credited when there is any.
+    ///
+    /// <para>Shared by the manual send and the scheduled send. It was written out longhand in the
+    /// handler; a second copy in the scheduler is exactly how the two would come to disagree about
+    /// which account VAT lands in.</para>
+    /// </summary>
+    public static async Task<Guid?> PostInvoiceSalesAsync(
+        FinanceDbContext db, Invoice invoice, CancellationToken ct)
+    {
+        var rate = await GetRateAsync(db, invoice.CurrencyCode, invoice.InvoiceDate, ct);
+
+        var lines = new List<Line>
+        {
+            new(AccountsReceivable, invoice.Total * rate, 0, $"Invoice {invoice.InvoiceNumber} - {invoice.CustomerName}"),
+            new(SalesRevenue, 0, invoice.SubTotal * rate, $"Sales - Invoice {invoice.InvoiceNumber}"),
+        };
+
+        if (invoice.TaxAmount > 0)
+            lines.Add(new(VatPayable, 0, invoice.TaxAmount * rate, $"VAT Output - Invoice {invoice.InvoiceNumber}"));
+
+        return await PostAsync(db, invoice.InvoiceDate, $"Sales Invoice {invoice.InvoiceNumber}",
+            invoice.InvoiceNumber, lines, ct);
+    }
+
     /// <summary>Reverses (voids) a previously auto-posted journal entry, if any.</summary>
     public static async Task VoidAsync(FinanceDbContext db, Guid? journalEntryId, CancellationToken ct)
     {
