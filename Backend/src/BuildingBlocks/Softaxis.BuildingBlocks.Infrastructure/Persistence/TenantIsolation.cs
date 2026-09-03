@@ -86,9 +86,33 @@ public static class TenantIsolation
 
             var ambientHasValue = Expression.NotEqual(ambient, Expression.Constant(null, typeof(Guid?)));
             var matches = Expression.AndAlso(ambientHasValue, Expression.Equal(rowValue, ambient));
-            var body = Expression.OrElse(bypass, matches);
+            Expression body = Expression.OrElse(bypass, matches);
+
+            // COMBINE with whatever the entity configuration already declared, rather than replacing
+            // it. HasQueryFilter overwrites, and this runs AFTER ApplyConfigurationsFromAssembly — so
+            // every soft-delete filter written in a configuration was silently discarded, and soft
+            // delete did nothing at all: a deleted invoice, expense or customer stayed in every list.
+            //
+            // Handlers across CRM, Visa and Restaurant re-apply !IsDeleted by hand to work around
+            // exactly this. Composing here fixes it at the layer that broke it, so a handler written
+            // tomorrow does not have to remember.
+            if (entity.Metadata.GetQueryFilter() is { } existing)
+            {
+                // The existing filter has its own parameter; rebind it to ours or the trees cannot
+                // be combined.
+                var rebound = new ParameterRebinder(existing.Parameters[0], e).Visit(existing.Body)!;
+                body = Expression.AndAlso(rebound, body);
+            }
+
             entity.HasQueryFilter(Expression.Lambda(body, e));
         }
+    }
+
+    /// <summary>Swaps one lambda parameter for another so two filter expressions can be ANDed.</summary>
+    private sealed class ParameterRebinder(ParameterExpression from, ParameterExpression to) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) =>
+            node == from ? to : base.VisitParameter(node);
     }
 
     /// <summary>

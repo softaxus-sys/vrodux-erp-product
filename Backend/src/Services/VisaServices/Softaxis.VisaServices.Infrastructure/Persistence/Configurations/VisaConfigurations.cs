@@ -72,7 +72,10 @@ internal sealed class VisaTypeConfiguration : IEntityTypeConfiguration<VisaType>
         builder.Property(x => x.RequiredDocuments).HasMaxLength(4000).HasConversion(
             v => string.Join('|', v),
             v => v.Split('|', StringSplitOptions.RemoveEmptyEntries).ToList());
-        // Global reference table: no tenant column, plain active filter only.
+        // Deactivating a type is its delete, so inactive rows are hidden from reads. This composes
+        // with the tenant filter now that ApplyTenantId combines rather than replaces — which also
+        // means a deactivated type can no longer be fetched by id. Nothing reaches one: the list
+        // already hid them, so there is no route to select an inactive type in the first place.
         builder.HasQueryFilter(x => x.IsActive);
     }
 }
