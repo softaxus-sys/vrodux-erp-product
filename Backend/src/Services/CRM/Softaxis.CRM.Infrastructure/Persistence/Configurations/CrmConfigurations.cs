@@ -134,6 +134,7 @@ internal sealed class CrmCustomerConfiguration : IEntityTypeConfiguration<CrmCus
         builder.Property(x => x.Employees).HasMaxLength(20);
         builder.Property(x => x.Description).HasMaxLength(2000);
         builder.Property(x => x.ContractRenewal).HasMaxLength(20);
+        builder.Property(x => x.PaymentTerms).HasMaxLength(50);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         builder.Property(x => x.Tags).HasConversion(
             v => string.Join(',', v),

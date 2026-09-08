@@ -1,5 +1,6 @@
 ﻿import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAssignableByTeam, useDefaultAssignee, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { toast } from "sonner";
 import { StagedDocumentPicker, uploadStagedDocuments } from "@/modules/crm/shared/components/staged-document-picker";
@@ -11,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useCreateCustomer, useUpdateCustomer } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 import type { CustomerDto } from "@/lib/crm/crm.api";
+import { paymentTermsApi } from "@/lib/pos/master-data.api";
 
 const CUSTOMER_TYPES   = ["Individual", "Company", "Government", "SME", "Enterprise"];
 const TYPE_SLUG: Record<string, string> = {
@@ -18,6 +20,19 @@ const TYPE_SLUG: Record<string, string> = {
 };
 const INDUSTRIES       = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Other"];
 const PAYMENT_TERMS    = ["Net 15", "Net 30", "Net 45", "Net 60", "Cash on Delivery", "Advance"];
+const ADD_NEW_PAYMENT_TERM = "__add_new__";
+const PAYMENT_TERMS_QK = ["payment-terms"];
+
+/** Derives a unique-ish master-data code from a free-typed term name, e.g. "Net 90" -> "NET90". */
+function slugifyPaymentTermCode(name: string): string {
+  const code = name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 20);
+  return code || `TERM${Date.now().toString(36).toUpperCase()}`.slice(0, 20);
+}
+/** "Net 90" -> 90; anything without a number defaults to 0 (immediate / not day-based). */
+function deriveDaysNetFromName(name: string): number {
+  const m = name.match(/(\d+)/);
+  return m ? Math.min(9999, parseInt(m[1], 10)) : 0;
+}
 
 interface AddCustomerFormProps {
   open: boolean;
@@ -37,6 +52,51 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
   const [website, setWebsite]           = React.useState("");
   const [trn, setTrn]                   = React.useState("");
   const [paymentTerms, setPaymentTerms] = React.useState("Net 30");
+  const [addingPaymentTerm, setAddingPaymentTerm] = React.useState(false);
+  const [newPaymentTermDraft, setNewPaymentTermDraft] = React.useState("");
+  const qc = useQueryClient();
+  // The same reusable, tenant-wide Payment Terms master data used in Purchase/POS/Settings ->
+  // Master Data, not a customer-local free-text list — so a term added here is available
+  // everywhere else too, and vice versa.
+  const { data: paymentTermsList } = useQuery({
+    queryKey: PAYMENT_TERMS_QK,
+    queryFn: paymentTermsApi.getAll,
+    staleTime: 5 * 60 * 1000,
+    enabled: open,
+  });
+  const createPaymentTerm = useMutation({
+    mutationFn: (termName: string) => paymentTermsApi.upsert({
+      id: null, name: termName, code: slugifyPaymentTermCode(termName),
+      daysNet: deriveDaysNetFromName(termName), advancePercent: 0, isDefault: false,
+    }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: PAYMENT_TERMS_QK });
+      setPaymentTerms(created.name);
+      setAddingPaymentTerm(false); setNewPaymentTermDraft("");
+      toast.success(t("customerForm.paymentTermAdded", { defaultValue: "Payment term added." }));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const handleAddPaymentTerm = () => {
+    const v = newPaymentTermDraft.trim();
+    if (!v) return;
+    // Already exists (e.g. someone else just added it) — just select it, no need to create again.
+    const existing = paymentTermsList?.find(pt => pt.name.toLowerCase() === v.toLowerCase());
+    if (existing) {
+      setPaymentTerms(existing.name);
+      setAddingPaymentTerm(false); setNewPaymentTermDraft("");
+      return;
+    }
+    createPaymentTerm.mutate(v);
+  };
+  // Base list ∪ real master-data terms ∪ whatever this customer already has (e.g. a legacy value) —
+  // never lets a saved value fall off the dropdown just because it isn't one of the defaults.
+  const paymentTermOptions = React.useMemo(() => {
+    const opts = [...PAYMENT_TERMS];
+    for (const pt of paymentTermsList ?? []) if (!opts.includes(pt.name)) opts.push(pt.name);
+    if (paymentTerms && !opts.includes(paymentTerms)) opts.push(paymentTerms);
+    return opts;
+  }, [paymentTermsList, paymentTerms]);
   const [creditLimit, setCreditLimit]   = React.useState("");
   const currency = useCurrency();
   const [address, setAddress]           = React.useState("");
@@ -75,6 +135,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
       setAddress(editing.address); setCity(editing.city); setCountry(editing.country);
       setAssignedTo(editing.accountManager); setAssignedToUserId(editing.accountManagerUserId ?? "");
       setAssignedTeamId(editing.teamId ?? null);
+      setPaymentTerms(editing.paymentTerms || "Net 30");
       setNotes(editing.description);
     }
   }, [open, editing]);
@@ -90,12 +151,14 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
         description, website: website.trim() || null,
         tradeName: editing.tradeName ?? null, employees: editing.employees ?? null,
         npsScore: editing.npsScore ?? null, contractRenewal: editing.contractRenewal ?? null, tags: editing.tags,
+        paymentTerms: paymentTerms.trim() || null,
       } }, { onSuccess: onClose });
     } else {
       createCustomer.mutate({
         name: name.trim(), industry, country, city, address: address.trim(),
         phone: phone.trim(), email: email.trim(), tier: "standard",
         accountManager: assignedTo.trim(), accountManagerUserId: assignedToUserId || null, teamId: assignedTeamId, description,
+        paymentTerms: paymentTerms.trim() || null,
       }, {
         onSuccess: async (created: any) => {
           if (staged.length && created?.id) {
@@ -112,6 +175,7 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
     setStaged([]);
     setCustomerType("Company"); setName(""); setContactPerson(""); setEmail(""); setPhone("");
     setIndustry(""); setWebsite(""); setTrn(""); setPaymentTerms("Net 30"); setCreditLimit("");
+    setAddingPaymentTerm(false); setNewPaymentTermDraft("");
     setAddress(""); setCity("Dubai"); setCountry("UAE"); setAssignedTo(""); setNotes("");
   };
 
@@ -209,10 +273,51 @@ export function AddCustomerForm({ open, onClose, editing }: AddCustomerFormProps
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.paymentTerms")}</label>
-                    <select value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {PAYMENT_TERMS.map(pt => <option key={pt} value={pt}>{pt}</option>)}
-                    </select>
+                    {addingPaymentTerm ? (
+                      <div className="flex gap-1.5">
+                        <Input
+                          autoFocus
+                          value={newPaymentTermDraft}
+                          onChange={e => setNewPaymentTermDraft(e.target.value)}
+                          disabled={createPaymentTerm.isPending}
+                          onKeyDown={e => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddPaymentTerm();
+                            } else if (e.key === "Escape") {
+                              setAddingPaymentTerm(false); setNewPaymentTermDraft("");
+                            }
+                          }}
+                          placeholder={t("customerForm.newPaymentTermPlaceholder")}
+                          className="h-9 text-sm flex-1"
+                        />
+                        <Button
+                          type="button" size="sm" className="h-9 px-3"
+                          disabled={!newPaymentTermDraft.trim() || createPaymentTerm.isPending}
+                          onClick={handleAddPaymentTerm}
+                        >
+                          {createPaymentTerm.isPending ? t("customerForm.saving") : t("customerForm.addTerm")}
+                        </Button>
+                        <Button
+                          type="button" variant="outline" size="sm" className="h-9 px-3"
+                          disabled={createPaymentTerm.isPending}
+                          onClick={() => { setAddingPaymentTerm(false); setNewPaymentTermDraft(""); }}
+                        >
+                          {t("customerForm.cancel")}
+                        </Button>
+                      </div>
+                    ) : (
+                      <select
+                        value={paymentTerms}
+                        onChange={e => {
+                          if (e.target.value === ADD_NEW_PAYMENT_TERM) { setAddingPaymentTerm(true); return; }
+                          setPaymentTerms(e.target.value);
+                        }}
+                        className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        {paymentTermOptions.map(pt => <option key={pt} value={pt}>{pt}</option>)}
+                        <option value={ADD_NEW_PAYMENT_TERM}>{t("customerForm.addNewPaymentTerm")}</option>
+                      </select>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("customerForm.currency")}</label>

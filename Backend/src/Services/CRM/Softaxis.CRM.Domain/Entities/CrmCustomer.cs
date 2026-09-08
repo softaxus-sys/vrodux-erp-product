@@ -7,7 +7,7 @@ public sealed class CrmCustomer
     private CrmCustomer() { }
     public CrmCustomer(string name, string industry, string country, string city, string address,
         string phone, string email, string tier, string accountManager, string description,
-        Guid? accountManagerUserId = null)
+        Guid? accountManagerUserId = null, string? paymentTerms = null)
     {
         Id             = Guid.NewGuid();
         Name           = name.Trim(); Industry = industry.Trim();
@@ -18,6 +18,7 @@ public sealed class CrmCustomer
         Since          = DateTime.UtcNow.ToString("yyyy-MM-dd");
         TotalRevenue   = 0m; OpenDeals = 0; Currency = TenantCurrency.Resolve();
         Description    = description.Trim(); Tags = [];
+        PaymentTerms   = string.IsNullOrWhiteSpace(paymentTerms) ? null : paymentTerms.Trim();
         CreatedAt      = DateTime.UtcNow;
     }
     public Guid      Id             { get; private set; }
@@ -47,6 +48,7 @@ public sealed class CrmCustomer
     public List<string> Tags        { get; private set; } = [];
     public string?   ContractRenewal{ get; private set; }
     public int?      NpsScore       { get; private set; }
+    public string?   PaymentTerms   { get; private set; }
     public bool      IsDeleted      { get; private set; }
     public DateTime  CreatedAt      { get; private set; }
     public DateTime? UpdatedAt      { get; private set; }
@@ -68,7 +70,7 @@ public sealed class CrmCustomer
     public void Update(string name, string industry, string country, string city, string address,
         string phone, string email, string status, string tier, string accountManager, string description,
         string? website, string? tradeName, string? employees, int? npsScore, string? contractRenewal, List<string>? tags,
-        Guid? accountManagerUserId = null)
+        Guid? accountManagerUserId = null, string? paymentTerms = null)
     {
         Name = name.Trim(); Industry = industry.Trim(); Country = country; City = city;
         Address = address.Trim(); Phone = phone.Trim(); Email = email.Trim().ToLowerInvariant();
@@ -76,6 +78,7 @@ public sealed class CrmCustomer
         AccountManagerUserId = accountManagerUserId;
         Website = website; TradeName = tradeName; Employees = employees;
         NpsScore = npsScore; ContractRenewal = contractRenewal;
+        PaymentTerms = string.IsNullOrWhiteSpace(paymentTerms) ? null : paymentTerms.Trim();
         if (tags is not null) Tags = tags;
         UpdatedAt = DateTime.UtcNow;
     }

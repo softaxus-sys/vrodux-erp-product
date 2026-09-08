@@ -8,7 +8,7 @@ public sealed record CrmCustomerDto(
     IReadOnlyList<object> Deals, IReadOnlyList<object> Activities, IReadOnlyList<string> Tags,
     string? ContractRenewal, int? NpsScore,
     /// <summary>Team the record belongs to — null = untagged (falls back to owner membership).</summary>
-    Guid? TeamId = null);
+    Guid? TeamId = null, string? PaymentTerms = null);
 
 public sealed record CrmCustomersSummaryDto(
     int Total, int Active, int Inactive, int Platinum, int Gold,

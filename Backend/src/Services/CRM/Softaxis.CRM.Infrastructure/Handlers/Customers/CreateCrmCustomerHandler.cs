@@ -16,7 +16,7 @@ internal sealed class CreateCrmCustomerHandler(CrmDbContext db, IAiEventBus aiEv
     public async Task<Result<CrmCustomerDto>> Handle(CreateCrmCustomerCommand cmd, CancellationToken ct)
     {
         var c = new CrmCustomer(cmd.Name, cmd.Industry, cmd.Country, cmd.City, cmd.Address,
-            cmd.Phone, cmd.Email, cmd.Tier, cmd.AccountManager, cmd.Description, cmd.AccountManagerUserId);
+            cmd.Phone, cmd.Email, cmd.Tier, cmd.AccountManager, cmd.Description, cmd.AccountManagerUserId, cmd.PaymentTerms);
 
         // Default the account manager to the CREATOR and the team to theirs when unambiguous — see
         // CreateLeadHandler. An explicit choice always wins.

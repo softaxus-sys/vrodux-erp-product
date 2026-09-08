@@ -450,6 +450,7 @@ export interface CustomerDto {
   tags:              string[];
   contractRenewal?:  string;
   npsScore?:         number;
+  paymentTerms?:     string | null;
 }
 
 export interface CustomersSummaryDto {
@@ -576,12 +577,13 @@ export interface UpdateDealRequest extends CreateDealRequest {
 export interface CreateCustomerRequest {
   name: string; industry: string; country: string; city: string; address: string;
   phone: string; email: string; tier: string; accountManager: string; accountManagerUserId?: string | null; teamId?: string | null; description: string;
+  paymentTerms?: string | null;
 }
 export interface UpdateCustomerRequest {
   name: string; industry: string; country: string; city: string; address: string;
   phone: string; email: string; status: string; tier: string; accountManager: string; accountManagerUserId?: string | null; teamId?: string | null;
   description: string; website?: string | null; tradeName?: string | null; employees?: string | null;
-  npsScore?: number | null; contractRenewal?: string | null; tags?: string[];
+  npsScore?: number | null; contractRenewal?: string | null; tags?: string[]; paymentTerms?: string | null;
 }
 
 export interface CrmDashboardDto {
