@@ -42,6 +42,8 @@ const LOGO: Record<string, { label: string; color: string }> = {
   jotform:            { label: "J",  color: "bg-orange-500" },
   typeform:           { label: "T",  color: "bg-gray-800" },
   "property-finder":  { label: "PF", color: "bg-rose-600" },
+  bayut:              { label: "B",  color: "bg-emerald-600" },
+  dubizzle:           { label: "D",  color: "bg-red-600" },
 };
 const logoFor = (key: string) => LOGO[key] ?? { label: key.slice(0, 2).toUpperCase(), color: "bg-primary" };
 
@@ -805,6 +807,69 @@ function vroduxOnFormSubmit(e) {
           <Trans t={t} i18nKey="integrations.setup.calendly.step4" components={RICH} />,
         ]} />
       </SetupSection>
+    );
+  }
+
+  // ── Bayut / Dubizzle ────────────────────────────────────────────────────────
+  if (key === "bayut" || key === "dubizzle") {
+    const portal = key === "bayut" ? "Bayut" : "Dubizzle";
+    const bzPayload =
+`{
+  "type": "whatsapp_lead",
+  "lead_id": "${key.toUpperCase()}-000123",
+  "client": {
+    "name": "Ahmed Ali",
+    "email": "ahmed@example.com",
+    "phone": "+971501234567"
+  },
+  "message": "Is this apartment still available? I'd like a viewing.",
+  "property": {
+    "reference": "MARINA-2BR-1024",
+    "title": "2 Bedroom Apartment, Dubai Marina",
+    "type": "Apartment",
+    "offering_type": "rent",
+    "price": "120000",
+    "location": "Dubai Marina, Dubai",
+    "bedrooms": "2",
+    "bathrooms": "2",
+    "url": "https://www.${key}.com/..."
+  }
+}`;
+    const bzCurl =
+`curl -X POST "${url}" \\
+  -H "Content-Type: application/json" \\
+  -d '${bzPayload.replace(/\n/g, "\n  ")}'`;
+    return (
+      <div className="space-y-5">
+        <SetupSection title={t("integrations.setup.bayut.title", { portal })} desc={t("integrations.setup.bayut.desc", { portal })}>
+          <CopyField label={t("integrations.setup.yourInboundUrl")} value={url || "—"} />
+          <Steps items={[
+            <Trans t={t} i18nKey="integrations.setup.bayut.step1" values={{ portal }} components={RICH} />,
+            <Trans t={t} i18nKey="integrations.setup.bayut.step2" values={{ portal }} components={RICH} />,
+          ]} />
+          <p className="text-xs text-muted-foreground">
+            <Trans t={t} i18nKey="integrations.setup.bayut.note" values={{ portal }} components={RICH} />
+          </p>
+        </SetupSection>
+
+        <SetupSection title={t("integrations.setup.bayut.payloadTitle")} desc={t("integrations.setup.bayut.payloadDesc", { portal })}>
+          <CodeBlock code={bzPayload} lang="json" />
+          <p className="text-xs text-muted-foreground">
+            <Trans t={t} i18nKey="integrations.setup.pf.mappedHint"
+              components={{ c: <code className="text-foreground bg-muted px-1 rounded text-[11px]" /> }} />
+          </p>
+        </SetupSection>
+
+        <SetupSection title={t("integrations.setup.bayut.testTitle")} desc={t("integrations.setup.bayut.testDesc")}>
+          <CodeBlock code={bzCurl} lang="bash" />
+        </SetupSection>
+
+        <SetupSection title={t("integrations.setup.generic.hmacTitle")} desc={t("integrations.setup.generic.hmacDesc")}>
+          <Steps items={[1, 2, 3].map(n => (
+            <Trans key={n} t={t} i18nKey={`integrations.setup.generic.hmacStep${n}`} components={RICH} />
+          ))} />
+        </SetupSection>
+      </div>
     );
   }
 

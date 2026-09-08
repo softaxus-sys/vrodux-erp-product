@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { TaxPeriodDto as TaxPeriod } from "@/lib/finance/finance.api";
 import { useTaxPeriods, useTaxTransactions, useTaxSummary, useFileTaxPeriod, usePayTaxPeriod, useCreateTaxPeriod } from "@/hooks/finance/use-finance";
@@ -68,20 +68,29 @@ function TaxDrawer({ period, open, onClose }: { period: TaxPeriod | null; open: 
             {tab === "overview" && (
               <>
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-success/5 border border-success/20 rounded-xl p-4 text-center">
-                    <p className="text-[10px] text-muted-foreground mb-1">{t("tax.drawer.outputVat")}</p>
-                    <p className="font-bold text-lg text-success">{formatCurrency(period.outputVat, currency)}</p>
-                    <p className="text-[10px] text-muted-foreground">{t("tax.drawer.fromSales")}</p>
+                  <div className="bg-success/5 border border-success/20 rounded-xl p-4 text-center min-w-0">
+                    <p className="text-[10px] text-muted-foreground mb-1 truncate">{t("tax.drawer.outputVat")}</p>
+                    <p className={cn("font-bold text-success truncate", fitTextClass(formatCurrency(period.outputVat, currency), "lg"))}
+                       title={formatCurrency(period.outputVat, currency)}>
+                      {formatCurrency(period.outputVat, currency)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">{t("tax.drawer.fromSales")}</p>
                   </div>
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
-                    <p className="text-[10px] text-muted-foreground mb-1">{t("tax.drawer.inputVat")}</p>
-                    <p className="font-bold text-lg text-primary">{formatCurrency(period.inputVat, currency)}</p>
-                    <p className="text-[10px] text-muted-foreground">{t("tax.drawer.fromPurchases")}</p>
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center min-w-0">
+                    <p className="text-[10px] text-muted-foreground mb-1 truncate">{t("tax.drawer.inputVat")}</p>
+                    <p className={cn("font-bold text-primary truncate", fitTextClass(formatCurrency(period.inputVat, currency), "lg"))}
+                       title={formatCurrency(period.inputVat, currency)}>
+                      {formatCurrency(period.inputVat, currency)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">{t("tax.drawer.fromPurchases")}</p>
                   </div>
-                  <div className={cn("border rounded-xl p-4 text-center", period.netVat >= 0 ? "bg-warning/5 border-warning/20" : "bg-success/5 border-success/20")}>
-                    <p className="text-[10px] text-muted-foreground mb-1">{t("tax.drawer.netVat")}</p>
-                    <p className={cn("font-bold text-lg", period.netVat >= 0 ? "text-warning" : "text-success")}>{formatCurrency(Math.abs(period.netVat), currency)}</p>
-                    <p className="text-[10px] text-muted-foreground">{period.netVat >= 0 ? t("tax.drawer.payable") : t("tax.drawer.refundable")}</p>
+                  <div className={cn("border rounded-xl p-4 text-center min-w-0", period.netVat >= 0 ? "bg-warning/5 border-warning/20" : "bg-success/5 border-success/20")}>
+                    <p className="text-[10px] text-muted-foreground mb-1 truncate">{t("tax.drawer.netVat")}</p>
+                    <p className={cn("font-bold truncate", fitTextClass(formatCurrency(Math.abs(period.netVat), currency), "lg"), period.netVat >= 0 ? "text-warning" : "text-success")}
+                       title={formatCurrency(Math.abs(period.netVat), currency)}>
+                      {formatCurrency(Math.abs(period.netVat), currency)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">{period.netVat >= 0 ? t("tax.drawer.payable") : t("tax.drawer.refundable")}</p>
                   </div>
                 </div>
                 <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">

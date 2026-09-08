@@ -10,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, getInitials, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { hrApi } from "@/lib/hr/hr.api";
 import type { PayrollRunDto as PayrollRun } from "@/lib/hr/hr.api";
@@ -171,12 +171,15 @@ function PayslipDetailView({
         )}
 
         {/* Net summary */}
-        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-primary uppercase tracking-wide">{t("payroll.payslip.netSalary")}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{t("payroll.payslip.amountToCredit")}</p>
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-primary uppercase tracking-wide truncate">{t("payroll.payslip.netSalary")}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{t("payroll.payslip.amountToCredit")}</p>
           </div>
-          <p className="text-2xl font-bold text-primary">{formatCurrency(slip.netSalary, currency)}</p>
+          <p className={cn("font-bold text-primary shrink-0 truncate", fitTextClass(formatCurrency(slip.netSalary, currency), "2xl"))}
+             title={formatCurrency(slip.netSalary, currency)}>
+            {formatCurrency(slip.netSalary, currency)}
+          </p>
         </div>
 
         {/* Payment info */}

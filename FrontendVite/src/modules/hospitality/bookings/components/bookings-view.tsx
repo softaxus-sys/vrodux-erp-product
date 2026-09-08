@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { BookingDto as Booking, BookingStatus, BookingSource } from "@/lib/hospitality/hospitality.api";
 import { useBookings, useBookingsSummary } from "@/hooks/hospitality/use-hospitality";
@@ -78,9 +78,12 @@ function BookingDrawer({ booking, open, onClose }: { booking: Booking | null; op
                 <p className="text-[10px] text-muted-foreground">{balanceDue ? "Due" : "Settled"}</p>
               </div>
             </div>
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center min-w-0">
               <p className="text-xs text-muted-foreground mb-0.5">Total Booking Value</p>
-              <p className="text-2xl font-bold text-primary">{formatCurrency(booking.totalAmount, currency)}</p>
+              <p className={cn("font-bold text-primary truncate", fitTextClass(formatCurrency(booking.totalAmount, currency), "2xl"))}
+                 title={formatCurrency(booking.totalAmount, currency)}>
+                {formatCurrency(booking.totalAmount, currency)}
+              </p>
             </div>
             {/* Stay Details */}
             <div className="bg-muted/30 rounded-xl p-4 space-y-2 text-sm">

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Target, Award, BarChart3, Percent } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, fitTextClass, cn } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { CrmSummaryDto } from "@/lib/crm/crm.api";
 
@@ -34,7 +34,7 @@ export function PipelineStats({ summary }: Props) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground truncate">{s.label}</p>
-                  <p className="font-bold text-base leading-tight">{s.value}</p>
+                  <p className={cn("font-bold leading-tight truncate", fitTextClass(s.value, "lg"))} title={String(s.value)}>{s.value}</p>
                   <p className="text-[11px] text-muted-foreground/70 truncate">{s.sub}</p>
                 </div>
               </CardContent>

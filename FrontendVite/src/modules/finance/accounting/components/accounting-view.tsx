@@ -15,7 +15,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { AccountDto as Account, AccountTypeDto } from "@/lib/finance/finance.api";
 import {
@@ -193,9 +193,10 @@ function AccountDrawer({
             </span>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card p-5 min-w-0">
             <p className="text-xs text-muted-foreground mb-1">{t("accounting.drawer.currentBalance")}</p>
-            <p className={cn("text-3xl font-bold", account.balance >= 0 ? "text-success" : "text-destructive")}>
+            <p className={cn("font-bold truncate", fitTextClass(formatCurrency(Math.abs(account.balance), currency), "3xl"), account.balance >= 0 ? "text-success" : "text-destructive")}
+               title={formatCurrency(Math.abs(account.balance), currency)}>
               {formatCurrency(Math.abs(account.balance), currency)}
             </p>
             {account.balance < 0 && <p className="text-xs text-muted-foreground mt-1">{t("accounting.drawer.creditBalance")}</p>}

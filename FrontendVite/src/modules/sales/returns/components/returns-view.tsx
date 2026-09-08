@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import type { SalesReturnDto as SalesReturn, ReturnStatus, ReturnReason } from "@/lib/sales/returns.api";
 import { useReturns, useReturnsSummary } from "@/hooks/sales/use-returns";
 import { ReturnDrawer } from "./return-drawer";
@@ -36,11 +36,16 @@ function StatCard({ card, index }: { card: { label: string; value: number; icon:
       </div>
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground truncate">{card.label}</p>
-        <p className="font-bold text-lg leading-tight">
-          {card.format === "currency"
+        {(() => {
+          const display = card.format === "currency"
             ? formatCurrency(card.value as number, currency)
-            : card.value}
-        </p>
+            : String(card.value);
+          return (
+            <p className={cn("font-bold leading-tight truncate", fitTextClass(display, "lg"))} title={display}>
+              {display}
+            </p>
+          );
+        })()}
       </div>
     </motion.div>
   );

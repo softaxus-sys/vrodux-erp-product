@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import {
   usePurchaseBills, usePurchaseBillsSummary,
   useApprovePurchaseBill, useCancelPurchaseBill,
@@ -89,7 +89,7 @@ export function PurchaseBillsView() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate">{card.label}</p>
-                <p className="font-bold text-lg leading-tight">{card.value}</p>
+                <p className={cn("font-bold leading-tight truncate", fitTextClass(card.value, "lg"))} title={String(card.value)}>{card.value}</p>
               </div>
             </motion.div>
           );

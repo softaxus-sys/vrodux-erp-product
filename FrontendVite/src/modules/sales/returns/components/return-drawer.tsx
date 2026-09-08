@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import type { SalesReturnDto as SalesReturn, ReturnStatus, ReturnReason } from "@/lib/sales/returns.api";
 import { useApproveReturn, useRejectReturn } from "@/hooks/sales/use-returns";
 import { useAuthStore } from "@/store/auth.store";
@@ -71,11 +71,12 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Refund amount */}
-              <div className={cn("border rounded-xl p-5", ret.status === "refunded" || ret.status === "completed"
+              <div className={cn("border rounded-xl p-5 min-w-0", ret.status === "refunded" || ret.status === "completed"
                 ? "bg-success/5 border-success/20"
                 : "bg-muted/30 border-border")}>
                 <p className="text-xs text-muted-foreground mb-1">Refund Amount</p>
-                <p className={cn("text-3xl font-bold", ret.status === "refunded" || ret.status === "completed" ? "text-success" : "text-foreground")}>
+                <p className={cn("font-bold truncate", fitTextClass(formatCurrency(ret.refundAmount, ret.currency || currency), "3xl"), ret.status === "refunded" || ret.status === "completed" ? "text-success" : "text-foreground")}
+                   title={formatCurrency(ret.refundAmount, ret.currency || currency)}>
                   {formatCurrency(ret.refundAmount, ret.currency || currency)}
                 </p>
                 {ret.refundMethod && (

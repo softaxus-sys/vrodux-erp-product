@@ -2,7 +2,7 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Inbox, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, fitTextClass } from "@/lib/utils";
 
 /** Small KPI tile used across every report header. */
 export function StatTile({
@@ -22,15 +22,22 @@ export function StatTile({
     warning: "text-amber-600 dark:text-amber-500",
   }[tone];
 
+  // Only a plain string/number can be measured and shrunk to fit; a caller passing richer JSX
+  // (an icon + text, a badge) keeps the default size — it's on them to keep it short.
+  const isPlain = typeof value === "string" || typeof value === "number";
+  const sizeClass = isPlain ? fitTextClass(value, "lg") : "text-lg";
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.04, 0.3) }}
-      className="bg-card border border-border rounded-xl p-4"
+      className="bg-card border border-border rounded-xl p-4 min-w-0"
     >
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("font-bold text-lg leading-tight mt-1", toneClass)}>{value}</p>
-      {hint && <p className="text-[11px] text-muted-foreground mt-1">{hint}</p>}
+      <p className="text-xs text-muted-foreground truncate">{label}</p>
+      <p className={cn("font-bold leading-tight mt-1 truncate", sizeClass, toneClass)} title={isPlain ? String(value) : undefined}>
+        {value}
+      </p>
+      {hint && <p className="text-[11px] text-muted-foreground mt-1 truncate">{hint}</p>}
     </motion.div>
   );
 }

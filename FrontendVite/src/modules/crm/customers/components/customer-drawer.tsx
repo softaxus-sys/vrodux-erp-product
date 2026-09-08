@@ -10,7 +10,7 @@ import {
 import { Trash2, Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, getInitials, fitTextClass } from "@/lib/utils";
 import type { CustomerDto as Customer } from "@/lib/crm/crm.api";
 import { useDeleteCustomer, useDeals } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
@@ -127,9 +127,9 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
                 { label: t("customerDrawer.openDeals"),   value: customer.openDeals, sub: t("customerDrawer.active") },
                 { label: t("customerDrawer.customerSince"), value: new Date(customer.since).getFullYear(), sub: formatDate(customer.since, "medium") },
               ].map(m => (
-                <div key={m.label} className="px-5 py-3 text-center">
-                  <p className="font-bold text-base">{m.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                <div key={m.label} className="px-5 py-3 text-center min-w-0">
+                  <p className={cn("font-bold truncate", fitTextClass(m.value, "lg"))} title={String(m.value)}>{m.value}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{m.label}</p>
                 </div>
               ))}
             </div>

@@ -6,7 +6,7 @@ import {
   Calendar, DollarSign, Loader2, User, Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useSalesOrder, useDeleteSalesOrder } from "@/hooks/sales/use-sales-orders";
 import { Can } from "@/components/auth/can";
@@ -93,9 +93,12 @@ export function OrderDrawer({ order, open, onClose }: Props) {
                 {tab === "overview" && full && (
                   <>
                     {/* Total */}
-                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-5">
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 min-w-0">
                       <p className="text-xs text-muted-foreground mb-1">{t("orders.drawer.total")}</p>
-                      <p className="text-3xl font-bold text-primary">{formatCurrency(full.total, currency)}</p>
+                      <p className={cn("font-bold text-primary truncate", fitTextClass(formatCurrency(full.total, currency), "3xl"))}
+                         title={formatCurrency(full.total, currency)}>
+                        {formatCurrency(full.total, currency)}
+                      </p>
                       <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
                         <span>{t("orders.drawer.subtotal")}: {formatCurrency(full.subTotal, currency)}</span>
                         <span>{t("orders.drawer.tax")}: {formatCurrency(full.taxAmount, currency)}</span>

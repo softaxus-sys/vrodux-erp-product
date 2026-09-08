@@ -9,7 +9,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import type { PurchaseApprovalDto as PurchaseApproval, ApprovalStatus, ApprovalPriority } from "@/lib/purchase/approvals.api";
 import { CATEGORY_LABELS } from "@/lib/purchase/approvals.api";
 import { useApproveApproval, useRejectApproval } from "@/hooks/purchase/use-approvals";
@@ -95,14 +95,15 @@ export function ApprovalDrawer({ approval, open, onClose }: Props) {
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {/* Total */}
-              <div className={cn("border rounded-xl p-5",
+              <div className={cn("border rounded-xl p-5 min-w-0",
                 approval.status === "approved" ? "bg-success/5 border-success/20" :
                 approval.status === "rejected" ? "bg-destructive/5 border-destructive/20" :
                 "bg-muted/30 border-border")}>
                 <p className="text-xs text-muted-foreground mb-1">{t("approvals.drawer.requestedBudget")}</p>
-                <p className={cn("text-3xl font-bold",
+                <p className={cn("font-bold truncate", fitTextClass(formatCurrency(approval.totalAmount, approval.currency || currency), "3xl"),
                   approval.status === "approved" ? "text-success" :
-                  approval.status === "rejected" ? "text-destructive" : "text-foreground")}>
+                  approval.status === "rejected" ? "text-destructive" : "text-foreground")}
+                   title={formatCurrency(approval.totalAmount, approval.currency || currency)}>
                   {formatCurrency(approval.totalAmount, approval.currency || currency)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">{approval.currency} · {CATEGORY_LABELS[approval.category]}</p>

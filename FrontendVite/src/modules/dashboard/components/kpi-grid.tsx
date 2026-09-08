@@ -1,7 +1,7 @@
 ﻿import * as React from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { cn, formatCurrency, formatNumber, formatPercentage } from "@/lib/utils";
+import { cn, formatCurrency, formatNumber, formatPercentage, fitTextClass } from "@/lib/utils";
 import type { KpiCard } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -78,8 +78,10 @@ function KpiCardComponent({ card, index }: KpiCardProps) {
           </div>
 
           <div className="flex items-end justify-between gap-4">
-            <div>
-              <p className="text-2xl font-bold tracking-tight">{formattedValue}</p>
+            <div className="min-w-0">
+              <p className={cn("font-bold tracking-tight truncate", fitTextClass(formattedValue, "2xl"))} title={formattedValue}>
+                {formattedValue}
+              </p>
               {card.changeLabel && (
                 <p className="text-xs text-muted-foreground mt-0.5">{card.changeLabel}</p>
               )}

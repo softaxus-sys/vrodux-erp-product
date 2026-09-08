@@ -107,6 +107,13 @@ public static class InfrastructureExtensions
         services.AddScoped<PropertyFinderCredentialStore>();
         services.AddSingleton<ILeadProvider, PropertyFinderLeadProvider>();
 
+        // ── Bayut / Dubizzle — inbound webhook (Bayut's "Leads API", Profolio™-gated) ─
+        // Neither portal offers a partner API like Property Finder's Atlas — leads are pushed by
+        // Bayut's own systems once the account requests it (support@bayut.com). Dubizzle Property
+        // shares the same EMPG/Dubizzle Group backend, so it is delivered the same way.
+        services.AddSingleton<ILeadProvider, BayutLeadProvider>();
+        services.AddSingleton<ILeadProvider, DubizzleLeadProvider>();
+
         // ── Google Forms / Google Sheets — inbound webhook via Apps Script ────
         // A one-time Apps Script the tenant pastes into their Form/Sheet POSTs each new
         // response/row (as flat JSON) to the integration's inbound URL. GenericInboundProvider's
