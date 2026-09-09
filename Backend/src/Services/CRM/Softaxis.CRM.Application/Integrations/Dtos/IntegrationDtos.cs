@@ -31,6 +31,11 @@ public sealed record IntegrationDto(
     string? RoutingConfig,
     string? InboundUrl,
     bool    HasCredentials,
+    /// <summary>
+    /// Names of the credential fields that are stored — never the values. Lets a settings screen
+    /// say WHICH key is configured, rather than only that something is.
+    /// </summary>
+    IReadOnlyList<string> CredentialFields,
     DateTime? LastSyncAt,
     DateTime? LastSuccessAt,
     DateTime? LastFailureAt,

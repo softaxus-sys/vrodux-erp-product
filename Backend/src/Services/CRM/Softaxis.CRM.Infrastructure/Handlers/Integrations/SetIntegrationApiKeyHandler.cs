@@ -16,9 +16,11 @@ internal sealed class SetIntegrationApiKeyHandler(CrmDbContext db, ISecretProtec
         if (integration is null)
             return Result.Failure(Error.NotFoundById("Integration", cmd.Id));
 
-        // Stored encrypted as a small JSON envelope so future providers can add fields.
-        var envelope = System.Text.Json.JsonSerializer.Serialize(new { apiKey = cmd.ApiKey });
-        integration.SetCredentials(protector.Protect(envelope));
+        // Merged into the existing envelope rather than replacing it: a provider can hold more
+        // than one credential (Bayut keeps a pull key beside a marker for its push secret), and
+        // overwriting wholesale would silently drop whichever was saved first.
+        integration.SetCredentials(protector.Protect(
+            IntegrationCredentials.With(protector.Unprotect(integration.Credentials), "apiKey", cmd.ApiKey)));
         integration.MarkConnected();
 
         await db.SaveChangesAsync(ct);

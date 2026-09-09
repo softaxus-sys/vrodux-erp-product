@@ -5,10 +5,16 @@ namespace Softaxis.CRM.Infrastructure.Handlers.Integrations;
 
 internal static class IntegrationMappings
 {
-    public static IntegrationDto ToDto(Integration i, string? inboundBaseUrl) => new(
+    /// <param name="credentialFields">
+    /// Field names from the decrypted credential envelope. Only the detail view supplies these —
+    /// the list would pay a decryption per row for something no card shows.
+    /// </param>
+    public static IntegrationDto ToDto(Integration i, string? inboundBaseUrl,
+        IReadOnlyList<string>? credentialFields = null) => new(
         i.Id, i.ProviderKey, i.Name, i.Status, i.Health, i.Config, i.DedupeConfig, i.RoutingConfig,
         BuildInboundUrl(inboundBaseUrl, i.InboundKey),
         HasCredentials: i.Credentials is not null,
+        CredentialFields: credentialFields ?? [],
         i.LastSyncAt, i.LastSuccessAt, i.LastFailureAt, i.LastError, i.RetryCount, i.CreatedAt, i.UpdatedAt,
         i.FieldMappings.Select(m => new FieldMappingDto(m.Id, m.SourceField, m.TargetField)).ToList(),
         i.Resources.Select(r => new IntegrationResourceDto(

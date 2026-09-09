@@ -21,6 +21,13 @@ internal sealed class SetIntegrationSigningSecretHandler(CrmDbContext db, ISecre
         // that can verify anything.
         integration.SetSigningSecret(protector.Protect(cmd.Secret.Trim()));
 
+        // Every integration is born with a generated signing secret, so "SigningSecret is not null"
+        // says nothing about whether the PROVIDER's key has been entered. This marker is what the
+        // UI reads; the secret itself is never duplicated here.
+        integration.SetCredentials(protector.Protect(
+            IntegrationCredentials.With(protector.Unprotect(integration.Credentials),
+                IntegrationCredentials.ProviderSigningSecretField, "true")));
+
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }

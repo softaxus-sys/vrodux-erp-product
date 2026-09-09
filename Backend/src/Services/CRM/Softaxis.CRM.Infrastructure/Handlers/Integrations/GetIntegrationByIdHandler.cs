@@ -4,11 +4,12 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Integrations.Dtos;
 using Softaxis.CRM.Application.Integrations.Queries;
+using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Infrastructure.Persistence;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Integrations;
 
-internal sealed class GetIntegrationByIdHandler(CrmDbContext db, IConfiguration config)
+internal sealed class GetIntegrationByIdHandler(CrmDbContext db, IConfiguration config, ISecretProtector protector)
     : IQueryHandler<GetIntegrationByIdQuery, IntegrationDto>
 {
     public async Task<Result<IntegrationDto>> Handle(GetIntegrationByIdQuery query, CancellationToken ct)
@@ -20,6 +21,7 @@ internal sealed class GetIntegrationByIdHandler(CrmDbContext db, IConfiguration 
 
         return i is null
             ? Result.Failure<IntegrationDto>(Error.NotFoundById("Integration", query.Id))
-            : Result.Success(IntegrationMappings.ToDto(i, config["Integrations:PublicBaseUrl"]));
+            : Result.Success(IntegrationMappings.ToDto(i, config["Integrations:PublicBaseUrl"],
+                IntegrationCredentials.FieldNames(protector.Unprotect(i.Credentials))));
     }
 }

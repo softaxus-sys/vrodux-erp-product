@@ -41,6 +41,8 @@ export interface Integration {
   routingConfig: string | null;
   inboundUrl:    string | null;
   hasCredentials: boolean;
+  /** Names of the stored credential fields — never the values. Empty on list responses. */
+  credentialFields?: string[];
   lastSyncAt:    string | null;
   lastSuccessAt: string | null;
   lastFailureAt: string | null;

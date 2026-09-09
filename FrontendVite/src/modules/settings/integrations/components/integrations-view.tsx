@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Trans, useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
-  Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check,
+  Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check, CheckCircle2,
   KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud, DownloadCloud,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -594,6 +594,18 @@ function AcceptedFields({ extra }: { extra?: boolean }) {
   );
 }
 
+/** Says plainly whether a key is stored — the field itself cannot, since values are never returned. */
+function KeyStatus({ configured, t }: { configured: boolean; t: TFunction }) {
+  return (
+    <div className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium",
+      configured ? "text-success" : "text-muted-foreground")}>
+      {configured
+        ? <><CheckCircle2 className="h-3.5 w-3.5" />{t("integrations.portal.configured")}</>
+        : <><AlertCircle className="h-3.5 w-3.5" />{t("integrations.portal.notConfigured")}</>}
+    </div>
+  );
+}
+
 /**
  * The Bayut / dubizzle Pull API key.
  *
@@ -607,6 +619,13 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
   const [key, setKey] = React.useState("");
   const [push, setPush] = React.useState("");
 
+  // Which credentials are actually stored. hasCredentials alone cannot answer this — it is one
+  // flag for the whole envelope — and every integration is created with a generated signing
+  // secret, so the presence of one says nothing about the provider's key having been entered.
+  const fields: string[] = integration.credentialFields ?? [];
+  const hasPull = fields.includes("apiKey") || fields.includes("pullApiKey");
+  const hasPush = fields.includes("providerSigningSecret");
+
   return (
     <div className="space-y-4 max-w-xl">
       <div>
@@ -615,16 +634,14 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
       </div>
 
       <div className="space-y-1.5">
+        <KeyStatus configured={hasPull} t={t} />
         <Input
           type="password"
           value={key}
           onChange={e => setKey(e.target.value)}
-          placeholder={integration.hasCredentials ? "••••••••••••••••" : ""}
+          placeholder={hasPull ? t("integrations.portal.replacePlaceholder") : ""}
           disabled={!canEdit}
           className="h-9 text-sm font-mono" />
-        {integration.hasCredentials && (
-          <p className="text-[11px] text-muted-foreground">{t("integrations.portal.pullKeySaved")}</p>
-        )}
       </div>
 
       <Button
@@ -643,10 +660,12 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
           <p className="text-xs text-muted-foreground mt-1">{t("integrations.portal.pushKeyDesc")}</p>
         </div>
 
+        <KeyStatus configured={hasPush} t={t} />
         <Input
           type="password"
           value={push}
           onChange={e => setPush(e.target.value)}
+          placeholder={hasPush ? t("integrations.portal.replacePlaceholder") : ""}
           disabled={!canEdit}
           className="h-9 text-sm font-mono" />
 
