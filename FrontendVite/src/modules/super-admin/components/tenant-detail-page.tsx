@@ -375,6 +375,8 @@ function Card({ children, className }: { children: React.ReactNode; className?: 
 
 const PLANS: PlanType[] = [...ASSIGNABLE_PLANS];
 
+type TenantTab = "overview" | "modules" | "license" | "subscription" | "connections";
+
 export function TenantDetailPage() {
   const navigate = useNavigate();
   const { id }   = useParams<{ id: string }>();
@@ -382,7 +384,7 @@ export function TenantDetailPage() {
   const [tenant,  setTenant]  = React.useState<TenantDto | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [loadErr, setLoadErr] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<"overview" | "modules" | "license" | "subscription" | "connections">("overview");
+  const [tab, setTab] = React.useState<TenantTab>("overview");
 
   // profile edit
   const [editing, setEditing] = React.useState(false);
@@ -511,13 +513,16 @@ export function TenantDetailPage() {
   const limits        = planLimits(tenant.plan);
   const industryLabel = tenant.industry ? (INDUSTRY_OPTIONS.find(o => o.value === tenant.industry)?.label ?? tenant.industry) : null;
 
-  const tabs = ([
+  // Typed rather than `as const`: the union of literal shapes it produced had `show` on only some
+  // members, so the filter below could not read it.
+  const allTabs: { id: TenantTab; label: string; show?: boolean }[] = [
     { id: "overview",     label: "Overview" },
     { id: "modules",      label: "Modules" },
     { id: "subscription", label: "Subscription", show: tenant.deploymentType === "Cloud" },
     { id: "license",      label: "License",      show: tenant.deploymentType === "OnPremises" },
     { id: "connections",  label: "Connections",  show: tenant.deploymentType === "OnPremises" },
-  ] as const).filter(t => t.show !== false);
+  ];
+  const tabs = allTabs.filter(t => t.show !== false);
 
   return (
     <div className="h-full overflow-auto bg-muted/20">
@@ -555,7 +560,7 @@ export function TenantDetailPage() {
         {/* Tabs */}
         <div className="mx-auto max-w-5xl px-4 sm:px-6 flex gap-1 overflow-x-auto">
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id as any)}
+            <button key={t.id} onClick={() => setTab(t.id)}
               className={cn("px-4 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px",
                 tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
               {t.label}

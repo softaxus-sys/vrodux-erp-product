@@ -939,7 +939,9 @@ export function useTableQrCode(id: string, enabled = true) {
 
 export function useSendReceipt() {
   return useMutation({
-    mutationFn: ({ orderId, channel, recipientAddress }: { orderId: string; channel: "email" | "whatsapp"; recipientAddress: string }) =>
+    // sms belongs here: the API accepts it and the receipt dialog offers it as a choice. Leaving it
+    // out made picking SMS a type error at the only call site.
+    mutationFn: ({ orderId, channel, recipientAddress }: { orderId: string; channel: "email" | "sms" | "whatsapp"; recipientAddress: string }) =>
       restaurantApi.sendReceipt(orderId, { channel, recipientAddress }),
     onSuccess: (res) => { if (res.success) toast.success(`Receipt sent via ${res.channel}.`); else toast.error(`Couldn't send via ${res.channel} — check configuration.`); },
     onError: (e: Error) => toast.error(e.message),

@@ -394,7 +394,9 @@ function ComboPickerModal({ combo, menu, busy, onConfirm, onCancel }: {
 }
 
 // ─── Order Drawer ─────────────────────────────────────────────────────────────
-interface PendingLine { menuItem: MenuItem; quantity: number; modifiers: string; selectedModifierIds: string[] }
+/** `key` identifies one pending line: the same menu item can appear twice with different
+ *  modifiers, so the item id alone cannot address a row for quantity edits or removal. */
+interface PendingLine { key: string; menuItem: MenuItem; quantity: number; modifiers: string; selectedModifierIds: string[] }
 
 function OrderDrawer({ table, order, allOrders, isTakeaway, currency, onClose, onOrderCreated }: {
   table: RestaurantTable | null; order: RestaurantOrder | null; allOrders: RestaurantOrder[]; isTakeaway: boolean;

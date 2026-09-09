@@ -4,6 +4,8 @@ import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import type { DraggableAttributes } from "@dnd-kit/core";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
 } from "@dnd-kit/sortable";
@@ -22,7 +24,7 @@ interface ManageColumnsModalProps {
   onClose: () => void;
 }
 
-function SortableColumnRow({ id, children }: { id: string; children: (handle: { attributes: Record<string, unknown>; listeners: Record<string, unknown> | undefined }) => React.ReactNode }) {
+function SortableColumnRow({ id, children }: { id: string; children: (handle: { attributes: DraggableAttributes; listeners: SyntheticListenerMap | undefined }) => React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),

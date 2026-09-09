@@ -54,9 +54,9 @@ export interface CreateReturnRequest {
 }
 
 export const returnsApi = {
-  getAll:     (): Promise<SalesReturnDto[]>         => rawApiClient(`${BASE}`),
-  getSummary: (): Promise<ReturnsSummaryDto>        => rawApiClient(`${BASE}/summary`),
-  getById:    (id: string): Promise<SalesReturnDto> => rawApiClient(`${BASE}/${id}`),
+  getAll:     (): Promise<SalesReturnDto[]>         => rawApiClient.get(`${BASE}`),
+  getSummary: (): Promise<ReturnsSummaryDto>        => rawApiClient.get(`${BASE}/summary`),
+  getById:    (id: string): Promise<SalesReturnDto> => rawApiClient.get(`${BASE}/${id}`),
   create:     (data: CreateReturnRequest): Promise<SalesReturnDto> => rawApiClient.post(`${BASE}`, data),
   approve:    (id: string, by: string): Promise<void> => rawApiClient.post(`${BASE}/${id}/approve`, { by }),
   reject:     (id: string, by: string): Promise<void> => rawApiClient.post(`${BASE}/${id}/reject`, { by }),

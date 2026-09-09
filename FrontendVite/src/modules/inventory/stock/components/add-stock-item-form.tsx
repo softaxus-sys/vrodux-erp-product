@@ -123,7 +123,7 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
 
   // ── Create / Update mutation ─────────────────────────────────────────────────
   const { mutate: saveProduct, isPending } = useMutation({
-    mutationFn: () => {
+    mutationFn: async (): Promise<void> => {
       const common = {
         name:            name.trim(),
         description:     description.trim() || null,
@@ -139,9 +139,10 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
         reorderLevel:    parseFloat(reorderPoint) || 0,
         trackInventory,
       };
-      return isEdit && editingId
-        ? inventoryProductsApi.update(editingId, common)
-        : inventoryProductsApi.create({ ...common, openingStock: parseFloat(openingQty) || 0 });
+      // Awaited rather than returned: create resolves to the new product and update to void, and
+      // the caller needs neither — onSuccess refetches.
+      if (isEdit && editingId) await inventoryProductsApi.update(editingId, common);
+      else await inventoryProductsApi.create({ ...common, openingStock: parseFloat(openingQty) || 0 });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: inventoryProductKeys.lists() });

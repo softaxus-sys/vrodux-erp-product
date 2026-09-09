@@ -212,11 +212,11 @@ function PrinterModal({ printer, onClose, onSave }: {
         <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("kitchenConfig.printers.namePlaceholder")} className="h-9 text-sm" /></div>
       <div className="grid grid-cols-2 gap-2">
         <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.type")}</label>
-          <select value={type} onChange={e => setType(e.target.value)} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
+          <select value={type} onChange={e => setType(e.target.value as "receipt" | "kitchen")} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
             <option value="kitchen">{t("kitchenConfig.printers.typeKitchen")}</option><option value="receipt">{t("kitchenConfig.printers.typeReceipt")}</option>
           </select></div>
         <div><label className="text-xs text-muted-foreground">{t("kitchenConfig.printers.connection")}</label>
-          <select value={connectionType} onChange={e => setConnectionType(e.target.value)} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
+          <select value={connectionType} onChange={e => setConnectionType(e.target.value as "network" | "usb" | "bluetooth")} className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
             <option value="network">{t("kitchenConfig.printers.connNetwork")}</option><option value="usb">{t("kitchenConfig.printers.connUsb")}</option><option value="bluetooth">{t("kitchenConfig.printers.connBluetooth")}</option>
           </select></div>
       </div>

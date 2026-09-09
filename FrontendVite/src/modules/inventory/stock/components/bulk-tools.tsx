@@ -185,7 +185,7 @@ export function ProductImportDialog({ open, onClose }: { open: boolean; onClose:
         <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={running}>{result ? t("bulkTools.close") : t("bulkTools.cancel")}</Button>
           {!result && <Button onClick={runImport} disabled={rows.length === 0 || running}>
-            {running ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />{t("bulkTools.importingBtn")}</> : t("bulkTools.importCta", { count: rows.length || "" })}
+            {running ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />{t("bulkTools.importingBtn")}</> : t("bulkTools.importCta", { count: rows.length })}
           </Button>}
         </div>
       </div>

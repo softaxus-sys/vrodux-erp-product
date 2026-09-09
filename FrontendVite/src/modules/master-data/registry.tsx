@@ -131,28 +131,28 @@ function dash(v: unknown) {
 // ─── Real API ops for DB-backed masters ──────────────────────────────────────
 
 const currencyOps = {
-  fetchAll: () => currenciesApi.getAll() as Promise<Record<string, unknown>[]>,
+  fetchAll: () => currenciesApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
   create:   (d: Record<string, unknown>) => currenciesApi.upsert({ id: null, ...d } as any),
   update:   (id: string, d: Record<string, unknown>) => currenciesApi.upsert({ id, ...d } as any),
   remove:   (id: string) => currenciesApi.delete(id),
 };
 
 const taxOps = {
-  fetchAll: () => taxRatesApi.getAll() as Promise<Record<string, unknown>[]>,
+  fetchAll: () => taxRatesApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
   create:   (d: Record<string, unknown>) => taxRatesApi.upsert({ id: null, ...d } as any),
   update:   (id: string, d: Record<string, unknown>) => taxRatesApi.upsert({ id, ...d } as any),
   remove:   (id: string) => taxRatesApi.delete(id),
 };
 
 const termsOps = {
-  fetchAll: () => paymentTermsApi.getAll() as Promise<Record<string, unknown>[]>,
+  fetchAll: () => paymentTermsApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
   create:   (d: Record<string, unknown>) => paymentTermsApi.upsert({ id: null, ...d } as any),
   update:   (id: string, d: Record<string, unknown>) => paymentTermsApi.upsert({ id, ...d } as any),
   remove:   (id: string) => paymentTermsApi.delete(id),
 };
 
 const custGroupOps = {
-  fetchAll: () => customerGroupsApi.getAll() as Promise<Record<string, unknown>[]>,
+  fetchAll: () => customerGroupsApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
   create:   (d: Record<string, unknown>) => customerGroupsApi.upsert({ id: null, ...d } as any),
   update:   (id: string, d: Record<string, unknown>) => customerGroupsApi.upsert({ id, ...d } as any),
   remove:   (id: string) => customerGroupsApi.delete(id),
@@ -185,7 +185,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "description", label: "Description",   type: "textarea", span: "full"   },
       { key: "isActive",    label: "Active",        type: "toggle",   defaultValue: true },
     ],
-    fetchAll: () => inventoryCategoriesApi.getAll() as Promise<Record<string, unknown>[]>,
+    fetchAll: () => inventoryCategoriesApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
     create:   d  => inventoryCategoriesApi.create(d as any),
     update:   (id, d) => inventoryCategoriesApi.update(id, d as any),
     remove:   id => inventoryCategoriesApi.delete(id),
@@ -214,7 +214,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "logoUrl",     label: "Logo URL",     type: "text",     placeholder: "https://...", span: "full" },
       { key: "isActive",    label: "Active",       type: "toggle",   defaultValue: true },
     ],
-    fetchAll: () => brandsApi.getAll() as Promise<Record<string, unknown>[]>,
+    fetchAll: () => brandsApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
     create:   d  => brandsApi.create(d as any),
     update:   (id, d) => brandsApi.update(id, d as any),
     remove:   id => brandsApi.delete(id),
@@ -245,7 +245,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "description", label: "Description",type: "textarea",span: "full"  },
       { key: "isActive",    label: "Active",     type: "toggle",  defaultValue: true },
     ],
-    fetchAll: () => uomApi.getAll() as Promise<Record<string, unknown>[]>,
+    fetchAll: () => uomApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
     create:   d  => uomApi.create(d as any),
     update:   (id, d) => uomApi.update(id, d as any),
     remove:   id => uomApi.delete(id),
@@ -278,7 +278,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "phone",         label: "Phone",          type: "phone",   placeholder: "+92 300 0000000" },
       { key: "isActive",      label: "Active",         type: "toggle",  defaultValue: true },
     ],
-    fetchAll: () => warehousesApi.getAll() as Promise<Record<string, unknown>[]>,
+    fetchAll: () => warehousesApi.getAll() as unknown as Promise<Record<string, unknown>[]>,
     create:   d  => warehousesApi.create(d as any),
     update:   (id, d) => warehousesApi.update(id, d as any),
     remove:   id => warehousesApi.delete(id),
@@ -454,7 +454,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "address", label: "Address",      type: "textarea", span: "full" },
       { key: "notes",   label: "Notes",        type: "textarea", span: "full" },
     ],
-    fetchAll: () => customersApi.getAll({ pageSize: 500 }).then(r => r.items as Record<string, unknown>[]),
+    fetchAll: () => customersApi.getAll({ pageSize: 500 }).then(r => r.items as unknown as Record<string, unknown>[]),
     create:   d  => customersApi.create(d as any),
     update:   (id, d) => customersApi.update(id, d as any),
     remove:   id => customersApi.delete(id),
@@ -500,7 +500,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
         ],
       },
     ],
-    fetchAll: () => vendorsApi.getAll({ pageSize: 500 }).then(r => r.items as Record<string, unknown>[]),
+    fetchAll: () => vendorsApi.getAll({ pageSize: 500 }).then(r => r.items as unknown as Record<string, unknown>[]),
     create:   d  => vendorsApi.create(d as any),
     update:   (id, d) => vendorsApi.update(id, d as any),
     remove:   id => vendorsApi.delete(id),
@@ -531,7 +531,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "sortOrder",   label: "Sort Order",     type: "number",  placeholder: "0", defaultValue: 0 },
       { key: "isActive",    label: "Active",         type: "toggle",  defaultValue: true },
     ],
-    fetchAll: () => categoriesApi.getAll({ pageSize: 500 }).then(r => r.items as Record<string, unknown>[]),
+    fetchAll: () => categoriesApi.getAll({ pageSize: 500 }).then(r => r.items as unknown as Record<string, unknown>[]),
     create:   d  => categoriesApi.create(d as any),
     update:   (id, d) => categoriesApi.update(id, d as any),
     remove:   id => categoriesApi.delete(id),
@@ -605,7 +605,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
         ],
       },
     ],
-    fetchAll: () => branchesApi.getAll(1, 500).then(r => r.items as Record<string, unknown>[]),
+    fetchAll: () => branchesApi.getAll(1, 500).then(r => r.items as unknown as Record<string, unknown>[]),
     create:   d  => branchesApi.create(d as any),
     update:   (id, d) => branchesApi.update(id, d as any),
     remove:   id => branchesApi.delete(id),

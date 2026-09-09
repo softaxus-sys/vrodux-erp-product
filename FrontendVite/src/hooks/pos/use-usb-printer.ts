@@ -70,7 +70,9 @@ export function useUsbPrinter(): UsbPrinterHook {
   const rawSend = React.useCallback(async (data: Uint8Array): Promise<void> => {
     const device = deviceRef.current;
     if (!device) throw new Error("Printer not connected.");
-    await device.transferOut(ifaceRef.current, data);
+    // Uint8Array is generic over its buffer since TS 5.7, and transferOut requires one backed by
+    // a plain ArrayBuffer rather than a possible SharedArrayBuffer.
+    await device.transferOut(ifaceRef.current, data as Uint8Array<ArrayBuffer>);
   }, []);
 
   // ── Shared claim logic (used by both connect flows) ────────────────────────

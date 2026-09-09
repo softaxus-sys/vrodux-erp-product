@@ -464,7 +464,7 @@ export const restaurantApi = {
   updateCategory:  (id: string, p: { name: string; description?: string | null; sortOrder: number }): Promise<MenuCategory> =>
     rawApiClient.put(`${BASE}/menu/categories/${id}`, p),
   deleteCategory:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/menu/categories/${id}`),
-  createItem:      (p: { categoryId: string; name: string; description?: string | null; price: number; prepTimeMinutes: number; allergens?: string | null; kitchenStationId?: string | null }) =>
+  createItem:      (p: { categoryId: string; name: string; description?: string | null; price: number; prepTimeMinutes: number; allergens?: string | null; kitchenStationId?: string | null }): Promise<MenuItem> =>
     rawApiClient.post(`${BASE}/menu/items`, p),
   updateItem:      (id: string, p: { name: string; description?: string | null; price: number; prepTimeMinutes: number; allergens?: string | null; isOnlineOrderable: boolean }): Promise<MenuItem> =>
     rawApiClient.put(`${BASE}/menu/items/${id}`, p),

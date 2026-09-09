@@ -1,5 +1,8 @@
 import { rawApiClient } from "@/lib/api-client";
 import type { SalesCustomerDto, UpsertCustomerRequest } from "./types";
+// Re-exported so callers can import the request shape from the module whose functions take it,
+// rather than having to know it lives in ./types.
+export type { UpsertCustomerRequest };
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/customers`;
 

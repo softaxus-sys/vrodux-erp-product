@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -69,6 +69,8 @@ interface Props { customer: Customer | null; open: boolean; onClose: () => void;
 
 export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
   const { t } = useTranslation("crm");
+  // CASE_STATUS_META carries styling only — the visa case labels live in the visa namespace.
+  const { t: tVisa } = useTranslation("visa");
   const [tab, setTab] = React.useState<Tab>("overview");
   React.useEffect(() => { if (open) setTab("overview"); }, [open]);
   const del = useDeleteCustomer();
@@ -217,7 +219,7 @@ export function CustomerDrawer({ customer, open, onClose, onEdit }: Props) {
                                 <p className="text-sm font-medium truncate">{vc.visaTypeName}</p>
                                 <p className="text-[11px] text-muted-foreground font-mono">{vc.caseNumber}</p>
                               </div>
-                              {m && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0", m.color, m.bg)}>{m.label}</span>}
+                              {m && <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0", m.color, m.bg)}>{tVisa(`cases.status.${vc.status}`)}</span>}
                               <p className="font-semibold text-sm shrink-0">{formatCurrency(vc.serviceFee + vc.govtFee, currency)}</p>
                             </div>
                           );

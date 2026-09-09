@@ -1,4 +1,4 @@
-﻿import { apiClient, type PagedResult } from "@/lib/api-client";
+import { apiClient, type PagedResult } from "@/lib/api-client";
 import type {
   POSTransactionDto,
   POSTransactionSummaryDto,
@@ -44,7 +44,7 @@ export const transactionsApi = {
     const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     // getTimezoneOffset is minutes to ADD to local to get UTC, so negate it.
     const utcOffsetMinutes = -now.getTimezoneOffset();
-    return rawApiClient.get(`${BASE}/dashboard?date=${date}&utcOffsetMinutes=${utcOffsetMinutes}`);
+    return apiClient.get<PosDashboardDto>(`${BASE}/dashboard?date=${date}&utcOffsetMinutes=${utcOffsetMinutes}`);
   },
 
   getAll: (params: GetTransactionsParams = {}): Promise<PagedResult<POSTransactionSummaryDto>> => {

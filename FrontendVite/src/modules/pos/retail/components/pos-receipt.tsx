@@ -134,7 +134,9 @@ function getCountryCode(country?: string | null, currency?: string | null): stri
 /** ISO 4217 default decimal precision for a currency (e.g. BHD/KWD/OMR = 3, JPY = 0, most = 2). */
 function getCurrencyDecimals(currency: string): number {
   try {
-    return new Intl.NumberFormat("en", { style: "currency", currency: currency || "AED" }).resolvedOptions().maximumFractionDigits;
+    // resolvedOptions types this as optional, though a currency format always resolves one.
+    return new Intl.NumberFormat("en", { style: "currency", currency: currency || "AED" })
+      .resolvedOptions().maximumFractionDigits ?? 2;
   } catch {
     return 2;
   }

@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -59,7 +59,8 @@ export function ReturnDrawer({ ret, open, onClose }: Props) {
                   <p className="text-sm text-muted-foreground">{ret.customerName}</p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                      {sc.label}
+                      {/* STATUS_STYLES is styling only; the label comes from i18n, as in the list. */}
+                      {t(`returns.status.${ret.status}`)}
                     </span>
                     <span className="text-[11px] text-muted-foreground">Ref: {ret.orderNumber}</span>
                   </div>

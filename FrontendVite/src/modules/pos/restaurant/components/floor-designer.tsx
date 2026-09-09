@@ -30,7 +30,14 @@ const CANVAS_W = 1400;
 const CANVAS_H = 800;
 const DEFAULT_SIZE = 84;
 
-type CanvasTable = RestaurantTable & { areaId: string; areaName: string; areaType: DiningAreaType };
+/**
+ * `isMerged` is derived, not sent by the API — the server states WHICH table this one was merged
+ * into (mergedIntoTableId). The canvas only ever asks the yes/no question, and reading a field the
+ * API never sends meant the merged styling and the Unmerge button were dead code.
+ */
+type CanvasTable = RestaurantTable & {
+  areaId: string; areaName: string; areaType: DiningAreaType; isMerged: boolean;
+};
 
 function defaultPos(index: number) {
   const perRow = 6;
@@ -65,7 +72,8 @@ export function FloorDesignerView() {
   const floor = layout.find(f => f.id === selectedFloorId);
   const tablesInFloor: CanvasTable[] = React.useMemo(
     () => (floor?.diningAreas ?? []).flatMap(a =>
-      a.tables.map(t => ({ ...t, areaId: a.id, areaName: a.name, areaType: a.type }))),
+      a.tables.map(t => ({ ...t, areaId: a.id, areaName: a.name, areaType: a.type,
+        isMerged: t.mergedIntoTableId !== null }))),
     [floor],
   );
   const unassigned = React.useMemo(() => allTables.filter(t => !t.diningAreaId), [allTables]);

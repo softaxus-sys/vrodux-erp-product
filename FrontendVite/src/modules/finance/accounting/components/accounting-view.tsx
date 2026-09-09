@@ -9,6 +9,8 @@ import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import type { DraggableAttributes } from "@dnd-kit/core";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
 } from "@dnd-kit/sortable";
@@ -456,7 +458,7 @@ function SortableTypeRow({
   id, children,
 }: {
   id: string;
-  children: (handle: { attributes: Record<string, unknown>; listeners: Record<string, unknown> | undefined }) => React.ReactNode;
+  children: (handle: { attributes: DraggableAttributes; listeners: SyntheticListenerMap | undefined }) => React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style: React.CSSProperties = {
@@ -573,7 +575,7 @@ function AccountTypesModal({
 
   const renderRow = (
     at: AccountTypeDto,
-    opts: { handle: { attributes: Record<string, unknown>; listeners: Record<string, unknown> | undefined }; isSub: boolean }
+    opts: { handle: { attributes: DraggableAttributes; listeners: SyntheticListenerMap | undefined }; isSub: boolean }
   ) => {
     const isEditing = editingId === at.id;
     return (
