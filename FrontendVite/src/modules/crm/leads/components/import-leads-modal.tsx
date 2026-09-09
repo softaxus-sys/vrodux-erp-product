@@ -2,11 +2,11 @@ import * as React from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, ArrowRight, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { parseDelimitedFile } from "@/lib/csv";
+import { parseDelimitedFile, buildImportTemplate, downloadFile } from "@/lib/csv";
 import { useImportLeads } from "@/hooks/crm/use-crm";
 import {
   IMPORT_TARGET_FIELDS, type ImportTargetField, type ImportLeadInput, type ImportLeadsResult,
@@ -36,6 +36,29 @@ const FIELD_SYNONYMS: Record<ImportTargetField, string[]> = {
 };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * The downloadable sample file. Headers are spelled the way the auto-mapper recognises them, so a
+ * file built from this template arrives fully mapped and the user can go straight to importing.
+ */
+const TEMPLATE_COLUMNS: { label: string; sample?: string }[] = [
+  { label: "First Name",    sample: "Fatima" },
+  { label: "Last Name",     sample: "Al Suwaidi" },
+  { label: "Email",         sample: "fatima@example.com" },
+  { label: "Phone",         sample: "+971 50 123 4567" },
+  { label: "WhatsApp",      sample: "+971 50 123 4567" },
+  { label: "Company",       sample: "Gulf Trading LLC" },
+  { label: "Title",         sample: "Procurement Manager" },
+  { label: "Industry",      sample: "Construction" },
+  { label: "City",          sample: "Dubai" },
+  { label: "Country",       sample: "United Arab Emirates" },
+  { label: "Interested In", sample: "2-bed apartment, Dubai Marina" },
+  { label: "Budget",        sample: "1,200,000" },
+  { label: "Timeframe",     sample: "Within 3 months" },
+  { label: "Message",       sample: "Please call after 6pm" },
+  { label: "Campaign",      sample: "Marina Launch 2026" },
+  { label: "Notes",         sample: "Referred by an existing client" },
+];
 
 // Keyword classifier — mirrors the backend LeadFieldClassifier so real Meta question headers
 // ("your_budget?", "when_are_you_planning_to_buy?", "what_are_you_interested_in?", "whatsapp_number")
@@ -230,6 +253,15 @@ function ImportLeadsModalInner({ onClose }: { onClose: () => void }) {
               )}
               <input ref={inputRef} type="file" accept=".csv,.txt,.xlsx,.xls" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+              {!parsing && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  onClick={() => downloadFile("leads-import-template.csv", buildImportTemplate(TEMPLATE_COLUMNS))}>
+                  <Download className="h-3.5 w-3.5" />
+                  {t("import.downloadSample")}
+                </button>
+              )}
             </div>
           )}
 

@@ -1,11 +1,11 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
+import { UploadCloud, FileSpreadsheet, X, Loader2, CheckCircle2, AlertTriangle, ArrowRight, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { parseDelimitedFile } from "@/lib/csv";
+import { parseDelimitedFile, buildImportTemplate, downloadFile } from "@/lib/csv";
 
 /**
  * A three-stage spreadsheet importer — upload, map columns, review the result — driven entirely by a
@@ -29,6 +29,12 @@ export interface ImportField<K extends string> {
   numeric?: boolean;
   /** Normalised header fragments that auto-map to this field. */
   synonyms: string[];
+  /**
+   * Example value for this column in the downloadable template. Worth filling in wherever the
+   * expected format is not obvious from the label — a date, a status word, a unit of measure —
+   * since the sample file is the only place the user ever sees what "good" looks like.
+   */
+  sample?: string;
 }
 
 /** What the server reports back. Skipped is not a failure — it is "this one already existed". */
@@ -245,15 +251,32 @@ function Inner<K extends string>({
             </div>
           ) : rows.length === 0 ? (
             /* ── Stage 1: pick a file ── */
-            <label className="border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center gap-3 cursor-pointer hover:border-primary/50 transition-colors">
-              <UploadCloud className="h-9 w-9 text-muted-foreground" />
-              <p className="text-sm font-medium">Choose a CSV or Excel file</p>
-              <p className="text-xs text-muted-foreground">The first row must be your column headings.</p>
-              <input
-                type="file" accept=".csv,.txt,.xlsx,.xls" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); }}
-              />
-            </label>
+            <div className="space-y-3">
+              <label className="border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center gap-3 cursor-pointer hover:border-primary/50 transition-colors">
+                <UploadCloud className="h-9 w-9 text-muted-foreground" />
+                <p className="text-sm font-medium">Choose a CSV or Excel file</p>
+                <p className="text-xs text-muted-foreground">The first row must be your column headings.</p>
+                <input
+                  type="file" accept=".csv,.txt,.xlsx,.xls" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); }}
+                />
+              </label>
+
+              {/* Deliberately OUTSIDE the label: nested inside it, clicking the download would also
+                  trigger the file picker. */}
+              <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <span>Not sure what the file should look like?</span>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                  onClick={() => downloadFile(
+                    `${noun.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-import-template.csv`,
+                    buildImportTemplate(fields))}>
+                  <Download className="h-3.5 w-3.5" />
+                  Download a sample file
+                </button>
+              </div>
+            </div>
           ) : (
             /* ── Stage 2: map the columns ── */
             <div className="space-y-4">

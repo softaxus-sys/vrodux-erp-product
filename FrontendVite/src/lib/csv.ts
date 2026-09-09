@@ -108,3 +108,25 @@ export function extractEmails(rows: string[][]): string[] {
   }
   return [...new Set(found)];
 }
+
+/**
+ * Build a downloadable template for an importer: the header row every import screen expects, plus
+ * one or two example rows showing the shape of each value.
+ *
+ * <p>The headers are the same strings the importer's own auto-mapping recognises, so a file made
+ * from this template maps every column without the user touching the mapping step — which is the
+ * point: a blank "choose a file" box gives no clue what the file should contain, and the commonest
+ * support question on every import screen is "what columns do you want?".</p>
+ */
+export function buildImportTemplate(
+  columns: { label: string; sample?: string }[],
+  extraRow = true,
+): string {
+  const headers = columns.map(c => c.label);
+  const row = (n: number) =>
+    Object.fromEntries(columns.map(c => [c.label, n === 0 ? (c.sample ?? "") : ""]));
+  // A second, empty row makes it obvious the file is meant to be filled in and extended, rather
+  // than being a one-record document.
+  const rows = extraRow ? [row(0), row(1)] : [row(0)];
+  return toCsv(rows, headers);
+}
