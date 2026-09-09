@@ -9,22 +9,25 @@ namespace Softaxis.CRM.Infrastructure.Integrations.Providers.PropertyPortals;
 /// <summary>
 /// Shared enquiry → <see cref="CanonicalLead"/> mapping for Bayut and Dubizzle.
 ///
-/// <para>Unlike Property Finder, neither portal publishes a partner API (no Atlas-style
-/// OAuth/JWT client, no listing-lookup endpoint) — both work the same way: the tenant must be on
-/// Bayut's Profolio™ plan and request the "Leads API" be enabled for their account
-/// (support@bayut.com), after which the portal's own systems push enquiries to a CRM webhook URL
-/// the tenant supplies. Dubizzle Property runs on the same EMPG/Dubizzle Group advertiser backend
-/// as Bayut, so a Dubizzle enquiry is delivered the same way, tagged by source. There is therefore
-/// no fixed, published JSON schema to code against — this mapper is deliberately tolerant, the
-/// same posture Property Finder's own webhook path takes (see its "payload Vrodux understands"
-/// setup guide): a nested <c>client</c>/<c>contact</c> object for the enquirer and a nested
-/// <c>property</c>/<c>listing</c> object for the ad, with a flat-JSON and
-/// <see cref="LeadFieldClassifier"/> fallback for whatever shape actually arrives.</para>
+/// <para>Both portals run on the same EMPG/Dubizzle Group backend, and Bayut's integration team
+/// supplies two documented mechanisms, both handled here:</para>
+/// <list type="bullet">
+/// <item><b>Pull</b> — <c>GET /api-v7/stats/website-client-leads</c>, Bearer-authenticated. The
+/// enquirer arrives as <c>inquirer_details</c> {name, cell, email, message} beside a
+/// <c>listing_details</c>, <c>agent_details</c> or <c>agency_details</c> object.</item>
+/// <item><b>Push</b> — WhatsApp enquiries POSTed to the tenant's inbound URL, where the enquirer
+/// is <c>enquirer</c> {name, phone_number, intent} beside <c>agent</c>/<c>listing</c> or a
+/// TruBroker <c>story</c>.</item>
+/// </list>
 ///
-/// <para>Bayut's own Leads API documents six enquiry types — call, email, phone view, SMS click,
-/// WhatsApp view, WhatsApp lead — carried in a <c>type</c>/<c>lead_type</c>/<c>channel</c>/
-/// <c>enquiry_type</c> field. Only the two "view/click" types (phone_view, sms_click) typically
-/// carry no message/contact beyond a phone number; the rest behave like a normal enquiry.</para>
+/// <para>The documented names are matched FIRST; the older tolerant names (<c>client</c>/
+/// <c>contact</c>, <c>property</c>/<c>listing</c>) and the <see cref="LeadFieldClassifier"/>
+/// fallback are kept because Bayut configures the push payload per account, so an undocumented
+/// field still lands in <c>RawFields</c> rather than being dropped.</para>
+///
+/// <para>Bayut's Leads API covers six enquiry types — call, email, phone view, SMS click,
+/// WhatsApp view, WhatsApp lead. Pull responses carry NO type field (it is the request's own
+/// <c>type</c> parameter), so the caller supplies it via the typeLabelOverride argument.</para>
 /// </summary>
 internal static class PropertyPortalLeadMapper
 {
@@ -33,30 +36,50 @@ internal static class PropertyPortalLeadMapper
     /// distinguish Bayut from Dubizzle on the resulting lead (<c>Platform</c>, <c>FormName</c>)
     /// even though the payload shape and parsing are identical.
     /// </summary>
-    public static CanonicalLead? Map(JsonElement el, string rawJson, string platformKey, string platformLabel)
+    /// <param name="typeLabelOverride">
+    /// The enquiry type for payloads that do not state one — every pull response, where the type
+    /// lives in the request rather than the body. Ignored when the payload names its own.
+    /// </param>
+    public static CanonicalLead? Map(JsonElement el, string rawJson, string platformKey, string platformLabel,
+        string? typeLabelOverride = null)
     {
         if (el.ValueKind != JsonValueKind.Object) return null;
 
-        // The enquirer may be nested (client/contact/customer/lead/user) or flat on the root —
-        // same convention as Property Finder's original webhook shape and Calendly's payload.
-        var person = FirstObject(el, "client", "contact", "customer", "lead", "user") ?? el;
-        var listing = FirstObject(el, "property", "listing", "ad", "advert");
+        // Documented names first, tolerant fallbacks after.
+        var person = FirstObject(el, "inquirer_details", "enquirer", "client", "contact", "customer", "lead", "user") ?? el;
+        // A story lead wraps its property inside story_details — unwrap it so the lead still names
+        // the listing the enquirer was looking at.
+        var story = FirstObject(el, "story_details", "story");
+        // A story carries its property either nested (pull: story_details.listing_details) or flat
+        // on the story object itself (push: story.listing_title / listing_reference).
+        var listing = FirstObject(el, "listing_details", "property", "listing", "ad", "advert")
+                   ?? (story is { } st ? FirstObject(st, "listing_details") : null);
+        // Push story payloads keep the listing fields flat on the story object, so the story
+        // doubles as the listing. Flagged because its own "type" means the STORY kind
+        // (property/project/loc_purpose), not the property type — reading it as the latter would
+        // label every story lead's property "Property".
+        var listingIsStory = listing is null && story is not null;
+        if (listingIsStory) listing = story;
+        var agent  = FirstObject(el, "agent_details", "agent");
+        var agency = FirstObject(el, "agency_details", "agency");
 
         var firstName = Str(person, "first_name", "firstname", "fname");
         var lastName  = Str(person, "last_name", "lastname", "lname", "surname");
         var fullName  = Str(person, "name", "full_name", "fullname", "caller_name", "customer_name");
         var email     = Str(person, "email", "email_address");
-        var phone     = Str(person, "phone", "phone_number", "mobile", "caller_number", "contact_number");
+        // "cell" is the pull API's name for it, "phone_number" the push API's.
+        var phone     = Str(person, "cell", "phone_number", "phone", "mobile", "caller_number", "contact_number");
         var whatsAppField = Str(person, "whatsapp", "whatsapp_number", "wa_number")
                           ?? Str(el, "whatsapp", "whatsapp_number", "wa_number");
 
         var type = Str(el, "type", "lead_type", "channel", "enquiry_type", "source_type", "event_type");
-        var typeLabel = TypeLabel(type);
+        var typeLabel = TypeLabel(type) ?? typeLabelOverride;
 
         // A WhatsApp-typed enquiry means the phone number IS reachable on WhatsApp — a fact from
         // the channel, not a guess (same reasoning Property Finder applies to its own channel field).
-        var isWhatsAppChannel = type is not null &&
-            type.Contains("whatsapp", StringComparison.OrdinalIgnoreCase);
+        var isWhatsAppChannel =
+            (type is not null && type.Contains("whatsapp", StringComparison.OrdinalIgnoreCase)) ||
+            (typeLabelOverride?.Contains("whatsapp", StringComparison.OrdinalIgnoreCase) ?? false);
         var whatsApp = whatsAppField ?? (isWhatsAppChannel ? phone : null);
 
         // No identity at all = not a workable lead. Most Bayut/Dubizzle enquiry types carry a
@@ -68,7 +91,9 @@ internal static class PropertyPortalLeadMapper
 
         // "Interested in" — the listing enquired about.
         var title = listing is { } l1 ? Str(l1, "title", "listing_title") : null;
-        var reference = listing is { } l2 ? Str(l2, "reference", "reference_number", "permit_number", "ref") : null;
+        var reference = listing is { } l2
+            ? Str(l2, "listing_reference", "reference", "reference_number", "permit_number", "ref")
+            : null;
         string? interested = title;
         if (interested is null && reference is not null) interested = $"Ref {reference}";
         else if (interested is not null && reference is not null) interested = $"{interested} (Ref {reference})";
@@ -90,17 +115,38 @@ internal static class PropertyPortalLeadMapper
 
         var city = listing is { } l4 ? Str(l4, "location", "community", "city", "area") : null;
 
+        // What the enquirer wants to do. Documented values: Buying/Renting, Selling/Leasing,
+        // Investing, General inquiry.
+        var intent = Str(person, "intent", "visitor_intent") ?? Str(el, "visitor_intent", "intent");
+
         var notes = new StringBuilder();
         void Line(string label, string? v) { if (!string.IsNullOrWhiteSpace(v)) notes.Append(label).Append(": ").Append(v).Append('\n'); }
         Line("Enquiry", typeLabel);
+        Line("Intent", intent);
         Line("Property", title);
         Line("Reference", reference);
         Line("Location", city);
         if (listing is { } l5)
         {
-            Line("Type", Humanize(Str(l5, "type", "property_type")));
+            // current_type is the pull API's property-type field.
+            Line("Type", Humanize(listingIsStory
+                ? Str(l5, "current_type", "property_type")
+                : Str(l5, "current_type", "type", "property_type")));
             Line("Bedrooms", Str(l5, "bedrooms"));
             Line("Bathrooms", Str(l5, "bathrooms"));
+        }
+        // An agent- or agency-targeted enquiry names no property; record who was approached, or
+        // the lead reads as though it came from nowhere.
+        if (agent is { } ag)
+        {
+            Line("Agent", Str(ag, "name"));
+            Line("Agent email", Str(ag, "email"));
+        }
+        if (agency is { } agy) Line("Agency", Str(agy, "name"));
+        if (story is { } st2)
+        {
+            Line("Story", Str(st2, "listing_title", "project_title"));
+            Line("Purpose", Humanize(Str(st2, "purpose")));
         }
 
         var canonical = new CanonicalLead
@@ -119,16 +165,27 @@ internal static class PropertyPortalLeadMapper
 
             Platform            = platformKey,
             FormName            = $"{platformLabel} — {typeLabel ?? "enquiry"}",
-            ExternalLeadId      = Str(el, "id", "lead_id", "reference_number", "external_id"),
-            PlatformCreatedTime = Str(el, "created_at", "createdat", "timestamp", "date"),
+            // lead_id ("email|dffb56c2-…") is Bayut's stable per-enquiry id and the only safe
+            // dedupe key: the pull API re-returns everything after `timestamp` on every poll.
+            ExternalLeadId      = Str(el, "lead_id", "id", "call_log_id", "reference_number", "external_id"),
+            PlatformCreatedTime = Str(el, "date_time", "received_at", "call_time", "created_at", "createdat", "timestamp", "date"),
+
+            // An agent-targeted enquiry already belongs to someone at the portal; with external_map
+            // routing the lead goes to that agent instead of round-robin.
+            ExternalOwnerId     = agent is { } ao ? Str(ao, "email") ?? Str(ao, "id") ?? Str(ao, "url") : null,
             IsOrganic           = true,   // a portal enquiry is not paid advertising of ours
 
             RawJson = rawJson.Length > 8000 ? rawJson[..8000] : rawJson,
         };
 
         void Raw(string k, string? v) { if (!string.IsNullOrWhiteSpace(v)) canonical.RawFields[k] = v; }
-        Raw($"{platformKey}_lead_id", Str(el, "id", "lead_id"));
+        Raw($"{platformKey}_lead_id", Str(el, "lead_id", "id"));
         Raw("enquiry_type", typeLabel);
+        Raw("intent", intent);
+        Raw("listing_id", listing is { } li ? Str(li, "listing_id") : null);
+        Raw("listing_reference", reference);
+        Raw("agent_name", agent is { } a2 ? Str(a2, "name") : null);
+        Raw("agency_name", agency is { } ay2 ? Str(ay2, "name") : null);
         Raw("listing_url", listing is { } l6 ? Str(l6, "url", "listing_url") : null);
         Raw("agent", listing is { } l7 ? Str(l7, "agent", "agent_name") : null);
 

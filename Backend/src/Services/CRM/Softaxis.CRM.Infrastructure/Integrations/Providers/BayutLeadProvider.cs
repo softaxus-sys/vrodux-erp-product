@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
@@ -31,20 +29,25 @@ namespace Softaxis.CRM.Infrastructure.Integrations.Providers;
 /// offer one), a present signature header is additionally verified; unsigned/unverifiable requests
 /// are still accepted on the strength of the inbound key.</para>
 /// </summary>
-public sealed class BayutLeadProvider : ILeadProvider, IWebhookLeadProvider
+public sealed class BayutLeadProvider(BayutPullApiClient api, ISecretProtector protector)
+    : ILeadProvider, IWebhookLeadProvider, IPollSyncLeadProvider
 {
     public string Key => "bayut";
 
     public ProviderDescriptor Descriptor => new(
         "bayut", "Bayut", ProviderCategory.RealEstate,
         "Turn Bayut enquiries (call, email, phone view, SMS, WhatsApp) into CRM leads — request the Leads API from Bayut support, then point it at your inbound URL.",
-        ProviderCapabilities.Webhook | ProviderCapabilities.InboundKey);
+        ProviderCapabilities.Webhook | ProviderCapabilities.InboundKey
+        | ProviderCapabilities.ApiKey | ProviderCapabilities.PollSync);
 
     public IReadOnlyList<CanonicalLead> Normalize(string rawPayload, Integration integration)
     {
         var leads = new List<CanonicalLead>();
         foreach (var (el, json) in ExtractLeads(rawPayload))
-            if (PropertyPortalLeadMapper.Map(el, json, "bayut", "Bayut") is { } lead)
+            // Every documented push payload is a WhatsApp enquiry, and none of them carries a
+            // type field — without this the lead reads as a generic "enquiry" and its number is
+            // never marked WhatsApp-reachable.
+            if (PropertyPortalLeadMapper.Map(el, json, "bayut", "Bayut", "WhatsApp lead") is { } lead)
                 leads.Add(lead);
         return leads;
     }
@@ -53,30 +56,19 @@ public sealed class BayutLeadProvider : ILeadProvider, IWebhookLeadProvider
 
     public string? TryHandleVerification(IReadOnlyDictionary<string, string> query, Integration integration) => null;
 
+    /// <inheritdoc cref="PropertyPortalSignature"/>
+    public bool VerifySignature(string rawBody, IReadOnlyDictionary<string, string> headers, string? decryptedSecret) =>
+        PropertyPortalSignature.Verify(rawBody, headers, decryptedSecret);
+
+    // ── Poll sync — the Pull API ────────────────────────────────────────────────
+
     /// <summary>
-    /// No signature scheme is published for Bayut's Leads API. Common header names are checked in
-    /// case Bayut's team (or a middleware forwarding the leads) signs the body; anything else is
-    /// accepted on the strength of the unguessable inbound URL, the same posture Property Finder's
-    /// and Calendly's providers take when unsigned.
+    /// Enquiries from Bayut's Pull API. Unlike the push path this needs no enablement from Bayut's
+    /// side beyond the key itself, and it covers every enquiry type including call logs.
     /// </summary>
-    public bool VerifySignature(string rawBody, IReadOnlyDictionary<string, string> headers, string? decryptedSecret)
-    {
-        var sig = Header(headers, "X-Bayut-Signature")
-               ?? Header(headers, "X-Signature")
-               ?? Header(headers, "X-Hub-Signature-256")
-               ?? Header(headers, "X-Vrodux-Signature");
-
-        if (string.IsNullOrWhiteSpace(sig)) return true;              // unsigned — the inbound key is the secret
-        if (string.IsNullOrWhiteSpace(decryptedSecret)) return true;  // nothing to verify against
-
-        var provided = sig.StartsWith("sha256=", StringComparison.OrdinalIgnoreCase) ? sig[7..] : sig;
-        var computed = Convert.ToHexString(
-            HMACSHA256.HashData(Encoding.UTF8.GetBytes(decryptedSecret), Encoding.UTF8.GetBytes(rawBody)));
-
-        return CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(provided.Trim().ToLowerInvariant()),
-            Encoding.UTF8.GetBytes(computed.ToLowerInvariant()));
-    }
+    public Task<IReadOnlyList<CanonicalLead>> FetchAsync(Integration integration, CancellationToken ct) =>
+        BayutPullSync.FetchAsync(api, protector, integration,
+            BayutPullApiClient.BayutBaseUrl, "bayut", "Bayut", ct);
 
     // ── helpers ───────────────────────────────────────────────────────────────
 

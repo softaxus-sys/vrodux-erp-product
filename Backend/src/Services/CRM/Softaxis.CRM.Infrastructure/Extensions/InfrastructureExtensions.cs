@@ -14,6 +14,7 @@ using Softaxis.CRM.Infrastructure.Integrations;
 using Softaxis.CRM.Infrastructure.Integrations.Providers;
 using Softaxis.CRM.Infrastructure.Integrations.Providers.Meta;
 using Softaxis.CRM.Infrastructure.Integrations.Providers.PropertyFinder;
+using Softaxis.CRM.Infrastructure.Integrations.Providers.PropertyPortals;
 using Softaxis.CRM.Infrastructure.Integrations.Security;
 using Softaxis.CRM.Infrastructure.Integrations.Services;
 using Softaxis.CRM.Infrastructure.Persistence;
@@ -107,10 +108,21 @@ public static class InfrastructureExtensions
         services.AddScoped<PropertyFinderCredentialStore>();
         services.AddSingleton<ILeadProvider, PropertyFinderLeadProvider>();
 
-        // ── Bayut / Dubizzle — inbound webhook (Bayut's "Leads API", Profolio™-gated) ─
-        // Neither portal offers a partner API like Property Finder's Atlas — leads are pushed by
-        // Bayut's own systems once the account requests it (support@bayut.com). Dubizzle Property
-        // shares the same EMPG/Dubizzle Group backend, so it is delivered the same way.
+        // ── Bayut / Dubizzle — Pull API + WhatsApp push webhook ──────────────
+        // Both portals run on the same EMPG/Dubizzle Group backend and share one API, differing
+        // only by host. Two documented mechanisms, both supported:
+        //   • Pull  — GET …/api-v7/stats/website-client-leads, Bearer key, polled by
+        //             LeadPollSyncService. Covers every enquiry type including call logs, and
+        //             needs nothing enabled on Bayut's side beyond the key.
+        //   • Push  — WhatsApp enquiries POSTed to the tenant's inbound URL, once Bayut registers
+        //             that URL (support@bayut.com) and issues the signing secret.
+        services.AddHttpClient(BayutPullApiClient.HttpClientName, c =>
+        {
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("VroduxERP/1.0 (+https://vrodux.com)");
+            c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            c.Timeout = TimeSpan.FromSeconds(60);
+        });
+        services.AddSingleton<BayutPullApiClient>();
         services.AddSingleton<ILeadProvider, BayutLeadProvider>();
         services.AddSingleton<ILeadProvider, DubizzleLeadProvider>();
 

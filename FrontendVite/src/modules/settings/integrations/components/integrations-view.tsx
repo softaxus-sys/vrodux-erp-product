@@ -17,7 +17,7 @@ import {
   useProviderCatalog, useIntegration, useIntegrationSyncLogs, useIntegrationInbox,
   useCreateIntegration, useUpdateIntegrationConfig, useDisconnectIntegration,
   useDeleteIntegration, useRotateInboundKey, useStartMetaOAuth, useMetaPages,
-  useSelectMetaTargets,
+  useSelectMetaTargets, useSetIntegrationApiKey,
 } from "@/hooks/crm/use-integrations";
 import { integrationsApi, type ProviderCatalogItem, type MetaForm } from "@/lib/crm/integrations.api";
 
@@ -311,7 +311,10 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
 
 // ── Configure drawer ─────────────────────────────────────────────────────────
 
-type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors" | "propertyfinder";
+/** Portals that authenticate their Pull API with a single per-account key. */
+const PULL_KEY_PORTALS = ["bayut", "dubizzle"];
+
+type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors" | "propertyfinder" | "portal";
 
 function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
   integrationId: string; canEdit: boolean; onClose: () => void; onManageMeta: (id: string) => void;
@@ -332,6 +335,10 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
     // integration — the same row that holds the inbound key those all depend on.
     { id: "propertyfinder", label: "Property Finder", icon: DownloadCloud,
       show: integration?.providerKey === "property-finder" },
+    // Bayut/dubizzle authenticate their Pull API with one key per listings account; it belongs on
+    // the same integration row that holds the inbound key their push deliveries use.
+    { id: "portal", label: t("integrations.tab.portal"), icon: KeyRound,
+      show: PULL_KEY_PORTALS.includes(integration?.providerKey ?? "") },
     { id: "setup",    label: t("integrations.tab.setup"),    icon: Plug,              show: isInbound },
     { id: "inbound",  label: t("integrations.tab.inbound"),  icon: KeyRound,          show: isInbound },
     { id: "mapping",  label: t("integrations.tab.mapping"),  icon: SlidersHorizontal, show: true },
@@ -390,6 +397,7 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
 
             <div className="flex-1 overflow-y-auto p-5">
               {tab === "propertyfinder" && <PropertyFinderTab integration={integration} />}
+              {tab === "portal"   && <PortalPullKeyTab integration={integration} canEdit={canEdit} />}
               {tab === "overview" && <OverviewTab integration={integration} isMeta={isMeta} onManageMeta={() => onManageMeta(integration.id)} />}
               {tab === "setup"    && <ProviderSetup integration={integration} />}
               {tab === "inbound"  && <InboundTab integration={integration} canEdit={canEdit} />}
@@ -583,6 +591,54 @@ function AcceptedFields({ extra }: { extra?: boolean }) {
       <code className="text-foreground bg-muted px-1 rounded text-[11px]" dir="ltr">{ACCEPTED_FIELDS}</code>
       {extra ? <>. {t("integrations.setup.acceptedFieldsExtra")}</> : null}
     </p>
+  );
+}
+
+/**
+ * The Bayut / dubizzle Pull API key.
+ *
+ * Stored encrypted on the integration via the generic api-key endpoint, and never read back — so
+ * the field cannot show the current value, only whether one is set.
+ */
+function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
+  const { t } = useTranslation("settings");
+  const setApiKey = useSetIntegrationApiKey();
+  const [key, setKey] = React.useState("");
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <div>
+        <h4 className="text-sm font-semibold text-foreground">{t("integrations.portal.pullKey")}</h4>
+        <p className="text-xs text-muted-foreground mt-1">{t("integrations.portal.pullKeyDesc")}</p>
+      </div>
+
+      <div className="space-y-1.5">
+        <Input
+          type="password"
+          value={key}
+          onChange={e => setKey(e.target.value)}
+          placeholder={integration.hasCredentials ? "••••••••••••••••" : ""}
+          disabled={!canEdit}
+          className="h-9 text-sm font-mono" />
+        {integration.hasCredentials && (
+          <p className="text-[11px] text-muted-foreground">{t("integrations.portal.pullKeySaved")}</p>
+        )}
+      </div>
+
+      <Button
+        size="sm"
+        disabled={!canEdit || key.trim().length === 0 || setApiKey.isPending}
+        onClick={() => setApiKey.mutate(
+          { id: integration.id, apiKey: key.trim() },
+          { onSuccess: () => setKey("") })}>
+        {setApiKey.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+        {t("integrations.portal.pullKeySave")}
+      </Button>
+
+      <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
+        {t("integrations.portal.pullKeyNote")}
+      </p>
+    </div>
   );
 }
 
