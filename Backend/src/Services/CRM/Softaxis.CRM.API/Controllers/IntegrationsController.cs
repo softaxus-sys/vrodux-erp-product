@@ -68,6 +68,12 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> SetApiKey(Guid id, [FromBody] ApiKeyRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new SetIntegrationApiKeyCommand(id, req.ApiKey), ct));
 
+    /// <summary>Store a signing secret the provider issued (e.g. Bayut's Push key).</summary>
+    [HttpPut("{id:guid}/signing-secret")]
+    [RequirePermission("settings.integrations.edit")]
+    public async Task<IActionResult> SetSigningSecret(Guid id, [FromBody] SigningSecretRequest req, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new SetIntegrationSigningSecretCommand(id, req.Secret), ct));
+
     [HttpPost("{id:guid}/rotate-key")]
     [RequirePermission("settings.integrations.edit")]
     public async Task<IActionResult> RotateKey(Guid id, CancellationToken ct) =>
@@ -88,4 +94,6 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
         IReadOnlyList<FieldMappingInput>? FieldMappings);
 
     public sealed record ApiKeyRequest(string ApiKey);
+
+    public sealed record SigningSecretRequest(string Secret);
 }

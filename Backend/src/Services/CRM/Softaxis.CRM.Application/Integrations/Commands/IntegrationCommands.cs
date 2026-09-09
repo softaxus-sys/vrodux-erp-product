@@ -33,6 +33,22 @@ public sealed class SetIntegrationApiKeyValidator : AbstractValidator<SetIntegra
     public SetIntegrationApiKeyValidator() => RuleFor(x => x.ApiKey).NotEmpty();
 }
 
+/// <summary>
+/// Store a signing secret that the PROVIDER issued, rather than one we generated.
+///
+/// <para>Most inbound providers accept a secret we invent and hand to them. Bayut and dubizzle work
+/// the other way round: their integration team issues the key (their "Push Key") once they register
+/// your endpoint, and signs every delivery with <c>md5(key . body)</c>. Without a way to store
+/// their value, a signed Bayut delivery could never be verified — the generated secret would never
+/// match, so the signature would have to be ignored entirely.</para>
+/// </summary>
+public sealed record SetIntegrationSigningSecretCommand(Guid Id, string Secret) : ICommand;
+
+public sealed class SetIntegrationSigningSecretValidator : AbstractValidator<SetIntegrationSigningSecretCommand>
+{
+    public SetIntegrationSigningSecretValidator() => RuleFor(x => x.Secret).NotEmpty();
+}
+
 public sealed record RotateInboundKeyCommand(Guid Id) : ICommand<IntegrationDto>;
 
 public sealed record DisconnectIntegrationCommand(Guid Id) : ICommand;

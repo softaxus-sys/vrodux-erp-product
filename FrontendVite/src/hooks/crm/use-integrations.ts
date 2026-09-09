@@ -76,6 +76,15 @@ export function useSetIntegrationApiKey() {
   });
 }
 
+export function useSetIntegrationSigningSecret() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, secret }: { id: string; secret: string }) => integrationsApi.setSigningSecret(id, secret),
+    onSuccess: () => { invalidate(); toast.success("Signing secret saved."); },
+    onError:   (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useRotateInboundKey() {
   const invalidate = useInvalidate();
   return useMutation({

@@ -521,7 +521,11 @@
       "pullKeyDesc": "Bayut and dubizzle issue one key per listings account. Paste the Pull key here and leads are fetched automatically on every sync — nothing needs enabling on the portal's side.",
       "pullKeySave": "Save Pull Key",
       "pullKeySaved": "A pull key is stored. Entering a new one replaces it.",
-      "pullKeyNote": "The Push key is separate: it is used only for WhatsApp leads pushed to your Inbound URL, and Bayut must register that URL first."
+      "pullKeyNote": "The Push key is separate: it is used only for WhatsApp leads pushed to your Inbound URL, and Bayut must register that URL first.",
+      "pushKey": "Push Key (signing secret)",
+      "pushKeyDesc": "Bayut signs every WhatsApp lead it pushes to your Inbound URL. Paste the Push key here so those deliveries can be verified as genuine.",
+      "pushKeySave": "Save Push Key",
+      "pushKeyNote": "Only needed once Bayut has registered your Inbound URL — send it to support@bayut.com from the Inbound URL tab. Until a Push key is stored, signed deliveries are accepted on the strength of the unguessable URL alone."
     }
   },
   "general": {

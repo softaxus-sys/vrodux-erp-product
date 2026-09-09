@@ -17,7 +17,7 @@ import {
   useProviderCatalog, useIntegration, useIntegrationSyncLogs, useIntegrationInbox,
   useCreateIntegration, useUpdateIntegrationConfig, useDisconnectIntegration,
   useDeleteIntegration, useRotateInboundKey, useStartMetaOAuth, useMetaPages,
-  useSelectMetaTargets, useSetIntegrationApiKey,
+  useSelectMetaTargets, useSetIntegrationApiKey, useSetIntegrationSigningSecret,
 } from "@/hooks/crm/use-integrations";
 import { integrationsApi, type ProviderCatalogItem, type MetaForm } from "@/lib/crm/integrations.api";
 
@@ -603,7 +603,9 @@ function AcceptedFields({ extra }: { extra?: boolean }) {
 function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
   const { t } = useTranslation("settings");
   const setApiKey = useSetIntegrationApiKey();
+  const setSecret = useSetIntegrationSigningSecret();
   const [key, setKey] = React.useState("");
+  const [push, setPush] = React.useState("");
 
   return (
     <div className="space-y-4 max-w-xl">
@@ -635,9 +637,32 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
         {t("integrations.portal.pullKeySave")}
       </Button>
 
-      <p className="text-[11px] text-muted-foreground border-t border-border pt-3">
-        {t("integrations.portal.pullKeyNote")}
-      </p>
+      <div className="border-t border-border pt-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">{t("integrations.portal.pushKey")}</h4>
+          <p className="text-xs text-muted-foreground mt-1">{t("integrations.portal.pushKeyDesc")}</p>
+        </div>
+
+        <Input
+          type="password"
+          value={push}
+          onChange={e => setPush(e.target.value)}
+          disabled={!canEdit}
+          className="h-9 text-sm font-mono" />
+
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!canEdit || push.trim().length === 0 || setSecret.isPending}
+          onClick={() => setSecret.mutate(
+            { id: integration.id, secret: push.trim() },
+            { onSuccess: () => setPush("") })}>
+          {setSecret.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+          {t("integrations.portal.pushKeySave")}
+        </Button>
+
+        <p className="text-[11px] text-muted-foreground">{t("integrations.portal.pushKeyNote")}</p>
+      </div>
     </div>
   );
 }
