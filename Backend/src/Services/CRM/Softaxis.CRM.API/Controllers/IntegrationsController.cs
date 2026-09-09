@@ -74,6 +74,12 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> SetSigningSecret(Guid id, [FromBody] SigningSecretRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new SetIntegrationSigningSecretCommand(id, req.Secret), ct));
 
+    /// <summary>Import history from the provider (Bayut / dubizzle serve up to six months).</summary>
+    [HttpPost("{id:guid}/backfill")]
+    [RequirePermission("settings.integrations.import")]
+    public async Task<IActionResult> Backfill(Guid id, [FromBody] BackfillRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new BackfillIntegrationLeadsCommand(id, req.Since), ct));
+
     [HttpPost("{id:guid}/rotate-key")]
     [RequirePermission("settings.integrations.edit")]
     public async Task<IActionResult> RotateKey(Guid id, CancellationToken ct) =>
@@ -96,4 +102,6 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     public sealed record ApiKeyRequest(string ApiKey);
 
     public sealed record SigningSecretRequest(string Secret);
+
+    public sealed record BackfillRequest(DateTime Since);
 }

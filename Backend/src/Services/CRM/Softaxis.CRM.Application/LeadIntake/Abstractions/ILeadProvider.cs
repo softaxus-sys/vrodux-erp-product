@@ -54,6 +54,22 @@ public interface IPollSyncLeadProvider : ILeadProvider
 }
 
 /// <summary>
+/// Providers that can re-fetch an explicit window of history, for a one-off catch-up import rather
+/// than the rolling gap-fill <see cref="IPollSyncLeadProvider"/> performs.
+/// </summary>
+public interface IBackfillLeadProvider : ILeadProvider
+{
+    /// <summary>
+    /// The oldest history this provider will serve, or null when it is unlimited. Bayut rejects a
+    /// timestamp older than six months with a 422, so asking for more is not "slow", it fails.
+    /// </summary>
+    TimeSpan? MaxBackfillAge { get; }
+
+    /// <summary>Every lead the provider has since <paramref name="since"/>.</summary>
+    Task<IReadOnlyList<CanonicalLead>> FetchSinceAsync(Integration integration, DateTime since, CancellationToken ct);
+}
+
+/// <summary>
 /// Providers whose inbound payload only references a lead (e.g. Meta sends a leadgen_id) and
 /// must call back to the provider API to retrieve the full record. The inbox processor prefers
 /// <see cref="NormalizeAsync"/> over the synchronous <see cref="ILeadProvider.Normalize"/>.

@@ -17,7 +17,7 @@ import {
   useProviderCatalog, useIntegration, useIntegrationSyncLogs, useIntegrationInbox,
   useCreateIntegration, useUpdateIntegrationConfig, useDisconnectIntegration,
   useDeleteIntegration, useRotateInboundKey, useStartMetaOAuth, useMetaPages,
-  useSelectMetaTargets, useSetIntegrationApiKey, useSetIntegrationSigningSecret,
+  useSelectMetaTargets, useSetIntegrationApiKey, useSetIntegrationSigningSecret, useBackfillIntegration,
 } from "@/hooks/crm/use-integrations";
 import { integrationsApi, type ProviderCatalogItem, type MetaForm } from "@/lib/crm/integrations.api";
 
@@ -622,6 +622,11 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
   // Which credentials are actually stored. hasCredentials alone cannot answer this — it is one
   // flag for the whole envelope — and every integration is created with a generated signing
   // secret, so the presence of one says nothing about the provider's key having been entered.
+  const backfill = useBackfillIntegration();
+  // Bayut serves six months and rejects anything older with a 422, so the picker cannot offer more.
+  const earliest = new Date(Date.now() - 179 * 864e5).toISOString().slice(0, 10);
+  const [since, setSince] = React.useState(earliest);
+
   const fields: string[] = integration.credentialFields ?? [];
   const hasPull = fields.includes("apiKey") || fields.includes("pullApiKey");
   const hasPush = fields.includes("providerSigningSecret");
@@ -653,6 +658,37 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
         {setApiKey.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
         {t("integrations.portal.pullKeySave")}
       </Button>
+
+      {/* History import — only useful once a pull key is stored. */}
+      <div className="border-t border-border pt-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">{t("integrations.portal.history")}</h4>
+          <p className="text-xs text-muted-foreground mt-1">{t("integrations.portal.historyDesc")}</p>
+        </div>
+
+        <div className="flex items-end gap-2">
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground">{t("integrations.portal.historyFrom")}</label>
+            <Input
+              type="date"
+              value={since}
+              min={earliest}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={e => setSince(e.target.value)}
+              disabled={!canEdit || !hasPull}
+              className="h-9 text-sm w-44" />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canEdit || !hasPull || backfill.isPending}
+            onClick={() => backfill.mutate({ id: integration.id, since })}>
+            {backfill.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            {t("integrations.portal.historyImport")}
+          </Button>
+        </div>
+        {!hasPull && <p className="text-[11px] text-muted-foreground">{t("integrations.portal.historyNeedsKey")}</p>}
+      </div>
 
       <div className="border-t border-border pt-4 space-y-3">
         <div>

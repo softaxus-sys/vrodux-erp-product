@@ -30,6 +30,11 @@ export interface IntegrationResource {
   parentExternalId: string | null; enabled: boolean;
 }
 
+export interface LeadBackfillResult {
+  fetched: number; created: number; duplicates: number; failed: number;
+  sinceUsed: string; note?: string | null;
+}
+
 export interface Integration {
   id:            string;
   providerKey:   string;
@@ -96,6 +101,10 @@ export const integrationsApi = {
     rawApiClient.put<void>(`${BASE}/${id}/config`, req),
   setApiKey:    (id: string, apiKey: string) =>
     rawApiClient.put<void>(`${BASE}/${id}/api-key`, { apiKey }),
+  /** Import history from the provider. `since` is an ISO date; the server clamps it to the
+   *  provider's own limit (Bayut serves six months) and says so in `note`. */
+  backfill: (id: string, since: string): Promise<LeadBackfillResult> =>
+    rawApiClient.post(`${BASE}/${id}/backfill`, { since }),
   /** Store a secret the PROVIDER issued (Bayut's Push key), not one we generated. */
   setSigningSecret: (id: string, secret: string) =>
     rawApiClient.put<void>(`${BASE}/${id}/signing-secret`, { secret }),

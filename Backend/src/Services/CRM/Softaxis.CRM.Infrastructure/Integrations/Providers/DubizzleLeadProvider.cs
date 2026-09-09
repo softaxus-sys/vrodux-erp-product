@@ -22,7 +22,7 @@ namespace Softaxis.CRM.Infrastructure.Integrations.Providers;
 /// a signing secret.</para>
 /// </summary>
 public sealed class DubizzleLeadProvider(BayutPullApiClient api, ISecretProtector protector)
-    : ILeadProvider, IWebhookLeadProvider, IPollSyncLeadProvider
+    : ILeadProvider, IWebhookLeadProvider, IPollSyncLeadProvider, IBackfillLeadProvider
 {
     public string Key => "dubizzle";
 
@@ -40,7 +40,7 @@ public sealed class DubizzleLeadProvider(BayutPullApiClient api, ISecretProtecto
             if (PropertyPortalLeadMapper.Map(el, json, "dubizzle", "Dubizzle", "WhatsApp lead") is { } lead)
                 leads.Add(lead);
         return leads;
-    }
+        }
 
     // ── Webhook capability ──────────────────────────────────────────────────────
 
@@ -56,4 +56,15 @@ public sealed class DubizzleLeadProvider(BayutPullApiClient api, ISecretProtecto
     public Task<IReadOnlyList<CanonicalLead>> FetchAsync(Integration integration, CancellationToken ct) =>
         BayutPullSync.FetchAsync(api, protector, integration,
             BayutPullApiClient.DubizzleBaseUrl, "dubizzle", "Dubizzle", ct);
+
+    // ── Backfill — a one-off catch-up over an explicit window ───────────────────
+
+    /// <inheritdoc />
+    public TimeSpan? MaxBackfillAge => BayutPullSync.MaxHistory;
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<CanonicalLead>> FetchSinceAsync(Integration integration, DateTime since, CancellationToken ct) =>
+        BayutPullSync.FetchSinceAsync(api, protector, integration,
+            BayutPullApiClient.DubizzleBaseUrl, "dubizzle", "Dubizzle", since, ct);
+
 }

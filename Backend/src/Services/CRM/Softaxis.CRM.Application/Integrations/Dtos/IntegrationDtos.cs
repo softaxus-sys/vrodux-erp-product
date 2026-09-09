@@ -56,3 +56,7 @@ public sealed record RawLeadInboxDto(
 
 /// <summary>The decrypted inbound credentials — returned only to integration editors.</summary>
 public sealed record IntegrationSecretDto(string? InboundUrl, string? SigningSecret);
+
+/// <summary>What a history backfill actually did. Skipped is not a failure — the lead was already here.</summary>
+public sealed record LeadBackfillResultDto(
+    int Fetched, int Created, int Duplicates, int Failed, DateTime SinceUsed, string? Note);

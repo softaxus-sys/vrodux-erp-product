@@ -527,7 +527,12 @@
       "pushKeyNote": "مطلوب فقط بعد أن يسجّل بيوت رابط الاستقبال الخاص بك — أرسله إلى support@bayut.com من تبويب رابط الاستقبال.",
       "configured": "تم الإعداد",
       "notConfigured": "لم يتم الإعداد",
-      "replacePlaceholder": "أدخل مفتاحًا جديدًا ليحل محل المخزَّن"
+      "replacePlaceholder": "أدخل مفتاحًا جديدًا ليحل محل المخزَّن",
+      "history": "استيراد السجل",
+      "historyDesc": "اسحب العملاء السابقين دفعة واحدة. يحتفظ بيوت ودوبيزل بسجل ستة أشهر فقط.",
+      "historyFrom": "من تاريخ",
+      "historyImport": "استيراد السجل",
+      "historyNeedsKey": "احفظ مفتاح Pull أولًا."
     }
   },
   "general": {

@@ -527,7 +527,12 @@
       "pushKeyNote": "Only needed once Bayut has registered your Inbound URL — send it to support@bayut.com from the Inbound URL tab. Until a Push key is stored, signed deliveries are accepted on the strength of the unguessable URL alone.",
       "configured": "Configured",
       "notConfigured": "Not configured",
-      "replacePlaceholder": "Enter a new key to replace the stored one"
+      "replacePlaceholder": "Enter a new key to replace the stored one",
+      "history": "Import history",
+      "historyDesc": "Pull past leads in one go. Bayut and dubizzle keep six months of history — anything older is not available from them.",
+      "historyFrom": "From date",
+      "historyImport": "Import history",
+      "historyNeedsKey": "Save a Pull key first."
     }
   },
   "general": {

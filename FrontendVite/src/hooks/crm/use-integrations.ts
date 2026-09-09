@@ -85,6 +85,19 @@ export function useSetIntegrationSigningSecret() {
   });
 }
 
+export function useBackfillIntegration() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, since }: { id: string; since: string }) => integrationsApi.backfill(id, since),
+    onSuccess: (r) => {
+      invalidate();
+      toast.success(`Imported ${r.created} lead(s); ${r.duplicates} already present.`);
+      if (r.note) toast.info(r.note);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useRotateInboundKey() {
   const invalidate = useInvalidate();
   return useMutation({

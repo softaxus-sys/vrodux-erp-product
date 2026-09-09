@@ -27,16 +27,36 @@ internal static class BayutPullSync
     /// </summary>
     private static readonly TimeSpan Overlap = TimeSpan.FromMinutes(30);
 
-    public static async Task<IReadOnlyList<CanonicalLead>> FetchAsync(
+    /// <summary>
+    /// The oldest timestamp the API accepts. Six months, enforced server-side: an older value is
+    /// rejected with 422 "The timestamp must be a date after or equal to …", not silently clamped.
+    /// A day of slack absorbs the clock difference between us and the portal.
+    /// </summary>
+    public static readonly TimeSpan MaxHistory = TimeSpan.FromDays(180) - TimeSpan.FromDays(1);
+
+    /// <summary>The rolling gap-fill: everything since the last successful sync.</summary>
+    public static Task<IReadOnlyList<CanonicalLead>> FetchAsync(
         BayutPullApiClient api, ISecretProtector protector, Integration integration,
         string baseUrl, string platformKey, string platformLabel, CancellationToken ct)
+    {
+        var since = integration.LastSuccessAt is { } last
+            ? last - Overlap
+            : DateTime.UtcNow - ColdStartWindow;
+        return FetchSinceAsync(api, protector, integration, baseUrl, platformKey, platformLabel, since, ct);
+    }
+
+    /// <summary>A one-off catch-up over an explicit window, clamped to what the API will serve.</summary>
+    public static async Task<IReadOnlyList<CanonicalLead>> FetchSinceAsync(
+        BayutPullApiClient api, ISecretProtector protector, Integration integration,
+        string baseUrl, string platformKey, string platformLabel, DateTime since, CancellationToken ct)
     {
         var apiKey = ResolveApiKey(protector, integration);
         if (string.IsNullOrWhiteSpace(apiKey)) return [];
 
-        var since = integration.LastSuccessAt is { } last
-            ? last - Overlap
-            : DateTime.UtcNow - ColdStartWindow;
+        // Clamped rather than refused: a user asking for "everything" should get the six months
+        // that exist, not an error telling them a limit they had no way to know.
+        var floor = DateTime.UtcNow - MaxHistory;
+        if (since < floor) since = floor;
 
         // Keyed by Bayut's lead_id so the same enquiry cannot arrive twice from two slices. Leads
         // without one still pass through — the intake service dedupes those on email/phone.

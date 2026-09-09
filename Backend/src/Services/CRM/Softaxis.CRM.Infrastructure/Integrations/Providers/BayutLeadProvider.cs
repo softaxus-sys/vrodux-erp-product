@@ -30,7 +30,7 @@ namespace Softaxis.CRM.Infrastructure.Integrations.Providers;
 /// are still accepted on the strength of the inbound key.</para>
 /// </summary>
 public sealed class BayutLeadProvider(BayutPullApiClient api, ISecretProtector protector)
-    : ILeadProvider, IWebhookLeadProvider, IPollSyncLeadProvider
+    : ILeadProvider, IWebhookLeadProvider, IPollSyncLeadProvider, IBackfillLeadProvider
 {
     public string Key => "bayut";
 
@@ -69,6 +69,17 @@ public sealed class BayutLeadProvider(BayutPullApiClient api, ISecretProtector p
     public Task<IReadOnlyList<CanonicalLead>> FetchAsync(Integration integration, CancellationToken ct) =>
         BayutPullSync.FetchAsync(api, protector, integration,
             BayutPullApiClient.BayutBaseUrl, "bayut", "Bayut", ct);
+
+
+    // ── Backfill — a one-off catch-up over an explicit window ───────────────────
+
+    /// <inheritdoc />
+    public TimeSpan? MaxBackfillAge => BayutPullSync.MaxHistory;
+
+    /// <inheritdoc />
+    public Task<IReadOnlyList<CanonicalLead>> FetchSinceAsync(Integration integration, DateTime since, CancellationToken ct) =>
+        BayutPullSync.FetchSinceAsync(api, protector, integration,
+            BayutPullApiClient.BayutBaseUrl, "bayut", "Bayut", since, ct);
 
     // ── helpers ───────────────────────────────────────────────────────────────
 

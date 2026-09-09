@@ -49,6 +49,21 @@ public sealed class SetIntegrationSigningSecretValidator : AbstractValidator<Set
     public SetIntegrationSigningSecretValidator() => RuleFor(x => x.Secret).NotEmpty();
 }
 
+/// <summary>
+/// Pull an explicit window of history from a provider that can serve one, for the catch-up an
+/// integration needs on its first day. The scheduled poll only ever asks "what is new since the
+/// last success", so without this a workspace starts with an empty pipeline.
+/// </summary>
+/// <param name="Since">Inclusive start. Clamped to the provider's own limit if it reaches further back.</param>
+public sealed record BackfillIntegrationLeadsCommand(Guid Id, DateTime Since) : ICommand<LeadBackfillResultDto>;
+
+public sealed class BackfillIntegrationLeadsValidator : AbstractValidator<BackfillIntegrationLeadsCommand>
+{
+    public BackfillIntegrationLeadsValidator() =>
+        RuleFor(x => x.Since).LessThan(_ => DateTime.UtcNow.AddMinutes(1))
+            .WithMessage("The start date cannot be in the future.");
+}
+
 public sealed record RotateInboundKeyCommand(Guid Id) : ICommand<IntegrationDto>;
 
 public sealed record DisconnectIntegrationCommand(Guid Id) : ICommand;
