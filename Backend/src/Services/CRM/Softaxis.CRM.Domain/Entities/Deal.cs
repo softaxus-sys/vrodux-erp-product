@@ -28,6 +28,14 @@ public sealed class Deal
     // Relational link to the account (CrmCustomer). Null = unlinked / free-text company.
     public Guid?     CustomerId       { get; private set; }
     public decimal   Value            { get; private set; }
+    /// <summary>
+    /// What the deal ACTUALLY closed at, when that differs from the quoted <see cref="Value"/> —
+    /// a discount agreed at signing, a reduced scope. Null while the deal is open; defaulted to
+    /// <see cref="Value"/> when it is won, so the common case needs no extra typing.
+    /// <para>Kept here rather than as a hand-typed total on the account: this records WHICH deal
+    /// closed at a different number, and every account and report total then follows from it.</para>
+    /// </summary>
+    public decimal?  ClosedValue      { get; private set; }
     public string    Currency         { get; private set; } = TenantCurrency.Resolve();
     public string    Stage            { get; private set; } = "lead";
     public string    Priority         { get; private set; } = "medium";
@@ -89,6 +97,27 @@ public sealed class Deal
     {
         if (IsClosedStage(Stage)) ClosedAt ??= DateTime.UtcNow;
         else ClosedAt = null;
+
+        // A won deal always carries a closed value, defaulting to what was quoted — so revenue is
+        // never silently zero for a workspace that has not started filling the field in.
+        if (Stage == "won") ClosedValue ??= Value;
+        // Reopened, or lost: there is no closed amount any more. Leaving a stale one behind would
+        // keep an abandoned deal contributing to the account's revenue.
+        else ClosedValue = null;
+    }
+
+    /// <summary>
+    /// Record what the deal actually closed at.
+    /// <para>Null means "leave it as it is", NOT "clear it": every existing caller of Update and
+    /// MoveStage passes no closed value, and treating that as a reset would wipe a figure the user
+    /// typed the moment anyone edited the deal for an unrelated reason. To go back to the quoted
+    /// amount, send that amount. Ignored on a deal that is not won — there is no revenue to state.</para>
+    /// </summary>
+    public void SetClosedValue(decimal? closedValue)
+    {
+        if (Stage != "won" || closedValue is not { } amount) return;
+        ClosedValue = amount;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>Backfill hook for rows created before <see cref="ClosedAt"/> existed. Only ever fills a
@@ -125,6 +154,10 @@ public sealed class Deal
 
     // Weighted (expected) value used for forecasting rollups.
     public decimal WeightedValue => Math.Round(Value * Probability / 100m, 2);
+
+    /// <summary>The number that counts as money: the closed value where one was recorded, else the
+    /// quoted value. Every revenue figure reads this, never <see cref="Value"/> directly.</summary>
+    public decimal RealizedValue => ClosedValue ?? Value;
 
     private static readonly HashSet<string> ValidForecast =
         new(StringComparer.OrdinalIgnoreCase) { "pipeline", "best_case", "commit", "closed", "omitted" };

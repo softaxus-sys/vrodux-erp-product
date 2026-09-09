@@ -14,7 +14,7 @@ internal sealed class GetDealsSummaryHandler(CrmDbContext db, ILeadAccessGuard a
     {
         // Totals follow the caller's pipeline tier, so the stat cards agree with the board below them.
         var all = await access.ScopeDeals(db.Deals.AsNoTracking()).Where(x => !x.IsDeleted)
-            .Select(x => new { x.Stage, x.Value, x.Probability, x.ForecastCategory }).ToListAsync(ct);
+            .Select(x => new { x.Stage, x.Value, x.ClosedValue, x.Probability, x.ForecastCategory }).ToListAsync(ct);
 
         var won = all.Where(x => x.Stage == "won").ToList();
         var open = all.Where(x => x.Stage != "won" && x.Stage != "lost").ToList();
@@ -23,7 +23,9 @@ internal sealed class GetDealsSummaryHandler(CrmDbContext db, ILeadAccessGuard a
         return Result.Success(new DealsSummaryDto(
             total,
             all.Sum(x => x.Value),
-            won.Sum(x => x.Value),
+            // Won value is what those deals closed at; every other figure here is pipeline, which
+            // is still measured at the quoted value.
+            won.Sum(x => x.ClosedValue ?? x.Value),
             all.Count(x => x.Stage == "lost"),
             total > 0 ? all.Average(x => x.Value) : 0,
             total > 0 ? Math.Round((double)won.Count / total * 100, 1) : 0,

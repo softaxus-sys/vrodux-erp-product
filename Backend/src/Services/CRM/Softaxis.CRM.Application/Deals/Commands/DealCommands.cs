@@ -9,7 +9,10 @@ public sealed record CreateDealCommand(
     string Title, string Company, decimal Value, string Stage, string Priority,
     int Probability, string ExpectedCloseDate, string AssignedTo, string Source,
     string Industry, string Description, string? ForecastCategory = null,
-    Guid? CustomerId = null, Guid? AssignedToUserId = null, Guid? TeamId = null) : ICommand<DealDto>;
+    Guid? CustomerId = null, Guid? AssignedToUserId = null, Guid? TeamId = null,
+    /// <summary>What the deal actually closed at, when a past win is logged directly in the "won"
+    /// stage. Null = it closed at the quoted value.</summary>
+    decimal? ClosedValue = null) : ICommand<DealDto>;
 
 public sealed class CreateDealValidator : AbstractValidator<CreateDealCommand>
 {
@@ -18,6 +21,7 @@ public sealed class CreateDealValidator : AbstractValidator<CreateDealCommand>
         RuleFor(x => x.Title).NotEmpty();
         RuleFor(x => x.Company).NotEmpty();
         RuleFor(x => x.Stage).NotEmpty();
+        RuleFor(x => x.ClosedValue).GreaterThanOrEqualTo(0).When(x => x.ClosedValue.HasValue);
     }
 }
 
@@ -26,7 +30,11 @@ public sealed record UpdateDealCommand(
     int Probability, string ExpectedCloseDate, string AssignedTo, string Source, string Industry,
     string Description, string? NextAction, string? NextActionDate, List<string>? Tags,
     string? ForecastCategory = null, Guid? CustomerId = null, Guid? AssignedToUserId = null,
-    Guid? TeamId = null) : ICommand;
+    Guid? TeamId = null,
+    /// <summary>What the deal actually closed at, where that differs from <paramref name="Value"/>.
+    /// Null leaves any recorded amount untouched (a won deal defaults to the quoted value).
+    /// Ignored unless the deal is won.</summary>
+    decimal? ClosedValue = null) : ICommand;
 
 public sealed class UpdateDealValidator : AbstractValidator<UpdateDealCommand>
 {
@@ -35,12 +43,16 @@ public sealed class UpdateDealValidator : AbstractValidator<UpdateDealCommand>
         RuleFor(x => x.Title).NotEmpty();
         RuleFor(x => x.Company).NotEmpty();
         RuleFor(x => x.Stage).NotEmpty();
+        RuleFor(x => x.ClosedValue).GreaterThanOrEqualTo(0).When(x => x.ClosedValue.HasValue);
     }
 }
 
 public sealed record MoveDealStageCommand(
     Guid Id, string Stage, int Probability,
-    string? ForecastCategory = null, string? LossReason = null) : ICommand;
+    string? ForecastCategory = null, string? LossReason = null,
+    /// <summary>The amount actually won, captured as the deal is dragged into "won". Null leaves it
+    /// at the quoted value.</summary>
+    decimal? ClosedValue = null) : ICommand;
 
 public sealed record DeleteDealCommand(Guid Id) : ICommand;
 

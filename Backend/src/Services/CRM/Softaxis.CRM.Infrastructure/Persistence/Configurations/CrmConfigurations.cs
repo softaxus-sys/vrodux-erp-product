@@ -232,6 +232,7 @@ internal sealed class DealConfiguration : IEntityTypeConfiguration<Deal>
         builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
         builder.Property(x => x.Company).IsRequired().HasMaxLength(200);
         builder.Property(x => x.Value).HasPrecision(18, 2);
+        builder.Property(x => x.ClosedValue).HasPrecision(18, 2);
         builder.Property(x => x.Currency).HasMaxLength(10);
         builder.Property(x => x.Stage).IsRequired().HasMaxLength(20).HasDefaultValue("lead");
         builder.Property(x => x.Priority).HasMaxLength(20).HasDefaultValue("medium");

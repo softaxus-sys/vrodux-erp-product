@@ -31,6 +31,10 @@ internal sealed class UpdateDealHandler(CrmDbContext db, ILeadAccessGuard access
             cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
             cmd.NextAction, cmd.NextActionDate, cmd.Tags, cmd.ForecastCategory, cmd.CustomerId, cmd.AssignedToUserId);
 
+        // After Update(), which has already settled the stage: a no-op unless the deal is won, and
+        // a null leaves any recorded amount alone rather than resetting it.
+        d.SetClosedValue(cmd.ClosedValue);
+
         // Update() does not carry the team, so re-stamp owner + team together — an edit that changes
         // the owner must not leave the deal filed under the previous owner's team.
         d.AssignTo(cmd.AssignedToUserId, cmd.AssignedTo, cmd.TeamId);

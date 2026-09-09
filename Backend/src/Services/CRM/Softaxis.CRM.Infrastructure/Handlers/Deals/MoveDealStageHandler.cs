@@ -20,6 +20,9 @@ internal sealed class MoveDealStageHandler(CrmDbContext db, ILeadAccessGuard acc
 
         var previousStage = d.Stage;
         d.MoveStage(cmd.Stage, cmd.Probability, cmd.ForecastCategory, cmd.LossReason);
+
+        // Dragging a card to "won" is where the real amount is usually known.
+        d.SetClosedValue(cmd.ClosedValue);
         await stageRecorder.RecordMoveAsync(d, previousStage, ct);
         await db.SaveChangesAsync(ct);
 

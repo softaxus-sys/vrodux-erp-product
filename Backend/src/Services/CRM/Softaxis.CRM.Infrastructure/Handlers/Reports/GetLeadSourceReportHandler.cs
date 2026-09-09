@@ -38,7 +38,8 @@ internal sealed class GetLeadSourceReportHandler(CrmDbContext db, ILeadAccessGua
             ? new Dictionary<Guid, decimal>()
             : await access.ScopeDeals(db.Deals.AsNoTracking())
                 .Where(d => !d.IsDeleted && d.Stage == "won" && dealIds.Contains(d.Id))
-                .ToDictionaryAsync(d => d.Id, d => d.Value, ct);
+                // Revenue attributed to a source is what its deals closed at.
+                .ToDictionaryAsync(d => d.Id, d => d.ClosedValue ?? d.Value, ct);
 
         var sources = leads
             .GroupBy(l => Fallback(l.Source, "unknown"))

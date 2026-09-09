@@ -66,6 +66,10 @@ export interface DealDto {
   nextActionDate?:    string;
   forecastCategory:   ForecastCategory;
   weightedValue:      number;
+  /** What the deal actually closed at, when that differs from `value`. Null while it is open. */
+  closedValue?:       number | null;
+  /** The figure that counts as money: `closedValue` where present, else `value`. */
+  realizedValue:      number;
   lossReason?:        string | null;
   customerId?:        string | null;
 }
@@ -570,6 +574,8 @@ export interface CreateDealRequest {
   probability: number; expectedCloseDate: string; assignedTo: string; assignedToUserId?: string | null;
   teamId?: string | null; source: string;
   industry: string; description: string; forecastCategory?: string; customerId?: string | null;
+  /** What the deal actually closed at. Only read for a won deal; omit to leave it unchanged. */
+  closedValue?: number;
 }
 export interface UpdateDealRequest extends CreateDealRequest {
   nextAction?: string | null; nextActionDate?: string | null; tags?: string[];
@@ -622,7 +628,7 @@ export const crmApi = {
   getDeal:       (id: string): Promise<DealDto>   => rawApiClient.get(`${BASE}/deals/${id}`),
   createDeal:    (d: CreateDealRequest): Promise<DealDto> => rawApiClient.post(`${BASE}/deals`, d),
   updateDeal:    (id: string, d: UpdateDealRequest): Promise<void> => rawApiClient.put(`${BASE}/deals/${id}`, d),
-  moveDealStage: (id: string, stage: string, probability: number, opts?: { forecastCategory?: string; lossReason?: string }): Promise<void> => rawApiClient.patch(`${BASE}/deals/${id}/stage`, { stage, probability, ...opts }),
+  moveDealStage: (id: string, stage: string, probability: number, opts?: { forecastCategory?: string; lossReason?: string; closedValue?: number }): Promise<void> => rawApiClient.patch(`${BASE}/deals/${id}/stage`, { stage, probability, ...opts }),
   deleteDeal:    (id: string): Promise<void> => rawApiClient.delete(`${BASE}/deals/${id}`),
 
   // Leads

@@ -550,6 +550,8 @@
     "contactEmail": "بريد جهة الاتصال",
     "pipelineStage": "مرحلة خط الأنابيب",
     "dealValue": "قيمة الصفقة *",
+    "closedValue": "القيمة عند الإغلاق",
+    "closedValueHint": "المبلغ الفعلي عند الإغلاق، إذا كان مختلفًا عن قيمة الصفقة.",
     "closeDate": "تاريخ الإغلاق *",
     "winProbability": "احتمالية الفوز",
     "forecastCategory": "فئة التوقع",
@@ -610,6 +612,7 @@
     "priority": "الأولوية",
     "forecast": "التوقع",
     "weightedValue": "القيمة المرجّحة",
+    "closedValue": "القيمة عند الإغلاق",
     "source": "المصدر",
     "industry": "القطاع",
     "assignedTo": "مُسند إلى",
@@ -682,7 +685,8 @@
       "timeframe": "الإطار الزمني للشراء",
       "campaign": "الحملة",
       "formName": "اسم النموذج"
-    }
+    },
+    "downloadSample": "تنزيل ملف نموذجي"
   },
   "documents": {
     "tab": "المستندات",

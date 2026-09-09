@@ -43,7 +43,7 @@ internal sealed class GetSalesPerformanceReportHandler(CrmDbContext db, ILeadAcc
             .Select(d => new { d.AssignedToUserId, d.AssignedTo, d.Value }).ToListAsync(ct);
         var closedDeals = await ApplyDealClosedWindow(
                 dealQuery.Where(d => d.ClosedAt != null && (d.Stage == "won" || d.Stage == "lost")), f)
-            .Select(d => new { d.AssignedToUserId, d.AssignedTo, d.Value, d.Stage }).ToListAsync(ct);
+            .Select(d => new { d.AssignedToUserId, d.AssignedTo, d.Value, d.ClosedValue, d.Stage }).ToListAsync(ct);
 
         var activityQuery = access.ScopeActivities(db.Activities.AsNoTracking()).Where(a => !a.IsDeleted);
         if (f.FromInclusive is DateTime af) activityQuery = activityQuery.Where(a => a.CreatedAt >= af);
@@ -88,7 +88,8 @@ internal sealed class GetSalesPerformanceReportHandler(CrmDbContext db, ILeadAcc
         foreach (var d in closedDeals)
         {
             var b = For(d.AssignedToUserId, d.AssignedTo);
-            if (d.Stage == "won") { b.WonDeals++; b.WonValue += d.Value; } else b.LostDeals++;
+            // Credit the rep with what they actually closed, not what they quoted.
+            if (d.Stage == "won") { b.WonDeals++; b.WonValue += d.ClosedValue ?? d.Value; } else b.LostDeals++;
         }
         foreach (var a in activities)
         {

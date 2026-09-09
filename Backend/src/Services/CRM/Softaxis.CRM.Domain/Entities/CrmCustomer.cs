@@ -40,7 +40,14 @@ public sealed class CrmCustomer
     public Guid?     TeamId         { get; private set; }
     public string    Since          { get; private set; } = string.Empty;
     public string?   LastActivity   { get; private set; }
+    /// <summary>
+    /// DEAD COLUMNS — do not read these. Nothing but the demo seeder ever wrote them, so every
+    /// account created by a real user reported 0.00 revenue and 0 open deals however many deals it
+    /// had. Both figures are now derived from the account's deals on read
+    /// (<c>CustomerDealMetrics</c>); these remain only until a migration drops them.
+    /// </summary>
     public decimal   TotalRevenue   { get; private set; }
+    /// <inheritdoc cref="TotalRevenue"/>
     public int       OpenDeals      { get; private set; }
     public string    Currency       { get; private set; } = TenantCurrency.Resolve();
     public string?   Employees      { get; private set; }

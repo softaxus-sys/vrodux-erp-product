@@ -5,6 +5,7 @@ using Softaxis.CRM.Application.Reports.Dtos;
 using Softaxis.CRM.Application.Reports.Queries;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
+using Softaxis.CRM.Infrastructure.Handlers.Customers;
 using static Softaxis.CRM.Infrastructure.Handlers.Reports.ReportQueryHelpers;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Reports;
@@ -32,7 +33,7 @@ internal sealed class GetAccountRevenueReportHandler(CrmDbContext db, ILeadAcces
         var accounts = await accountQuery
             .Select(c => new
             {
-                c.Id, c.Name, c.Industry, c.Tier, c.AccountManager, c.TotalRevenue, c.LastActivity
+                c.Id, c.Name, c.Industry, c.Tier, c.AccountManager, c.LastActivity
             })
             .ToListAsync(ct);
 
@@ -44,7 +45,15 @@ internal sealed class GetAccountRevenueReportHandler(CrmDbContext db, ILeadAcces
 
         var closedDeals = await ApplyDealClosedWindow(
                 dealBase.Where(d => d.ClosedAt != null && d.Stage == "won"), f)
-            .Select(d => new { d.CustomerId, d.Value }).ToListAsync(ct);
+            // Won value is what the deal closed at, not what it was quoted at.
+            .Select(d => new { d.CustomerId, Value = d.ClosedValue ?? d.Value }).ToListAsync(ct);
+
+        // Lifetime revenue, deliberately NOT subject to the report's close-date window: it answers
+        // "what has this account ever been worth", next to the windowed WonValue beside it. Derived
+        // from won deals like everywhere else — the old CrmCustomer.TotalRevenue column was written
+        // only by the demo seeder and read 0.00 for every real account.
+        var lifetime = await CustomerDealMetricsQuery.ForAsync(
+            access.ScopeDeals(db.Deals.AsNoTracking()), [.. accounts.Select(a => a.Id)], ct);
 
         var openByAccount = openDeals.GroupBy(d => d.CustomerId!.Value)
             .ToDictionary(g => g.Key, g => (Count: g.Count(), Value: g.Sum(d => d.Value)));
@@ -60,7 +69,7 @@ internal sealed class GetAccountRevenueReportHandler(CrmDbContext db, ILeadAcces
                     a.Id, a.Name, Fallback(a.Industry, "—"), Fallback(a.Tier, "standard"),
                     Fallback(a.AccountManager, "Unassigned"),
                     open.Count + won.Count, open.Count, open.Value, won.Count, won.Value,
-                    a.TotalRevenue, a.LastActivity);
+                    lifetime.Of(a.Id).Revenue, a.LastActivity);
             })
             .OrderByDescending(r => r.WonValue).ThenByDescending(r => r.OpenValue)
             .ToList();

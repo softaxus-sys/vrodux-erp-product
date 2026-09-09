@@ -25,7 +25,7 @@ internal sealed class GetWinLossReportHandler(CrmDbContext db, ILeadAccessGuard 
         var closed = await ApplyDealClosedWindow(
                 ApplyDealFilters(access.ScopeDeals(db.Deals.AsNoTracking()), f)
                     .Where(d => d.ClosedAt != null && (d.Stage == "won" || d.Stage == "lost")), f)
-            .Select(d => new { d.Stage, d.Value, d.LossReason, d.ClosedAt, d.CreatedAt })
+            .Select(d => new { d.Stage, d.Value, d.ClosedValue, d.LossReason, d.ClosedAt, d.CreatedAt })
             .ToListAsync(ct);
 
         var won  = closed.Where(d => d.Stage == "won").ToList();
@@ -40,7 +40,9 @@ internal sealed class GetWinLossReportHandler(CrmDbContext db, ILeadAccessGuard 
                 var l = g.Count(d => d.Stage == "lost");
                 return new WinLossTrendPointDto(
                     g.Key, w, l,
-                    g.Where(d => d.Stage == "won").Sum(d => d.Value),
+                    // What the wins were actually worth; losses keep their quoted value, since a
+                    // lost deal never closed at anything.
+                    g.Where(d => d.Stage == "won").Sum(d => d.ClosedValue ?? d.Value),
                     g.Where(d => d.Stage == "lost").Sum(d => d.Value),
                     Rate(w, w + l));
             })

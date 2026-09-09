@@ -550,6 +550,8 @@
     "contactEmail": "Contact Email",
     "pipelineStage": "Pipeline Stage",
     "dealValue": "Deal Value *",
+    "closedValue": "Closed Value",
+    "closedValueHint": "What it actually closed at, if different from the deal value.",
     "closeDate": "Close Date *",
     "winProbability": "Win Probability",
     "forecastCategory": "Forecast Category",
@@ -610,6 +612,7 @@
     "priority": "Priority",
     "forecast": "Forecast",
     "weightedValue": "Weighted Value",
+    "closedValue": "Closed Value",
     "source": "Source",
     "industry": "Industry",
     "assignedTo": "Assigned To",
@@ -682,7 +685,8 @@
       "timeframe": "Purchase timeframe",
       "campaign": "Campaign",
       "formName": "Form name"
-    }
+    },
+    "downloadSample": "Download a sample file"
   },
   "documents": {
     "tab": "Documents",

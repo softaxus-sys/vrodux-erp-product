@@ -50,6 +50,9 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   const [stage, setStage]             = React.useState("Qualified");
   const [dealType, setDealType]       = React.useState("New Business");
   const [value, setValue]             = React.useState("");
+  // Only meaningful once the deal is won — what it ACTUALLY closed at, which is often not what was
+  // quoted. Blank means "closed at the deal value".
+  const [closedValue, setClosedValue] = React.useState("");
   const [probability, setProbability] = React.useState("50%");
   const currency = useCurrency();
   const [forecast, setForecast]       = React.useState("auto");
@@ -98,6 +101,7 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   React.useEffect(() => {
     if (open && editing) {
       setDealName(editing.title); setCompany(editing.company); setCustomerId(editing.customerId ?? null); setValue(String(editing.value || ""));
+      setClosedValue(editing.closedValue != null ? String(editing.closedValue) : "");
       setStage(KEY_LABEL[editing.stage] ?? "Qualified"); setDealType(editing.source || "New Business");
       setProbability(`${editing.probability}%`); setCloseDate(editing.expectedCloseDate);
       setForecast(MANUAL_FORECASTS.includes(editing.forecastCategory) ? editing.forecastCategory : "auto");
@@ -118,6 +122,11 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
       description: description.trim(),
       forecastCategory: forecast === "auto" ? undefined : forecast,
       customerId: customerId ?? null,
+      // Sent only for a won deal, and only when filled in: the server reads null as "leave the
+      // recorded amount alone", so an edit for an unrelated reason cannot wipe it.
+      closedValue: STAGE_KEY[stage] === "won" && closedValue.trim() !== ""
+        ? parseFloat(closedValue) || 0
+        : undefined,
     };
     if (isEdit && editing) {
       updateDeal.mutate({ id: editing.id, data: { ...base, nextAction: editing.nextAction ?? null, nextActionDate: editing.nextActionDate ?? null, tags: editing.tags } }, { onSuccess: onClose });
@@ -127,7 +136,7 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
   };
 
   const reset = () => {
-    setDealName(""); setCompany(""); setCustomerId(null); setAcctOpen(false); setContactName(""); setContactEmail("");
+    setDealName(""); setCompany(""); setCustomerId(null); setAcctOpen(false); setContactName(""); setContactEmail(""); setClosedValue("");
     setStage("Qualified"); setDealType("New Business"); setValue("");
     setProbability("50%"); setForecast("auto"); setCloseDate(""); setAssignedTo(""); setDescription("");
   };
@@ -250,6 +259,19 @@ export function AddDealForm({ open, onClose, editing }: AddDealFormProps) {
                       placeholder="0.00" className="h-9 text-sm flex-1 text-right font-semibold" />
                   </div>
                 </div>
+                {STAGE_KEY[stage] === "won" && (
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.closedValue")}</label>
+                    <div className="flex gap-2">
+                      <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border bg-muted text-sm font-medium text-muted-foreground shrink-0">
+                        {currency}
+                      </span>
+                      <Input type="number" min={0} step={1000} value={closedValue} onChange={e => setClosedValue(e.target.value)}
+                        placeholder={value || "0.00"} className="h-9 text-sm flex-1 text-right font-semibold" />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{t("dealForm.closedValueHint")}</p>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("dealForm.closeDate")}</label>
                   <Input type="date" value={closeDate} onChange={e => setCloseDate(e.target.value)} className="h-9 text-sm" />

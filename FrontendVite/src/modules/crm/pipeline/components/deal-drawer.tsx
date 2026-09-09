@@ -173,6 +173,11 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
                         { label: t("dealDrawer.priority"),      value: <DealPriorityBadge priority={deal.priority} /> },
                         { label: t("dealDrawer.forecast"),      value: t(`forecast.${deal.forecastCategory ?? "pipeline"}`) },
                         { label: t("dealDrawer.weightedValue"), value: formatCurrency(deal.weightedValue, currency) },
+                        // Only worth a row when it actually differs from the quoted value — on a won
+                        // deal the two are equal unless someone recorded a different closing figure.
+                        ...(deal.closedValue != null && deal.closedValue !== deal.value
+                          ? [{ label: t("dealDrawer.closedValue"), value: formatCurrency(deal.closedValue, currency) }]
+                          : []),
                         { label: t("dealDrawer.source"),        value: deal.source },
                         { label: t("dealDrawer.industry"),      value: deal.industry },
                         { label: t("dealDrawer.assignedTo"),    value: deal.assignedTo },

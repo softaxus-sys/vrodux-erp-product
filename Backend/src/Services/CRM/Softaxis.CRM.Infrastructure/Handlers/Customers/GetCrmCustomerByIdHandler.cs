@@ -20,6 +20,7 @@ internal sealed class GetCrmCustomerByIdHandler(CrmDbContext db, ILeadAccessGuar
         if (!await access.CanReadCustomerAsync(c, ct))
             return Result.Failure<CrmCustomerDto>(Error.NotFoundById("CrmCustomer", query.Id));
 
-        return Result.Success(CrmCustomerMappings.ToDto(c));
+        var metrics = await CustomerDealMetricsQuery.ForAsync(access.ScopeDeals(db.Deals.AsNoTracking()), [c.Id], ct);
+        return Result.Success(CrmCustomerMappings.ToDto(c, metrics.Of(c.Id)));
     }
 }

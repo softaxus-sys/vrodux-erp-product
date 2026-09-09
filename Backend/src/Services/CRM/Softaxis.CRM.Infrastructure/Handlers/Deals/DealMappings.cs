@@ -9,5 +9,6 @@ internal static class DealMappings
         d.Id, d.Title, d.Company, d.Value, d.Currency, d.Stage, d.Priority, d.Probability,
         d.ExpectedCloseDate, d.CreatedDate, d.AssignedTo, d.AssignedToUserId, d.Source, d.Industry, d.Description,
         d.Tags, new DealContactDto("", "", "", ""), Array.Empty<object>(), d.NextAction, d.NextActionDate,
-        d.ForecastCategory, d.WeightedValue, d.LossReason, d.CustomerId);
+        d.ForecastCategory, d.WeightedValue, d.LossReason, d.CustomerId,
+        ClosedValue: d.ClosedValue, RealizedValue: d.RealizedValue);
 }

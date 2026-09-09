@@ -36,6 +36,9 @@ internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stag
         if (ownerId is not null)
             d.AssignTo(ownerId, ownerName, cmd.TeamId ?? await access.SoleTeamOfCurrentUserAsync(ct));
 
+        // Only meaningful when a past win is logged directly in the "won" stage.
+        d.SetClosedValue(cmd.ClosedValue);
+
         db.Deals.Add(d);
         stageRecorder.RecordCreated(d);   // opens the stage-history trail the velocity reports read
         await db.SaveChangesAsync(ct);

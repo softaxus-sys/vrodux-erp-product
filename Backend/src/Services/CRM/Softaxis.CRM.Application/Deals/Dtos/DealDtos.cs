@@ -11,7 +11,13 @@ public sealed record DealDto(
     string ForecastCategory, decimal WeightedValue, string? LossReason,
     Guid? CustomerId,
     /// <summary>Team the record belongs to — null = untagged (falls back to owner membership).</summary>
-    Guid? TeamId = null);
+    Guid? TeamId = null,
+    /// <summary>What the deal closed at, where that differs from the quoted <paramref name="Value"/>.
+    /// Null on an open deal.</summary>
+    decimal? ClosedValue = null,
+    /// <summary>The figure that counts as money: <paramref name="ClosedValue"/> where present, else
+    /// <paramref name="Value"/>. Read this rather than re-deriving it per screen.</summary>
+    decimal RealizedValue = 0m);
 
 public sealed record DealsSummaryDto(
     int TotalDeals, decimal TotalValue, decimal WonValue, int LostDeals,

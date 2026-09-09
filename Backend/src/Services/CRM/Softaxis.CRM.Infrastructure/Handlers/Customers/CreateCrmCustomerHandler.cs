@@ -36,6 +36,7 @@ internal sealed class CreateCrmCustomerHandler(CrmDbContext db, IAiEventBus aiEv
             AiEventKeys.CrmCustomerCreated, c.Id, $"New customer: {c.Name}",
             JsonSerializer.Serialize(new { c.Id, c.Name, c.Industry, c.Email, c.Phone })), ct);
 
-        return Result.Success(CrmCustomerMappings.ToDto(c));
+        return Result.Success(// A brand-new account has no deals yet, so its figures are zero by construction.
+        CrmCustomerMappings.ToDto(c, CustomerDealMetrics.None));
     }
 }
