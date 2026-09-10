@@ -5961,3 +5961,150 @@ Eight are demo seed data (ADNOC, DEWA, Etisalat…), two came from the old templ
 invisible to every workspace. They cannot be attributed automatically — the template that produced
 them is itself NULL-tenant — so deleting or reassigning them is the owner's decision, not a guess to
 make on their behalf.
+
+---
+
+## Module 55 — Mobile App (Expo / React Native): Phase 1 — Auth + CRM + HR self-service
+
+**New top-level `Mobile/` folder, same repo, same monorepo as `Backend/` and `FrontendVite/`.**
+Talks to the same `Softaxis.ApiGateway` the web app uses — same JWT auth, same tenant/permission
+claims, same REST envelope. Confirmed **not wired into CI/CD**: `.github/workflows/deploy.yml`
+only builds `Backend/` and `FrontendVite/` into Docker images, so `Mobile/` commits ride along in
+git history without being built or deployed by anything.
+
+### Stack decision
+React Native via Expo (SDK 57, React 19.2.3 / RN 0.86.3), not Flutter or native Swift/Kotlin — the
+team is already React/TypeScript on web, so patterns (fetch wrapper, React Query, zustand) and
+conventions transfer directly rather than needing a second stack. `@/*` to `src/*` path alias via
+`babel-plugin-module-resolver` (Metro does not read `tsconfig.json` paths on its own).
+
+**Scaffolding gotcha hit and worked around**: `create-expo-app`'s template downloader shells out to
+`npm pack --dry-run --json`, and this environment's npm (12.0.1) returns an object keyed by package
+name where the tool expects an array — a real npm/tool version mismatch, not a project bug. Worked
+around by downloading the template tarball directly (`npm pack expo-template-blank-typescript`,
+without `--dry-run`) and extracting by hand, bypassing the broken code path entirely. Also hit
+`npm install --allow-scripts` being rejected by this npm version inside `npx expo install` (a
+newer npm security restriction) — worked around by installing native Expo packages via plain
+`npm install <pkg>` instead of the `expo install` wrapper.
+
+### Auth (mirrors FrontendVite's `store/auth.store.ts`)
+- JWT access + refresh token, persisted via `expo-secure-store` (iOS Keychain / Android Keystore),
+  never plain storage — this app reaches payroll/HR/CRM data.
+- Two-phase 2FA login (mirrors Module 14 exactly): password accepted with no tokens issued yet
+  returns `mfaRequired` + a short-lived `mfaToken`, which is spent once at `/auth/verify-2fa`.
+- Refresh-token rotation with a mutex, so two concurrent 401s do not both spend the same
+  (now-revoked) rotating token — same dedupe pattern as the web client.
+- `permission` claims are read directly off the decoded JWT rather than re-derived from
+  `UserDto.roles` + overrides the way the web store does on a normal login — correct and simpler,
+  because the backend `PermissionRepository` chokepoint (Module 5h) already computes the effective
+  `(role ∪ grants) − denies` set into the token itself.
+- `hasPermission(...anyOf)` / `hasModuleAccess(moduleKey)` in `src/store/auth.store.ts` mirror the
+  web app's `hasRawPermission` / `hasModuleAccess` so module/screen gating works the same way on
+  both clients.
+
+### CRM module (leads + pipeline) — complete for this pass
+Files: `src/lib/crm.api.ts`, `crm-helpers.ts`, `hooks/use-leads.ts` / `use-deals.ts` /
+`use-activities.ts`, `screens/LeadsListScreen.tsx` / `LeadDetailScreen.tsx` /
+`DealsListScreen.tsx` / `DealDetailScreen.tsx`, `navigation/LeadsStack.tsx` / `DealsStack.tsx`.
+
+- Both tabs gated on the real three-tier permission model — `CRM_LEADS_VIEW` / `CRM_PIPELINE_VIEW`
+  constants list all three of `crm.leads(.-team/-assigned).view` etc., mirroring the backend
+  `[RequireAnyPermission]` attributes read directly off `LeadsController` / `PipelineController`. A
+  tab simply does not render for a session whose JWT lacks every tier.
+- Leads: search, status filter chips, hottest-first sort (`score desc`, matching Module 18d),
+  infinite scroll, pull-to-refresh, `tel:`/`wa.me`/`mailto:` quick actions, guarded status
+  transitions (`converted` deliberately unreachable via the plain status PATCH — that would mark a
+  lead converted without the account/contact/deal actually being created), activity logging + feed.
+- Pipeline: search, stage filter chips, opportunity list with value / weighted value / forecast
+  category, stage transitions (`won`/`lost` terminal, loss-reason capture on the Lost move,
+  `STAGE_PROBABILITY` mirrors the web pipeline board's defaults), contact quick actions, activity
+  logging + feed.
+- **Convert Lead to Deal** wired on the lead detail screen via the dedicated `convertLead` endpoint
+  (creates account + contact + deal in one step, per Module 8d) — never a plain status PATCH.
+- **Explicitly out of scope for this pass** (flagged in `Mobile/README.md`, not built): Accounts /
+  Customers view, a lead-creation form, a real CRM dashboard summary tile set, team-filing, CRM
+  documents.
+
+### HR self-service module — complete for this pass
+Files: `src/lib/hr.api.ts`, `hooks/use-hr-self.ts`,
+`screens/hr/{HrHomeScreen,AttendanceScreen,LeaveScreen,PayslipsScreen}.tsx`,
+`navigation/HrStack.tsx`. Talks to `api/hr/me/*` — every route resolves the subject from the JWT,
+so there is no employee-id parameter anywhere in this file by construction (same guarantee the
+backend `MeController` documents on itself).
+
+- Gated **per-feature** on four independent `hr.self.*` keys (`view` / `attendance` /
+  `leave-request` / `payslip`) — a flatter model than CRM's tiers, since self-service is already
+  inherently scoped to one person. The HR tab renders if any one of the four is held; each
+  sub-screen/card gates itself individually within `HrHomeScreen`.
+- Profile + today's attendance card with Check In / Check Out.
+- Attendance history, paged, with late-arrival minutes shown per row.
+- Leave: balances, an apply form (type / start / end / reason), request history with cancel for
+  pending requests.
+- Payslips: paged history, tap a row to expand basic / allowances / deductions / net.
+- Handles `Employee.NotLinked` (the backend's own error code for "this login has no employee
+  record yet") as the normal state it is documented to be, not a generic error screen.
+- **Flagged gaps, not built**:
+  - **No GPS on check-in/out.** Checked the backend directly — `CheckInCommand`/`CheckOutCommand`
+    (`Softaxis.HR.API/Controllers/MeController.cs`) take zero parameters today, so there is nowhere
+    to send a captured location even if the client gathered one. A GPS field needs a backend change
+    first (e.g. `Latitude`/`Longitude` on those commands); building the client half alone would be
+    exactly the "silently discarded field" class of bug this codebase repeatedly flags elsewhere.
+  - Leave start/end dates are plain `YYYY-MM-DD` text inputs, not a native date picker — kept the
+    dependency list short for this pass.
+  - `totalDays` is a simple inclusive calendar-day count computed client-side (no weekend/working-day
+    exclusion) — an assumption, not verified against whatever the web app's own leave-days logic does.
+  - No payslip PDF download (would need `expo-print`/`expo-sharing`).
+
+### Build / Verification Status
+- **`tsc --noEmit`: clean at every checkpoint** across all three feature passes.
+- **Full Metro bundle succeeded** (`npx expo export --platform ios`) — 890 modules after the auth
+  scaffold, 918 after CRM leads, 926 after CRM pipeline, unchanged module-resolution health after
+  HR self-service (926). No resolution errors at any point.
+- **Not run on a simulator, emulator, or a physical device / Expo Go** — verification so far is
+  type-check + bundle only, not an actual rendered/interactive run.
+
+### Git / deploy state (as of this entry)
+- Four commits on `dev`: `5b9afec` (scaffold + auth), `dce8e47` (CRM leads), `b438f22` (CRM
+  pipeline + convert-lead), `a8de254` (HR self-service).
+- `dev` pushed to `origin/dev`.
+- `main` fast-forwarded to `dev`'s tip and pushed to `origin/main` (`5d4bdb0..a8de254`) — this also
+  carried the one pending non-mobile commit (`59f0f61`, `fix(crm): lead source filter and edit form
+  lost integration-captured values`) live, since it was sitting on `dev` ahead of `main` before any
+  of this mobile work started.
+- Confirmed the resulting production deploy came up healthy:
+  `curl https://erp.vrodux.com/health` → `200`, all 15 services listed
+  (Identity/POS/Inventory/Sales/Purchase/HR/Finance/CRM/Construction/RealEstate/Hospitality/
+  Restaurant/Recipe/ProjectManagement/VisaServices).
+- `Mobile/` itself shipped no behavior change to production — confirmed by reading
+  `.github/workflows/deploy.yml` directly: it only has build steps for `Backend/` and
+  `FrontendVite/`, nothing references `Mobile/`.
+
+### Testing against the live API
+- `Mobile/.env.local` (gitignored, local-only) set to `EXPO_PUBLIC_API_URL=https://erp.vrodux.com`.
+- **Use native platforms only** (iOS Simulator / Android Emulator / Expo Go on a physical device) —
+  a native `fetch()` is not subject to CORS at all (browser-only mechanism), so the gateway's
+  origin-restricted `AllowFrontend` policy does not apply. Pressing `w` for Expo web mode **would**
+  hit CORS, since the Expo dev server's origin is not in that allowlist — not a supported path for
+  testing against the live gateway.
+- Needs a real login for a production tenant — **not provided or created by this session**, and
+  none should be fabricated.
+- ⚠️ **Every write action lands in real production data** — check-in/out, leave apply/cancel, lead
+  status change, lead-to-deal conversion, activity logging, deal stage moves all mutate whatever
+  tenant the signed-in account belongs to. Whether a dedicated test tenant exists was raised with
+  the user and **not yet confirmed** at the time of this entry — do not exercise these flows
+  against a real customer's tenant without checking first.
+
+### Next (not started — pick up here)
+- **Approvals inbox** — the third phase-1 module named in the original mobile-rollout discussion
+  (payroll finance-approval / PO approvals / leave approvals in one cross-module feed), not yet
+  built.
+- **Push notifications** — no APNs/FCM integration exists anywhere in the backend; this blocks any
+  "acted on while I was away" workflow across every module, not just HR/CRM.
+- **EAS build config** — nothing exists yet for producing an installable build outside Expo Go
+  (needed before this can go on a real device long-term, and eventually before any white-label
+  packaging work per the earlier mobile-strategy discussion).
+- **Dashboard tab is still a placeholder** (`HomeScreen.tsx` shows session/tenant/permission info
+  only) — wiring it to real cross-module KPIs is unscoped.
+- Smaller polish items already flagged above: leave-date native picker, payslip PDF export, offline
+  handling / error boundaries, per-device refresh tokens (raised in the original mobile-strategy
+  discussion, not built — the backend does not scope refresh tokens per device today).
