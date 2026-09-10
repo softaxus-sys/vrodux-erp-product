@@ -34,6 +34,8 @@ src/
     crm.api.ts          — leads, deals/pipeline, activities; CRM_*_VIEW/EDIT permission-tier lists
     crm-helpers.ts      — leadHeat, buildLeadSummary, formatCompactValue, cleanPhone (i18n stripped)
     hr.api.ts           — employee self-service (api/hr/me/*); HR_SELF_* permission-key constants
+    approvals.api.ts    — cross-module approvals inbox (leaves/purchase/sales-returns/payroll);
+                          APPROVALS_* permission-key constants
     jwt.ts             — decode JWT payload (no verification — server already signed it)
     query-client.ts    — shared React Query client
     secure-storage.ts  — Keychain/Keystore wrapper (expo-secure-store)
@@ -46,9 +48,12 @@ src/
     use-deals.ts           — pipeline list/detail, stage move
     use-activities.ts      — shared activity feed/create (leads + deals + customers)
     use-hr-self.ts         — profile, attendance (today/history/check-in/out), leave, payslips
+    use-approvals.ts       — pending leaves/purchase/sales-returns queries + approve/reject mutations,
+                          and the payroll process/finance-approve/pay/reject workflow
   navigation/
-    RootNavigator.tsx    — bottom tabs (Dashboard/Leads/Pipeline/HR); each tab only renders when
-                          the session's JWT grants module access + the relevant permission(s)
+    RootNavigator.tsx    — bottom tabs (Dashboard/Leads/Pipeline/HR/Approvals); each tab only
+                          renders when the session's JWT grants module access + the relevant
+                          permission(s)
     LeadsStack.tsx / DealsStack.tsx / HrStack.tsx — per-feature stacks
     types.ts
   screens/
@@ -57,13 +62,15 @@ src/
     HomeScreen.tsx       — placeholder dashboard; shows session/tenant info, not real KPIs yet
     LeadsListScreen.tsx / LeadDetailScreen.tsx
     DealsListScreen.tsx / DealDetailScreen.tsx
+    ApprovalsScreen.tsx  — single-screen inbox: one section per source, inline approve/reject
     hr/
       HrHomeScreen.tsx    — profile + today's check-in/out + menu into the three sub-screens
       AttendanceScreen.tsx — paged history
       LeaveScreen.tsx      — balances, apply form, request history with cancel
       PayslipsScreen.tsx   — paged history, tap a row to expand the breakdown
   types/
-    auth.ts / crm.ts / hr.ts — trimmed mirrors of the backend DTOs (kept in sync manually)
+    auth.ts / crm.ts / hr.ts / approvals.ts — trimmed mirrors of the backend DTOs (kept in sync
+                          manually)
 ```
 
 ## What's built
@@ -103,10 +110,31 @@ logout/revoke.
     weekend exclusion) — flagged as an assumption, not verified against the web app's own logic.
   - No payslip PDF download (would need `expo-print`/`expo-sharing`).
 
+**Approvals inbox** — complete for this pass. One screen, four independent sources, each gated on
+its own module+permission so a session only ever queries what it can act on:
+- **HR leave requests** (`hr.leaves.approve`) — `GET /api/hr/leaves?status=pending`, approve /
+  reject (optional notes).
+- **Purchase requisitions** (`purchase.approvals.approve`) — approve / reject (reason required,
+  matches the backend's non-nullable `Reason` field).
+- **Sales returns** (`sales.returns.approve`) — approve / reject (no reason field on this one —
+  the backend endpoint doesn't take one).
+- **Payroll runs** — the one cross-permission source: `hr.payroll.approve` surfaces `draft` runs
+  to Process and `finance_approved` runs to Pay; `finance.payroll.approve` (a Finance-only key,
+  deliberately separate — CLAUDE.md Module 44) surfaces `processed` runs to Approve. Reject is
+  offered only where the backend actually allows it (`draft`/`processed`, never `finance_approved`
+  — `RejectPayrollRunHandler` refuses that transition).
+- Pull-to-refresh re-fetches every enabled source at once. A caller with no approval permission in
+  any module gets a plain "nothing to approve" screen rather than an empty inbox that looks broken.
+- **Explicitly out of scope**: no detail/drill-in screen (each source's fields are shown inline in
+  its row — none of the four needed more than that for a first pass), no push notification on a
+  new pending item (see "Next module" below), no batch/bulk approve.
+
 ## Next module
 
-Approvals inbox (cross-module: payroll finance-approval, PO approvals, leave approvals) or push
-notifications — see the phased rollout plan discussed in-repo.
+Push notifications are the natural next piece — there's now a real "something is waiting on you"
+surface (the approvals inbox) that a push landing on it would make far more useful, but no
+APNs/FCM integration exists anywhere in the backend yet. See the phased rollout plan discussed
+in-repo for what else is queued (dashboard KPIs, EAS build config, per-device refresh tokens).
 
 ## Conventions carried over from FrontendVite
 

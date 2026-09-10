@@ -25,4 +25,5 @@ export type AppTabParamList = {
   Leads: undefined;
   Pipeline: undefined;
   HR: undefined;
+  Approvals: undefined;
 };
