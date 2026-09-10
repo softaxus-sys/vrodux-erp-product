@@ -41,6 +41,9 @@ const PRIORITY_CONFIG = {
   medium: { color: "text-warning",     bg: "bg-warning/10" },
   low:    { color: "text-muted-foreground", bg: "bg-muted" },
 };
+// Priority is a free-text column server-side, so a value outside this map is possible. A bare
+// index would read undefined and take the whole page down on .color.
+const PRIORITY_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted" };
 
 function ScoreBar({ score }: { score: number }) {
   const { t } = useTranslation("crm");
@@ -179,7 +182,7 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
   const leadId = lead.id;
   const busy = convert.isPending || setStatus.isPending || del.isPending || assign.isPending;
   const sc = STATUS_CONFIG[lead.status];
-  const pc = PRIORITY_CONFIG[lead.priority];
+  const pc = PRIORITY_CONFIG[lead.priority] ?? PRIORITY_FALLBACK;
 
   return (
     <>

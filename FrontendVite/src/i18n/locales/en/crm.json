@@ -17,7 +17,25 @@
     "email_campaign": "Email Campaign",
     "partner": "Partner",
     "social_media": "Social Media",
-    "walk_in": "Walk-in"
+    "walk_in": "Walk-in",
+    "bayut": "Bayut",
+    "dubizzle": "dubizzle",
+    "property-finder": "Property Finder",
+    "meta": "Meta",
+    "facebook": "Facebook",
+    "instagram": "Instagram",
+    "whatsapp": "WhatsApp",
+    "tiktok": "TikTok",
+    "calendly": "Calendly",
+    "google-forms": "Google Forms",
+    "google-sheets": "Google Sheets",
+    "typeform": "Typeform",
+    "jotform": "Jotform",
+    "zapier": "Zapier",
+    "make": "Make",
+    "webhook": "Webhook",
+    "csv": "CSV / Excel Import",
+    "import": "Import"
   },
   "urgency": {
     "immediate": "Immediate",
@@ -223,7 +241,8 @@
     "saving": "Saving…",
     "saveChanges": "Save Changes",
     "saveLead": "Save Lead",
-    "pickTeamHint": "You belong to more than one team — pick yourself under a team so that team’s lead can see this lead."
+    "pickTeamHint": "You belong to more than one team — pick yourself under a team so that team’s lead can see this lead.",
+    "nextFollowUp": "Next follow-up"
   },
   "pipeline": {
     "title": "Sales Pipeline",

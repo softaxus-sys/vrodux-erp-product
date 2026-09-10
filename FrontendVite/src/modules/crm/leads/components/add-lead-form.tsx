@@ -7,18 +7,25 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateLead, useUpdateLead } from "@/hooks/crm/use-crm";
+import { useCreateLead, useUpdateLead, useSetLeadStatus } from "@/hooks/crm/use-crm";
 import { useCurrency } from "@/hooks/use-currency";
 import { useAssignableByTeam, useDefaultAssignee, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
-import { TIMEFRAME_OPTIONS, type LeadDto } from "@/lib/crm/crm.api";
+import { TIMEFRAME_OPTIONS, SOURCE_LABELS, sourceLabel, type LeadDto, type LeadStatus } from "@/lib/crm/crm.api";
 
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 
-const LEAD_SOURCES = ["Website", "LinkedIn", "Referral", "Cold Call", "Email Campaign", "Trade Show", "Social Media", "Walk-In", "Partner", "Other"];
+// Values are the stored source keys, not display strings: an integration-captured lead carries its
+// provider's key ("bayut", "property-finder", ...), and a select whose value is absent from its
+// options falls back to the first one — so editing such a lead silently rewrote its source to
+// "Website" on save. Labels come from sourceLabel so they stay translated and in one place.
+const LEAD_SOURCE_KEYS = Object.keys(SOURCE_LABELS);
 // "Visa Services" drives the Visa Case action in the lead drawer (see isVisaLead).
 const INDUSTRIES   = ["Real Estate", "Construction", "Technology", "Finance", "Healthcare", "Retail", "Hospitality", "Manufacturing", "Education", "Government", "Visa Services", "Other"];
-const LEAD_STAGES  = ["New", "Contacted", "Qualified", "Proposal Sent", "Negotiation"];
-const PRIORITIES   = ["Low", "Medium", "High", "Urgent"];
+// Stored status keys, so the select shows the lead's actual stage when editing instead of
+// falling back to its first option. Status is not part of the create/update command — it moves
+// through PATCH /leads/{id}/status — so a change here is persisted with that call.
+const LEAD_STAGES: LeadStatus[] = ["new", "contacted", "qualified", "unqualified", "lost"];
+const PRIORITIES   = ["Low", "Medium", "High"];
 
 interface AddLeadFormProps {
   open: boolean;
@@ -46,15 +53,19 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const [company, setCompany]         = React.useState("");
   const [jobTitle, setJobTitle]       = React.useState("");
   const [industry, setIndustry]       = React.useState("");
-  const [source, setSource]           = React.useState("Website");
-  const [stage, setStage]             = React.useState("New");
+  const [source, setSource]           = React.useState("website");
+  const [stage, setStage]             = React.useState<string>("new");
   const [priority, setPriority]       = React.useState("Medium");
   const [dealValue, setDealValue]     = React.useState("");
   const currency = useCurrency();
   const [assignedTo, setAssignedTo]   = React.useState("");           // display name
   const [assignedToUserId, setAssignedToUserId] = React.useState(""); // Identity user id ("" = unassigned)
   const [assignedTeamId, setAssignedTeamId] = React.useState<string | null>(null); // team the work belongs to
-  const [expectedClose, setExpectedClose] = React.useState("");
+  // Was an "Expected close" input: a lead has no such field (that belongs to the opportunity it
+  // converts into), so it was collected and discarded on every save. Repointed at nextFollowUp,
+  // which is a real Lead column — and only offered when editing, since the create command has no
+  // such parameter and it would be silently dropped again.
+  const [nextFollowUp, setNextFollowUp] = React.useState("");
   const [notes, setNotes]             = React.useState("");
   const [staged, setStaged]           = React.useState<StagedDocument[]>([]);
   const [whatsApp, setWhatsApp]       = React.useState("");
@@ -65,6 +76,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
 
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
+  const setLeadStatus = useSetLeadStatus();
   const saving = createLead.isPending || updateLead.isPending;
   const isValid = firstName.trim() && (email.trim() || phone.trim()) && source;
 
@@ -84,15 +96,32 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
     if (open && editing) {
       setFirstName(editing.firstName); setLastName(editing.lastName); setEmail(editing.email);
       setPhone(editing.phone); setCompany(editing.company); setJobTitle(editing.title);
-      setIndustry(editing.industry); setSource(titleCase(editing.source));
+      setIndustry(editing.industry); setSource(editing.source);
       setPriority(titleCase(editing.priority)); setDealValue(String(editing.estimatedValue || ""));
       setAssignedTo(editing.assignedTo); setAssignedToUserId(editing.assignedToUserId ?? "");
       setAssignedTeamId(editing.teamId ?? null); setNotes(editing.notes ?? "");
       setWhatsApp(editing.whatsApp ?? ""); setInterestedIn(editing.interestedIn ?? "");
       setBudget(editing.budget ?? ""); setMessage(editing.message ?? "");
-      setTimeframe(editing.purchaseTimeframe ?? "");
+      setTimeframe(editing.purchaseTimeframe ?? ""); setStage(editing.status);
+      setNextFollowUp((editing.nextFollowUp ?? "").slice(0, 10));
     }
   }, [open, editing]);
+
+  // Keep the lead's own source selectable even when it is a provider key with no label here,
+  // so opening an integration lead for an unrelated edit cannot change where it came from.
+  const industryOptions = React.useMemo(
+    () => (editing?.industry && !INDUSTRIES.includes(editing.industry)
+      ? [editing.industry, ...INDUSTRIES]
+      : INDUSTRIES),
+    [editing?.industry],
+  );
+
+  const sourceOptions = React.useMemo(
+    () => (editing?.source && !LEAD_SOURCE_KEYS.includes(editing.source)
+      ? [editing.source, ...LEAD_SOURCE_KEYS]
+      : LEAD_SOURCE_KEYS),
+    [editing?.source],
+  );
 
   const handleSave = () => {
     if (!isValid) return;
@@ -100,7 +129,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       firstName: firstName.trim(), lastName: lastName.trim(), title: jobTitle.trim(),
       company: company.trim(), industry, email: email.trim(), phone: phone.trim(),
       country: editing?.country ?? "", city: editing?.city ?? "",
-      source: source.toLowerCase().replace(/\s+/g, "_"),
+      source,
       priority: priority.toLowerCase(), estimatedValue: parseFloat(dealValue) || 0,
       assignedTo: assignedTo.trim(), assignedToUserId: assignedToUserId || null,
       teamId: assignedTeamId, notes: notes.trim() || null,
@@ -109,7 +138,14 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
       purchaseTimeframe: timeframe.trim() || null,
     };
     if (isEdit && editing) {
-      updateLead.mutate({ id: editing.id, data: { ...base, score: editing.score, nextFollowUp: editing.nextFollowUp ?? null, tags: editing.tags } }, { onSuccess: onClose });
+      updateLead.mutate({ id: editing.id, data: { ...base, score: editing.score, nextFollowUp: nextFollowUp || null, tags: editing.tags } }, {
+        onSuccess: () => {
+          // Status lives behind its own endpoint, so it is only touched when it actually changed —
+          // re-sending the current stage would write a pointless entry into the lead's journey.
+          if (stage !== editing.status) setLeadStatus.mutate({ id: editing.id, status: stage });
+          onClose();
+        },
+      });
     } else {
       createLead.mutate(base, {
         onSuccess: async (created: any) => {
@@ -126,9 +162,9 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
   const reset = () => {
     setStaged([]);
     setFirstName(""); setLastName(""); setEmail(""); setPhone("");
-    setCompany(""); setJobTitle(""); setIndustry(""); setSource("Website");
-    setStage("New"); setPriority("Medium"); setDealValue("");
-    setAssignedTo(""); setAssignedToUserId(""); setAssignedTeamId(null); setExpectedClose(""); setNotes("");
+    setCompany(""); setJobTitle(""); setIndustry(""); setSource("website");
+    setStage("new"); setPriority("Medium"); setDealValue("");
+    setAssignedTo(""); setAssignedToUserId(""); setAssignedTeamId(null); setNextFollowUp(""); setNotes("");
     setWhatsApp(""); setInterestedIn(""); setBudget(""); setMessage(""); setTimeframe("");
   };
 
@@ -194,7 +230,7 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                     <select value={industry} onChange={e => setIndustry(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
                       <option value="">{t("form.selectIndustry")}</option>
-                      {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                      {industryOptions.map(i => <option key={i} value={i}>{i}</option>)}
                     </select>
                   </div>
                 </div>
@@ -208,14 +244,14 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.leadSource")}</label>
                     <select value={source} onChange={e => setSource(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {LEAD_SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+                      {sourceOptions.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.stage")}</label>
                     <select value={stage} onChange={e => setStage(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {LEAD_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                      {LEAD_STAGES.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -225,10 +261,12 @@ export function AddLeadForm({ open, onClose, editing }: AddLeadFormProps) {
                       {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.expectedClose")}</label>
-                    <Input type="date" value={expectedClose} onChange={e => setExpectedClose(e.target.value)} className="h-9 text-sm" />
-                  </div>
+                  {isEdit && (
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.nextFollowUp", { defaultValue: "Next follow-up" })}</label>
+                      <Input type="date" value={nextFollowUp} onChange={e => setNextFollowUp(e.target.value)} className="h-9 text-sm" />
+                    </div>
+                  )}
                   <div className="space-y-1.5 col-span-2">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("form.dealValue")}</label>
                     <div className="flex gap-2">

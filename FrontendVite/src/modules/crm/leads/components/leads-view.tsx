@@ -523,8 +523,15 @@ export function LeadsView() {
 
   const openDrawer = (l: Lead) => { setSelectedLead(l); setDrawerOpen(true); };
 
-  // Sources are a small fixed vocabulary, so listing them all beats deriving them from a page.
-  const uniqueSources = Object.keys(SOURCE_LABELS) as LeadSource[];
+  // Known sources (manual + every integration provider) plus any source actually present on
+  // the loaded leads: a provider can be added server-side without a matching label here, and a
+  // source you cannot select is a lead you cannot find.
+  const uniqueSources = React.useMemo(() => {
+    const known = Object.keys(SOURCE_LABELS) as LeadSource[];
+    const seen = new Set<string>(known);
+    for (const l of [...allLeads, ...pageItems]) if (l.source && !seen.has(l.source)) { seen.add(l.source); known.push(l.source as LeadSource); }
+    return known;
+  }, [allLeads, pageItems]);
 
   // The assignee list comes from the server-scoped assignable pool, not from the rows on screen:
   // with only one page loaded, deriving it from the rows would offer whoever happens to be on this

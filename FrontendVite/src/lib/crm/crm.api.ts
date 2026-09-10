@@ -15,8 +15,14 @@ export type ActivityType = "call" | "email" | "meeting" | "note" | "task";
 
 export type LeadStatus   = "new" | "contacted" | "qualified" | "unqualified" | "converted" | "lost";
 export type LeadSource   =
+  // Manually-entered sources.
   | "website" | "linkedin" | "referral" | "cold_call" | "trade_show"
-  | "google_ads" | "email_campaign" | "partner" | "social_media" | "walk_in";
+  | "google_ads" | "email_campaign" | "partner" | "social_media" | "walk_in"
+  // Integration provider keys (Module 7 platform). A captured lead is stored with the
+  // provider's own key as its source, so these are real values users need to filter on.
+  | "bayut" | "dubizzle" | "property-finder" | "meta" | "facebook" | "instagram"
+  | "whatsapp" | "tiktok" | "calendly" | "google-forms" | "google-sheets"
+  | "typeform" | "jotform" | "zapier" | "make" | "webhook" | "csv" | "import";
 export type LeadPriority = "low" | "medium" | "high";
 
 export type CustomerStatus = "active" | "inactive" | "at_risk" | "churned";
@@ -376,6 +382,25 @@ export const SOURCE_LABELS: Record<LeadSource, string> = {
   partner:        "Partner",
   social_media:   "Social Media",
   walk_in:        "Walk-in",
+  // Integration providers.
+  bayut:             "Bayut",
+  dubizzle:          "dubizzle",
+  "property-finder": "Property Finder",
+  meta:              "Meta",
+  facebook:          "Facebook",
+  instagram:         "Instagram",
+  whatsapp:          "WhatsApp",
+  tiktok:            "TikTok",
+  calendly:          "Calendly",
+  "google-forms":    "Google Forms",
+  "google-sheets":   "Google Sheets",
+  typeform:          "Typeform",
+  jotform:           "Jotform",
+  zapier:            "Zapier",
+  make:              "Make",
+  webhook:           "Webhook",
+  csv:               "CSV / Excel Import",
+  import:            "Import",
 };
 
 /**
