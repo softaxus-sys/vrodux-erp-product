@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   useConvertQuotation,
@@ -11,6 +11,8 @@ import { SALES_QUOTATIONS_EDIT } from "@/lib/sales.api";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { QUOTATION_STATUS_LABELS } from "@/types/sales";
+import { Badge, Button, DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<SalesStackParamList, "QuotationDetail">;
@@ -33,21 +35,10 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
   const [comment, setComment] = useState("");
 
   if (quotation.isLoading || !quotation.data) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingState />;
   }
   if (quotation.isError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Couldn&apos;t load this quotation.</Text>
-        <Pressable onPress={() => quotation.refetch()}>
-          <Text style={styles.retry}>Tap to retry</Text>
-        </Pressable>
-      </View>
-    );
+    return <ErrorState message="Couldn't load this quotation." onRetry={() => quotation.refetch()} />;
   }
 
   const q = quotation.data;
@@ -71,7 +62,7 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
         <View style={styles.statsRow}>
           <Stat label="Subtotal" value={formatCompactValue(q.subTotal, q.currencyCode)} />
           <Stat label="Tax" value={formatCompactValue(q.taxAmount, q.currencyCode)} />
-          <Stat label="Total" value={formatCompactValue(q.total, q.currencyCode)} />
+          <Stat label="Total" value={formatCompactValue(q.total, q.currencyCode)} tone="primary" />
           {q.optionalTotal > 0 ? (
             <Stat label="+ Optional" value={formatCompactValue(q.optionalTotal, q.currencyCode)} />
           ) : null}
@@ -79,30 +70,30 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      <Section title="Delivery">
-        <Detail label="Sent" value={q.sentAt ? new Date(q.sentAt).toLocaleString() : "Not yet sent"} />
-        <Detail label="Viewed" value={q.viewedAt ? new Date(q.viewedAt).toLocaleString() : "—"} />
-        <Detail
+      <SectionCard title="Delivery">
+        <DetailRow label="Sent" value={q.sentAt ? new Date(q.sentAt).toLocaleString() : "Not yet sent"} />
+        <DetailRow label="Viewed" value={q.viewedAt ? new Date(q.viewedAt).toLocaleString() : "—"} />
+        <DetailRow
           label="Responded"
           value={q.respondedAt ? `${new Date(q.respondedAt).toLocaleString()}${q.respondedByName ? ` by ${q.respondedByName}` : ""}` : "—"}
         />
         {q.responseComment ? <Text style={styles.bodyText}>&quot;{q.responseComment}&quot;</Text> : null}
-      </Section>
+      </SectionCard>
 
       {q.convertedOrderId ? (
-        <Section title="Converted">
+        <SectionCard title="Converted">
           <Text style={styles.bodyText}>This quotation has been converted to a sales order.</Text>
-        </Section>
+        </SectionCard>
       ) : null}
 
-      <Section title={`Line items (${q.items.length})`}>
+      <SectionCard title={`Line items (${q.items.length})`}>
         {q.items.map((item) => (
           <View key={item.id} style={styles.itemRow}>
             <View style={styles.itemTop}>
               <Text style={styles.itemDescription} numberOfLines={2}>
                 {item.description}
               </Text>
-              {item.isOptional ? <Text style={styles.optionalBadge}>Optional</Text> : null}
+              {item.isOptional ? <Badge label="Optional" tone="neutral" dot={false} /> : null}
             </View>
             <Text style={styles.itemMeta}>
               {item.quantity} {item.unit ?? ""} × {formatCompactValue(item.unitPrice, q.currencyCode)} ·{" "}
@@ -110,20 +101,24 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
             </Text>
           </View>
         ))}
-      </Section>
+      </SectionCard>
 
       {canEdit ? (
-        <Section title="Actions">
+        <SectionCard title="Actions">
           <View style={styles.actionsRow}>
             {SENDABLE.has(q.status) ? (
-              <Pressable style={styles.approveButton} disabled={send.isPending} onPress={() => send.mutate({ id: q.id })}>
-                <Text style={styles.approveButtonText}>{send.isPending ? "..." : q.sentAt ? "Resend" : "Send"}</Text>
-              </Pressable>
+              <Button
+                label={send.isPending ? "..." : q.sentAt ? "Resend" : "Send"}
+                disabled={send.isPending}
+                onPress={() => send.mutate({ id: q.id })}
+              />
             ) : null}
             {q.status === "accepted" && !q.convertedOrderId ? (
-              <Pressable style={styles.approveButton} disabled={convert.isPending} onPress={() => convert.mutate(q.id)}>
-                <Text style={styles.approveButtonText}>{convert.isPending ? "..." : "Convert to Order"}</Text>
-              </Pressable>
+              <Button
+                label={convert.isPending ? "..." : "Convert to Order"}
+                disabled={convert.isPending}
+                onPress={() => convert.mutate(q.id)}
+              />
             ) : null}
           </View>
 
@@ -133,35 +128,27 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
                 <TextInput
                   style={styles.input}
                   placeholder="Comment (optional)"
+                  placeholderTextColor={colors.subtleForeground}
                   value={comment}
                   onChangeText={setComment}
                   multiline
                   autoFocus
                 />
                 <View style={styles.actionsRow}>
-                  <Pressable
-                    style={respondingType === "accept" ? styles.approveButton : styles.rejectConfirm}
+                  <Button
+                    label={respond.isPending ? "..." : `Confirm ${respondingType === "accept" ? "accepted" : "declined"}`}
+                    variant={respondingType === "accept" ? "primary" : "destructive"}
                     disabled={respond.isPending}
                     onPress={() => submitRespond(respondingType === "accept")}
-                  >
-                    <Text style={respondingType === "accept" ? styles.approveButtonText : styles.rejectConfirmText}>
-                      {respond.isPending ? "..." : `Confirm ${respondingType === "accept" ? "accepted" : "declined"}`}
-                    </Text>
-                  </Pressable>
-                  <Pressable onPress={() => { setRespondingType(null); setComment(""); }}>
-                    <Text style={styles.cancelLink}>Cancel</Text>
-                  </Pressable>
+                  />
+                  <Button label="Cancel" variant="ghost" onPress={() => { setRespondingType(null); setComment(""); }} />
                 </View>
               </View>
             ) : (
               <View style={[styles.actionsRow, styles.respondRow]}>
                 <Text style={styles.notes}>Record the customer&apos;s off-platform decision:</Text>
-                <Pressable style={styles.approveButton} onPress={() => setRespondingType("accept")}>
-                  <Text style={styles.approveButtonText}>Accepted</Text>
-                </Pressable>
-                <Pressable style={styles.rejectButton} onPress={() => setRespondingType("decline")}>
-                  <Text style={styles.rejectButtonText}>Declined</Text>
-                </Pressable>
+                <Button label="Accepted" variant="secondary" onPress={() => setRespondingType("accept")} />
+                <Button label="Declined" variant="outline" onPress={() => setRespondingType("decline")} />
               </View>
             )
           ) : null}
@@ -169,87 +156,42 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
           {send.isError || respond.isError || convert.isError ? (
             <Text style={styles.errorText}>That action didn&apos;t go through. Try again.</Text>
           ) : null}
-        </Section>
+        </SectionCard>
       ) : null}
     </ScrollView>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626", fontSize: 12 },
-  retry: { color: "#2563eb", fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
+  errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  header: { gap: 4 },
-  name: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  subtitle: { fontSize: 14, color: "#6b7280" },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 20, marginTop: 8 },
-  stat: {},
-  statLabel: { fontSize: 11, color: "#9ca3af", textTransform: "uppercase" },
-  statValue: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  header: { gap: spacing.xs },
+  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  section: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#374151", textTransform: "uppercase" },
-  bodyText: { fontSize: 13, color: "#111827", fontStyle: "italic" },
-  notes: { fontSize: 13, color: "#6b7280" },
+  bodyText: { fontSize: fontSize.sm, color: colors.foreground, fontStyle: "italic" },
+  notes: { fontSize: fontSize.sm, color: colors.mutedForeground },
 
-  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
-  detailLabel: { fontSize: 13, color: "#6b7280" },
-  detailValue: { fontSize: 13, fontWeight: "600", color: "#111827" },
+  itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+  itemTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+  itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
 
-  itemRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 4, gap: 2 },
-  itemTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 },
-  itemDescription: { fontSize: 14, fontWeight: "600", color: "#111827", flexShrink: 1 },
-  itemMeta: { fontSize: 12, color: "#6b7280" },
-  optionalBadge: { fontSize: 11, color: "#6b7280", backgroundColor: "#f3f4f6", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
+  actionsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
+  respondRow: { marginTop: spacing.sm },
 
-  actionsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 10 },
-  respondRow: { marginTop: 8 },
-  approveButton: { backgroundColor: "#111827", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  approveButtonText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-  rejectButton: { paddingHorizontal: 8, paddingVertical: 10 },
-  rejectButtonText: { color: "#dc2626", fontWeight: "600", fontSize: 13 },
-  rejectConfirm: { backgroundColor: "#dc2626", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
-  rejectConfirmText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  cancelLink: { color: "#6b7280", fontSize: 13 },
-
-  respondForm: { gap: 8, marginTop: 8 },
+  respondForm: { gap: spacing.sm, marginTop: spacing.sm },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
     minHeight: 44,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     textAlignVertical: "top",
-    fontSize: 13,
+    fontSize: fontSize.base,
+    color: colors.foreground,
   },
 });

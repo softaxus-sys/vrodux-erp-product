@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import {
   useApproveLeave,
   useApprovePurchase,
@@ -25,6 +26,8 @@ import {
 } from "@/lib/approvals.api";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasModuleAccess, hasPermission, useAuthStore } from "@/store/auth.store";
+import { Button, Card, ErrorState, LoadingState, SectionCard } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 import type {
   PayrollActionKind,
   PendingLeaveDto,
@@ -105,6 +108,9 @@ export default function ApprovalsScreen() {
   if (!canLeaves && !canPurchase && !canSalesReturns && !canPayroll) {
     return (
       <View style={styles.centered}>
+        <View style={styles.emptyIcon}>
+          <Feather name="check-square" size={22} color={colors.subtleForeground} />
+        </View>
         <Text style={styles.emptyTitle}>Nothing to approve</Text>
         <Text style={styles.emptyText}>You don&apos;t hold an approval permission in any module yet.</Text>
       </View>
@@ -118,18 +124,21 @@ export default function ApprovalsScreen() {
   return (
     <ScrollView
       contentContainerStyle={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshAll} tintColor={colors.primary} />}
     >
       {!stillLoading && totalPending === 0 ? (
-        <Text style={styles.allClear}>You&apos;re all caught up. Nothing is waiting on you.</Text>
+        <View style={styles.allClearBanner}>
+          <Feather name="check-circle" size={18} color={colors.success} />
+          <Text style={styles.allClearText}>You&apos;re all caught up. Nothing is waiting on you.</Text>
+        </View>
       ) : null}
 
       {canLeaves ? (
-        <Section title="Leave requests" count={leaves.data?.items.length}>
+        <SectionCard title="Leave requests" right={<CountBadge count={leaves.data?.items.length} />}>
           {leaves.isLoading ? (
-            <ActivityIndicator />
+            <LoadingState size="small" />
           ) : leaves.isError ? (
-            <ErrorRetry onRetry={() => leaves.refetch()} />
+            <ErrorState message="Couldn't load this." onRetry={() => leaves.refetch()} />
           ) : !leaves.data || leaves.data.items.length === 0 ? (
             <Text style={styles.emptySection}>No pending leave requests.</Text>
           ) : (
@@ -144,15 +153,15 @@ export default function ApprovalsScreen() {
               />
             ))
           )}
-        </Section>
+        </SectionCard>
       ) : null}
 
       {canPurchase ? (
-        <Section title="Purchase requisitions" count={purchase.data?.length}>
+        <SectionCard title="Purchase requisitions" right={<CountBadge count={purchase.data?.length} />}>
           {purchase.isLoading ? (
-            <ActivityIndicator />
+            <LoadingState size="small" />
           ) : purchase.isError ? (
-            <ErrorRetry onRetry={() => purchase.refetch()} />
+            <ErrorState message="Couldn't load this." onRetry={() => purchase.refetch()} />
           ) : !purchase.data || purchase.data.length === 0 ? (
             <Text style={styles.emptySection}>No pending requisitions.</Text>
           ) : (
@@ -167,15 +176,15 @@ export default function ApprovalsScreen() {
               />
             ))
           )}
-        </Section>
+        </SectionCard>
       ) : null}
 
       {canSalesReturns ? (
-        <Section title="Sales returns" count={salesReturns.data?.length}>
+        <SectionCard title="Sales returns" right={<CountBadge count={salesReturns.data?.length} />}>
           {salesReturns.isLoading ? (
-            <ActivityIndicator />
+            <LoadingState size="small" />
           ) : salesReturns.isError ? (
-            <ErrorRetry onRetry={() => salesReturns.refetch()} />
+            <ErrorState message="Couldn't load this." onRetry={() => salesReturns.refetch()} />
           ) : !salesReturns.data || salesReturns.data.length === 0 ? (
             <Text style={styles.emptySection}>No pending returns.</Text>
           ) : (
@@ -190,15 +199,15 @@ export default function ApprovalsScreen() {
               />
             ))
           )}
-        </Section>
+        </SectionCard>
       ) : null}
 
       {canPayroll ? (
-        <Section title="Payroll runs" count={payrollActions.length}>
+        <SectionCard title="Payroll runs" right={<CountBadge count={payrollActions.length} />}>
           {payroll.isLoading ? (
-            <ActivityIndicator />
+            <LoadingState size="small" />
           ) : payroll.isError ? (
-            <ErrorRetry onRetry={() => payroll.refetch()} />
+            <ErrorState message="Couldn't load this." onRetry={() => payroll.refetch()} />
           ) : payrollActions.length === 0 ? (
             <Text style={styles.emptySection}>No payroll runs waiting on you.</Text>
           ) : (
@@ -221,7 +230,7 @@ export default function ApprovalsScreen() {
               />
             ))
           )}
-        </Section>
+        </SectionCard>
       ) : null}
     </ScrollView>
   );
@@ -246,7 +255,7 @@ function LeaveRow({
   const [notes, setNotes] = useState("");
 
   return (
-    <View style={styles.row}>
+    <Card variant="flat" padding="md" style={styles.row}>
       <Text style={styles.rowTitle}>{leave.employeeName}</Text>
       <Text style={styles.rowSubtitle}>
         {titleCase(leave.leaveType)} · {leave.startDate} → {leave.endDate} ({leave.totalDays}d)
@@ -254,42 +263,21 @@ function LeaveRow({
       {leave.reason ? <Text style={styles.rowNotes}>{leave.reason}</Text> : null}
 
       {rejectOpen ? (
-        <View style={styles.rejectForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Reason (optional)"
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            autoFocus
-          />
-          <View style={styles.actionsRow}>
-            <Pressable
-              style={styles.rejectConfirm}
-              disabled={rejecting}
-              onPress={() => {
-                onReject(notes.trim() || undefined);
-                setRejectOpen(false);
-              }}
-            >
-              <Text style={styles.rejectConfirmText}>{rejecting ? "..." : "Confirm reject"}</Text>
-            </Pressable>
-            <Pressable onPress={() => setRejectOpen(false)}>
-              <Text style={styles.cancelLink}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
+        <RejectForm
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Reason (optional)"
+          rejecting={rejecting}
+          onConfirm={() => {
+            onReject(notes.trim() || undefined);
+            setRejectOpen(false);
+          }}
+          onCancel={() => setRejectOpen(false)}
+        />
       ) : (
-        <View style={styles.actionsRow}>
-          <Pressable style={styles.approveButton} disabled={approving} onPress={onApprove}>
-            <Text style={styles.approveButtonText}>{approving ? "..." : "Approve"}</Text>
-          </Pressable>
-          <Pressable style={styles.rejectButton} onPress={() => setRejectOpen(true)}>
-            <Text style={styles.rejectButtonText}>Reject</Text>
-          </Pressable>
-        </View>
+        <ApproveRejectRow approving={approving} onApprove={onApprove} onReject={() => setRejectOpen(true)} />
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -310,7 +298,7 @@ function PurchaseRow({
   const [reason, setReason] = useState("");
 
   return (
-    <View style={styles.row}>
+    <Card variant="flat" padding="md" style={styles.row}>
       <View style={styles.rowTop}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           {item.title}
@@ -325,42 +313,22 @@ function PurchaseRow({
       </Text>
 
       {rejectOpen ? (
-        <View style={styles.rejectForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Reason (required)"
-            value={reason}
-            onChangeText={setReason}
-            multiline
-            autoFocus
-          />
-          <View style={styles.actionsRow}>
-            <Pressable
-              style={[styles.rejectConfirm, !reason.trim() && styles.buttonDisabled]}
-              disabled={rejecting || !reason.trim()}
-              onPress={() => {
-                onReject(reason.trim());
-                setRejectOpen(false);
-              }}
-            >
-              <Text style={styles.rejectConfirmText}>{rejecting ? "..." : "Confirm reject"}</Text>
-            </Pressable>
-            <Pressable onPress={() => setRejectOpen(false)}>
-              <Text style={styles.cancelLink}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
+        <RejectForm
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Reason (required)"
+          rejecting={rejecting}
+          confirmDisabled={!reason.trim()}
+          onConfirm={() => {
+            onReject(reason.trim());
+            setRejectOpen(false);
+          }}
+          onCancel={() => setRejectOpen(false)}
+        />
       ) : (
-        <View style={styles.actionsRow}>
-          <Pressable style={styles.approveButton} disabled={approving} onPress={onApprove}>
-            <Text style={styles.approveButtonText}>{approving ? "..." : "Approve"}</Text>
-          </Pressable>
-          <Pressable style={styles.rejectButton} onPress={() => setRejectOpen(true)}>
-            <Text style={styles.rejectButtonText}>Reject</Text>
-          </Pressable>
-        </View>
+        <ApproveRejectRow approving={approving} onApprove={onApprove} onReject={() => setRejectOpen(true)} />
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -380,7 +348,7 @@ function SalesReturnRow({
   const [confirmingReject, setConfirmingReject] = useState(false);
 
   return (
-    <View style={styles.row}>
+    <Card variant="flat" padding="md" style={styles.row}>
       <View style={styles.rowTop}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           {item.customerName}
@@ -390,36 +358,30 @@ function SalesReturnRow({
       <Text style={styles.rowSubtitle}>
         {item.returnNumber} · Order {item.orderNumber}
       </Text>
-      <Text style={styles.rowNotes}>{titleCase(item.reason)}{item.reasonDetail ? ` — ${item.reasonDetail}` : ""}</Text>
+      <Text style={styles.rowNotes}>
+        {titleCase(item.reason)}
+        {item.reasonDetail ? ` — ${item.reasonDetail}` : ""}
+      </Text>
 
       {confirmingReject ? (
         <View style={styles.actionsRow}>
           <Text style={styles.rowSubtitle}>Reject this return?</Text>
-          <Pressable
-            style={styles.rejectConfirm}
+          <Button
+            label={rejecting ? "..." : "Yes, reject"}
+            size="sm"
+            variant="destructive"
             disabled={rejecting}
             onPress={() => {
               onReject();
               setConfirmingReject(false);
             }}
-          >
-            <Text style={styles.rejectConfirmText}>{rejecting ? "..." : "Yes, reject"}</Text>
-          </Pressable>
-          <Pressable onPress={() => setConfirmingReject(false)}>
-            <Text style={styles.cancelLink}>No</Text>
-          </Pressable>
+          />
+          <Button label="No" size="sm" variant="ghost" onPress={() => setConfirmingReject(false)} />
         </View>
       ) : (
-        <View style={styles.actionsRow}>
-          <Pressable style={styles.approveButton} disabled={approving} onPress={onApprove}>
-            <Text style={styles.approveButtonText}>{approving ? "..." : "Approve"}</Text>
-          </Pressable>
-          <Pressable style={styles.rejectButton} onPress={() => setConfirmingReject(true)}>
-            <Text style={styles.rejectButtonText}>Reject</Text>
-          </Pressable>
-        </View>
+        <ApproveRejectRow approving={approving} onApprove={onApprove} onReject={() => setConfirmingReject(true)} />
       )}
-    </View>
+    </Card>
   );
 }
 
@@ -444,7 +406,7 @@ function PayrollRow({
   const [reason, setReason] = useState("");
 
   return (
-    <View style={styles.row}>
+    <Card variant="flat" padding="md" style={styles.row}>
       <View style={styles.rowTop}>
         <Text style={styles.rowTitle}>{run.period}</Text>
         <Text style={styles.value}>{formatCompactValue(run.totalNetSalary, currency)}</Text>
@@ -455,119 +417,133 @@ function PayrollRow({
       {run.createdByName ? <Text style={styles.rowNotes}>Created by {run.createdByName}</Text> : null}
 
       {rejectOpen ? (
-        <View style={styles.rejectForm}>
-          <TextInput
-            style={styles.input}
-            placeholder="Reason (optional)"
-            value={reason}
-            onChangeText={setReason}
-            multiline
-            autoFocus
-          />
-          <View style={styles.actionsRow}>
-            <Pressable
-              style={styles.rejectConfirm}
-              disabled={rejecting}
-              onPress={() => {
-                onReject?.(reason.trim() || undefined);
-                setRejectOpen(false);
-              }}
-            >
-              <Text style={styles.rejectConfirmText}>{rejecting ? "..." : "Confirm reject"}</Text>
-            </Pressable>
-            <Pressable onPress={() => setRejectOpen(false)}>
-              <Text style={styles.cancelLink}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
+        <RejectForm
+          value={reason}
+          onChangeText={setReason}
+          placeholder="Reason (optional)"
+          rejecting={rejecting}
+          onConfirm={() => {
+            onReject?.(reason.trim() || undefined);
+            setRejectOpen(false);
+          }}
+          onCancel={() => setRejectOpen(false)}
+        />
       ) : (
         <View style={styles.actionsRow}>
-          <Pressable style={styles.approveButton} disabled={busy} onPress={onAct}>
-            <Text style={styles.approveButtonText}>{busy ? "..." : PAYROLL_ACTION_LABEL[action]}</Text>
-          </Pressable>
-          {onReject ? (
-            <Pressable style={styles.rejectButton} onPress={() => setRejectOpen(true)}>
-              <Text style={styles.rejectButtonText}>Reject</Text>
-            </Pressable>
-          ) : null}
+          <Button label={busy ? "..." : PAYROLL_ACTION_LABEL[action]} size="sm" disabled={busy} onPress={onAct} />
+          {onReject ? <Button label="Reject" size="sm" variant="ghost" onPress={() => setRejectOpen(true)} /> : null}
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 // ── Shared bits ──────────────────────────────────────────────────────────────────────────────
 
-function Section({ title, count, children }: { title: string; count?: number; children: React.ReactNode }) {
+function CountBadge({ count }: { count?: number }) {
+  if (!count) return null;
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {count ? (
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{count}</Text>
-          </View>
-        ) : null}
-      </View>
-      {children}
+    <View style={styles.countBadge}>
+      <Text style={styles.countBadgeText}>{count}</Text>
     </View>
   );
 }
 
-function ErrorRetry({ onRetry }: { onRetry: () => void }) {
+function ApproveRejectRow({ approving, onApprove, onReject }: { approving: boolean; onApprove: () => void; onReject: () => void }) {
   return (
-    <View>
-      <Text style={styles.errorText}>Couldn&apos;t load this.</Text>
-      <Pressable onPress={onRetry}>
-        <Text style={styles.retry}>Tap to retry</Text>
-      </Pressable>
+    <View style={styles.actionsRow}>
+      <Button label={approving ? "..." : "Approve"} size="sm" disabled={approving} onPress={onApprove} />
+      <Button label="Reject" size="sm" variant="ghost" onPress={onReject} />
+    </View>
+  );
+}
+
+function RejectForm({
+  value,
+  onChangeText,
+  placeholder,
+  rejecting,
+  confirmDisabled,
+  onConfirm,
+  onCancel,
+}: {
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder: string;
+  rejecting: boolean;
+  confirmDisabled?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <View style={styles.rejectForm}>
+      <TextInput
+        style={styles.input}
+        placeholder={placeholder}
+        placeholderTextColor={colors.subtleForeground}
+        value={value}
+        onChangeText={onChangeText}
+        multiline
+        autoFocus
+      />
+      <View style={styles.actionsRow}>
+        <Button
+          label={rejecting ? "..." : "Confirm reject"}
+          size="sm"
+          variant="destructive"
+          disabled={rejecting || confirmDisabled}
+          onPress={onConfirm}
+        />
+        <Button label="Cancel" size="sm" variant="ghost" onPress={onCancel} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 8 },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
-  emptyText: { fontSize: 14, color: "#6b7280", textAlign: "center" },
-  allClear: { fontSize: 14, color: "#16a34a", fontWeight: "600", textAlign: "center", paddingVertical: 8 },
+  container: { padding: spacing.lg, gap: spacing.lg },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
+  emptyIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
+  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+  emptyText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
 
-  errorText: { color: "#dc2626", fontSize: 13 },
-  retry: { color: "#2563eb", fontWeight: "600", fontSize: 13, marginTop: 4 },
+  allClearBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.successSoft,
+    borderWidth: 1,
+    borderColor: colors.successLight,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  allClearText: { fontSize: fontSize.base, color: colors.success, fontWeight: fontWeight.semibold },
 
-  section: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, gap: 10 },
-  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#374151", textTransform: "uppercase" },
-  countBadge: { backgroundColor: "#111827", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 },
-  countBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  emptySection: { fontSize: 13, color: "#6b7280" },
+  emptySection: { fontSize: fontSize.base, color: colors.mutedForeground },
 
-  row: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 10, marginTop: 2, gap: 4 },
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 },
-  rowTitle: { fontSize: 15, fontWeight: "600", color: "#111827", flexShrink: 1 },
-  rowSubtitle: { fontSize: 12, color: "#6b7280" },
-  rowNotes: { fontSize: 12, color: "#4b5563", fontStyle: "italic" },
-  value: { fontSize: 13, fontWeight: "700", color: "#111827" },
+  countBadge: { backgroundColor: colors.primary, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 1 },
+  countBadgeText: { color: colors.onPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
-  actionsRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 6 },
-  approveButton: { backgroundColor: "#111827", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  approveButtonText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-  rejectButton: { paddingHorizontal: 12, paddingVertical: 8 },
-  rejectButtonText: { color: "#dc2626", fontWeight: "600", fontSize: 13 },
+  row: { gap: spacing.xs, marginBottom: spacing.sm },
+  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  rowTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+  rowSubtitle: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  rowNotes: { fontSize: fontSize.sm, color: colors.foregroundSecondary, fontStyle: "italic" },
+  value: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
 
-  rejectForm: { gap: 8, marginTop: 4 },
+  actionsRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs, flexWrap: "wrap" },
+
+  rejectForm: { gap: spacing.sm, marginTop: spacing.xs },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
     minHeight: 44,
-    backgroundColor: "#fff",
+    backgroundColor: colors.card,
     textAlignVertical: "top",
-    fontSize: 13,
+    fontSize: fontSize.base,
+    color: colors.foreground,
   },
-  buttonDisabled: { backgroundColor: "#fca5a5" },
-  rejectConfirm: { backgroundColor: "#dc2626", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  rejectConfirmText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  cancelLink: { color: "#6b7280", fontSize: 13 },
 });

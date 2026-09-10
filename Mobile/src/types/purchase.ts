@@ -89,3 +89,12 @@ export const PURCHASE_ORDER_STATUS_LABELS: Record<PurchaseOrderStatus, string> =
   received: "Received",
   cancelled: "Cancelled",
 };
+
+/** Badge tone per status -- consumed by <Badge tone={...}>. */
+export const PURCHASE_ORDER_STATUS_TONE: Record<PurchaseOrderStatus, "success" | "warning" | "destructive" | "info" | "neutral"> = {
+  draft: "neutral",
+  sent: "info",
+  partial: "warning",
+  received: "success",
+  cancelled: "destructive",
+};

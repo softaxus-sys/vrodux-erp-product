@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useMyAttendance } from "@/hooks/use-hr-self";
+import { ATTENDANCE_STATUS_TONE } from "@/types/hr";
 import type { AttendanceRecordDto } from "@/types/hr";
+import { Badge, EmptyListState, ErrorState, ListItemCard, LoadingState } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 
 const PAGE_SIZE = 20;
+
+function titleCase(s: string): string {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export default function AttendanceScreen() {
   const [page, setPage] = useState(1);
@@ -19,38 +26,28 @@ export default function AttendanceScreen() {
   const hasMore = query.data ? query.data.page < query.data.totalPages : false;
 
   if (query.isLoading && items.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingState />;
   }
   if (query.isError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Could not load attendance history.</Text>
-        <Pressable onPress={() => query.refetch()}>
-          <Text style={styles.retry}>Tap to retry</Text>
-        </Pressable>
-      </View>
-    );
+    return <ErrorState message="Could not load attendance history." onRetry={() => query.refetch()} />;
   }
 
   return (
     <FlatList
       data={items}
       keyExtractor={(r) => r.id}
-      contentContainerStyle={items.length === 0 ? styles.emptyList : styles.list}
+      contentContainerStyle={items.length === 0 ? undefined : styles.list}
       refreshControl={
         <RefreshControl
           refreshing={query.isRefetching && page === 1}
           onRefresh={() => (page === 1 ? query.refetch() : setPage(1))}
+          tintColor={colors.primary}
         />
       }
       onEndReachedThreshold={0.4}
       onEndReached={() => hasMore && !query.isFetching && setPage((p) => p + 1)}
-      ListEmptyComponent={<Text style={styles.emptyText}>No attendance recorded yet.</Text>}
-      ListFooterComponent={hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} /> : null}
+      ListEmptyComponent={<EmptyListState icon="calendar" title="No attendance recorded yet" />}
+      ListFooterComponent={hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} color={colors.primary} /> : null}
       renderItem={({ item }) => <Row record={item} />}
     />
   );
@@ -58,10 +55,10 @@ export default function AttendanceScreen() {
 
 function Row({ record }: { record: AttendanceRecordDto }) {
   return (
-    <View style={styles.row}>
+    <ListItemCard>
       <View style={styles.rowTop}>
         <Text style={styles.date}>{record.date}</Text>
-        <StatusBadge status={record.status} />
+        <Badge label={titleCase(record.status)} tone={ATTENDANCE_STATUS_TONE[record.status] ?? "neutral"} />
       </View>
       <View style={styles.rowBottom}>
         <Text style={styles.time}>In: {record.checkIn ?? "—"}</Text>
@@ -70,33 +67,17 @@ function Row({ record }: { record: AttendanceRecordDto }) {
           <Text style={styles.late}>Late {record.lateMinutes}m</Text>
         ) : null}
       </View>
-    </View>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  return (
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{status.replace("_", " ")}</Text>
-    </View>
+    </ListItemCard>
   );
 }
 
 const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
-  list: { paddingVertical: 4 },
-  emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#6b7280" },
-  footerSpinner: { paddingVertical: 16 },
+  list: { paddingVertical: spacing.md },
+  footerSpinner: { paddingVertical: spacing.lg },
 
-  row: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", gap: 4 },
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  date: { fontSize: 15, fontWeight: "600", color: "#111827" },
-  rowBottom: { flexDirection: "row", gap: 16, alignItems: "center" },
-  time: { fontSize: 13, color: "#4b5563" },
-  late: { fontSize: 12, color: "#dc2626", fontWeight: "600" },
-  badge: { backgroundColor: "#e5e7eb", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  badgeText: { fontSize: 11, color: "#374151", textTransform: "capitalize" },
+  date: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground },
+  rowBottom: { flexDirection: "row", gap: spacing.lg, alignItems: "center" },
+  time: { fontSize: fontSize.base, color: colors.mutedForeground },
+  late: { fontSize: fontSize.sm, color: colors.destructive, fontWeight: fontWeight.semibold },
 });

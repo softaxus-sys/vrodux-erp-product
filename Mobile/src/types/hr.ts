@@ -131,3 +131,22 @@ export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
   rejected: "Rejected",
   cancelled: "Cancelled",
 };
+
+/** Badge tone per status -- consumed by <Badge tone={...}>. Co-located with the labels above. */
+export const LEAVE_STATUS_TONE: Record<LeaveStatus, "success" | "warning" | "destructive" | "neutral"> = {
+  pending: "warning",
+  approved: "success",
+  rejected: "destructive",
+  cancelled: "neutral",
+};
+
+export const ATTENDANCE_STATUS_TONE: Record<AttendanceStatus, "success" | "warning" | "destructive" | "info" | "neutral"> = {
+  present: "success",
+  absent: "destructive",
+  late: "warning",
+  half_day: "warning",
+  on_leave: "info",
+  holiday: "neutral",
+  weekend: "neutral",
+  remote: "info",
+};

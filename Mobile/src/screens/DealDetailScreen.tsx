@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDeal, useMoveDealStage } from "@/hooks/use-deals";
 import { useActivities, useCreateActivity } from "@/hooks/use-activities";
@@ -16,6 +7,8 @@ import { cleanPhone, formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
 import { FORECAST_LABELS, NEXT_STAGES, PIPELINE_STAGES, STAGE_PROBABILITY } from "@/types/crm";
 import type { ActivityType, DealStage } from "@/types/crm";
+import { Button, Chip, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 import type { DealsStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<DealsStackParamList, "DealDetail">;
@@ -40,21 +33,10 @@ export default function DealDetailScreen({ route, navigation }: Props) {
   const [logNote, setLogNote] = useState("");
 
   if (deal.isLoading || !deal.data) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingState />;
   }
   if (deal.isError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Could not load this opportunity.</Text>
-        <Pressable onPress={() => deal.refetch()}>
-          <Text style={styles.retry}>Tap to retry</Text>
-        </Pressable>
-      </View>
-    );
+    return <ErrorState message="Could not load this opportunity." onRetry={() => deal.refetch()} />;
   }
 
   const d = deal.data;
@@ -97,7 +79,7 @@ export default function DealDetailScreen({ route, navigation }: Props) {
         <Text style={styles.name}>{d.title}</Text>
         {d.company ? <Text style={styles.subtitle}>{d.company}</Text> : null}
         <View style={styles.statsRow}>
-          <Stat label="Value" value={formatCompactValue(d.value, d.currency)} />
+          <Stat label="Value" value={formatCompactValue(d.value, d.currency)} tone="primary" />
           <Stat label="Weighted" value={formatCompactValue(d.weightedValue, d.currency)} />
           <Stat label="Stage" value={stageLabel(d.stage)} />
           <Stat label="Forecast" value={FORECAST_LABELS[d.forecastCategory]} />
@@ -107,21 +89,25 @@ export default function DealDetailScreen({ route, navigation }: Props) {
 
       {/* Contact actions */}
       {d.contact?.name ? (
-        <Section title={`Contact: ${d.contact.name}`}>
+        <SectionCard title={`Contact: ${d.contact.name}`}>
           <View style={styles.actionsRow}>
-            <ActionButton label="Call" disabled={!phone} onPress={() => Linking.openURL(`tel:${phone}`)} />
-            <ActionButton
+            <Button icon="phone" label="Call" variant="outline" disabled={!phone} onPress={() => Linking.openURL(`tel:${phone}`)} fullWidth style={styles.actionButton} />
+            <Button
+              icon="mail"
               label="Email"
+              variant="outline"
               disabled={!d.contact.email}
               onPress={() => Linking.openURL(`mailto:${d.contact.email}`)}
+              fullWidth
+              style={styles.actionButton}
             />
           </View>
-        </Section>
+        </SectionCard>
       ) : null}
 
       {/* Description / next action */}
       {d.description || d.nextAction ? (
-        <Section title="Details">
+        <SectionCard title="Details">
           {d.description ? <Text style={styles.bodyText}>{d.description}</Text> : null}
           {d.nextAction ? (
             <Text style={styles.notes}>
@@ -129,12 +115,12 @@ export default function DealDetailScreen({ route, navigation }: Props) {
               {d.nextActionDate ? ` (${d.nextActionDate})` : ""}
             </Text>
           ) : null}
-        </Section>
+        </SectionCard>
       ) : null}
 
       {/* Move stage */}
       {nextStages.length > 0 ? (
-        <Section title="Move stage">
+        <SectionCard title="Move stage">
           <View style={styles.chipRow}>
             {nextStages.map((s) =>
               movingTo === s ? (
@@ -143,77 +129,61 @@ export default function DealDetailScreen({ route, navigation }: Props) {
                     <TextInput
                       style={styles.input}
                       placeholder="Reason lost (optional)"
+                      placeholderTextColor={colors.subtleForeground}
                       value={lossReason}
                       onChangeText={setLossReason}
                       autoFocus
                     />
-                    <View style={styles.logButtonsRow}>
-                      <Pressable style={styles.confirmYes} onPress={() => submitStage(s)}>
-                        <Text style={styles.confirmYesText}>Mark Lost</Text>
-                      </Pressable>
-                      <Pressable onPress={() => setMovingTo(null)}>
-                        <Text style={styles.confirmCancel}>Cancel</Text>
-                      </Pressable>
+                    <View style={styles.buttonsRow}>
+                      <Button label="Mark Lost" variant="destructive" onPress={() => submitStage(s)} />
+                      <Button label="Cancel" variant="ghost" onPress={() => setMovingTo(null)} />
                     </View>
                   </View>
                 ) : (
                   <View key={s} style={styles.confirmRow}>
                     <Text style={styles.confirmText}>Move to {stageLabel(s)}?</Text>
-                    <Pressable style={styles.confirmYes} onPress={() => submitStage(s)}>
-                      <Text style={styles.confirmYesText}>Confirm</Text>
-                    </Pressable>
-                    <Pressable onPress={() => setMovingTo(null)}>
-                      <Text style={styles.confirmCancel}>Cancel</Text>
-                    </Pressable>
+                    <Button label="Confirm" size="sm" onPress={() => submitStage(s)} />
+                    <Button label="Cancel" size="sm" variant="ghost" onPress={() => setMovingTo(null)} />
                   </View>
                 )
               ) : (
-                <Pressable key={s} style={styles.statusChip} onPress={() => setMovingTo(s)}>
-                  <Text style={styles.statusChipText}>{stageLabel(s)}</Text>
-                </Pressable>
+                <Chip key={s} label={stageLabel(s)} onPress={() => setMovingTo(s)} />
               )
             )}
           </View>
-        </Section>
+        </SectionCard>
       ) : null}
 
       {/* Log activity */}
-      <Section title="Log activity">
+      <SectionCard title="Log activity">
         {logType ? (
-          <View>
+          <View style={styles.formGap}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, styles.multiline]}
               placeholder={logType === "call" ? "What was discussed? (optional)" : "Note"}
+              placeholderTextColor={colors.subtleForeground}
               value={logNote}
               onChangeText={setLogNote}
               multiline
               autoFocus
             />
-            <View style={styles.logButtonsRow}>
-              <Pressable style={styles.logSubmit} onPress={submitLog} disabled={createActivity.isPending}>
-                <Text style={styles.logSubmitText}>{createActivity.isPending ? "Saving..." : "Save"}</Text>
-              </Pressable>
-              <Pressable onPress={() => setLogType(null)}>
-                <Text style={styles.confirmCancel}>Cancel</Text>
-              </Pressable>
+            <View style={styles.buttonsRow}>
+              <Button label={createActivity.isPending ? "Saving..." : "Save"} onPress={submitLog} disabled={createActivity.isPending} />
+              <Button label="Cancel" variant="ghost" onPress={() => setLogType(null)} />
             </View>
           </View>
         ) : (
           <View style={styles.chipRow}>
-            <Pressable style={styles.statusChip} onPress={() => setLogType("call")}>
-              <Text style={styles.statusChipText}>Log call</Text>
-            </Pressable>
-            <Pressable style={styles.statusChip} onPress={() => setLogType("note")}>
-              <Text style={styles.statusChipText}>Add note</Text>
-            </Pressable>
+            <Chip label="Log call" onPress={() => setLogType("call")} />
+            <Chip label="Add note" onPress={() => setLogType("note")} />
           </View>
         )}
-      </Section>
+      </SectionCard>
 
       {/* Activity feed */}
-      <Section title="Recent activity">
+      <SectionCard title="Recent activity">
         {activities.isLoading ? (
-          <ActivityIndicator />
+          <LoadingState size="small" />
         ) : !activities.data || activities.data.length === 0 ? (
           <Text style={styles.notes}>Nothing logged yet.</Text>
         ) : (
@@ -227,88 +197,46 @@ export default function DealDetailScreen({ route, navigation }: Props) {
             </View>
           ))
         )}
-      </Section>
+      </SectionCard>
     </ScrollView>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-function ActionButton({ label, disabled, onPress }: { label: string; disabled?: boolean; onPress: () => void }) {
-  return (
-    <Pressable style={[styles.actionButton, disabled && styles.actionButtonDisabled]} onPress={onPress} disabled={disabled}>
-      <Text style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { gap: 4 },
-  name: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  subtitle: { fontSize: 14, color: "#6b7280" },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 20, marginTop: 8 },
-  stat: {},
-  statLabel: { fontSize: 11, color: "#9ca3af", textTransform: "uppercase" },
-  statValue: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  lossReason: { fontSize: 13, color: "#dc2626", marginTop: 6 },
+  header: { gap: spacing.xs },
+  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+  lossReason: { fontSize: fontSize.base, color: colors.destructive, marginTop: spacing.sm, fontWeight: fontWeight.medium },
 
-  actionsRow: { flexDirection: "row", gap: 8 },
-  actionButton: { flex: 1, backgroundColor: "#111827", borderRadius: 8, paddingVertical: 12, alignItems: "center" },
-  actionButtonDisabled: { backgroundColor: "#e5e7eb" },
-  actionButtonText: { color: "#fff", fontWeight: "600" },
-  actionButtonTextDisabled: { color: "#9ca3af" },
+  actionsRow: { flexDirection: "row", gap: spacing.sm },
+  actionButton: { flex: 1, paddingHorizontal: spacing.sm },
 
-  section: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#374151", textTransform: "uppercase" },
-  bodyText: { fontSize: 15, color: "#111827" },
-  notes: { fontSize: 13, color: "#6b7280", fontStyle: "italic" },
+  bodyText: { fontSize: fontSize.lg, color: colors.foreground },
+  notes: { fontSize: fontSize.base, color: colors.mutedForeground, fontStyle: "italic" },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  statusChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: "#e5e7eb" },
-  statusChipText: { fontSize: 13, fontWeight: "600", color: "#374151" },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 
-  confirmRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  confirmText: { fontSize: 13, color: "#111827" },
-  confirmYes: { backgroundColor: "#dc2626", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
-  confirmYesText: { color: "#fff", fontSize: 12, fontWeight: "700" },
-  confirmCancel: { color: "#6b7280", fontSize: 13 },
-  lostForm: { flex: 1, gap: 8 },
+  confirmRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
+  confirmText: { fontSize: fontSize.base, color: colors.foreground },
+  lostForm: { flex: 1, gap: spacing.sm + 2 },
 
+  formGap: { gap: spacing.sm + 2 },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    minHeight: 44,
-    backgroundColor: "#fff",
-    textAlignVertical: "top",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    backgroundColor: colors.card,
+    fontSize: fontSize.md,
+    color: colors.foreground,
   },
-  logButtonsRow: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 },
-  logSubmit: { backgroundColor: "#111827", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-  logSubmitText: { color: "#fff", fontWeight: "600" },
+  multiline: { minHeight: 44, textAlignVertical: "top" },
+  buttonsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 
-  activityRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 4, gap: 2 },
-  activitySubject: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  activityDate: { fontSize: 11, color: "#9ca3af" },
+  activityRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
+  activitySubject: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+  activityDate: { fontSize: fontSize.xs, color: colors.subtleForeground },
 });

@@ -69,6 +69,16 @@ export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   partial: "Partially paid",
 };
 
+/** Badge tone per status -- consumed by <Badge tone={...}>. */
+export const INVOICE_STATUS_TONE: Record<InvoiceStatus, "success" | "warning" | "destructive" | "info" | "neutral"> = {
+  draft: "neutral",
+  sent: "info",
+  paid: "success",
+  overdue: "destructive",
+  cancelled: "neutral",
+  partial: "warning",
+};
+
 export interface InvoicesPageParams {
   page?: number;
   pageSize?: number;
@@ -115,6 +125,15 @@ export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
   approved: "Approved",
   rejected: "Rejected",
   paid: "Paid",
+};
+
+/** Badge tone per status -- consumed by <Badge tone={...}>. */
+export const EXPENSE_STATUS_TONE: Record<ExpenseStatus, "success" | "warning" | "destructive" | "info" | "neutral"> = {
+  draft: "neutral",
+  pending: "warning",
+  approved: "success",
+  rejected: "destructive",
+  paid: "info",
 };
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [

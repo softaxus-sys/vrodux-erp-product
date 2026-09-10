@@ -1,18 +1,21 @@
 import { useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { authApi } from "@/lib/auth.api";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { Button } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
@@ -20,6 +23,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const setSessionFromAuthResult = useAuthStore((s) => s.setSessionFromAuthResult);
@@ -48,71 +52,112 @@ export default function LoginScreen({ navigation }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View style={styles.container}>
-        <Text style={styles.title}>Vrodux ERP</Text>
-        <Text style={styles.subtitle}>Sign in to your workspace</Text>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <View style={styles.brandBlock}>
+          <BrandMark size={64} />
+          <Text style={styles.title}>Vrodux ERP</Text>
+          <Text style={styles.subtitle}>Sign in to your workspace</Text>
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          secureTextEntry
-          autoComplete="password"
-          value={password}
-          onChangeText={setPassword}
-        />
+        <View style={styles.form}>
+          <View style={styles.field}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrap}>
+              <Feather name="mail" size={16} color={colors.subtleForeground} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="you@company.com"
+                placeholderTextColor={colors.subtleForeground}
+                autoCapitalize="none"
+                autoComplete="email"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+          </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.field}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrap}>
+              <Feather name="lock" size={16} color={colors.subtleForeground} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor={colors.subtleForeground}
+                secureTextEntry={!showPassword}
+                autoComplete="password"
+                value={password}
+                onChangeText={setPassword}
+              />
+              <Feather
+                name={showPassword ? "eye-off" : "eye"}
+                size={16}
+                color={colors.subtleForeground}
+                style={styles.inputTrailingIcon}
+                onPress={() => setShowPassword((v) => !v)}
+                suppressHighlighting
+              />
+            </View>
+          </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-          onPress={handleSubmit}
-          disabled={loading || !email || !password}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </Pressable>
-      </View>
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={14} color={colors.destructive} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <Button
+            label="Sign In"
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={!email || !password}
+            fullWidth
+            style={styles.submitButton}
+          />
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 28, fontWeight: "700", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#6b7280", textAlign: "center", marginBottom: 16 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  error: { color: "#dc2626", fontSize: 14, textAlign: "center" },
-  button: {
-    backgroundColor: "#111827",
-    borderRadius: 8,
-    paddingVertical: 14,
+  flex: { flex: 1, backgroundColor: colors.background },
+  container: { flexGrow: 1, justifyContent: "center", padding: spacing.xxl, gap: spacing.xxl },
+
+  brandBlock: { alignItems: "center", gap: spacing.sm },
+  title: { fontSize: fontSize.xxxl, fontWeight: fontWeight.extrabold, color: colors.foreground, marginTop: spacing.xs },
+  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+
+  form: { gap: spacing.lg },
+  field: { gap: spacing.xs + 2 },
+  label: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
+  inputWrap: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
   },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  inputIcon: { marginRight: spacing.sm },
+  inputTrailingIcon: { marginLeft: spacing.sm, padding: spacing.xs },
+  input: { flex: 1, paddingVertical: spacing.md, fontSize: fontSize.lg, color: colors.foreground },
+
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.destructiveSoft,
+    borderWidth: 1,
+    borderColor: colors.destructiveLight,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  errorText: { color: colors.destructive, fontSize: fontSize.base, flexShrink: 1 },
+
+  submitButton: { marginTop: spacing.xs, paddingVertical: spacing.md + 2 },
 });

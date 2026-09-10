@@ -1,9 +1,11 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProduct, useProductStock } from "@/hooks/use-inventory";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
 import type { InventoryStackParamList } from "@/navigation/types";
+import { Badge, DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 
 type Props = NativeStackScreenProps<InventoryStackParamList, "ProductDetail">;
 
@@ -16,21 +18,10 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const stock = useProductStock(productId);
 
   if (product.isLoading || !product.data) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingState />;
   }
   if (product.isError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Couldn&apos;t load this product.</Text>
-        <Pressable onPress={() => product.refetch()}>
-          <Text style={styles.retry}>Tap to retry</Text>
-        </Pressable>
-      </View>
-    );
+    return <ErrorState message="Couldn't load this product." onRetry={() => product.refetch()} />;
   }
 
   const p = product.data;
@@ -39,37 +30,35 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.header}>
         <Text style={styles.name}>{p.name}</Text>
-        <Text style={styles.subtitle}>
-          {[p.sku, p.categoryName].filter(Boolean).join(" · ") || "—"}
-        </Text>
+        <Text style={styles.subtitle}>{[p.sku, p.categoryName].filter(Boolean).join(" · ") || "—"}</Text>
         <View style={styles.statsRow}>
-          <Stat label="Sale price" value={formatCompactValue(p.salePrice, currency)} />
+          <Stat label="Sale price" value={formatCompactValue(p.salePrice, currency)} tone="primary" />
           <Stat label="Cost price" value={formatCompactValue(p.costPrice, currency)} />
           <Stat label="Tax rate" value={`${p.taxRate}%`} />
           <Stat label="Total stock" value={`${p.stockQuantity} ${p.unit}`} />
         </View>
         <View style={styles.badgeRow}>
-          {p.isLowStock ? <Text style={styles.lowBadge}>Low stock — reorder at {p.reorderLevel}</Text> : null}
-          {!p.isActive ? <Text style={styles.inactiveBadge}>Inactive</Text> : null}
+          {p.isLowStock ? <Badge label={`Low stock — reorder at ${p.reorderLevel}`} tone="warning" /> : null}
+          {!p.isActive ? <Badge label="Inactive" tone="neutral" /> : null}
         </View>
       </View>
 
       {p.description ? (
-        <Section title="Description">
+        <SectionCard title="Description">
           <Text style={styles.bodyText}>{p.description}</Text>
-        </Section>
+        </SectionCard>
       ) : null}
 
-      <Section title="Details">
-        <Detail label="Barcode" value={p.barcode ?? "—"} />
-        <Detail label="Brand" value={p.brandName ?? "—"} />
-        <Detail label="Unit of measure" value={p.unitOfMeasureSymbol ?? p.unit} />
-        <Detail label="Tracked" value={p.trackInventory ? "Yes" : "No"} />
-      </Section>
+      <SectionCard title="Details">
+        <DetailRow label="Barcode" value={p.barcode ?? "—"} />
+        <DetailRow label="Brand" value={p.brandName ?? "—"} />
+        <DetailRow label="Unit of measure" value={p.unitOfMeasureSymbol ?? p.unit} />
+        <DetailRow label="Tracked" value={p.trackInventory ? "Yes" : "No"} />
+      </SectionCard>
 
-      <Section title="Stock by warehouse">
+      <SectionCard title="Stock by warehouse">
         {stock.isLoading ? (
-          <ActivityIndicator />
+          <LoadingState size="small" />
         ) : stock.isError ? (
           <Text style={styles.notes}>Couldn&apos;t load per-warehouse stock.</Text>
         ) : !stock.data || stock.data.warehouses.length === 0 ? (
@@ -84,71 +73,30 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
                 </Text>
                 <Text style={[styles.warehouseQty, w.isLowStock && styles.stockLow]}>{w.quantity}</Text>
               </View>
-              {w.isLowStock ? <Text style={styles.lowBadge}>Below reorder level ({w.reorderLevel})</Text> : null}
+              {w.isLowStock ? <Badge label={`Below reorder level (${w.reorderLevel})`} tone="warning" /> : null}
             </View>
           ))
         )}
-      </Section>
+      </SectionCard>
     </ScrollView>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { gap: 4 },
-  name: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  subtitle: { fontSize: 14, color: "#6b7280" },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 20, marginTop: 8 },
-  stat: {},
-  statLabel: { fontSize: 11, color: "#9ca3af", textTransform: "uppercase" },
-  statValue: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  lowBadge: { fontSize: 12, color: "#b45309", backgroundColor: "#fef3c7", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  inactiveBadge: { fontSize: 12, color: "#6b7280", backgroundColor: "#f3f4f6", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  header: { gap: spacing.xs },
+  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
 
-  section: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#374151", textTransform: "uppercase" },
-  bodyText: { fontSize: 14, color: "#111827" },
-  notes: { fontSize: 13, color: "#6b7280" },
+  bodyText: { fontSize: fontSize.md, color: colors.foreground },
+  notes: { fontSize: fontSize.base, color: colors.mutedForeground },
 
-  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
-  detailLabel: { fontSize: 13, color: "#6b7280" },
-  detailValue: { fontSize: 13, fontWeight: "600", color: "#111827" },
-
-  warehouseRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 4, gap: 4 },
+  warehouseRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
   warehouseTop: { flexDirection: "row", justifyContent: "space-between" },
-  warehouseName: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  warehouseQty: { fontSize: 14, fontWeight: "700", color: "#111827" },
-  stockLow: { color: "#b45309" },
+  warehouseName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+  warehouseQty: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.foreground },
+  stockLow: { color: colors.warning },
 });

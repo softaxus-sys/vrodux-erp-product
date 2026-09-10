@@ -1,21 +1,15 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useExpensesPaged } from "@/hooks/use-finance";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { FINANCE_EXPENSES_CREATE } from "@/lib/finance.api";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
-import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_LABELS } from "@/types/finance";
+import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_LABELS, EXPENSE_STATUS_TONE } from "@/types/finance";
 import type { ExpenseCategory, ExpenseDto } from "@/types/finance";
+import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "ExpensesList">;
@@ -45,8 +39,9 @@ export default function ExpensesListScreen({ navigation }: Props) {
     navigation.setOptions({
       headerRight: canCreate
         ? () => (
-            <Pressable onPress={() => navigation.navigate("NewExpense")} hitSlop={8}>
-              <Text style={styles.headerButton}>+ New</Text>
+            <Pressable onPress={() => navigation.navigate("NewExpense")} hitSlop={8} style={styles.headerButtonWrap}>
+              <Feather name="plus" size={16} color={colors.primary} />
+              <Text style={styles.headerButton}>New</Text>
             </Pressable>
           )
         : undefined,
@@ -75,48 +70,29 @@ export default function ExpensesListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search by title or expense #…"
-        value={search}
-        onChangeText={setSearch}
-        autoCapitalize="none"
-      />
+      <SearchInput value={search} onChangeText={setSearch} placeholder="Search by title or expense #…" />
 
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
-          <Pressable
-            key={f.key}
-            style={[styles.chip, status === f.key && styles.chipActive]}
-            onPress={() => setStatus(f.key)}
-          >
-            <Text style={[styles.chipText, status === f.key && styles.chipTextActive]}>{f.label}</Text>
-          </Pressable>
+          <Chip key={f.key} label={f.label} active={status === f.key} onPress={() => setStatus(f.key)} />
         ))}
       </View>
 
       {query.isError ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>Couldn&apos;t load expenses.</Text>
-          <Pressable onPress={() => query.refetch()}>
-            <Text style={styles.retry}>Tap to retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState message="Couldn't load expenses." onRetry={() => query.refetch()} />
       ) : query.isLoading && items.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" />
-        </View>
+        <LoadingState />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(e) => e.id}
-          contentContainerStyle={items.length === 0 ? styles.emptyList : undefined}
-          refreshControl={<RefreshControl refreshing={query.isRefetching && page === 1} onRefresh={refresh} />}
+          contentContainerStyle={items.length === 0 ? undefined : styles.list}
+          refreshControl={<RefreshControl refreshing={query.isRefetching && page === 1} onRefresh={refresh} tintColor={colors.primary} />}
           onEndReachedThreshold={0.4}
           onEndReached={loadMore}
-          ListEmptyComponent={<Text style={styles.emptyText}>No expenses here.</Text>}
+          ListEmptyComponent={<EmptyListState icon="credit-card" title="No expenses here" />}
           ListFooterComponent={
-            hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} /> : null
+            hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} color={colors.primary} /> : null
           }
           renderItem={({ item }) => (
             <ExpenseRow
@@ -134,7 +110,7 @@ export default function ExpensesListScreen({ navigation }: Props) {
 function ExpenseRow({ expense, currency, onPress }: { expense: ExpenseDto; currency: string; onPress: () => void }) {
   const categoryLabel = EXPENSE_CATEGORY_LABELS[expense.category as ExpenseCategory] ?? expense.category;
   return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress}>
+    <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
         <Text style={styles.name} numberOfLines={1}>
           {expense.title}
@@ -144,40 +120,21 @@ function ExpenseRow({ expense, currency, onPress }: { expense: ExpenseDto; curre
       <Text style={styles.meta}>
         {expense.expenseNumber} · {categoryLabel} · {expense.expenseDate}
       </Text>
-      <Text style={styles.status}>{EXPENSE_STATUS_LABELS[expense.status] ?? expense.status}</Text>
-    </Pressable>
+      <Badge label={EXPENSE_STATUS_LABELS[expense.status] ?? expense.status} tone={EXPENSE_STATUS_TONE[expense.status] ?? "neutral"} />
+    </ListItemCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  headerButton: { color: "#2563eb", fontSize: 15, fontWeight: "600" },
-  search: {
-    margin: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-  },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 8, marginBottom: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: "#f3f4f6" },
-  chipActive: { backgroundColor: "#111827" },
-  chipText: { fontSize: 13, color: "#374151" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
-  emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#6b7280" },
-  footerSpinner: { paddingVertical: 16 },
-  row: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", gap: 2 },
-  rowPressed: { backgroundColor: "#f9fafb" },
+  container: { flex: 1, backgroundColor: colors.background },
+  headerButtonWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+  headerButton: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+  footerSpinner: { paddingVertical: spacing.lg },
+  list: { paddingVertical: spacing.md },
+
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: 16, fontWeight: "600", color: "#111827", flexShrink: 1 },
-  value: { fontSize: 13, fontWeight: "600", color: "#111827" },
-  meta: { fontSize: 13, color: "#4b5563" },
-  status: { fontSize: 12, color: "#6b7280", marginTop: 2 },
+  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
 });

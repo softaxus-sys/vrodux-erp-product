@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useQuotationsPaged } from "@/hooks/use-sales";
 import { formatCompactValue } from "@/lib/crm-helpers";
-import { QUOTATION_STATUS_LABELS } from "@/types/sales";
+import { QUOTATION_STATUS_LABELS, QUOTATION_STATUS_TONE } from "@/types/sales";
 import type { QuotationSummaryDto } from "@/types/sales";
+import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<SalesStackParamList, "QuotationsList">;
@@ -60,48 +53,29 @@ export default function QuotationsListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search by quotation # or customer…"
-        value={search}
-        onChangeText={setSearch}
-        autoCapitalize="none"
-      />
+      <SearchInput value={search} onChangeText={setSearch} placeholder="Search by quotation # or customer…" />
 
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
-          <Pressable
-            key={f.key}
-            style={[styles.chip, status === f.key && styles.chipActive]}
-            onPress={() => setStatus(f.key)}
-          >
-            <Text style={[styles.chipText, status === f.key && styles.chipTextActive]}>{f.label}</Text>
-          </Pressable>
+          <Chip key={f.key} label={f.label} active={status === f.key} onPress={() => setStatus(f.key)} />
         ))}
       </View>
 
       {query.isError ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>Couldn&apos;t load quotations.</Text>
-          <Pressable onPress={() => query.refetch()}>
-            <Text style={styles.retry}>Tap to retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState message="Couldn't load quotations." onRetry={() => query.refetch()} />
       ) : query.isLoading && items.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" />
-        </View>
+        <LoadingState />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(q) => q.id}
-          contentContainerStyle={items.length === 0 ? styles.emptyList : undefined}
-          refreshControl={<RefreshControl refreshing={query.isRefetching && page === 1} onRefresh={refresh} />}
+          contentContainerStyle={items.length === 0 ? undefined : styles.list}
+          refreshControl={<RefreshControl refreshing={query.isRefetching && page === 1} onRefresh={refresh} tintColor={colors.primary} />}
           onEndReachedThreshold={0.4}
           onEndReached={loadMore}
-          ListEmptyComponent={<Text style={styles.emptyText}>No quotations here.</Text>}
+          ListEmptyComponent={<EmptyListState icon="file-text" title="No quotations here" />}
           ListFooterComponent={
-            hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} /> : null
+            hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} color={colors.primary} /> : null
           }
           renderItem={({ item }) => (
             <QuotationRow
@@ -119,7 +93,7 @@ export default function QuotationsListScreen({ navigation }: Props) {
 
 function QuotationRow({ quotation, onPress }: { quotation: QuotationSummaryDto; onPress: () => void }) {
   return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress}>
+    <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
         <Text style={styles.name} numberOfLines={1}>
           {quotation.title || quotation.customerName || quotation.quotationNumber}
@@ -131,43 +105,22 @@ function QuotationRow({ quotation, onPress }: { quotation: QuotationSummaryDto; 
         {quotation.customerName ? ` · ${quotation.customerName}` : ""}
       </Text>
       <View style={styles.rowBottom}>
-        <Text style={styles.status}>{QUOTATION_STATUS_LABELS[quotation.status] ?? quotation.status}</Text>
-        {quotation.isExpired ? <Text style={styles.expiredBadge}>Expired</Text> : null}
+        <Badge label={QUOTATION_STATUS_LABELS[quotation.status] ?? quotation.status} tone={QUOTATION_STATUS_TONE[quotation.status] ?? "neutral"} />
+        {quotation.isExpired ? <Badge label="Expired" tone="destructive" dot={false} /> : null}
       </View>
-    </Pressable>
+    </ListItemCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  search: {
-    margin: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-  },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 8, marginBottom: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: "#f3f4f6" },
-  chipActive: { backgroundColor: "#111827" },
-  chipText: { fontSize: 13, color: "#374151" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
-  emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#6b7280" },
-  footerSpinner: { paddingVertical: 16 },
-  row: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", gap: 2 },
-  rowPressed: { backgroundColor: "#f9fafb" },
+  container: { flex: 1, backgroundColor: colors.background },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+  footerSpinner: { paddingVertical: spacing.lg },
+  list: { paddingVertical: spacing.md },
+
   rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: 16, fontWeight: "600", color: "#111827", flexShrink: 1 },
-  value: { fontSize: 13, fontWeight: "600", color: "#111827" },
-  meta: { fontSize: 13, color: "#4b5563" },
-  rowBottom: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  status: { fontSize: 12, color: "#6b7280" },
-  expiredBadge: { fontSize: 11, color: "#dc2626", backgroundColor: "#fee2e2", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
+  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
+  rowBottom: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
 });

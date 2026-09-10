@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCreateExpense } from "@/hooks/use-finance";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/types/finance";
 import type { ExpenseCategory } from "@/types/finance";
+import { Button, Chip } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "NewExpense">;
@@ -49,21 +51,19 @@ export default function NewExpenseScreen({ navigation }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Field label="Title">
-        <TextInput style={styles.input} placeholder="e.g. Client visit taxi" value={title} onChangeText={setTitle} />
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Client visit taxi"
+          placeholderTextColor={colors.subtleForeground}
+          value={title}
+          onChangeText={setTitle}
+        />
       </Field>
 
       <Field label="Category">
         <View style={styles.chipRow}>
           {EXPENSE_CATEGORIES.map((c) => (
-            <Pressable
-              key={c}
-              style={[styles.chip, category === c && styles.chipActive]}
-              onPress={() => setCategory(c)}
-            >
-              <Text style={[styles.chipText, category === c && styles.chipTextActive]}>
-                {EXPENSE_CATEGORY_LABELS[c]}
-              </Text>
-            </Pressable>
+            <Chip key={c} label={EXPENSE_CATEGORY_LABELS[c]} active={category === c} onPress={() => setCategory(c)} />
           ))}
         </View>
       </Field>
@@ -72,6 +72,7 @@ export default function NewExpenseScreen({ navigation }: Props) {
         <TextInput
           style={styles.input}
           placeholder="0.00"
+          placeholderTextColor={colors.subtleForeground}
           value={amount}
           onChangeText={setAmount}
           keyboardType="decimal-pad"
@@ -82,6 +83,7 @@ export default function NewExpenseScreen({ navigation }: Props) {
         <TextInput
           style={styles.input}
           placeholder="YYYY-MM-DD"
+          placeholderTextColor={colors.subtleForeground}
           value={expenseDate}
           onChangeText={setExpenseDate}
           autoCapitalize="none"
@@ -89,24 +91,41 @@ export default function NewExpenseScreen({ navigation }: Props) {
       </Field>
 
       <Field label="Paid by (optional)">
-        <TextInput style={styles.input} placeholder="Your name" value={paidBy} onChangeText={setPaidBy} />
+        <TextInput style={styles.input} placeholder="Your name" placeholderTextColor={colors.subtleForeground} value={paidBy} onChangeText={setPaidBy} />
       </Field>
 
       <Field label="Payment method (optional)">
-        <TextInput style={styles.input} placeholder="Cash, card, bank transfer…" value={paymentMethod} onChangeText={setPaymentMethod} />
+        <TextInput
+          style={styles.input}
+          placeholder="Cash, card, bank transfer…"
+          placeholderTextColor={colors.subtleForeground}
+          value={paymentMethod}
+          onChangeText={setPaymentMethod}
+        />
       </Field>
 
       <Field label="Reference (optional)">
-        <TextInput style={styles.input} placeholder="Receipt / invoice number" value={reference} onChangeText={setReference} />
+        <TextInput
+          style={styles.input}
+          placeholder="Receipt / invoice number"
+          placeholderTextColor={colors.subtleForeground}
+          value={reference}
+          onChangeText={setReference}
+        />
       </Field>
 
       <Field label="Notes (optional)">
-        <TextInput style={[styles.input, styles.multiline]} value={notes} onChangeText={setNotes} multiline />
+        <TextInput style={[styles.input, styles.multiline]} placeholderTextColor={colors.subtleForeground} value={notes} onChangeText={setNotes} multiline />
       </Field>
 
-      <Pressable style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]} disabled={!canSubmit || createExpense.isPending} onPress={submit}>
-        <Text style={styles.submitButtonText}>{createExpense.isPending ? "Submitting..." : "Submit expense"}</Text>
-      </Pressable>
+      <Button
+        label={createExpense.isPending ? "Submitting..." : "Submit expense"}
+        onPress={submit}
+        disabled={!canSubmit || createExpense.isPending}
+        loading={createExpense.isPending}
+        fullWidth
+        style={styles.submitButton}
+      />
       {createExpense.isError ? <Text style={styles.errorText}>Couldn&apos;t submit this expense. Check the fields and try again.</Text> : null}
     </ScrollView>
   );
@@ -122,25 +141,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16, paddingBottom: 40 },
-  field: { gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151" },
+  container: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl + spacing.md },
+  field: { gap: spacing.xs + 2 },
+  fieldLabel: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 15,
-    backgroundColor: "#fff",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    fontSize: fontSize.lg,
+    color: colors.foreground,
+    backgroundColor: colors.card,
   },
   multiline: { minHeight: 60, textAlignVertical: "top" },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: "#f3f4f6" },
-  chipActive: { backgroundColor: "#111827" },
-  chipText: { fontSize: 13, color: "#374151" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
-  submitButton: { backgroundColor: "#111827", paddingVertical: 14, borderRadius: 8, alignItems: "center", marginTop: 8 },
-  submitButtonDisabled: { backgroundColor: "#e5e7eb" },
-  submitButtonText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  errorText: { color: "#dc2626", fontSize: 12, textAlign: "center" },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  submitButton: { marginTop: spacing.xs, paddingVertical: spacing.md },
+  errorText: { color: colors.destructive, fontSize: fontSize.sm, textAlign: "center" },
 });

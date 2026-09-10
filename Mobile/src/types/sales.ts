@@ -58,6 +58,15 @@ export const SALES_ORDER_STATUS_LABELS: Record<SalesOrderStatus, string> = {
   cancelled: "Cancelled",
 };
 
+/** Badge tone per status -- consumed by <Badge tone={...}>. */
+export const SALES_ORDER_STATUS_TONE: Record<SalesOrderStatus, "success" | "warning" | "destructive" | "info" | "neutral" | "primary"> = {
+  pending: "warning",
+  confirmed: "info",
+  shipped: "primary",
+  delivered: "success",
+  cancelled: "destructive",
+};
+
 export interface SalesOrdersPageParams {
   page?: number;
   pageSize?: number;
@@ -162,6 +171,17 @@ export const QUOTATION_STATUS_LABELS: Record<QuotationStatus, string> = {
   declined: "Declined",
   expired: "Expired",
   converted: "Converted",
+};
+
+/** Badge tone per status -- consumed by <Badge tone={...}>. */
+export const QUOTATION_STATUS_TONE: Record<QuotationStatus, "success" | "warning" | "destructive" | "info" | "neutral" | "primary"> = {
+  draft: "neutral",
+  sent: "info",
+  viewed: "primary",
+  accepted: "success",
+  declined: "destructive",
+  expired: "warning",
+  converted: "success",
 };
 
 export interface QuotationsPageParams {

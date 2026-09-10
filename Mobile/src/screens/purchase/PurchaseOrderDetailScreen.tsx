@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePurchaseOrder, useSetPurchaseOrderStatus } from "@/hooks/use-purchase";
 import { PURCHASE_ORDERS_EDIT } from "@/lib/purchase.api";
@@ -6,6 +6,8 @@ import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { PURCHASE_ORDER_STATUS_LABELS } from "@/types/purchase";
 import type { PurchaseStackParamList } from "@/navigation/types";
+import { Button, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 
 type Props = NativeStackScreenProps<PurchaseStackParamList, "PurchaseOrderDetail">;
 
@@ -19,21 +21,10 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
   const setStatus = useSetPurchaseOrderStatus();
 
   if (order.isLoading || !order.data) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <LoadingState />;
   }
   if (order.isError) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Couldn&apos;t load this order.</Text>
-        <Pressable onPress={() => order.refetch()}>
-          <Text style={styles.retry}>Tap to retry</Text>
-        </Pressable>
-      </View>
-    );
+    return <ErrorState message="Couldn't load this order." onRetry={() => order.refetch()} />;
   }
 
   const o = order.data;
@@ -46,18 +37,18 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
         <View style={styles.statsRow}>
           <Stat label="Subtotal" value={formatCompactValue(o.subTotal, currency)} />
           <Stat label="Tax" value={formatCompactValue(o.taxAmount, currency)} />
-          <Stat label="Total" value={formatCompactValue(o.total, currency)} />
+          <Stat label="Total" value={formatCompactValue(o.total, currency)} tone="primary" />
           {o.expectedDate ? <Stat label="Expected" value={o.expectedDate} /> : null}
         </View>
       </View>
 
       {o.notes ? (
-        <Section title="Notes">
+        <SectionCard title="Notes">
           <Text style={styles.bodyText}>{o.notes}</Text>
-        </Section>
+        </SectionCard>
       ) : null}
 
-      <Section title={`Items (${o.items.length})`}>
+      <SectionCard title={`Items (${o.items.length})`}>
         {o.items.map((item) => (
           <View key={item.id} style={styles.itemRow}>
             <Text style={styles.itemDescription} numberOfLines={2}>
@@ -68,64 +59,36 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
             </Text>
           </View>
         ))}
-      </Section>
+      </SectionCard>
 
       {canEdit && o.status === "draft" ? (
-        <Section title="Actions">
-          <Pressable
-            style={styles.actionButton}
+        <SectionCard title="Actions">
+          <Button
+            label={setStatus.isPending ? "Sending..." : "Send to Vendor"}
+            icon="send"
             disabled={setStatus.isPending}
             onPress={() => setStatus.mutate({ id: o.id, status: "sent" })}
-          >
-            <Text style={styles.actionButtonText}>{setStatus.isPending ? "Sending..." : "Send to Vendor"}</Text>
-          </Pressable>
+            fullWidth
+          />
           {setStatus.isError ? <Text style={styles.errorText}>Couldn&apos;t send this order.</Text> : null}
-        </Section>
+        </SectionCard>
       ) : null}
     </ScrollView>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16 },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
+  errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  header: { gap: 4 },
-  name: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  subtitle: { fontSize: 14, color: "#6b7280" },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: 20, marginTop: 8 },
-  stat: {},
-  statLabel: { fontSize: 11, color: "#9ca3af", textTransform: "uppercase" },
-  statValue: { fontSize: 14, fontWeight: "600", color: "#111827" },
+  header: { gap: spacing.xs },
+  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  section: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#374151", textTransform: "uppercase" },
-  bodyText: { fontSize: 14, color: "#111827" },
+  bodyText: { fontSize: fontSize.md, color: colors.foreground },
 
-  itemRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 4, gap: 2 },
-  itemDescription: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  itemMeta: { fontSize: 12, color: "#6b7280" },
-
-  actionButton: { backgroundColor: "#111827", paddingVertical: 12, borderRadius: 8, alignItems: "center" },
-  actionButtonText: { color: "#fff", fontWeight: "600" },
+  itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+  itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+  itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
 });
