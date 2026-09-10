@@ -5964,7 +5964,47 @@ make on their behalf.
 
 ---
 
-## Module 55 — Mobile App (Expo / React Native): Phase 1 — Auth + CRM + HR self-service
+## Module 55 — Finance: supplier tax identity (Full Name + Address + TRN#) on every invoice output
+
+Invoices now show the seller's tax identity as one block, in the order a UAE tax invoice is read:
+**full legal name → registered address → TRN#**. Contact details (phone/email/website) come after,
+visually quieter. When a TRN is set the title reads **TAX INVOICE**.
+
+Applied to every output an invoice has, so the copies can't disagree:
+- `invoice-print.ts` (Print / Save as PDF from the drawer)
+- `InvoicePdfBuilder` (the PDF attached to the email)
+- `InvoiceEmailTemplate` (new "Supplier" block above the line items; TRN removed from the footer so it
+  isn't shown twice)
+- `InvoiceReminderEmailTemplate` (footer line now includes TRN#)
+
+Recurring invoices generate ordinary `Invoice` rows and send through the same template and PDF, so
+they're covered with no separate change.
+
+The data comes from **Settings → General → Company**: `legalName` (falls back to `name`), `address`,
+`taxNumber`. Nothing is hardcoded. No migration.
+
+- **Finance.Infrastructure:** 0 errors, 0 warnings ✅ · **Frontend `tsc`:** no errors in the touched file.
+- **Pending:** republish + restart for the backend PDF/email changes.
+
+### Module 55b — Customer (buyer) address + TRN# on invoices and recurring templates
+
+The invoice and recurring-template forms only captured the customer's name and email, so there was
+nowhere to put the buyer's address or TRN. Added:
+- `Invoice.CustomerAddress` / `CustomerTrn` and `RecurringInvoice.CustomerAddress` / `CustomerTrn`
+  (both set via `SetCustomerTaxDetails`), migration `AddInvoiceCustomerTaxDetails` (4 nullable columns).
+- Optional trailing params on the create/update commands, DTOs, both controllers' request records
+  and the mappings. The recurring generator copies them onto every invoice it generates.
+- **Bill To** now renders name, a multi-line address (one line per row as typed), then **TRN#**, in
+  the printed copy, the PDF attachment and a new "Bill To" box in the invoice email.
+- Forms: a multi-line **Customer Address** textarea and a **Customer TRN#** input on the recurring
+  template drawer and on the invoice create and edit forms. Labels use `t(..., { defaultValue })`;
+  the en/ar JSON keys haven't been added yet.
+
+- **Finance build + migration:** ✅ · **Frontend `tsc`:** 0 errors · **Pending:** restart (migration auto-applies).
+
+---
+
+## Module 56 — Mobile App (Expo / React Native): Phase 1 — Auth + CRM + HR self-service
 
 **New top-level `Mobile/` folder, same repo, same monorepo as `Backend/` and `FrontendVite/`.**
 Talks to the same `Softaxis.ApiGateway` the web app uses — same JWT auth, same tenant/permission

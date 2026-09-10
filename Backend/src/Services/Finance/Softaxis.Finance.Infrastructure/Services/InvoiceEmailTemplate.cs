@@ -56,10 +56,10 @@ internal static class InvoiceEmailTemplate
             : string.Empty;
 
         // Only the details that were filled in. A blank "TRN:" line reads as a fault.
+        // Contact details only — name, address and TRN# are shown prominently in the supplier block.
         var issuerDetails = string.Join(" &nbsp;·&nbsp; ", new[]
             {
-                brand.Address, brand.Phone, brand.Email, brand.Website,
-                string.IsNullOrWhiteSpace(brand.TaxNumber) ? null : $"TRN: {brand.TaxNumber}",
+                brand.Phone, brand.Email, brand.Website,
             }
             .Where(v => !string.IsNullOrWhiteSpace(v))
             .Select(v => E(v!.Trim())));
@@ -118,6 +118,33 @@ internal static class InvoiceEmailTemplate
       </table>"
             : string.Empty;
 
+        // Supplier identity in tax-invoice order: full legal name, registered address, TRN#.
+        var supplierBlock = $@"
+      <div style=""margin:0 0 20px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px"">
+        <div style=""font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.06em;margin-bottom:6px"">
+          {(string.IsNullOrWhiteSpace(brand.TaxNumber) ? "FROM" : "SUPPLIER")}</div>
+        <div style=""font-size:14px;font-weight:700;color:#111827"">{E(companyName)}</div>
+        {(string.IsNullOrWhiteSpace(brand.Address) ? string.Empty
+          : $@"<div style=""font-size:13px;color:#374151;margin-top:2px"">{E(brand.Address)}</div>")}
+        {(string.IsNullOrWhiteSpace(brand.TaxNumber) ? string.Empty
+          : $@"<div style=""font-size:13px;font-weight:700;color:#111827;margin-top:4px"">TRN#: {E(brand.TaxNumber)}</div>")}
+      </div>";
+
+        var customerAddressHtml = string.IsNullOrWhiteSpace(invoice.CustomerAddress) ? string.Empty
+            : string.Join("<br/>", invoice.CustomerAddress!.Split('\n')
+                .Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => E(l.Trim())));
+        var billToBlock = $@"
+      <div style=""margin:0 0 20px;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px"">
+        <div style=""font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:.06em;margin-bottom:6px"">BILL TO</div>
+        <div style=""font-size:14px;font-weight:700;color:#111827"">{E(invoice.CustomerName)}</div>
+        {(customerAddressHtml.Length == 0 ? string.Empty
+          : $@"<div style=""font-size:13px;color:#374151;margin-top:2px"">{customerAddressHtml}</div>")}
+        {(string.IsNullOrWhiteSpace(invoice.CustomerTrn) ? string.Empty
+          : $@"<div style=""font-size:13px;font-weight:700;color:#111827;margin-top:4px"">TRN#: {E(invoice.CustomerTrn)}</div>")}
+      </div>";
+
+        var docTitle =string.IsNullOrWhiteSpace(brand.TaxNumber) ? "Invoice" : "Tax Invoice";
+
         var html = $@"
 <div style=""font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f4f5f7;padding:24px"">
   <div style=""max-width:640px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb"">
@@ -137,11 +164,14 @@ internal static class InvoiceEmailTemplate
                </td></tr>
              </table>"
         : string.Empty)}
-      <div style=""color:#ffffff;font-size:18px;font-weight:600"">Invoice {E(invoice.InvoiceNumber)}</div>
+      <div style=""color:#ffffff;font-size:18px;font-weight:600"">{docTitle} {E(invoice.InvoiceNumber)}</div>
       <div style=""color:#cbd5e1;font-size:13px;margin-top:2px"">{E(companyName)}</div>
     </div>
 
     <div style=""padding:24px;font-size:14px;color:#111827"">
+      {supplierBlock}
+      {billToBlock}
+
       <p style=""margin:0 0 16px"">Dear {E(invoice.CustomerName)},</p>
       <p style=""margin:0 0 20px"">Please find your invoice below. Payment is due by
         <strong>{E(invoice.DueDate)}</strong>.</p>

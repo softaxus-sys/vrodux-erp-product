@@ -51,7 +51,9 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
         int DueDays, decimal TaxRate, string? Notes, IReadOnlyList<LineRequest> Lines,
         // Addresses copied on every invoice this template produces, and whether to email it the
         // moment it is generated (off = created as a draft for someone to send by hand).
-        string? CcEmails = null, bool AutoSend = true);
+        string? CcEmails = null, bool AutoSend = true,
+        // Buyer billing address (multi-line) and TRN#, copied onto every generated invoice.
+        string? CustomerAddress = null, string? CustomerTrn = null);
 
     [HttpPost]
     [RequirePermission("finance.invoicing.create")]
@@ -61,7 +63,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
             req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.StartDate, req.EndDate, req.DueDays, req.TaxRate, req.Notes,
             req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            req.CcEmails, req.AutoSend), ct);
+            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn), ct);
 
         return CreatedOrError(result, nameof(GetById), result.IsSuccess ? new { id = result.Value.Id } : null!);
     }
@@ -74,7 +76,7 @@ public sealed class RecurringInvoicesController(ISender sender) : FinanceControl
             id, req.TemplateName, req.CustomerName, req.CustomerEmail, req.Frequency,
             req.EndDate, req.DueDays, req.TaxRate, req.Notes,
             req.Lines.Select(l => new Application.RecurringInvoices.Dtos.LineRequest(l.Description, l.Quantity, l.UnitPrice)).ToList(),
-            req.CcEmails, req.AutoSend), ct);
+            req.CcEmails, req.AutoSend, req.CustomerAddress, req.CustomerTrn), ct);
 
         return NoContentOrError(result);
     }

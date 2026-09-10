@@ -52,6 +52,12 @@ public sealed class RefreshTokenCommandHandler(
                 "Auth.Refresh.Failed",
                 "This workspace is no longer available. Please contact your administrator."));
 
+        // Same rule as login: only a super admin may hold a workspace-less session.
+        if (!user.TenantId.HasValue && !user.IsSuperAdmin)
+            return Result.Failure<AuthTokenDto>(Error.Custom(
+                "Auth.Refresh.Failed",
+                "This account is not assigned to a workspace. Please contact your administrator."));
+
         var permKeys    = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
         var accessToken = jwtService.GenerateAccessToken(user, permKeys, tenant);
 

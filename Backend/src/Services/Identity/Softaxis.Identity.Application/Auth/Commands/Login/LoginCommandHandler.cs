@@ -81,6 +81,13 @@ public sealed class LoginCommandHandler(
             return Fail(user.Id, cmd, false,
                 "This workspace is no longer available. Please contact your administrator.");
 
+        // Only a super admin may be workspace-less. Any other account without a tenant would get a
+        // token with no tenant_id, and everything it created would be saved with TenantId = NULL —
+        // accepted with a 200 and then invisible in every list, including its own.
+        if (!user.TenantId.HasValue && !user.IsSuperAdmin)
+            return Fail(user.Id, cmd, false,
+                "This account is not assigned to a workspace. Please contact your administrator.");
+
         // The tenant requires two-factor and this user has not enrolled. Deliberately NOT a
         // refusal: blocking would lock out every user in the tenant the moment the switch is
         // flipped, including the admin who flipped it. The session is issued and flagged, and the

@@ -92,6 +92,10 @@ export interface InvoiceDetailDto {
   invoiceNumber: string;
   customerName: string;
   customerEmail?: string | null;
+  /** Buyer billing address (multi-line) and TRN#, printed under "Bill To". */
+  customerAddress?: string | null;
+  customerTrn?: string | null;
+  ccEmails?: string | null;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;
@@ -567,6 +571,8 @@ export interface CreateInvoiceRequest {
   scheduledSendDate?: string | null;
   /** Chase the customer as the due date nears. */
   remindBeforeDue?: boolean;
+  customerAddress?: string | null;
+  customerTrn?: string | null;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;
@@ -580,6 +586,8 @@ export interface UpdateInvoiceRequest {
   ccEmails?: string | null;
   scheduledSendDate?: string | null;
   remindBeforeDue?: boolean;
+  customerAddress?: string | null;
+  customerTrn?: string | null;
   invoiceDate: string;
   dueDate: string;
   taxRate: number;
@@ -699,6 +707,8 @@ export interface RecurringInvoiceDto {
   ccEmails?: string | null;
   /** Email the invoice the moment it is generated, rather than leaving it as a draft. */
   autoSend: boolean;
+  customerAddress?: string | null;
+  customerTrn?: string | null;
 }
 /** Server-side paging — one template per client contract, so this scales with the customer base. */
 export interface RecurringPageParams {
@@ -724,6 +734,8 @@ export interface UpsertRecurringRequest {
   lines: { description: string; quantity: number; unitPrice: number }[];
   ccEmails?: string | null;
   autoSend?: boolean;
+  customerAddress?: string | null;
+  customerTrn?: string | null;
 }
 
 function qsRange(from?: string, to?: string): string {

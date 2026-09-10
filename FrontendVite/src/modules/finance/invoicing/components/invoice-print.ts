@@ -29,11 +29,16 @@ export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBr
 
   // Only the details that were actually filled in. A blank "TRN:" line looks like a fault, and an
   // empty address block pushes the table down for nothing.
+  // Supplier identity in the order a UAE tax invoice is read: full legal name, registered address,
+  // then TRN#. Contact details follow, visually quieter, since they are not part of the tax identity.
+  const hasTrn = !!b.taxNumber?.trim();
+  const taxIdentity = [
+    b.address ? `<div class="issuer-addr">${esc(b.address.trim())}</div>` : "",
+    hasTrn ? `<div class="issuer-trn">TRN#: ${esc(b.taxNumber!.trim())}</div>` : "",
+  ].join("");
   const issuerLines = [
-    b.address,
     [b.phone, b.email].filter(Boolean).join(" · "),
     b.website,
-    b.taxNumber ? `TRN: ${b.taxNumber}` : "",
     b.registrationNo ? `Reg: ${b.registrationNo}` : "",
   ]
     .map(v => (v ?? "").trim())
@@ -86,6 +91,8 @@ export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBr
     .issuer { display: flex; gap: 14px; align-items: flex-start; }
     .logo { max-height: 56px; max-width: 180px; object-fit: contain; }
     .issuer-line { font-size: 11px; color: #666; line-height: 1.5; }
+    .issuer-addr { font-size: 12px; color: #333; line-height: 1.5; margin-top: 4px; max-width: 340px; }
+    .issuer-trn { font-size: 12px; font-weight: 700; color: #1a1a1a; margin: 2px 0 4px; }
     .signoff { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 48px; gap: 32px; }
     .sig { width: 240px; }
     .sig img { max-height: 64px; max-width: 220px; object-fit: contain; display: block; margin-bottom: 4px; }
@@ -107,12 +114,12 @@ export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBr
         ${b.logoUrl ? `<img class="logo" src="${esc(b.logoUrl)}" alt="" />` : ""}
         <div>
           <div class="company">${esc(companyName)}</div>
-          <div class="muted">Tax Invoice</div>
+          ${taxIdentity}
           ${issuerLines}
         </div>
       </div>
       <div class="title">
-        <h1>INVOICE</h1>
+        <h1>${hasTrn ? "TAX INVOICE" : "INVOICE"}</h1>
         <div class="muted">${esc(inv.invoiceNumber)}</div>
         <span class="badge">${esc(statusLabel)}</span>
       </div>
@@ -121,6 +128,10 @@ export function printInvoice(inv: InvoiceDetailDto, branding?: Partial<CompanyBr
       <div>
         <h3>Bill To</h3>
         <div style="font-weight:700">${esc(inv.customerName)}</div>
+        ${inv.customerAddress?.trim()
+          ? `<div class="issuer-addr">${inv.customerAddress.split("\n").map(l => l.trim()).filter(Boolean).map(esc).join("<br/>")}</div>`
+          : ""}
+        ${inv.customerTrn?.trim() ? `<div class="issuer-trn">TRN#: ${esc(inv.customerTrn.trim())}</div>` : ""}
         ${inv.customerEmail ? `<div class="muted">${esc(inv.customerEmail)}</div>` : ""}
       </div>
       <div style="text-align:right">

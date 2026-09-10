@@ -10,7 +10,8 @@ public sealed record RecurringDto(
     int DueDays, decimal TaxRate, string? Notes, bool IsActive,
     string? LastGeneratedDate, int GeneratedCount,
     decimal SubTotal, decimal Total, IReadOnlyList<LineDto> Lines,
-    string? CcEmails = null, bool AutoSend = true);
+    string? CcEmails = null, bool AutoSend = true,
+    string? CustomerAddress = null, string? CustomerTrn = null);
 
 public sealed record RecurringInvoicesSummaryDto(
     int     Total,

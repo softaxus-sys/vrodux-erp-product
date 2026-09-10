@@ -61,7 +61,9 @@ public sealed record InvoiceDto(
     IReadOnlyList<InvoiceItemDto> Items,
     DateTime? PaidAt,
     DateTime  CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    string?   CustomerAddress = null,
+    string?   CustomerTrn = null);
 
 public sealed record InvoicesSummaryDto(
     int     TotalInvoices,
