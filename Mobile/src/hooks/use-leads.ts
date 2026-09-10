@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { crmApi } from "@/lib/crm.api";
-import type { CreateActivityRequest, LeadsPageParams } from "@/types/crm";
-
-const QK = "crm" as const;
+import type { ConvertLeadRequest, LeadsPageParams } from "@/types/crm";
+import { QK } from "@/hooks/query-keys";
 
 export function useLeadsPaged(params: LeadsPageParams) {
   return useQuery({
@@ -19,14 +18,6 @@ export function useLead(id: string) {
   });
 }
 
-export function useLeadActivities(leadId: string) {
-  return useQuery({
-    queryKey: [QK, "lead-activities", leadId],
-    queryFn: () => crmApi.getLeadActivities(leadId),
-    enabled: Boolean(leadId),
-  });
-}
-
 export function useSetLeadStatus() {
   const qc = useQueryClient();
   return useMutation({
@@ -38,13 +29,15 @@ export function useSetLeadStatus() {
   });
 }
 
-export function useCreateActivity() {
+export function useConvertLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (a: CreateActivityRequest) => crmApi.createActivity(a),
-    onSuccess: (_data, a) => {
-      qc.invalidateQueries({ queryKey: [QK, "lead-activities", a.relatedToId] });
-      qc.invalidateQueries({ queryKey: [QK, "lead", a.relatedToId] });
+    mutationFn: ({ id, body }: { id: string; body: ConvertLeadRequest }) => crmApi.convertLead(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: [QK, "lead", id] });
+      qc.invalidateQueries({ queryKey: [QK, "leads", "paged"] });
+      // The new opportunity should show up next time the pipeline list is opened.
+      qc.invalidateQueries({ queryKey: [QK, "deals", "paged"] });
     },
   });
 }

@@ -10,7 +10,8 @@ import {
   View,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useCreateActivity, useLead, useLeadActivities, useSetLeadStatus } from "@/hooks/use-leads";
+import { useConvertLead, useLead, useSetLeadStatus } from "@/hooks/use-leads";
+import { useActivities, useCreateActivity } from "@/hooks/use-activities";
 import { buildLeadSummary, cleanPhone, formatCompactValue, leadHeat, urgencyLabel } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
 import { LEAD_STATUS_LABELS, NEXT_STATUSES } from "@/types/crm";
@@ -24,14 +25,19 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
   navigation.setOptions({ headerTitle: leadName });
 
   const lead = useLead(leadId);
-  const activities = useLeadActivities(leadId);
+  const activities = useActivities("lead", leadId);
   const setStatus = useSetLeadStatus();
   const createActivity = useCreateActivity();
+  const convertLead = useConvertLead();
   const userName = useAuthStore((s) => s.user?.fullName ?? "");
 
   const [confirmingStatus, setConfirmingStatus] = useState<string | null>(null);
   const [logType, setLogType] = useState<ActivityType | null>(null);
   const [logNote, setLogNote] = useState("");
+  const [converting, setConverting] = useState(false);
+  const [dealTitle, setDealTitle] = useState("");
+  const [dealValue, setDealValue] = useState("");
+  const [converted, setConverted] = useState(false);
 
   if (lead.isLoading || !lead.data) {
     return (
@@ -43,7 +49,7 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
   if (lead.isError) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>Couldn't load this lead.</Text>
+        <Text style={styles.errorText}>Could not load this lead.</Text>
         <Pressable onPress={() => lead.refetch()}>
           <Text style={styles.retry}>Tap to retry</Text>
         </Pressable>
@@ -57,6 +63,8 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
   const nextStatuses = NEXT_STATUSES[l.status] ?? [];
   const phone = cleanPhone(l.phone);
   const whatsapp = cleanPhone(l.whatsApp || l.phone);
+  // Convert is only offered pre-conversion -- convertedDealStage means it already happened.
+  const canConvert = !l.convertedDealStage && (l.status === "qualified" || l.status === "contacted");
 
   function submitStatus(status: string) {
     setStatus.mutate({ id: l.id, status });
@@ -80,17 +88,40 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
     setLogType(null);
   }
 
+  function openConvert() {
+    setDealTitle(`${l.company || l.fullName} — Opportunity`);
+    setDealValue(l.estimatedValue > 0 ? String(l.estimatedValue) : "");
+    setConverting(true);
+  }
+
+  function submitConvert() {
+    const value = Number(dealValue);
+    convertLead.mutate(
+      {
+        id: l.id,
+        body: {
+          dealTitle: dealTitle.trim() || undefined,
+          dealValue: Number.isFinite(value) && value > 0 ? value : undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          setConverting(false);
+          setConverted(true);
+        },
+      }
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* ── Header ─────────────────────────────────────────── */}
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.name}>
           {heat.emoji} {l.fullName}
         </Text>
         {l.title || l.company ? (
-          <Text style={styles.subtitle}>
-            {[l.title, l.company].filter(Boolean).join(" @ ")}
-          </Text>
+          <Text style={styles.subtitle}>{[l.title, l.company].filter(Boolean).join(" @ ")}</Text>
         ) : null}
         <View style={styles.statsRow}>
           <Stat label="Heat" value={`${heat.label} (${l.score})`} />
@@ -99,33 +130,68 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
         </View>
       </View>
 
-      {/* ── Contact actions ────────────────────────────────── */}
+      {/* Contact actions */}
       <View style={styles.actionsRow}>
-        <ActionButton
-          label="Call"
-          disabled={!phone}
-          onPress={() => Linking.openURL(`tel:${phone}`)}
-        />
+        <ActionButton label="Call" disabled={!phone} onPress={() => Linking.openURL(`tel:${phone}`)} />
         <ActionButton
           label="WhatsApp"
           disabled={!whatsapp}
           onPress={() => Linking.openURL(`https://wa.me/${whatsapp.replace(/^\+/, "")}`)}
         />
-        <ActionButton
-          label="Email"
-          disabled={!l.email}
-          onPress={() => Linking.openURL(`mailto:${l.email}`)}
-        />
+        <ActionButton label="Email" disabled={!l.email} onPress={() => Linking.openURL(`mailto:${l.email}`)} />
       </View>
 
-      {/* ── Requirements ───────────────────────────────────── */}
+      {/* Requirements */}
       <Section title="Requirements">
         <Text style={styles.bodyText}>{buildLeadSummary(l)}</Text>
         {urgency ? <Text style={styles.badge}>Planning to buy: {urgency}</Text> : null}
-        {l.message ? <Text style={styles.notes}>“{l.message.trim()}”</Text> : null}
+        {l.message ? <Text style={styles.notes}>{l.message.trim()}</Text> : null}
       </Section>
 
-      {/* ── Status ─────────────────────────────────────────── */}
+      {/* Convert to deal */}
+      {l.convertedDealStage ? (
+        <Section title="Converted">
+          <Text style={styles.bodyText}>
+            This lead became an opportunity (stage: {l.convertedDealStage}). Find it in the Pipeline tab.
+          </Text>
+        </Section>
+      ) : converted ? (
+        <Section title="Converted">
+          <Text style={styles.bodyText}>Opportunity created. View it in the Pipeline tab.</Text>
+        </Section>
+      ) : canConvert ? (
+        <Section title="Convert to opportunity">
+          {converting ? (
+            <View>
+              <TextInput style={styles.input} placeholder="Deal title" value={dealTitle} onChangeText={setDealTitle} />
+              <TextInput
+                style={[styles.input, styles.inputSpaced]}
+                placeholder="Estimated value (optional)"
+                keyboardType="numeric"
+                value={dealValue}
+                onChangeText={setDealValue}
+              />
+              <View style={styles.logButtonsRow}>
+                <Pressable style={styles.logSubmit} onPress={submitConvert} disabled={convertLead.isPending}>
+                  <Text style={styles.logSubmitText}>
+                    {convertLead.isPending ? "Converting..." : "Create opportunity"}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => setConverting(false)}>
+                  <Text style={styles.confirmCancel}>Cancel</Text>
+                </Pressable>
+              </View>
+              {convertLead.isError ? <Text style={styles.errorText}>Could not convert this lead.</Text> : null}
+            </View>
+          ) : (
+            <Pressable style={styles.statusChip} onPress={openConvert}>
+              <Text style={styles.statusChipText}>Convert to opportunity</Text>
+            </Pressable>
+          )}
+        </Section>
+      ) : null}
+
+      {/* Status */}
       {nextStatuses.length > 0 ? (
         <Section title="Move status">
           <View style={styles.chipRow}>
@@ -150,7 +216,7 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
         </Section>
       ) : null}
 
-      {/* ── Log activity ───────────────────────────────────── */}
+      {/* Log activity */}
       <Section title="Log activity">
         {logType ? (
           <View>
@@ -164,9 +230,7 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
             />
             <View style={styles.logButtonsRow}>
               <Pressable style={styles.logSubmit} onPress={submitLog} disabled={createActivity.isPending}>
-                <Text style={styles.logSubmitText}>
-                  {createActivity.isPending ? "Saving…" : "Save"}
-                </Text>
+                <Text style={styles.logSubmitText}>{createActivity.isPending ? "Saving..." : "Save"}</Text>
               </Pressable>
               <Pressable onPress={() => setLogType(null)}>
                 <Text style={styles.confirmCancel}>Cancel</Text>
@@ -185,7 +249,7 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
         )}
       </Section>
 
-      {/* ── Activity feed ──────────────────────────────────── */}
+      {/* Activity feed */}
       <Section title="Recent activity">
         {activities.isLoading ? (
           <ActivityIndicator />
@@ -227,11 +291,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function ActionButton({ label, disabled, onPress }: { label: string; disabled?: boolean; onPress: () => void }) {
   return (
-    <Pressable
-      style={[styles.actionButton, disabled && styles.actionButtonDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-    >
+    <Pressable style={[styles.actionButton, disabled && styles.actionButtonDisabled]} onPress={onPress} disabled={disabled}>
       <Text style={[styles.actionButtonText, disabled && styles.actionButtonTextDisabled]}>{label}</Text>
     </Pressable>
   );
@@ -294,10 +354,11 @@ const styles = StyleSheet.create({
     borderColor: "#d1d5db",
     borderRadius: 8,
     padding: 10,
-    minHeight: 60,
+    minHeight: 44,
     backgroundColor: "#fff",
     textAlignVertical: "top",
   },
+  inputSpaced: { marginTop: 8 },
   logButtonsRow: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 },
   logSubmit: { backgroundColor: "#111827", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
   logSubmitText: { color: "#fff", fontWeight: "600" },

@@ -31,34 +31,62 @@ src/
   lib/
     api-client.ts     — fetch wrapper: envelope unwrap, 401→refresh→retry (mirrors FrontendVite's)
     auth.api.ts        — login / verify-2fa / refresh / revoke
+    crm.api.ts          — leads, deals/pipeline, activities; CRM_*_VIEW/EDIT permission-tier lists
+    crm-helpers.ts      — leadHeat, buildLeadSummary, formatCompactValue, cleanPhone (i18n stripped)
     jwt.ts             — decode JWT payload (no verification — server already signed it)
     query-client.ts    — shared React Query client
     secure-storage.ts  — Keychain/Keystore wrapper (expo-secure-store)
   store/
     auth.store.ts       — zustand + SecureStore-backed persistence; session, tenant/permission
                           claims, hasPermission()/hasModuleAccess() helpers
+  hooks/
+    query-keys.ts        — shared "crm" React Query key root
+    use-leads.ts          — leads list/detail, status change, convert-to-deal
+    use-deals.ts          — pipeline list/detail, stage move
+    use-activities.ts     — shared activity feed/create (leads + deals + customers)
   navigation/
-    RootNavigator.tsx   — switches Auth stack ↔ App stack on auth state, waits for hydration
+    RootNavigator.tsx   — bottom tabs (Dashboard/Leads/Pipeline); each CRM tab only renders when
+                          the session's JWT grants module access + a view-tier permission
+    LeadsStack.tsx / DealsStack.tsx — per-feature stacks (list → detail)
     types.ts
   screens/
     LoginScreen.tsx
-    TwoFactorScreen.tsx — step 2 of the two-phase 2FA login (Module 14)
-    HomeScreen.tsx      — placeholder landing screen; proves the auth flow end to end
+    TwoFactorScreen.tsx  — step 2 of the two-phase 2FA login (Module 14)
+    HomeScreen.tsx       — placeholder dashboard; shows session/tenant info, not real KPIs yet
+    LeadsListScreen.tsx / LeadDetailScreen.tsx
+    DealsListScreen.tsx / DealDetailScreen.tsx
   types/
-    auth.ts             — UserDto / AuthTokenDto / TenantClaims, trimmed mirror of the backend DTOs
+    auth.ts / crm.ts    — trimmed mirrors of the backend DTOs (kept in sync manually)
 ```
 
-## What's built vs. what's next
+## What's built
 
-**Built:** full auth flow against the real gateway — login, 2FA step-up, JWT decode into
-tenant/permission claims, refresh-token rotation with a mutex (dedupes concurrent 401s), secure
-token storage, logout/revoke. `hasPermission()` / `hasModuleAccess()` in `auth.store.ts` mirror the
-web app's authorization model so module/screen gating works the same way on both clients.
+**Auth**: full flow against the real gateway — login, 2FA step-up, JWT decode into tenant/permission
+claims, refresh-token rotation with a mutex (dedupes concurrent 401s), secure token storage,
+logout/revoke.
 
-**Not built (by design — this is a scaffold, not phase 1):** any actual module screens (HR, CRM,
-etc.), push notifications, offline/sync, per-device refresh tokens, biometric unlock. See the
-phased module rollout discussed in-repo before picking what to build next — HR self-service +
-CRM + Approvals was the suggested phase-1 slice.
+**CRM (leads + pipeline)** — the first complete module:
+- Leads: search, status filters, hottest-first sort (score desc), infinite scroll, pull-to-refresh,
+  call/WhatsApp/email quick actions, guarded status transitions, activity logging + feed.
+- Pipeline: search, stage filters, opportunity list with value/weighted-value/forecast category,
+  stage transitions (won/lost terminal, loss-reason capture on Lost), contact quick actions,
+  activity logging + feed.
+- **Convert Lead → Deal** ties the two together (creates the account/contact/deal via the
+  dedicated `convertLead` endpoint — never via a plain status PATCH, which would mark a lead
+  "converted" without any of that actually happening).
+- Both tabs are permission-gated per the three-tier model (`crm.leads`/`crm.leads-team`/
+  `crm.leads-assigned`, same for `pipeline`) — a tab simply does not render for a session whose
+  JWT lacks every tier's view permission, mirroring the web app's `hasModuleAccess`/
+  `hasRawPermission`.
+
+**Explicitly out of scope for this pass** (flagged, not built): Accounts/Customers view, lead
+creation form (Add Lead), a real CRM dashboard/summary tile set on the Dashboard tab, lead/deal
+team-filing, CRM documents. Revisit if/when the field-sales use case needs them.
+
+## Next module
+
+HR self-service (attendance check-in/out with GPS, leave requests, payslip view) — see the
+phased rollout plan discussed in-repo.
 
 ## Conventions carried over from FrontendVite
 
@@ -68,5 +96,7 @@ CRM + Approvals was the suggested phase-1 slice.
   `permission` claims are read directly rather than re-derived from roles+overrides, since the
   backend's `PermissionRepository` chokepoint (CLAUDE.md Module 5h) already computes the effective
   set into the token.
+- Same three-tier CRM permission pattern (`RequireAnyPermission` on the backend) mirrored via the
+  `CRM_LEADS_VIEW`/`CRM_PIPELINE_VIEW` etc. constants in `crm.api.ts`.
 - `@/*` → `src/*` path alias, same as the web app (via `babel-plugin-module-resolver` here, since
   Metro doesn't read `tsconfig.json` paths on its own).
