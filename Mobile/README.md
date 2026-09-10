@@ -29,13 +29,22 @@ physical device.
 ```
 src/
   lib/
-    api-client.ts     — fetch wrapper: envelope unwrap, 401→refresh→retry (mirrors FrontendVite's)
+    api-client.ts     — fetch wrapper: envelope unwrap, 401→refresh→retry, error-message extraction
+                          (detail→description→message→error→field-errors→title, matches web's
+                          rawApiClient precedence — different controllers report failures under
+                          different keys, see "Conventions" below)
     auth.api.ts        — login / verify-2fa / refresh / revoke
     crm.api.ts          — leads, deals/pipeline, activities; CRM_*_VIEW/EDIT permission-tier lists
-    crm-helpers.ts      — leadHeat, buildLeadSummary, formatCompactValue, cleanPhone (i18n stripped)
+    crm-helpers.ts      — leadHeat, buildLeadSummary, formatCompactValue, cleanPhone (i18n stripped;
+                          formatCompactValue is reused as the de facto shared money formatter by
+                          every other module below, not CRM-specific despite the filename)
     hr.api.ts           — employee self-service (api/hr/me/*); HR_SELF_* permission-key constants
     approvals.api.ts    — cross-module approvals inbox (leaves/purchase/sales-returns/payroll);
                           APPROVALS_* permission-key constants
+    inventory.api.ts    — products + per-warehouse stock; INVENTORY_* permission-key constants
+    sales.api.ts        — sales orders + quotations; SALES_* permission-key constants
+    purchase.api.ts     — purchase orders + vendors; PURCHASE_* permission-key constants
+    finance.api.ts      — invoices + expenses; FINANCE_* permission-key constants
     jwt.ts             — decode JWT payload (no verification — server already signed it)
     query-client.ts    — shared React Query client
     secure-storage.ts  — Keychain/Keystore wrapper (expo-secure-store)
@@ -50,11 +59,16 @@ src/
     use-hr-self.ts         — profile, attendance (today/history/check-in/out), leave, payslips
     use-approvals.ts       — pending leaves/purchase/sales-returns queries + approve/reject mutations,
                           and the payroll process/finance-approve/pay/reject workflow
+    use-inventory.ts       — products list/detail, per-product stock
+    use-sales.ts           — orders list/detail/status, quotations list/detail/send/respond/convert
+    use-purchase.ts        — purchase orders list/detail/status, vendors list/detail
+    use-finance.ts         — invoices list/detail/send/pay, expenses list/detail/create
   navigation/
-    RootNavigator.tsx    — bottom tabs (Dashboard/Leads/Pipeline/HR/Approvals); each tab only
-                          renders when the session's JWT grants module access + the relevant
-                          permission(s)
-    LeadsStack.tsx / DealsStack.tsx / HrStack.tsx — per-feature stacks
+    RootNavigator.tsx    — bottom tabs (Dashboard/Leads/Pipeline/HR/Approvals/Inventory/Sales/
+                          Purchase/Finance); each tab only renders when the session's JWT grants
+                          module access + the relevant permission(s) — see the tab-count note below
+    LeadsStack.tsx / DealsStack.tsx / HrStack.tsx / InventoryStack.tsx / SalesStack.tsx /
+    PurchaseStack.tsx / FinanceStack.tsx — per-feature stacks
     types.ts
   screens/
     LoginScreen.tsx
@@ -68,9 +82,24 @@ src/
       AttendanceScreen.tsx — paged history
       LeaveScreen.tsx      — balances, apply form, request history with cancel
       PayslipsScreen.tsx   — paged history, tap a row to expand the breakdown
+    inventory/
+      ProductsListScreen.tsx — search, low-stock filter, infinite scroll
+      ProductDetailScreen.tsx — price/tax/stock stats + per-warehouse on-hand quantity
+    sales/
+      SalesHomeScreen.tsx — menu into Orders / Quotations (mirrors HrHomeScreen's pattern)
+      OrdersListScreen.tsx / OrderDetailScreen.tsx — status filter chips; Confirm/Cancel on pending
+      QuotationsListScreen.tsx / QuotationDetailScreen.tsx — delivery trail; Send/Respond/Convert
+    purchase/
+      PurchaseHomeScreen.tsx — menu into Purchase Orders / Vendors
+      PurchaseOrdersListScreen.tsx / PurchaseOrderDetailScreen.tsx — "Send to Vendor" on draft
+      VendorsListScreen.tsx / VendorDetailScreen.tsx — call/email quick actions
+    finance/
+      FinanceHomeScreen.tsx — menu into Invoices / Expenses
+      InvoicesListScreen.tsx / InvoiceDetailScreen.tsx — Send (draft) / Mark Paid
+      ExpensesListScreen.tsx / ExpenseDetailScreen.tsx / NewExpenseScreen.tsx — submission form
   types/
-    auth.ts / crm.ts / hr.ts / approvals.ts — trimmed mirrors of the backend DTOs (kept in sync
-                          manually)
+    auth.ts / crm.ts / hr.ts / approvals.ts / inventory.ts / sales.ts / purchase.ts / finance.ts
+                          — trimmed mirrors of the backend DTOs (kept in sync manually)
 ```
 
 ## What's built
@@ -129,17 +158,71 @@ its own module+permission so a session only ever queries what it can act on:
   its row — none of the four needed more than that for a first pass), no push notification on a
   new pending item (see "Next module" below), no batch/bulk approve.
 
+**Inventory (product/stock lookup)** — read-only for this pass, a warehouse/field-staff use case:
+- Products: search, low-stock filter, infinite scroll, pull-to-refresh.
+- Product detail: price/tax/stock stats, description, per-warehouse on-hand quantity (each row
+  flagged when it's below that warehouse's reorder level).
+- Gated on `inventory.stock.view`. **Explicitly out of scope**: create/edit, activate/deactivate,
+  barcode scanning (the backend has a lookup-by-barcode endpoint; no camera/scanner UI built yet).
+
+**Sales (orders + quotations)** — orders reuse Purchase's pre-CQRS pattern; quotations are the
+richer CQRS feature (Module 51) with only read + the safe workflow actions surfaced, never the
+full section/item document editor:
+- Orders: status filter chips, detail with line items/totals, Confirm/Cancel on a pending order.
+- Quotations: status filter chips, detail with delivery trail (sent/viewed/responded) and the
+  optional-lines total, Send/Resend, Respond (record an off-platform accept/decline with an
+  optional comment), Convert to Order once accepted — each calling the matching backend endpoint,
+  never a raw status PATCH.
+- Gated on `sales.orders.view` / `sales.quotations.view`. **Explicitly out of scope**: creating or
+  editing a quotation/order (no section/item builder — that's the most complex screen on web),
+  the public share-link management, invoice linking.
+
+**Purchase (vendors + purchase orders)** — same pre-CQRS tech debt as Sales orders on the backend
+(CLAUDE.md Module 5p), read-only from the client's perspective either way:
+- Vendors: search, detail with call/email quick actions, rating, payment terms, order count.
+- Purchase orders: status filter chips, detail with line items/totals, "Send to Vendor" on a draft.
+- Gated on `purchase.vendors.view` / `purchase.orders.view`. **Explicitly out of scope**: Receive
+  (GRN) and Return — both need a multi-line wizard on web; creating a vendor or a PO.
+
+**Finance (invoices + expenses)**:
+- Invoices: status filter chips, detail with line items/totals, Send (draft) / Mark Paid
+  (sent/overdue/partial).
+- Expenses: status filter chips, a submission form (title, category chips, amount, date
+  defaulting to today via a dynamic `TODAY` constant, optional paid-by/payment-method/
+  reference/notes), read-only detail (approve/reject for expenses already lives in the
+  cross-module Approvals inbox, not duplicated here).
+- Gated on `finance.invoicing.view` / `finance.expenses.view` (create additionally needs
+  `finance.expenses.create`, checked before showing the "+ New" header button).
+- **Explicitly out of scope**: invoice creation/editing, receipt-photo attach on an expense
+  (would need `expo-image-picker`, a new dependency — flagged, not added), PDF download/view.
+
 ## Next module
 
-Push notifications are the natural next piece — there's now a real "something is waiting on you"
-surface (the approvals inbox) that a push landing on it would make far more useful, but no
-APNs/FCM integration exists anywhere in the backend yet. See the phased rollout plan discussed
-in-repo for what else is queued (dashboard KPIs, EAS build config, per-device refresh tokens).
+**The bottom tab bar is now nine tabs** (Dashboard/Leads/Pipeline/HR/Approvals/Inventory/Sales/
+Purchase/Finance, each still individually gated so a given session usually sees far fewer) —
+React Navigation's bottom-tabs will render that many, but it's not a comfortable phone UI past
+~5. Worth revisiting before this goes further: either a "More" tab that houses the long tail, or
+switching to a drawer nav. Flagged here rather than fixed opportunistically, since it touches
+every tab's entry in `RootNavigator.tsx` at once and deserves its own pass.
+
+Otherwise, push notifications are still the natural next piece — there's a real "something is
+waiting on you" surface (the approvals inbox) that a push landing on it would make far more
+useful, but no APNs/FCM integration exists anywhere in the backend yet. See the phased rollout
+plan discussed in-repo for what else is queued (dashboard KPIs, EAS build config, per-device
+refresh tokens, barcode scanning for Inventory).
 
 ## Conventions carried over from FrontendVite
 
 - Same backend envelope (`{ success, data, message, errorCode, traceId }`) and the same
   ASP.NET/FluentValidation field-error extraction, so `ApiError.fieldError(name)` works identically.
+- **Not every controller uses that envelope.** `FinanceControllerBase`/`SalesControllerBase` return
+  the DTO directly on success and `{ code, description }` on failure; `PurchaseOrdersController`/
+  `VendorsController`/`SalesOrdersController`/`SalesReturnsController` are pre-CQRS controllers that
+  return plain `Ok(dto)`/`PagedResult<T>` with no wrapper at all; Inventory/POS's `ApiResponse<T>`
+  uses `{ success, data, error, errorCode }`. `api-client.ts`'s `request()` handles all of these
+  transparently — enveloped or raw passes through the same code path, and the error-message
+  extraction tries `detail → description → message → error → field errors → title` in that order
+  (mirrors web's `rawApiClient` exactly) so a failure from any of them still shows something useful.
 - Same JWT claim names (`tenant_id`, `tenant_name`, `modules`, `permission`, `currency`, …) —
   `permission` claims are read directly rather than re-derived from roles+overrides, since the
   backend's `PermissionRepository` chokepoint (CLAUDE.md Module 5h) already computes the effective

@@ -12,6 +12,10 @@ import {
   APPROVALS_PURCHASE,
   APPROVALS_SALES_RETURNS,
 } from "@/lib/approvals.api";
+import { INVENTORY_STOCK_VIEW } from "@/lib/inventory.api";
+import { SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW } from "@/lib/sales.api";
+import { PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW } from "@/lib/purchase.api";
+import { FINANCE_EXPENSES_VIEW, FINANCE_INVOICING_VIEW } from "@/lib/finance.api";
 import LoginScreen from "@/screens/LoginScreen";
 import TwoFactorScreen from "@/screens/TwoFactorScreen";
 import HomeScreen from "@/screens/HomeScreen";
@@ -19,6 +23,10 @@ import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
 import HrStack from "@/navigation/HrStack";
+import InventoryStack from "@/navigation/InventoryStack";
+import SalesStack from "@/navigation/SalesStack";
+import PurchaseStack from "@/navigation/PurchaseStack";
+import FinanceStack from "@/navigation/FinanceStack";
 import type { AppTabParamList, AuthStackParamList } from "@/navigation/types";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -43,6 +51,10 @@ function AppTabs() {
     hasPermission(APPROVALS_FINANCE_PAYROLL) ||
     (hasModuleAccess("purchase") && hasPermission(APPROVALS_PURCHASE)) ||
     (hasModuleAccess("sales") && hasPermission(APPROVALS_SALES_RETURNS));
+  const canSeeInventory = hasModuleAccess("inventory") && hasPermission(INVENTORY_STOCK_VIEW);
+  const canSeeSales = hasModuleAccess("sales") && hasPermission(SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW);
+  const canSeePurchase = hasModuleAccess("purchase") && hasPermission(PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW);
+  const canSeeFinance = hasModuleAccess("finance") && hasPermission(FINANCE_INVOICING_VIEW, FINANCE_EXPENSES_VIEW);
 
   return (
     <Tabs.Navigator>
@@ -58,6 +70,18 @@ function AppTabs() {
       )}
       {canSeeApprovals && (
         <Tabs.Screen name="Approvals" component={ApprovalsScreen} options={{ headerTitle: "Approvals" }} />
+      )}
+      {canSeeInventory && (
+        <Tabs.Screen name="Inventory" component={InventoryStack} options={{ headerShown: false }} />
+      )}
+      {canSeeSales && (
+        <Tabs.Screen name="Sales" component={SalesStack} options={{ headerShown: false }} />
+      )}
+      {canSeePurchase && (
+        <Tabs.Screen name="Purchase" component={PurchaseStack} options={{ headerShown: false }} />
+      )}
+      {canSeeFinance && (
+        <Tabs.Screen name="Finance" component={FinanceStack} options={{ headerShown: false }} />
       )}
     </Tabs.Navigator>
   );
