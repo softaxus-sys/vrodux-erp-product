@@ -13,8 +13,16 @@ export type DealsStackParamList = {
   DealDetail: { dealId: string; dealTitle: string };
 };
 
+export type HrStackParamList = {
+  HrHome: undefined;
+  Attendance: undefined;
+  Leave: undefined;
+  Payslips: undefined;
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
   Pipeline: undefined;
+  HR: undefined;
 };
