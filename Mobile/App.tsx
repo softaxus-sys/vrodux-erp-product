@@ -9,7 +9,9 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <RootNavigator />
-        <StatusBar style="auto" />
+        {/* Dark content/icons in the status bar -- matches the card-white header the app never
+            leaves. (Android edge-to-edge means the bar has no background color to set here.) */}
+        <StatusBar style="dark" />
       </SafeAreaProvider>
     </QueryClientProvider>
   );

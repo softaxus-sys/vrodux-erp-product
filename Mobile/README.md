@@ -99,8 +99,62 @@ src/
       ExpensesListScreen.tsx / ExpenseDetailScreen.tsx / NewExpenseScreen.tsx — submission form
   types/
     auth.ts / crm.ts / hr.ts / approvals.ts / inventory.ts / sales.ts / purchase.ts / finance.ts
-                          — trimmed mirrors of the backend DTOs (kept in sync manually)
+                          — trimmed mirrors of the backend DTOs (kept in sync manually); each also
+                          carries a `*_STATUS_LABELS` and (where the screens show a colored pill)
+                          a matching `*_STATUS_TONE` map, co-located so a new status can't add a
+                          label without a badge color or vice versa
+  theme/
+    colors.ts    — the brand palette, extracted from FrontendVite's `index.css` --primary/
+                  --success/--warning/--destructive/--info HSL tokens (shadcn's stock "Blue"
+                  theme) and the `#2563eb → #1e3a8a` gradient in `public/favicon.svg`. Light mode
+                  only for this pass -- see "Design system" below.
+    tokens.ts    — spacing/radius/fontSize/fontWeight/shadow scales
+    navigation.ts — `navTheme` (React Navigation `Theme`) + `stackScreenOptions` (shared header
+                  look for every `Stack.Navigator`)
+    index.ts     — barrel export (`colors`, `spacing`, `radius`, `fontSize`, `fontWeight`,
+                  `navTheme`, `stackScreenOptions`)
+  components/
+    ui/   — the shared design-system primitives every screen is built from (barrel: `ui/index.ts`):
+          `Card`, `Button` (primary/secondary/outline/destructive/ghost), `Badge` (tone-colored
+          pill), `Chip` (filter pill), `SearchInput`, `SectionCard` (titled card -- the pattern
+          every detail screen's old local `Section` component duplicated), `Stat` + `DetailRow`
+          (header stat blocks / label-value rows), `MenuCard` (module-home navigation card),
+          `ListItemCard` (the pressable-card shell every `FlatList` row sits inside), and
+          `LoadingState`/`ErrorState`/`EmptyState`/`EmptyListState`.
+    brand/BrandMark.tsx — the "V" tile (gradient tile + glyph, via `expo-linear-gradient`) --
+                  mirrors `favicon.svg` so the app opens on the same mark used in the browser tab.
 ```
+
+## Design system
+
+The app went through two passes: build the data/API layer per module (screens with correct
+behavior but system-default styling), then a second pass applying a shared design system pulled
+from the web app's actual brand tokens (`theme/colors.ts`'s doc comment names the exact source
+files) so the mobile client reads as the same product, not a bare-bones prototype next to it.
+
+- **Every screen is built from the `@/components/ui` primitives**, not ad-hoc `StyleSheet`+`View`
+  chrome -- list rows are `ListItemCard`s (rounded, shadowed, spaced -- not a flat divided list),
+  detail sections are `SectionCard`s, every status is a color-coded `Badge` driven by that type's
+  `*_STATUS_TONE` map, every action is a `Button` variant, filters are `Chip` pills.
+- **Icons**: `@expo/vector-icons`'s `Feather` set throughout (bundled with Expo, no extra native
+  module) -- the closest visual match to the web app's `lucide-react` icons (Feather is what
+  lucide was originally forked from), so the two apps' iconography reads the same family.
+- **Navigation is themed globally**: `navTheme` on `<NavigationContainer>` and `stackScreenOptions`
+  on every `Stack.Navigator` give a consistent white header + brand-blue back button/title across
+  every stack, instead of each screen/stack picking its own (or none). Tab bar icons + active/
+  inactive tint colors are set once in `RootNavigator.tsx`.
+- **Dark mode is out of scope for this pass** -- the web app supports it (CSS custom properties +
+  a `.dark` class), but the token file only defines the light palette. Adding dark mode later means
+  defining a second token set and wiring `useColorScheme()`, not restructuring anything -- every
+  screen already reads colors through `theme/colors.ts`, never a hardcoded hex.
+- **Per-tenant palette override is also out of scope** -- the web app's `ThemeProvider` can inject
+  a different primary color per tenant; mobile ships one fixed brand look. Flagged, not built.
+- **No app icon / splash screen work in this pass.** `app.json` still points at the default Expo
+  scaffold icons (`assets/icon.png` etc.) -- deliberately not replaced, because testing happens
+  through Expo Go, which always shows Expo Go's own icon; a custom app icon only becomes visible
+  once an EAS build exists (still not set up -- see "Next module"). When that build config lands,
+  rasterize `FrontendVite/public/vrodux-logo.png` / `favicon.svg` into the icon/splash/adaptive-icon
+  slots `app.json` already declares.
 
 ## What's built
 

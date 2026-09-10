@@ -3,13 +3,14 @@ import HrHomeScreen from "@/screens/hr/HrHomeScreen";
 import AttendanceScreen from "@/screens/hr/AttendanceScreen";
 import LeaveScreen from "@/screens/hr/LeaveScreen";
 import PayslipsScreen from "@/screens/hr/PayslipsScreen";
+import { stackScreenOptions } from "@/theme";
 import type { HrStackParamList } from "@/navigation/types";
 
 const Stack = createNativeStackNavigator<HrStackParamList>();
 
 export default function HrStack() {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="HrHome" component={HrHomeScreen} options={{ headerTitle: "My HR" }} />
       <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ headerTitle: "Attendance" }} />
       <Stack.Screen name="Leave" component={LeaveScreen} options={{ headerTitle: "Leave" }} />
