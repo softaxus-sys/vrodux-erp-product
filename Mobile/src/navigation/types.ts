@@ -3,6 +3,12 @@ export type AuthStackParamList = {
   TwoFactor: { mfaToken: string; email: string };
 };
 
-export type AppStackParamList = {
-  Home: undefined;
+export type LeadsStackParamList = {
+  LeadsList: undefined;
+  LeadDetail: { leadId: string; leadName: string };
+};
+
+export type AppTabParamList = {
+  Dashboard: undefined;
+  Leads: undefined;
 };

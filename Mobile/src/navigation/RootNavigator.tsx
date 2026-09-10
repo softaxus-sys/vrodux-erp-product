@@ -1,14 +1,32 @@
 import { ActivityIndicator, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useAuthStore } from "@/store/auth.store";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { hasModuleAccess, hasPermission, useAuthStore } from "@/store/auth.store";
+import { CRM_LEADS_VIEW } from "@/lib/crm.api";
 import LoginScreen from "@/screens/LoginScreen";
 import TwoFactorScreen from "@/screens/TwoFactorScreen";
 import HomeScreen from "@/screens/HomeScreen";
-import type { AppStackParamList, AuthStackParamList } from "@/navigation/types";
+import LeadsStack from "@/navigation/LeadsStack";
+import type { AppTabParamList, AuthStackParamList } from "@/navigation/types";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const AppStack = createNativeStackNavigator<AppStackParamList>();
+const Tabs = createBottomTabNavigator<AppTabParamList>();
+
+function AppTabs() {
+  // Static per session: permission/module claims only change on next login/refresh,
+  // same as the web app's hasModuleAccess/hasRawPermission checks.
+  const canSeeLeads = hasModuleAccess("crm") && hasPermission(...CRM_LEADS_VIEW);
+
+  return (
+    <Tabs.Navigator>
+      <Tabs.Screen name="Dashboard" component={HomeScreen} />
+      {canSeeLeads && (
+        <Tabs.Screen name="Leads" component={LeadsStack} options={{ headerShown: false }} />
+      )}
+    </Tabs.Navigator>
+  );
+}
 
 export default function RootNavigator() {
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
@@ -28,9 +46,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       {isAuthenticated ? (
-        <AppStack.Navigator screenOptions={{ headerTitle: "Vrodux ERP" }}>
-          <AppStack.Screen name="Home" component={HomeScreen} />
-        </AppStack.Navigator>
+        <AppTabs />
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
           <AuthStack.Screen name="Login" component={LoginScreen} />
