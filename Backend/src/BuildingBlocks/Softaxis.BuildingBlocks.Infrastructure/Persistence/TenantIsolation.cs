@@ -154,7 +154,27 @@ public static class TenantIsolation
     /// <summary>Stamp the tenant column on newly-added rows from the ambient tenant.</summary>
     public static void StampTenantId(ChangeTracker changeTracker, string column = Column)
     {
-        if (!TenantAmbient.IsResolved || !TenantAmbient.TenantId.HasValue) return;
+        // Unresolved = startup seed / background job; those set TenantId explicitly where it matters.
+        if (!TenantAmbient.IsResolved) return;
+
+        if (!TenantAmbient.TenantId.HasValue)
+        {
+            // A signed-in, non-super-admin request with no tenant. Saving would write TenantId = NULL
+            // rows that no workspace can ever see — the request "succeeds" and the data vanishes.
+            // Refuse loudly instead. Super admins are exempt: they operate above any single workspace.
+            if (TenantAmbient.IsSuperAdmin) return;
+
+            var orphan = changeTracker.Entries().Any(e =>
+                e.State == EntityState.Added
+                && e.Metadata.FindProperty(column) is not null
+                && e.Property(column).CurrentValue is null);
+
+            if (orphan)
+                throw new InvalidOperationException(
+                    "Cannot save: the signed-in account is not assigned to a workspace (TenantId is missing).");
+            return;
+        }
+
         var tenantId = TenantAmbient.TenantId.Value;
 
         foreach (var entry in changeTracker.Entries())

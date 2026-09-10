@@ -10,7 +10,8 @@ public sealed record CreateRecurringInvoiceCommand(
     IReadOnlyList<LineRequest> Lines,
     // Copied on every invoice this template produces. AutoSend off means the invoice is created as
     // a draft for someone to review and send by hand.
-    string? CcEmails = null, bool AutoSend = true) : ICommand<RecurringDto>;
+    string? CcEmails = null, bool AutoSend = true,
+    string? CustomerAddress = null, string? CustomerTrn = null) : ICommand<RecurringDto>;
 
 public sealed class CreateRecurringInvoiceValidator : AbstractValidator<CreateRecurringInvoiceCommand>
 {
@@ -28,7 +29,8 @@ public sealed record UpdateRecurringInvoiceCommand(
     Guid Id, string TemplateName, string CustomerName, string? CustomerEmail, string Frequency,
     string? EndDate, int DueDays, decimal TaxRate, string? Notes,
     IReadOnlyList<LineRequest> Lines,
-    string? CcEmails = null, bool AutoSend = true) : ICommand;
+    string? CcEmails = null, bool AutoSend = true,
+    string? CustomerAddress = null, string? CustomerTrn = null) : ICommand;
 
 public sealed class UpdateRecurringInvoiceValidator : AbstractValidator<UpdateRecurringInvoiceCommand>
 {

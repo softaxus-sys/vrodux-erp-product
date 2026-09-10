@@ -12,7 +12,10 @@ public sealed record CreateInvoiceCommand(
     /// <summary>Send automatically on this date (yyyy-MM-dd) instead of pressing Send.</summary>
     string? ScheduledSendDate = null,
     /// <summary>Chase the customer as the due date nears. On unless turned off for this invoice.</summary>
-    bool RemindBeforeDue = true) : ICommand<InvoiceDto>;
+    bool RemindBeforeDue = true,
+    /// <summary>Buyer billing address (multi-line) and TRN#, printed under "Bill To".</summary>
+    string? CustomerAddress = null,
+    string? CustomerTrn = null) : ICommand<InvoiceDto>;
 
 public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceCommand>
 {
@@ -22,6 +25,8 @@ public sealed class CreateInvoiceValidator : AbstractValidator<CreateInvoiceComm
         RuleFor(x => x.InvoiceDate).NotEmpty();
         RuleFor(x => x.DueDate).NotEmpty();
         RuleFor(x => x.CcEmails).MaximumLength(2000);
+        RuleFor(x => x.CustomerAddress).MaximumLength(1000);
+        RuleFor(x => x.CustomerTrn).MaximumLength(50);
     }
 }
 
@@ -31,7 +36,9 @@ public sealed record UpdateInvoiceCommand(
     /// <summary>Customer-side CC — their accounts inbox. Comma or semicolon separated.</summary>
     string? CcEmails = null,
     string? ScheduledSendDate = null,
-    bool RemindBeforeDue = true) : ICommand;
+    bool RemindBeforeDue = true,
+    string? CustomerAddress = null,
+    string? CustomerTrn = null) : ICommand;
 
 public sealed class UpdateInvoiceValidator : AbstractValidator<UpdateInvoiceCommand>
 {

@@ -36,6 +36,9 @@ public sealed class RecurringInvoice
     public string    TemplateName       { get; private set; } = string.Empty;
     public string    CustomerName       { get; private set; } = string.Empty;
     public string?   CustomerEmail      { get; private set; }
+    /// <summary>Copied onto every generated invoice's "Bill To".</summary>
+    public string?   CustomerAddress    { get; private set; }
+    public string?   CustomerTrn        { get; private set; }
     public string    Frequency          { get; private set; } = "monthly";
     public DateTime  StartDate          { get; private set; }
     public DateTime? EndDate            { get; private set; }
@@ -113,6 +116,13 @@ public sealed class RecurringInvoice
             : string.Join(",", csv
                 .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .Distinct(StringComparer.OrdinalIgnoreCase));
+
+    public void SetCustomerTaxDetails(string? address, string? trn)
+    {
+        CustomerAddress = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        CustomerTrn     = string.IsNullOrWhiteSpace(trn) ? null : trn.Trim();
+        UpdatedAt       = DateTime.UtcNow;
+    }
 
     public void Pause()  { IsActive = false; UpdatedAt = DateTime.UtcNow; }
     public void Resume() { IsActive = true;  UpdatedAt = DateTime.UtcNow; }

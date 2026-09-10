@@ -33,6 +33,10 @@ public sealed class Invoice
     public Guid?     CustomerId    { get; private set; }
     public string    CustomerName  { get; private set; } = string.Empty;
     public string?   CustomerEmail { get; private set; }
+    /// <summary>Buyer's billing address, printed under "Bill To". Multi-line.</summary>
+    public string?   CustomerAddress { get; private set; }
+    /// <summary>Buyer's tax registration number (TRN#) — required on a UAE tax invoice when the buyer is VAT-registered.</summary>
+    public string?   CustomerTrn   { get; private set; }
     public string    InvoiceDate   { get; private set; } = string.Empty;
     public string    DueDate       { get; private set; } = string.Empty;
     public decimal   TaxRate       { get; private set; }
@@ -222,6 +226,13 @@ public sealed class Invoice
     public void SetCurrencyCode(string currencyCode) { CurrencyCode = currencyCode.Trim().ToUpperInvariant(); UpdatedAt = DateTime.UtcNow; }
 
     public void SetCustomerId(Guid? customerId) { CustomerId = customerId; UpdatedAt = DateTime.UtcNow; }
+
+    public void SetCustomerTaxDetails(string? address, string? trn)
+    {
+        CustomerAddress = string.IsNullOrWhiteSpace(address) ? null : address.Trim();
+        CustomerTrn     = string.IsNullOrWhiteSpace(trn) ? null : trn.Trim();
+        UpdatedAt       = DateTime.UtcNow;
+    }
 
     public void SetJournalEntryId(Guid? journalEntryId) { JournalEntryId = journalEntryId; UpdatedAt = DateTime.UtcNow; }
 

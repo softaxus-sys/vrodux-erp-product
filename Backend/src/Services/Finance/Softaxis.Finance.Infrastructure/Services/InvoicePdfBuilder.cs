@@ -116,18 +116,23 @@ internal static class InvoicePdfBuilder
                 if (logo is not null) col.Item().Height(42).AlignLeft().Image(logo).FitHeight();
                 else col.Item().Text(brand.Name).FontSize(15).Bold();
 
-                col.Item().PaddingTop(6).Text(brand.Name).FontSize(10).SemiBold();
-                foreach (var line in new[] { brand.Address, brand.Phone, brand.Email, brand.Website })
+                // Supplier identity in tax-invoice order: full legal name, registered address, TRN#.
+                col.Item().PaddingTop(6).Text(brand.Name).FontSize(10).Bold();
+                if (!string.IsNullOrWhiteSpace(brand.Address))
+                    col.Item().Text(brand.Address!).FontSize(8.5f).FontColor("#374151");
+                if (!string.IsNullOrWhiteSpace(brand.TaxNumber))
+                    col.Item().PaddingTop(1).Text($"TRN#: {brand.TaxNumber}").FontSize(9).Bold();
+
+                foreach (var line in new[] { brand.Phone, brand.Email, brand.Website })
                     if (!string.IsNullOrWhiteSpace(line))
                         col.Item().Text(line!).FontSize(8).FontColor("#6b7280");
-
-                if (!string.IsNullOrWhiteSpace(brand.TaxNumber))
-                    col.Item().Text($"TRN: {brand.TaxNumber}").FontSize(8).FontColor("#6b7280");
             });
 
             row.ConstantItem(190).Column(col =>
             {
-                col.Item().AlignRight().Text("INVOICE").FontSize(20).Bold().FontColor("#111827");
+                col.Item().AlignRight()
+                   .Text(string.IsNullOrWhiteSpace(brand.TaxNumber) ? "INVOICE" : "TAX INVOICE")
+                   .FontSize(20).Bold().FontColor("#111827");
                 col.Item().AlignRight().PaddingTop(2).Text(invoice.InvoiceNumber).FontSize(10).SemiBold();
                 col.Item().AlignRight().PaddingTop(6).Text($"Issued  {invoice.InvoiceDate}").FontSize(8);
                 col.Item().AlignRight().Text($"Due     {invoice.DueDate}").FontSize(8);
@@ -150,6 +155,13 @@ internal static class InvoicePdfBuilder
             {
                 bill.Item().Text("BILL TO").FontSize(7).Bold().FontColor("#9ca3af").LetterSpacing(0.1f);
                 bill.Item().PaddingTop(2).Text(invoice.CustomerName).FontSize(10).SemiBold();
+                // Multi-line address: each line on its own row, as typed.
+                if (!string.IsNullOrWhiteSpace(invoice.CustomerAddress))
+                    foreach (var line in invoice.CustomerAddress!.Split('\n'))
+                        if (!string.IsNullOrWhiteSpace(line))
+                            bill.Item().Text(line.Trim()).FontSize(8.5f).FontColor("#374151");
+                if (!string.IsNullOrWhiteSpace(invoice.CustomerTrn))
+                    bill.Item().PaddingTop(1).Text($"TRN#: {invoice.CustomerTrn}").FontSize(9).Bold();
                 if (!string.IsNullOrWhiteSpace(invoice.CustomerEmail))
                     bill.Item().Text(invoice.CustomerEmail!).FontSize(8).FontColor("#6b7280");
             });

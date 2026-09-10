@@ -62,6 +62,8 @@ function EditInvoice({
 
   const [customerName,  setCustomerName]  = React.useState(invoice.customerName);
   const [customerEmail, setCustomerEmail] = React.useState(invoice.customerEmail ?? "");
+  const [customerAddress, setCustomerAddress] = React.useState("");
+  const [customerTrn, setCustomerTrn] = React.useState("");
   const [ccEmails, setCcEmails] = React.useState(invoice.ccEmails ?? "");
   const [scheduledSendDate, setScheduledSendDate] = React.useState(invoice.scheduledSendDate ?? "");
   const [remindBeforeDue, setRemindBeforeDue] = React.useState(invoice.remindBeforeDue ?? true);
@@ -77,6 +79,8 @@ function EditInvoice({
   React.useEffect(() => {
     if (!detail) return;
     setNotes(detail.notes ?? "");
+    setCustomerAddress(detail.customerAddress ?? "");
+    setCustomerTrn(detail.customerTrn ?? "");
     setItems(
       detail.items.length > 0
         ? detail.items.map(i => ({
@@ -109,6 +113,8 @@ function EditInvoice({
           customerName:  customerName.trim(),
           customerEmail: customerEmail.trim() || undefined,
           ccEmails:      ccEmails.trim() || undefined,
+          customerAddress: customerAddress.trim() || null,
+          customerTrn:     customerTrn.trim() || null,
           scheduledSendDate: scheduledSendDate || null,
           remindBeforeDue,
           invoiceDate,
@@ -166,6 +172,16 @@ function EditInvoice({
             <Label>{t("invoicing.drawer.form.customerEmail")}</Label>
             <Input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
               placeholder={t("invoicing.drawer.form.customerEmailPh")} />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.customerAddress", { defaultValue: "Customer Address" })}</Label>
+            <textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} rows={3}
+              placeholder={t("invoicing.drawer.form.customerAddressPh", { defaultValue: "Full legal name / address, one line per row" })}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.customerTrn", { defaultValue: "Customer TRN#" })}</Label>
+            <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" />
           </div>
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.ccEmails")}</Label>
@@ -590,6 +606,8 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
 
   const [customerName,  setCustomerName]  = React.useState("");
   const [customerEmail, setCustomerEmail] = React.useState("");
+  const [customerAddress, setCustomerAddress] = React.useState("");
+  const [customerTrn, setCustomerTrn] = React.useState("");
   const [ccEmails, setCcEmails] = React.useState("");
   const [scheduledSendDate, setScheduledSendDate] = React.useState("");
   const [remindBeforeDue, setRemindBeforeDue] = React.useState(true);
@@ -619,6 +637,8 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
         customerName:  customerName.trim(),
         customerEmail: customerEmail.trim() || undefined,
         ccEmails:      ccEmails.trim() || undefined,
+        customerAddress: customerAddress.trim() || null,
+        customerTrn:     customerTrn.trim() || null,
         scheduledSendDate: scheduledSendDate || null,
         remindBeforeDue,
         invoiceDate,
@@ -659,6 +679,16 @@ function CreateInvoice({ onClose }: { onClose: () => void }) {
             <Label>{t("invoicing.drawer.form.customerEmail")}</Label>
             <Input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)}
               placeholder={t("invoicing.drawer.form.customerEmailPh")} />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.customerAddress", { defaultValue: "Customer Address" })}</Label>
+            <textarea value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} rows={3}
+              placeholder={t("invoicing.drawer.form.customerAddressPh", { defaultValue: "Full legal name / address, one line per row" })}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
+          </div>
+          <div className="col-span-2 space-y-1.5">
+            <Label>{t("invoicing.drawer.form.customerTrn", { defaultValue: "Customer TRN#" })}</Label>
+            <Input value={customerTrn} onChange={e => setCustomerTrn(e.target.value)} placeholder="e.g. 100123456700003" />
           </div>
           <div className="col-span-2 space-y-1.5">
             <Label>{t("invoicing.drawer.form.ccEmails")}</Label>

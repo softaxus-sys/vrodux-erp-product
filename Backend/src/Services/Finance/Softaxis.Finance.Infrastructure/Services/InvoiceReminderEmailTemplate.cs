@@ -109,7 +109,7 @@ internal static class InvoiceReminderEmailTemplate
     </div>
 
     <div style=""padding:14px 24px;background:#f8fafc;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af"">
-      {E(companyName)}{(string.IsNullOrWhiteSpace(brand.Address) ? string.Empty : " · " + E(brand.Address))}
+      {E(companyName)}{(string.IsNullOrWhiteSpace(brand.Address) ? string.Empty : " · " + E(brand.Address))}{(string.IsNullOrWhiteSpace(brand.TaxNumber) ? string.Empty : " · TRN#: " + E(brand.TaxNumber))}
     </div>
   </div>
 </div>";
