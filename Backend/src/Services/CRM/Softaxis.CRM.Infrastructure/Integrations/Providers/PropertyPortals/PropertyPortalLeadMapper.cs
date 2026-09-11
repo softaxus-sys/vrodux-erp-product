@@ -91,9 +91,17 @@ internal static class PropertyPortalLeadMapper
 
         // "Interested in" — the listing enquired about.
         var title = listing is { } l1 ? Str(l1, "title", "listing_title") : null;
-        var reference = listing is { } l2
-            ? Str(l2, "listing_reference", "reference", "reference_number", "permit_number", "ref")
-            : null;
+        // Bayut's WhatsApp push states the Listing Reference Number so the lead can reach the listing's
+        // agent; it may sit on the listing object or flat on the payload itself.
+        var reference = (listing is { } l2
+                ? Str(l2, "listing_reference", "listing_reference_number", "reference", "reference_number", "permit_number", "ref")
+                : null)
+            ?? Str(el, "listing_reference", "listing_reference_number", "listing_ref", "property_reference");
+
+        // Bayut's tracked reply link — the agent's response time is only measured when they reply through it.
+        var contactLink = Str(el, "contact_link", "contactLink", "contact_url")
+                       ?? Str(person, "contact_link", "contactLink")
+                       ?? (story is { } cs ? Str(cs, "contact_link") : null);
         string? interested = title;
         if (interested is null && reference is not null) interested = $"Ref {reference}";
         else if (interested is not null && reference is not null) interested = $"{interested} (Ref {reference})";
@@ -173,6 +181,8 @@ internal static class PropertyPortalLeadMapper
             // An agent-targeted enquiry already belongs to someone at the portal; with external_map
             // routing the lead goes to that agent instead of round-robin.
             ExternalOwnerId     = agent is { } ao ? Str(ao, "email") ?? Str(ao, "id") ?? Str(ao, "url") : null,
+            ListingReference    = reference,
+            ContactLink         = contactLink,
             IsOrganic           = true,   // a portal enquiry is not paid advertising of ours
 
             RawJson = rawJson.Length > 8000 ? rawJson[..8000] : rawJson,

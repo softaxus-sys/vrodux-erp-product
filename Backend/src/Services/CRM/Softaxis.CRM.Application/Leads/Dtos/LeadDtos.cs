@@ -22,7 +22,10 @@ public sealed record LeadDto(
     // Outcome of the opportunity this lead converted into. A lead is never itself "won" or "lost" —
     // winning is a money outcome and lives on the deal — but a converted lead that cannot tell you
     // what became of it is a dead end, so the deal's stage and value are surfaced here.
-    string? ConvertedDealStage = null, decimal? ConvertedDealValue = null);
+    string? ConvertedDealStage = null, decimal? ConvertedDealValue = null,
+    // The portal's tracked reply link (Bayut contact_link) — kept in the list too, since the list's
+    // WhatsApp column must use it for the agent's response time to be measured.
+    string? ContactLink = null);
 
 public sealed record LeadsSummaryDto(
     int Total, int NewThisWeek, int Qualified, int Contacted, int Converted,

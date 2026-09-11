@@ -481,6 +481,21 @@ export function LeadsView() {
     }
   }, [searchParams, setSearchParams]);
 
+  // Deep link from a lead alert (bell, toast or email): /crm/leads?lead={id} opens that lead's drawer.
+  // The param is stripped first so closing the drawer is not undone on the next render. No cancellation
+  // on cleanup: stripping the param re-runs this effect, which would otherwise cancel its own fetch.
+  React.useEffect(() => {
+    const leadId = searchParams.get("lead");
+    if (!leadId) return;
+    searchParams.delete("lead");
+    setSearchParams(searchParams, { replace: true });
+    crmApi.getLead(leadId)
+      .then((l) => { setSelectedLead(l); setDrawerOpen(true); })
+      // A lead that was deleted, or that this user may not see, answers 404 — say so rather than doing nothing.
+      .catch(() => toast.error(t("leadNotAvailable", { defaultValue: "That lead is no longer available to you." })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, setSearchParams]);
+
   // Board only: the list is filtered and sorted in SQL.
   const filtered = React.useMemo(() => {
     const q = search.toLowerCase();
@@ -780,10 +795,12 @@ export function LeadsView() {
                         ) : <span className="text-sm text-muted-foreground">—</span>}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
-                        {lead.whatsApp ? (
-                          <a href={`https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer"
+                        {(lead.whatsApp || lead.contactLink) ? (
+                          // A portal lead's tracked link is used so the agent's response time is measured.
+                          <a href={lead.contactLink ?? `https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="text-sm text-emerald-600 hover:underline">{lead.whatsApp}</a>
+                            title={lead.contactLink ? t("drawer.replyTrackedHint", { defaultValue: "Opens the portal's tracked reply link" }) : undefined}
+                            className="text-sm text-emerald-600 hover:underline">{lead.whatsApp || t("drawer.reply", { defaultValue: "Reply" })}</a>
                         ) : <span className="text-sm text-muted-foreground">—</span>}
                       </td>
                       <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">{sourceLabel(lead.source)}</td>

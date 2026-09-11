@@ -6,6 +6,8 @@ interface NotificationsState {
   unreadCount: number;
 
   addNotification: (notification: Notification) => void;
+  /** Replaces the list with the server's view (the server owns read-state). */
+  setNotifications: (notifications: Notification[], unreadCount: number) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   removeNotification: (id: string) => void;
@@ -21,6 +23,8 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
       notifications: [notification, ...state.notifications],
       unreadCount: state.unreadCount + (notification.read ? 0 : 1),
     })),
+
+  setNotifications: (notifications, unreadCount) => set({ notifications, unreadCount }),
 
   markAsRead: (id) =>
     set((state) => ({

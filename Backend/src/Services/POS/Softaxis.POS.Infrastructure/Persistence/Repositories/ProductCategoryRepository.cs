@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.POS.Domain.Entities;
 using Softaxis.POS.Domain.Repositories;
@@ -13,6 +14,27 @@ public sealed class ProductCategoryRepository(POSDbContext db) : IProductCategor
             .Include(c => c.Products)
             .Include(c => c.SubCategories)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+    public async Task<ProductCategory?> GetOrMirrorFromInventoryAsync(Guid id, CancellationToken ct = default)
+    {
+        var existing = await GetByIdAsync(id, ct);
+        if (existing is not null) return existing;
+
+        // Raw SQL bypasses EF's global tenant filter — replicate it explicitly.
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
+        var name = await db.Database.SqlQuery<string>($"""
+            SELECT [Name] AS [Value] FROM [inventory].[product_categories]
+            WHERE Id = {id} AND IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})
+            """).FirstOrDefaultAsync(ct);
+        if (name is null) return null;
+
+        // Added through EF, so SaveChanges stamps this request's tenant on the copy.
+        var mirror = ProductCategory.MirrorOf(id, name);
+        db.ProductCategories.Add(mirror);
+        return mirror;
+    }
 
     public async Task<IReadOnlyList<ProductCategory>> GetAllAsync(bool activeOnly = true, CancellationToken ct = default)
     {

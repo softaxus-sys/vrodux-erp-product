@@ -16,6 +16,7 @@ public sealed class CrmDbContext(DbContextOptions<CrmDbContext> options) : DbCon
     public DbSet<LeadStatusHistory> LeadStatusHistory => Set<LeadStatusHistory>();
     public DbSet<Activity>    Activities => Set<Activity>();
     public DbSet<CrmDocument> Documents  => Set<CrmDocument>();
+    public DbSet<CrmNotification> Notifications => Set<CrmNotification>();
     public DbSet<Contact>       Contacts       => Set<Contact>();
     public DbSet<Patient>       Patients       => Set<Patient>();
     public DbSet<Appointment>   Appointments   => Set<Appointment>();

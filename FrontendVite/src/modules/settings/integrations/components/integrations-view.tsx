@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn, formatDate } from "@/lib/utils";
 import { PropertyFinderTab } from "./property-finder-tab";
+import { useAssignableByTeam, encodeAssignee, decodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import { useAuthStore } from "@/store/auth.store";
 import {
   useProviderCatalog, useIntegration, useIntegrationSyncLogs, useIntegrationInbox,
@@ -951,24 +952,26 @@ function vroduxOnFormSubmit(e) {
     const portal = key === "bayut" ? "Bayut" : "Dubizzle";
     const bzPayload =
 `{
-  "type": "whatsapp_lead",
-  "lead_id": "${key.toUpperCase()}-000123",
-  "client": {
+  "lead_id": "whatsapp|3f2c9a1e-0000-0000-0000-000000000123",
+  "date_time": "2026-09-11 10:24:00",
+  "contact_link": "https://www.${key}.com/...",
+  "enquirer": {
     "name": "Ahmed Ali",
-    "email": "ahmed@example.com",
-    "phone": "+971501234567"
+    "phone_number": "+971501234567",
+    "intent": "Renting"
   },
-  "message": "Is this apartment still available? I'd like a viewing.",
-  "property": {
-    "reference": "MARINA-2BR-1024",
-    "title": "2 Bedroom Apartment, Dubai Marina",
-    "type": "Apartment",
+  "listing": {
+    "listing_reference": "MARINA-2BR-1024",
+    "listing_title": "2 Bedroom Apartment, Dubai Marina",
     "offering_type": "rent",
     "price": "120000",
     "location": "Dubai Marina, Dubai",
     "bedrooms": "2",
-    "bathrooms": "2",
-    "url": "https://www.${key}.com/..."
+    "bathrooms": "2"
+  },
+  "agent": {
+    "name": "Sara Khan",
+    "email": "sara@youragency.ae"
   }
 }`;
     const bzCurl =
@@ -1124,17 +1127,28 @@ function DedupeTab({ integration, canEdit }: { integration: any; canEdit: boolea
 function RoutingTab({ integration, canEdit }: { integration: any; canEdit: boolean }) {
   const { t } = useTranslation("settings");
   const parsed = safeParse(integration.routingConfig, { mode: "fixed", assignTo: "", pool: [] as string[] });
-  const [routing, setRouting] = React.useState(parsed);
+  const [routing, setRouting] = React.useState<any>(parsed);
   const update = useUpdateIntegrationConfig();
+  const isPortal = PULL_KEY_PORTALS.includes(integration.providerKey);
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{t("integrations.routing.intro")}</p>
-      <select className="bg-card border border-border rounded-md px-2 py-2 text-sm w-full" value={routing.mode} disabled={!canEdit}
+      <select className="bg-card border border-border rounded-md px-2 py-2 text-sm w-full" value={routing.mode ?? "fixed"} disabled={!canEdit}
         onChange={(e) => setRouting((p: any) => ({ ...p, mode: e.target.value }))}>
         <option value="fixed">{t("integrations.routing.fixed")}</option>
         <option value="round_robin">{t("integrations.routing.roundRobin")}</option>
         <option value="unassigned">{t("integrations.routing.unassigned")}</option>
+        {routing.mode === "external_map" && (
+          <option value="external_map">{t("integrations.routing.externalMap", { defaultValue: "Portal agent map" })}</option>
+        )}
       </select>
+      {isPortal && (
+        <p className="text-xs text-muted-foreground">
+          {t("integrations.routing.portalFallbackHint", {
+            defaultValue: "Leads are first given to the listing's agent (below). The option above only applies when no agent can be matched.",
+          })}
+        </p>
+      )}
       {routing.mode === "fixed" && (
         <Input placeholder={t("integrations.routing.assignToPlaceholder")} value={routing.assignTo ?? ""} disabled={!canEdit}
           onChange={(e) => setRouting((p: any) => ({ ...p, assignTo: e.target.value }))} />
@@ -1143,10 +1157,161 @@ function RoutingTab({ integration, canEdit }: { integration: any; canEdit: boole
         <Input placeholder={t("integrations.routing.poolPlaceholder")} value={(routing.pool ?? []).join(",")} disabled={!canEdit}
           onChange={(e) => setRouting((p: any) => ({ ...p, pool: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) }))} />
       )}
+      {isPortal && (
+        <ListingAgentMap
+          value={routing.listingMap ?? {}}
+          canEdit={canEdit}
+          onChange={(listingMap) => setRouting((p: any) => ({ ...p, listingMap }))}
+        />
+      )}
       {canEdit && (
         <Button size="sm" onClick={() => update.mutate({ id: integration.id, req: { routingConfig: JSON.stringify(routing) } })}>
           {t("integrations.routing.saveRouting")}
         </Button>
+      )}
+    </div>
+  );
+}
+
+interface ListingMapEntry {
+  agentKey?:  string | null;
+  agentName?: string | null;
+  userId?:    string | null;
+  userName?:  string | null;
+  teamId?:    string | null;
+  learned?:   boolean;
+}
+
+/**
+ * Listing reference → agent, for portals whose WhatsApp push names the listing but not the agent
+ * (Bayut). Rows are learned automatically from enquiries that carry both; an admin can pin a listing
+ * to a specific user, which the learning never overrides. An unpinned learned row routes to the
+ * portal agent's own login, matched by email.
+ */
+function ListingAgentMap({ value, canEdit, onChange }: {
+  value: Record<string, ListingMapEntry>;
+  canEdit: boolean;
+  onChange: (next: Record<string, ListingMapEntry>) => void;
+}) {
+  const { t } = useTranslation("settings");
+  const { groups, options } = useAssignableByTeam(true);
+  const [search, setSearch] = React.useState("");
+  const [newRef, setNewRef] = React.useState("");
+  const [newAssignee, setNewAssignee] = React.useState("");
+
+  const rows = Object.entries(value)
+    .filter(([ref, e]) => !search.trim()
+      || `${ref} ${e.agentName ?? ""} ${e.agentKey ?? ""} ${e.userName ?? ""}`.toLowerCase().includes(search.trim().toLowerCase()))
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  const nameOf = (userId: string | null) => options.find((o) => o.id === userId)?.fullName ?? null;
+
+  function pin(ref: string, assignee: string) {
+    const { userId, teamId } = decodeAssignee(assignee);
+    const current = value[ref] ?? {};
+    const next: ListingMapEntry = userId
+      ? { ...current, userId, userName: nameOf(userId), teamId, learned: false }
+      // Unpinning a learned row hands it back to the learned agent; a manual row with no agent is just removed.
+      : { ...current, userId: null, userName: null, teamId: null, learned: !!current.agentKey };
+    if (!userId && !current.agentKey) {
+      const { [ref]: _removed, ...rest } = value;
+      onChange(rest);
+      return;
+    }
+    onChange({ ...value, [ref]: next });
+  }
+
+  function remove(ref: string) {
+    const { [ref]: _removed, ...rest } = value;
+    onChange(rest);
+  }
+
+  function add() {
+    const ref = newRef.trim();
+    if (!ref || !newAssignee) return;
+    const { userId, teamId } = decodeAssignee(newAssignee);
+    onChange({ ...value, [ref]: { ...(value[ref] ?? {}), userId, userName: nameOf(userId), teamId, learned: false } });
+    setNewRef("");
+    setNewAssignee("");
+  }
+
+  const assigneeSelect = (current: string, onSelect: (v: string) => void, emptyLabel: string) => (
+    <select className="bg-card border border-border rounded-md px-2 py-1.5 text-sm w-full" value={current}
+      disabled={!canEdit} onChange={(e) => onSelect(e.target.value)}>
+      <option value="">{emptyLabel}</option>
+      {groups.map((g) => (
+        <optgroup key={g.team} label={g.team}>
+          {g.members.map((m) => (
+            <option key={`${g.team}-${m.id}`} value={encodeAssignee(m.id, m.teamId)}>{m.label}</option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+
+  return (
+    <div className="border border-border rounded-lg p-3 space-y-3">
+      <div>
+        <p className="text-sm font-medium">{t("integrations.routing.listingMapTitle", { defaultValue: "Listing → agent" })}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {t("integrations.routing.listingMapDesc", {
+            defaultValue: "WhatsApp leads carry only the listing reference. Agents are learned automatically from enquiries that name them; pin a listing to a user to override.",
+          })}
+        </p>
+      </div>
+
+      {Object.keys(value).length > 5 && (
+        <Input placeholder={t("integrations.routing.listingSearch", { defaultValue: "Search reference or agent…" })}
+          value={search} onChange={(e) => setSearch(e.target.value)} />
+      )}
+
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {t("integrations.routing.listingMapEmpty", { defaultValue: "No listings yet — they appear here as enquiries arrive." })}
+        </p>
+      ) : (
+        <div className="max-h-72 overflow-y-auto divide-y divide-border">
+          {rows.map(([ref, e]) => (
+            <div key={ref} className="py-2 grid grid-cols-[1fr_1.4fr_auto] items-center gap-2">
+              <div className="min-w-0">
+                <p className="font-mono text-xs truncate" title={ref}>{ref}</p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {e.agentName || e.agentKey || "—"}
+                  <span className={cn("ms-1.5 px-1.5 py-0.5 rounded-full text-[10px]",
+                    e.learned ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary")}>
+                    {e.learned
+                      ? t("integrations.routing.learned", { defaultValue: "Learned" })
+                      : t("integrations.routing.pinned", { defaultValue: "Pinned" })}
+                  </span>
+                </p>
+              </div>
+              {assigneeSelect(
+                e.userId ? encodeAssignee(e.userId, e.teamId ?? null) : "",
+                (v) => pin(ref, v),
+                e.agentKey
+                  ? t("integrations.routing.agentOwnLogin", { defaultValue: "Agent's own login (matched by email)" })
+                  : t("integrations.routing.notAssigned", { defaultValue: "Not assigned" }),
+              )}
+              {canEdit ? (
+                <button type="button" onClick={() => remove(ref)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                  aria-label={t("integrations.routing.removeListing", { defaultValue: "Remove" })}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : <span />}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {canEdit && (
+        <div className="grid grid-cols-[1fr_1.4fr_auto] items-center gap-2 pt-1 border-t border-border">
+          <Input placeholder={t("integrations.routing.listingRefPlaceholder", { defaultValue: "Listing reference" })}
+            value={newRef} onChange={(e) => setNewRef(e.target.value)} className="h-9 font-mono text-xs" />
+          {assigneeSelect(newAssignee, setNewAssignee, t("integrations.routing.pickAgent", { defaultValue: "Choose agent…" }))}
+          <Button size="sm" variant="outline" onClick={add} disabled={!newRef.trim() || !newAssignee}>
+            {t("integrations.routing.addListing", { defaultValue: "Add" })}
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -60,6 +60,7 @@ public static class InfrastructureExtensions
         services.AddSingleton<ILeadProviderRegistry, LeadProviderRegistry>();
         // The single intake pipeline (mapping → dedupe → create → routing → notification).
         services.AddScoped<ILeadIntakeService, LeadIntakeService>();
+        services.AddScoped<Softaxis.CRM.Application.Abstractions.ICrmEmailService, Services.SmtpCrmEmailService>();
 
         // ── Providers ─────────────────────────────────────────────────────────
         // No-credential inbound providers (one generic implementation, several catalog cards).

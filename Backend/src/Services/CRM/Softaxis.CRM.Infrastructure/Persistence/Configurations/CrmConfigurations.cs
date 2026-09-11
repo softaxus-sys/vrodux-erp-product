@@ -52,6 +52,7 @@ internal sealed class LeadConfiguration : IEntityTypeConfiguration<Lead>
         builder.Property(x => x.AdName).HasMaxLength(200);
         builder.Property(x => x.AdSetName).HasMaxLength(200);
         builder.Property(x => x.PlatformCreatedTime).HasMaxLength(40);
+        builder.Property(x => x.PortalContactLink).HasMaxLength(1000);
         builder.Property(x => x.CustomFields).HasConversion(
             v => v == null ? null : System.Text.Json.JsonSerializer.Serialize(v, (System.Text.Json.JsonSerializerOptions?)null),
             v => string.IsNullOrEmpty(v) ? null : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(v, (System.Text.Json.JsonSerializerOptions?)null));

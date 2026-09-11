@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -39,7 +40,12 @@ public sealed class LeadIntakeService(
 
         // Resolved first, because when the source knows whose lead it is, the owner is part of
         // what makes two records "the same".
-        owner ??= ResolveExternalOwner(lead, integration);
+        owner ??= await ResolveExternalOwnerAsync(lead, integration, tenantId, ct);
+
+        // Every enquiry naming both a listing and its agent teaches the listing map, so a later
+        // enquiry carrying only the reference (Bayut's WhatsApp push) still reaches that agent.
+        // Saved with the lead by the caller's SaveChanges; the integration is a tracked entity.
+        LearnListingAgent(lead, integration);
 
         // ── Duplicate detection (configurable) ────────────────────────────────
         var dedupe = ParseDedupe(integration?.DedupeConfig);
@@ -94,6 +100,7 @@ public sealed class LeadIntakeService(
         // Requirements captured from the lead-gen form (or promoted via field mappings).
         newLead.SetRequirements(Clip(lead.WhatsApp, 50), Clip(lead.InterestedIn, 500), Clip(lead.Budget, 100),
             Clip(lead.Message, 4000), Clip(lead.Timeframe, 100));
+        newLead.SetPortalContactLink(Clip(lead.ContactLink, 1000));
 
         // Marketing / attribution — denormalized onto the lead for the drawer's Marketing panel.
         var platform = Clean(lead.Platform)
@@ -276,7 +283,7 @@ public sealed class LeadIntakeService(
         // Ownership only moves when the source says so. A repeat enquiry must NOT quietly transfer
         // a lead to whichever agent happened to receive the latest message — the first agent owns
         // the relationship. An unowned lead is the exception: someone is better than nobody.
-        owner ??= ResolveExternalOwner(lead, integration);
+        owner ??= await ResolveExternalOwnerAsync(lead, integration, tenantId, ct);
         if (owner is not null && (lead.IsReassignment || existing.AssignedToUserId is null))
             existing.AssignTo(owner.UserId, owner.UserName, owner.TeamId);
 
@@ -288,6 +295,8 @@ public sealed class LeadIntakeService(
             Clip(lead.Budget, 100)       ?? existing.Budget,
             Clip(lead.Message, 4000)     ?? existing.Message,
             Clip(lead.Timeframe, 100)    ?? existing.PurchaseTimeframe);
+        // The latest enquiry's link is the one the agent should answer through.
+        existing.SetPortalContactLink(Clip(lead.ContactLink, 1000));
 
         var activity = new Activity(
             type:          "note",
@@ -352,19 +361,122 @@ public sealed class LeadIntakeService(
     /// When the source already knows whose lead it is (a portal assigns each enquiry to an agent),
     /// honouring that beats round-robining it to whoever is next.</para>
     /// </summary>
-    private static LeadOwner? ResolveExternalOwner(CanonicalLead lead, Integration? integration)
+    private async Task<LeadOwner?> ResolveExternalOwnerAsync(
+        CanonicalLead lead, Integration? integration, Guid tenantId, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(lead.ExternalOwnerId)) return null;
-
         var routing = ParseRouting(integration?.RoutingConfig);
-        if (routing.ExternalMap is not { Count: > 0 } map) return null;
-        if (!map.TryGetValue(lead.ExternalOwnerId, out var entry)) return null;
-        if (!Guid.TryParse(entry.UserId, out var userId)) return null;
 
-        Guid? teamId = Guid.TryParse(entry.TeamId, out var t) ? t : null;
-        return new LeadOwner(userId, entry.UserName ?? "", teamId);
+        // 1. The source named its own owner, and an admin mapped that owner to a Vrodux user.
+        var agentKey = Clean(lead.ExternalOwnerId);
+        if (agentKey is not null && FindEntry(routing.ExternalMap, agentKey) is { } direct
+            && ToOwner(direct.UserId, direct.UserName, direct.TeamId) is { } mapped)
+            return mapped;
+
+        // 2. Only a listing reference (Bayut's WhatsApp push): the listing map says whose listing it is —
+        //    either a user an admin pinned to it, or the portal agent learned from earlier enquiries.
+        if (agentKey is null && Clean(lead.ListingReference) is { } reference
+            && FindEntry(routing.ListingMap, reference) is { } listing)
+        {
+            if (ToOwner(listing.UserId, listing.UserName, listing.TeamId) is { } pinned) return pinned;
+
+            agentKey = Clean(listing.AgentKey);
+            if (agentKey is not null && FindEntry(routing.ExternalMap, agentKey) is { } viaAgent
+                && ToOwner(viaAgent.UserId, viaAgent.UserName, viaAgent.TeamId) is { } agentOwner)
+                return agentOwner;
+        }
+
+        // 3. The portal identifies its agents by email: a login with that email in THIS workspace is them.
+        if (agentKey is not null && agentKey.Contains('@'))
+            return await FindUserByEmailAsync(agentKey, tenantId, ct);
+
+        return null;
     }
 
+
+    /// <summary>Tenant-scoped login lookup by email; filed to the user's team only when they have exactly one.</summary>
+    private async Task<LeadOwner?> FindUserByEmailAsync(string email, Guid tenantId, CancellationToken ct)
+    {
+        var normalized = email.Trim().ToLowerInvariant();
+        var user = await db.Set<IdentityUserView>().AsNoTracking()
+            .Where(u => u.TenantId == tenantId && !u.IsDeleted && u.Email == normalized)
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+            .FirstOrDefaultAsync(ct);
+        if (user is null) return null;
+
+        // Same "don't guess" rule as elsewhere: a person in several teams gets no team rather than the wrong one.
+        var teams = await (
+                from m in db.Set<IdentityTeamMemberView>()
+                join t in db.Set<IdentityTeamView>() on m.TeamId equals t.Id
+                where m.UserId == user.Id && t.TenantId == tenantId && t.IsActive && !t.IsDeleted
+                select t.Id)
+            .Distinct().Take(2).ToListAsync(ct);
+
+        var name = $"{user.FirstName} {user.LastName}".Trim();
+        return new LeadOwner(user.Id, name.Length > 0 ? name : user.Username, teams.Count == 1 ? teams[0] : null);
+    }
+
+    private static LeadOwner? ToOwner(string? userId, string? userName, string? teamId) =>
+        Guid.TryParse(userId, out var u)
+            ? new LeadOwner(u, userName ?? "", Guid.TryParse(teamId, out var t) ? t : null)
+            : null;
+
+    /// <summary>Case-insensitive lookup — listing references and agent emails arrive in whatever case the portal uses.</summary>
+    private static T? FindEntry<T>(Dictionary<string, T>? map, string key) where T : class
+    {
+        if (map is null || map.Count == 0) return null;
+        if (map.TryGetValue(key, out var hit)) return hit;
+        foreach (var (k, v) in map)
+            if (string.Equals(k.Trim(), key, StringComparison.OrdinalIgnoreCase)) return v;
+        return null;
+    }
+
+    /// <summary>
+    /// Records listing → portal agent in the integration's routing config (<c>listingMap</c>). Learned
+    /// entries follow the portal when a listing changes hands; an entry an admin set is never replaced.
+    /// Edits the JSON in place so every other routing setting is preserved untouched.
+    /// </summary>
+    private static void LearnListingAgent(CanonicalLead lead, Integration? integration)
+    {
+        if (integration is null) return;
+        var reference = Clean(lead.ListingReference);
+        var agentKey  = Clean(lead.ExternalOwnerId);
+        if (reference is null || agentKey is null) return;
+
+        JsonObject root;
+        try
+        {
+            root = JsonNode.Parse(string.IsNullOrWhiteSpace(integration.RoutingConfig) ? "{}" : integration.RoutingConfig)
+                   as JsonObject ?? new JsonObject();
+        }
+        catch { return; }   // never overwrite a routing config we cannot read
+
+        if (root["listingMap"] is not JsonObject map)
+        {
+            map = new JsonObject();
+            root["listingMap"] = map;
+        }
+
+        var existingKey = map.Select(p => p.Key)
+            .FirstOrDefault(k => string.Equals(k, reference, StringComparison.OrdinalIgnoreCase));
+        if (existingKey is not null && map[existingKey] is JsonObject current)
+        {
+            var learned = current["learned"] is JsonValue lv && lv.TryGetValue<bool>(out var b) && b;
+            if (!learned) return;   // an admin's entry wins
+            if (current["agentKey"] is JsonValue av && av.TryGetValue<string>(out var known)
+                && string.Equals(known, agentKey, StringComparison.OrdinalIgnoreCase))
+                return;             // nothing new
+            map.Remove(existingKey);
+        }
+
+        map[reference] = new JsonObject
+        {
+            ["agentKey"]  = agentKey,
+            ["agentName"] = lead.RawFields.TryGetValue("agent_name", out var agentName) ? agentName : null,
+            ["learned"]   = true,
+        };
+        root["mode"] ??= "fixed";
+        integration.SetRoutingConfig(root.ToJsonString());
+    }
 
     private static string ResolveAssignee(Integration? integration)
     {
@@ -438,6 +550,8 @@ public sealed class LeadIntakeService(
         "timeframe", "timeline", "whentobuy", "whenlookingtobuy", "purchasetimeline", "buyingtimeline",
         "whenplanningtoinvest", "movein", "urgency",
         "campaign", "campaignname", "formname", "form",
+        // Promoted to Lead.PortalContactLink and shown as the tracked reply button.
+        "contactlink", "contacturl",
     };
 
     private static DedupeRules ParseDedupe(string? json)
@@ -460,7 +574,12 @@ public sealed class LeadIntakeService(
     private sealed record RoutingRules(
         string Mode, string? AssignTo, string[]? Pool,
         /// <summary>Source-system owner id → the Vrodux user who should own their leads.</summary>
-        Dictionary<string, ExternalOwnerEntry>? ExternalMap = null);
+        Dictionary<string, ExternalOwnerEntry>? ExternalMap = null,
+        /// <summary>Portal listing reference → its agent (learned) or a user an admin pinned to it.</summary>
+        Dictionary<string, ListingMapEntry>? ListingMap = null);
+
+    private sealed record ListingMapEntry(
+        string? AgentKey, string? AgentName, string? UserId, string? UserName, string? TeamId, bool Learned);
 
     private sealed record ExternalOwnerEntry(string? UserId, string? UserName, string? TeamId);
 }

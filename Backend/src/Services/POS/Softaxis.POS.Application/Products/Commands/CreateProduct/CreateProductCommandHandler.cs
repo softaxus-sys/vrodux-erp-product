@@ -15,7 +15,8 @@ public sealed class CreateProductCommandHandler(
 {
     public async Task<Result<ProductDto>> Handle(CreateProductCommand cmd, CancellationToken ct)
     {
-        var category = await categoryRepo.GetByIdAsync(cmd.CategoryId, ct);
+        // Categories are managed in Master Data (Inventory); copy one into POS on first use.
+        var category = await categoryRepo.GetOrMirrorFromInventoryAsync(cmd.CategoryId, ct);
         if (category is null)
             return Result.Failure<ProductDto>(Error.NotFoundById("Category", cmd.CategoryId));
 

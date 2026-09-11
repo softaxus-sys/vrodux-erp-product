@@ -24,7 +24,6 @@ import { inventoryCategoriesApi } from "@/lib/inventory/categories.api";
 import { brandsApi }               from "@/lib/inventory/brands.api";
 import { uomApi }                  from "@/lib/inventory/uom.api";
 import { warehousesApi }           from "@/lib/inventory/warehouses.api";
-import { categoriesApi }           from "@/lib/pos/categories.api";
 import { customersApi }            from "@/lib/pos/customers.api";
 import { vendorsApi }              from "@/lib/pos/vendors.api";
 import { branchesApi }             from "@/lib/identity/branches.api";
@@ -508,34 +507,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
 
   // ── POS ────────────────────────────────────────────────────────────────────
 
-  {
-    id: "pos-categories",
-    label: "POS Categories",
-    description: "Product categories shown on the POS terminal product grid.",
-    icon: Tag,
-    category: "pos",
-    module: "pos",
-    color: "rose",
-    searchKeys: ["name"],
-    columns: [
-      { key: "name",             label: "Category Name" },
-      { key: "parentCategoryName", label: "Parent",    render: v => dash(v) },
-      { key: "sortOrder",        label: "Sort Order",  align: "center" },
-      { key: "productCount",     label: "Products",    align: "center",
-        render: v => <CountPill count={v as number ?? 0} /> },
-      { key: "isActive",         label: "Status",      render: v => <StatusPill active={v as boolean} /> },
-    ],
-    formFields: [
-      { key: "name",        label: "Category Name",  type: "text",    required: true, placeholder: "e.g. Beverages", span: "full" },
-      { key: "description", label: "Description",    type: "textarea",span: "full" },
-      { key: "sortOrder",   label: "Sort Order",     type: "number",  placeholder: "0", defaultValue: 0 },
-      { key: "isActive",    label: "Active",         type: "toggle",  defaultValue: true },
-    ],
-    fetchAll: () => categoriesApi.getAll({ pageSize: 500 }).then(r => r.items as unknown as Record<string, unknown>[]),
-    create:   d  => categoriesApi.create(d as any),
-    update:   (id, d) => categoriesApi.update(id, d as any),
-    remove:   id => categoriesApi.delete(id),
-  },
+  // POS uses Product Categories (Inventory) — there is intentionally no separate POS category list.
 
   {
     id: "pos-payment-methods",

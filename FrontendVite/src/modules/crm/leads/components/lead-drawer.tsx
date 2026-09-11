@@ -295,9 +295,20 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
                   </div>
 
                   {/* Requirements — captured from the lead-gen form */}
-                  {(lead.whatsApp || lead.interestedIn || lead.budget || lead.message || lead.purchaseTimeframe) && (
+                  {(lead.whatsApp || lead.contactLink || lead.interestedIn || lead.budget || lead.message || lead.purchaseTimeframe) && (
                     <div>
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("drawer.requirements")}</h4>
+                      {/* The portal only measures an agent's response time when they reply through its own link. */}
+                      {lead.contactLink && (
+                        <a href={lead.contactLink} target="_blank" rel="noreferrer"
+                          className="mb-3 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                          <MessageSquare className="h-4 w-4" />
+                          {t("drawer.replyViaPortal", {
+                            defaultValue: "Reply on WhatsApp via {{portal}} (tracked)",
+                            portal: lead.platform ? lead.platform.charAt(0).toUpperCase() + lead.platform.slice(1) : "portal",
+                          })}
+                        </a>
+                      )}
                       <div className="space-y-0 bg-muted/30 rounded-xl p-4">
                         {lead.purchaseTimeframe && (
                           <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
@@ -318,7 +329,7 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
                         )}
                         {[
                           { icon: PhoneCall,       label: t("drawer.whatsapp"),     value: lead.whatsApp
-                              ? <a href={`https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">{lead.whatsApp}</a>
+                              ? <a href={lead.contactLink ?? `https://wa.me/${(lead.whatsApp || "").replace(/[^\d]/g, "")}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">{lead.whatsApp}</a>
                               : null },
                           { icon: Star,            label: t("drawer.interestedIn"), value: lead.interestedIn },
                           { icon: DollarSign,      label: t("drawer.budget"),       value: lead.budget },

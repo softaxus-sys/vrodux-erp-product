@@ -44,6 +44,19 @@ public sealed class CanonicalLead
     public string? ExternalOwnerId { get; set; }
 
     /// <summary>
+    /// The portal listing this enquiry was about (Bayut's Listing Reference Number). When the payload
+    /// names no agent, the integration's listing map resolves the listing's agent from it — and when it
+    /// names both, the pair is learned for the next enquiry that carries only the reference.
+    /// </summary>
+    public string? ListingReference { get; set; }
+
+    /// <summary>
+    /// The portal's tracked reply link (Bayut's <c>contact_link</c>). Agents must reply through it,
+    /// not a plain WhatsApp link, or the portal cannot measure their response time.
+    /// </summary>
+    public string? ContactLink { get; set; }
+
+    /// <summary>
     /// True when the payload is an ownership CHANGE rather than a new enquiry (Property Finder's
     /// <c>lead.assigned</c>). Without it a reassignment is indistinguishable from a duplicate, and
     /// the lead would keep its original owner for ever.

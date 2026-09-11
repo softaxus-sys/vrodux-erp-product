@@ -27,7 +27,7 @@ internal static class LeadMappings
         l.Platform, l.FormName, l.IsOrganic, l.Campaign, l.AdName, l.AdSetName,
         l.PlatformCreatedTime, forList ? null : l.CustomFields, l.AssignedToUserId,
         l.PurchaseTimeframe, PurchaseUrgency.Classify(l.PurchaseTimeframe), l.TeamId, null,
-        dealStage, dealValue);
+        dealStage, dealValue, l.PortalContactLink);
 
     public static LeadAssignmentDto ToDto(LeadAssignment a) => new(
         a.Id, a.FromUserId, a.FromUserName, a.ToUserId, a.ToUserName,

@@ -96,6 +96,11 @@ public sealed class Lead
     public string?   AdName              { get; private set; }
     public string?   AdSetName           { get; private set; }
     public string?   PlatformCreatedTime { get; private set; }
+    /// <summary>
+    /// The portal's tracked reply link (Bayut's <c>contact_link</c>). Agents reply through it rather than a
+    /// plain WhatsApp link so the portal can measure their response time.
+    /// </summary>
+    public string?   PortalContactLink   { get; private set; }
     /// <summary>Extra captured form fields (survey Q&amp;A / custom questions) as question → answer.</summary>
     public Dictionary<string, string>? CustomFields { get; private set; }
 
@@ -243,6 +248,19 @@ public sealed class Lead
                    out var platformDate))
             LeadDate = platformDate;
         CustomFields = customFields is { Count: > 0 } ? customFields : null;
+    }
+
+    /// <summary>
+    /// Records the portal's tracked reply link. Only absolute http(s) URLs are kept: the value comes from an
+    /// external payload and is rendered as a link, so anything else (e.g. <c>javascript:</c>) is ignored.
+    /// A missing or invalid link never clears one already stored.
+    /// </summary>
+    public void SetPortalContactLink(string? link)
+    {
+        if (Trim(link) is not { } value) return;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)) return;
+        if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) return;
+        PortalContactLink = value;
     }
 
     /// <summary>Set the lead-gen requirement fields (used by the intake pipeline).</summary>

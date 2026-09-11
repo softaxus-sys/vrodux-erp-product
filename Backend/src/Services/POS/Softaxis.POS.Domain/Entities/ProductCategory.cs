@@ -44,6 +44,21 @@ public sealed class ProductCategory : AuditableEntity<Guid>
         return Result.Success(category);
     }
 
+    /// <summary>
+    /// Local copy of a Master Data (Inventory) category. Keeps the same id, so POS products and
+    /// Master Data refer to one category rather than two look-alikes.
+    /// </summary>
+    public static ProductCategory MirrorOf(Guid id, string name)
+    {
+        var trimmed = name.Trim();
+        return new ProductCategory
+        {
+            Id       = id,
+            Name     = trimmed.Length > 100 ? trimmed[..100] : trimmed,
+            IsActive = true,
+        };
+    }
+
     public Result Update(string name, string? description, Guid? parentCategoryId, int sortOrder)
     {
         if (string.IsNullOrWhiteSpace(name))

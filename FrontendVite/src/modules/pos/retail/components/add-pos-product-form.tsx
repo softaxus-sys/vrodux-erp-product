@@ -3,10 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2, Scan, CheckCircle2, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useQuery } from "@tanstack/react-query";
-import { categoriesApi } from "@/lib/pos/categories.api";
+import { Link } from "react-router-dom";
+import { useInventoryCategories, useCreateInventoryCategory } from "@/hooks/inventory/use-inventory-categories";
 import { useCreatePOSProduct } from "@/hooks/pos/use-products";
-import type { ProductCategoryDto } from "@/lib/pos/types";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useBarcodeAutofill, AUTOFILL_SOURCE_LABELS } from "@/hooks/use-barcode-autofill";
 
@@ -65,19 +64,10 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
     },
   });
 
-  // ── Real categories ──────────────────────────────────────────────────────────
-  const { data: categoriesData, isLoading: catsLoading } = useQuery({
-    queryKey: ["pos-categories"],
-    queryFn:  () => categoriesApi.getAll({ pageSize: 200 }),
-    staleTime: 5 * 60_000,
-  });
-  const categories: ProductCategoryDto[] = categoriesData?.items ?? [];
-
-  React.useEffect(() => {
-    if (categories.length > 0 && !categoryId) {
-      setCategoryId(categories[0].id);
-    }
-  }, [categories, categoryId]);
+  // ── Categories come from Master Data (Inventory), the one place they are managed ──
+  // No auto-select: silently filing a product under the first category is worse than asking.
+  const { data: categoriesData, isLoading: catsLoading } = useInventoryCategories({ isActive: true });
+  const categories = categoriesData ?? [];
 
   const createMutation = useCreatePOSProduct();
 
@@ -90,11 +80,37 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
 
   const isValid = name.trim() && sku.trim() && price && categoryId;
 
+  // Say exactly what is still missing — a disabled button with no reason reads as broken.
+  const missing = [
+    !categoryId   && "a category",
+    !name.trim()  && "a product name",
+    !sku.trim()   && "a SKU",
+    !price        && "a selling price",
+  ].filter(Boolean) as string[];
+
+  // Inline category creation — the backend requires a category, and a new workspace has none.
+  // Saved to Master Data, so it also appears there and on every other screen that uses it.
+  const createCategoryMutation = useCreateInventoryCategory();
+  const [newCategory, setNewCategory]       = React.useState("");
+  const [showNewCategory, setShowNewCat]    = React.useState(false);
+  const createCategory = async () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) return;
+    try {
+      const created = await createCategoryMutation.mutateAsync({ name: trimmed });
+      if (created?.id) setCategoryId(created.id);
+      setNewCategory("");
+      setShowNewCat(false);
+    } catch {
+      // hook shows the toast
+    }
+  };
+
   const reset = () => {
     setName(""); setSku(""); setBarcode(""); setDescription("");
     setPrice(""); setCostPrice(""); setTaxRate("5");
     setStock("0"); setMinStock("5"); setUnit("pcs"); setIsActive(true);
-    setCategoryId(categories[0]?.id ?? "");
+    setCategoryId("");
     autofill.clear();
   };
 
@@ -113,7 +129,7 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
         costPrice:     parseFloat(costPrice) || 0,
         taxRate:       parseFloat(taxRate),
         unit:          unit.trim() || "pcs",
-        initialStock:  parseInt(stock, 10) || 0,
+        openingStock:  parseInt(stock, 10) || 0,
         reorderLevel:  parseInt(minStock, 10) || 5,
         trackInventory: true,
         imageUrl:      null,
@@ -155,18 +171,42 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />Loading categories…
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {categories.map(c => (
-                      <button key={c.id} onClick={() => setCategoryId(c.id)}
-                        className={`py-2 px-3 rounded-lg border-2 text-xs font-medium text-left transition-all ${
-                          categoryId === c.id
-                            ? "border-primary bg-primary/5 text-primary"
-                            : "border-border text-muted-foreground hover:border-primary/30"
-                        }`}>
-                        {c.name}
-                      </button>
-                    ))}
+                  <>
+                  <div className="flex gap-2">
+                    <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
+                      className="flex-1 h-9 px-3 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring">
+                      <option value="" disabled>
+                        {categories.length ? "Select a category…" : "No categories yet"}
+                      </option>
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <Button type="button" variant="outline" className="h-9 shrink-0"
+                      onClick={() => setShowNewCat(v => !v)}>
+                      {showNewCategory ? "Cancel" : "+ New"}
+                    </Button>
                   </div>
+                  {categories.length === 0 && !showNewCategory && (
+                    <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>No active categories in Master Data. Click “+ New”, or add them under Inventory → Master Data → Categories.</span>
+                    </div>
+                  )}
+                  {showNewCategory && (
+                    <div className="flex gap-2">
+                      <Input autoFocus value={newCategory} onChange={e => setNewCategory(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); createCategory(); } }}
+                        placeholder="e.g. Beverages" className="h-9 text-sm" />
+                      <Button type="button" className="h-9 shrink-0"
+                        onClick={createCategory} disabled={!newCategory.trim() || createCategoryMutation.isPending}>
+                        {createCategoryMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+                      </Button>
+                    </div>
+                  )}
+                  <Link to="/inventory/master/categories" onClick={onClose}
+                    className="text-xs text-primary hover:underline">
+                    Manage categories in Master Data
+                  </Link>
+                  </>
                 )}
               </div>
 
@@ -292,6 +332,12 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
               </div>
             </div>
 
+            {missing.length > 0 && (
+              <div className="px-6 pt-3 flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                <Info className="w-3.5 h-3.5 shrink-0" />
+                <span>To add this product, enter {missing.join(", ")}.</span>
+              </div>
+            )}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={onClose} disabled={createMutation.isPending}>
                 Cancel

@@ -40,7 +40,8 @@ export const productsApi = {
     costPrice: number;
     taxRate: number;
     unit: string;
-    initialStock?: number;
+    /** Must match CreateProductCommand.OpeningStock — a mismatched name is silently dropped (stock saves as 0). */
+    openingStock?: number;
     reorderLevel?: number;
     trackInventory?: boolean;
     imageUrl?: string | null;

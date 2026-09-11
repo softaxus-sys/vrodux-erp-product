@@ -1,13 +1,9 @@
-﻿import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import * as React from "react";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
 import {
-  Search, X, ShoppingCart, Trash2, Plus, Minus,
-  Receipt, RotateCcw, Package, Scan,
-  CheckCircle2, AlertCircle, Pause, PlayCircle,
-  Clock, TrendingUp, LogOut, ChevronLeft, ChevronRight, Loader2, RefreshCw,
+  ShoppingCart, Plus, Receipt, LogOut, Loader2, RefreshCw,
   SplitSquareHorizontal, Wallet, Printer,
 } from "lucide-react";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
@@ -29,9 +25,15 @@ import { SplitPaymentDialog } from "./split-payment-dialog";
 import { CashMovementDialog } from "./cash-movement-dialog";
 import { productsApi } from "@/lib/pos/products.api";
 import { transactionsApi } from "@/lib/pos/transactions.api";
-import type { ProductSummaryDto, POSTransactionSummaryDto } from "@/lib/pos/types";
-import type { PagedResult } from "@/lib/api-client";
+import type { POSTransactionSummaryDto } from "@/lib/pos/types";
 import { toast } from "sonner";
+import {
+  type PosProduct, mapToPosProduct, usePosShortcuts,
+  ScanToast, PosSearch, CategoryPills, ProductTile, PRODUCT_GRID, ProductsLoading, ProductsEmpty,
+  CART_PANEL, CartHeader, HeldList, CartLine, EmptyCart, TotalsBlock,
+  PaymentMethodGrid, CashTender, ChargeButton,
+  TOP_BAR, TopBarBrand, TopBarButton, ShiftPill, LiveClock,
+} from "./pos-ui";
 
 // ─── Internal types ───────────────────────────────────────────────────────────
 
@@ -42,211 +44,30 @@ interface CartItem {
   taxRate: number;
   quantity: number;
   total: number;
+  emoji: string;
 }
 
 interface HeldItem { id: string; label: string; cart: CartItem[]; timestamp: string }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-const CATEGORY_EMOJI: Record<string, string> = {
-  beverages: "🥤", snacks: "🍫", electronics: "🔌", accessories: "🕶️",
-  stationery: "📝", personal_care: "🧴", gifts: "🎁", tobacco: "🚬",
-  food: "🍔", clothing: "👕", shoes: "👟", sports: "⚽", toys: "🧸",
-  books: "📚", pharmacy: "💊", household: "🏠", cosmetics: "💄",
-};
-
-function categoryEmoji(name: string) {
-  if (!name) return "📦";
-  const key = name.toLowerCase().replace(/[\s-]+/g, "_");
-  return CATEGORY_EMOJI[key] ?? "📦";
-}
-
-// Payment methods are now dynamic — see usePaymentMethods() inside RetailPOSView
+// Payment methods are dynamic — see usePaymentMethods() inside RetailPOSView
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  completed: { label: "Completed", color: "text-success",          bg: "bg-success/10" },
-  refunded:  { label: "Refunded",  color: "text-warning",          bg: "bg-warning/10" },
-  voided:    { label: "Voided",    color: "text-destructive",       bg: "bg-destructive/10" },
-  pending:   { label: "Pending",   color: "text-muted-foreground", bg: "bg-muted/30" },
+  completed: { label: "Completed", color: "text-success",          bg: "bg-success/15" },
+  refunded:  { label: "Refunded",  color: "text-warning",          bg: "bg-warning/15" },
+  voided:    { label: "Voided",    color: "text-destructive",      bg: "bg-destructive/15" },
+  pending:   { label: "Pending",   color: "text-muted-foreground", bg: "bg-muted" },
 };
-
-// ─── Adapter ──────────────────────────────────────────────────────────────────
-
-function mapToCartProduct(dto: ProductSummaryDto) {
-  return {
-    id:       dto.id,
-    sku:      dto.sku ?? "",
-    name:     dto.name,
-    category: dto.categoryName,
-    price:    dto.salePrice,
-    taxRate:  dto.taxRate,
-    stock:    dto.stockQuantity,
-    barcode:  dto.barcode ?? "",
-    image:    categoryEmoji(dto.categoryName),
-  };
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function ScanToast({ feedback, itemName }: { feedback: "found" | "not_found" | null; itemName: string }) {
-  return (
-    <AnimatePresence>
-      {feedback && (
-        <motion.div
-          initial={{ opacity: 0, y: -20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -10 }}
-          className={cn(
-            "fixed top-20 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-5 py-3 rounded-2xl shadow-2xl text-sm font-semibold border",
-            feedback === "found"
-              ? "bg-success text-white border-success shadow-success/30"
-              : "bg-destructive text-white border-destructive shadow-destructive/30"
-          )}>
-          {feedback === "found"
-            ? <><CheckCircle2 className="h-4 w-4 shrink-0" /><span>Added: {itemName}</span></>
-            : <><AlertCircle className="h-4 w-4 shrink-0" /><span>Barcode not found: {itemName}</span></>
-          }
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-function ProductCard({ product, onAdd }: { product: ReturnType<typeof mapToCartProduct>; onAdd: (p: ReturnType<typeof mapToCartProduct>) => void }) {
-  const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "AED";
-  const outOfStock = product.stock <= 0;
-  return (
-    <button
-      onClick={() => !outOfStock && onAdd(product)}
-      disabled={outOfStock}
-      className={cn(
-        "bg-card border border-border rounded-xl p-3 text-left transition-all group relative overflow-hidden",
-        outOfStock ? "opacity-50 cursor-not-allowed" : "hover:border-primary/50 hover:shadow-md active:scale-95"
-      )}>
-      <div className="text-3xl mb-2">{product.image}</div>
-      <p className="text-xs font-semibold text-foreground leading-tight line-clamp-2 mb-1">{product.name}</p>
-      <p className="text-[10px] text-muted-foreground mb-1.5">{product.sku}</p>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold">{formatCurrency(product.price, currency)}</span>
-        {outOfStock
-          ? <span className="text-[10px] text-destructive font-semibold">OUT</span>
-          : <span className="text-[10px] text-muted-foreground">{product.stock}</span>
-        }
-      </div>
-      {!outOfStock && (
-        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <Plus className="h-8 w-8 text-primary opacity-60" />
-        </div>
-      )}
-    </button>
-  );
-}
-
-function CartItemRow({ item, onInc, onDec, onRemove }: {
-  item: CartItem; onInc: () => void; onDec: () => void; onRemove: () => void;
-}) {
-  const { tenant } = useAuthStore();
-  const currency = tenant?.currency || "AED";
-  return (
-    <motion.div layout initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
-      className="flex items-center gap-2 py-2.5 border-b border-border/50 last:border-0">
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-foreground truncate">{item.name}</p>
-        <p className="text-[10px] text-muted-foreground">{formatCurrency(item.price, currency)} · {item.taxRate}% Tax</p>
-      </div>
-      <div className="flex items-center gap-1">
-        <button onClick={onDec} className="w-5 h-5 rounded-full bg-muted/60 flex items-center justify-center hover:bg-muted transition-colors">
-          <Minus className="w-2.5 h-2.5" />
-        </button>
-        <span className="text-xs font-bold w-5 text-center">{item.quantity}</span>
-        <button onClick={onInc} className="w-5 h-5 rounded-full bg-muted/60 flex items-center justify-center hover:bg-muted transition-colors">
-          <Plus className="w-2.5 h-2.5" />
-        </button>
-      </div>
-      <p className="text-xs font-bold w-16 text-right">{formatCurrency(item.total, currency)}</p>
-      <button onClick={onRemove} className="text-muted-foreground hover:text-destructive transition-colors ml-0.5">
-        <X className="w-3.5 h-3.5" />
-      </button>
-    </motion.div>
-  );
-}
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, accent = "bg-primary" }: { label: string; value: string | number; accent?: string }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4 min-w-0">
-      <div className={`w-1.5 h-1.5 rounded-full ${accent} mb-2`} />
-      <p className={cn("font-bold text-foreground truncate", fitTextClass(value, "xl"))} title={String(value)}>{value}</p>
-      <p className="text-xs text-muted-foreground truncate">{label}</p>
-    </div>
-  );
-}
-
-// ─── Category Scroller ───────────────────────────────────────────────────────
-
-function CategoryScroller({
-  categories, active, onSelect,
-}: {
-  categories: string[];
-  active:     string;
-  onSelect:   (name: string) => void;
-}) {
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const [canLeft,  setCanLeft]  = React.useState(false);
-  const [canRight, setCanRight] = React.useState(false);
-
-  const checkScroll = React.useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  React.useEffect(() => {
-    checkScroll();
-    const el = scrollRef.current;
-    if (!el) return;
-    el.addEventListener("scroll", checkScroll, { passive: true });
-    const ro = new ResizeObserver(checkScroll);
-    ro.observe(el);
-    return () => { el.removeEventListener("scroll", checkScroll); ro.disconnect(); };
-  }, [checkScroll, categories]);
-
-  const scrollBy = (dir: "left" | "right") =>
-    scrollRef.current?.scrollBy({ left: dir === "left" ? -160 : 160, behavior: "smooth" });
-
-  return (
-    <div className="relative flex items-center">
-      {canLeft && (
-        <button onClick={() => scrollBy("left")}
-          className="absolute left-0 z-10 h-full px-1 flex items-center bg-gradient-to-r from-background to-transparent">
-          <ChevronLeft className="h-4 w-4 text-muted-foreground" />
-        </button>
-      )}
-      <div ref={scrollRef}
-        className="flex gap-1.5 overflow-x-auto py-0.5 px-0.5"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-        <button onClick={() => onSelect("all")}
-          className={cn("px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-colors",
-            active === "all" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/60")}>
-          All
-        </button>
-        {categories.map(cat => (
-          <button key={cat} onClick={() => onSelect(cat)}
-            className={cn("px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap shrink-0 transition-colors",
-              active === cat ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/60")}>
-            {categoryEmoji(cat)} {cat}
-          </button>
-        ))}
+    <div className="bg-card border-2 border-border rounded-2xl p-5 min-w-0">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={cn("w-3 h-3 rounded-full", accent)} />
+        <p className="text-sm font-extrabold uppercase tracking-wide text-muted-foreground truncate">{label}</p>
       </div>
-      {canRight && (
-        <button onClick={() => scrollBy("right")}
-          className="absolute right-0 z-10 h-full px-1 flex items-center bg-gradient-to-l from-background to-transparent">
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </button>
-      )}
+      <p className={cn("font-black text-foreground truncate tabular-nums", fitTextClass(value, "3xl"))} title={String(value)}>{value}</p>
     </div>
   );
 }
@@ -263,8 +84,6 @@ export function RetailPOSView() {
 
   // ── POS permission flags ──────────────────────────────────────────────────────
   const canAddProduct   = hasRawPermission("pos.products.create");
-  const canEditProduct  = hasRawPermission("pos.products.edit");
-  const canDeleteProduct= hasRawPermission("pos.products.delete");
   const canDiscount     = hasRawPermission("pos.transactions.discount");
   const canVoid         = hasRawPermission("pos.transactions.void");
   const canRefund       = hasRawPermission("pos.transactions.refund");
@@ -272,6 +91,8 @@ export function RetailPOSView() {
   // ── Cashier mode: no supervisor/admin permissions → dedicated clean POS layout ──
   const isCashierMode = !canCloseShift && !canVoid && !canRefund && !canDiscount;
   if (isCashierMode) return <CashierPOSView />;
+
+  const searchRef = React.useRef<HTMLInputElement>(null);
 
   // Navigation
   const [activeTab, setActiveTab]     = React.useState<"pos" | "history">("pos");
@@ -331,7 +152,7 @@ export function RetailPOSView() {
 
   // ── Products ──────────────────────────────────────────────────────────────────
   const allProducts = React.useMemo(
-    () => (productsData?.items ?? []).map(mapToCartProduct),
+    () => (productsData?.items ?? []).map(mapToPosProduct),
     [productsData]
   );
 
@@ -349,6 +170,34 @@ export function RetailPOSView() {
     });
   }, [allProducts, search, categoryFilter]);
 
+  // ── Cart actions ──────────────────────────────────────────────────────────────
+  const addToCart = React.useCallback((product: PosProduct) => {
+    setCart(prev => {
+      const ex = prev.find(i => i.productId === product.id);
+      if (ex) return prev.map(i => i.productId === product.id
+        ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.price }
+        : i
+      );
+      return [...prev, { productId: product.id, name: product.name, price: product.price, taxRate: product.taxRate, quantity: 1, total: product.price, emoji: product.emoji }];
+    });
+  }, []);
+
+  const updateQty = React.useCallback((productId: string, delta: number) => {
+    setCart(prev => prev.map(i => i.productId === productId
+      ? { ...i, quantity: i.quantity + delta, total: (i.quantity + delta) * i.price }
+      : i
+    ).filter(i => i.quantity > 0));
+  }, []);
+
+  const removeFromCart = React.useCallback((productId: string) =>
+    setCart(prev => prev.filter(i => i.productId !== productId)), []);
+
+  const cartQty = React.useMemo(() => {
+    const m: Record<string, number> = {};
+    cart.forEach(i => { m[i.productId] = i.quantity; });
+    return m;
+  }, [cart]);
+
   // ── Scanner ───────────────────────────────────────────────────────────────────
   useBarcodeScanner({
     enabled: activeTab === "pos",
@@ -364,7 +213,7 @@ export function RetailPOSView() {
         try {
           const product = await productsApi.getByBarcode(barcode);
           if (product.isActive && product.stockQuantity > 0) {
-            const mapped = mapToCartProduct({ ...product, categoryName: product.categoryName });
+            const mapped = mapToPosProduct({ ...product, categoryName: product.categoryName });
             addToCart(mapped);
             setScanItemName(mapped.name);
             setScanFeedback("found");
@@ -384,30 +233,9 @@ export function RetailPOSView() {
     },
   });
 
-  // ── Cart actions ──────────────────────────────────────────────────────────────
-  const addToCart = React.useCallback((product: ReturnType<typeof mapToCartProduct>) => {
-    setCart(prev => {
-      const ex = prev.find(i => i.productId === product.id);
-      if (ex) return prev.map(i => i.productId === product.id
-        ? { ...i, quantity: i.quantity + 1, total: (i.quantity + 1) * i.price }
-        : i
-      );
-      return [...prev, { productId: product.id, name: product.name, price: product.price, taxRate: product.taxRate, quantity: 1, total: product.price }];
-    });
-  }, []);
-
-  const updateQty = React.useCallback((productId: string, delta: number) => {
-    setCart(prev => prev.map(i => i.productId === productId
-      ? { ...i, quantity: i.quantity + delta, total: (i.quantity + delta) * i.price }
-      : i
-    ).filter(i => i.quantity > 0));
-  }, []);
-
-  const removeFromCart = React.useCallback((productId: string) =>
-    setCart(prev => prev.filter(i => i.productId !== productId)), []);
-
   // ── Totals ────────────────────────────────────────────────────────────────────
-  const subtotal = cart.reduce((s, i) => s + i.total, 0);
+  const subtotal   = cart.reduce((s, i) => s + i.total, 0);
+  const totalItems = cart.reduce((s, i) => s + i.quantity, 0);
 
   // Order-level discount comes from the multi-type DiscountPanel (preview amount).
   // The backend re-resolves & validates it authoritatively at sale time.
@@ -428,7 +256,9 @@ export function RetailPOSView() {
     return s + itemShare * (i.taxRate / 100);
   }, 0) * 100) / 100;
   const total   = Math.round((taxBase + taxAmount) * 100) / 100;
-  const change  = Math.max(0, (parseFloat(tenderedAmount) || 0) - total);
+
+  const cashShort = paymentMethod === "Cash" && !!tenderedAmount && parseFloat(tenderedAmount) < total;
+  const canCharge = cart.length > 0 && !!sessionId && !createSaleMutation.isPending && !cashShort;
 
   // ── Checkout ──────────────────────────────────────────────────────────────────
   // Accepts an optional payments array (used by split-tender). Defaults to a
@@ -546,12 +376,14 @@ export function RetailPOSView() {
       timestamp: new Date().toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }),
     };
     setHeldTransactions(prev => [...prev, held]);
-    setCart([]); setAppliedDiscount(null);
+    setCart([]); setAppliedDiscount(null); setTenderedAmount("");
   };
 
-  const recallHeld = (held: HeldItem) => {
+  const recallHeld = (id: string) => {
+    const held = heldTransactions.find(h => h.id === id);
+    if (!held) return;
     setCart(held.cart);
-    setHeldTransactions(prev => prev.filter(h => h.id !== held.id));
+    setHeldTransactions(prev => prev.filter(h => h.id !== id));
     setShowHeldPanel(false);
   };
 
@@ -565,87 +397,71 @@ export function RetailPOSView() {
     refunds:          txns.filter(t => t.type === "Refund").length,
   }), [txns]);
 
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────────
+  usePosShortcuts({
+    F2: () => searchRef.current?.focus(),
+    F4: cart.length ? holdCart : undefined,
+    F9: canCharge ? () => handleCheckout() : undefined,
+  }, activeTab === "pos" && !showReceipt && !showSplit && !showAddForm && !showCashMove);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Scan feedback toast */}
+    <div className="flex flex-col h-full bg-muted/40 overflow-hidden">
       <ScanToast feedback={scanFeedback} itemName={scanItemName} />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3.5 border-b border-border bg-card shrink-0">
-        <div>
-          <h1 className="text-lg font-bold">Retail POS</h1>
-          <p className="text-xs text-muted-foreground">
-            {new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
-          </p>
-        </div>
+      <header className={TOP_BAR}>
+        <TopBarBrand
+          title={tenant?.branding?.companyName ?? "Retail POS"}
+          subtitle={new Date().toLocaleDateString("en-PK", { weekday: "long", day: "numeric", month: "long" })}
+        />
         <div className="flex items-center gap-2">
+          {sessionId && <ShiftPill duration={shiftDuration} extra={formatCurrency(sessionStats.totalSales, currency)} />}
           <HardwareStatusBar />
-          <Button variant={activeTab === "pos" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("pos")}>
-            <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />POS
-          </Button>
-          <Button variant={activeTab === "history" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("history")}>
-            <Receipt className="w-3.5 h-3.5 mr-1.5" />History
-          </Button>
+          <TopBarButton icon={ShoppingCart} label="Sell" active={activeTab === "pos"} onClick={() => setActiveTab("pos")} />
+          <TopBarButton icon={Receipt} label="History" active={activeTab === "history"} badge={sessionStats.totalTransactions}
+            onClick={() => setActiveTab("history")} />
           {canAddProduct && (
-            <Button variant="outline" size="sm" onClick={() => setShowAddForm(true)}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" />Product
-            </Button>
+            <TopBarButton icon={Plus} label="Product" onClick={() => setShowAddForm(true)} title="Add product" />
           )}
           {sessionId && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCashMove(true)} title="Cash in / out">
-              <Wallet className="w-3.5 h-3.5" />Cash
-            </Button>
+            <TopBarButton icon={Wallet} label="Cash In/Out" onClick={() => setCashMove(true)} />
           )}
           {canCloseShift && (
-            <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive border-destructive/30"
-              onClick={openClosePanel}>
-              <LogOut className="w-3.5 h-3.5" />Close Shift
-            </Button>
+            <TopBarButton icon={LogOut} label="Close Shift" tone="danger" onClick={openClosePanel} />
           )}
+          <LiveClock />
         </div>
-      </div>
-
-      {/* Shift banner */}
-      {sessionId && (
-        <div className="px-6 py-1.5 bg-success/10 border-b border-success/20 flex items-center gap-4 text-xs shrink-0">
-          <div className="flex items-center gap-1.5 text-success font-semibold">
-            <Clock className="h-3 w-3" />Session Active — {shiftDuration}
-          </div>
-          <div className="flex items-center gap-1.5 text-success ml-auto">
-            <TrendingUp className="h-3 w-3" />Session Total: {formatCurrency(sessionStats.totalSales, currency)}
-          </div>
-        </div>
-      )}
+      </header>
 
       {/* ── HISTORY TAB ────────────────────────────────────────────────────────── */}
       {activeTab === "history" ? (
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard label="Today's Sales"  value={formatCurrency(sessionStats.totalSales, currency)} accent="bg-success" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="Shift Sales"    value={formatCurrency(sessionStats.totalSales, currency)} accent="bg-success" />
             <StatCard label="Transactions"   value={sessionStats.totalTransactions} accent="bg-primary" />
             <StatCard label="Avg Basket"     value={formatCurrency(sessionStats.avgBasket, currency)} accent="bg-warning" />
             <StatCard label="Refunds"        value={sessionStats.refunds} accent="bg-destructive" />
           </div>
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-              <p className="text-sm font-semibold">
-                {sessionId ? "Session Transactions" : "Today's Transactions"}
+          <div className="bg-card border-2 border-border rounded-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b-2 border-border flex items-center justify-between">
+              <p className="text-xl font-black">
+                {sessionId ? "Shift Transactions" : "Today's Transactions"}
               </p>
               {!sessionId && (
-                <p className="text-xs text-muted-foreground">Open a shift to track live sales</p>
+                <p className="text-base font-semibold text-muted-foreground">Open a shift to track live sales</p>
               )}
             </div>
             {txnLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border bg-muted/20">
+                    <tr className="border-b-2 border-border bg-muted/50">
                       {["Txn #", "Total", "Payment", "Time", "Status", "Actions"].map(h => (
-                        <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">{h}</th>
+                        <th key={h} className="px-5 py-3 text-left text-sm font-extrabold uppercase tracking-wide text-muted-foreground">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -655,43 +471,42 @@ export function RetailPOSView() {
                       const sc = STATUS_CONFIG[statusKey] ?? STATUS_CONFIG.pending;
                       const PayIcon = paymentMethods.find(p => p.id.toLowerCase() === (tx.primaryPaymentMethod ?? "").toLowerCase())?.icon ?? Receipt;
                       const isCompleted = statusKey === "completed";
+                      const actionBtn = "h-10 px-3 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5";
                       return (
-                        <tr key={tx.id} className="border-b border-border last:border-0 hover:bg-muted/10">
-                          <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{tx.transactionNumber}</td>
-                          <td className="px-4 py-3 text-xs font-semibold">{formatCurrency(tx.totalAmount, currency)}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <PayIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                        <tr key={tx.id} className="border-b border-border last:border-0 hover:bg-muted/30">
+                          <td className="px-5 py-3.5 text-base font-mono font-semibold">{tx.transactionNumber}</td>
+                          <td className="px-5 py-3.5 text-lg font-black tabular-nums">{formatCurrency(tx.totalAmount, currency)}</td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2 text-base font-semibold">
+                              <PayIcon className="h-5 w-5 text-muted-foreground" />
                               <span>{tx.primaryPaymentMethod}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                          <td className="px-5 py-3.5 text-base font-semibold text-muted-foreground tabular-nums">
                             {tx.completedAt ? parseApiDate(tx.completedAt).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }) : "—"}
                           </td>
-                          <td className="px-4 py-3">
-                            <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", sc.bg, sc.color)}>{sc.label}</span>
+                          <td className="px-5 py-3.5">
+                            <span className={cn("px-2.5 py-1 rounded-lg text-sm font-extrabold uppercase", sc.bg, sc.color)}>{sc.label}</span>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-1">
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleReprint(tx.id)}
                                 disabled={reprintingId === tx.id}
                                 title="Reprint receipt"
-                                className="px-2 py-0.5 rounded text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 flex items-center gap-1">
-                                {reprintingId === tx.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Printer className="h-3 w-3" />}
+                                className={cn(actionBtn, "bg-primary/10 text-primary hover:bg-primary/20")}>
+                                {reprintingId === tx.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
                                 Reprint
                               </button>
                               {canVoid && isCompleted && (
-                                <button
-                                  onClick={() => setVoidTarget(tx)}
-                                  className="px-2 py-0.5 rounded text-[10px] font-semibold bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors">
+                                <button onClick={() => setVoidTarget(tx)}
+                                  className={cn(actionBtn, "bg-destructive/10 text-destructive hover:bg-destructive/20")}>
                                   Void
                                 </button>
                               )}
                               {canRefund && isCompleted && sessionId && (
-                                <button
-                                  onClick={() => setRefundTarget(tx)}
-                                  className="px-2 py-0.5 rounded text-[10px] font-semibold bg-warning/10 text-warning hover:bg-warning/20 transition-colors">
+                                <button onClick={() => setRefundTarget(tx)}
+                                  className={cn(actionBtn, "bg-warning/10 text-warning hover:bg-warning/20")}>
                                   Refund
                                 </button>
                               )}
@@ -702,7 +517,7 @@ export function RetailPOSView() {
                     })}
                     {txns.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-xs text-muted-foreground">
+                        <td colSpan={6} className="px-5 py-14 text-center text-lg font-bold text-muted-foreground">
                           No transactions yet.
                         </td>
                       </tr>
@@ -714,123 +529,73 @@ export function RetailPOSView() {
           </div>
         </div>
       ) : (
-        /* ── POS TAB ─────────────────────────────────────────────────────────── */
+        /* ── SELL TAB ────────────────────────────────────────────────────────── */
         <div className="flex-1 flex overflow-hidden">
           {/* Left — Products */}
-          <div className="flex-1 flex flex-col overflow-hidden border-r border-border">
-            <div className="p-4 border-b border-border space-y-3 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by name, SKU, or barcode…" className="pl-9 h-9 text-sm" />
-                {search && (
-                  <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              {/* Category horizontal scroller */}
-              <CategoryScroller
-                categories={categories}
-                active={categoryFilter}
-                onSelect={setCategoryFilter}
-              />
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            <div className="px-5 pt-4 pb-3 space-y-3 shrink-0">
+              <PosSearch ref={searchRef} value={search} onChange={setSearch} />
+              <CategoryPills categories={categories} active={categoryFilter} onSelect={setCategoryFilter} />
             </div>
 
-            {/* Product grid */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto px-5 pb-5 pt-2">
               {productsLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">Loading products…</p>
-                </div>
+                <ProductsLoading />
               ) : filtered.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {filtered.map(p => <ProductCard key={p.id} product={p} onAdd={addToCart} />)}
+                <div className={PRODUCT_GRID}>
+                  {filtered.map(p => (
+                    <ProductTile key={p.id} product={p} currency={currency} inCart={cartQty[p.id] ?? 0} onAdd={() => addToCart(p)} />
+                  ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <Package className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                  <p className="text-sm text-muted-foreground">No products found</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Try a different search or scan a barcode</p>
-                  <Button variant="outline" size="sm" className="mt-4 gap-1.5" onClick={() => refetchProducts()}>
-                    <RefreshCw className="h-3.5 w-3.5" />Refresh
+                <ProductsEmpty action={
+                  <Button variant="outline" className="h-12 px-5 gap-2 text-base font-bold border-2" onClick={() => refetchProducts()}>
+                    <RefreshCw className="h-5 w-5" />Refresh
                   </Button>
-                </div>
+                } />
               )}
             </div>
           </div>
 
-          {/* Right — Cart */}
-          <div className="w-80 shrink-0 flex flex-col bg-card">
-            {/* Cart header */}
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">
-                  Cart {cart.length > 0 && `(${cart.reduce((s, i) => s + i.quantity, 0)})`}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                {cart.length > 0 && (
-                  <button onClick={holdCart} title="Hold transaction"
-                    className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors">
-                    <Pause className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                {heldTransactions.length > 0 && (
-                  <button onClick={() => setShowHeldPanel(p => !p)} title="Recall held transactions"
-                    className="relative p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors">
-                    <PlayCircle className="h-3.5 w-3.5" />
-                    <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-warning text-white text-[8px] font-bold flex items-center justify-center">
-                      {heldTransactions.length}
-                    </span>
-                  </button>
-                )}
-                {cart.length > 0 && (
-                  <button onClick={() => setCart([])} className="text-xs text-destructive hover:underline flex items-center gap-1 ml-1">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
+          {/* Right — Sale */}
+          <aside className={CART_PANEL}>
+            <CartHeader
+              itemCount={totalItems}
+              heldCount={heldTransactions.length}
+              onHold={holdCart}
+              onClear={() => { setCart([]); setTenderedAmount(""); }}
+              onToggleHeld={() => setShowHeldPanel(p => !p)}
+            />
 
             {/* Customer selector */}
-            <div className="px-4 py-2 border-b border-border shrink-0">
+            <div className="px-5 py-3 border-b-2 border-border shrink-0">
               <CustomerSelect selected={selectedCustomer} onSelect={setSelectedCustomer} />
             </div>
 
-            {/* Held panel */}
             <AnimatePresence>
               {showHeldPanel && heldTransactions.length > 0 && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                  className="border-b border-border overflow-hidden shrink-0">
-                  <div className="p-3 space-y-1.5 bg-warning/5">
-                    <p className="text-xs font-semibold text-warning">Held Transactions</p>
-                    {heldTransactions.map(h => (
-                      <button key={h.id} onClick={() => recallHeld(h)}
-                        className="w-full text-left px-3 py-2 rounded-lg bg-card border border-border hover:border-primary/40 text-xs transition-colors">
-                        <p className="font-medium">{h.label}</p>
-                        <p className="text-muted-foreground">{h.timestamp}</p>
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
+                <HeldList
+                  items={heldTransactions.map(h => ({ id: h.id, title: h.label, subtitle: `Held at ${h.timestamp}` }))}
+                  onRecall={recallHeld}
+                />
               )}
             </AnimatePresence>
 
             {/* Cart items */}
-            <div className="flex-1 overflow-y-auto px-4">
+            <div className="flex-1 min-h-[120px] overflow-y-auto px-5">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                  <ShoppingCart className="w-10 h-10 text-muted-foreground/25 mb-3" />
-                  <p className="text-sm text-muted-foreground">Cart is empty</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Click products or scan a barcode</p>
-                </div>
+                <EmptyCart />
               ) : (
                 <AnimatePresence mode="popLayout">
                   {cart.map(item => (
-                    <CartItemRow key={item.productId} item={item}
+                    <CartLine
+                      key={item.productId}
+                      name={item.name}
+                      price={item.price}
+                      quantity={item.quantity}
+                      total={item.total}
+                      emoji={item.emoji}
+                      currency={currency}
                       onInc={() => updateQty(item.productId, 1)}
                       onDec={() => updateQty(item.productId, -1)}
                       onRemove={() => removeFromCart(item.productId)} />
@@ -841,107 +606,62 @@ export function RetailPOSView() {
 
             {/* Totals + payment + checkout */}
             {cart.length > 0 && !showReceipt && (
-              <div className="border-t border-border p-4 space-y-3 shrink-0">
-                {/* Multi-type discount panel — Supervisors+ only */}
-                {canDiscount && (
-                  <DiscountPanel
+              <>
+                <div className="border-t-2 border-border px-5 pt-4 pb-3 space-y-3 overflow-y-auto shrink min-h-0">
+                  {/* Multi-type discount panel — Supervisors+ only */}
+                  {canDiscount && (
+                    <DiscountPanel
+                      subtotal={subtotal}
+                      currency={currency}
+                      customer={selectedCustomer}
+                      applied={appliedDiscount}
+                      onChange={setAppliedDiscount}
+                    />
+                  )}
+
+                  <TotalsBlock
+                    itemCount={totalItems}
                     subtotal={subtotal}
+                    discountAmount={discountAmount}
+                    discountLabel={appliedDiscount?.label}
+                    taxAmount={taxAmount}
+                    total={total}
                     currency={currency}
-                    customer={selectedCustomer}
-                    applied={appliedDiscount}
-                    onChange={setAppliedDiscount}
                   />
-                )}
 
-                {/* Line totals */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Subtotal</span><span>{formatCurrency(subtotal, currency)}</span>
-                  </div>
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-xs text-success font-medium">
-                      <span>Discount{appliedDiscount ? ` (${appliedDiscount.label})` : ""}</span>
-                      <span>–{formatCurrency(discountAmount, currency)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Tax</span><span>{formatCurrency(taxAmount, currency)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-bold text-foreground pt-1.5 border-t border-border">
-                    <span>Total</span><span>{formatCurrency(total, currency)}</span>
-                  </div>
-                </div>
+                  <PaymentMethodGrid
+                    methods={paymentMethods}
+                    value={paymentMethod}
+                    onChange={id => { setPaymentMethod(id); setTenderedAmount(""); }}
+                  />
 
-                {/* Payment methods */}
-                <div className="grid grid-cols-2 gap-1.5">
-                  {paymentMethods.map(opt => {
-                    const Icon = opt.icon;
-                    return (
-                      <button key={opt.id} onClick={() => setPaymentMethod(opt.id)}
-                        className={cn("flex items-center gap-1.5 py-2 px-3 rounded-lg text-xs font-medium border transition-colors",
-                          paymentMethod === opt.id
-                            ? `border-2 ${opt.bg} ${opt.color}`
-                            : "border-border bg-muted/20 text-muted-foreground hover:border-primary/40")}>
-                        <Icon className="h-3.5 w-3.5 shrink-0" />{opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Cash tender */}
-                <AnimatePresence>
                   {paymentMethod === "Cash" && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden space-y-2">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Amount Tendered</p>
-                        <Input type="number" min={0} step={10} value={tenderedAmount}
-                          onChange={e => setTenderedAmount(e.target.value)}
-                          placeholder={formatCurrency(total, currency)} className="h-9 text-sm text-right" />
-                      </div>
-                      {parseFloat(tenderedAmount) >= total && (
-                        <div className="flex items-center justify-between px-3 py-2 bg-success/10 border border-success/20 rounded-lg">
-                          <span className="text-xs font-semibold text-success">Change Due</span>
-                          <span className="text-sm font-bold text-success">{formatCurrency(change, currency)}</span>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-4 gap-1">
-                        {[Math.ceil(total / 100) * 100, Math.ceil(total / 500) * 500, Math.ceil(total / 1000) * 1000, Math.ceil(total / 5000) * 5000]
-                          .filter((v, i, arr) => arr.indexOf(v) === i && v >= total)
-                          .slice(0, 4)
-                          .map(v => (
-                            <button key={v} onClick={() => setTenderedAmount(String(v))}
-                              className="py-1.5 rounded-lg border border-border text-[10px] font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors">
-                              {v >= 1000 ? `${v / 1000}k` : v}
-                            </button>
-                          ))
-                        }
-                      </div>
-                    </motion.div>
+                    <CashTender total={total} currency={currency} value={tenderedAmount} onChange={setTenderedAmount} />
                   )}
-                </AnimatePresence>
-
-                {/* Charge + Split buttons */}
-                <div className="flex gap-2">
-                  <Button className="flex-1 font-bold" size="lg" onClick={() => handleCheckout()}
-                    disabled={
-                      createSaleMutation.isPending ||
-                      (paymentMethod === "Cash" && !!tenderedAmount && parseFloat(tenderedAmount) < total)
-                    }>
-                    {createSaleMutation.isPending
-                      ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing…</>
-                      : `Charge ${formatCurrency(total, currency)}`
-                    }
-                  </Button>
-                  <Button variant="outline" size="lg" className="gap-1.5" onClick={() => setShowSplit(true)}
-                    disabled={createSaleMutation.isPending} title="Split payment across methods">
-                    <SplitSquareHorizontal className="h-4 w-4" />
-                    <span className="hidden sm:inline">Split</span>
-                  </Button>
                 </div>
-              </div>
+
+                {/* Pay + Split */}
+                <div className="px-5 pb-5 pt-1 flex gap-2 shrink-0">
+                  <ChargeButton
+                    className="flex-1"
+                    total={total}
+                    currency={currency}
+                    pending={createSaleMutation.isPending}
+                    disabled={!canCharge}
+                    onClick={() => handleCheckout()}
+                  />
+                  <button
+                    onClick={() => setShowSplit(true)}
+                    disabled={createSaleMutation.isPending}
+                    title="Split payment across methods"
+                    className="h-16 w-20 shrink-0 rounded-2xl border-2 border-border bg-card flex flex-col items-center justify-center gap-0.5 text-sm font-extrabold hover:border-primary disabled:opacity-50">
+                    <SplitSquareHorizontal className="h-6 w-6" strokeWidth={2.5} />
+                    Split
+                  </button>
+                </div>
+              </>
             )}
-          </div>
+          </aside>
         </div>
       )}
 
@@ -1002,4 +722,3 @@ export function RetailPOSView() {
     </div>
   );
 }
-

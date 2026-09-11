@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useNavigate } from "react-router-dom";
+import { useCrmNotificationsSync } from "@/hooks/crm/use-crm-notifications";
+import { crmNotificationsApi } from "@/lib/crm/notifications.api";
 
 const typeConfig = {
   info: { icon: Info, className: "text-info bg-info/10" },
@@ -19,6 +22,25 @@ const typeConfig = {
 export function NotificationPanel() {
   const { notificationPanelOpen, setNotificationPanelOpen } = useUiStore();
   const { notifications, markAllAsRead, markAsRead, unreadCount } = useNotificationsStore();
+  const navigate = useNavigate();
+  // Mounted once for the whole app (the panel lives in the ERP layout), so polling happens exactly once.
+  const { refetch } = useCrmNotificationsSync();
+
+  // Optimistic in the store, then confirmed by the server; a failure is corrected on the next poll.
+  const readAll = () => {
+    markAllAsRead();
+    crmNotificationsApi.markAllRead().catch(() => refetch());
+  };
+  const openNotification = (id: string, read: boolean, actionUrl?: string) => {
+    if (!read) {
+      markAsRead(id);
+      crmNotificationsApi.markRead(id).catch(() => refetch());
+    }
+    if (actionUrl) {
+      setNotificationPanelOpen(false);
+      navigate(actionUrl);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -52,7 +74,7 @@ export function NotificationPanel() {
               </div>
               <div className="flex items-center gap-1">
                 {unreadCount > 0 && (
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={markAllAsRead}>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={readAll}>
                     <CheckCheck className="h-3 w-3 mr-1" /> Mark all read
                   </Button>
                 )}
@@ -71,7 +93,7 @@ export function NotificationPanel() {
               ) : (
                 <div className="divide-y divide-border/50">
                   {notifications.map((notif) => {
-                    const config = typeConfig[notif.type];
+                    const config = typeConfig[notif.type] ?? typeConfig.info;
                     const Icon = config.icon;
                     return (
                       <div
@@ -80,7 +102,7 @@ export function NotificationPanel() {
                           "p-4 hover:bg-muted/30 transition-colors cursor-pointer",
                           !notif.read && "bg-primary/[0.02]"
                         )}
-                        onClick={() => markAsRead(notif.id)}
+                        onClick={() => openNotification(notif.id, notif.read, notif.actionUrl)}
                       >
                         <div className="flex gap-3">
                           <div className={cn("h-8 w-8 rounded-full flex items-center justify-center shrink-0", config.className)}>

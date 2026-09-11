@@ -168,6 +168,11 @@ export interface LeadDto {
   budget?:              string | null;
   message?:             string | null;   // the lead's own message / enquiry
   platformCreatedTime?: string | null;
+  /**
+   * The portal's tracked reply link (Bayut `contact_link`). Agents must reply through this rather than a
+   * plain wa.me link, or the portal cannot measure their response time.
+   */
+  contactLink?:         string | null;
   /** Extra captured fields (survey Q&A / custom questions) as question → answer. */
   customFields?:        Record<string, string> | null;
   /** Free-text "when planning to buy/invest" answer. */

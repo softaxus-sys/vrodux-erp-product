@@ -61,6 +61,30 @@ public static class InfrastructureExtensions
             WHERE s.TenantId IS NULL AND p.TenantId IS NOT NULL
             """);
 
+        // One-time consolidation (idempotent): Product Categories is the single category list.
+        // Copy categories that were created under the retired "POS Categories" page, keeping
+        // their Id so POS products stay linked. A name the workspace already has is skipped
+        // rather than duplicated. Never allowed to stop startup.
+        try
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                IF OBJECT_ID(N'[pos].[product_categories]') IS NOT NULL
+                INSERT INTO [inventory].[product_categories]
+                    (Id, Name, Description, IsActive, CreatedAt, IsDeleted, TenantId)
+                SELECT pc.Id, pc.Name, pc.Description, pc.IsActive, pc.CreatedAt, 0, pc.TenantId
+                FROM [pos].[product_categories] pc
+                WHERE pc.IsDeleted = 0
+                  AND pc.TenantId IS NOT NULL
+                  AND NOT EXISTS (SELECT 1 FROM [inventory].[product_categories] ic WHERE ic.Id = pc.Id)
+                  AND NOT EXISTS (SELECT 1 FROM [inventory].[product_categories] ic
+                                  WHERE ic.TenantId = pc.TenantId AND ic.IsDeleted = 0 AND ic.Name = pc.Name)
+                """);
+        }
+        catch
+        {
+            // Best-effort: categories can still be recreated in Master Data.
+        }
+
         if (DemoTenantSeeder.Enabled(scope.ServiceProvider))
             await DemoTenantSeeder.RunAsync(() => InventorySeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
