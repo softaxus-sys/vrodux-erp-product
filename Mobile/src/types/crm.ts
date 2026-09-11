@@ -103,6 +103,16 @@ export const NEXT_STATUSES: Record<LeadStatus, LeadStatus[]> = {
   lost: [],
 };
 
+/** Badge tone per status -- consumed by <Badge tone={...}>. */
+export const LEAD_STATUS_TONE: Record<LeadStatus, "success" | "warning" | "destructive" | "info" | "neutral" | "primary"> = {
+  new: "info",
+  contacted: "primary",
+  qualified: "success",
+  unqualified: "neutral",
+  converted: "success",
+  lost: "destructive",
+};
+
 // ── Deals / Pipeline ──────────────────────────────────────────────────────────
 
 export type DealStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
@@ -210,4 +220,14 @@ export const FORECAST_LABELS: Record<ForecastCategory, string> = {
   commit: "Commit",
   closed: "Closed",
   omitted: "Omitted",
+};
+
+/** Badge tone per stage -- consumed by <Badge tone={...}>. */
+export const DEAL_STAGE_TONE: Record<DealStage, "success" | "warning" | "destructive" | "info" | "neutral" | "primary"> = {
+  lead: "neutral",
+  qualified: "info",
+  proposal: "primary",
+  negotiation: "warning",
+  won: "success",
+  lost: "destructive",
 };

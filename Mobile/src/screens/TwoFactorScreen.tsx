@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { authApi } from "@/lib/auth.api";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
+import { Button } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "TwoFactor">;
@@ -30,15 +33,19 @@ export default function TwoFactorScreen({ route }: Props) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.iconTile}>
+        <Feather name="shield" size={24} color={colors.primary} />
+      </View>
       <Text style={styles.title}>Two-factor verification</Text>
       <Text style={styles.subtitle}>
-        Enter the 6-digit code from your authenticator app for {email}, or one of your backup
-        codes.
+        Enter the 6-digit code from your authenticator app for <Text style={styles.email}>{email}</Text>, or one
+        of your backup codes.
       </Text>
 
       <TextInput
         style={styles.input}
         placeholder="123456"
+        placeholderTextColor={colors.subtleForeground}
         keyboardType="number-pad"
         maxLength={10}
         value={code}
@@ -46,41 +53,56 @@ export default function TwoFactorScreen({ route }: Props) {
         autoFocus
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Feather name="alert-circle" size={14} color={colors.destructive} />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
 
-      <Pressable
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-        onPress={handleSubmit}
-        disabled={loading || code.length < 6}
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify</Text>}
-      </Pressable>
+      <Button label="Verify" onPress={handleSubmit} loading={loading} disabled={code.length < 6} fullWidth style={styles.button} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 24, gap: 12 },
-  title: { fontSize: 24, fontWeight: "700", textAlign: "center" },
-  subtitle: { fontSize: 14, color: "#6b7280", textAlign: "center", marginBottom: 16 },
+  container: { flex: 1, justifyContent: "center", padding: spacing.xxl, gap: spacing.md, backgroundColor: colors.background },
+  iconTile: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: spacing.sm,
+  },
+  title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground, textAlign: "center" },
+  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center", marginBottom: spacing.md, lineHeight: 20 },
+  email: { fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 20,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    fontSize: fontSize.xxl,
     textAlign: "center",
-    letterSpacing: 4,
+    letterSpacing: 6,
+    color: colors.foreground,
   },
-  error: { color: "#dc2626", fontSize: 14, textAlign: "center" },
-  button: {
-    backgroundColor: "#111827",
-    borderRadius: 8,
-    paddingVertical: 14,
+  errorBanner: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    justifyContent: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.destructiveSoft,
+    borderWidth: 1,
+    borderColor: colors.destructiveLight,
+    borderRadius: radius.md,
+    padding: spacing.md,
   },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  errorText: { color: colors.destructive, fontSize: fontSize.base },
+  button: { marginTop: spacing.sm, paddingVertical: spacing.md + 2 },
 });

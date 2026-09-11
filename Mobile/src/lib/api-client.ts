@@ -88,6 +88,32 @@ function extractFieldErrors(body: Record<string, unknown> | null): Record<string
   return out;
 }
 
+/**
+ * Different controllers across this backend report failures under different keys --
+ * ExceptionHandlingMiddleware uses `detail`, FinanceControllerBase uses `description`, the
+ * Identity gateway envelope uses `message`, and Inventory/POS's plain `ApiResponse<T>` uses
+ * `error`. Field-level validation messages come before the generic `title` fallback, since a
+ * failure that names a field is more useful than "One or more validation errors occurred."
+ * Mirrors FrontendVite's rawApiClient precedence exactly, so the two clients report the same
+ * thing for the same failure.
+ */
+function extractErrorMessage(body: Record<string, unknown> | null, fieldErrors: Record<string, string[]>): string {
+  const firstFieldMessage = Object.values(fieldErrors)[0]?.[0];
+  return (
+    (body?.detail as string | undefined) ??
+    (body?.description as string | undefined) ??
+    (body?.message as string | undefined) ??
+    (body?.error as string | undefined) ??
+    firstFieldMessage ??
+    (body?.title as string | undefined) ??
+    "Request failed."
+  );
+}
+
+function extractErrorCode(body: Record<string, unknown> | null): string | null {
+  return (body?.errorCode as string | undefined) ?? (body?.code as string | undefined) ?? null;
+}
+
 // ── Token refresh (mutex: rotating refresh tokens, dedupe concurrent 401s) ────
 
 let activeRefresh: Promise<string | null> | null = null;
@@ -148,19 +174,17 @@ async function request<T>(url: string, options: RequestInit = {}, isRetry = fals
 
   if (!res.ok) {
     const fieldErrors = extractFieldErrors(body);
-    const message =
-      (body?.message as string | undefined) ??
-      fieldErrors[Object.keys(fieldErrors)[0]]?.[0] ??
-      (body?.title as string | undefined) ??
-      `HTTP ${res.status}`;
-    throw new ApiError(res.status, (body?.errorCode as string | undefined) ?? null, message, fieldErrors);
+    const message = body ? extractErrorMessage(body, fieldErrors) : `HTTP ${res.status}`;
+    throw new ApiError(res.status, extractErrorCode(body), message, fieldErrors);
   }
 
-  // Gateway envelope: { success, data, message, errorCode, traceId }
+  // Gateway envelope: { success, data, message, errorCode, traceId } -- or Inventory/POS's
+  // plain ApiResponse<T>: { success, data, error, errorCode }. A 2xx should never carry
+  // success:false, but if it somehow does, extract via the same precedence as the !res.ok path.
   if (body && typeof body === "object" && "success" in body) {
-    const envelope = body as unknown as BackendResponse<T>;
+    const envelope = body as unknown as BackendResponse<T> & { error?: string | null };
     if (!envelope.success) {
-      throw new ApiError(res.status, envelope.errorCode, envelope.message ?? "Request failed.");
+      throw new ApiError(res.status, extractErrorCode(body), extractErrorMessage(body, {}));
     }
     return envelope.data as T;
   }
@@ -193,17 +217,15 @@ export async function anonymousPost<T>(path: string, data: unknown): Promise<T> 
   if (!res.ok) {
     const b = body as Record<string, unknown>;
     const fieldErrors = extractFieldErrors(b);
-    const message =
-      (b?.message as string | undefined) ??
-      fieldErrors[Object.keys(fieldErrors)[0]]?.[0] ??
-      (b?.title as string | undefined) ??
-      `HTTP ${res.status}`;
-    throw new ApiError(res.status, (b?.errorCode as string | undefined) ?? null, message, fieldErrors);
+    const message = b ? extractErrorMessage(b, fieldErrors) : `HTTP ${res.status}`;
+    throw new ApiError(res.status, extractErrorCode(b), message, fieldErrors);
   }
 
   if (body && typeof body === "object" && "success" in body) {
     const envelope = body as BackendResponse<T>;
-    if (!envelope.success) throw new ApiError(res.status, envelope.errorCode, envelope.message ?? "Request failed.");
+    if (!envelope.success) {
+      throw new ApiError(res.status, extractErrorCode(body as Record<string, unknown>), extractErrorMessage(body as Record<string, unknown>, {}));
+    }
     return envelope.data as T;
   }
   return body as T;

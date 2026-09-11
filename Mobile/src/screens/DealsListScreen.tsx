@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDealsPaged } from "@/hooks/use-deals";
 import { formatCompactValue } from "@/lib/crm-helpers";
-import { PIPELINE_STAGES } from "@/types/crm";
+import { DEAL_STAGE_TONE, PIPELINE_STAGES } from "@/types/crm";
 import type { DealDto } from "@/types/crm";
+import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 import type { DealsStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<DealsStackParamList, "DealsList">;
@@ -51,43 +44,28 @@ export default function DealsListScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search opportunities by title, company..."
-        value={search}
-        onChangeText={setSearch}
-        autoCapitalize="none"
-      />
+      <SearchInput value={search} onChangeText={setSearch} placeholder="Search opportunities by title, company…" />
 
       <View style={styles.filterRow}>
         {FILTERS.map((f) => (
-          <Pressable key={f.key} style={[styles.chip, stage === f.key && styles.chipActive]} onPress={() => setStage(f.key)}>
-            <Text style={[styles.chipText, stage === f.key && styles.chipTextActive]}>{f.label}</Text>
-          </Pressable>
+          <Chip key={f.key} label={f.label} active={stage === f.key} onPress={() => setStage(f.key)} />
         ))}
       </View>
 
       {query.isError ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>Could not load the pipeline.</Text>
-          <Pressable onPress={() => query.refetch()}>
-            <Text style={styles.retry}>Tap to retry</Text>
-          </Pressable>
-        </View>
+        <ErrorState message="Could not load the pipeline." onRetry={() => query.refetch()} />
       ) : query.isLoading && items.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" />
-        </View>
+        <LoadingState />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(d) => d.id}
-          contentContainerStyle={items.length === 0 ? styles.emptyList : undefined}
-          refreshControl={<RefreshControl refreshing={query.isRefetching && page === 1} onRefresh={refresh} />}
+          contentContainerStyle={items.length === 0 ? undefined : styles.list}
+          refreshControl={<RefreshControl refreshing={query.isRefetching && page === 1} onRefresh={refresh} tintColor={colors.primary} />}
           onEndReachedThreshold={0.4}
           onEndReached={loadMore}
-          ListEmptyComponent={<Text style={styles.emptyText}>No opportunities here.</Text>}
-          ListFooterComponent={hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} /> : null}
+          ListEmptyComponent={<EmptyListState icon="trending-up" title="No opportunities here" />}
+          ListFooterComponent={hasMore && query.isFetching ? <ActivityIndicator style={styles.footerSpinner} color={colors.primary} /> : null}
           renderItem={({ item }) => (
             <DealRow
               deal={item}
@@ -103,12 +81,12 @@ export default function DealsListScreen({ navigation }: Props) {
 function DealRow({ deal, onPress }: { deal: DealDto; onPress: () => void }) {
   const stageLabel = PIPELINE_STAGES.find((s) => s.key === deal.stage)?.label ?? deal.stage;
   return (
-    <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onPress}>
+    <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
         <Text style={styles.title} numberOfLines={1}>
           {deal.title}
         </Text>
-        <Text style={styles.stageBadge}>{stageLabel}</Text>
+        <Badge label={stageLabel} tone={DEAL_STAGE_TONE[deal.stage] ?? "neutral"} dot={false} />
       </View>
       {deal.company ? <Text style={styles.company}>{deal.company}</Text> : null}
       <View style={styles.rowBottom}>
@@ -117,40 +95,20 @@ function DealRow({ deal, onPress }: { deal: DealDto; onPress: () => void }) {
           {formatCompactValue(deal.weightedValue, deal.currency)} weighted · {deal.probability}%
         </Text>
       </View>
-    </Pressable>
+    </ListItemCard>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  search: {
-    margin: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-  },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 8, marginBottom: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: "#f3f4f6" },
-  chipActive: { backgroundColor: "#111827" },
-  chipText: { fontSize: 13, color: "#374151" },
-  chipTextActive: { color: "#fff", fontWeight: "600" },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  errorText: { color: "#dc2626" },
-  retry: { color: "#2563eb", fontWeight: "600" },
-  emptyList: { flexGrow: 1, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: "#6b7280" },
-  footerSpinner: { paddingVertical: 16 },
-  row: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#f3f4f6", gap: 2 },
-  rowPressed: { backgroundColor: "#f9fafb" },
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 16, fontWeight: "600", color: "#111827", flexShrink: 1 },
-  stageBadge: { fontSize: 11, color: "#374151", backgroundColor: "#e5e7eb", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
-  company: { fontSize: 13, color: "#4b5563" },
-  rowBottom: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  value: { fontSize: 13, fontWeight: "600", color: "#111827" },
-  weighted: { fontSize: 12, color: "#6b7280" },
+  container: { flex: 1, backgroundColor: colors.background },
+  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+  footerSpinner: { paddingVertical: spacing.lg },
+  list: { paddingVertical: spacing.md },
+
+  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+  title: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+  company: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+  rowBottom: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
+  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+  weighted: { fontSize: fontSize.sm, color: colors.mutedForeground },
 });

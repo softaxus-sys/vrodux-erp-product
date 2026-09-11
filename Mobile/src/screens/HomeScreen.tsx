@@ -1,13 +1,24 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { authApi } from "@/lib/auth.api";
 import { useAuthStore } from "@/store/auth.store";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { Badge, Button, SectionCard } from "@/components/ui";
+import { colors, fontSize, fontWeight, spacing } from "@/theme";
 
 /**
- * Placeholder landing screen -- proves the auth flow end to end (login / 2FA
- * / token refresh / logout) against the real gateway. Swap this out for the
- * first real module screen (e.g. HR self-service or CRM leads, per the
- * phase-1 plan) rather than growing it in place.
+ * Placeholder landing screen -- proves the auth flow end to end (login / 2FA / token refresh /
+ * logout) against the real gateway, and now gives the module/permission data a real layout while
+ * it's still standing in for actual KPI cards. Swap the "Session diagnostics" card out once real
+ * dashboard content lands (see README "Next module").
  */
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}
+
 export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const tenant = useAuthStore((s) => s.tenant);
@@ -23,47 +34,78 @@ export default function HomeScreen() {
     logout();
   }
 
+  const firstName = user?.fullName?.split(" ")[0] ?? user?.fullName ?? "there";
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.heading}>Welcome, {user?.fullName ?? "—"}</Text>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>Tenant</Text>
-        <Text style={styles.value}>{tenant?.name ?? "—"}</Text>
-
-        <Text style={styles.label}>Plan</Text>
-        <Text style={styles.value}>{tenant?.plan ?? "—"}</Text>
-
-        <Text style={styles.label}>Modules ({tenant?.modules.length ?? 0})</Text>
-        <Text style={styles.value}>{tenant?.modules.join(", ") || "—"}</Text>
-
-        <Text style={styles.label}>Permission keys ({permissions.length})</Text>
-        <Text style={styles.value}>{permissions.slice(0, 8).join(", ") || "—"}</Text>
+      <View style={styles.header}>
+        <BrandMark size={44} />
+        <View style={styles.headerText}>
+          <Text style={styles.greeting}>
+            {greeting()}, {firstName}
+          </Text>
+          <Text style={styles.tenantLine}>{tenant?.name ?? "—"}</Text>
+        </View>
       </View>
 
-      <Pressable style={styles.button} onPress={handleLogout}>
-        <Text style={styles.buttonText}>Sign out</Text>
-      </Pressable>
+      <SectionCard title="Workspace">
+        <Detail label="Plan" value={tenant?.plan ?? "—"} />
+        <Detail label="Currency" value={tenant?.currency ?? "—"} />
+        <View style={styles.moduleBlock}>
+          <Text style={styles.detailLabel}>Modules ({tenant?.modules.length ?? 0})</Text>
+          <View style={styles.chipRow}>
+            {tenant?.modules.length ? (
+              tenant.modules.map((m) => <Badge key={m} label={m} tone="primary" dot={false} />)
+            ) : (
+              <Text style={styles.mutedText}>None enabled.</Text>
+            )}
+          </View>
+        </View>
+      </SectionCard>
+
+      <SectionCard title="Session diagnostics">
+        <Detail label="Permission keys" value={String(permissions.length)} />
+        {permissions.length > 0 ? (
+          <Text style={styles.permissionsPreview} numberOfLines={3}>
+            {permissions.slice(0, 10).join(", ")}
+            {permissions.length > 10 ? "…" : ""}
+          </Text>
+        ) : null}
+      </SectionCard>
+
+      <View style={styles.signOutRow}>
+        <Button label="Sign out" variant="outline" icon="log-out" onPress={handleLogout} fullWidth />
+      </View>
     </ScrollView>
   );
 }
 
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: { padding: 24, gap: 16 },
-  heading: { fontSize: 22, fontWeight: "700" },
-  card: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 12,
-    padding: 16,
-    gap: 4,
-  },
-  label: { fontSize: 12, color: "#6b7280", marginTop: 8, textTransform: "uppercase" },
-  value: { fontSize: 15, color: "#111827" },
-  button: {
-    backgroundColor: "#dc2626",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
+
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
+  headerText: { flex: 1 },
+  greeting: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground },
+  tenantLine: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
+
+  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
+  detailLabel: { fontSize: fontSize.base, color: colors.mutedForeground },
+  detailValue: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+
+  moduleBlock: { marginTop: spacing.xs, gap: spacing.sm },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  mutedText: { fontSize: fontSize.base, color: colors.subtleForeground },
+
+  permissionsPreview: { fontSize: fontSize.sm, color: colors.subtleForeground, marginTop: spacing.xs, lineHeight: 16 },
+
+  signOutRow: { marginTop: spacing.sm },
 });

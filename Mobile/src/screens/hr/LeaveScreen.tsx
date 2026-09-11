@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useApplyLeave, useCancelLeave, useLeaveBalances, useMyLeaves } from "@/hooks/use-hr-self";
-import { LEAVE_STATUS_LABELS, LEAVE_TYPE_LABELS } from "@/types/hr";
+import { LEAVE_STATUS_LABELS, LEAVE_STATUS_TONE, LEAVE_TYPE_LABELS } from "@/types/hr";
 import type { LeaveRequestDto, LeaveType } from "@/types/hr";
+import { Badge, Button, Card, Chip, EmptyState, LoadingState, SectionCard } from "@/components/ui";
+import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
 
 const LEAVE_TYPES: LeaveType[] = ["annual", "sick", "unpaid", "emergency", "maternity", "paternity", "hajj"];
 
@@ -48,9 +50,9 @@ export default function LeaveScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       {/* Balances */}
-      <Section title="Balances">
+      <SectionCard title="Balances">
         {balances.isLoading ? (
-          <ActivityIndicator />
+          <LoadingState size="small" />
         ) : !balances.data || balances.data.length === 0 ? (
           <Text style={styles.notes}>No leave policy configured.</Text>
         ) : (
@@ -64,74 +66,59 @@ export default function LeaveScreen() {
             ))}
           </View>
         )}
-      </Section>
+      </SectionCard>
 
       {/* Apply */}
-      <Section title="Apply for leave">
+      <SectionCard title="Apply for leave">
         {applying ? (
-          <View>
+          <View style={styles.applyForm}>
             <View style={styles.chipRow}>
               {LEAVE_TYPES.map((t) => (
-                <Pressable
-                  key={t}
-                  style={[styles.chip, leaveType === t && styles.chipActive]}
-                  onPress={() => setLeaveType(t)}
-                >
-                  <Text style={[styles.chipText, leaveType === t && styles.chipTextActive]}>
-                    {LEAVE_TYPE_LABELS[t]}
-                  </Text>
-                </Pressable>
+                <Chip key={t} label={LEAVE_TYPE_LABELS[t]} active={leaveType === t} onPress={() => setLeaveType(t)} />
               ))}
             </View>
             <TextInput
-              style={[styles.input, styles.inputSpaced]}
+              style={styles.input}
               placeholder="Start date (YYYY-MM-DD)"
+              placeholderTextColor={colors.subtleForeground}
               value={startDate}
               onChangeText={setStartDate}
               autoCapitalize="none"
             />
             <TextInput
-              style={[styles.input, styles.inputSpaced]}
+              style={styles.input}
               placeholder="End date (YYYY-MM-DD)"
+              placeholderTextColor={colors.subtleForeground}
               value={endDate}
               onChangeText={setEndDate}
               autoCapitalize="none"
             />
             {totalDays > 0 ? <Text style={styles.notes}>{totalDays} day(s)</Text> : null}
             <TextInput
-              style={[styles.input, styles.inputSpaced]}
+              style={[styles.input, styles.multiline]}
               placeholder="Reason (optional)"
+              placeholderTextColor={colors.subtleForeground}
               value={reason}
               onChangeText={setReason}
               multiline
             />
-            <View style={styles.logButtonsRow}>
-              <Pressable
-                style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-                disabled={!canSubmit || applyLeave.isPending}
-                onPress={submitApply}
-              >
-                <Text style={styles.submitButtonText}>{applyLeave.isPending ? "Submitting..." : "Submit"}</Text>
-              </Pressable>
-              <Pressable onPress={() => setApplying(false)}>
-                <Text style={styles.cancelLink}>Cancel</Text>
-              </Pressable>
+            <View style={styles.formButtons}>
+              <Button label={applyLeave.isPending ? "Submitting..." : "Submit"} onPress={submitApply} disabled={!canSubmit || applyLeave.isPending} />
+              <Button label="Cancel" variant="ghost" onPress={() => setApplying(false)} />
             </View>
             {applyLeave.isError ? <Text style={styles.errorText}>Could not submit this request.</Text> : null}
           </View>
         ) : (
-          <Pressable style={styles.chip} onPress={() => setApplying(true)}>
-            <Text style={styles.chipText}>+ Apply for leave</Text>
-          </Pressable>
+          <Button label="Apply for leave" icon="plus" variant="secondary" onPress={() => setApplying(true)} />
         )}
-      </Section>
+      </SectionCard>
 
       {/* History */}
-      <Section title="Requests">
+      <SectionCard title="Requests">
         {leaves.isLoading ? (
-          <ActivityIndicator />
+          <LoadingState size="small" />
         ) : !leaves.data || leaves.data.items.length === 0 ? (
-          <Text style={styles.notes}>No leave requests yet.</Text>
+          <EmptyState icon="sun" title="No leave requests yet" />
         ) : (
           leaves.data.items.map((l) => (
             <LeaveRow
@@ -147,7 +134,7 @@ export default function LeaveScreen() {
             />
           ))
         )}
-      </Section>
+      </SectionCard>
     </ScrollView>
   );
 }
@@ -166,10 +153,10 @@ function LeaveRow({
   onDismissCancel: () => void;
 }) {
   return (
-    <View style={styles.leaveRow}>
+    <Card variant="flat" padding="md" style={styles.leaveRow}>
       <View style={styles.rowTop}>
         <Text style={styles.leaveTitle}>{LEAVE_TYPE_LABELS[leave.leaveType]}</Text>
-        <Text style={styles.leaveStatus}>{LEAVE_STATUS_LABELS[leave.status]}</Text>
+        <Badge label={LEAVE_STATUS_LABELS[leave.status]} tone={LEAVE_STATUS_TONE[leave.status]} />
       </View>
       <Text style={styles.notes}>
         {leave.fromDate} → {leave.toDate} ({leave.days}d)
@@ -178,69 +165,54 @@ function LeaveRow({
       {leave.rejectionReason ? <Text style={styles.errorText}>Rejected: {leave.rejectionReason}</Text> : null}
       {leave.status === "pending" ? (
         confirming ? (
-          <View style={styles.logButtonsRow}>
+          <View style={styles.formButtons}>
             <Text style={styles.notes}>Cancel this request?</Text>
-            <Pressable onPress={onConfirmCancel}>
-              <Text style={styles.errorText}>Yes, cancel</Text>
-            </Pressable>
-            <Pressable onPress={onDismissCancel}>
-              <Text style={styles.cancelLink}>No</Text>
-            </Pressable>
+            <Button label="Yes, cancel" size="sm" variant="destructive" onPress={onConfirmCancel} />
+            <Button label="No" size="sm" variant="ghost" onPress={onDismissCancel} />
           </View>
         ) : (
-          <Pressable onPress={onRequestCancel}>
-            <Text style={styles.cancelLink}>Cancel request</Text>
-          </Pressable>
+          <Button label="Cancel request" size="sm" variant="ghost" onPress={onRequestCancel} style={styles.cancelLink} />
         )
       ) : null}
-    </View>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, gap: 16 },
-  section: { backgroundColor: "#f9fafb", borderRadius: 12, padding: 14, gap: 8 },
-  sectionTitle: { fontSize: 13, fontWeight: "700", color: "#374151", textTransform: "uppercase" },
-  notes: { fontSize: 13, color: "#6b7280" },
-  errorText: { fontSize: 12, color: "#dc2626", fontWeight: "600" },
+  container: { padding: spacing.lg, gap: spacing.lg },
+  notes: { fontSize: fontSize.base, color: colors.mutedForeground },
+  errorText: { fontSize: fontSize.sm, color: colors.destructive, fontWeight: fontWeight.semibold },
 
-  balanceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  balanceCard: { backgroundColor: "#fff", borderRadius: 10, padding: 10, minWidth: 90, alignItems: "center" },
-  balanceType: { fontSize: 11, color: "#6b7280", textTransform: "capitalize" },
-  balanceRemaining: { fontSize: 20, fontWeight: "700", color: "#111827" },
-  balanceOf: { fontSize: 11, color: "#9ca3af" },
+  balanceGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm + 2 },
+  balanceCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.sm + 2,
+    minWidth: 92,
+    alignItems: "center",
+  },
+  balanceType: { fontSize: fontSize.xs, color: colors.mutedForeground, textTransform: "capitalize" },
+  balanceRemaining: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.primary },
+  balanceOf: { fontSize: fontSize.xs, color: colors.subtleForeground },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: "#e5e7eb" },
-  chipActive: { backgroundColor: "#111827" },
-  chipText: { fontSize: 13, fontWeight: "600", color: "#374151" },
-  chipTextActive: { color: "#fff" },
-
+  applyForm: { gap: spacing.sm + 2 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: "#fff",
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.sm + 2,
+    backgroundColor: colors.card,
+    fontSize: fontSize.md,
+    color: colors.foreground,
   },
-  inputSpaced: { marginTop: 8 },
-  logButtonsRow: { flexDirection: "row", alignItems: "center", gap: 16, marginTop: 8 },
-  submitButton: { backgroundColor: "#111827", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  submitButtonDisabled: { backgroundColor: "#e5e7eb" },
-  submitButtonText: { color: "#fff", fontWeight: "600" },
-  cancelLink: { color: "#6b7280", fontSize: 13 },
+  multiline: { minHeight: 60, textAlignVertical: "top" },
+  formButtons: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
+  cancelLink: { paddingHorizontal: 0 },
 
-  leaveRow: { borderTopWidth: 1, borderTopColor: "#e5e7eb", paddingTop: 8, marginTop: 4, gap: 4 },
-  rowTop: { flexDirection: "row", justifyContent: "space-between" },
-  leaveTitle: { fontSize: 14, fontWeight: "600", color: "#111827" },
-  leaveStatus: { fontSize: 12, fontWeight: "600", color: "#374151" },
+  leaveRow: { gap: spacing.xs, marginBottom: spacing.sm },
+  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  leaveTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
 });
