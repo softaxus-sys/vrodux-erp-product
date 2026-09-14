@@ -51,6 +51,7 @@ const CustomersPage        = lazyWithRetry(() => import("@/pages/crm/customers")
 const CrmActivitiesPage    = lazyWithRetry(() => import("@/pages/crm/activities"));
 const CrmDocumentsPage     = lazyWithRetry(() => import("@/pages/crm/documents"));
 const CrmReportsPage       = lazyWithRetry(() => import("@/pages/crm/reports"));
+const CrmListingsPage      = lazyWithRetry(() => import("@/pages/crm/listings"));
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
 const QuotationsPage       = lazyWithRetry(() => import("@/pages/sales/quotations"));
@@ -354,6 +355,7 @@ export function App() {
             <Route path="/crm/activities" element={<CrmActivitiesPage />} />
             <Route path="/crm/documents" element={<CrmDocumentsPage />} />
             <Route path="/crm/reports"   element={<CrmReportsPage />} />
+            <Route path="/crm/listings"  element={<CrmListingsPage />} />
           </Route>
 
           {/* ── Sales ───────────────────────────────────────────────────────── */}

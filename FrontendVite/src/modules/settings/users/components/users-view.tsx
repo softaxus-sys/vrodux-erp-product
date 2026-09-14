@@ -20,6 +20,26 @@ import { Can, useCan } from "@/components/auth/can";
 import { useAuthStore } from "@/store/auth.store";
 import { ChangeEmailForm } from "./change-email-form";
 import { Pagination } from "@/components/ui/pagination";
+import { ExportMenu } from "@/components/ui/export-menu";
+import { toCsv, downloadFile } from "@/lib/csv";
+import { exportPdf } from "@/lib/pdf";
+import { usersApi } from "@/lib/identity/users.api";
+import { toast } from "sonner";
+
+/** Every user in the workspace — not just the page on screen. */
+async function loadUsersForExport(): Promise<UserSummaryDto[]> {
+  const all: UserSummaryDto[] = [];
+  for (let page = 1; ; page++) {
+    const res = await usersApi.getAll({ page, pageSize: 100 });
+    all.push(...res.items);
+    if (page >= (res.totalPages ?? 1) || res.items.length === 0) break;
+  }
+  return all;
+}
+
+// Deliberately only name + email: the export is a contact list, not a dump of accounts and roles.
+const exportRow = (u: UserSummaryDto) => ({ "Name": u.fullName, "Email": u.email });
+const EXPORT_HEADERS = ["Name", "Email"] as const;
 
 // ── Local role/status config ──────────────────────────────────────────────────
 
@@ -632,6 +652,34 @@ export function UsersView() {
 
   const deleteUser = useDeleteUser();
 
+  // Export is for the workspace owner only — a user list with roles and emails is exactly what
+  // should not leave the system on a manager's say-so.
+  const isTenantAdmin = useAuthStore(s => s.user?.role === "tenant_admin");
+  const [exporting, setExporting] = React.useState(false);
+
+  const runExport = async (kind: "csv" | "pdf") => {
+    setExporting(true);
+    try {
+      const all = await loadUsersForExport();
+      const rows = all.map(exportRow);
+      const stamp = new Date().toISOString().split("T")[0];
+      if (kind === "csv") {
+        downloadFile(`users_${stamp}.csv`, toCsv(rows, [...EXPORT_HEADERS]));
+      } else {
+        exportPdf({
+          title: "Users Report",
+          subtitle: `${all.length} users`,
+          columns: [...EXPORT_HEADERS],
+          rows: rows.map(r => EXPORT_HEADERS.map(h => r[h])),
+        });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Debounce search
   React.useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search), 350);
@@ -685,6 +733,10 @@ export function UsersView() {
           <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
           </Button>
+          {isTenantAdmin && (
+            <ExportMenu size="default" disabled={exporting || totalCount === 0}
+              onCsv={() => void runExport("csv")} onPdf={() => void runExport("pdf")} />
+          )}
           <Can permission="settings.users.create">
             <Button className="gap-2" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4" />{t("users.create")}

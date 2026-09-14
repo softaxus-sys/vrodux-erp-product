@@ -259,6 +259,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "UserSearch",
           },
           {
+            id: "crm-listings",
+            label: "My Listings",
+            labelAr: "إعلاناتي",
+            href: "/crm/listings",
+            icon: "Home",
+          },
+          {
             id: "pipeline",
             label: "Pipeline",
             labelAr: "خط الأنابيب",

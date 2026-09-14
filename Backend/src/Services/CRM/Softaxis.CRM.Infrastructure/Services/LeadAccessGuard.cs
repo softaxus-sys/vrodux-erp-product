@@ -62,6 +62,15 @@ public interface ILeadAccessGuard
     /// record the caller just created without asking them a question they usually can't answer wrong.
     /// </summary>
     Task<Guid?> SoleTeamOfCurrentUserAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Registered portal listings the caller may see, on the lead tiers — a listing is the front door
+    /// of an agent's leads, so it is visible exactly as those leads would be.
+    /// </summary>
+    IQueryable<PortalListing> ScopeListings(IQueryable<PortalListing> source);
+
+    /// <summary>Whether the caller may register / change / remove a listing held by this agent and team.</summary>
+    Task<bool> CanManageListingAsync(Guid agentUserId, Guid? teamId, CancellationToken ct);
 }
 
 /// <summary>One team the caller may report on, with the user ids belonging to it.</summary>
@@ -183,6 +192,31 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
 
     public Task<bool> CanEditAsync(Lead lead, CancellationToken ct) =>
         OwnerAllowedAsync("leads", "edit", lead.AssignedToUserId, lead.TeamId, ct);
+
+    // ── Portal listings (lead tiers) ─────────────────────────────────────────
+    public IQueryable<PortalListing> ScopeListings(IQueryable<PortalListing> source)
+    {
+        if (CanViewAll) return source;
+        if (user.Id is not { } uid) return source.Where(_ => false);
+
+        if (CanViewTeam)
+            return source.Where(l =>
+                l.AgentUserId == uid ||
+                (l.TeamId != null && db.Set<IdentityTeamView>()
+                    .Any(t => t.Id == l.TeamId && t.TeamLeadUserId == uid && t.IsActive && !t.IsDeleted)));
+
+        if (CanViewAssigned || user.HasPermission("crm.leads.create"))
+            return source.Where(l => l.AgentUserId == uid);
+        return source.Where(_ => false);
+    }
+
+    public async Task<bool> CanManageListingAsync(Guid agentUserId, Guid? teamId, CancellationToken ct)
+    {
+        // An agent who may create leads may always register their OWN listing, even without an
+        // edit tier — publishing a listing is the most basic thing an agent does.
+        if (user.Id is { } uid && agentUserId == uid && user.HasPermission("crm.leads.create")) return true;
+        return await OwnerAllowedAsync("leads", "edit", agentUserId, teamId, ct);
+    }
 
     // ── Opportunities ────────────────────────────────────────────────────────
     public IQueryable<Deal> ScopeDeals(IQueryable<Deal> source)
