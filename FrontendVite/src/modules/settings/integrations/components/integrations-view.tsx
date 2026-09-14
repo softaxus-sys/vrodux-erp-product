@@ -1,11 +1,12 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trans, useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import {
   Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check, CheckCircle2,
   KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud, DownloadCloud,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
   useSelectMetaTargets, useSetIntegrationApiKey, useSetIntegrationSigningSecret, useBackfillIntegration,
 } from "@/hooks/crm/use-integrations";
 import { integrationsApi, type ProviderCatalogItem, type MetaForm } from "@/lib/crm/integrations.api";
+import { InboxEntryDetails } from "@/modules/crm/lead-inbox/components/inbox-entry-details";
 
 // ── Provider visuals ─────────────────────────────────────────────────────────
 
@@ -1346,31 +1348,82 @@ function HistoryTab({ integrationId }: { integrationId: string }) {
   );
 }
 
+/**
+ * Failed deliveries only — what the name says.
+ *
+ * The tab used to list every row the inbox held, successes included, which buried the handful of
+ * rows that actually need attention. Successful deliveries are not moved to Sync History: that
+ * table records whole pull/backfill RUNS, and a pushed webhook never produces one, so a processed
+ * push would simply disappear. They live in the Lead Inbox, which is per delivery and linked below.
+ *
+ * "Failed" here also covers a row still retrying in backoff (status pending, an error recorded):
+ * it has errored, and waiting for the last attempt to be spent before showing it is too late to be
+ * useful.
+ */
 function ErrorsTab({ integrationId }: { integrationId: string }) {
   const { t } = useTranslation("settings");
-  const { data: rows = [], isLoading } = useIntegrationInbox(integrationId);
+  const [openId, setOpenId] = React.useState<string | null>(null);
+  const { data: all = [], isLoading } = useIntegrationInbox(integrationId);
+
+  // Filtered here rather than by the status parameter: one request covers both failed and
+  // still-retrying rows, which are two different status values.
+  const rows = React.useMemo(
+    () => all.filter((r) => r.status === "failed" || !!r.lastError),
+    [all]);
+
   if (isLoading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
-  if (!rows.length) return <Empty text={t("integrations.errors.empty")} />;
+
   return (
-    <div className="space-y-2">
-      {rows.map((r) => (
-        <div key={r.id} className="bg-card border border-border rounded-lg p-3 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-xs">{r.externalId ?? r.id.slice(0, 8)}</span>
-            <span className={cn("text-xs px-2 py-0.5 rounded-full",
-              r.status === "processed" ? "bg-success/10 text-success"
-              : r.status === "duplicate" ? "bg-muted text-muted-foreground"
-              : r.status === "failed" ? "bg-destructive/10 text-destructive"
-              : "bg-amber-500/10 text-amber-600")}>
-              {syncStatusLabel(t, r.status)}
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            {t("integrations.errors.attempts", { n: r.attempts, when: formatDate(r.receivedAt, "relative") })}
-          </div>
-          {r.lastError && <div className="text-xs text-destructive mt-1">{r.lastError}</div>}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs text-muted-foreground">{t("integrations.errors.note")}</p>
+        <Link to="/crm/lead-inbox" className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+          {t("integrations.errors.openInbox")}
+        </Link>
+      </div>
+
+      {!rows.length ? (
+        // Distinguishes "nothing has gone wrong" from "nothing has arrived" — the old single empty
+        // string read as though the integration were dead when it was simply healthy.
+        <Empty text={all.length ? t("integrations.errors.emptyClean") : t("integrations.errors.empty")} />
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const isOpen = openId === r.id;
+            return (
+              <div key={r.id} className="bg-card border border-border rounded-lg text-sm overflow-hidden">
+                <button type="button" onClick={() => setOpenId(isOpen ? null : r.id)}
+                  aria-expanded={isOpen}
+                  className="w-full text-start p-3 hover:bg-muted/40 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs truncate">{r.externalId ?? r.id.slice(0, 8)}</span>
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full",
+                        r.status === "failed"
+                          ? "bg-destructive/10 text-destructive"
+                          : "bg-amber-500/10 text-amber-600")}>
+                        {syncStatusLabel(t, r.status === "failed" ? "failed" : "retrying")}
+                      </span>
+                      <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform",
+                        isOpen && "rotate-180")} />
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {t("integrations.errors.attempts", { n: r.attempts, when: formatDate(r.receivedAt, "relative") })}
+                  </div>
+                  {r.lastError && <div className="text-xs text-destructive mt-1">{r.lastError}</div>}
+                </button>
+                {/* Mounted only while open, so opening the tab does not fetch every payload. */}
+                {isOpen && (
+                  <div className="border-t border-border p-3 bg-muted/20">
+                    <InboxEntryDetails entryId={r.id} showStatus={false} onRetried={() => setOpenId(null)} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 }

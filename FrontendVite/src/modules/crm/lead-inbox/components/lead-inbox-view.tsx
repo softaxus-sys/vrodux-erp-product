@@ -9,8 +9,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Can, useCan } from "@/components/auth/can";
-import { useLeadInbox, useLeadInboxSummary, useLeadInboxEntry, useRetryLeadInboxEntry } from "@/hooks/crm/use-integrations";
+import { Can } from "@/components/auth/can";
+import { useLeadInbox, useLeadInboxSummary, useLeadInboxEntry } from "@/hooks/crm/use-integrations";
+import { InboxEntryDetails, StatusPill, statusMeta } from "./inbox-entry-details";
 import { LEAD_INBOX_STATUSES, type LeadInboxRow } from "@/lib/crm/integrations.api";
 import { sourceLabel } from "@/lib/crm/crm.api";
 import { formatDate, parseApiDate, cn } from "@/lib/utils";
@@ -24,33 +25,6 @@ import { formatDate, parseApiDate, cn } from "@/lib/utils";
  * arrived, been stored, failed, and left no trace any user could see.
  */
 
-const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  pending:    { label: "Pending",      color: "text-warning",          bg: "bg-warning/10" },
-  processing: { label: "Processing",   color: "text-primary",          bg: "bg-primary/10" },
-  processed:  { label: "Lead created", color: "text-success",          bg: "bg-success/10" },
-  duplicate:  { label: "Duplicate",    color: "text-muted-foreground", bg: "bg-muted" },
-  failed:     { label: "Failed",       color: "text-destructive",      bg: "bg-destructive/10" },
-};
-// Status is a plain string column, so a value outside this map is possible. A bare index reads
-// undefined and takes the page down on .color — the fault this codebase keeps hitting.
-const statusMeta = (s: string) =>
-  STATUS_META[s] ?? { label: s || "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
-
-function StatusPill({ status }: { status: string }) {
-  const m = statusMeta(status);
-  return (
-    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap", m.color, m.bg)}>
-      {m.label}
-    </span>
-  );
-}
-
-/** Pretty-print JSON when it is JSON; show the body verbatim when it is not (form posts are not). */
-function formatPayload(raw: string): { text: string; isJson: boolean } {
-  try { return { text: JSON.stringify(JSON.parse(raw), null, 2), isJson: true }; }
-  catch { return { text: raw, isJson: false }; }
-}
-
 function RelativeTime({ iso }: { iso: string }) {
   const d = parseApiDate(iso);
   if (!d) return <>—</>;
@@ -63,29 +37,10 @@ function RelativeTime({ iso }: { iso: string }) {
   return <span title={d.toLocaleString()}>{rel}</span>;
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
-      <div className="text-sm text-foreground">{children}</div>
-    </div>
-  );
-}
-
 // ── Detail drawer ────────────────────────────────────────────────────────────
 
 function EntryDrawer({ entryId, onClose }: { entryId: string | null; onClose: () => void }) {
-  const { data: entry, isLoading } = useLeadInboxEntry(entryId);
-  const retry = useRetryLeadInboxEntry();
-  const canRetry = useCan("settings.integrations.edit");
-
-  const payload = React.useMemo(() => (entry ? formatPayload(entry.payload) : null), [entry]);
-
-  const copy = async () => {
-    if (!payload) return;
-    try { await navigator.clipboard.writeText(payload.text); toast.success("Payload copied."); }
-    catch { toast.error("Could not copy to the clipboard."); }
-  };
+  const { data: entry } = useLeadInboxEntry(entryId);
 
   return (
     <AnimatePresence>
@@ -106,75 +61,9 @@ function EntryDrawer({ entryId, onClose }: { entryId: string | null; onClose: ()
               </div>
               <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></Button>
             </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {isLoading && <p className="text-sm text-muted-foreground">Loading the payload…</p>}
-
-              {entry && (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Status"><StatusPill status={entry.status} /></Field>
-                    <Field label="Received">{formatDate(entry.receivedAt)}</Field>
-                    <Field label="Provider reference">
-                      <span className="font-mono text-xs break-all">{entry.externalId || "—"}</span>
-                    </Field>
-                    <Field label="Attempts">{entry.attempts}</Field>
-                    {entry.processedAt && <Field label="Processed">{formatDate(entry.processedAt)}</Field>}
-                    {entry.nextAttemptAt && <Field label="Next attempt">{formatDate(entry.nextAttemptAt)}</Field>}
-                  </div>
-
-                  {entry.createdLeadId && (
-                    <div className="rounded-lg border border-success/30 bg-success/5 p-3">
-                      <p className="text-xs font-semibold text-success uppercase tracking-wide mb-1">
-                        {entry.status === "duplicate" ? "Matched an existing lead" : "Created lead"}
-                      </p>
-                      <Link to="/crm/leads" className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary">
-                        {entry.createdLeadName || "View in Leads"}
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Link>
-                    </div>
-                  )}
-
-                  {entry.lastError && (
-                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                      <p className="text-xs font-semibold text-destructive uppercase tracking-wide mb-1">Error</p>
-                      <p className="text-sm text-foreground break-words">{entry.lastError}</p>
-                    </div>
-                  )}
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        Raw payload
-                        {payload && !payload.isJson && (
-                          <span className="normal-case font-normal"> (not JSON — shown as sent)</span>
-                        )}
-                      </p>
-                      <Button variant="ghost" size="sm" onClick={copy} className="h-7 gap-1.5 text-xs">
-                        <Copy className="h-3.5 w-3.5" /> Copy
-                      </Button>
-                    </div>
-                    <pre dir="ltr"
-                      className="text-[11px] leading-relaxed font-mono bg-muted/50 border border-border rounded-lg p-3 overflow-x-auto max-h-[45vh] whitespace-pre-wrap break-words text-start">
-                      {payload?.text}
-                    </pre>
-                  </div>
-                </>
-              )}
+            <div className="flex-1 overflow-y-auto p-5">
+              <InboxEntryDetails entryId={entryId} onRetried={onClose} />
             </div>
-
-            {entry?.status === "failed" && canRetry && (
-              <div className="p-4 border-t border-border flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  The payload is stored, so this can be reprocessed without asking the portal to resend.
-                </p>
-                <Button size="sm" disabled={retry.isPending}
-                  onClick={() => retry.mutate(entry.id, { onSuccess: onClose })}>
-                  <RefreshCw className={cn("h-3.5 w-3.5 me-1.5", retry.isPending && "animate-spin")} />
-                  Retry
-                </Button>
-              </div>
-            )}
           </motion.div>
         </>
       )}

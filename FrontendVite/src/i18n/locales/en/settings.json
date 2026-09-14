@@ -323,7 +323,8 @@
       "failed": "failed",
       "processed": "processed",
       "duplicate": "duplicate",
-      "pending": "pending"
+      "pending": "pending",
+      "retrying": "retrying"
     },
     "card": {
       "comingSoon": "Coming soon",
@@ -503,7 +504,10 @@
     },
     "errors": {
       "empty": "No inbound payloads recorded yet.",
-      "attempts": "{{n}} attempt(s) · {{when}}"
+      "attempts": "{{n}} attempt(s) · {{when}}",
+      "openInbox": "Open full Lead Inbox →",
+      "emptyClean": "No failed deliveries. Everything received has been processed.",
+      "note": "Failures only. Every delivery, successful ones included, is in the Lead Inbox."
     },
     "meta": {
       "title": "Select Facebook Pages & Forms",
