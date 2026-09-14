@@ -1,4 +1,5 @@
-import { View } from "react-native";
+import { useState } from "react";
+import { Modal, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -8,6 +9,8 @@ import LoginScreen from "@/screens/LoginScreen";
 import TwoFactorScreen from "@/screens/TwoFactorScreen";
 import HomeScreen from "@/screens/HomeScreen";
 import MoreScreen from "@/screens/MoreScreen";
+import AiAssistantScreen from "@/screens/AiAssistantScreen";
+import { FloatingAiButton } from "@/components/ai/FloatingAiButton";
 import { getTabLayout } from "@/navigation/tab-config";
 import { LoadingState } from "@/components/ui";
 import { buildNavTheme, buildStackScreenOptions, fontSize, fontWeight, useAppTheme } from "@/theme";
@@ -61,6 +64,22 @@ function AppTabs() {
   );
 }
 
+/** The tab navigator plus the assistant's floating entry point -- kept as one sibling of
+ *  AuthStack.Navigator (not folded into AppTabs) so the assistant's own Modal state doesn't
+ *  re-render the whole tab tree on every open/close. */
+function AuthenticatedApp() {
+  const [aiOpen, setAiOpen] = useState(false);
+  return (
+    <View style={{ flex: 1 }}>
+      <AppTabs />
+      <FloatingAiButton onPress={() => setAiOpen(true)} />
+      <Modal visible={aiOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setAiOpen(false)}>
+        <AiAssistantScreen onClose={() => setAiOpen(false)} />
+      </Modal>
+    </View>
+  );
+}
+
 export default function RootNavigator() {
   const { colors, isDark } = useAppTheme();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
@@ -77,7 +96,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer theme={buildNavTheme(colors, isDark)}>
       {isAuthenticated ? (
-        <AppTabs />
+        <AuthenticatedApp />
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false }}>
           <AuthStack.Screen name="Login" component={LoginScreen} />

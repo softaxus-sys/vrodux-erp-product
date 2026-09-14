@@ -198,6 +198,32 @@ files) so the mobile client reads as the same product, not a bare-bones prototyp
 claims, refresh-token rotation with a mutex (dedupes concurrent 401s), secure token storage,
 logout/revoke.
 
+**AI Assistant** — chat + confirm/reject flow, ported from `ai-assistant-panel.tsx` (the web app's
+floating panel, not the full `/ai-assistant` page with its settings/Telegram/voice/automations
+modals — those are a separate, lower-priority follow-up). Same `/api/ai/*` REST contract (no
+streaming to replicate):
+- `screens/AiAssistantScreen.tsx` — message list, agent picker (pill row, sourced from
+  `GET /agents`), suggested prompts on a fresh chat, persisted-history seeding
+  (`GET /conversation`) so reopening shows what you already chatted, clear-chat with a confirm
+  step (`DELETE /conversation`).
+- **Pending-action confirm/reject** mirrors the web panel exactly: an assistant reply carrying
+  `pendingAction` renders as an amber card naming the prettified action (`crm_create_lead` →
+  "create lead") plus every argument as a reviewable `{label, value}` row — a confirmation you
+  cannot inspect is not a safeguard. Confirm calls `POST /confirm`; Reject clears it client-side
+  with no backend call, same as web.
+- **Reachable from anywhere, not a tab.** `components/ai/FloatingAiButton.tsx` renders once at the
+  root (`RootNavigator.tsx`'s `AuthenticatedApp`), floating over every authenticated screen
+  regardless of which tab/stack is active, opening `AiAssistantScreen` in a `Modal`. Deliberately
+  not a tab-bar entry: tabs are the scarce, permission-gated resource (`tab-config.ts` caps the bar
+  at 5), while the assistant is "always-on" for every authenticated user (mirrors web's
+  `hasModuleAccess` step 2 — `ai-assistant` bypasses the tenant-module/permission check entirely).
+  No client-side permission gate on the screen itself; the backend still enforces per-tool
+  permissions on every write the assistant attempts (CLAUDE.md Module 49), so exposing the chat
+  screen to everyone is safe — asking is never gated, only *doing* is, same as on web.
+- **Explicitly out of scope for this pass**: the settings modal (provider/model/tier/fallback
+  config), Telegram linking, the voice agent, and scheduled automations — all real web features,
+  all separable follow-ups once the core chat flow is confirmed working on-device.
+
 **CRM (leads + pipeline)** — complete for this pass:
 - Leads: search, status filters, hottest-first sort (score desc), infinite scroll, pull-to-refresh,
   call/WhatsApp/email quick actions, guarded status transitions, activity logging + feed.
@@ -317,11 +343,28 @@ nine icons in a row (not a comfortable phone UI past ~5).
 
 ## Next module
 
-Push notifications are the natural next piece — there's a real "something is
-waiting on you" surface (the approvals inbox) that a push landing on it would make far more
-useful, but no APNs/FCM integration exists anywhere in the backend yet. See the phased rollout
-plan discussed in-repo for what else is queued (dashboard KPIs, EAS build config, per-device
-refresh tokens, barcode scanning for Inventory).
+**Full ERP module parity is the active program** — the web app has ~25 modules across 18 nav
+groups (`FrontendVite/src/config/navigation.ts`); mobile currently covers 7 of them, several only
+partially (Finance = invoices/expenses only, no accounts/banking/budgets/journals/GL/tax; HR =
+self-service only, no employee directory/departments/recruitment/performance). No backend work is
+needed to gate whatever gets built next — the JWT already carries the tenant's full module list
+and effective permission-key set (same claims the web app reads), so extending RBAC to a new
+module is purely "add the permission constants + wire `hasModuleAccess`/`hasPermission` into the
+new screens," exactly like every module already here does. Queued, roughly in priority order:
+
+1. Full HR (employees, departments, recruitment, performance) + full Finance (accounts, banking,
+   budgets, journals, general ledger, tax, recurring invoices)
+2. Project Management (Kanban)
+3. POS (retail + restaurant — large, will likely split further)
+4. Visa Services, Real Estate
+5. Reports, File Manager
+6. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+   mobile-first surface
+7. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+
+Also still queued from before: push notifications (a real "something is waiting on you" surface
+already exists — the approvals inbox — but no APNs/FCM integration exists anywhere in the backend
+yet), dashboard KPIs, EAS build config, per-device refresh tokens, barcode scanning for Inventory.
 
 ## Conventions carried over from FrontendVite
 
