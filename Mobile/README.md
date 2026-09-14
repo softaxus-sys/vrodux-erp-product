@@ -509,6 +509,16 @@ nine icons in a row (not a comfortable phone UI past ~5).
   nothing in the bar visually shows as "active" while you're on it (a well-known limitation of the
   hidden-tab-via-sibling pattern, not fixable without a drawer or a custom tab bar -- acceptable
   for now, flag it if it reads as broken rather than just quiet).
+- **Bug fixed (was live for one on-device test round)**: `AppTabs()` originally only rendered
+  `direct.map(...)` as `Tabs.Screen` components -- `overflow` tabs were listed as tappable
+  `MenuCard`s in `MoreScreen.tsx` but were never registered as actual routes anywhere in the
+  mounted navigator tree. Tapping one called `navigation.navigate(tab.key)` for a route that
+  didn't exist, crashing with "The action 'NAVIGATE' with payload ... was not handled by any
+  navigator" -- for every tab that happened to land in `overflow` (most of them, once a session
+  holds several module permissions), including POS (last in `MODULE_TAB_ORDER`, so usually the
+  first to overflow). Fixed by registering `[...direct, ...overflow]` as real `Tabs.Screen`
+  routes and making only the **bar button** conditional (`tabBarButton: () => null` for overflow
+  tabs) -- the bar still shows just the direct set, every tab stays reachable via "More".
 
 ## Next module
 
@@ -537,8 +547,6 @@ the same way retail POS just got). Queued next, roughly in priority order:
    mobile-first surface
 5. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
 6. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
-   rather than a literal port of the web's wide tables)
-7. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface
