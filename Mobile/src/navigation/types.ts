@@ -21,6 +21,11 @@ export type HrStackParamList = {
   EmployeesList: undefined;
   EmployeeDetail: { employeeId: string; employeeName: string };
   DepartmentsList: undefined;
+  JobPostingsList: undefined;
+  JobPostingDetail: { jobId: string; jobTitle: string };
+  ApplicantDetail: { applicantId: string; applicantName: string };
+  PerformanceReviewsList: undefined;
+  PerformanceReviewDetail: { reviewId: string; employeeName: string };
 };
 
 export type InventoryStackParamList = {

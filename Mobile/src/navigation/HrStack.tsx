@@ -6,6 +6,11 @@ import PayslipsScreen from "@/screens/hr/PayslipsScreen";
 import EmployeesListScreen from "@/screens/hr/EmployeesListScreen";
 import EmployeeDetailScreen from "@/screens/hr/EmployeeDetailScreen";
 import DepartmentsListScreen from "@/screens/hr/DepartmentsListScreen";
+import JobPostingsListScreen from "@/screens/hr/JobPostingsListScreen";
+import JobPostingDetailScreen from "@/screens/hr/JobPostingDetailScreen";
+import ApplicantDetailScreen from "@/screens/hr/ApplicantDetailScreen";
+import PerformanceReviewsListScreen from "@/screens/hr/PerformanceReviewsListScreen";
+import PerformanceReviewDetailScreen from "@/screens/hr/PerformanceReviewDetailScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { HrStackParamList } from "@/navigation/types";
 
@@ -23,6 +28,11 @@ export default function HrStack() {
       <Stack.Screen name="EmployeesList" component={EmployeesListScreen} options={{ headerTitle: "Employees" }} />
       <Stack.Screen name="EmployeeDetail" component={EmployeeDetailScreen} />
       <Stack.Screen name="DepartmentsList" component={DepartmentsListScreen} options={{ headerTitle: "Departments" }} />
+      <Stack.Screen name="JobPostingsList" component={JobPostingsListScreen} options={{ headerTitle: "Job Postings" }} />
+      <Stack.Screen name="JobPostingDetail" component={JobPostingDetailScreen} />
+      <Stack.Screen name="ApplicantDetail" component={ApplicantDetailScreen} />
+      <Stack.Screen name="PerformanceReviewsList" component={PerformanceReviewsListScreen} options={{ headerTitle: "Performance" }} />
+      <Stack.Screen name="PerformanceReviewDetail" component={PerformanceReviewDetailScreen} />
     </Stack.Navigator>
   );
 }

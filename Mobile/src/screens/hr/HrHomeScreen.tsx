@@ -6,6 +6,8 @@ import { useAttendanceToday, useCheckIn, useCheckOut, useMyProfile } from "@/hoo
 import { hasModuleAccess, hasPermission } from "@/store/auth.store";
 import { HR_SELF_ATTENDANCE, HR_SELF_LEAVE, HR_SELF_PAYSLIP, HR_SELF_VIEW } from "@/lib/hr.api";
 import { HR_EMPLOYEES_VIEW } from "@/lib/hr-directory.api";
+import { HR_RECRUITMENT_VIEW } from "@/lib/hr-recruitment.api";
+import { HR_PERFORMANCE_VIEW } from "@/lib/hr-performance.api";
 import { ApiError } from "@/lib/api-client";
 import { NOT_LINKED_ERROR_CODE } from "@/types/hr";
 import { Badge, Button, Card, LoadingState, MenuCard } from "@/components/ui";
@@ -25,6 +27,8 @@ export default function HrHomeScreen({ navigation }: Props) {
   // a manager can hold this without their own login being linked to an employee record, and
   // must not lose it just because the self-service section below can't load.
   const canViewEmployees = hasModuleAccess("hr") && hasPermission(HR_EMPLOYEES_VIEW);
+  const canRecruitment = hasModuleAccess("hr") && hasPermission(HR_RECRUITMENT_VIEW);
+  const canPerformance = hasModuleAccess("hr") && hasPermission(HR_PERFORMANCE_VIEW);
 
   const profile = useMyProfile();
   const today = useAttendanceToday();
@@ -34,7 +38,7 @@ export default function HrHomeScreen({ navigation }: Props) {
   const notLinked =
     profile.isError && profile.error instanceof ApiError && profile.error.errorCode === NOT_LINKED_ERROR_CODE;
 
-  if (notLinked && !canViewEmployees) {
+  if (notLinked && !canViewEmployees && !canRecruitment && !canPerformance) {
     return (
       <View style={styles.centered}>
         <View style={styles.notLinkedIcon}>
@@ -135,6 +139,18 @@ export default function HrHomeScreen({ navigation }: Props) {
           <Text style={styles.sectionLabel}>Directory</Text>
           <MenuCard icon="users" title="Employees" subtitle="Company-wide directory" tint={colors.primary} onPress={() => navigation.navigate("EmployeesList")} />
           <MenuCard icon="briefcase" title="Departments" subtitle="Teams and headcount" tint={colors.mutedForeground} onPress={() => navigation.navigate("DepartmentsList")} />
+        </View>
+      ) : null}
+
+      {canRecruitment || canPerformance ? (
+        <View style={styles.menu}>
+          <Text style={styles.sectionLabel}>Management</Text>
+          {canRecruitment ? (
+            <MenuCard icon="user-plus" title="Recruitment" subtitle="Job postings and applicants" tint={colors.success} onPress={() => navigation.navigate("JobPostingsList")} />
+          ) : null}
+          {canPerformance ? (
+            <MenuCard icon="award" title="Performance" subtitle="Reviews and goals" tint={colors.warning} onPress={() => navigation.navigate("PerformanceReviewsList")} />
+          ) : null}
         </View>
       ) : null}
     </ScrollView>

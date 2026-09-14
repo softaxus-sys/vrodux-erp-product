@@ -281,6 +281,35 @@ neither independently:
   balance sub-fetches on the detail screen (each is its own endpoint on web; skipped here to keep
   the detail screen to one request), document upload/list.
 
+**HR recruitment (job postings + applicants)** — gated `hr.recruitment.*`, independent of both
+self-service and the directory above:
+- Job postings: paginated list (real `page`/`pageSize`/`status` query params — the web app
+  over-fetches with `pageSize=500` and filters client-side despite the backend supporting real
+  paging; mobile uses the real thing to avoid pulling a tenant's full history over a mobile
+  connection, here and in Performance below) + status filter chips (defaults to Open) + summary
+  stats → detail screen (description/requirements/responsibilities/salary range/headcount) with
+  status-transition buttons (draft→open→on_hold/closed) and the job's own applicant list.
+- Applicant detail: contact quick actions, a visual pipeline (applied→screening→interview→
+  offer→hired) with "Move to next stage" / "Reject" — mirrors the web drawer's own two actions
+  rather than exposing the backend's "jump to any stage" flexibility.
+- **Backend DTOs carry `headcount`/`responsibilities`; the web app's own TypeScript type silently
+  drops both** (confirmed by reading the backend record directly, not just the frontend client) —
+  mobile's `JobPostingDto` includes them rather than copying that gap forward.
+- **Explicitly out of scope**: job/applicant create, resume viewing (would need an authenticated
+  file fetch + a viewer — flagged, not built; a "resume on file" badge is shown instead), delete.
+
+**HR performance (reviews + goals)** — gated `hr.performance.*`:
+- Reviews: paginated list + status filter chips + summary stats (incl. average rating) → detail
+  screen with Start Review (pending→in_progress) and Complete Review (five 1–5 star pickers —
+  overall/technical/communication/teamwork/leadership — plus strengths/improvements text, mirrors
+  the web drawer's own fields exactly) flows.
+- Goals: inline progress (±10% steppers) and status editing per goal, with a progress bar. **Goal
+  create/delete are explicitly out of scope** — only `updateGoal` is wired up; adding/removing
+  goals isn't built.
+- **No seeded `hr.performance.delete` permission exists** (confirmed in `PerformanceController.cs`'s
+  own code comment) — delete and every goal action ride on `.edit`, mirrored in
+  `hr-performance.api.ts`'s constant naming.
+
 **Approvals inbox** — complete for this pass. One screen, four independent sources, each gated on
 its own module+permission so a session only ever queries what it can act on:
 - **HR leave requests** (`hr.leaves.approve`) — `GET /api/hr/leaves?status=pending`, approve /
@@ -424,17 +453,20 @@ set (same claims the web app reads), so extending RBAC to a new module is purely
 permission constants + wire `hasModuleAccess`/`hasPermission` into the new screens," exactly like
 every module already here does. Queued, roughly in priority order:
 
-1. **Rest of HR**: recruitment (job postings/candidates), performance (reviews) — employees +
-   departments are done (see "What's built").
-2. **Rest of Finance**: budgets, journals, general ledger, tax/VAT, recurring invoices — accounts
-   + banking are done.
-3. Project Management (Kanban)
-4. POS (retail + restaurant — large, will likely split further)
-5. Visa Services, Real Estate
-6. Reports, File Manager
-7. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+**HR and Finance are both done for this pass** (employees/departments/recruitment/performance;
+invoices/expenses/accounts/banking/budgets/journals/tax/recurring invoices) except General Ledger
++ Financial Statements, deliberately deferred — see the complexity note under "Finance" above.
+Queued next, roughly in priority order:
+
+1. Project Management (Kanban)
+2. POS (retail + restaurant — large, will likely split further)
+3. Visa Services, Real Estate
+4. Reports, File Manager
+5. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
    mobile-first surface
-8. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+6. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+7. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+   rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface
 already exists — the approvals inbox — but no APNs/FCM integration exists anywhere in the backend
