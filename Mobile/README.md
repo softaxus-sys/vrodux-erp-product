@@ -143,18 +143,54 @@ files) so the mobile client reads as the same product, not a bare-bones prototyp
   on every `Stack.Navigator` give a consistent white header + brand-blue back button/title across
   every stack, instead of each screen/stack picking its own (or none). Tab bar icons + active/
   inactive tint colors are set once in `RootNavigator.tsx`.
-- **Dark mode is out of scope for this pass** -- the web app supports it (CSS custom properties +
-  a `.dark` class), but the token file only defines the light palette. Adding dark mode later means
-  defining a second token set and wiring `useColorScheme()`, not restructuring anything -- every
-  screen already reads colors through `theme/colors.ts`, never a hardcoded hex.
+- **Dark mode** -- `theme/colors.ts` exports `lightColors` + `darkColors` (the latter converted from
+  `FrontendVite/src/index.css`'s `.dark` HSL block the same way the light palette was, not invented
+  separately). `theme/theme-context.tsx`'s `AppThemeProvider` (wraps the whole tree in `App.tsx`)
+  reads `useColorScheme()` and exposes the active palette via `useAppTheme()`.
+  - **Why every screen needed touching, not just the token file**: `StyleSheet.create({...})` is
+    evaluated once, the instant its module is first imported -- a module-level `const styles = ...`
+    that reads `colors.foreground` freezes on whichever scheme was active at that first import and
+    never updates again. So every screen's trailing style block is now a `createStyles(colors: AppColors)`
+    factory, called at render time via `const styles = useMemo(() => createStyles(colors), [colors])`
+    inside each component (including small helper components defined alongside a screen -- each is
+    its own React component, invoked via JSX, so it can safely call its own hooks).
+  - **Why `useContext` per-component, not one root-level re-render**: relying on a single top-level
+    `useColorScheme()` call to cascade a re-render down to every screen would depend on React
+    Navigation never memoizing a screen wrapper in between -- a real risk, and not one worth betting
+    a whole feature on. `useContext` subscriptions bypass memoization on components in between
+    entirely, so each screen/helper reads the *current* palette correctly regardless.
+  - Navigation chrome (header, tab bar, `<NavigationContainer theme={...}>`) is themed the same way --
+    `theme/navigation.ts`'s `buildNavTheme(colors, isDark)` / `buildStackScreenOptions(colors)` are
+    functions now, called from `RootNavigator.tsx` and every `*Stack.tsx` via `useAppTheme()`. The
+    status bar (`expo-status-bar`) flips `light`/`dark` icon style with it.
+  - System-driven only, matching the web app's default -- no in-app light/dark override toggle (the
+    web app's is a per-user backend-synced setting; mobile has no Settings screen to host one yet,
+    and per-tenant/per-user appearance sync is its own scope, not attempted here).
 - **Per-tenant palette override is also out of scope** -- the web app's `ThemeProvider` can inject
   a different primary color per tenant; mobile ships one fixed brand look. Flagged, not built.
-- **No app icon / splash screen work in this pass.** `app.json` still points at the default Expo
-  scaffold icons (`assets/icon.png` etc.) -- deliberately not replaced, because testing happens
-  through Expo Go, which always shows Expo Go's own icon; a custom app icon only becomes visible
-  once an EAS build exists (still not set up -- see "Next module"). When that build config lands,
-  rasterize `FrontendVite/public/vrodux-logo.png` / `favicon.svg` into the icon/splash/adaptive-icon
-  slots `app.json` already declares.
+- **App icon + splash screen** are branded now, generated from the same source as
+  `FrontendVite/public/favicon.svg` (the rounded #2563EB→#1E3A8A tile + white "V" path, not
+  text -- no webfont is guaranteed wherever native tooling rasterizes these). Every slot
+  `app.json` declares is real content, not Expo scaffold defaults: `icon.png` (1024, opaque, no
+  baked corner-rounding -- iOS applies its own mask), the three Android adaptive-icon layers
+  (`android-icon-foreground.png`/`-background.png`/`-monochrome.png`, the V sized to stay inside
+  the guaranteed-visible 61%-diameter safe circle under even a full-circle launcher mask --
+  verified by compositing + masking the layers, not eyeballed), `splash-icon.png`, and
+  `favicon.png` for the web export target.
+  - **Splash is wired through `expo-splash-screen`** (was missing entirely -- `splash-icon.png`
+    existed in `assets/` but nothing installed or referenced it, so the splash shown was whatever
+    Expo Go/the bare native default was). Its config plugin's `dark` variant reuses the exact same
+    image (the brand mark doesn't invert with theme -- see `BrandMark.tsx`) against
+    `backgroundColor: "#F8FAFC"` / dark `"#020817"`, matching `theme/colors.ts`'s
+    `background`/`darkColors.background` exactly, so the splash hands off to `LoginScreen`
+    (same background, same `BrandMark`) with no visible seam.
+  - **Still only visible in an EAS build, not Expo Go** -- Expo Go always shows its own icon and
+    (for the splash) largely its own loading UI regardless of app.json; these assets take effect
+    once EAS build config exists (see "Next module"). Config-validated via `npx expo config` /
+    `npx expo-doctor` in the meantime, not visually confirmed on a device.
+  - Regenerated with a small local Pillow/numpy script (not committed -- a one-off asset build,
+    not part of the app) rather than a design tool, so every asset stays byte-for-byte derived
+    from `favicon.svg`'s exact path coordinates and gradient stops.
 
 ## What's built
 
@@ -250,16 +286,38 @@ full section/item document editor:
 - **Explicitly out of scope**: invoice creation/editing, receipt-photo attach on an expense
   (would need `expo-image-picker`, a new dependency — flagged, not added), PDF download/view.
 
+## Tab bar overflow ("More" tab)
+
+There are up to eight module tabs (Leads/Pipeline/HR/Approvals/Inventory/Sales/Purchase/Finance)
+behind Dashboard, each independently gated -- a given session usually sees far fewer, but nothing
+capped how many could render directly, and React Navigation's bottom-tabs will happily lay out
+nine icons in a row (not a comfortable phone UI past ~5).
+
+- `navigation/tab-config.ts` (new) -- single source of truth for every module tab: its icon,
+  label, component, permission gate, and priority order. Replaces the permission-check block that
+  used to live inline in `RootNavigator.tsx` (now just `getTabLayout()`), so the tab bar and the
+  "More" screen can't drift out of sync with each other.
+- `getTabLayout()` splits a session's *available* module tabs (already permission-filtered) into
+  `direct` (shown in the bar, alongside Dashboard) and `overflow`. Only kicks in once there'd
+  actually be more than 4 module tabs -- a session with few permissions renders exactly as before,
+  nothing added. Once there's overflow, the bar always shows Dashboard + 3 direct tabs + one
+  "More" tab (5 total), never more, regardless of how many modules the session ends up with.
+- `screens/MoreScreen.tsx` (new) -- a plain `MenuCard` list of whatever got bumped, each tapping
+  through to that tab by name (`navigation.navigate(tab.key)`) exactly like tapping its own
+  tab-bar icon would have. No dedicated "back to More" button on the screens it opens: the "More"
+  tab is always in the bar, and since each destination is a sibling tab (not nested inside
+  MoreScreen's own stack), tapping "More" again always shows this same menu, unchanged.
+- Deliberately **not** a drawer nav -- every existing stack/screen/route stays exactly as
+  registered; only which tabs get a visible bar button changed. Lower risk than restructuring the
+  whole navigation shape for a problem that's really just "too many icons in one row."
+- One known cosmetic gap: a module tab reached via "More" has no tab-bar icon of its own, so
+  nothing in the bar visually shows as "active" while you're on it (a well-known limitation of the
+  hidden-tab-via-sibling pattern, not fixable without a drawer or a custom tab bar -- acceptable
+  for now, flag it if it reads as broken rather than just quiet).
+
 ## Next module
 
-**The bottom tab bar is now nine tabs** (Dashboard/Leads/Pipeline/HR/Approvals/Inventory/Sales/
-Purchase/Finance, each still individually gated so a given session usually sees far fewer) —
-React Navigation's bottom-tabs will render that many, but it's not a comfortable phone UI past
-~5. Worth revisiting before this goes further: either a "More" tab that houses the long tail, or
-switching to a drawer nav. Flagged here rather than fixed opportunistically, since it touches
-every tab's entry in `RootNavigator.tsx` at once and deserves its own pass.
-
-Otherwise, push notifications are still the natural next piece — there's a real "something is
+Push notifications are the natural next piece — there's a real "something is
 waiting on you" surface (the approvals inbox) that a push landing on it would make far more
 useful, but no APNs/FCM integration exists anywhere in the backend yet. See the phased rollout
 plan discussed in-repo for what else is queued (dashboard KPIs, EAS build config, per-device
