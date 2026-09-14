@@ -15,6 +15,7 @@ import { SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW } from "@/lib/sales.api";
 import { PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW } from "@/lib/purchase.api";
 import { FINANCE_EXPENSES_VIEW, FINANCE_INVOICING_VIEW } from "@/lib/finance.api";
 import { PM_PROJECTS_VIEW } from "@/lib/project-management.api";
+import { POS_REPORTS_VIEW, POS_SESSIONS_VIEW, POS_TRANSACTIONS_VIEW } from "@/lib/pos.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
@@ -24,6 +25,7 @@ import SalesStack from "@/navigation/SalesStack";
 import PurchaseStack from "@/navigation/PurchaseStack";
 import FinanceStack from "@/navigation/FinanceStack";
 import ProjectManagementStack from "@/navigation/ProjectManagementStack";
+import POSStack from "@/navigation/POSStack";
 import type { AppTabParamList } from "@/navigation/types";
 
 export type ModuleTabKey = Exclude<keyof AppTabParamList, "Dashboard" | "More">;
@@ -57,6 +59,7 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Purchase", label: "Purchase", subtitle: "Purchase orders and vendors", icon: "shopping-cart", component: PurchaseStack, isStack: true },
   { key: "Inventory", label: "Inventory", subtitle: "Product and stock lookup", icon: "box", component: InventoryStack, isStack: true },
   { key: "Finance", label: "Finance", subtitle: "Invoices and expenses", icon: "dollar-sign", component: FinanceStack, isStack: true },
+  { key: "POS", label: "POS", subtitle: "Shift status and transactions", icon: "monitor", component: POSStack, isStack: true },
 ];
 
 /** Static per session -- permission/module claims only change on next login/refresh, same as
@@ -94,6 +97,10 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       // The project LIST itself is further scoped server-side to the caller's own memberships
       // (ProjectAccessGuard.cs) -- this only decides whether the tab is worth showing at all.
       return hasModuleAccess("project-management") && hasPermission(PM_PROJECTS_VIEW);
+    case "POS":
+      // Any one of the three read keys is enough -- the screens inside gate their own sections
+      // (dashboard needs .reports/.transactions, shift detail needs .sessions, etc).
+      return hasModuleAccess("pos") && hasPermission(POS_SESSIONS_VIEW, POS_TRANSACTIONS_VIEW, POS_REPORTS_VIEW);
   }
 }
 

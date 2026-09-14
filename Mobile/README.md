@@ -453,6 +453,34 @@ strip in the header:
   issue inline input the web board has at the bottom of each column, CSV/PDF export from the
   Issues list.
 
+**POS — deliberately scoped as "manager visibility," not a checkout terminal.** Every other
+module in this app is a mobile-appropriate *subset* of its web equivalent; POS on web is a full
+point-of-sale terminal (cash drawer, receipt printer, barcode scanner, live checkout), and there
+is no sensible mobile subset of *that* — a phone isn't a cash drawer. Before building anything,
+checked how this codebase already answers the analogous question: CLAUDE.md's Module 49 (AI
+Assistant) explicitly excludes POS sale/void/refund/session-open/close from the assistant's
+toolset with the reasoning **"those move cash in a physical drawer against an open shift and
+belong at the terminal."** That reasoning applies identically here, so mobile POS is built as the
+thing a phone is actually good for: checking status on the go.
+- Home screen: today's dashboard (total sales, transaction count, payment-method mix — `GET
+  /transactions/dashboard`, which is itself terminal-timezone-aware: it sends the device's own
+  local date + UTC offset, mirroring the web client's exact calculation, so "today" means the
+  viewer's own day rather than UTC's) + a live list of every currently-open shift (`GET
+  /sessions/active`, auto-refreshed every 60s) → shift detail (opening/expected/closing cash,
+  variance, cash pay-in/pay-out movements, that shift's transactions).
+- All transactions: paginated, searchable, filterable by type (Sale/Refund/Void) → transaction
+  detail (line items, totals, payments, change given).
+- Gated on any of `pos.sessions.view` / `pos.transactions.view` / `pos.reports.view` — confirmed
+  these are genuinely separate from the void/refund/session-management keys
+  (`pos.transactions.void/refund/discount`, `pos.sessions.create/approve`), so "read-only manager
+  visibility" is an access-control boundary the backend already draws, not one invented for mobile.
+- **Deliberately not built, on purpose, not just "not yet"**: any checkout flow (cart, barcode
+  scan, take payment), opening/closing/suspending a shift, voiding or refunding a transaction,
+  cash pay-in/pay-out entry, receipt printing. All of these need real hardware (scanner, printer,
+  cash drawer trigger) a phone doesn't have anyway, on top of the "shouldn't happen off the
+  terminal" reasoning above. POS Customers (a distinct resource from CRM customers — loyalty
+  points, wallet balance, house-account credit) is a plausible small follow-up flagged, not built.
+
 ## Tab bar overflow ("More" tab)
 
 There are up to eight module tabs (Leads/Pipeline/HR/Approvals/Inventory/Sales/Purchase/Finance)
@@ -494,10 +522,15 @@ every module already here does.
 **Done for this pass**: HR (employees/departments/recruitment/performance), Finance (invoices/
 expenses/accounts/banking/budgets/journals/tax/recurring invoices — General Ledger + Financial
 Statements deliberately deferred, see the complexity note above), Project Management (Kanban —
-project/issue/label create, delete, and epic linking deliberately deferred, see above). Queued
-next, roughly in priority order:
+project/issue/label create, delete, and epic linking deliberately deferred, see above), POS
+(shift status + transaction visibility — deliberately not a checkout terminal, see above; the
+**restaurant** side of POS, which has its own separate order/table/kitchen-display model
+entirely distinct from the retail transaction data covered here, is not covered by this pass at
+all — it's effectively still queued, folded into item 1 below since it needs its own scoping pass
+the same way retail POS just got). Queued next, roughly in priority order:
 
-1. POS (retail + restaurant — large, will likely split further)
+1. Restaurant POS (own order/table/kitchen-display model — needs the same "what does a phone
+   actually add here" scoping pass retail POS just went through, not a checkout-terminal port)
 2. Visa Services, Real Estate
 3. Reports, File Manager
 4. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a

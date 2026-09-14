@@ -81,6 +81,13 @@ export type ProjectManagementStackParamList = {
   ProjectMembers: { projectId: string; projectName: string };
 };
 
+export type POSStackParamList = {
+  POSHome: undefined;
+  POSSessionDetail: { sessionId: string; registerId: string };
+  POSTransactionsList: undefined;
+  POSTransactionDetail: { transactionId: string; transactionNumber: string };
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
@@ -92,6 +99,7 @@ export type AppTabParamList = {
   Purchase: undefined;
   Finance: undefined;
   Projects: undefined;
+  POS: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;
