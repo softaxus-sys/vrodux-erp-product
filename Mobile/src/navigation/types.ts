@@ -54,6 +54,16 @@ export type FinanceStackParamList = {
   AccountsList: undefined;
   BankAccountsList: undefined;
   BankAccountDetail: { accountId: string; accountName: string };
+  BudgetsList: undefined;
+  JournalsList: undefined;
+  // No GET /{id} exists for either -- the list DTO already carries everything the detail screen
+  // shows (journals embed lines[]; recurring invoices embed lines[]), so the whole row is passed
+  // through nav params instead of a second, nonexistent, fetch.
+  JournalDetail: { journal: import("@/types/finance-ledger").JournalEntryDto };
+  TaxPeriodsList: undefined;
+  TaxPeriodDetail: { period: string; periodLabel: string };
+  RecurringInvoicesList: undefined;
+  RecurringInvoiceDetail: { recurring: import("@/types/finance-ledger").RecurringInvoiceDto };
 };
 
 export type AppTabParamList = {

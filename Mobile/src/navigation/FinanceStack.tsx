@@ -8,6 +8,13 @@ import NewExpenseScreen from "@/screens/finance/NewExpenseScreen";
 import AccountsListScreen from "@/screens/finance/AccountsListScreen";
 import BankAccountsListScreen from "@/screens/finance/BankAccountsListScreen";
 import BankAccountDetailScreen from "@/screens/finance/BankAccountDetailScreen";
+import BudgetsListScreen from "@/screens/finance/BudgetsListScreen";
+import JournalsListScreen from "@/screens/finance/JournalsListScreen";
+import JournalDetailScreen from "@/screens/finance/JournalDetailScreen";
+import TaxPeriodsListScreen from "@/screens/finance/TaxPeriodsListScreen";
+import TaxPeriodDetailScreen from "@/screens/finance/TaxPeriodDetailScreen";
+import RecurringInvoicesListScreen from "@/screens/finance/RecurringInvoicesListScreen";
+import RecurringInvoiceDetailScreen from "@/screens/finance/RecurringInvoiceDetailScreen";
 import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
@@ -27,6 +34,13 @@ export default function FinanceStack() {
       <Stack.Screen name="AccountsList" component={AccountsListScreen} options={{ headerTitle: "Chart of Accounts" }} />
       <Stack.Screen name="BankAccountsList" component={BankAccountsListScreen} options={{ headerTitle: "Bank Accounts" }} />
       <Stack.Screen name="BankAccountDetail" component={BankAccountDetailScreen} />
+      <Stack.Screen name="BudgetsList" component={BudgetsListScreen} options={{ headerTitle: "Budgets" }} />
+      <Stack.Screen name="JournalsList" component={JournalsListScreen} options={{ headerTitle: "Journals" }} />
+      <Stack.Screen name="JournalDetail" component={JournalDetailScreen} />
+      <Stack.Screen name="TaxPeriodsList" component={TaxPeriodsListScreen} options={{ headerTitle: "VAT / Tax" }} />
+      <Stack.Screen name="TaxPeriodDetail" component={TaxPeriodDetailScreen} />
+      <Stack.Screen name="RecurringInvoicesList" component={RecurringInvoicesListScreen} options={{ headerTitle: "Recurring Invoices" }} />
+      <Stack.Screen name="RecurringInvoiceDetail" component={RecurringInvoiceDetailScreen} />
     </Stack.Navigator>
   );
 }

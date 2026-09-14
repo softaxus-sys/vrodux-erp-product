@@ -355,8 +355,36 @@ full section/item document editor:
   behavior, not a stricter invented rule.
 - **Explicitly out of scope for this pass**: account/bank-account create or edit (both have real
   backend + web forms), transaction date-range filtering (not exposed by this list endpoint at
-  all — `BankTxPageParams` has no `from`/`to`), internal transfers, budgets, journals, general
-  ledger, tax/VAT, recurring invoices — the rest of the Finance module (see "Next module").
+  all — `BankTxPageParams` has no `from`/`to`), internal transfers.
+
+**Finance (budgets, journals, tax/VAT, recurring invoices)** — same read-focused posture, same
+"no confirmed `.view` key, shown to anyone who already reached the Finance tab" reasoning as
+accounts/banking above (`finance-ledger.api.ts` carries the same comment):
+- Budgets: paginated list + status filter chips + summary tiles, inline status-change buttons
+  (Approve/Activate/Close — `POST /budgets/{id}/status`, the one generic action covering what
+  would otherwise be three separate endpoints). **No detail screen**: the backend has no
+  `getBudgetById` and no line-item endpoint — the list DTO (name/period/status/variance/
+  `lineCount`) is the entire record on the client side.
+- Journals: paginated list + status/period filter + summary → detail screen showing the full
+  debit/credit line table and Post/Void actions. **No second fetch on open** — `GET /journals`
+  already embeds `lines[]` per entry (there is no `GET /journals/{id}`), so the whole row is
+  passed through navigation params.
+- Tax/VAT: period list (File/Pay inline actions once a period is Open/Filed) + summary tiles →
+  tapping a period fetches its transactions (`GET /tax/transactions?period=` — a period is
+  required; omitting it reads every invoice/bill the tenant has ever issued, per a comment in the
+  web client itself).
+- Recurring Invoices: paginated list + active-only filter + summary → detail screen (same
+  "list DTO already has `lines[]`, no second fetch" pattern as Journals) with Pause/Resume/
+  Generate Now wired up. `runDueRecurring` (a bulk cron-style trigger, not a single-template
+  action) is deliberately not exposed on mobile.
+- **General Ledger (trial balance, account ledger) and Financial Statements (P&L, Balance Sheet,
+  Cash Flow) are deliberately not built in this pass.** Trial balance returns every account as a
+  flat, unpaginated array with four numeric columns — a literal port of the web table would be
+  illegible on a phone; account ledger has the same wide-table problem (date/ref/debit/credit/
+  running balance). Financial Statements are more tractable (grouped `{code, name, amount}[]`
+  lines, closer to Budgets' shape) but still deferred to keep this pass to the areas that map
+  cleanly onto a phone screen as-is. Flagged as a real gap, not silently dropped — see the
+  complexity note in "Next module".
 
 ## Tab bar overflow ("More" tab)
 

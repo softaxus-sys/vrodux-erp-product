@@ -61,6 +61,34 @@ export default function FinanceHomeScreen({ navigation }: Props) {
           tint={colors.success}
           onPress={() => navigation.navigate("BankAccountsList")}
         />
+        <MenuCard
+          icon="pie-chart"
+          title="Budgets"
+          subtitle="Planned vs. actual by period"
+          tint={colors.warning}
+          onPress={() => navigation.navigate("BudgetsList")}
+        />
+        <MenuCard
+          icon="book"
+          title="Journals"
+          subtitle="Debit/credit entries"
+          tint={colors.mutedForeground}
+          onPress={() => navigation.navigate("JournalsList")}
+        />
+        <MenuCard
+          icon="percent"
+          title="VAT / Tax"
+          subtitle="Filing periods and returns"
+          tint={colors.destructive}
+          onPress={() => navigation.navigate("TaxPeriodsList")}
+        />
+        <MenuCard
+          icon="repeat"
+          title="Recurring Invoices"
+          subtitle="Templates and schedules"
+          tint={colors.primary}
+          onPress={() => navigation.navigate("RecurringInvoicesList")}
+        />
       </View>
     </ScrollView>
   );
