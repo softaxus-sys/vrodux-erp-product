@@ -1,0 +1,386 @@
+import * as React from "react";
+import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Inbox, Search, RefreshCw, AlertTriangle, CheckCircle2, Copy, X,
+  ChevronLeft, ChevronRight, Clock, Files, ExternalLink,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Can, useCan } from "@/components/auth/can";
+import { useLeadInbox, useLeadInboxSummary, useLeadInboxEntry, useRetryLeadInboxEntry } from "@/hooks/crm/use-integrations";
+import { LEAD_INBOX_STATUSES, type LeadInboxRow } from "@/lib/crm/integrations.api";
+import { sourceLabel } from "@/lib/crm/crm.api";
+import { formatDate, parseApiDate, cn } from "@/lib/utils";
+
+/**
+ * Every inbound delivery from every lead integration, with the raw payload each provider sent.
+ *
+ * This is the answer to "did Bayut actually send us that enquiry?" — a question neither the leads
+ * list nor the integration cards can answer. A lead only exists once a payload has been mapped,
+ * deduped and routed, so anything rejected along the way was previously invisible: the enquiry had
+ * arrived, been stored, failed, and left no trace any user could see.
+ */
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  pending:    { label: "Pending",      color: "text-warning",          bg: "bg-warning/10" },
+  processing: { label: "Processing",   color: "text-primary",          bg: "bg-primary/10" },
+  processed:  { label: "Lead created", color: "text-success",          bg: "bg-success/10" },
+  duplicate:  { label: "Duplicate",    color: "text-muted-foreground", bg: "bg-muted" },
+  failed:     { label: "Failed",       color: "text-destructive",      bg: "bg-destructive/10" },
+};
+// Status is a plain string column, so a value outside this map is possible. A bare index reads
+// undefined and takes the page down on .color — the fault this codebase keeps hitting.
+const statusMeta = (s: string) =>
+  STATUS_META[s] ?? { label: s || "Unknown", color: "text-muted-foreground", bg: "bg-muted" };
+
+function StatusPill({ status }: { status: string }) {
+  const m = statusMeta(status);
+  return (
+    <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap", m.color, m.bg)}>
+      {m.label}
+    </span>
+  );
+}
+
+/** Pretty-print JSON when it is JSON; show the body verbatim when it is not (form posts are not). */
+function formatPayload(raw: string): { text: string; isJson: boolean } {
+  try { return { text: JSON.stringify(JSON.parse(raw), null, 2), isJson: true }; }
+  catch { return { text: raw, isJson: false }; }
+}
+
+function RelativeTime({ iso }: { iso: string }) {
+  const d = parseApiDate(iso);
+  if (!d) return <>—</>;
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  const rel =
+    mins < 1      ? "just now"
+    : mins < 60   ? `${mins}m ago`
+    : mins < 1440 ? `${Math.round(mins / 60)}h ago`
+    : formatDate(iso);
+  return <span title={d.toLocaleString()}>{rel}</span>;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
+      <div className="text-sm text-foreground">{children}</div>
+    </div>
+  );
+}
+
+// ── Detail drawer ────────────────────────────────────────────────────────────
+
+function EntryDrawer({ entryId, onClose }: { entryId: string | null; onClose: () => void }) {
+  const { data: entry, isLoading } = useLeadInboxEntry(entryId);
+  const retry = useRetryLeadInboxEntry();
+  const canRetry = useCan("settings.integrations.edit");
+
+  const payload = React.useMemo(() => (entry ? formatPayload(entry.payload) : null), [entry]);
+
+  const copy = async () => {
+    if (!payload) return;
+    try { await navigator.clipboard.writeText(payload.text); toast.success("Payload copied."); }
+    catch { toast.error("Could not copy to the clipboard."); }
+  };
+
+  return (
+    <AnimatePresence>
+      {entryId && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" onClick={onClose} />
+          <motion.div
+            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            className="fixed inset-y-0 end-0 w-full max-w-2xl bg-card border-s border-border z-50 flex flex-col">
+            <div className="flex items-start justify-between gap-3 p-5 border-b border-border">
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-foreground">Inbound delivery</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {entry ? `${entry.integrationName} · ${sourceLabel(entry.providerKey)}` : "Loading…"}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+              {isLoading && <p className="text-sm text-muted-foreground">Loading the payload…</p>}
+
+              {entry && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Status"><StatusPill status={entry.status} /></Field>
+                    <Field label="Received">{formatDate(entry.receivedAt)}</Field>
+                    <Field label="Provider reference">
+                      <span className="font-mono text-xs break-all">{entry.externalId || "—"}</span>
+                    </Field>
+                    <Field label="Attempts">{entry.attempts}</Field>
+                    {entry.processedAt && <Field label="Processed">{formatDate(entry.processedAt)}</Field>}
+                    {entry.nextAttemptAt && <Field label="Next attempt">{formatDate(entry.nextAttemptAt)}</Field>}
+                  </div>
+
+                  {entry.createdLeadId && (
+                    <div className="rounded-lg border border-success/30 bg-success/5 p-3">
+                      <p className="text-xs font-semibold text-success uppercase tracking-wide mb-1">
+                        {entry.status === "duplicate" ? "Matched an existing lead" : "Created lead"}
+                      </p>
+                      <Link to="/crm/leads" className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-primary">
+                        {entry.createdLeadName || "View in Leads"}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    </div>
+                  )}
+
+                  {entry.lastError && (
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                      <p className="text-xs font-semibold text-destructive uppercase tracking-wide mb-1">Error</p>
+                      <p className="text-sm text-foreground break-words">{entry.lastError}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Raw payload
+                        {payload && !payload.isJson && (
+                          <span className="normal-case font-normal"> (not JSON — shown as sent)</span>
+                        )}
+                      </p>
+                      <Button variant="ghost" size="sm" onClick={copy} className="h-7 gap-1.5 text-xs">
+                        <Copy className="h-3.5 w-3.5" /> Copy
+                      </Button>
+                    </div>
+                    <pre dir="ltr"
+                      className="text-[11px] leading-relaxed font-mono bg-muted/50 border border-border rounded-lg p-3 overflow-x-auto max-h-[45vh] whitespace-pre-wrap break-words text-start">
+                      {payload?.text}
+                    </pre>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {entry?.status === "failed" && canRetry && (
+              <div className="p-4 border-t border-border flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  The payload is stored, so this can be reprocessed without asking the portal to resend.
+                </p>
+                <Button size="sm" disabled={retry.isPending}
+                  onClick={() => retry.mutate(entry.id, { onSuccess: onClose })}>
+                  <RefreshCw className={cn("h-3.5 w-3.5 me-1.5", retry.isPending && "animate-spin")} />
+                  Retry
+                </Button>
+              </div>
+            )}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
+
+function Th({ children }: { children?: React.ReactNode }) {
+  return <th className="px-4 py-2.5 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wide">{children}</th>;
+}
+
+export function LeadInboxView() {
+  const [search, setSearch]       = React.useState("");
+  const [debounced, setDebounced] = React.useState("");
+  const [provider, setProvider]   = React.useState("all");
+  const [status, setStatus]       = React.useState("all");
+  const [page, setPage]           = React.useState(1);
+  const [openId, setOpenId]       = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const h = setTimeout(() => { setDebounced(search); setPage(1); }, 300);
+    return () => clearTimeout(h);
+  }, [search]);
+
+  const { data: summary } = useLeadInboxSummary();
+  const { data, isLoading, isError, error, refetch, isFetching } =
+    useLeadInbox({ page, pageSize: 25, provider, status, search: debounced });
+
+  const rows  = data?.items ?? [];
+  const total = data?.totalCount ?? 0;
+  const unfiltered = provider === "all" && status === "all" && !debounced;
+
+  const stats = [
+    { label: "Received",   value: summary?.total ?? 0,      icon: Inbox,         color: "bg-primary/10 text-primary" },
+    { label: "Leads made", value: summary?.processed ?? 0,  icon: CheckCircle2,  color: "bg-success/10 text-success" },
+    { label: "Duplicates", value: summary?.duplicates ?? 0, icon: Files,         color: "bg-muted text-muted-foreground" },
+    { label: "Waiting",    value: summary?.pending ?? 0,    icon: Clock,         color: "bg-warning/10 text-warning" },
+    { label: "Failed",     value: summary?.failed ?? 0,     icon: AlertTriangle, color: "bg-destructive/10 text-destructive" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Lead Inbox</h1>
+          <p className="text-sm text-muted-foreground">
+            Everything received from Bayut, Property Finder, Meta and every other connected source — with the payload each one sent.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw className={cn("h-4 w-4 me-2", isFetching && "animate-spin")} /> Refresh
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {stats.map(s => (
+          <Card key={s.label}>
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center shrink-0", s.color)}>
+                <s.icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-lg font-bold text-foreground leading-none">{s.value}</p>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{s.label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* A failure count is only useful next to the way to look at them. */}
+      {(summary?.failed ?? 0) > 0 && status !== "failed" && (
+        <button onClick={() => { setStatus("failed"); setPage(1); }}
+          className="w-full text-start rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm hover:bg-destructive/10 transition-colors">
+          <span className="font-semibold text-destructive">
+            {summary!.failed} delivery(s) never became a lead.
+          </span>
+          <span className="text-muted-foreground ms-1">Show them →</span>
+        </button>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search the payload — a phone number, an email, a listing reference…"
+            className="ps-9 h-9" />
+        </div>
+        <select value={provider} onChange={e => { setProvider(e.target.value); setPage(1); }}
+          aria-label="Source"
+          className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+          <option value="all">All sources</option>
+          {/* Driven by what has actually arrived, so the list never offers an empty filter. */}
+          {(summary?.byProvider ?? []).map(p => (
+            <option key={p.providerKey} value={p.providerKey}>
+              {sourceLabel(p.providerKey)} ({p.total})
+            </option>
+          ))}
+        </select>
+        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
+          aria-label="Status"
+          className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+          <option value="all">All statuses</option>
+          {LEAD_INBOX_STATUSES.map(s => <option key={s} value={s}>{statusMeta(s).label}</option>)}
+        </select>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          {isError ? (
+            <div className="p-10 text-center">
+              <AlertTriangle className="h-8 w-8 text-destructive mx-auto mb-3" />
+              <p className="text-sm font-semibold text-foreground">The inbox could not be loaded.</p>
+              <p className="text-xs text-muted-foreground mt-1">{(error as Error)?.message}</p>
+              <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>Try again</Button>
+            </div>
+          ) : isLoading ? (
+            <p className="p-10 text-center text-sm text-muted-foreground">Loading deliveries…</p>
+          ) : rows.length === 0 ? (
+            <div className="p-10 text-center">
+              <Inbox className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-foreground">
+                {unfiltered ? "Nothing has arrived yet." : "No deliveries match these filters."}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {unfiltered
+                  ? "Deliveries appear here the moment a connected source sends one."
+                  : "Try a wider status or source."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-border bg-muted/40">
+                  <tr>
+                    <Th>Source</Th><Th>Reference</Th><Th>Status</Th><Th>Lead</Th><Th>Received</Th><Th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r: LeadInboxRow) => (
+                    <tr key={r.id} onClick={() => setOpenId(r.id)}
+                      className="border-b border-border/60 last:border-0 hover:bg-muted/40 cursor-pointer">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-foreground">{sourceLabel(r.providerKey)}</p>
+                        {r.integrationName !== sourceLabel(r.providerKey) && (
+                          <p className="text-[11px] text-muted-foreground truncate max-w-[16rem]">{r.integrationName}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[14rem] truncate">
+                        {r.externalId || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusPill status={r.status} />
+                        {r.lastError && (
+                          <p className="text-[11px] text-destructive mt-1 max-w-[18rem] truncate" title={r.lastError}>
+                            {r.lastError}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{r.createdLeadName || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap"><RelativeTime iso={r.receivedAt} /></td>
+                      <td className="px-4 py-3 text-end"><span className="text-xs text-primary font-medium">View payload</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {total > 0 && (
+        <div className="flex items-center justify-between text-sm">
+          <p className="text-muted-foreground">
+            {(page - 1) * 25 + 1}–{Math.min(page * 25, total)} of {total}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={!data?.hasPrev} onClick={() => setPage(p => p - 1)} aria-label="Previous page">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="sm" disabled={!data?.hasNext} onClick={() => setPage(p => p + 1)} aria-label="Next page">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <EntryDrawer entryId={openId} onClose={() => setOpenId(null)} />
+    </div>
+  );
+}
+
+/** The whole page is one permission, so denial is said once rather than as a wall of failed calls. */
+export function LeadInboxPage() {
+  return (
+    <Can permission="settings.integrations.view"
+      fallback={
+        <div className="p-10 text-center">
+          <Inbox className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-foreground">You do not have access to the lead inbox.</p>
+          <p className="text-xs text-muted-foreground mt-1">It needs the integrations permission — ask an administrator.</p>
+        </div>
+      }>
+      <LeadInboxView />
+    </Can>
+  );
+}

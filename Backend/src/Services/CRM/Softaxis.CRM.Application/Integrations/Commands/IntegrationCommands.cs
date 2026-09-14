@@ -69,3 +69,10 @@ public sealed record RotateInboundKeyCommand(Guid Id) : ICommand<IntegrationDto>
 public sealed record DisconnectIntegrationCommand(Guid Id) : ICommand;
 
 public sealed record DeleteIntegrationCommand(Guid Id) : ICommand;
+
+/// <summary>
+/// Put a failed inbound delivery back in the queue. The payload is already stored, so a retry
+/// costs the tenant nothing and is the only way to recover a lead lost to a transient fault
+/// (a mapping the tenant has since fixed, a database blip) without asking the portal to resend.
+/// </summary>
+public sealed record RetryLeadInboxEntryCommand(Guid Id) : ICommand;

@@ -49,6 +49,17 @@ public sealed class RawLeadInbox
         ProcessedAt = DateTime.UtcNow; NextAttemptAt = null;
     }
 
+    /// <summary>
+    /// Put a given-up delivery back in the queue. The attempt counter is reset, not preserved:
+    /// a row only reaches "failed" by exhausting its attempts, so keeping the count would have the
+    /// processor abandon it again on the first try. The retry is deliberate, so it starts over.
+    /// </summary>
+    public void Requeue()
+    {
+        Status = RawLeadStatus.Pending; Attempts = 0;
+        NextAttemptAt = null; ProcessedAt = null;
+    }
+
     public void MarkFailed(string error, int maxAttempts)
     {
         LastError = error.Length > 1000 ? error[..1000] : error;

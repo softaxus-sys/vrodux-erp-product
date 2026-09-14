@@ -43,6 +43,37 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> GetInbox(Guid id, [FromQuery] string? status, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetIntegrationInboxQuery(id, status), ct));
 
+    // ── Lead Inbox (tenant-wide) ────────────────────────────────────────────
+    // Routes sit under /inbox rather than /{id}/inbox so they are not shadowed by the
+    // {id:guid} routes above, and so the page has one address independent of any integration.
+
+    /// <summary>Every inbound delivery across all integrations, newest first (the Lead Inbox page).</summary>
+    [HttpGet("inbox")]
+    [RequirePermission("settings.integrations.view")]
+    public async Task<IActionResult> GetLeadInbox(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
+        [FromQuery] string? provider = null, [FromQuery] string? status = null,
+        [FromQuery] string? search = null, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetLeadInboxQuery(page, pageSize, provider, status, search), ct));
+
+    /// <summary>Per-status and per-provider counts over the whole inbox.</summary>
+    [HttpGet("inbox/summary")]
+    [RequirePermission("settings.integrations.view")]
+    public async Task<IActionResult> GetLeadInboxSummary(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetLeadInboxSummaryQuery(), ct));
+
+    /// <summary>One delivery, including the raw payload exactly as the provider sent it.</summary>
+    [HttpGet("inbox/{entryId:guid}")]
+    [RequirePermission("settings.integrations.view")]
+    public async Task<IActionResult> GetLeadInboxEntry(Guid entryId, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetLeadInboxEntryQuery(entryId), ct));
+
+    /// <summary>Re-queue a failed delivery. Edit rather than view — it creates a lead.</summary>
+    [HttpPost("inbox/{entryId:guid}/retry")]
+    [RequirePermission("settings.integrations.edit")]
+    public async Task<IActionResult> RetryLeadInboxEntry(Guid entryId, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new RetryLeadInboxEntryCommand(entryId), ct));
+
     /// <summary>Reveal the inbound URL + decrypted signing secret (for configuring HMAC senders).</summary>
     [HttpGet("{id:guid}/secret")]
     [RequirePermission("settings.integrations.edit")]

@@ -60,3 +60,31 @@ public sealed record IntegrationSecretDto(string? InboundUrl, string? SigningSec
 /// <summary>What a history backfill actually did. Skipped is not a failure — the lead was already here.</summary>
 public sealed record LeadBackfillResultDto(
     int Fetched, int Created, int Duplicates, int Failed, DateTime SinceUsed, string? Note);
+
+// ── Lead Inbox (tenant-wide inbound feed) ────────────────────────────────────
+
+/// <summary>
+/// One row of the Lead Inbox list. Carries the integration's display name so the page can say
+/// "Bayut" rather than a bare guid, and the created lead's name so a delivery can be followed
+/// through to what it became. No payload here — the list would ship megabytes of JSON nobody
+/// is reading yet; that arrives with <see cref="LeadInboxEntryDto"/>.
+/// </summary>
+public sealed record LeadInboxRowDto(
+    Guid Id, Guid IntegrationId, string ProviderKey, string IntegrationName,
+    string? ExternalId, string Status, int Attempts, string? LastError,
+    Guid? CreatedLeadId, string? CreatedLeadName,
+    DateTime ReceivedAt, DateTime? ProcessedAt, DateTime? NextAttemptAt);
+
+/// <summary>A single delivery with the raw payload exactly as it arrived.</summary>
+public sealed record LeadInboxEntryDto(
+    Guid Id, Guid IntegrationId, string ProviderKey, string IntegrationName,
+    string? ExternalId, string Status, int Attempts, string? LastError,
+    Guid? CreatedLeadId, string? CreatedLeadName,
+    DateTime ReceivedAt, DateTime? ProcessedAt, DateTime? NextAttemptAt,
+    string Payload);
+
+public sealed record LeadInboxSummaryDto(
+    int Total, int Pending, int Processed, int Duplicates, int Failed,
+    IReadOnlyList<LeadInboxProviderCountDto> ByProvider);
+
+public sealed record LeadInboxProviderCountDto(string ProviderKey, string Name, int Total, int Failed);

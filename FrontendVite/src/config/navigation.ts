@@ -293,6 +293,16 @@ export const navigationConfig: NavGroup[] = [
             href: "/crm/reports",
             icon: "BarChart3",
           },
+          {
+            // Raw inbound feed from the lead integrations. Gated on the integrations permission:
+            // payloads carry the enquirer's contact details and the provider's own references.
+            id: "crm-lead-inbox",
+            label: "Lead Inbox",
+            labelAr: "وارد العملاء المحتملين",
+            href: "/crm/lead-inbox",
+            icon: "Inbox",
+            requiresPermission: "settings.integrations.view",
+          },
         ],
       },
     ],

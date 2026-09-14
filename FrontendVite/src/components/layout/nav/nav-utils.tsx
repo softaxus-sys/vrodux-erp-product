@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  LayoutDashboard, Sparkles, BarChart3, FolderOpen,
+  LayoutDashboard, Sparkles, BarChart3, FolderOpen, Inbox,
   DollarSign, BookOpen, Layers, FileText, Receipt,
   CreditCard, PieChart, Percent, Landmark,
   Users, UserCheck, Clock, Banknote, CalendarOff, UserPlus, TrendingUp,
@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, Sparkles, BarChart3, FolderOpen,
+  LayoutDashboard, Sparkles, BarChart3, FolderOpen, Inbox,
   DollarSign, BookOpen, Layers, FileText, Receipt,
   CreditCard, PieChart, Percent, Landmark,
   Users, UserCheck, Clock, Banknote, CalendarOff, UserPlus, TrendingUp,

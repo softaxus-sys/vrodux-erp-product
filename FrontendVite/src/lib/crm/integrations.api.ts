@@ -73,6 +73,34 @@ export interface RawLeadInboxEntry {
 
 export interface IntegrationSecret { inboundUrl: string | null; signingSecret: string | null; }
 
+// ── Lead Inbox (tenant-wide inbound feed) ────────────────────────────────────
+
+/** One inbound delivery. The list row carries no payload — that arrives with the detail call. */
+export interface LeadInboxRow {
+  id: string; integrationId: string; providerKey: string; integrationName: string;
+  externalId: string | null; status: string; attempts: number; lastError: string | null;
+  createdLeadId: string | null; createdLeadName: string | null;
+  receivedAt: string; processedAt: string | null; nextAttemptAt: string | null;
+}
+/** A delivery with the raw payload exactly as the provider sent it. */
+export interface LeadInboxEntry extends LeadInboxRow { payload: string; }
+
+export interface LeadInboxProviderCount { providerKey: string; name: string; total: number; failed: number; }
+export interface LeadInboxSummary {
+  total: number; pending: number; processed: number; duplicates: number; failed: number;
+  byProvider: LeadInboxProviderCount[];
+}
+export interface LeadInboxPage {
+  items: LeadInboxRow[]; page: number; pageSize: number; totalCount: number;
+  totalPages: number; hasNext: boolean; hasPrev: boolean;
+}
+export interface LeadInboxFilters {
+  page?: number; pageSize?: number; provider?: string; status?: string; search?: string;
+}
+
+/** Statuses a delivery can be in, in the order the page shows them. */
+export const LEAD_INBOX_STATUSES = ["pending", "processing", "processed", "duplicate", "failed"] as const;
+
 export interface FieldMappingInput { sourceField: string; targetField: string; }
 export interface UpdateConfigRequest {
   config?: string | null; dedupeConfig?: string | null;
@@ -94,6 +122,22 @@ export const integrationsApi = {
   getInbox:    (id: string, status?: string) =>
     rawApiClient.get<RawLeadInboxEntry[]>(`${BASE}/${id}/inbox${status ? `?status=${status}` : ""}`),
   getSecret:   (id: string) => rawApiClient.get<IntegrationSecret>(`${BASE}/${id}/secret`),
+
+  /** Tenant-wide inbound feed across every integration (the Lead Inbox page). */
+  getLeadInbox: (f: LeadInboxFilters = {}) => {
+    const q = new URLSearchParams();
+    q.set("page", String(f.page ?? 1));
+    q.set("pageSize", String(f.pageSize ?? 25));
+    // Only send a filter that is actually set: "all" is the absence of a filter, and sending it
+    // as a value would have the server look for a provider literally named "all".
+    if (f.provider && f.provider !== "all") q.set("provider", f.provider);
+    if (f.status   && f.status   !== "all") q.set("status", f.status);
+    if (f.search?.trim())                   q.set("search", f.search.trim());
+    return rawApiClient.get<LeadInboxPage>(`${BASE}/inbox?${q}`);
+  },
+  getLeadInboxSummary: () => rawApiClient.get<LeadInboxSummary>(`${BASE}/inbox/summary`),
+  getLeadInboxEntry:   (entryId: string) => rawApiClient.get<LeadInboxEntry>(`${BASE}/inbox/${entryId}`),
+  retryLeadInboxEntry: (entryId: string) => rawApiClient.post<void>(`${BASE}/inbox/${entryId}/retry`, {}),
 
   create:       (providerKey: string, name?: string) =>
     rawApiClient.post<Integration>(BASE, { providerKey, name }),
