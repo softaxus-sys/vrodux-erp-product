@@ -415,6 +415,44 @@ accounts/banking above (`finance-ledger.api.ts` carries the same comment):
   cleanly onto a phone screen as-is. Flagged as a real gap, not silently dropped — see the
   complexity note in "Next module".
 
+**Project Management (Kanban)** — gated `project-management.projects.*`. Web splits this into 4
+routes (project list, board, backlog, issues) sharing a pill-tab strip; mobile mirrors it as a
+project home screen with `MenuCard` entries into those same 4 destinations, matching the "home
+screen with menu cards" pattern every other module's home screen already uses, rather than a tab
+strip in the header:
+- **The project list needs no client-side scoping** — `GET /projects` is already filtered
+  server-side to the caller's own project memberships unless they're a super admin or hold
+  `project-management.projects.delete` (the "admin bypass" — `ProjectAccessGuard.cs`). No "my
+  projects" vs "all projects" toggle exists or is needed.
+- Board: columns render as horizontally-scrollable panels (the `backlog`-category column is
+  hidden here, same as web — it's the Backlog screen's own target), each a vertical list of
+  `IssueCard`s (shared with Backlog and the Issues list — `components/project-management/
+  IssueCard.tsx`).
+- Backlog: one section per non-completed sprint (Start/Complete buttons per sprint's lifecycle)
+  plus a Backlog section for unsprinted issues. Completed sprints are excluded entirely, same as
+  web — there's no sprint-history screen on either client.
+- **No drag-and-drop — a tap-triggered move picker instead.** The web app disables its own
+  drag-and-drop entirely (not just visually) when the caller lacks `issues.edit`; dragging doesn't
+  translate to touch the same way regardless. Each card's "···" button opens
+  `MovePickerModal` (a bottom sheet) listing destination columns/sprints, calling the exact same
+  `move`/`move-to-sprint` endpoints the web app's drag handler calls (`sortOrder: 0` — always
+  prepends; the web app itself only reorders within one flat list per container, so exact
+  drop-position precision isn't essential here either).
+- Issue detail: full field set (title/description/type/priority/assignee/story points/due date),
+  editable fields gated on `issues.edit`, a sprint-move quick action (reuses `MovePickerModal`),
+  and a comment thread (add gated on `issues.create` — comments have no distinct permission key
+  on the backend, confirmed by grep). **Backend `IssueDto`/`JobPostingDto`-style gap avoided
+  deliberately**: the web app's own recruitment TS type silently drops `headcount`/
+  `responsibilities` that the backend actually returns (see the Recruitment section above for the
+  same pattern) — checked Project Management's DTOs against the backend directly rather than
+  trusting the frontend client's shape uncritically.
+- Members: read-only list (name, email, role badge) — add/remove/role-change are admin tasks
+  better suited to the web app's own members modal.
+- **Explicitly out of scope for this pass**: issue/project create, label editing (labels show as
+  read-only chips on the issue detail), epic linking, delete (issue or project), the quick-add-
+  issue inline input the web board has at the bottom of each column, CSV/PDF export from the
+  Issues list.
+
 ## Tab bar overflow ("More" tab)
 
 There are up to eight module tabs (Leads/Pipeline/HR/Approvals/Inventory/Sales/Purchase/Finance)
@@ -451,20 +489,22 @@ groups (`FrontendVite/src/config/navigation.ts`). No backend work is needed to g
 built next — the JWT already carries the tenant's full module list and effective permission-key
 set (same claims the web app reads), so extending RBAC to a new module is purely "add the
 permission constants + wire `hasModuleAccess`/`hasPermission` into the new screens," exactly like
-every module already here does. Queued, roughly in priority order:
+every module already here does.
 
-**HR and Finance are both done for this pass** (employees/departments/recruitment/performance;
-invoices/expenses/accounts/banking/budgets/journals/tax/recurring invoices) except General Ledger
-+ Financial Statements, deliberately deferred — see the complexity note under "Finance" above.
-Queued next, roughly in priority order:
+**Done for this pass**: HR (employees/departments/recruitment/performance), Finance (invoices/
+expenses/accounts/banking/budgets/journals/tax/recurring invoices — General Ledger + Financial
+Statements deliberately deferred, see the complexity note above), Project Management (Kanban —
+project/issue/label create, delete, and epic linking deliberately deferred, see above). Queued
+next, roughly in priority order:
 
-1. Project Management (Kanban)
-2. POS (retail + restaurant — large, will likely split further)
-3. Visa Services, Real Estate
-4. Reports, File Manager
-5. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+1. POS (retail + restaurant — large, will likely split further)
+2. Visa Services, Real Estate
+3. Reports, File Manager
+4. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
    mobile-first surface
-6. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+5. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+6. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+   rather than a literal port of the web's wide tables)
 7. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 

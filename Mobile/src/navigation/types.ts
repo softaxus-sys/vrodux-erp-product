@@ -71,6 +71,16 @@ export type FinanceStackParamList = {
   RecurringInvoiceDetail: { recurring: import("@/types/finance-ledger").RecurringInvoiceDto };
 };
 
+export type ProjectManagementStackParamList = {
+  ProjectsList: undefined;
+  ProjectDetail: { projectId: string; projectName: string };
+  Board: { projectId: string; projectName: string };
+  Backlog: { projectId: string; projectName: string };
+  IssuesList: { projectId: string; projectName: string };
+  IssueDetail: { issueId: string; issueKey: string };
+  ProjectMembers: { projectId: string; projectName: string };
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
@@ -81,6 +91,7 @@ export type AppTabParamList = {
   Sales: undefined;
   Purchase: undefined;
   Finance: undefined;
+  Projects: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;

@@ -14,6 +14,7 @@ import { INVENTORY_STOCK_VIEW } from "@/lib/inventory.api";
 import { SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW } from "@/lib/sales.api";
 import { PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW } from "@/lib/purchase.api";
 import { FINANCE_EXPENSES_VIEW, FINANCE_INVOICING_VIEW } from "@/lib/finance.api";
+import { PM_PROJECTS_VIEW } from "@/lib/project-management.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
@@ -22,6 +23,7 @@ import InventoryStack from "@/navigation/InventoryStack";
 import SalesStack from "@/navigation/SalesStack";
 import PurchaseStack from "@/navigation/PurchaseStack";
 import FinanceStack from "@/navigation/FinanceStack";
+import ProjectManagementStack from "@/navigation/ProjectManagementStack";
 import type { AppTabParamList } from "@/navigation/types";
 
 export type ModuleTabKey = Exclude<keyof AppTabParamList, "Dashboard" | "More">;
@@ -50,6 +52,7 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Pipeline", label: "Pipeline", subtitle: "Track deals through each stage", icon: "trending-up", component: DealsStack, isStack: true },
   { key: "Approvals", label: "Approvals", subtitle: "Leave, purchase, returns, payroll", icon: "check-square", component: ApprovalsScreen, isStack: false },
   { key: "HR", label: "HR", subtitle: "Attendance, leave, payslips", icon: "briefcase", component: HrStack, isStack: true },
+  { key: "Projects", label: "Projects", subtitle: "Boards, backlog, issues", icon: "trello", component: ProjectManagementStack, isStack: true },
   { key: "Sales", label: "Sales", subtitle: "Orders and quotations", icon: "shopping-bag", component: SalesStack, isStack: true },
   { key: "Purchase", label: "Purchase", subtitle: "Purchase orders and vendors", icon: "shopping-cart", component: PurchaseStack, isStack: true },
   { key: "Inventory", label: "Inventory", subtitle: "Product and stock lookup", icon: "box", component: InventoryStack, isStack: true },
@@ -87,6 +90,10 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       return hasModuleAccess("purchase") && hasPermission(PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW);
     case "Finance":
       return hasModuleAccess("finance") && hasPermission(FINANCE_INVOICING_VIEW, FINANCE_EXPENSES_VIEW);
+    case "Projects":
+      // The project LIST itself is further scoped server-side to the caller's own memberships
+      // (ProjectAccessGuard.cs) -- this only decides whether the tab is worth showing at all.
+      return hasModuleAccess("project-management") && hasPermission(PM_PROJECTS_VIEW);
   }
 }
 
