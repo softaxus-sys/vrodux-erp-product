@@ -255,6 +255,32 @@ streaming to replicate):
     weekend exclusion) — flagged as an assumption, not verified against the web app's own logic.
   - No payslip PDF download (would need `expo-print`/`expo-sharing`).
 
+**HR directory (employees + departments)** — the admin/manager-facing half of HR, distinct from
+self-service above: every call takes an explicit employee id (gated `hr.employees.*`), vs.
+self-service resolving "me" from the JWT (gated `hr.self.*`). A session can hold either, both, or
+neither independently:
+- Employees: search + status filter (defaults to Active) + department filter (chips, built from
+  whatever departments are actually present in the data), summary stat row (`GET
+  /employees/summary`). Detail screen covers Contact, Employment, Salary & bank (only shown when a
+  salary is present -- withheld server-side unless the caller holds `hr.employees.view` or a
+  payroll permission), Identity & compliance (Emirates ID/passport/labour card/bank routing),
+  Skills, Emergency contact, Login account.
+- Departments: read-only list (name, code, employee count, description) — the backend supports
+  full CRUD (no dedicated `hr.departments.*` key; writes reuse `hr.employees.*`), but the web app
+  itself only wires up list + create, and a mobile create form isn't worth building before that
+  sees more use elsewhere.
+- **`/employees/all` is a single flat, non-paginated fetch** (mirrors the web app exactly — neither
+  client calls the paginated `/employees` endpoint) — all filtering above is client-side.
+- **The "not linked to an employee record" banner no longer hides directory access.** It used to
+  be a full-screen early return covering the whole HR tab; a manager who can see the directory but
+  whose own login isn't linked to an employee record would have been locked out of it too. Now
+  it's an inline banner in place of the self-service profile card, and the Directory menu section
+  renders regardless.
+- **Explicitly out of scope for this pass**: employee create/edit (a 20+ field form — desktop-
+  appropriate), avatar upload, the linked-account create/link/unlink flow, live payslip/leave-
+  balance sub-fetches on the detail screen (each is its own endpoint on web; skipped here to keep
+  the detail screen to one request), document upload/list.
+
 **Approvals inbox** — complete for this pass. One screen, four independent sources, each gated on
 its own module+permission so a session only ever queries what it can act on:
 - **HR leave requests** (`hr.leaves.approve`) — `GET /api/hr/leaves?status=pending`, approve /
@@ -312,6 +338,26 @@ full section/item document editor:
 - **Explicitly out of scope**: invoice creation/editing, receipt-photo attach on an expense
   (would need `expo-image-picker`, a new dependency — flagged, not added), PDF download/view.
 
+**Finance (accounts + banking)** — read-only, a "check a balance" use case, not an editor:
+- Chart of Accounts: summary tiles (assets/liabilities/equity/net profit), search, account-type
+  filter chips (built from the data itself, same pattern as the HR department filter), show-
+  inactive toggle.
+- Bank Accounts: account cards (balance/available balance/status) + a banking summary row →
+  account detail (balance stats, IBAN, account number) → paginated transaction list
+  (infinite scroll) with Reconcile as the one write action wired up.
+- **Permission keys are a named assumption, flagged in code** (`FINANCE_ACCOUNTING_VIEW`/
+  `FINANCE_BANKING_VIEW` in `finance.api.ts`) — grepping the web app found live `.create`/`.edit`
+  gates but no `.view` gate anywhere in the accounting/banking UI; page access there is gated only
+  by the `finance` module guard, not a granular read permission. Rather than guess a `.view` key
+  that might not actually exist on the backend (which would hide the feature from *everyone*,
+  admins included, if wrong), these two screens are shown to anyone who already reached the
+  Finance tab (which already proves module access) — matching the web app's own confirmed
+  behavior, not a stricter invented rule.
+- **Explicitly out of scope for this pass**: account/bank-account create or edit (both have real
+  backend + web forms), transaction date-range filtering (not exposed by this list endpoint at
+  all — `BankTxPageParams` has no `from`/`to`), internal transfers, budgets, journals, general
+  ledger, tax/VAT, recurring invoices — the rest of the Finance module (see "Next module").
+
 ## Tab bar overflow ("More" tab)
 
 There are up to eight module tabs (Leads/Pipeline/HR/Approvals/Inventory/Sales/Purchase/Finance)
@@ -344,23 +390,23 @@ nine icons in a row (not a comfortable phone UI past ~5).
 ## Next module
 
 **Full ERP module parity is the active program** — the web app has ~25 modules across 18 nav
-groups (`FrontendVite/src/config/navigation.ts`); mobile currently covers 7 of them, several only
-partially (Finance = invoices/expenses only, no accounts/banking/budgets/journals/GL/tax; HR =
-self-service only, no employee directory/departments/recruitment/performance). No backend work is
-needed to gate whatever gets built next — the JWT already carries the tenant's full module list
-and effective permission-key set (same claims the web app reads), so extending RBAC to a new
-module is purely "add the permission constants + wire `hasModuleAccess`/`hasPermission` into the
-new screens," exactly like every module already here does. Queued, roughly in priority order:
+groups (`FrontendVite/src/config/navigation.ts`). No backend work is needed to gate whatever gets
+built next — the JWT already carries the tenant's full module list and effective permission-key
+set (same claims the web app reads), so extending RBAC to a new module is purely "add the
+permission constants + wire `hasModuleAccess`/`hasPermission` into the new screens," exactly like
+every module already here does. Queued, roughly in priority order:
 
-1. Full HR (employees, departments, recruitment, performance) + full Finance (accounts, banking,
-   budgets, journals, general ledger, tax, recurring invoices)
-2. Project Management (Kanban)
-3. POS (retail + restaurant — large, will likely split further)
-4. Visa Services, Real Estate
-5. Reports, File Manager
-6. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+1. **Rest of HR**: recruitment (job postings/candidates), performance (reviews) — employees +
+   departments are done (see "What's built").
+2. **Rest of Finance**: budgets, journals, general ledger, tax/VAT, recurring invoices — accounts
+   + banking are done.
+3. Project Management (Kanban)
+4. POS (retail + restaurant — large, will likely split further)
+5. Visa Services, Real Estate
+6. Reports, File Manager
+7. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
    mobile-first surface
-7. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+8. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface
 already exists — the approvals inbox — but no APNs/FCM integration exists anywhere in the backend

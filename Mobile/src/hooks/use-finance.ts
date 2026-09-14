@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { financeApi } from "@/lib/finance.api";
-import type { CreateExpensePayload, ExpensesPageParams, InvoicesPageParams } from "@/types/finance";
+import type {
+  AccountsPageParams,
+  BankTxPageParams,
+  CreateExpensePayload,
+  ExpensesPageParams,
+  InvoicesPageParams,
+} from "@/types/finance";
 
 const QK = "finance" as const;
 
@@ -60,5 +66,69 @@ export function useCreateExpense() {
   return useMutation({
     mutationFn: (payload: CreateExpensePayload) => financeApi.createExpense(payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "expenses", "paged"] }),
+  });
+}
+
+// ── Accounts (chart of accounts) ────────────────────────────────────────────────────────────
+export function useAccounts(params: AccountsPageParams = {}) {
+  return useQuery({
+    queryKey: [QK, "accounts", params],
+    queryFn: () => financeApi.getAccounts(params),
+  });
+}
+
+export function useAccount(id: string) {
+  return useQuery({
+    queryKey: [QK, "account", id],
+    queryFn: () => financeApi.getAccount(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useAccountingSummary() {
+  return useQuery({
+    queryKey: [QK, "accounting-summary"],
+    queryFn: financeApi.getAccountingSummary,
+  });
+}
+
+export function useAccountTypes() {
+  return useQuery({
+    queryKey: [QK, "account-types"],
+    queryFn: financeApi.getAccountTypes,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ── Banking ──────────────────────────────────────────────────────────────────────────────────
+export function useBankAccounts() {
+  return useQuery({
+    queryKey: [QK, "bank-accounts"],
+    queryFn: financeApi.getBankAccounts,
+  });
+}
+
+export function useBankTransactions(params: BankTxPageParams) {
+  return useQuery({
+    queryKey: [QK, "bank-transactions", params],
+    queryFn: () => financeApi.getBankTransactions(params),
+  });
+}
+
+export function useBankingSummary() {
+  return useQuery({
+    queryKey: [QK, "banking-summary"],
+    queryFn: financeApi.getBankingSummary,
+  });
+}
+
+export function useReconcileTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.reconcileTransaction(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "bank-transactions"] });
+      qc.invalidateQueries({ queryKey: [QK, "banking-summary"] });
+    },
   });
 }

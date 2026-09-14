@@ -178,3 +178,91 @@ export interface CreateExpensePayload {
   reference?: string;
   notes?: string;
 }
+
+// ── Accounts (chart of accounts) ───────────────────────────────────────────────────────────────
+export interface AccountDto {
+  id: string;
+  accountNumber: string;
+  name: string;
+  accountType: string;
+  description?: string | null;
+  parentId?: string | null;
+  isActive: boolean;
+  balance: number;
+  createdAt: string;
+  updatedAt?: string | null;
+  accountTypeId?: string | null;
+}
+
+export interface AccountTypeDto {
+  id: string;
+  code: string;
+  name: string;
+  normalBalance: "debit" | "credit";
+  parentId: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface AccountingSummaryDto {
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+}
+
+export interface AccountsPageParams {
+  search?: string;
+  accountType?: string;
+  isActive?: boolean;
+}
+
+// ── Banking ─────────────────────────────────────────────────────────────────────────────────
+export interface BankAccountDto {
+  id: string;
+  accountName: string;
+  bankName: string;
+  accountNumber: string;
+  iban: string;
+  currency: string;
+  balance: number;
+  availableBalance: number;
+  status: "active" | "inactive";
+  accountType: "current" | "savings";
+  lastSynced: string;
+}
+
+export type BankTransactionType = "credit" | "debit";
+
+export interface BankTransactionDto {
+  id: string;
+  accountId: string;
+  date: string;
+  description: string;
+  reference: string;
+  amount: number;
+  type: BankTransactionType;
+  category: string;
+  reconciled: boolean;
+  /** Running balance after this transaction. */
+  balance: number;
+}
+
+export interface BankTxPageParams {
+  accountId?: string;
+  type?: BankTransactionType;
+  search?: string;
+  reconciled?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface BankingSummaryDto {
+  totalBalance: number;
+  totalAccounts: number;
+  totalCreditThisMonth: number;
+  totalDebitThisMonth: number;
+  unreconciled: number;
+}
