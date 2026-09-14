@@ -45,16 +45,23 @@ function AppTabs() {
       }}
     >
       <Tabs.Screen name="Dashboard" options={{ tabBarIcon: tabIcon("home") }} component={HomeScreen} />
-      {direct.map((tab) => (
+      {/* Every module tab this session has -- direct AND overflow -- must be registered as a real
+          route, or `navigation.navigate(key)` (e.g. MoreScreen's own menu) fails with "was not
+          handled by any navigator": React Navigation can only navigate to routes that actually
+          exist somewhere in the tree, not to whatever tab-config.ts merely *lists* as available.
+          Only the tab BAR BUTTON is conditional on direct vs. overflow (`tabBarButton: () => null`
+          hides it without deregistering the route) -- this is what actually makes the bar show
+          just the direct set while keeping every tab reachable via "More". */}
+      {[...direct, ...overflow].map((tab) => (
         <Tabs.Screen
           key={tab.key}
           name={tab.key}
           component={tab.component}
-          options={
-            tab.isStack
-              ? { headerShown: false, tabBarIcon: tabIcon(tab.icon) }
-              : { headerTitle: tab.label, tabBarIcon: tabIcon(tab.icon) }
-          }
+          options={{
+            ...(tab.isStack ? { headerShown: false } : { headerTitle: tab.label }),
+            tabBarIcon: tabIcon(tab.icon),
+            ...(overflow.includes(tab) ? { tabBarButton: () => null } : {}),
+          }}
         />
       ))}
       {overflow.length > 0 && (
