@@ -176,6 +176,9 @@ export const integrationsApi = {
    *  provider's own limit (Bayut serves six months) and says so in `note`. */
   backfill: (id: string, since: string): Promise<LeadBackfillResult> =>
     rawApiClient.post(`${BASE}/${id}/backfill`, { since }),
+  /** Key for the third-party listing → agent lookup. Blank turns the lookup off. */
+  setListingLookupKey: (id: string, apiKey: string, baseUrl?: string) =>
+    rawApiClient.put<void>(`${BASE}/${id}/listing-lookup-key`, { apiKey, baseUrl }),
   /** Store a secret the PROVIDER issued (Bayut's Push key), not one we generated. */
   setSigningSecret: (id: string, secret: string) =>
     rawApiClient.put<void>(`${BASE}/${id}/signing-secret`, { secret }),

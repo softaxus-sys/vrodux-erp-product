@@ -9,6 +9,8 @@ export interface AssignableOption {
   teamId:   string | null;
   /** Plain name — this is what gets stored on the record, not the decorated label. */
   fullName: string;
+  /** Their login address, for matching an external system's agent to a person here. */
+  email:    string;
   /** Decorated for display: 👑 marks a team lead. */
   label:    string;
 }
@@ -47,6 +49,7 @@ export function useAssignableByTeam(enabled = true, module = "crm") {
       id: u.userId,
       teamId: null,
       fullName: u.fullName,
+      email: u.email ?? "",
       label: u.isLead ? `👑 ${u.fullName}` : `👤 ${u.fullName}`,
     })),
     [assignable],
@@ -62,14 +65,14 @@ export function useAssignableByTeam(enabled = true, module = "crm") {
     for (const u of assignable) {
       const teams = u.teams ?? [];
       if (teams.length === 0) {
-        noTeam.push({ id: u.userId, teamId: null, fullName: u.fullName, label: label(u) });
+        noTeam.push({ id: u.userId, teamId: null, fullName: u.fullName, email: u.email ?? "", label: label(u) });
         continue;
       }
       // One entry PER TEAM, each carrying that team id — picking the person under "Warsan" files
       // the record to Warsan, which is what makes a multi-team owner unambiguous.
       for (const team of teams) {
         const list = byTeam.get(team.name) ?? [];
-        list.push({ id: u.userId, teamId: team.teamId, fullName: u.fullName, label: label(u) });
+        list.push({ id: u.userId, teamId: team.teamId, fullName: u.fullName, email: u.email ?? "", label: label(u) });
         byTeam.set(team.name, list);
       }
     }

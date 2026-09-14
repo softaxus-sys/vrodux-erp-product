@@ -33,6 +33,26 @@ internal static class IntegrationCredentials
         return obj.ToJsonString();
     }
 
+    /// <summary>
+    /// The envelope with one field REMOVED. Distinct from writing an empty string: field names are
+    /// reported to the client as "this credential is configured", so a blank value would keep
+    /// claiming a key exists after it was cleared.
+    /// </summary>
+    public static string Without(string? decryptedEnvelope, string field)
+    {
+        JsonObject obj;
+        try
+        {
+            obj = string.IsNullOrWhiteSpace(decryptedEnvelope)
+                ? []
+                : JsonNode.Parse(decryptedEnvelope) as JsonObject ?? [];
+        }
+        catch (JsonException) { return "{}"; }
+
+        obj.Remove(field);
+        return obj.ToJsonString();
+    }
+
     /// <summary>Which credential fields are present. Names only — never the values.</summary>
     public static IReadOnlyList<string> FieldNames(string? decryptedEnvelope)
     {

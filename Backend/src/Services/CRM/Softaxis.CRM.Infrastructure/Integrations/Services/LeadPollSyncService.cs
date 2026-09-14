@@ -87,13 +87,23 @@ public sealed class LeadPollSyncService(
                 continue;
             }
 
+            IntegrationSyncLog? log = null;
             try
             {
+                // Every poll is recorded, including the empty ones. Until now this service wrote
+                // NOTHING anywhere — only the webhook processor logged — so Sync History could not
+                // answer "is Vrodux actually pulling?", and a poll that had been failing silently
+                // for weeks looked identical to one that had nothing to fetch.
+                log = new IntegrationSyncLog(integration.Id, trigger: "poll");
+                db.Entry(log).Property(TenantIsolation.Column).CurrentValue = tenantId;
+                db.IntegrationSyncLogs.Add(log);
+
                 var leads = await provider.FetchAsync(integration, ct);
                 if (leads.Count == 0)
                 {
                     // Still a success: "nothing new" is the normal answer, and recording it keeps
                     // the next window from re-scanning ground already covered.
+                    log.Complete(0, 0, 0, 0, "Nothing new since the last poll.");
                     integration.RecordSyncSuccess();
                     await db.SaveChangesAsync(ct);
                     continue;
@@ -123,6 +133,7 @@ public sealed class LeadPollSyncService(
                     }
                 }
 
+                log.Complete(leads.Count, created, duplicates, failed);
                 integration.RecordSyncSuccess();
                 await db.SaveChangesAsync(ct);
 
@@ -135,6 +146,7 @@ public sealed class LeadPollSyncService(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                log?.Fail(ex.Message);
                 integration.RecordSyncFailure(ex.Message);
                 await db.SaveChangesAsync(ct);
                 logger.LogError(ex, "LeadPollSyncService: {Provider} poll failed for tenant {Tenant}.",

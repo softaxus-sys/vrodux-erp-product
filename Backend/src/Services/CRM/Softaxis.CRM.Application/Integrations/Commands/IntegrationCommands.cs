@@ -86,3 +86,10 @@ public sealed record RetryLeadInboxEntryCommand(Guid Id) : ICommand;
 /// </summary>
 public sealed record ApplyLeadAssignmentBackfillCommand(Guid IntegrationId, IReadOnlyList<Guid> LeadIds)
     : ICommand<LeadAssignmentBackfillResultDto>;
+
+/// <summary>
+/// Stores the key for the third-party listing-lookup service that resolves which agent holds a
+/// Bayut / dubizzle listing. Blank clears it, which turns the lookup back off — the only way to
+/// stop an external call being made on the intake path.
+/// </summary>
+public sealed record SetListingLookupKeyCommand(Guid Id, string? ApiKey, string? BaseUrl) : ICommand;

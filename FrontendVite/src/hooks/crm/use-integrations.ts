@@ -126,6 +126,19 @@ export function useApplyAssignmentBackfill() {
   });
 }
 
+export function useSetListingLookupKey() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, apiKey, baseUrl }: { id: string; apiKey: string; baseUrl?: string }) =>
+      integrationsApi.setListingLookupKey(id, apiKey, baseUrl),
+    onSuccess: (_r, v) => {
+      invalidate();
+      toast.success(v.apiKey.trim() ? "Listing lookup enabled." : "Listing lookup turned off.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 function useInvalidate() {
   const qc = useQueryClient();
   return () => {

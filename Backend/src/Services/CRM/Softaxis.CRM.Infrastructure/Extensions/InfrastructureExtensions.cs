@@ -124,6 +124,18 @@ public static class InfrastructureExtensions
         //             needs nothing enabled on Bayut's side beyond the key.
         //   • Push  — WhatsApp enquiries POSTed to the tenant's inbound URL, once Bayut registers
         //             that URL (support@bayut.com) and issues the signing secret.
+        // Listing → agent lookup. Bayut publishes no endpoint for this, so it talks to a
+        // third-party service and stays inert until a tenant enters a key of their own.
+        services.AddHttpClient(BayutListingAgentDirectory.HttpClientName, c =>
+        {
+            c.DefaultRequestHeaders.UserAgent.ParseAdd("VroduxERP/1.0 (+https://vrodux.com)");
+            c.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            // Shorter than the pull client: this sits on the intake path, where a slow lookup
+            // delays the enquiry itself.
+            c.Timeout = TimeSpan.FromSeconds(15);
+        });
+        services.AddScoped<IPortalListingDirectory, BayutListingAgentDirectory>();
+
         services.AddHttpClient(BayutPullApiClient.HttpClientName, c =>
         {
             c.DefaultRequestHeaders.UserAgent.ParseAdd("VroduxERP/1.0 (+https://vrodux.com)");

@@ -24,6 +24,7 @@ public sealed class LeadIntakeService(
     IMediator mediator,
     IAiEventBus aiEvents,
     IEnumerable<IPortalAgentDirectory> agentDirectories,
+    IEnumerable<IPortalListingDirectory> listingDirectories,
     ILogger<LeadIntakeService> logger) : ILeadIntakeService, IPortalOwnerResolver
 {
     public async Task<IntakeResult> IngestAsync(CanonicalLead lead, Guid tenantId, Integration? integration, CancellationToken ct, LeadOwner? owner = null)
@@ -395,12 +396,42 @@ public sealed class LeadIntakeService(
             }
         }
 
+        // 2b. Still nothing, and the enquiry names a listing: ask who holds it. This is what makes
+        //     a Bayut WhatsApp push routable on its own. Its payload has no agent, and waiting for
+        //     a pull enquiry on the same property to teach us is a wait with no end in sight.
+        var agentName = Clean(lead.ExternalOwnerName);
+        var email = Clean(lead.ExternalOwnerEmail);
+        var fromPublicListing = false;
+        if (agentKey is null && email is null && agentPhone is null && integration is not null)
+        {
+            foreach (var listingKey in ListingKeys(lead))
+            {
+                var found = false;
+                foreach (var directory in listingDirectories)
+                {
+                    if (!directory.Handles(integration.ProviderKey)) continue;
+                    if (await directory.FindListingAgentAsync(
+                            integration.Id, integration.ProviderKey, listingKey, ct) is not { } listingAgent)
+                        continue;
+
+                    agentKey     = Clean(listingAgent.Key);
+                    agentName  ??= Clean(listingAgent.Name);
+                    email      ??= Clean(listingAgent.Email);
+                    agentPhone ??= Clean(listingAgent.Phone);
+                    // Flagged because it changes how the match is made below: these details came
+                    // from a public listing page, not from the account's own directory.
+                    fromPublicListing = true;
+                    found = true;
+                    break;
+                }
+                if (found) break;
+            }
+        }
+
         // 3. The payload named an agent we have no contact details for — Property Finder identifies
         //    its agents by a bare publicProfile.id. Ask the portal's own directory who that is, so a
         //    newly-added agent is matched on their first lead instead of waiting for someone to
         //    re-run the import wizard. Fail-soft: an unavailable directory just returns null.
-        var email = Clean(lead.ExternalOwnerEmail);
-        var name  = Clean(lead.ExternalOwnerName);
         if (agentKey is not null && email is null && agentPhone is null && integration is not null)
         {
             foreach (var directory in agentDirectories)
@@ -410,16 +441,26 @@ public sealed class LeadIntakeService(
                     break;
                 email      = Clean(agent.Email);
                 agentPhone = Clean(agent.Phone);
-                name     ??= Clean(agent.Name);
+                agentName ??= Clean(agent.Name);
                 break;
             }
         }
 
-        // 4. Match the portal agent to a login in THIS workspace — by email, then by phone. Phone is
-        //    the fallback and not the first choice: an email is unique per login and exact, whereas a
-        //    number has to be compared loosely (see FindUserByPhoneAsync) to survive formatting.
+        // 4. Match the portal agent to a login in THIS workspace.
+        //
+        //    Name leads ONLY when the details came from a public listing. What a portal shows
+        //    publicly is frequently the AGENCY's address ("hello@agency.ae") or a masked forwarding
+        //    number, both shared by everyone there — matching on those would funnel an entire
+        //    agency's leads onto one person, silently. The agent's NAME is the one field that is
+        //    actually about the individual. An account's own directory (Property Finder's
+        //    /v1/users) carries real per-agent details, so that path keeps email first.
         email ??= agentKey is not null && agentKey.Contains('@') ? agentKey : null;
-        var matched = email is not null ? await FindUserByEmailAsync(email, tenantId, ct) : null;
+
+        LeadOwner? matched = null;
+        if (fromPublicListing && agentName is not null)
+            matched = await FindUserByNameAsync(agentName, tenantId, ct);
+
+        matched ??= email is not null ? await FindUserByEmailAsync(email, tenantId, ct) : null;
         matched ??= agentPhone is not null ? await FindUserByPhoneAsync(agentPhone, tenantId, ct) : null;
         if (matched is null) return null;
 
@@ -428,7 +469,12 @@ public sealed class LeadIntakeService(
         // the map does not already hold, so a mapping an admin set by hand is never overwritten.
         if (agentKey is not null && integration is not null
             && FindEntry(routing.ExternalMap, agentKey) is null)
-            RememberAgentMapping(integration, agentKey, matched, name);
+            RememberAgentMapping(integration, agentKey, matched, agentName);
+
+        // Recorded against the listing too, so the next enquiry on this property resolves from our
+        // own map rather than calling the lookup service again.
+        if (fromPublicListing && integration is not null && agentKey is not null)
+            RememberListingAgent(integration, ListingKeys(lead), agentKey, agentName, agentPhone);
 
         return matched;
     }
@@ -552,6 +598,44 @@ public sealed class LeadIntakeService(
         return teams.Count == 1 ? teams[0] : null;
     }
 
+    /// <summary>
+    /// Tenant-scoped login lookup by full name.
+    ///
+    /// <para>Used only for details read off a public listing, where the email and phone shown are
+    /// often the agency's rather than the agent's. Names are a weak identifier, so the rules are
+    /// strict: compared with punctuation and extra spacing removed, and <b>a match is only accepted
+    /// when exactly one login matches</b>. Two people called Mohammed Khan means the name does not
+    /// identify anyone, and picking one would hand the lead to someone who never listed the
+    /// property — the precise failure this whole path exists to avoid.</para>
+    /// </summary>
+    private async Task<LeadOwner?> FindUserByNameAsync(string fullName, Guid tenantId, CancellationToken ct)
+    {
+        var wanted = NormalizeName(fullName);
+        if (wanted.Length < 4) return null;   // too short to identify anyone
+
+        var candidates = await db.Set<IdentityUserView>().AsNoTracking()
+            .Where(u => u.TenantId == tenantId && !u.IsDeleted)
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+            .ToListAsync(ct);
+
+        var matches = candidates
+            .Where(u => NormalizeName($"{u.FirstName} {u.LastName}") == wanted)
+            .Take(2).ToList();
+        if (matches.Count != 1) return null;
+
+        var hit  = matches[0];
+        var name = $"{hit.FirstName} {hit.LastName}".Trim();
+        return new LeadOwner(hit.Id, name.Length > 0 ? name : hit.Username, await SoleTeamAsync(hit.Id, tenantId, ct));
+    }
+
+    /// <summary>Lower-cased letters and digits only, single-spaced — so "Al-Mansoori" matches "Al Mansoori".</summary>
+    private static string NormalizeName(string s)
+    {
+        var parts = new string(s.Select(c => char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : ' ').ToArray())
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(' ', parts);
+    }
+
     private static LeadOwner? ToOwner(string? userId, string? userName, string? teamId) =>
         Guid.TryParse(userId, out var u)
             ? new LeadOwner(u, userName ?? "", Guid.TryParse(teamId, out var t) ? t : null)
@@ -581,7 +665,24 @@ public sealed class LeadIntakeService(
         // Recorded under EVERY identifier this enquiry carried for the property. A pull enquiry
         // usually states both the reference and the listing id; a push may quote only a URL. Storing
         // one and looking up the other is exactly how the match silently fails.
-        var keys = ListingKeys(lead).ToList();
+        RememberListingAgent(
+            integration, ListingKeys(lead), agentKey,
+            Clean(lead.ExternalOwnerName)
+                ?? (lead.RawFields.TryGetValue("agent_name", out var rawName) ? rawName : null),
+            Clean(lead.ExternalOwnerPhone));
+    }
+
+    /// <summary>
+    /// Writes listing → agent into the integration's <c>listingMap</c>, under every identifier
+    /// given for the property. A pull enquiry usually states both the reference and the listing id;
+    /// a push may quote only a URL. Storing one and looking up the other is exactly how the match
+    /// silently fails.
+    /// </summary>
+    private static void RememberListingAgent(
+        Integration integration, IEnumerable<string> listingKeys,
+        string agentKey, string? agentName, string? agentPhone)
+    {
+        var keys = listingKeys.ToList();
         if (keys.Count == 0) return;
 
         JsonObject root;
@@ -598,10 +699,7 @@ public sealed class LeadIntakeService(
             root["listingMap"] = map;
         }
 
-        var agentName  = Clean(lead.ExternalOwnerName)
-                      ?? (lead.RawFields.TryGetValue("agent_name", out var rawName) ? rawName : null);
-        var agentPhone = Clean(lead.ExternalOwnerPhone);
-        var changed    = false;
+        var changed = false;
 
         foreach (var key in keys)
         {

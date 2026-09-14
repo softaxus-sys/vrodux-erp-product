@@ -126,6 +126,18 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     public async Task<IActionResult> SetSigningSecret(Guid id, [FromBody] SigningSecretRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new SetIntegrationSigningSecretCommand(id, req.Secret), ct));
 
+    /// <summary>
+    /// Key for the listing-lookup service that resolves which agent holds a Bayut / dubizzle
+    /// listing. Sending a blank key turns the lookup off.
+    /// </summary>
+    [HttpPut("{id:guid}/listing-lookup-key")]
+    [RequirePermission("settings.integrations.edit")]
+    public async Task<IActionResult> SetListingLookupKey(
+        Guid id, [FromBody] ListingLookupKeyRequest req, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new SetListingLookupKeyCommand(id, req.ApiKey, req.BaseUrl), ct));
+
+    public sealed record ListingLookupKeyRequest(string? ApiKey, string? BaseUrl);
+
     /// <summary>Import history from the provider (Bayut / dubizzle serve up to six months).</summary>
     [HttpPost("{id:guid}/backfill")]
     [RequirePermission("settings.integrations.import")]

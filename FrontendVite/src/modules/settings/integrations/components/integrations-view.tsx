@@ -20,11 +20,13 @@ import {
   useCreateIntegration, useUpdateIntegrationConfig, useDisconnectIntegration,
   useDeleteIntegration, useRotateInboundKey, useStartMetaOAuth, useMetaPages,
   useSelectMetaTargets, useSetIntegrationApiKey, useSetIntegrationSigningSecret, useBackfillIntegration,
+  useSetListingLookupKey,
 } from "@/hooks/crm/use-integrations";
 import { integrationsApi, type ProviderCatalogItem, type MetaForm } from "@/lib/crm/integrations.api";
 import { InboxEntryDetails } from "@/modules/crm/lead-inbox/components/inbox-entry-details";
 import { LeadInboxView } from "@/modules/crm/lead-inbox/components/lead-inbox-view";
 import { AssignmentBackfillPanel } from "./assignment-backfill-panel";
+import { ListingMapImportModal, type ImportedListingRow } from "./listing-map-import-modal";
 
 // ── Provider visuals ─────────────────────────────────────────────────────────
 
@@ -626,8 +628,10 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
   const { t } = useTranslation("settings");
   const setApiKey = useSetIntegrationApiKey();
   const setSecret = useSetIntegrationSigningSecret();
+  const setLookup = useSetListingLookupKey();
   const [key, setKey] = React.useState("");
   const [push, setPush] = React.useState("");
+  const [lookupKey, setLookupKey] = React.useState("");
 
   // Which credentials are actually stored. hasCredentials alone cannot answer this — it is one
   // flag for the whole envelope — and every integration is created with a generated signing
@@ -639,6 +643,9 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
 
   const fields: string[] = integration.credentialFields ?? [];
   const hasPull = fields.includes("apiKey") || fields.includes("pullApiKey");
+  // Stored as an empty string when turned off, and FieldNames reports any present key — so the
+  // name alone would keep claiming a key exists after it was cleared.
+  const hasLookup = fields.includes("listingLookupKey");
   const hasPush = fields.includes("providerSigningSecret");
 
   return (
@@ -668,6 +675,62 @@ function PortalPullKeyTab({ integration, canEdit }: { integration: any; canEdit:
         {setApiKey.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
         {t("integrations.portal.pullKeySave")}
       </Button>
+
+      {/* Listing → agent lookup. Kept next to the pull key because it solves the same problem by a
+          different route: the pull API teaches us an agent only after they receive an enquiry,
+          whereas this answers for a listing that has never produced one. */}
+      <div className="border-t border-border pt-4 space-y-3">
+        <div>
+          <h4 className="text-sm font-semibold text-foreground">Listing agent lookup</h4>
+          <p className="text-xs text-muted-foreground mt-1">
+            A WhatsApp push from Bayut names the listing but not the agent, so a lead on a property
+            we have never had an enquiry for cannot be assigned. With a key here, Vrodux looks the
+            listing up and assigns the lead to the agent holding it.
+          </p>
+          {/* Said plainly: this is not Bayut, and it costs money. Nobody should acquire an external
+              dependency in their assignment path by accident. */}
+          <p className="text-[11px] text-warning mt-2">
+            This uses a third-party listing service (such as bayutapi.com), not Bayut itself — Bayut
+            publishes no endpoint for this. It needs your own subscription, and stays off until a
+            key is entered.
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[11px] text-muted-foreground">
+            API key {hasLookup && <span className="text-success">· a key is stored</span>}
+          </label>
+          <Input
+            type="password"
+            value={lookupKey}
+            onChange={e => setLookupKey(e.target.value)}
+            placeholder={hasLookup ? "Enter a new key to replace the stored one" : "Paste the service API key"}
+            disabled={!canEdit}
+            className="h-9 text-sm font-mono" />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!canEdit || lookupKey.trim().length === 0 || setLookup.isPending}
+            onClick={() => setLookup.mutate(
+              { id: integration.id, apiKey: lookupKey.trim() },
+              { onSuccess: () => setLookupKey("") })}>
+            {setLookup.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            Save key
+          </Button>
+          {hasLookup && canEdit && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={setLookup.isPending}
+              onClick={() => setLookup.mutate({ id: integration.id, apiKey: "" })}>
+              Turn off
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* History import — only useful once a pull key is stored. */}
       <div className="border-t border-border pt-4 space-y-3">
@@ -1213,6 +1276,19 @@ function ListingAgentMap({ value, canEdit, onChange }: {
   const [search, setSearch] = React.useState("");
   const [newRef, setNewRef] = React.useState("");
   const [newAssignee, setNewAssignee] = React.useState("");
+  const [importing, setImporting] = React.useState(false);
+
+  // Imported rows are PINNED (learned: false) — they come from the agency's own record of who
+  // published each listing, so an enquiry naming someone else must not overwrite them.
+  function applyImport(imported: ImportedListingRow[]) {
+    const next = { ...value };
+    for (const r of imported)
+      next[r.reference] = {
+        ...(next[r.reference] ?? {}),
+        userId: r.userId, userName: r.userName, teamId: r.teamId, learned: false,
+      };
+    onChange(next);
+  }
 
   const rows = Object.entries(value)
     .filter(([ref, e]) => !search.trim()
@@ -1270,10 +1346,23 @@ function ListingAgentMap({ value, canEdit, onChange }: {
         <p className="text-sm font-medium">{t("integrations.routing.listingMapTitle", { defaultValue: "Listing → agent" })}</p>
         <p className="text-xs text-muted-foreground mt-0.5">
           {t("integrations.routing.listingMapDesc", {
-            defaultValue: "WhatsApp leads carry only the listing reference. Agents are learned automatically from enquiries that name them; pin a listing to a user to override.",
+            defaultValue: "Bayut's WhatsApp leads carry only the listing reference, never the agent — so this map is what routes them. Import your listings to map them all at once; otherwise agents are learned from enquiries that happen to name them.",
           })}
         </p>
       </div>
+
+      {canEdit && (
+        <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
+          <UploadCloud className="h-3.5 w-3.5 me-1.5" />
+          {t("integrations.routing.importListings", { defaultValue: "Import listings" })}
+        </Button>
+      )}
+
+      <AnimatePresence>
+        {importing && (
+          <ListingMapImportModal onClose={() => setImporting(false)} onImport={applyImport} />
+        )}
+      </AnimatePresence>
 
       {Object.keys(value).length > 5 && (
         <Input placeholder={t("integrations.routing.listingSearch", { defaultValue: "Search reference or agent…" })}
@@ -1282,7 +1371,7 @@ function ListingAgentMap({ value, canEdit, onChange }: {
 
       {rows.length === 0 ? (
         <p className="text-xs text-muted-foreground">
-          {t("integrations.routing.listingMapEmpty", { defaultValue: "No listings yet — they appear here as enquiries arrive." })}
+          {t("integrations.routing.listingMapEmpty", { defaultValue: "No listings yet. Import them to route WhatsApp leads straight away, or leave it and they will be learned as enquiries arrive." })}
         </p>
       ) : (
         <div className="max-h-72 overflow-y-auto divide-y divide-border">
@@ -1347,6 +1436,13 @@ function HistoryTab({ integrationId }: { integrationId: string }) {
               l.status === "success" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
               {syncStatusLabel(t, l.status)}
             </span>
+          </div>
+          <div className="text-[11px] font-medium mt-0.5">
+            {/* "webhook" = a delivery the portal pushed; "poll"/"backfill" = a fetch Vrodux ran.
+                Which side initiated it is the first thing to know when leads stop arriving. */}
+            {l.trigger === "webhook"
+              ? <span className="text-primary">Pushed by the portal</span>
+              : <span className="text-muted-foreground">Pulled by Vrodux</span>}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             {t("integrations.history.summary", {

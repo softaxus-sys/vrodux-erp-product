@@ -115,8 +115,12 @@ export function LeadInboxView({ integrationId }: { integrationId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
+        {/* Direction stated outright. Only webhook deliveries land here — a poll calls intake
+            directly and never creates an inbox row — so without saying so, an empty log reads as
+            "nothing is arriving" when it may only mean "nothing is being PUSHED". */}
         <p className="text-xs text-muted-foreground">
-          Everything this integration has sent, newest first — with the payload it delivered.
+          <span className="font-medium text-foreground">Pushed to Vrodux by the portal</span>, newest
+          first — with the payload it delivered. Leads Vrodux pulls are recorded under Sync History.
           {total > 0 && <span className="ms-1">Showing {rows.length} of {total} on this page.</span>}
         </p>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
