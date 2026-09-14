@@ -50,8 +50,9 @@ export function useLeadInbox(filters: LeadInboxFilters) {
   return useQuery({
     // Keyed on the filter values, not the object, so a re-render with an equivalent object does
     // not miss the cache.
-    queryKey: [QK, "lead-inbox", filters.page ?? 1, filters.pageSize ?? 25,
-               filters.provider ?? "all", filters.status ?? "all", filters.search ?? ""],
+    queryKey: [QK, "lead-inbox", filters.integrationId ?? "all", filters.page ?? 1,
+               filters.pageSize ?? 25, filters.provider ?? "all", filters.status ?? "all",
+               filters.search ?? ""],
     queryFn:  () => integrationsApi.getLeadInbox(filters),
     staleTime: 10 * 1000,
     refetchInterval: 15 * 1000,
@@ -88,6 +89,38 @@ export function useRetryLeadInboxEntry() {
       // Queued, not done: the processor picks it up on its next pass, so promising a lead here
       // would be a claim this call cannot make.
       toast.success("Queued for reprocessing.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Assignment backfill ──────────────────────────────────────────────────────
+
+/**
+ * Enabled explicitly rather than on mount: the preview resolves every candidate, which can reach
+ * the portal's user directory. That is work to do when someone asks for it, not when a tab opens.
+ */
+export function useAssignmentBackfillPreview(id: string | null, includeAssigned: boolean, enabled: boolean) {
+  return useQuery({
+    queryKey: [QK, "assignment-backfill", id, includeAssigned],
+    queryFn:  () => integrationsApi.previewAssignmentBackfill(id!, includeAssigned),
+    enabled:  !!id && enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useApplyAssignmentBackfill() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, leadIds }: { id: string; leadIds: string[] }) =>
+      integrationsApi.applyAssignmentBackfill(id, leadIds),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: [QK, "assignment-backfill"] });
+      // Ownership changed, so every leads view is stale — including the ones outside this module.
+      qc.invalidateQueries({ queryKey: ["crm"] });
+      toast.success(r.assigned > 0
+        ? `${r.assigned} lead(s) assigned.`
+        : "No leads could be assigned.");
     },
     onError: (e: Error) => toast.error(e.message),
   });

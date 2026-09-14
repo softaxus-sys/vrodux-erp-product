@@ -52,9 +52,10 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     [RequirePermission("settings.integrations.view")]
     public async Task<IActionResult> GetLeadInbox(
         [FromQuery] int page = 1, [FromQuery] int pageSize = 25,
-        [FromQuery] string? provider = null, [FromQuery] string? status = null,
-        [FromQuery] string? search = null, CancellationToken ct = default) =>
-        OkOrError(await sender.Send(new GetLeadInboxQuery(page, pageSize, provider, status, search), ct));
+        [FromQuery] Guid? integrationId = null, [FromQuery] string? provider = null,
+        [FromQuery] string? status = null, [FromQuery] string? search = null,
+        CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetLeadInboxQuery(page, pageSize, integrationId, provider, status, search), ct));
 
     /// <summary>Per-status and per-provider counts over the whole inbox.</summary>
     [HttpGet("inbox/summary")]
@@ -73,6 +74,26 @@ public sealed class IntegrationsController(ISender sender) : CrmControllerBase
     [RequirePermission("settings.integrations.edit")]
     public async Task<IActionResult> RetryLeadInboxEntry(Guid entryId, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new RetryLeadInboxEntryCommand(entryId), ct));
+
+    // ── Assignment backfill ─────────────────────────────────────────────────
+    // Leads this integration created BEFORE the portal agent rules existed keep whatever owner
+    // they were given at the time. These two endpoints re-run the live rules over them.
+
+    /// <summary>What a backfill would do. Read-only; nothing is assigned.</summary>
+    [HttpGet("{id:guid}/assignment-backfill")]
+    [RequirePermission("settings.integrations.view")]
+    public async Task<IActionResult> PreviewAssignmentBackfill(
+        Guid id, [FromQuery] bool includeAssigned = false, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new PreviewLeadAssignmentBackfillQuery(id, includeAssigned), ct));
+
+    /// <summary>Assign the leads named in the body. Edit — it rewrites who owns a record.</summary>
+    [HttpPost("{id:guid}/assignment-backfill")]
+    [RequirePermission("settings.integrations.edit")]
+    public async Task<IActionResult> ApplyAssignmentBackfill(
+        Guid id, [FromBody] AssignmentBackfillRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new ApplyLeadAssignmentBackfillCommand(id, req.LeadIds ?? []), ct));
+
+    public sealed record AssignmentBackfillRequest(IReadOnlyList<Guid>? LeadIds);
 
     /// <summary>Reveal the inbound URL + decrypted signing secret (for configuring HMAC senders).</summary>
     [HttpGet("{id:guid}/secret")]

@@ -59,7 +59,11 @@ public static class InfrastructureExtensions
         // Provider registry auto-discovers every ILeadProvider registered below.
         services.AddSingleton<ILeadProviderRegistry, LeadProviderRegistry>();
         // The single intake pipeline (mapping → dedupe → create → routing → notification).
-        services.AddScoped<ILeadIntakeService, LeadIntakeService>();
+        services.AddScoped<LeadIntakeService>();
+        services.AddScoped<ILeadIntakeService>(sp => sp.GetRequiredService<LeadIntakeService>());
+        // Same instance behind both roles: the assignment backfill resolves owners through the
+        // very rules the live intake path uses, rather than a second copy that could drift.
+        services.AddScoped<IPortalOwnerResolver>(sp => sp.GetRequiredService<LeadIntakeService>());
         services.AddScoped<Softaxis.CRM.Application.Abstractions.ICrmEmailService, Services.SmtpCrmEmailService>();
 
         // ── Providers ─────────────────────────────────────────────────────────
@@ -108,6 +112,9 @@ public static class InfrastructureExtensions
         // Per-tenant credentials: scoped, because it reads the caller's own integration row.
         services.AddScoped<PropertyFinderCredentialStore>();
         services.AddSingleton<ILeadProvider, PropertyFinderLeadProvider>();
+        // Resolves publicProfile.id → that agent's email/phone so a PF lead can be matched to a
+        // login on its own, without waiting for someone to re-run the import wizard.
+        services.AddScoped<IPortalAgentDirectory, PropertyFinderAgentDirectory>();
 
         // ── Bayut / Dubizzle — Pull API + WhatsApp push webhook ──────────────
         // Both portals run on the same EMPG/Dubizzle Group backend and share one API, differing

@@ -98,6 +98,19 @@ internal static class PropertyPortalLeadMapper
                 : null)
             ?? Str(el, "listing_reference", "listing_reference_number", "listing_ref", "property_reference");
 
+        // The listing URL. A WhatsApp push puts it on the listing object AND quotes a different
+        // spelling of the same property in the message ("…/property/details-15943235.html"), so both
+        // are read — the message is the only carrier when the payload has no listing object.
+        var listingUrl = (listing is { } lu ? Str(lu, "url", "listing_url", "link", "permalink") : null)
+                      ?? Str(el, "listing_url", "url")
+                      ?? PortalListingUrl.ExtractUrl(message, "bayut.com", "dubizzle.com", "propertyfinder.ae");
+        // The numeric listing id is a SECOND key, not a synonym of the reference: the account-level
+        // reference ("100104-uDkDxP") and the listing id (15943235) identify the same property in
+        // different namespaces, and a payload may carry either one alone.
+        var listingId = (listing is { } lid ? Str(lid, "listing_id", "id") : null)
+                      ?? PortalListingUrl.ExtractId(listingUrl)
+                      ?? PortalListingUrl.ExtractId(message);
+
         // Bayut's tracked reply link — the agent's response time is only measured when they reply through it.
         var contactLink = Str(el, "contact_link", "contactLink", "contact_url")
                        ?? Str(person, "contact_link", "contactLink")
@@ -127,6 +140,16 @@ internal static class PropertyPortalLeadMapper
         // Investing, General inquiry.
         var intent = Str(person, "intent", "visitor_intent") ?? Str(el, "visitor_intent", "intent");
 
+        // The agent as the portal knows them. A listing-targeted enquiry names the agent on the
+        // listing rather than in its own object, so both are consulted.
+        var agentEmail = (agent is { } ae ? Str(ae, "email", "agent_email") : null)
+                      ?? (listing is { } le ? Str(le, "agent_email") : null);
+        var agentPhone = (agent is { } ap ? Str(ap, "phone", "phone_number", "mobile", "contact_number") : null)
+                      ?? (listing is { } lp ? Str(lp, "agent_phone") : null);
+        var agentName  = (agent is { } an ? Str(an, "name", "agent_name") : null)
+                      ?? (listing is { } ln ? Str(ln, "agent", "agent_name") : null);
+        var agentId    = agent is { } ai ? Str(ai, "id", "agent_id", "url") : null;
+
         var notes = new StringBuilder();
         void Line(string label, string? v) { if (!string.IsNullOrWhiteSpace(v)) notes.Append(label).Append(": ").Append(v).Append('\n'); }
         Line("Enquiry", typeLabel);
@@ -143,13 +166,13 @@ internal static class PropertyPortalLeadMapper
             Line("Bedrooms", Str(l5, "bedrooms"));
             Line("Bathrooms", Str(l5, "bathrooms"));
         }
-        // An agent- or agency-targeted enquiry names no property; record who was approached, or
-        // the lead reads as though it came from nowhere.
-        if (agent is { } ag)
-        {
-            Line("Agent", Str(ag, "name"));
-            Line("Agent email", Str(ag, "email"));
-        }
+        // The property and who holds it. An agent- or agency-targeted enquiry names no listing at
+        // all, so recording who was approached is the only thing that stops the lead reading as
+        // though it came from nowhere.
+        Line("Listing", listingUrl);
+        Line("Agent", agentName);
+        Line("Agent email", agentEmail);
+        Line("Agent phone", agentPhone);
         if (agency is { } agy) Line("Agency", Str(agy, "name"));
         if (story is { } st2)
         {
@@ -180,8 +203,15 @@ internal static class PropertyPortalLeadMapper
 
             // An agent-targeted enquiry already belongs to someone at the portal; with external_map
             // routing the lead goes to that agent instead of round-robin.
-            ExternalOwnerId     = agent is { } ao ? Str(ao, "email") ?? Str(ao, "id") ?? Str(ao, "url") : null,
+            ExternalOwnerId     = agentEmail ?? agentId,
+            ExternalOwnerEmail  = agentEmail,
+            // Matching on phone matters because a portal agent profile often carries a mobile and
+            // no email, and the same person's login here should be found either way.
+            ExternalOwnerPhone  = agentPhone,
+            ExternalOwnerName   = agentName,
             ListingReference    = reference,
+            ListingId           = listingId,
+            ListingUrl          = listingUrl,
             ContactLink         = contactLink,
             IsOrganic           = true,   // a portal enquiry is not paid advertising of ours
 
@@ -192,12 +222,13 @@ internal static class PropertyPortalLeadMapper
         Raw($"{platformKey}_lead_id", Str(el, "lead_id", "id"));
         Raw("enquiry_type", typeLabel);
         Raw("intent", intent);
-        Raw("listing_id", listing is { } li ? Str(li, "listing_id") : null);
+        Raw("listing_id", listingId);
         Raw("listing_reference", reference);
-        Raw("agent_name", agent is { } a2 ? Str(a2, "name") : null);
+        Raw("agent_name", agentName);
+        Raw("agent_email", agentEmail);
+        Raw("agent_phone", agentPhone);
         Raw("agency_name", agency is { } ay2 ? Str(ay2, "name") : null);
-        Raw("listing_url", listing is { } l6 ? Str(l6, "url", "listing_url") : null);
-        Raw("agent", listing is { } l7 ? Str(l7, "agent", "agent_name") : null);
+        Raw("listing_url", listingUrl);
 
         // Whatever the fixed field names above missed — custom question names or fields Bayut's
         // account-manager-configured payload happens to use — still gets a chance via the

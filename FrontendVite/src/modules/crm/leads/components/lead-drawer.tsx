@@ -45,6 +45,95 @@ const PRIORITY_CONFIG = {
 // index would read undefined and take the whole page down on .color.
 const PRIORITY_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted" };
 
+/** Keys the property panel renders itself — excluded from Form Responses so nothing shows twice. */
+const PORTAL_KEYS = ["listing_url", "listing_reference", "listing_id", "agent_name", "agent_email", "agent_phone"];
+
+/** Form Responses minus what the property panel already shows; null when nothing is left. */
+function portalExtras(fields?: Record<string, string> | null) {
+  if (!fields) return null;
+  const rest = Object.fromEntries(
+    Object.entries(fields).filter(([k]) => !PORTAL_KEYS.includes(k.trim().toLowerCase())));
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
+/**
+ * The property enquired about and the portal agent who holds it.
+ *
+ * The agent matters beyond display: it is the value the intake pipeline matches against a login in
+ * this workspace (by email, then by phone) to assign the lead. Showing it is what makes a failed
+ * match diagnosable — "we have this agent, but no user here has that address".
+ */
+function PortalListingPanel({ lead }: { lead: Lead }) {
+  const { t } = useTranslation("crm");
+  const f = lead.customFields ?? {};
+  const get = (k: string) => {
+    const hit = Object.entries(f).find(([key]) => key.trim().toLowerCase() === k);
+    return hit?.[1]?.trim() || undefined;
+  };
+
+  const url = get("listing_url");
+  const reference = get("listing_reference");
+  const listingId = get("listing_id");
+  const agent = get("agent_name");
+  const agentEmail = get("agent_email");
+  const agentPhone = get("agent_phone");
+  if (!url && !reference && !listingId && !agent && !agentEmail && !agentPhone) return null;
+
+  return (
+    <div>
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+        {t("drawer.propertyAndAgent", { defaultValue: "Property & Listing Agent" })}
+      </h4>
+      <div className="space-y-0 bg-muted/30 rounded-xl p-4">
+        {url && (
+          <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
+            <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="flex-1 flex justify-between gap-4 min-w-0">
+              <span className="text-xs text-muted-foreground shrink-0">{t("drawer.listing", { defaultValue: "Listing" })}</span>
+              {/* noreferrer as well as noopener: the target is a third-party portal page. */}
+              <a href={url} target="_blank" rel="noopener noreferrer"
+                className="text-sm font-medium text-primary hover:underline truncate">
+                {t("drawer.openListing", { defaultValue: "Open on portal" })}
+              </a>
+            </div>
+          </div>
+        )}
+        {[
+          { label: t("drawer.reference", { defaultValue: "Reference" }), value: reference },
+          { label: t("drawer.listingId", { defaultValue: "Listing ID" }), value: listingId },
+          { label: t("drawer.listingAgent", { defaultValue: "Listing agent" }), value: agent },
+        ].filter(r => r.value).map(row => (
+          <div key={row.label} className="flex items-start gap-3 py-2.5 border-b border-border/40">
+            <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="flex-1 flex justify-between gap-4 min-w-0">
+              <span className="text-xs text-muted-foreground shrink-0">{row.label}</span>
+              <span className="text-sm font-medium text-right truncate">{row.value}</span>
+            </div>
+          </div>
+        ))}
+        {agentEmail && (
+          <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
+            <Mail className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="flex-1 flex justify-between gap-4 min-w-0">
+              <span className="text-xs text-muted-foreground shrink-0">{t("drawer.agentEmail", { defaultValue: "Agent email" })}</span>
+              <a href={`mailto:${agentEmail}`} className="text-sm font-medium text-primary hover:underline truncate">{agentEmail}</a>
+            </div>
+          </div>
+        )}
+        {agentPhone && (
+          <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-0">
+            <Phone className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <div className="flex-1 flex justify-between gap-4 min-w-0">
+              <span className="text-xs text-muted-foreground shrink-0">{t("drawer.agentPhone", { defaultValue: "Agent phone" })}</span>
+              <a href={`tel:${agentPhone}`} dir="ltr" className="text-sm font-medium text-primary hover:underline truncate">{agentPhone}</a>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScoreBar({ score }: { score: number }) {
   const { t } = useTranslation("crm");
   const color = score >= 70 ? "bg-success" : score >= 40 ? "bg-warning" : "bg-destructive";
@@ -381,12 +470,17 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
                     </div>
                   )}
 
+                  {/* Property & listing agent — portal enquiries (Bayut / dubizzle / Property Finder).
+                      Pulled out of the Form Responses catch-all because a rep opening a portal lead
+                      needs the property and whose listing it is first, not buried in a key/value dump. */}
+                  <PortalListingPanel lead={lead} />
+
                   {/* Form responses — survey Q&A / custom questions (catch-all) */}
-                  {lead.customFields && Object.keys(lead.customFields).length > 0 && (
+                  {portalExtras(lead.customFields) && (
                     <div>
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("drawer.formResponses")}</h4>
                       <div className="space-y-0 bg-muted/30 rounded-xl p-4">
-                        {Object.entries(lead.customFields).map(([q, a]) => (
+                        {Object.entries(portalExtras(lead.customFields)!).map(([q, a]) => (
                           <div key={q} className="py-2.5 border-b border-border/40 last:border-0">
                             <p className="text-xs text-muted-foreground capitalize">{q.replace(/[_-]/g, " ")}</p>
                             <p className="text-sm font-medium mt-0.5 leading-relaxed whitespace-pre-wrap">{a}</p>

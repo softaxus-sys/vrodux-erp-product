@@ -194,7 +194,15 @@
     "noteOptional": "Note (optional)",
     "notePlaceholder": "e.g. Contacted — please arrange a site visit",
     "noTeam": "No team",
-    "multiTeamHint": "Someone listed under several teams belongs to all of them."
+    "multiTeamHint": "Someone listed under several teams belongs to all of them.",
+    "propertyAndAgent": "Property & Listing Agent",
+    "listing": "Listing",
+    "openListing": "Open on portal",
+    "reference": "Reference",
+    "listingId": "Listing ID",
+    "listingAgent": "Listing agent",
+    "agentEmail": "Agent email",
+    "agentPhone": "Agent phone"
   },
   "form": {
     "editTitle": "Edit Lead",

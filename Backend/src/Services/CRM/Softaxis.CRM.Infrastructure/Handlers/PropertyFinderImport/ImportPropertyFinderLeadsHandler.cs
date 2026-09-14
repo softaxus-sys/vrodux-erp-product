@@ -155,14 +155,27 @@ internal sealed class ImportPropertyFinderLeadsHandler(
         if (integration is null) return;   // not connected yet — the backfill still works
 
         var map = new Dictionary<string, object>(StringComparer.Ordinal);
+        // Everything else already in the routing config — the learned listing → agent map above all.
+        // Rebuilding the config from just the agent map used to discard it, so an agent import
+        // silently threw away which agent holds which listing.
+        var others = new Dictionary<string, object?>(StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(integration.RoutingConfig))
         {
             try
             {
                 var root = JsonDocument.Parse(integration.RoutingConfig).RootElement;
-                if (root.TryGetProperty("externalMap", out var existing) && existing.ValueKind == JsonValueKind.Object)
-                    foreach (var e in existing.EnumerateObject())
-                        map[e.Name] = JsonSerializer.Deserialize<object>(e.Value.GetRawText())!;
+                foreach (var e in root.EnumerateObject())
+                {
+                    if (e.NameEquals("externalMap"))
+                    {
+                        if (e.Value.ValueKind == JsonValueKind.Object)
+                            foreach (var m in e.Value.EnumerateObject())
+                                map[m.Name] = JsonSerializer.Deserialize<object>(m.Value.GetRawText())!;
+                        continue;
+                    }
+                    if (e.NameEquals("mode")) continue;   // set explicitly below
+                    others[e.Name] = JsonSerializer.Deserialize<object>(e.Value.GetRawText());
+                }
             }
             catch { /* unreadable config is replaced rather than allowed to block the import */ }
         }
@@ -175,7 +188,9 @@ internal sealed class ImportPropertyFinderLeadsHandler(
                 teamId   = a.TeamId?.ToString(),
             };
 
-        integration.SetRoutingConfig(JsonSerializer.Serialize(new { mode = "external_map", externalMap = map }));
+        others["mode"]        = "external_map";
+        others["externalMap"] = map;
+        integration.SetRoutingConfig(JsonSerializer.Serialize(others));
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Property Finder: {Count} agent(s) mapped for live lead assignment.", map.Count);

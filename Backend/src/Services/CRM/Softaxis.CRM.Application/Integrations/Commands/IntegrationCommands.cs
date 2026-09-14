@@ -76,3 +76,13 @@ public sealed record DeleteIntegrationCommand(Guid Id) : ICommand;
 /// (a mapping the tenant has since fixed, a database blip) without asking the portal to resend.
 /// </summary>
 public sealed record RetryLeadInboxEntryCommand(Guid Id) : ICommand;
+
+/// <summary>
+/// Assigns leads this integration already created, using the same rules as live intake.
+///
+/// <para>Applies only to the leads named in <paramref name="LeadIds"/> — the ids the preview
+/// returned. Re-resolving server-side from a filter instead would risk applying something other
+/// than what the person approved, if a map changed in between.</para>
+/// </summary>
+public sealed record ApplyLeadAssignmentBackfillCommand(Guid IntegrationId, IReadOnlyList<Guid> LeadIds)
+    : ICommand<LeadAssignmentBackfillResultDto>;

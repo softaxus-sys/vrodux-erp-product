@@ -342,7 +342,8 @@
       "routing": "Routing",
       "history": "Sync History",
       "errors": "Error Log",
-      "portal": "Portal API"
+      "portal": "Portal API",
+      "inboxLog": "Inbound Log"
     },
     "remove": "Remove",
     "disconnect": "Disconnect",
@@ -505,9 +506,9 @@
     "errors": {
       "empty": "No inbound payloads recorded yet.",
       "attempts": "{{n}} attempt(s) · {{when}}",
-      "openInbox": "Open full Lead Inbox →",
+      "openInbox": "See every delivery",
       "emptyClean": "No failed deliveries. Everything received has been processed.",
-      "note": "Failures only. Every delivery, successful ones included, is in the Lead Inbox."
+      "note": "Failures only. Every delivery, successful ones included, is in the Inbound Log."
     },
     "meta": {
       "title": "Select Facebook Pages & Forms",

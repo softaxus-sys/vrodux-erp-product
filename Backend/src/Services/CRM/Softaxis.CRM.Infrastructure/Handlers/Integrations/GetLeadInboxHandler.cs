@@ -24,6 +24,8 @@ internal sealed class GetLeadInboxHandler(CrmDbContext db)
 
         var q = db.RawLeadInbox.AsNoTracking().AsQueryable();
 
+        if (query.IntegrationId is { } integrationId)
+            q = q.Where(x => x.IntegrationId == integrationId);
         if (!string.IsNullOrWhiteSpace(query.ProviderKey))
         {
             var key = query.ProviderKey.Trim().ToLowerInvariant();

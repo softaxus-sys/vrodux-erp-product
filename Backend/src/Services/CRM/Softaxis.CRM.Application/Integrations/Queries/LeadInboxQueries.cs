@@ -14,9 +14,10 @@ namespace Softaxis.CRM.Application.Integrations.Queries;
 /// <param name="Status">pending | processing | processed | duplicate | failed.</param>
 /// <param name="Search">Matches the provider's external id or the raw payload text.</param>
 public sealed record GetLeadInboxQuery(
-    int     Page        = 1,
-    int     PageSize    = 25,
-    string? ProviderKey = null,
+    int     Page          = 1,
+    int     PageSize      = 25,
+    Guid?   IntegrationId = null,
+    string? ProviderKey   = null,
     string? Status      = null,
     string? Search      = null
 ) : IQuery<PagedResult<LeadInboxRowDto>>;

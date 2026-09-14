@@ -9,8 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Can } from "@/components/auth/can";
-import { useLeadInbox, useLeadInboxSummary, useLeadInboxEntry } from "@/hooks/crm/use-integrations";
+import { useLeadInbox, useLeadInboxEntry } from "@/hooks/crm/use-integrations";
 import { InboxEntryDetails, StatusPill, statusMeta } from "./inbox-entry-details";
 import { LEAD_INBOX_STATUSES, type LeadInboxRow } from "@/lib/crm/integrations.api";
 import { sourceLabel } from "@/lib/crm/crm.api";
@@ -77,10 +76,16 @@ function Th({ children }: { children?: React.ReactNode }) {
   return <th className="px-4 py-2.5 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wide">{children}</th>;
 }
 
-export function LeadInboxView() {
+/**
+ * Every inbound delivery for ONE connected integration, with the payload the provider sent.
+ *
+ * Scoped rather than tenant-wide on purpose: it lives inside the integration's own drawer, so a
+ * Property Finder log must never show a Bayut payload. The source filter is dropped with it —
+ * there is only one source in scope, and a filter with a single option is furniture.
+ */
+export function LeadInboxView({ integrationId }: { integrationId: string }) {
   const [search, setSearch]       = React.useState("");
   const [debounced, setDebounced] = React.useState("");
-  const [provider, setProvider]   = React.useState("all");
   const [status, setStatus]       = React.useState("all");
   const [page, setPage]           = React.useState(1);
   const [openId, setOpenId]       = React.useState<string | null>(null);
@@ -90,37 +95,36 @@ export function LeadInboxView() {
     return () => clearTimeout(h);
   }, [search]);
 
-  const { data: summary } = useLeadInboxSummary();
   const { data, isLoading, isError, error, refetch, isFetching } =
-    useLeadInbox({ page, pageSize: 25, provider, status, search: debounced });
+    useLeadInbox({ integrationId, page, pageSize: 25, status, search: debounced });
 
   const rows  = data?.items ?? [];
   const total = data?.totalCount ?? 0;
-  const unfiltered = provider === "all" && status === "all" && !debounced;
+  const unfiltered = status === "all" && !debounced;
 
+  // Counted from the rows on screen, and labelled "on this page" so the number is not read as a
+  // total. A tenant-wide summary would be the wrong figure entirely inside a single integration.
+  const count = (...s: string[]) => rows.filter(r => s.includes(r.status)).length;
   const stats = [
-    { label: "Received",   value: summary?.total ?? 0,      icon: Inbox,         color: "bg-primary/10 text-primary" },
-    { label: "Leads made", value: summary?.processed ?? 0,  icon: CheckCircle2,  color: "bg-success/10 text-success" },
-    { label: "Duplicates", value: summary?.duplicates ?? 0, icon: Files,         color: "bg-muted text-muted-foreground" },
-    { label: "Waiting",    value: summary?.pending ?? 0,    icon: Clock,         color: "bg-warning/10 text-warning" },
-    { label: "Failed",     value: summary?.failed ?? 0,     icon: AlertTriangle, color: "bg-destructive/10 text-destructive" },
+    { label: "Leads made", value: count("processed"),              icon: CheckCircle2,  color: "bg-success/10 text-success" },
+    { label: "Duplicates", value: count("duplicate"),              icon: Files,         color: "bg-muted text-muted-foreground" },
+    { label: "Waiting",    value: count("pending", "processing"),  icon: Clock,         color: "bg-warning/10 text-warning" },
+    { label: "Failed",     value: count("failed"),                 icon: AlertTriangle, color: "bg-destructive/10 text-destructive" },
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Lead Inbox</h1>
-          <p className="text-sm text-muted-foreground">
-            Everything received from Bayut, Property Finder, Meta and every other connected source — with the payload each one sent.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">
+          Everything this integration has sent, newest first — with the payload it delivered.
+          {total > 0 && <span className="ms-1">Showing {rows.length} of {total} on this page.</span>}
+        </p>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw className={cn("h-4 w-4 me-2", isFetching && "animate-spin")} /> Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map(s => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -136,17 +140,6 @@ export function LeadInboxView() {
         ))}
       </div>
 
-      {/* A failure count is only useful next to the way to look at them. */}
-      {(summary?.failed ?? 0) > 0 && status !== "failed" && (
-        <button onClick={() => { setStatus("failed"); setPage(1); }}
-          className="w-full text-start rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm hover:bg-destructive/10 transition-colors">
-          <span className="font-semibold text-destructive">
-            {summary!.failed} delivery(s) never became a lead.
-          </span>
-          <span className="text-muted-foreground ms-1">Show them →</span>
-        </button>
-      )}
-
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -154,17 +147,6 @@ export function LeadInboxView() {
             placeholder="Search the payload — a phone number, an email, a listing reference…"
             className="ps-9 h-9" />
         </div>
-        <select value={provider} onChange={e => { setProvider(e.target.value); setPage(1); }}
-          aria-label="Source"
-          className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
-          <option value="all">All sources</option>
-          {/* Driven by what has actually arrived, so the list never offers an empty filter. */}
-          {(summary?.byProvider ?? []).map(p => (
-            <option key={p.providerKey} value={p.providerKey}>
-              {sourceLabel(p.providerKey)} ({p.total})
-            </option>
-          ))}
-        </select>
         <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
           aria-label="Status"
           className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
@@ -201,19 +183,13 @@ export function LeadInboxView() {
               <table className="w-full text-sm">
                 <thead className="border-b border-border bg-muted/40">
                   <tr>
-                    <Th>Source</Th><Th>Reference</Th><Th>Status</Th><Th>Lead</Th><Th>Received</Th><Th />
+                    <Th>Reference</Th><Th>Status</Th><Th>Lead</Th><Th>Received</Th><Th />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r: LeadInboxRow) => (
                     <tr key={r.id} onClick={() => setOpenId(r.id)}
                       className="border-b border-border/60 last:border-0 hover:bg-muted/40 cursor-pointer">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-foreground">{sourceLabel(r.providerKey)}</p>
-                        {r.integrationName !== sourceLabel(r.providerKey) && (
-                          <p className="text-[11px] text-muted-foreground truncate max-w-[16rem]">{r.integrationName}</p>
-                        )}
-                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[14rem] truncate">
                         {r.externalId || "—"}
                       </td>
@@ -255,21 +231,5 @@ export function LeadInboxView() {
 
       <EntryDrawer entryId={openId} onClose={() => setOpenId(null)} />
     </div>
-  );
-}
-
-/** The whole page is one permission, so denial is said once rather than as a wall of failed calls. */
-export function LeadInboxPage() {
-  return (
-    <Can permission="settings.integrations.view"
-      fallback={
-        <div className="p-10 text-center">
-          <Inbox className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-foreground">You do not have access to the lead inbox.</p>
-          <p className="text-xs text-muted-foreground mt-1">It needs the integrations permission — ask an administrator.</p>
-        </div>
-      }>
-      <LeadInboxView />
-    </Can>
   );
 }

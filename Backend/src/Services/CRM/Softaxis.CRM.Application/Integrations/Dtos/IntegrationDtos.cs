@@ -88,3 +88,20 @@ public sealed record LeadInboxSummaryDto(
     IReadOnlyList<LeadInboxProviderCountDto> ByProvider);
 
 public sealed record LeadInboxProviderCountDto(string ProviderKey, string Name, int Total, int Failed);
+
+// ── Assignment backfill ──────────────────────────────────────────────────────
+
+/// <summary>One historical lead and the owner the portal rules resolve for it.</summary>
+public sealed record LeadAssignmentCandidateDto(
+    Guid LeadId, string LeadName, string? Phone, DateTime CreatedAt,
+    string? ListingReference, string? AgentName,
+    string? CurrentOwnerName,
+    Guid? ResolvedUserId, string? ResolvedUserName, Guid? ResolvedTeamId,
+    /// <summary>Why nothing could be resolved — shown instead of leaving a blank row unexplained.</summary>
+    string? Reason);
+
+public sealed record LeadAssignmentBackfillPreviewDto(
+    int Total, int Resolvable, int AlreadyOwned, int Unresolvable,
+    IReadOnlyList<LeadAssignmentCandidateDto> Candidates);
+
+public sealed record LeadAssignmentBackfillResultDto(int Assigned, int Skipped);

@@ -140,6 +140,11 @@ public static class PropertyFinderLeadMapper
             // The portal already knows whose enquiry this is. Carried through so intake can give
             // it to that agent instead of round-robining it to whoever is next in the pool.
             ExternalOwnerId     = ProfileId(lead)?.ToString(),
+            // The listing is carried so the listing → agent map works for Property Finder too. PF
+            // ids are opaque strings (CVK0VQVCM9RGBRXEQ2GN31FP80), not numbers — which is exactly
+            // why they are taken from the payload rather than parsed out of a URL.
+            ListingReference    = listingRef,
+            ListingId           = ListingId(lead),
             PlatformCreatedTime = created,
             IsOrganic           = true,   // a portal enquiry is not paid advertising of ours
 

@@ -51,6 +51,25 @@ public sealed class CanonicalLead
     public string? ListingReference { get; set; }
 
     /// <summary>
+    /// The portal's own listing id, dug out of the listing URL when the payload does not state it.
+    /// A second key for the listing map: Bayut's account-level <c>reference</c> and its numeric
+    /// listing id are different identifiers, and a given payload may carry only one of them.
+    /// </summary>
+    public string? ListingId { get; set; }
+
+    /// <summary>Public URL of the listing enquired about — the property a rep needs to open.</summary>
+    public string? ListingUrl { get; set; }
+
+    /// <summary>
+    /// The portal agent's email and phone, when the payload names them. Used to match the agent to
+    /// a login in this workspace so the lead lands with the person who actually holds the listing,
+    /// and learned against the listing so a later enquiry carrying no agent still reaches them.
+    /// </summary>
+    public string? ExternalOwnerEmail { get; set; }
+    public string? ExternalOwnerPhone { get; set; }
+    public string? ExternalOwnerName  { get; set; }
+
+    /// <summary>
     /// The portal's tracked reply link (Bayut's <c>contact_link</c>). Agents must reply through it,
     /// not a plain WhatsApp link, or the portal cannot measure their response time.
     /// </summary>

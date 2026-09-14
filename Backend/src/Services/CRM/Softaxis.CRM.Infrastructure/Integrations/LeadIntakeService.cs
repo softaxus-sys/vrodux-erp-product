@@ -23,7 +23,8 @@ public sealed class LeadIntakeService(
     CrmDbContext db,
     IMediator mediator,
     IAiEventBus aiEvents,
-    ILogger<LeadIntakeService> logger) : ILeadIntakeService
+    IEnumerable<IPortalAgentDirectory> agentDirectories,
+    ILogger<LeadIntakeService> logger) : ILeadIntakeService, IPortalOwnerResolver
 {
     public async Task<IntakeResult> IngestAsync(CanonicalLead lead, Guid tenantId, Integration? integration, CancellationToken ct, LeadOwner? owner = null)
     {
@@ -40,7 +41,7 @@ public sealed class LeadIntakeService(
 
         // Resolved first, because when the source knows whose lead it is, the owner is part of
         // what makes two records "the same".
-        owner ??= await ResolveExternalOwnerAsync(lead, integration, tenantId, ct);
+        owner ??= await ResolveAsync(lead, integration, tenantId, ct);
 
         // Every enquiry naming both a listing and its agent teaches the listing map, so a later
         // enquiry carrying only the reference (Bayut's WhatsApp push) still reaches that agent.
@@ -283,7 +284,7 @@ public sealed class LeadIntakeService(
         // Ownership only moves when the source says so. A repeat enquiry must NOT quietly transfer
         // a lead to whichever agent happened to receive the latest message — the first agent owns
         // the relationship. An unowned lead is the exception: someone is better than nobody.
-        owner ??= await ResolveExternalOwnerAsync(lead, integration, tenantId, ct);
+        owner ??= await ResolveAsync(lead, integration, tenantId, ct);
         if (owner is not null && (lead.IsReassignment || existing.AssignedToUserId is null))
             existing.AssignTo(owner.UserId, owner.UserName, owner.TeamId);
 
@@ -361,7 +362,7 @@ public sealed class LeadIntakeService(
     /// When the source already knows whose lead it is (a portal assigns each enquiry to an agent),
     /// honouring that beats round-robining it to whoever is next.</para>
     /// </summary>
-    private async Task<LeadOwner?> ResolveExternalOwnerAsync(
+    public async Task<LeadOwner?> ResolveAsync(
         CanonicalLead lead, Integration? integration, Guid tenantId, CancellationToken ct)
     {
         var routing = ParseRouting(integration?.RoutingConfig);
@@ -372,24 +373,108 @@ public sealed class LeadIntakeService(
             && ToOwner(direct.UserId, direct.UserName, direct.TeamId) is { } mapped)
             return mapped;
 
-        // 2. Only a listing reference (Bayut's WhatsApp push): the listing map says whose listing it is —
-        //    either a user an admin pinned to it, or the portal agent learned from earlier enquiries.
-        if (agentKey is null && Clean(lead.ListingReference) is { } reference
-            && FindEntry(routing.ListingMap, reference) is { } listing)
+        // 2. Only a listing (Bayut's WhatsApp push names no agent at all): the listing map says whose
+        //    listing it is — a user an admin pinned to it, or the portal agent learned from an earlier
+        //    enquiry on the same property. Both keys are tried because the reference and the numeric
+        //    listing id are different identifiers and a payload may carry either one alone.
+        var agentPhone = Clean(lead.ExternalOwnerPhone);
+        if (agentKey is null)
         {
-            if (ToOwner(listing.UserId, listing.UserName, listing.TeamId) is { } pinned) return pinned;
+            foreach (var key in ListingKeys(lead))
+            {
+                if (FindEntry(routing.ListingMap, key) is not { } listing) continue;
 
-            agentKey = Clean(listing.AgentKey);
-            if (agentKey is not null && FindEntry(routing.ExternalMap, agentKey) is { } viaAgent
-                && ToOwner(viaAgent.UserId, viaAgent.UserName, viaAgent.TeamId) is { } agentOwner)
-                return agentOwner;
+                if (ToOwner(listing.UserId, listing.UserName, listing.TeamId) is { } pinned) return pinned;
+
+                agentKey   = Clean(listing.AgentKey);
+                agentPhone ??= Clean(listing.AgentPhone);
+                if (agentKey is not null && FindEntry(routing.ExternalMap, agentKey) is { } viaAgent
+                    && ToOwner(viaAgent.UserId, viaAgent.UserName, viaAgent.TeamId) is { } agentOwner)
+                    return agentOwner;
+                break;
+            }
         }
 
-        // 3. The portal identifies its agents by email: a login with that email in THIS workspace is them.
-        if (agentKey is not null && agentKey.Contains('@'))
-            return await FindUserByEmailAsync(agentKey, tenantId, ct);
+        // 3. The payload named an agent we have no contact details for — Property Finder identifies
+        //    its agents by a bare publicProfile.id. Ask the portal's own directory who that is, so a
+        //    newly-added agent is matched on their first lead instead of waiting for someone to
+        //    re-run the import wizard. Fail-soft: an unavailable directory just returns null.
+        var email = Clean(lead.ExternalOwnerEmail);
+        var name  = Clean(lead.ExternalOwnerName);
+        if (agentKey is not null && email is null && agentPhone is null && integration is not null)
+        {
+            foreach (var directory in agentDirectories)
+            {
+                if (!directory.Handles(integration.ProviderKey)) continue;
+                if (await directory.FindAsync(integration.Id, integration.ProviderKey, agentKey, ct) is not { } agent)
+                    break;
+                email      = Clean(agent.Email);
+                agentPhone = Clean(agent.Phone);
+                name     ??= Clean(agent.Name);
+                break;
+            }
+        }
 
-        return null;
+        // 4. Match the portal agent to a login in THIS workspace — by email, then by phone. Phone is
+        //    the fallback and not the first choice: an email is unique per login and exact, whereas a
+        //    number has to be compared loosely (see FindUserByPhoneAsync) to survive formatting.
+        email ??= agentKey is not null && agentKey.Contains('@') ? agentKey : null;
+        var matched = email is not null ? await FindUserByEmailAsync(email, tenantId, ct) : null;
+        matched ??= agentPhone is not null ? await FindUserByPhoneAsync(agentPhone, tenantId, ct) : null;
+        if (matched is null) return null;
+
+        // Written back so the match is made once, not on every enquiry that agent ever sends — and
+        // so an admin can see in Routing who the portal's agents resolved to. Only ever ADDS a key
+        // the map does not already hold, so a mapping an admin set by hand is never overwritten.
+        if (agentKey is not null && integration is not null
+            && FindEntry(routing.ExternalMap, agentKey) is null)
+            RememberAgentMapping(integration, agentKey, matched, name);
+
+        return matched;
+    }
+
+    /// <summary>
+    /// Adds one portal-agent → user mapping to the integration's <c>externalMap</c>, preserving
+    /// every other routing setting. Edited as JSON in place rather than re-serialised from the
+    /// parsed rules, which would drop any key this code does not model.
+    /// </summary>
+    private static void RememberAgentMapping(Integration integration, string agentKey, LeadOwner owner, string? agentName)
+    {
+        JsonObject root;
+        try
+        {
+            root = JsonNode.Parse(string.IsNullOrWhiteSpace(integration.RoutingConfig) ? "{}" : integration.RoutingConfig)
+                   as JsonObject ?? new JsonObject();
+        }
+        catch { return; }   // never overwrite a routing config we cannot read
+
+        if (root["externalMap"] is not JsonObject map)
+        {
+            map = new JsonObject();
+            root["externalMap"] = map;
+        }
+        if (map.Any(e => string.Equals(e.Key, agentKey, StringComparison.OrdinalIgnoreCase))) return;
+
+        map[agentKey] = new JsonObject
+        {
+            ["userId"]    = owner.UserId.ToString(),
+            ["userName"]  = owner.UserName,
+            ["teamId"]    = owner.TeamId?.ToString(),
+            ["agentName"] = agentName,
+            ["learned"]   = true,
+        };
+        root["mode"] ??= "fixed";
+        integration.SetRoutingConfig(root.ToJsonString());
+    }
+
+    /// <summary>
+    /// Every identifier this enquiry offers for the property, most specific first. The reference is
+    /// preferred because it is the account's own code; the numeric id is what a listing URL yields.
+    /// </summary>
+    private static IEnumerable<string> ListingKeys(CanonicalLead lead)
+    {
+        if (Clean(lead.ListingReference) is { } r) yield return r;
+        if (Clean(lead.ListingId) is { } id) yield return id;
     }
 
 
@@ -415,6 +500,58 @@ public sealed class LeadIntakeService(
         return new LeadOwner(user.Id, name.Length > 0 ? name : user.Username, teams.Count == 1 ? teams[0] : null);
     }
 
+    /// <summary>
+    /// Tenant-scoped login lookup by phone number.
+    ///
+    /// <para>Compared on the last nine digits, not on equality. The same person is written
+    /// "971505035501" by the portal, "+971 50 503 5501" in their profile and "0505035501" by
+    /// whoever typed it in a hurry; an exact match finds none of those against the others. Nine
+    /// digits is the UAE subscriber number without the country code or the trunk zero — long
+    /// enough not to collide across a workspace, short enough to survive every spelling.</para>
+    ///
+    /// <para>An ambiguous match is treated as no match: two logins ending in the same nine digits
+    /// means the number does not identify a person, and picking one would hand the lead to
+    /// someone who never listed the property.</para>
+    /// </summary>
+    private async Task<LeadOwner?> FindUserByPhoneAsync(string phone, Guid tenantId, CancellationToken ct)
+    {
+        var digits = new string(phone.Where(char.IsAsciiDigit).ToArray());
+        if (digits.Length < 9) return null;                    // too short to identify anyone
+        var tail = digits[^9..];
+
+        // Loaded and compared in memory: the stored numbers carry spaces, dashes and "+", which SQL
+        // cannot strip without a scan-per-row anyway, and a workspace's user list is small.
+        var candidates = await db.Set<IdentityUserView>().AsNoTracking()
+            .Where(u => u.TenantId == tenantId && !u.IsDeleted && u.PhoneNumber != null && u.PhoneNumber != "")
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username, u.PhoneNumber })
+            .ToListAsync(ct);
+
+        var matches = candidates
+            .Where(u =>
+            {
+                var d = new string(u.PhoneNumber!.Where(char.IsAsciiDigit).ToArray());
+                return d.Length >= 9 && d[^9..] == tail;
+            })
+            .Take(2).ToList();
+        if (matches.Count != 1) return null;
+
+        var hit  = matches[0];
+        var name = $"{hit.FirstName} {hit.LastName}".Trim();
+        return new LeadOwner(hit.Id, name.Length > 0 ? name : hit.Username, await SoleTeamAsync(hit.Id, tenantId, ct));
+    }
+
+    /// <summary>The user's team when they are in exactly one — the same "don't guess" rule used everywhere else.</summary>
+    private async Task<Guid?> SoleTeamAsync(Guid userId, Guid tenantId, CancellationToken ct)
+    {
+        var teams = await (
+                from m in db.Set<IdentityTeamMemberView>()
+                join t in db.Set<IdentityTeamView>() on m.TeamId equals t.Id
+                where m.UserId == userId && t.TenantId == tenantId && t.IsActive && !t.IsDeleted
+                select t.Id)
+            .Distinct().Take(2).ToListAsync(ct);
+        return teams.Count == 1 ? teams[0] : null;
+    }
+
     private static LeadOwner? ToOwner(string? userId, string? userName, string? teamId) =>
         Guid.TryParse(userId, out var u)
             ? new LeadOwner(u, userName ?? "", Guid.TryParse(teamId, out var t) ? t : null)
@@ -438,9 +575,14 @@ public sealed class LeadIntakeService(
     private static void LearnListingAgent(CanonicalLead lead, Integration? integration)
     {
         if (integration is null) return;
-        var reference = Clean(lead.ListingReference);
-        var agentKey  = Clean(lead.ExternalOwnerId);
-        if (reference is null || agentKey is null) return;
+        var agentKey = Clean(lead.ExternalOwnerId);
+        if (agentKey is null) return;
+
+        // Recorded under EVERY identifier this enquiry carried for the property. A pull enquiry
+        // usually states both the reference and the listing id; a push may quote only a URL. Storing
+        // one and looking up the other is exactly how the match silently fails.
+        var keys = ListingKeys(lead).ToList();
+        if (keys.Count == 0) return;
 
         JsonObject root;
         try
@@ -456,24 +598,41 @@ public sealed class LeadIntakeService(
             root["listingMap"] = map;
         }
 
-        var existingKey = map.Select(p => p.Key)
-            .FirstOrDefault(k => string.Equals(k, reference, StringComparison.OrdinalIgnoreCase));
-        if (existingKey is not null && map[existingKey] is JsonObject current)
+        var agentName  = Clean(lead.ExternalOwnerName)
+                      ?? (lead.RawFields.TryGetValue("agent_name", out var rawName) ? rawName : null);
+        var agentPhone = Clean(lead.ExternalOwnerPhone);
+        var changed    = false;
+
+        foreach (var key in keys)
         {
-            var learned = current["learned"] is JsonValue lv && lv.TryGetValue<bool>(out var b) && b;
-            if (!learned) return;   // an admin's entry wins
-            if (current["agentKey"] is JsonValue av && av.TryGetValue<string>(out var known)
-                && string.Equals(known, agentKey, StringComparison.OrdinalIgnoreCase))
-                return;             // nothing new
-            map.Remove(existingKey);
+            var existingKey = map.Select(x => x.Key)
+                .FirstOrDefault(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
+            if (existingKey is not null && map[existingKey] is JsonObject current)
+            {
+                var learned = current["learned"] is JsonValue lv && lv.TryGetValue<bool>(out var b) && b;
+                if (!learned) continue;   // an admin's entry wins
+                var sameAgent = current["agentKey"] is JsonValue av && av.TryGetValue<string>(out var known)
+                             && string.Equals(known, agentKey, StringComparison.OrdinalIgnoreCase);
+                // A known agent still gets rewritten when this enquiry adds a phone we did not have —
+                // that is the field the next push will be matched on.
+                var addsPhone = agentPhone is not null
+                             && !(current["agentPhone"] is JsonValue pv && pv.TryGetValue<string>(out var p0)
+                                  && !string.IsNullOrWhiteSpace(p0));
+                if (sameAgent && !addsPhone) continue;
+                map.Remove(existingKey);
+            }
+
+            map[key] = new JsonObject
+            {
+                ["agentKey"]   = agentKey,
+                ["agentName"]  = agentName,
+                ["agentPhone"] = agentPhone,
+                ["learned"]    = true,
+            };
+            changed = true;
         }
 
-        map[reference] = new JsonObject
-        {
-            ["agentKey"]  = agentKey,
-            ["agentName"] = lead.RawFields.TryGetValue("agent_name", out var agentName) ? agentName : null,
-            ["learned"]   = true,
-        };
+        if (!changed) return;
         root["mode"] ??= "fixed";
         integration.SetRoutingConfig(root.ToJsonString());
     }
@@ -579,7 +738,11 @@ public sealed class LeadIntakeService(
         Dictionary<string, ListingMapEntry>? ListingMap = null);
 
     private sealed record ListingMapEntry(
-        string? AgentKey, string? AgentName, string? UserId, string? UserName, string? TeamId, bool Learned);
+        string? AgentKey, string? AgentName, string? UserId, string? UserName, string? TeamId, bool Learned,
+        /// <summary>The agent's number as the portal gave it, so a later push can be matched on phone
+        /// when the portal knows no email for them. Optional: entries written before this existed
+        /// simply have none.</summary>
+        string? AgentPhone = null);
 
     private sealed record ExternalOwnerEntry(string? UserId, string? UserName, string? TeamId);
 }

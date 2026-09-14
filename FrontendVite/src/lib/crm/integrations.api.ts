@@ -95,8 +95,28 @@ export interface LeadInboxPage {
   totalPages: number; hasNext: boolean; hasPrev: boolean;
 }
 export interface LeadInboxFilters {
-  page?: number; pageSize?: number; provider?: string; status?: string; search?: string;
+  page?: number; pageSize?: number; status?: string; search?: string;
+  /** Scope to one connected integration — a Property Finder log never shows a Bayut payload. */
+  integrationId?: string;
+  provider?: string;
 }
+
+// ── Assignment backfill ──────────────────────────────────────────────────────
+
+/** One historical lead and the owner the portal rules resolve for it. */
+export interface LeadAssignmentCandidate {
+  leadId: string; leadName: string; phone: string | null; createdAt: string;
+  listingReference: string | null; agentName: string | null;
+  currentOwnerName: string | null;
+  resolvedUserId: string | null; resolvedUserName: string | null; resolvedTeamId: string | null;
+  /** Why nothing resolved — shown instead of a blank row. */
+  reason: string | null;
+}
+export interface LeadAssignmentBackfillPreview {
+  total: number; resolvable: number; alreadyOwned: number; unresolvable: number;
+  candidates: LeadAssignmentCandidate[];
+}
+export interface LeadAssignmentBackfillResult { assigned: number; skipped: number; }
 
 /** Statuses a delivery can be in, in the order the page shows them. */
 export const LEAD_INBOX_STATUSES = ["pending", "processing", "processed", "duplicate", "failed"] as const;
@@ -128,6 +148,7 @@ export const integrationsApi = {
     const q = new URLSearchParams();
     q.set("page", String(f.page ?? 1));
     q.set("pageSize", String(f.pageSize ?? 25));
+    if (f.integrationId) q.set("integrationId", f.integrationId);
     // Only send a filter that is actually set: "all" is the absence of a filter, and sending it
     // as a value would have the server look for a provider literally named "all".
     if (f.provider && f.provider !== "all") q.set("provider", f.provider);
@@ -136,6 +157,12 @@ export const integrationsApi = {
     return rawApiClient.get<LeadInboxPage>(`${BASE}/inbox?${q}`);
   },
   getLeadInboxSummary: () => rawApiClient.get<LeadInboxSummary>(`${BASE}/inbox/summary`),
+
+  previewAssignmentBackfill: (id: string, includeAssigned = false) =>
+    rawApiClient.get<LeadAssignmentBackfillPreview>(
+      `${BASE}/${id}/assignment-backfill?includeAssigned=${includeAssigned}`),
+  applyAssignmentBackfill: (id: string, leadIds: string[]) =>
+    rawApiClient.post<LeadAssignmentBackfillResult>(`${BASE}/${id}/assignment-backfill`, { leadIds }),
   getLeadInboxEntry:   (entryId: string) => rawApiClient.get<LeadInboxEntry>(`${BASE}/inbox/${entryId}`),
   retryLeadInboxEntry: (entryId: string) => rawApiClient.post<void>(`${BASE}/inbox/${entryId}/retry`, {}),
 

@@ -6,7 +6,7 @@ import type { TFunction } from "i18next";
 import {
   Link2, Link2Off, AlertCircle, RefreshCw, Search, X, Loader2, Copy, Check, CheckCircle2,
   KeyRound, Trash2, ShieldCheck, History, FileWarning, SlidersHorizontal, Plug, UploadCloud, DownloadCloud,
-  ChevronDown,
+  ChevronDown, Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ import {
 } from "@/hooks/crm/use-integrations";
 import { integrationsApi, type ProviderCatalogItem, type MetaForm } from "@/lib/crm/integrations.api";
 import { InboxEntryDetails } from "@/modules/crm/lead-inbox/components/inbox-entry-details";
+import { LeadInboxView } from "@/modules/crm/lead-inbox/components/lead-inbox-view";
+import { AssignmentBackfillPanel } from "./assignment-backfill-panel";
 
 // ── Provider visuals ─────────────────────────────────────────────────────────
 
@@ -317,7 +319,7 @@ function ProviderCard({ item, index, canEdit, connecting, onConnect, onConfigure
 /** Portals that authenticate their Pull API with a single per-account key. */
 const PULL_KEY_PORTALS = ["bayut", "dubizzle"];
 
-type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "errors" | "propertyfinder" | "portal";
+type Tab = "overview" | "setup" | "inbound" | "mapping" | "dedupe" | "routing" | "history" | "inboxlog" | "errors" | "propertyfinder" | "portal";
 
 function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
   integrationId: string; canEdit: boolean; onClose: () => void; onManageMeta: (id: string) => void;
@@ -348,6 +350,10 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
     { id: "dedupe",   label: t("integrations.tab.dedupe"),   icon: ShieldCheck,       show: true },
     { id: "routing",  label: t("integrations.tab.routing"),  icon: SlidersHorizontal, show: true },
     { id: "history",  label: t("integrations.tab.history"),  icon: History,           show: true },
+    // Everything this integration has delivered, payload included. Scoped to this row, so a
+    // Property Finder drawer shows only Property Finder payloads.
+    { id: "inboxlog", label: t("integrations.tab.inboxLog", { defaultValue: "Inbound Log" }),
+      icon: Inbox, show: true },
     { id: "errors",   label: t("integrations.tab.errors"),   icon: FileWarning,       show: true },
   ];
 
@@ -408,7 +414,8 @@ function ConfigureDrawer({ integrationId, canEdit, onClose, onManageMeta }: {
               {tab === "dedupe"   && <DedupeTab integration={integration} canEdit={canEdit} />}
               {tab === "routing"  && <RoutingTab integration={integration} canEdit={canEdit} />}
               {tab === "history"  && <HistoryTab integrationId={integration.id} />}
-              {tab === "errors"   && <ErrorsTab integrationId={integration.id} />}
+              {tab === "inboxlog" && <LeadInboxView integrationId={integration.id} />}
+              {tab === "errors"   && <ErrorsTab integrationId={integration.id} onOpenFullLog={() => setTab("inboxlog")} />}
             </div>
 
             {canEdit && (
@@ -1171,6 +1178,12 @@ function RoutingTab({ integration, canEdit }: { integration: any; canEdit: boole
           {t("integrations.routing.saveRouting")}
         </Button>
       )}
+
+      {/* Routing only ever applies to the NEXT enquiry. Leads already here keep the owner they were
+          given at the time, so the catch-up lives beside the rules it catches up with. */}
+      <div className="pt-4 mt-2 border-t border-border">
+        <AssignmentBackfillPanel integrationId={integration.id} canEdit={canEdit} />
+      </div>
     </div>
   );
 }
@@ -1360,7 +1373,7 @@ function HistoryTab({ integrationId }: { integrationId: string }) {
  * it has errored, and waiting for the last attempt to be spent before showing it is too late to be
  * useful.
  */
-function ErrorsTab({ integrationId }: { integrationId: string }) {
+function ErrorsTab({ integrationId, onOpenFullLog }: { integrationId: string; onOpenFullLog: () => void }) {
   const { t } = useTranslation("settings");
   const [openId, setOpenId] = React.useState<string | null>(null);
   const { data: all = [], isLoading } = useIntegrationInbox(integrationId);
@@ -1377,9 +1390,10 @@ function ErrorsTab({ integrationId }: { integrationId: string }) {
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <p className="text-xs text-muted-foreground">{t("integrations.errors.note")}</p>
-        <Link to="/crm/lead-inbox" className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+        <button type="button" onClick={onOpenFullLog}
+          className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
           {t("integrations.errors.openInbox")}
-        </Link>
+        </button>
       </div>
 
       {!rows.length ? (

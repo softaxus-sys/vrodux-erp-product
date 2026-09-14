@@ -50,6 +50,8 @@ internal sealed class IdentityUserView
     public string Username  { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName  { get; set; } = string.Empty;
+    /// <summary>Used to match a portal agent to their login when the portal knows no email for them.</summary>
+    public string? PhoneNumber { get; set; }
     public Guid?  TenantId  { get; set; }
     public bool   IsDeleted { get; set; }
 }

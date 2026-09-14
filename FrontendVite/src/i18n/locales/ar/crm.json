@@ -194,7 +194,15 @@
     "noteOptional": "ملاحظة (اختياري)",
     "notePlaceholder": "مثال: تم التواصل — يُرجى ترتيب زيارة ميدانية",
     "noTeam": "بدون فريق",
-    "multiTeamHint": "من يظهر ضمن أكثر من فريق فهو عضو فيها جميعًا."
+    "multiTeamHint": "من يظهر ضمن أكثر من فريق فهو عضو فيها جميعًا.",
+    "propertyAndAgent": "العقار ووكيل الإعلان",
+    "listing": "الإعلان",
+    "openListing": "فتح على البوابة",
+    "reference": "المرجع",
+    "listingId": "معرّف الإعلان",
+    "listingAgent": "وكيل الإعلان",
+    "agentEmail": "بريد الوكيل",
+    "agentPhone": "هاتف الوكيل"
   },
   "form": {
     "editTitle": "تعديل العميل المحتمل",
