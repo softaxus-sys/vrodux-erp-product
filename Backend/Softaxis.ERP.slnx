@@ -98,4 +98,10 @@
     <Project Path="src/Services/Recipe/Softaxis.Recipe.Domain/Softaxis.Recipe.Domain.csproj" />
     <Project Path="src/Services/Recipe/Softaxis.Recipe.Infrastructure/Softaxis.Recipe.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/AiAssistant/">
+    <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.API/Softaxis.AiAssistant.API.csproj" />
+    <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Application/Softaxis.AiAssistant.Application.csproj" />
+    <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Domain/Softaxis.AiAssistant.Domain.csproj" />
+    <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Infrastructure/Softaxis.AiAssistant.Infrastructure.csproj" />
+  </Folder>
 </Solution>
