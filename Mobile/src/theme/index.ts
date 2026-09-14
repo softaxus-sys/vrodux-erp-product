@@ -1,3 +1,4 @@
-export { colors, toneColors, type Tone } from "@/theme/colors";
+export { colors, toneColors, getToneColors, type Tone, type AppColors } from "@/theme/colors";
 export { spacing, radius, fontSize, fontWeight, shadow, shadowRaised } from "@/theme/tokens";
-export { navTheme, stackScreenOptions } from "@/theme/navigation";
+export { buildNavTheme, buildStackScreenOptions } from "@/theme/navigation";
+export { AppThemeProvider, useAppTheme } from "@/theme/theme-context";

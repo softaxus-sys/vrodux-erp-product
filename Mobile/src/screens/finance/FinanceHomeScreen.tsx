@@ -3,12 +3,13 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { hasPermission } from "@/store/auth.store";
 import { FINANCE_EXPENSES_VIEW, FINANCE_INVOICING_VIEW } from "@/lib/finance.api";
 import { MenuCard } from "@/components/ui";
-import { colors, spacing } from "@/theme";
+import { spacing, useAppTheme } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "FinanceHome">;
 
 export default function FinanceHomeScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
   const canInvoices = hasPermission(FINANCE_INVOICING_VIEW);
   const canExpenses = hasPermission(FINANCE_EXPENSES_VIEW);
 

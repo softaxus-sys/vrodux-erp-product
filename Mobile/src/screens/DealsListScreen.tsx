@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDealsPaged } from "@/hooks/use-deals";
@@ -6,7 +6,7 @@ import { formatCompactValue } from "@/lib/crm-helpers";
 import { DEAL_STAGE_TONE, PIPELINE_STAGES } from "@/types/crm";
 import type { DealDto } from "@/types/crm";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { DealsStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<DealsStackParamList, "DealsList">;
@@ -15,6 +15,8 @@ const FILTERS = [{ key: "all", label: "All" }, ...PIPELINE_STAGES];
 const PAGE_SIZE = 25;
 
 export default function DealsListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [stage, setStage] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -79,6 +81,8 @@ export default function DealsListScreen({ navigation }: Props) {
 }
 
 function DealRow({ deal, onPress }: { deal: DealDto; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const stageLabel = PIPELINE_STAGES.find((s) => s.key === deal.stage)?.label ?? deal.stage;
   return (
     <ListItemCard onPress={onPress}>
@@ -99,16 +103,18 @@ function DealRow({ deal, onPress }: { deal: DealDto; onPress: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
-  title: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  company: { fontSize: fontSize.base, color: colors.foregroundSecondary },
-  rowBottom: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
-  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
-  weighted: { fontSize: fontSize.sm, color: colors.mutedForeground },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
+    title: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    company: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+    rowBottom: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
+    value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+    weighted: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  });
+}

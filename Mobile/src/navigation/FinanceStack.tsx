@@ -5,12 +5,14 @@ import InvoiceDetailScreen from "@/screens/finance/InvoiceDetailScreen";
 import ExpensesListScreen from "@/screens/finance/ExpensesListScreen";
 import ExpenseDetailScreen from "@/screens/finance/ExpenseDetailScreen";
 import NewExpenseScreen from "@/screens/finance/NewExpenseScreen";
-import { stackScreenOptions } from "@/theme";
+import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 const Stack = createNativeStackNavigator<FinanceStackParamList>();
 
 export default function FinanceStack() {
+  const { colors } = useAppTheme();
+  const stackScreenOptions = buildStackScreenOptions(colors);
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="FinanceHome" component={FinanceHomeScreen} options={{ headerTitle: "Finance" }} />

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePurchaseOrder, useSetPurchaseOrderStatus } from "@/hooks/use-purchase";
@@ -7,11 +8,13 @@ import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { PURCHASE_ORDER_STATUS_LABELS } from "@/types/purchase";
 import type { PurchaseStackParamList } from "@/navigation/types";
 import { Button, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<PurchaseStackParamList, "PurchaseOrderDetail">;
 
 export default function PurchaseOrderDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { orderId, orderNumber } = route.params;
   navigation.setOptions({ headerTitle: orderNumber });
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
@@ -77,18 +80,20 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  bodyText: { fontSize: fontSize.md, color: colors.foreground },
+    bodyText: { fontSize: fontSize.md, color: colors.foreground },
 
-  itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
-  itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-  itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
-});
+    itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+    itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+    itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  });
+}

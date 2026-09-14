@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useMyAttendance } from "@/hooks/use-hr-self";
 import { ATTENDANCE_STATUS_TONE } from "@/types/hr";
 import type { AttendanceRecordDto } from "@/types/hr";
 import { Badge, EmptyListState, ErrorState, ListItemCard, LoadingState } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 const PAGE_SIZE = 20;
 
@@ -13,6 +13,8 @@ function titleCase(s: string): string {
 }
 
 export default function AttendanceScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<AttendanceRecordDto[]>([]);
 
@@ -54,6 +56,8 @@ export default function AttendanceScreen() {
 }
 
 function Row({ record }: { record: AttendanceRecordDto }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ListItemCard>
       <View style={styles.rowTop}>
@@ -71,13 +75,15 @@ function Row({ record }: { record: AttendanceRecordDto }) {
   );
 }
 
-const styles = StyleSheet.create({
-  list: { paddingVertical: spacing.md },
-  footerSpinner: { paddingVertical: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    list: { paddingVertical: spacing.md },
+    footerSpinner: { paddingVertical: spacing.lg },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  date: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground },
-  rowBottom: { flexDirection: "row", gap: spacing.lg, alignItems: "center" },
-  time: { fontSize: fontSize.base, color: colors.mutedForeground },
-  late: { fontSize: fontSize.sm, color: colors.destructive, fontWeight: fontWeight.semibold },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    date: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground },
+    rowBottom: { flexDirection: "row", gap: spacing.lg, alignItems: "center" },
+    time: { fontSize: fontSize.base, color: colors.mutedForeground },
+    late: { fontSize: fontSize.sm, color: colors.destructive, fontWeight: fontWeight.semibold },
+  });
+}

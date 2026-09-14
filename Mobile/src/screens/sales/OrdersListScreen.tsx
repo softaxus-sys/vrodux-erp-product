@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSalesOrdersPaged } from "@/hooks/use-sales";
@@ -7,7 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { SALES_ORDER_STATUS_LABELS, SALES_ORDER_STATUS_TONE } from "@/types/sales";
 import type { SalesOrderSummaryDto } from "@/types/sales";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<SalesStackParamList, "OrdersList">;
@@ -24,6 +24,8 @@ const FILTERS: { key: string; label: string }[] = [
 const PAGE_SIZE = 25;
 
 export default function OrdersListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -92,6 +94,8 @@ export default function OrdersListScreen({ navigation }: Props) {
 }
 
 function OrderRow({ order, currency, onPress }: { order: SalesOrderSummaryDto; currency: string; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
@@ -108,14 +112,16 @@ function OrderRow({ order, currency, onPress }: { order: SalesOrderSummaryDto; c
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
-  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+    meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
+  });
+}

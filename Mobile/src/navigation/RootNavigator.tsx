@@ -3,81 +3,31 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
-import { hasModuleAccess, hasPermission, useAuthStore } from "@/store/auth.store";
-import { CRM_LEADS_VIEW, CRM_PIPELINE_VIEW } from "@/lib/crm.api";
-import { HR_SELF_ATTENDANCE, HR_SELF_LEAVE, HR_SELF_PAYSLIP, HR_SELF_VIEW } from "@/lib/hr.api";
-import {
-  APPROVALS_FINANCE_PAYROLL,
-  APPROVALS_HR_LEAVES,
-  APPROVALS_HR_PAYROLL,
-  APPROVALS_PURCHASE,
-  APPROVALS_SALES_RETURNS,
-} from "@/lib/approvals.api";
-import { INVENTORY_STOCK_VIEW } from "@/lib/inventory.api";
-import { SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW } from "@/lib/sales.api";
-import { PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW } from "@/lib/purchase.api";
-import { FINANCE_EXPENSES_VIEW, FINANCE_INVOICING_VIEW } from "@/lib/finance.api";
+import { useAuthStore } from "@/store/auth.store";
 import LoginScreen from "@/screens/LoginScreen";
 import TwoFactorScreen from "@/screens/TwoFactorScreen";
 import HomeScreen from "@/screens/HomeScreen";
-import ApprovalsScreen from "@/screens/ApprovalsScreen";
-import LeadsStack from "@/navigation/LeadsStack";
-import DealsStack from "@/navigation/DealsStack";
-import HrStack from "@/navigation/HrStack";
-import InventoryStack from "@/navigation/InventoryStack";
-import SalesStack from "@/navigation/SalesStack";
-import PurchaseStack from "@/navigation/PurchaseStack";
-import FinanceStack from "@/navigation/FinanceStack";
+import MoreScreen from "@/screens/MoreScreen";
+import { getTabLayout } from "@/navigation/tab-config";
 import { LoadingState } from "@/components/ui";
-import { colors, fontSize, fontWeight, navTheme, stackScreenOptions } from "@/theme";
+import { buildNavTheme, buildStackScreenOptions, fontSize, fontWeight, useAppTheme } from "@/theme";
 import type { AppTabParamList, AuthStackParamList } from "@/navigation/types";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tabs = createBottomTabNavigator<AppTabParamList>();
 
-/** One Feather glyph per tab, keeping the icon set consistent with the outline style the web
- *  app's lucide-react icons use (Feather is the closest match bundled with Expo). */
-const TAB_ICONS: Record<keyof AppTabParamList, keyof typeof Feather.glyphMap> = {
-  Dashboard: "home",
-  Leads: "users",
-  Pipeline: "trending-up",
-  HR: "briefcase",
-  Approvals: "check-square",
-  Inventory: "box",
-  Sales: "shopping-bag",
-  Purchase: "shopping-cart",
-  Finance: "dollar-sign",
-};
-
-function tabIcon(name: keyof AppTabParamList) {
+function tabIcon(name: keyof typeof Feather.glyphMap) {
   return ({ color, size }: { color: string; size: number }) => (
-    <Feather name={TAB_ICONS[name]} size={size} color={color} />
+    <Feather name={name} size={size} color={color} />
   );
 }
 
 function AppTabs() {
-  // Static per session: permission/module claims only change on next login/refresh,
-  // same as the web app's hasModuleAccess/hasRawPermission checks.
-  const hasCrm = hasModuleAccess("crm");
-  const canSeeLeads = hasCrm && hasPermission(...CRM_LEADS_VIEW);
-  const canSeePipeline = hasCrm && hasPermission(...CRM_PIPELINE_VIEW);
-  // Self-service is gated on any of the four hr.self.* keys -- the tab renders as long as at
-  // least one of Attendance/Leave/Payslips/Profile is usable; each screen inside gates itself.
-  const canSeeHr =
-    hasModuleAccess("hr") &&
-    hasPermission(HR_SELF_VIEW, HR_SELF_ATTENDANCE, HR_SELF_LEAVE, HR_SELF_PAYSLIP);
-  // Cross-module inbox (leave/payroll/purchase/sales approvals) -- visible if the session holds
-  // any one of the five approve-style keys those four workflows are gated on. Each source inside
-  // the screen re-checks its own module+permission, so this is just "is the tab worth showing".
-  const canSeeApprovals =
-    (hasModuleAccess("hr") && hasPermission(APPROVALS_HR_LEAVES, APPROVALS_HR_PAYROLL)) ||
-    hasPermission(APPROVALS_FINANCE_PAYROLL) ||
-    (hasModuleAccess("purchase") && hasPermission(APPROVALS_PURCHASE)) ||
-    (hasModuleAccess("sales") && hasPermission(APPROVALS_SALES_RETURNS));
-  const canSeeInventory = hasModuleAccess("inventory") && hasPermission(INVENTORY_STOCK_VIEW);
-  const canSeeSales = hasModuleAccess("sales") && hasPermission(SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW);
-  const canSeePurchase = hasModuleAccess("purchase") && hasPermission(PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW);
-  const canSeeFinance = hasModuleAccess("finance") && hasPermission(FINANCE_INVOICING_VIEW, FINANCE_EXPENSES_VIEW);
+  const { colors } = useAppTheme();
+  const stackScreenOptions = buildStackScreenOptions(colors);
+  // `direct` is what fits in the bar alongside Dashboard; `overflow` (if any) is folded into a
+  // single "More" tab instead of crowding it further -- see tab-config.ts for the full rationale.
+  const { direct, overflow } = getTabLayout();
 
   return (
     <Tabs.Navigator
@@ -91,40 +41,28 @@ function AppTabs() {
         headerShadowVisible: true,
       }}
     >
-      <Tabs.Screen name="Dashboard" options={{ tabBarIcon: tabIcon("Dashboard") }} component={HomeScreen} />
-      {canSeeLeads && (
-        <Tabs.Screen name="Leads" component={LeadsStack} options={{ headerShown: false, tabBarIcon: tabIcon("Leads") }} />
-      )}
-      {canSeePipeline && (
-        <Tabs.Screen name="Pipeline" component={DealsStack} options={{ headerShown: false, tabBarIcon: tabIcon("Pipeline") }} />
-      )}
-      {canSeeHr && (
-        <Tabs.Screen name="HR" component={HrStack} options={{ headerShown: false, tabBarIcon: tabIcon("HR") }} />
-      )}
-      {canSeeApprovals && (
+      <Tabs.Screen name="Dashboard" options={{ tabBarIcon: tabIcon("home") }} component={HomeScreen} />
+      {direct.map((tab) => (
         <Tabs.Screen
-          name="Approvals"
-          component={ApprovalsScreen}
-          options={{ headerTitle: "Approvals", tabBarIcon: tabIcon("Approvals") }}
+          key={tab.key}
+          name={tab.key}
+          component={tab.component}
+          options={
+            tab.isStack
+              ? { headerShown: false, tabBarIcon: tabIcon(tab.icon) }
+              : { headerTitle: tab.label, tabBarIcon: tabIcon(tab.icon) }
+          }
         />
-      )}
-      {canSeeInventory && (
-        <Tabs.Screen name="Inventory" component={InventoryStack} options={{ headerShown: false, tabBarIcon: tabIcon("Inventory") }} />
-      )}
-      {canSeeSales && (
-        <Tabs.Screen name="Sales" component={SalesStack} options={{ headerShown: false, tabBarIcon: tabIcon("Sales") }} />
-      )}
-      {canSeePurchase && (
-        <Tabs.Screen name="Purchase" component={PurchaseStack} options={{ headerShown: false, tabBarIcon: tabIcon("Purchase") }} />
-      )}
-      {canSeeFinance && (
-        <Tabs.Screen name="Finance" component={FinanceStack} options={{ headerShown: false, tabBarIcon: tabIcon("Finance") }} />
+      ))}
+      {overflow.length > 0 && (
+        <Tabs.Screen name="More" component={MoreScreen} options={{ headerTitle: "More", tabBarIcon: tabIcon("more-horizontal") }} />
       )}
     </Tabs.Navigator>
   );
 }
 
 export default function RootNavigator() {
+  const { colors, isDark } = useAppTheme();
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -137,7 +75,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={buildNavTheme(colors, isDark)}>
       {isAuthenticated ? (
         <AppTabs />
       ) : (
@@ -146,7 +84,7 @@ export default function RootNavigator() {
           <AuthStack.Screen
             name="TwoFactor"
             component={TwoFactorScreen}
-            options={{ headerShown: true, headerTitle: "Verify", ...stackScreenOptions }}
+            options={{ headerShown: true, headerTitle: "Verify", ...buildStackScreenOptions(colors) }}
           />
         </AuthStack.Navigator>
       )}

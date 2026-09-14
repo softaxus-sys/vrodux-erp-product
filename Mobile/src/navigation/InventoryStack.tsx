@@ -1,12 +1,14 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ProductsListScreen from "@/screens/inventory/ProductsListScreen";
 import ProductDetailScreen from "@/screens/inventory/ProductDetailScreen";
-import { stackScreenOptions } from "@/theme";
+import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { InventoryStackParamList } from "@/navigation/types";
 
 const Stack = createNativeStackNavigator<InventoryStackParamList>();
 
 export default function InventoryStack() {
+  const { colors } = useAppTheme();
+  const stackScreenOptions = buildStackScreenOptions(colors);
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ headerTitle: "Products" }} />

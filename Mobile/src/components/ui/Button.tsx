@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Variant = "primary" | "secondary" | "outline" | "destructive" | "ghost";
 type Size = "sm" | "md";
@@ -18,13 +18,15 @@ interface ButtonProps {
   fullWidth?: boolean;
 }
 
-const VARIANT_STYLE: Record<Variant, { bg: string; fg: string; border?: string }> = {
-  primary: { bg: colors.primary, fg: colors.onPrimary },
-  secondary: { bg: colors.muted, fg: colors.foreground },
-  outline: { bg: colors.transparent, fg: colors.foreground, border: colors.border },
-  destructive: { bg: colors.destructive, fg: colors.onPrimary },
-  ghost: { bg: colors.transparent, fg: colors.primary },
-};
+function buildVariantStyle(colors: AppColors): Record<Variant, { bg: string; fg: string; border?: string }> {
+  return {
+    primary: { bg: colors.primary, fg: colors.onPrimary },
+    secondary: { bg: colors.muted, fg: colors.foreground },
+    outline: { bg: colors.transparent, fg: colors.foreground, border: colors.border },
+    destructive: { bg: colors.destructive, fg: colors.onPrimary },
+    ghost: { bg: colors.transparent, fg: colors.primary },
+  };
+}
 
 export function Button({
   label,
@@ -37,8 +39,10 @@ export function Button({
   style,
   fullWidth,
 }: ButtonProps) {
-  const v = VARIANT_STYLE[variant];
+  const { colors } = useAppTheme();
+  const v = buildVariantStyle(colors)[variant];
   const isDisabled = disabled || loading;
+  const styles = createStyles(colors);
 
   return (
     <Pressable
@@ -78,21 +82,23 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs + 2,
-    borderRadius: radius.md,
-    alignSelf: "flex-start",
-  },
-  fullWidth: { alignSelf: "stretch" },
-  sm: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
-  md: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2 },
-  label: { fontWeight: fontWeight.semibold },
-  labelSm: { fontSize: fontSize.sm },
-  labelMd: { fontSize: fontSize.base },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
-  disabled: { backgroundColor: colors.disabled },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    base: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs + 2,
+      borderRadius: radius.md,
+      alignSelf: "flex-start",
+    },
+    fullWidth: { alignSelf: "stretch" },
+    sm: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs + 2 },
+    md: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2 },
+    label: { fontWeight: fontWeight.semibold },
+    labelSm: { fontSize: fontSize.sm },
+    labelMd: { fontSize: fontSize.base },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+    disabled: { backgroundColor: colors.disabled },
+  });
+}

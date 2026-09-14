@@ -3,12 +3,13 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { hasPermission } from "@/store/auth.store";
 import { PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW } from "@/lib/purchase.api";
 import { MenuCard } from "@/components/ui";
-import { colors, spacing } from "@/theme";
+import { spacing, useAppTheme } from "@/theme";
 import type { PurchaseStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<PurchaseStackParamList, "PurchaseHome">;
 
 export default function PurchaseHomeScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
   const canOrders = hasPermission(PURCHASE_ORDERS_VIEW);
   const canVendors = hasPermission(PURCHASE_VENDORS_VIEW);
 

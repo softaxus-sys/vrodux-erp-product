@@ -60,4 +60,7 @@ export type AppTabParamList = {
   Sales: undefined;
   Purchase: undefined;
   Finance: undefined;
+  /** Only registered when a session has more module tabs than fit in the bar -- see
+   *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
+  More: undefined;
 };

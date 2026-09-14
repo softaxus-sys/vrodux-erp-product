@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -7,12 +8,14 @@ import { HR_SELF_ATTENDANCE, HR_SELF_LEAVE, HR_SELF_PAYSLIP, HR_SELF_VIEW } from
 import { ApiError } from "@/lib/api-client";
 import { NOT_LINKED_ERROR_CODE } from "@/types/hr";
 import { Badge, Button, Card, LoadingState, MenuCard } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { HrStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<HrStackParamList, "HrHome">;
 
 export default function HrHomeScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const canViewProfile = hasPermission(HR_SELF_VIEW);
   const canAttendance = hasPermission(HR_SELF_ATTENDANCE);
   const canLeave = hasPermission(HR_SELF_LEAVE);
@@ -124,6 +127,8 @@ function initials(name: string): string {
 }
 
 function TodayStat({ label, value }: { label: string; value: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View>
       <Text style={styles.todayStatLabel}>{label}</Text>
@@ -132,36 +137,38 @@ function TodayStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
-  notLinkedIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
-  notLinkedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
-  notLinkedText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
+    notLinkedIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
+    notLinkedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+    notLinkedText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
 
-  profileCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.xs },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { color: colors.onPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  profileText: { flex: 1 },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
+    profileCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.xs },
+    avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: { color: colors.onPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+    profileText: { flex: 1 },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
 
-  todayCard: { gap: spacing.sm },
-  todayHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  todayLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.4 },
-  todayRow: { flexDirection: "row", gap: spacing.xxxl },
-  todayStatLabel: { fontSize: fontSize.xs, color: colors.subtleForeground, textTransform: "uppercase" },
-  todayStatValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground, marginTop: 2 },
-  todayButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-  todayButton: { flex: 1 },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+    todayCard: { gap: spacing.sm },
+    todayHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    todayLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.4 },
+    todayRow: { flexDirection: "row", gap: spacing.xxxl },
+    todayStatLabel: { fontSize: fontSize.xs, color: colors.subtleForeground, textTransform: "uppercase" },
+    todayStatValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground, marginTop: 2 },
+    todayButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+    todayButton: { flex: 1 },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  menu: { gap: spacing.sm + 2 },
-});
+    menu: { gap: spacing.sm + 2 },
+  });
+}

@@ -1,8 +1,10 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 export function LoadingState({ size = "large" as const }: { size?: "small" | "large" }) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <View style={styles.centered}>
       <ActivityIndicator size={size} color={colors.primary} />
@@ -11,6 +13,8 @@ export function LoadingState({ size = "large" as const }: { size?: "small" | "la
 }
 
 export function ErrorState({ message = "Something went wrong.", onRetry }: { message?: string; onRetry?: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <View style={styles.centered}>
       <View style={styles.errorIcon}>
@@ -35,6 +39,8 @@ export function EmptyState({
   title: string;
   subtitle?: string;
 }) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <View style={styles.centered}>
       <View style={styles.emptyIcon}>
@@ -49,6 +55,8 @@ export function EmptyState({
 /** For FlatList's ListEmptyComponent -- same visuals as EmptyState but without flex:1 centering,
  *  which would collapse to nothing inside a list's content container. */
 export function EmptyListState(props: Parameters<typeof EmptyState>[0]) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   return (
     <View style={styles.emptyListWrap}>
       <EmptyState {...props} />
@@ -56,31 +64,33 @@ export function EmptyListState(props: Parameters<typeof EmptyState>[0]) {
   );
 }
 
-const styles = StyleSheet.create({
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
-  emptyListWrap: { paddingTop: spacing.xxxl },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
+    emptyListWrap: { paddingTop: spacing.xxxl },
 
-  errorIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.destructiveLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  errorText: { fontSize: fontSize.md, color: colors.foregroundSecondary, textAlign: "center" },
-  retry: { color: colors.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.base, marginTop: spacing.xs },
+    errorIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.destructiveLight,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.xs,
+    },
+    errorText: { fontSize: fontSize.md, color: colors.foregroundSecondary, textAlign: "center" },
+    retry: { color: colors.primary, fontWeight: fontWeight.semibold, fontSize: fontSize.base, marginTop: spacing.xs },
 
-  emptyIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.muted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  emptyTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, textAlign: "center" },
-  emptySubtitle: { fontSize: fontSize.base, color: colors.mutedForeground, textAlign: "center" },
-});
+    emptyIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.muted,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.xs,
+    },
+    emptyTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, textAlign: "center" },
+    emptySubtitle: { fontSize: fontSize.base, color: colors.mutedForeground, textAlign: "center" },
+  });
+}

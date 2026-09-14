@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -6,12 +6,14 @@ import { authApi } from "@/lib/auth.api";
 import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
 import { Button } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "TwoFactor">;
 
 export default function TwoFactorScreen({ route }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { mfaToken, email } = route.params;
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -65,44 +67,46 @@ export default function TwoFactorScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: spacing.xxl, gap: spacing.md, backgroundColor: colors.background },
-  iconTile: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primaryLight,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: spacing.sm,
-  },
-  title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground, textAlign: "center" },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center", marginBottom: spacing.md, lineHeight: 20 },
-  email: { fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.xxl,
-    textAlign: "center",
-    letterSpacing: 6,
-    color: colors.foreground,
-  },
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.destructiveSoft,
-    borderWidth: 1,
-    borderColor: colors.destructiveLight,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  errorText: { color: colors.destructive, fontSize: fontSize.base },
-  button: { marginTop: spacing.sm, paddingVertical: spacing.md + 2 },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, justifyContent: "center", padding: spacing.xxl, gap: spacing.md, backgroundColor: colors.background },
+    iconTile: {
+      width: 52,
+      height: 52,
+      borderRadius: radius.lg,
+      backgroundColor: colors.primaryLight,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "center",
+      marginBottom: spacing.sm,
+    },
+    title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground, textAlign: "center" },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center", marginBottom: spacing.md, lineHeight: 20 },
+    email: { fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.card,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      fontSize: fontSize.xxl,
+      textAlign: "center",
+      letterSpacing: 6,
+      color: colors.foreground,
+    },
+    errorBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.destructiveSoft,
+      borderWidth: 1,
+      borderColor: colors.destructiveLight,
+      borderRadius: radius.md,
+      padding: spacing.md,
+    },
+    errorText: { color: colors.destructive, fontSize: fontSize.base },
+    button: { marginTop: spacing.sm, paddingVertical: spacing.md + 2 },
+  });
+}

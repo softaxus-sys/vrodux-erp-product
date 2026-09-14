@@ -4,12 +4,14 @@ import PurchaseOrdersListScreen from "@/screens/purchase/PurchaseOrdersListScree
 import PurchaseOrderDetailScreen from "@/screens/purchase/PurchaseOrderDetailScreen";
 import VendorsListScreen from "@/screens/purchase/VendorsListScreen";
 import VendorDetailScreen from "@/screens/purchase/VendorDetailScreen";
-import { stackScreenOptions } from "@/theme";
+import { buildStackScreenOptions, useAppTheme } from "@/theme";
 import type { PurchaseStackParamList } from "@/navigation/types";
 
 const Stack = createNativeStackNavigator<PurchaseStackParamList>();
 
 export default function PurchaseStack() {
+  const { colors } = useAppTheme();
+  const stackScreenOptions = buildStackScreenOptions(colors);
   return (
     <Stack.Navigator screenOptions={stackScreenOptions}>
       <Stack.Screen name="PurchaseHome" component={PurchaseHomeScreen} options={{ headerTitle: "Purchase" }} />

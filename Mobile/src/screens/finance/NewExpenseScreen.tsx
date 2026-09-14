@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCreateExpense } from "@/hooks/use-finance";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/types/finance";
 import type { ExpenseCategory } from "@/types/finance";
 import { Button, Chip } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "NewExpense">;
@@ -14,6 +14,8 @@ type Props = NativeStackScreenProps<FinanceStackParamList, "NewExpense">;
 const TODAY = new Date().toISOString().split("T")[0];
 
 export default function NewExpenseScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const createExpense = useCreateExpense();
 
   const [title, setTitle] = useState("");
@@ -132,6 +134,8 @@ export default function NewExpenseScreen({ navigation }: Props) {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -140,21 +144,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl + spacing.md },
-  field: { gap: spacing.xs + 2 },
-  fieldLabel: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    fontSize: fontSize.lg,
-    color: colors.foreground,
-    backgroundColor: colors.card,
-  },
-  multiline: { minHeight: 60, textAlignVertical: "top" },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  submitButton: { marginTop: spacing.xs, paddingVertical: spacing.md },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm, textAlign: "center" },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxxl + spacing.md },
+    field: { gap: spacing.xs + 2 },
+    fieldLabel: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 2,
+      fontSize: fontSize.lg,
+      color: colors.foreground,
+      backgroundColor: colors.card,
+    },
+    multiline: { minHeight: 60, textAlignVertical: "top" },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    submitButton: { marginTop: spacing.xs, paddingVertical: spacing.md },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm, textAlign: "center" },
+  });
+}

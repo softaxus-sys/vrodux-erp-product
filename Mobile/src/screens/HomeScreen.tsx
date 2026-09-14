@@ -1,10 +1,11 @@
+import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { authApi } from "@/lib/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Badge, Button, SectionCard } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 /**
  * Placeholder landing screen -- proves the auth flow end to end (login / 2FA / token refresh /
@@ -20,6 +21,8 @@ function greeting(): string {
 }
 
 export default function HomeScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const user = useAuthStore((s) => s.user);
   const tenant = useAuthStore((s) => s.tenant);
   const permissions = useAuthStore((s) => s.permissions);
@@ -81,6 +84,8 @@ export default function HomeScreen() {
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
@@ -89,23 +94,25 @@ function Detail({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
-  headerText: { flex: 1 },
-  greeting: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground },
-  tenantLine: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
+    header: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.sm },
+    headerText: { flex: 1 },
+    greeting: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground },
+    tenantLine: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
 
-  detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
-  detailLabel: { fontSize: fontSize.base, color: colors.mutedForeground },
-  detailValue: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+    detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
+    detailLabel: { fontSize: fontSize.base, color: colors.mutedForeground },
+    detailValue: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
 
-  moduleBlock: { marginTop: spacing.xs, gap: spacing.sm },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  mutedText: { fontSize: fontSize.base, color: colors.subtleForeground },
+    moduleBlock: { marginTop: spacing.xs, gap: spacing.sm },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    mutedText: { fontSize: fontSize.base, color: colors.subtleForeground },
 
-  permissionsPreview: { fontSize: fontSize.sm, color: colors.subtleForeground, marginTop: spacing.xs, lineHeight: 16 },
+    permissionsPreview: { fontSize: fontSize.sm, color: colors.subtleForeground, marginTop: spacing.xs, lineHeight: 16 },
 
-  signOutRow: { marginTop: spacing.sm },
-});
+    signOutRow: { marginTop: spacing.sm },
+  });
+}
