@@ -18,6 +18,9 @@ export type HrStackParamList = {
   Attendance: undefined;
   Leave: undefined;
   Payslips: undefined;
+  EmployeesList: undefined;
+  EmployeeDetail: { employeeId: string; employeeName: string };
+  DepartmentsList: undefined;
 };
 
 export type InventoryStackParamList = {
@@ -48,6 +51,9 @@ export type FinanceStackParamList = {
   ExpensesList: undefined;
   ExpenseDetail: { expenseId: string; expenseNumber: string };
   NewExpense: undefined;
+  AccountsList: undefined;
+  BankAccountsList: undefined;
+  BankAccountDetail: { accountId: string; accountName: string };
 };
 
 export type AppTabParamList = {
