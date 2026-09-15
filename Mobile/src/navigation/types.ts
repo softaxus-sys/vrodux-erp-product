@@ -150,6 +150,9 @@ export type AppTabParamList = {
   /** A single screen, not a stack -- same as Approvals (no per-record navigation, everything the
    *  screen shows is scoped from the session's own access already). */
   FileManager: undefined;
+  /** Also a single screen -- the signed-in user's own account (profile/password/2FA), gated on
+   *  nothing at all, so every session sees it regardless of module subscriptions. */
+  Settings: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;

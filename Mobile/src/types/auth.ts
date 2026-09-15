@@ -12,6 +12,9 @@ export interface UserDto {
   fullName: string;
   status: string;
   avatarUrl: string | null;
+  /** Present on the backend UserDto but only ever populated by GET/PUT /api/auth/me (login/
+   *  refresh responses don't need it) -- the Settings profile screen is the one reader. */
+  phoneNumber?: string | null;
   mustChangePassword?: boolean;
 }
 

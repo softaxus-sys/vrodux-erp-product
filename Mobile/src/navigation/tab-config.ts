@@ -35,6 +35,7 @@ import {
 import { FILE_MANAGER_VIEW } from "@/lib/file-manager.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import FileManagerScreen from "@/screens/FileManagerScreen";
+import SettingsScreen from "@/screens/SettingsScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
 import HrStack from "@/navigation/HrStack";
@@ -87,6 +88,10 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "RealEstate", label: "Real Estate", subtitle: "Properties, tenants, rent collection", icon: "home", component: RealEstateStack, isStack: true },
   { key: "Reports", label: "Reports", subtitle: "POS and Inventory tabular reports", icon: "bar-chart-2", component: ReportsStack, isStack: true },
   { key: "FileManager", label: "File Manager", subtitle: "Browse CRM document library", icon: "folder", component: FileManagerScreen, isStack: false },
+  // Last on purpose -- ungated (every session qualifies, see isTabAvailable below), so it should
+  // never crowd out an actual module tab; it only surfaces directly for a session with nothing
+  // else, and sits in "More" for everyone else.
+  { key: "Settings", label: "Settings", subtitle: "Profile, password, two-factor auth", icon: "settings", component: SettingsScreen, isStack: false },
 ];
 
 /** Static per session -- permission/module claims only change on next login/refresh, same as
@@ -164,6 +169,10 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       // the screen itself, so a user with this key but no CRM access sees an honest empty state
       // rather than the tab vanishing outright.
       return hasModuleAccess("file-manager") && hasPermission(FILE_MANAGER_VIEW);
+    case "Settings":
+      // The signed-in user's own account -- no permission key gates it on the backend either
+      // (AuthController/TwoFactorController are [Authorize]-only), so every session qualifies.
+      return true;
   }
 }
 

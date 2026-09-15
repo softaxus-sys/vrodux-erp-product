@@ -653,12 +653,45 @@ no stack, same as Approvals:
   upload target on web either — documents attach from a record's own Documents tab), and
   edit/delete of a document's metadata.
 
+**Settings — "My Account" only, not the admin console.** Web's Settings covers users/roles/
+branches/integrations/general company settings — a permission-matrix editor and several real
+multi-field admin forms, desktop-appropriate the same way every other module's admin surface has
+been left out of this app. What's genuinely mobile-native, and what this covers instead, is the
+signed-in user's own account:
+- Profile — view name/email/username/phone, Edit toggles inline fields (`GET`/`PUT
+  /api/auth/me`).
+- Change Password — current + new + confirm, server-side policy errors (length/complexity/
+  history) surface as-is rather than being re-validated client-side.
+- Two-Factor Authentication — status (enabled + backup codes remaining), a full enroll flow
+  (`POST .../setup` → QR image rendered straight from the returned `data:image/png;base64,...`
+  via `<Image>`, no new dependency → confirm code → one-time backup codes shown once, selectable
+  for copy), and disable (requires a current code). Mirrors the web flow exactly (CLAUDE.md
+  Module 14).
+- **Gated on nothing at all** — confirmed by reading `AuthController`/`TwoFactorController`
+  directly (`[Authorize]` only) and `App.tsx`'s own routing comment ("2FA is the signed-in user's
+  own account, so it needs no permission at all"). Every session sees this tab regardless of
+  module subscriptions; it's placed last in `MODULE_TAB_ORDER` so it never crowds out an actual
+  work tab and simply falls into "More" once a session has anything else.
+- **Closed a real dead-code gap while here**: `AuthTokenDto.mustSetUpTwoFactor` ("the tenant now
+  requires 2FA and this account hasn't enrolled" — the session stays valid, blocking would lock
+  out everyone the moment an admin flips the requirement on) was declared on the type since an
+  earlier pass but never read anywhere. `HomeScreen` now shows a dismissible banner when it's set,
+  with a "Set up now" button that jumps straight to this tab — the ephemeral flag (not persisted,
+  same as `mfaToken`) is cleared on tap.
+- **Deliberately not built**: users/roles/permissions-matrix, branches, integrations
+  (OAuth + encrypted-credential setup guides), general company settings (logo, currency, tax
+  number) — all real desktop-appropriate admin surfaces, same complexity class as the Reports
+  module's cashier/warehouse pickers or Real Estate's contract-creation form. Avatar upload
+  (would need `expo-image-picker`, a new dependency — same call as Finance's receipt-photo
+  attach).
+
 ## Tab bar overflow ("More" tab)
 
-There are up to fifteen module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
-Inventory/Finance/POS/Restaurant/Visa/RealEstate/Reports/FileManager) behind Dashboard, each
-independently gated -- a given session usually sees far fewer, but nothing capped how many could
-render directly, and React Navigation's bottom-tabs will happily lay out a dozen-plus icons in a
+There are up to sixteen module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
+Inventory/Finance/POS/Restaurant/Visa/RealEstate/Reports/FileManager/Settings) behind Dashboard,
+each independently gated (Settings unconditionally, see above) -- a given session usually sees far
+fewer, but nothing capped how many could render directly, and React Navigation's bottom-tabs will
+happily lay out a dozen-plus icons in a
 row (not a comfortable phone UI past ~5).
 
 - `navigation/tab-config.ts` (new) -- single source of truth for every module tab: its icon,
@@ -714,12 +747,12 @@ brokers browsing + rent collection — all *creation* forms and the CRM-linked s
 deliberately deferred, see above), Reports (the 36 POS/Inventory tabular reports, all genuinely
 runnable — CRM's 8 analytical reports and every export format deliberately deferred, see above),
 File Manager (the CRM document library, browse-only — download/preview deliberately deferred
-pending new native dependencies, see above). Queued next, roughly in priority order:
+pending new native dependencies, see above), Settings (My Account — profile/password/2FA, ungated
+— the admin console (users/roles/branches/integrations/general settings) deliberately deferred,
+see above). Queued next, roughly in priority order:
 
-1. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
-   mobile-first surface
-2. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
-3. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+1. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+2. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface

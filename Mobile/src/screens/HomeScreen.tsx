@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { authApi } from "@/lib/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Badge, Button, SectionCard } from "@/components/ui";
-import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
+import type { AppTabParamList } from "@/navigation/types";
 
 /**
  * Placeholder landing screen -- proves the auth flow end to end (login / 2FA / token refresh /
@@ -20,7 +22,9 @@ function greeting(): string {
   return "Good evening";
 }
 
-export default function HomeScreen() {
+type Props = BottomTabScreenProps<AppTabParamList, "Dashboard">;
+
+export default function HomeScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const user = useAuthStore((s) => s.user);
@@ -28,6 +32,8 @@ export default function HomeScreen() {
   const permissions = useAuthStore((s) => s.permissions);
   const accessToken = useAuthStore((s) => s.accessToken);
   const refreshToken = useAuthStore((s) => s.refreshToken);
+  const mustSetUpTwoFactor = useAuthStore((s) => s.mustSetUpTwoFactor);
+  const clearMustSetUpTwoFactor = useAuthStore((s) => s.clearMustSetUpTwoFactor);
   const logout = useAuthStore((s) => s.logout);
 
   async function handleLogout() {
@@ -50,6 +56,23 @@ export default function HomeScreen() {
           <Text style={styles.tenantLine}>{tenant?.name ?? "—"}</Text>
         </View>
       </View>
+
+      {mustSetUpTwoFactor ? (
+        <View style={styles.twoFactorBanner}>
+          <View style={styles.twoFactorHeader}>
+            <Feather name="shield" size={18} color={colors.warning} />
+            <Text style={styles.twoFactorText}>Your workspace now requires two-factor authentication. Set it up to keep your session.</Text>
+          </View>
+          <Button
+            label="Set up now"
+            size="sm"
+            onPress={() => {
+              clearMustSetUpTwoFactor();
+              navigation.navigate("Settings");
+            }}
+          />
+        </View>
+      ) : null}
 
       <SectionCard title="Workspace">
         <Detail label="Plan" value={tenant?.plan ?? "—"} />
@@ -102,6 +125,10 @@ function createStyles(colors: AppColors) {
     headerText: { flex: 1 },
     greeting: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground },
     tenantLine: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
+
+    twoFactorBanner: { gap: spacing.sm, backgroundColor: colors.warningLight, borderRadius: radius.md, padding: spacing.md },
+    twoFactorHeader: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+    twoFactorText: { flex: 1, fontSize: fontSize.base, color: colors.foreground },
 
     detailRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
     detailLabel: { fontSize: fontSize.base, color: colors.mutedForeground },

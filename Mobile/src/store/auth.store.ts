@@ -54,6 +54,12 @@ interface AuthState {
   permissions: string[];
   /** Set only between "password accepted" and "2FA code submitted" -- never persisted. */
   mfaToken: string | null;
+  /** The tenant now requires 2FA and this login's account hasn't enrolled yet -- the session is
+   *  still valid (blocking would lock out everyone the moment an admin flips the requirement on),
+   *  but the app should nudge toward Settings -> Security until they set it up. Read directly off
+   *  the login response, not a JWT claim, so -- like mfaToken -- it does not survive an app
+   *  restart; a still-unenrolled user just stops seeing the nudge until their next full login. */
+  mustSetUpTwoFactor: boolean;
   isAuthenticated: boolean;
   /** True once the persisted session has been read back from SecureStore on app start. */
   hasHydrated: boolean;
@@ -62,6 +68,10 @@ interface AuthState {
   setMfaToken: (token: string | null) => void;
   setAccessToken: (token: string) => void;
   setRefreshToken: (token: string) => void;
+  /** Patches the cached profile after a successful PUT /api/auth/me -- keeps the greeting name,
+   *  etc. in sync without waiting for the next login/refresh to re-decode anything. */
+  updateUser: (user: UserDto) => void;
+  clearMustSetUpTwoFactor: () => void;
   logout: () => void;
 }
 
@@ -74,6 +84,7 @@ export const useAuthStore = create<AuthState>()(
       tenant: null,
       permissions: [],
       mfaToken: null,
+      mustSetUpTwoFactor: false,
       isAuthenticated: false,
       hasHydrated: false,
 
@@ -86,6 +97,7 @@ export const useAuthStore = create<AuthState>()(
           tenant: claims["tenant_id"] ? buildTenantFromClaims(claims) : null,
           permissions: extractPermissionsFromClaims(claims),
           mfaToken: null,
+          mustSetUpTwoFactor: auth.mustSetUpTwoFactor ?? false,
           isAuthenticated: true,
         });
       },
@@ -93,6 +105,8 @@ export const useAuthStore = create<AuthState>()(
       setMfaToken: (token) => set({ mfaToken: token }),
       setAccessToken: (accessToken) => set({ accessToken }),
       setRefreshToken: (refreshToken) => set({ refreshToken }),
+      updateUser: (user) => set({ user }),
+      clearMustSetUpTwoFactor: () => set({ mustSetUpTwoFactor: false }),
 
       logout: () =>
         set({
@@ -102,14 +116,15 @@ export const useAuthStore = create<AuthState>()(
           tenant: null,
           permissions: [],
           mfaToken: null,
+          mustSetUpTwoFactor: false,
           isAuthenticated: false,
         }),
     }),
     {
       name: SESSION_KEY,
       storage: createJSONStorage(() => secureStorage),
-      // mfaToken is a short-lived, in-memory-only handoff between the two login
-      // steps -- persisting it would let a stale one survive an app restart.
+      // mfaToken/mustSetUpTwoFactor are short-lived, in-memory-only login-time state --
+      // persisting either would let a stale value survive an app restart.
       partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
