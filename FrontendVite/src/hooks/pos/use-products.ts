@@ -5,6 +5,7 @@ import type { ProductDto, ProductSummaryDto } from "@/lib/pos/types";
 import type { ProductSummaryDto as InvProductSummaryDto } from "@/lib/inventory/types";
 import type { PagedResult } from "@/lib/api-client";
 import { toast } from "sonner";
+import { usePosOffline } from "@/contexts/pos-offline-context";
 
 /** Map Inventory ProductSummaryDto → POS ProductSummaryDto (superset → subset). */
 function mapInvToPos(p: InvProductSummaryDto): ProductSummaryDto {
@@ -51,9 +52,10 @@ export function useProducts(params: GetProductsParams = {}) {
  * so items created in either module appear here automatically.
  */
 export function useAllPOSProducts() {
+  const off = usePosOffline();
   return useQuery<PagedResult<ProductSummaryDto>>({
-    queryKey: productKeys.list({ isActive: true, pageSize: 500 }),
-    queryFn:  async () => {
+    queryKey: off ? [...productKeys.list({ isActive: true, pageSize: 500 }), "offline"] : productKeys.list({ isActive: true, pageSize: 500 }),
+    queryFn:  off ? () => offlineProductsPage(off, {}) : async () => {
       const result = await inventoryProductsApi.getAll({ isActive: true, pageSize: 500 });
       return { ...result, items: result.items.map(mapInvToPos) };
     },
@@ -63,6 +65,35 @@ export function useAllPOSProducts() {
 
 const PAGE_SIZE = 24;
 
+/** Products from the till's offline catalogue, filtered like the API would. */
+async function offlineProductsPage(
+  off: NonNullable<ReturnType<typeof usePosOffline>>,
+  params: { search?: string; categoryId?: string },
+): Promise<PagedResult<ProductSummaryDto>> {
+  const snapshot = await off.engine.getSnapshot();
+  const q = params.search?.trim().toLowerCase();
+  const items = (snapshot?.products ?? [])
+    .filter(p => !params.categoryId || p.categoryId === params.categoryId)
+    .filter(p => !q || p.name.toLowerCase().includes(q) || (p.sku ?? "").toLowerCase().includes(q) || (p.barcode ?? "").includes(q))
+    .map(mapInvToPos);
+  return { items, page: 1, pageSize: items.length, totalCount: items.length, totalPages: 1, hasNext: false, hasPrev: false };
+}
+
+/** Categories present in the offline catalogue — the category API is unreachable offline. */
+export function useOfflineCategories() {
+  const off = usePosOffline();
+  return useQuery({
+    queryKey: [...productKeys.all, "offline-categories"],
+    enabled:  !!off,
+    queryFn:  async () => {
+      const snapshot = await off!.engine.getSnapshot();
+      const map = new Map<string, string>();
+      for (const p of snapshot?.products ?? []) if (p.categoryId) map.set(p.categoryId, p.categoryName);
+      return [...map].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+}
+
 /**
  * Infinite-scroll paginated products for the POS product grid.
  * Fetches 24 items per page. Automatically resets when search or categoryId change.
@@ -71,9 +102,12 @@ export function usePaginatedPOSProducts(params: {
   search?:     string;
   categoryId?: string;
 }) {
+  const off = usePosOffline();
   return useInfiniteQuery({
-    queryKey: [...productKeys.all, "paginated", params] as const,
+    queryKey: [...productKeys.all, "paginated", params, off ? "offline" : "live"] as const,
     queryFn: async ({ pageParam }) => {
+      // Offline: the whole local catalogue is already in memory, so it comes back as one page.
+      if (off) return offlineProductsPage(off, params);
       const result = await inventoryProductsApi.getAll({
         page:       pageParam as number,
         pageSize:   PAGE_SIZE,

@@ -29,6 +29,8 @@ public sealed class POSSessionConfiguration : IEntityTypeConfiguration<POSSessio
 
         // Computed property — not stored
         builder.Ignore(s => s.NetSales);
+        builder.Ignore(s => s.IsOffline);
+        builder.Property(s => s.ClientRef).HasMaxLength(64);
 
         builder.HasIndex(s => s.CashierId);
         builder.HasIndex(s => new { s.RegisterId, s.Status });

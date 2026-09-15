@@ -217,14 +217,16 @@ export function CategoryPills({
 export const PRODUCT_GRID = "grid gap-3 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]";
 
 export function ProductTile({
-  product, inCart, currency, onAdd,
+  product, inCart, currency, onAdd, allowOversell = false,
 }: {
   product:  PosProduct;
   inCart:   number;
   currency: string;
   onAdd:    () => void;
+  /** Offline mode: stock isn't live, so an item at zero stays sellable and is flagged at sync. */
+  allowOversell?: boolean;
 }) {
-  const oos = product.stock <= 0;
+  const oos = product.stock <= 0 && !allowOversell;
   const low = !oos && product.stock <= 5;
   return (
     <motion.button
@@ -253,7 +255,7 @@ export function ProductTile({
           "text-xs font-extrabold px-2 py-1 rounded-lg uppercase tracking-wide whitespace-nowrap",
           oos ? "bg-destructive text-white" : low ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground"
         )}>
-          {oos ? "Out" : `${product.stock} left`}
+          {oos ? "Out" : product.stock <= 0 ? "0 left" : `${product.stock} left`}
         </span>
       </div>
 

@@ -18,7 +18,7 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasDefaultSchema("pos")
-                .HasAnnotation("ProductVersion", "9.0.19")
+                .HasAnnotation("ProductVersion", "9.0.20")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -34,6 +34,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CashierId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClientRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -76,6 +80,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.HasIndex("SessionId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ClientRef")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [ClientRef] IS NOT NULL");
 
                     b.ToTable("cash_movements", "pos");
                 });
@@ -764,6 +772,68 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.ToTable("held_transactions", "pos");
                 });
 
+            modelBuilder.Entity("Softaxis.POS.Domain.Entities.OfflineSyncBatch", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AppliedCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DuplicateCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastSyncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RegisterId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("RejectedCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SessionCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SyncedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastSyncedAt");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("offline_sync_batches", "pos");
+                });
+
             modelBuilder.Entity("Softaxis.POS.Domain.Entities.POSLineItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -883,6 +953,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CashierId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ClientRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<DateTime?>("ClosedAt")
                         .HasColumnType("datetime2");
 
@@ -957,6 +1031,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("RegisterId", "Status");
 
+                    b.HasIndex("TenantId", "ClientRef")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [ClientRef] IS NOT NULL");
+
                     b.ToTable("pos_sessions", "pos");
                 });
 
@@ -975,6 +1053,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("ChangeGiven")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ClientRef")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTime>("CompletedAt")
                         .HasColumnType("datetime2");
@@ -1005,6 +1087,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("OfflineReceiptNumber")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
 
                     b.Property<string>("OrderDiscountReference")
                         .HasMaxLength(60)
@@ -1066,6 +1152,10 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                     b.HasIndex("SessionId");
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ClientRef")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0 AND [ClientRef] IS NOT NULL");
 
                     b.HasIndex("TenantId", "TransactionNumber")
                         .IsUnique()
@@ -1749,6 +1839,114 @@ namespace Softaxis.POS.Infrastructure.Persistence.Migrations
                             IsSystem = true,
                             Name = "2/10 Net 30"
                         });
+                });
+
+            modelBuilder.Entity("Softaxis.POS.Domain.Entities.PosSettings", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("OfflineModeEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("pos_settings", "pos");
+                });
+
+            modelBuilder.Entity("Softaxis.POS.Domain.Entities.PosTillStatus", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("PendingRecords")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RegisterId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("ReportedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("UnsyncedShifts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "DeviceId")
+                        .IsUnique()
+                        .HasFilter("[TenantId] IS NOT NULL AND [IsDeleted] = 0");
+
+                    b.ToTable("pos_till_status", "pos");
                 });
 
             modelBuilder.Entity("Softaxis.POS.Domain.Entities.Product", b =>

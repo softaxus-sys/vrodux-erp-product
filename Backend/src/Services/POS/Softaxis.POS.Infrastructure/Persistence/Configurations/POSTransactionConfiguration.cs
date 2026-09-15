@@ -38,6 +38,9 @@ public sealed class POSTransactionConfiguration : IEntityTypeConfiguration<POSTr
         // Computed
         builder.Ignore(t => t.IsCash);
 
+        builder.Property(t => t.ClientRef).HasMaxLength(64);
+        builder.Property(t => t.OfflineReceiptNumber).HasMaxLength(40);
+
         // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.HasIndex(t => t.SessionId);
         builder.HasIndex(t => t.CashierId);

@@ -14,7 +14,9 @@ import { useBarcodeScanner }  from "@/hooks/use-barcode-scanner";
 import { useHardware }        from "@/contexts/hardware-context";
 import { HardwareStatusBar }  from "@/components/pos/hardware-status-bar";
 import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
-import { usePaginatedPOSProducts } from "@/hooks/pos/use-products";
+import { usePaginatedPOSProducts, useOfflineCategories } from "@/hooks/pos/use-products";
+import { usePosOffline } from "@/contexts/pos-offline-context";
+import { OfflineSyncButton } from "@/components/pos/offline-sync";
 import { useInventoryCategories } from "@/hooks/inventory/use-inventory-categories";
 import { useCreateSale, useTransactions } from "@/hooks/pos/use-transactions";
 import { useShift } from "./shift-gate";
@@ -99,9 +101,15 @@ export function CashierPOSView() {
 
   // Category map for filter pills (id → name)
   const { data: categoriesData } = useInventoryCategories({ isActive: true });
+  // Offline: the category API is unreachable, so take categories from the local catalogue.
+  const offline = usePosOffline();
+  const allowOversell = !!offline;
+  const { data: offlineCategories } = useOfflineCategories();
   const categoryList = React.useMemo(
-    () => (categoriesData ?? []).map(c => ({ id: c.id, name: c.name })),
-    [categoriesData]
+    () => offline
+      ? (offlineCategories ?? [])
+      : (categoriesData ?? []).map(c => ({ id: c.id, name: c.name })),
+    [offline, offlineCategories, categoriesData]
   );
   const categoryNames = React.useMemo(() => categoryList.map(c => c.name), [categoryList]);
 
@@ -185,9 +193,9 @@ export function CashierPOSView() {
     enabled: !showReceipt && !showHistory,
     onScan: async ({ barcode }) => {
       const local = allProducts.find(p => p.barcode === barcode || p.sku === barcode);
-      if (local && local.stock > 0) {
+      if (local && (local.stock > 0 || allowOversell)) {
         addToCart(local); setScanItem(local.name); setScanFeedback("found");
-      } else if (!local) {
+      } else if (!local && !offline) {
         try {
           const p = await inventoryProductsApi.getByBarcode(barcode);
           if (p.isActive && p.stockQuantity > 0) {
@@ -293,6 +301,7 @@ export function CashierPOSView() {
         <div className="flex items-center gap-2">
           <ShiftPill duration={shiftDuration} />
           <HardwareStatusBar />
+          <OfflineSyncButton />
           <TopBarButton icon={History} label="History" badge={sessionStats.count} onClick={() => setShowHistory(true)} />
           <TopBarButton icon={LogOut} label="Close Shift" tone="danger" onClick={openClosePanel} />
           <LiveClock />
@@ -322,6 +331,7 @@ export function CashierPOSView() {
                       currency={currency}
                       inCart={cartQty[p.id] ?? 0}
                       onAdd={() => addToCart(p)}
+                      allowOversell={allowOversell}
                     />
                   ))}
                 </div>

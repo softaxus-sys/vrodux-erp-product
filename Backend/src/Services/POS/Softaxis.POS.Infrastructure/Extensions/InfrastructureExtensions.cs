@@ -40,6 +40,7 @@ public static class InfrastructureExtensions
         services.AddScoped<ITaxRateRepository,              TaxRateRepository>();
         services.AddScoped<IVoucherRepository,              VoucherRepository>();
         services.AddScoped<ICashMovementRepository,         CashMovementRepository>();
+        services.AddScoped<IPosSettingsRepository,          PosSettingsRepository>();
         services.AddScoped<IPaymentTermRepository,          PaymentTermRepository>();
         services.AddScoped<ICustomerGroupRepository,        CustomerGroupRepository>();
         services.AddScoped<IVendorRepository,               VendorRepository>();
@@ -50,6 +51,7 @@ public static class InfrastructureExtensions
 
         // Services
         services.AddScoped<IReportService,               ReportService>();
+        services.AddScoped<IPosDashboardReadService,     PosDashboardReadService>();
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 

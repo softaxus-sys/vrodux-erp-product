@@ -33,6 +33,11 @@ public sealed class POSTransaction : AuditableEntity<Guid>
     public string?   Notes         { get; private set; }
     public DateTime  CompletedAt   { get; private set; }
 
+    /// <summary>Client-generated id of a transaction recorded offline (idempotency key for sync).</summary>
+    public string?   ClientRef            { get; private set; }
+    /// <summary>The receipt number printed at the till while offline, e.g. OFF-T1-20260915-0007.</summary>
+    public string?   OfflineReceiptNumber { get; private set; }
+
     // Navigation
     public POSSession              Session   { get; private set; } = default!;
     public Customer?               Customer  { get; private set; }
@@ -138,6 +143,17 @@ public sealed class POSTransaction : AuditableEntity<Guid>
     {
         OrderDiscountType      = string.IsNullOrWhiteSpace(type) ? "none" : type.Trim().ToLowerInvariant();
         OrderDiscountReference = reference?.Trim();
+    }
+
+    /// <summary>
+    /// Mark a transaction as uploaded from an offline till. Call AFTER Complete, which stamps
+    /// CompletedAt with the server clock; this restores the time the sale really happened.
+    /// </summary>
+    public void MarkOffline(string clientRef, string? receiptNumber, DateTime occurredAtUtc)
+    {
+        ClientRef            = clientRef.Trim();
+        OfflineReceiptNumber = receiptNumber?.Trim();
+        CompletedAt          = occurredAtUtc;
     }
 
     public bool IsCash => Payments.Any(p => p.Method == PaymentMethod.Cash);
