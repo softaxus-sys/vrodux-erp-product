@@ -26,10 +26,19 @@ import type { AppTabParamList, AuthStackParamList } from "@/navigation/types";
  *  place rather than duplicated between the bell handler and the push-tap listener below. */
 function openLeadDetail(navRef: ReturnType<typeof useNavigationContainerRef<AppTabParamList>>, leadId: string) {
   if (!navRef.isReady()) return;
-  (navRef as { navigate: (name: string, params: unknown) => void }).navigate("Leads", {
-    screen: "LeadDetail",
-    params: { leadId, leadName: "Lead" },
-  });
+  // "Leads" only exists as a registered route for a session that currently holds CRM lead access
+  // (tab-config.ts). A notification referencing a lead can, in principle, be tapped after that
+  // access was revoked -- guard rather than let an unregistered-route navigate throw, and swallow
+  // any other unexpected navigation error for the same reason (see Mobile/README.md).
+  if (!navRef.getState()?.routeNames?.includes("Leads")) return;
+  try {
+    (navRef as { navigate: (name: string, params: unknown) => void }).navigate("Leads", {
+      screen: "LeadDetail",
+      params: { leadId, leadName: "Lead" },
+    });
+  } catch {
+    // Best-effort deep link -- worst case the user opens the lead manually from its tab.
+  }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
