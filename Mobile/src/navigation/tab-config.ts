@@ -16,6 +16,13 @@ import { PURCHASE_ORDERS_VIEW, PURCHASE_VENDORS_VIEW } from "@/lib/purchase.api"
 import { FINANCE_EXPENSES_VIEW, FINANCE_INVOICING_VIEW } from "@/lib/finance.api";
 import { PM_PROJECTS_VIEW } from "@/lib/project-management.api";
 import { POS_REPORTS_VIEW, POS_SESSIONS_VIEW, POS_TRANSACTIONS_VIEW } from "@/lib/pos.api";
+import {
+  RESTAURANT_KITCHEN_VIEW,
+  RESTAURANT_ORDERS_VIEW,
+  RESTAURANT_RESERVATIONS_VIEW,
+  RESTAURANT_REPORTS_VIEW,
+  RESTAURANT_TABLES_VIEW,
+} from "@/lib/restaurant.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
@@ -26,6 +33,7 @@ import PurchaseStack from "@/navigation/PurchaseStack";
 import FinanceStack from "@/navigation/FinanceStack";
 import ProjectManagementStack from "@/navigation/ProjectManagementStack";
 import POSStack from "@/navigation/POSStack";
+import RestaurantStack from "@/navigation/RestaurantStack";
 import type { AppTabParamList } from "@/navigation/types";
 
 export type ModuleTabKey = Exclude<keyof AppTabParamList, "Dashboard" | "More">;
@@ -60,6 +68,7 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Inventory", label: "Inventory", subtitle: "Product and stock lookup", icon: "box", component: InventoryStack, isStack: true },
   { key: "Finance", label: "Finance", subtitle: "Invoices and expenses", icon: "dollar-sign", component: FinanceStack, isStack: true },
   { key: "POS", label: "POS", subtitle: "Shift status and transactions", icon: "monitor", component: POSStack, isStack: true },
+  { key: "Restaurant", label: "Restaurant", subtitle: "Tables, orders, kitchen, reservations", icon: "coffee", component: RestaurantStack, isStack: true },
 ];
 
 /** Static per session -- permission/module claims only change on next login/refresh, same as
@@ -101,6 +110,13 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       // Any one of the three read keys is enough -- the screens inside gate their own sections
       // (dashboard needs .reports/.transactions, shift detail needs .sessions, etc).
       return hasModuleAccess("pos") && hasPermission(POS_SESSIONS_VIEW, POS_TRANSACTIONS_VIEW, POS_REPORTS_VIEW);
+    case "Restaurant":
+      // Any one of the five read keys is enough -- the home screen and each sub-screen re-check
+      // their own specific permission (dashboards need .reports, tickets need .kitchen, etc).
+      return (
+        hasModuleAccess("restaurant") &&
+        hasPermission(RESTAURANT_REPORTS_VIEW, RESTAURANT_TABLES_VIEW, RESTAURANT_ORDERS_VIEW, RESTAURANT_KITCHEN_VIEW, RESTAURANT_RESERVATIONS_VIEW)
+      );
   }
 }
 

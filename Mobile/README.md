@@ -481,12 +481,63 @@ thing a phone is actually good for: checking status on the go.
   terminal" reasoning above. POS Customers (a distinct resource from CRM customers — loyalty
   points, wallet balance, house-account credit) is a plausible small follow-up flagged, not built.
 
+**Restaurant POS — "front-of-house + kitchen coordination," not an order-taking terminal.** Same
+scoping question as retail POS above, applied to a genuinely bigger backend surface: the web app's
+`Softaxis.Restaurant` service has grown well past what CLAUDE.md's Module 19 series documents (20
+controllers now, including combos, courses, receipts, printer profiles, delivery, drivers, happy
+hour, device registration, and 5 role-scoped web dashboards from an undocumented "Epic 8" pass) —
+confirmed by reading the controllers directly rather than trusting the doc's Module 19f as current.
+Order-taking itself (structured modifiers, combos, courses, split-bill, tips, discounts, payment)
+is real desktop-appropriate complexity — the same call already made for retail POS's checkout flow
+— so **Restaurant orders on mobile are read-only**, same posture as POS transactions. Two areas get
+real write actions anyway, because they don't touch cash or a physical drawer at all: marking a
+kitchen ticket item's prep status (the KDS re-exposed for a phone/tablet on the pass — mirrors
+`KitchenController`'s own code comment that the KDS marks orders ready "without going through the
+order-drawer UI"), and seating/cancelling a reservation or walk-in.
+- Home screen: today's owner-dashboard tiles (sales, orders, active) + a live floor-status strip
+  (available/occupied/reserved/cleaning, from `GET /dashboard/branch`, refetched every 60s) + menu
+  cards into the five sections below — each only rendered if the session holds that section's key.
+- Tables: status summary tiles (occupancy %, covers, table count) + filterable list (by status),
+  each row showing capacity and the current waiter if occupied. Read-only — the floor-plan
+  designer (create/edit/reposition/merge tables) is desktop-appropriate, same call as Inventory's
+  product create being out of scope.
+- Live Orders: status filter chips + summary tiles (today's orders/revenue/tips) → order detail
+  (items with modifiers and per-item prep status, payments, active discounts, refunds, split
+  children) — **no action buttons anywhere on this screen**, matching POS Transactions' own
+  read-only stance exactly.
+- Kitchen: the one screen with real write actions. Active-ticket cards (table, waiter, wait
+  minutes, one row per item) with a one-tap "Mark {next status}" button per item
+  (pending→preparing→ready→served, via `PATCH /kitchen/items/{id}/status`) and a "Mark whole order
+  ready" button per ticket (`PATCH /kitchen/orders/{id}/ready` — the same command
+  `OrdersController.MarkReady` uses). Gated on `restaurant.kitchen.edit`; view-only without it.
+- Reservations: Today/All toggle (`GET /reservations?date=`) + summary tiles → Seat/Cancel on a
+  `confirmed` reservation, phone number shown for a quick call. No create-reservation form (a
+  10+ field form with slot-duration/deposit rules — desktop-appropriate, same call as HR
+  employee-create).
+- Waitlist: status filter chips (defaults to Waiting) + summary (waiting count, average quoted
+  wait) → Seat (opens a bottom-sheet table picker filtered to `available` tables, since
+  `SeatWaitlistEntryCommand` requires a table id — unlike reservation-seat, which doesn't) /
+  No-show / Cancel on a `waiting` entry.
+- Gated on any of `restaurant.reports.view` (dashboards) / `.tables.view` / `.orders.view` /
+  `.kitchen.view` / `.reservations.view` at the tab level — each screen re-checks its own specific
+  key, same "any-of at the tab, specific inside" pattern as POS and Approvals. Waitlist has no
+  dedicated permission group on the backend (`WaitlistController`'s own code comment) and rides on
+  the `restaurant.tables.*` keys, same nearest-seeded-key convention used elsewhere in this codebase.
+- **Deliberately not built, on purpose**: order creation/editing (menu browsing, modifiers,
+  combos, courses), payment/split-bill/tips/refunds, table floor-plan design (create/edit/
+  reposition/merge/QR codes), reservation rules configuration, the 5 role-scoped web dashboards
+  beyond Owner/Branch (Kitchen dashboard folded into the Kitchen screen's own summary tiles
+  instead of a separate fetch; Cashier and Inventory dashboards are POS/stock concerns already
+  covered by their own tabs), delivery orders/zones/drivers, happy hour, combos, printer profiles,
+  device registration, notification config — all genuinely separate sub-features of this service,
+  none of them a mobile-appropriate subset on their own.
+
 ## Tab bar overflow ("More" tab)
 
-There are up to eight module tabs (Leads/Pipeline/HR/Approvals/Inventory/Sales/Purchase/Finance)
-behind Dashboard, each independently gated -- a given session usually sees far fewer, but nothing
-capped how many could render directly, and React Navigation's bottom-tabs will happily lay out
-nine icons in a row (not a comfortable phone UI past ~5).
+There are up to eleven module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/Inventory/
+Finance/POS/Restaurant) behind Dashboard, each independently gated -- a given session usually sees
+far fewer, but nothing capped how many could render directly, and React Navigation's bottom-tabs
+will happily lay out a dozen icons in a row (not a comfortable phone UI past ~5).
 
 - `navigation/tab-config.ts` (new) -- single source of truth for every module tab: its icon,
   label, component, permission gate, and priority order. Replaces the permission-check block that
@@ -533,20 +584,16 @@ every module already here does.
 expenses/accounts/banking/budgets/journals/tax/recurring invoices — General Ledger + Financial
 Statements deliberately deferred, see the complexity note above), Project Management (Kanban —
 project/issue/label create, delete, and epic linking deliberately deferred, see above), POS
-(shift status + transaction visibility — deliberately not a checkout terminal, see above; the
-**restaurant** side of POS, which has its own separate order/table/kitchen-display model
-entirely distinct from the retail transaction data covered here, is not covered by this pass at
-all — it's effectively still queued, folded into item 1 below since it needs its own scoping pass
-the same way retail POS just got). Queued next, roughly in priority order:
+(retail shift status + transaction visibility, and Restaurant tables/orders/kitchen/reservations/
+waitlist — both deliberately not a checkout/order-taking terminal, see above for each). Queued
+next, roughly in priority order:
 
-1. Restaurant POS (own order/table/kitchen-display model — needs the same "what does a phone
-   actually add here" scoping pass retail POS just went through, not a checkout-terminal port)
-2. Visa Services, Real Estate
-3. Reports, File Manager
-4. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+1. Visa Services, Real Estate
+2. Reports, File Manager
+3. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
    mobile-first surface
-5. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
-6. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+4. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+5. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface

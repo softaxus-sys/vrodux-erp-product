@@ -88,6 +88,19 @@ export type POSStackParamList = {
   POSTransactionDetail: { transactionId: string; transactionNumber: string };
 };
 
+export type RestaurantStackParamList = {
+  RestaurantHome: undefined;
+  TablesList: undefined;
+  OrdersList: undefined;
+  // Restaurant orders and Sales orders are unrelated resources sharing a route name within their
+  // own stacks (each `Stack.Navigator` has its own param-list namespace) -- same "OrderDetail"
+  // name as SalesStackParamList above, not a collision.
+  OrderDetail: { orderId: string; orderNumber: string };
+  KitchenTickets: undefined;
+  ReservationsList: undefined;
+  WaitlistList: undefined;
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
@@ -100,6 +113,7 @@ export type AppTabParamList = {
   Finance: undefined;
   Projects: undefined;
   POS: undefined;
+  Restaurant: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;
