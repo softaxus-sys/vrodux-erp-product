@@ -101,6 +101,31 @@ export type RestaurantStackParamList = {
   WaitlistList: undefined;
 };
 
+export type VisaStackParamList = {
+  VisaHome: undefined;
+  CasesList: undefined;
+  CaseDetail: { caseId: string; caseNumber: string };
+  RenewalsList: undefined;
+};
+
+export type RealEstateStackParamList = {
+  RealEstateHome: undefined;
+  PropertiesList: undefined;
+  PropertyDetail: { propertyId: string; propertyName: string };
+  UnitsList: undefined;
+  TenantsList: undefined;
+  // No GET /tenants/{id} exists on the backend -- the list DTO already carries every field the
+  // detail screen shows, so the whole row is passed through nav params instead of a second,
+  // nonexistent, fetch (same pattern as FinanceStackParamList's JournalDetail/RecurringInvoiceDetail).
+  TenantDetail: { tenant: import("@/types/real-estate").TenantDto };
+  ContractsList: undefined;
+  ContractDetail: { contractId: string; contractNumber: string };
+  RentDue: undefined;
+  BrokersList: undefined;
+  // No GET /brokers/{id} exists on the backend either -- same reasoning as TenantDetail above.
+  BrokerDetail: { broker: import("@/types/real-estate").BrokerDto };
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
@@ -114,6 +139,8 @@ export type AppTabParamList = {
   Projects: undefined;
   POS: undefined;
   Restaurant: undefined;
+  Visa: undefined;
+  RealEstate: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;

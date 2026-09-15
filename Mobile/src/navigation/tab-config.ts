@@ -23,6 +23,15 @@ import {
   RESTAURANT_REPORTS_VIEW,
   RESTAURANT_TABLES_VIEW,
 } from "@/lib/restaurant.api";
+import { VISA_CASES_VIEW } from "@/lib/visa.api";
+import {
+  REAL_ESTATE_BROKERS_VIEW,
+  REAL_ESTATE_CONTRACTS_VIEW,
+  REAL_ESTATE_PROPERTIES_VIEW,
+  REAL_ESTATE_RENT_VIEW,
+  REAL_ESTATE_TENANTS_VIEW,
+  REAL_ESTATE_UNITS_VIEW,
+} from "@/lib/real-estate.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
@@ -34,6 +43,8 @@ import FinanceStack from "@/navigation/FinanceStack";
 import ProjectManagementStack from "@/navigation/ProjectManagementStack";
 import POSStack from "@/navigation/POSStack";
 import RestaurantStack from "@/navigation/RestaurantStack";
+import VisaStack from "@/navigation/VisaStack";
+import RealEstateStack from "@/navigation/RealEstateStack";
 import type { AppTabParamList } from "@/navigation/types";
 
 export type ModuleTabKey = Exclude<keyof AppTabParamList, "Dashboard" | "More">;
@@ -69,6 +80,8 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Finance", label: "Finance", subtitle: "Invoices and expenses", icon: "dollar-sign", component: FinanceStack, isStack: true },
   { key: "POS", label: "POS", subtitle: "Shift status and transactions", icon: "monitor", component: POSStack, isStack: true },
   { key: "Restaurant", label: "Restaurant", subtitle: "Tables, orders, kitchen, reservations", icon: "coffee", component: RestaurantStack, isStack: true },
+  { key: "Visa", label: "Visa", subtitle: "Cases, documents, renewals", icon: "flag", component: VisaStack, isStack: true },
+  { key: "RealEstate", label: "Real Estate", subtitle: "Properties, tenants, rent collection", icon: "home", component: RealEstateStack, isStack: true },
 ];
 
 /** Static per session -- permission/module claims only change on next login/refresh, same as
@@ -116,6 +129,24 @@ function isTabAvailable(key: ModuleTabKey): boolean {
       return (
         hasModuleAccess("restaurant") &&
         hasPermission(RESTAURANT_REPORTS_VIEW, RESTAURANT_TABLES_VIEW, RESTAURANT_ORDERS_VIEW, RESTAURANT_KITCHEN_VIEW, RESTAURANT_RESERVATIONS_VIEW)
+      );
+    case "Visa":
+      // Only one permission group exists on the backend (visa.cases.*) -- both the dashboard and
+      // the cases/renewals screens all gate on this single key.
+      return hasModuleAccess("visa") && hasPermission(VISA_CASES_VIEW);
+    case "RealEstate":
+      // Any one of the six read keys is enough -- the home screen's menu cards and each
+      // sub-screen re-check their own specific permission.
+      return (
+        hasModuleAccess("real-estate") &&
+        hasPermission(
+          REAL_ESTATE_PROPERTIES_VIEW,
+          REAL_ESTATE_UNITS_VIEW,
+          REAL_ESTATE_TENANTS_VIEW,
+          REAL_ESTATE_CONTRACTS_VIEW,
+          REAL_ESTATE_RENT_VIEW,
+          REAL_ESTATE_BROKERS_VIEW,
+        )
       );
   }
 }

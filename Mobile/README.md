@@ -532,12 +532,74 @@ order-drawer UI"), and seating/cancelling a reservation or walk-in.
   device registration, notification config — all genuinely separate sub-features of this service,
   none of them a mobile-appropriate subset on their own.
 
+**Visa Services** — case management for a UAE visa consultancy, gated on the single
+`visa.cases.*` permission group that exists on the backend:
+- Home: dashboard tiles (open/overdue/due-this-week cases, open fees) + a 30-day renewal banner +
+  menu cards into Cases and Renewals.
+- Cases: search + status filter chips + summary tiles → case detail (applicants, a document
+  checklist, notes/timeline, reassignment) with the one real workflow surface in this module —
+  **status transitions only ever offer a legal move**, via the exact same `CASE_TRANSITIONS` map
+  `FrontendVite/src/lib/visa/visa.api.ts` uses to drive its own UI, so mobile can never propose a
+  move the backend's status machine would reject. `rejected` prompts for a reason, `submitted` for
+  an optional government reference, `issued` for the visa expiry date — mirrors the web drawer's
+  own inline modals. Tapping a document opens a status picker (pending → received → verified →
+  rejected → expired).
+- Renewals: a 30/60/90/180-day window toggle + kind filter (visa/passport/document expiries),
+  sorted most-urgent-first, each row opening straight into its case.
+- Gated on `visa.cases.view`; every write (status change, document update, note, reassign) needs
+  `visa.cases.edit`, checked in the case-detail screen itself, not just the tab.
+- **Deliberately not built**: case creation (visa type + fee prefill + a dynamic
+  applicant/dependent list) and the government-channel connection screen (encrypted credentials,
+  per-provider setup guides) — both desktop-appropriate, same call as Sales/Purchase order
+  creation. Invoice linking (the frontend-orchestrated Finance handoff) is a cross-service write
+  with no natural mobile trigger and is left out too.
+
+**Real Estate** — portfolio browsing + rent collection, not a leasing back-office. Property/
+unit/tenant/contract *creation* are all real multi-field forms (a contract create alone picks a
+property → vacant unit → tenant and can seed an advance-rent schedule) — desktop-appropriate,
+same call as every other module's order-creation screen. What's genuinely mobile-native: checking
+occupancy, looking up a tenant or lease, and the rent-collection actions a property manager
+does away from a desk.
+- Home: occupancy + overdue/due-this-month tiles + menu cards into the six sections below, each
+  only rendered if the session holds that section's key.
+- Properties: search + status filter (available/partially occupied/fully occupied), infinite
+  scroll, summary tiles → property detail (location, market value, occupancy, its nested unit
+  list) — read-only, no floor-plan editing.
+- Units: cross-property browse with a status filter (vacant/rented/sold/maintenance) — no detail
+  screen, a unit's full record already fits its row (same call as Restaurant's Tables screen).
+- Tenants: search + status filter, infinite scroll → tenant detail (contact info, compliance
+  fields, notes, call/email quick actions) + that tenant's own lease history
+  (`GetContractsQuery(tenantId=)`, a real server-side filter, not a client-side one). **No `GET
+  /tenants/{id}` exists on the backend** — the list row already carries every field the detail
+  screen shows, so the whole `TenantDto` is passed through nav params instead of a second,
+  nonexistent, fetch (same pattern `FinanceStackParamList`'s `JournalDetail` already uses).
+  Brokers has the identical gap (no `GET /brokers/{id}`) and gets the same treatment.
+- Contracts: status filter (active/expired/terminated/renewed), overdue-first sort, summary tiles
+  → contract detail (lease terms, deposit, the full rent installment schedule) with **Record
+  Payment**, **Waive**, and **Send Reminder** on each unsettled installment.
+- Rent Due: the cross-lease chase queue (`GetRentDueQuery`, overdue always first) with a
+  7/14/30/60-day window toggle and the same Record Payment / Remind actions inline, so working the
+  queue doesn't require opening each contract in turn — tapping a row still opens the full
+  contract for context. **Record Payment and Remind are genuinely separate permission keys**
+  (`real-estate.rent.record` / `.rent.remind`) from viewing (`.rent.view`) and from editing the
+  lease itself (`.contracts.edit`) — "the person who takes a cheque at the counter is rarely the
+  person allowed to change the rent" (`ContractsController`'s own comment) — both gates are
+  checked independently in the UI, not folded into one.
+- Brokers: search, infinite scroll, summary tiles → broker detail (license, rating, commission,
+  call/email quick actions).
+- **Deliberately not built**: any create/edit/delete on properties, units, tenants, contracts, or
+  brokers; rent-alert settings/logs (an admin config screen, same priority tier as Settings);
+  the CRM-linked sales pipeline (site visits → reservations → bookings + payment plans, its own
+  `real-estate.sales.*` permission group) — a separate sub-feature big enough to need its own
+  scoping pass, same as Restaurant's delivery/happy-hour features were left out.
+
 ## Tab bar overflow ("More" tab)
 
-There are up to eleven module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/Inventory/
-Finance/POS/Restaurant) behind Dashboard, each independently gated -- a given session usually sees
-far fewer, but nothing capped how many could render directly, and React Navigation's bottom-tabs
-will happily lay out a dozen icons in a row (not a comfortable phone UI past ~5).
+There are up to thirteen module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
+Inventory/Finance/POS/Restaurant/Visa/RealEstate) behind Dashboard, each independently gated -- a
+given session usually sees far fewer, but nothing capped how many could render directly, and React
+Navigation's bottom-tabs will happily lay out a dozen-plus icons in a row (not a comfortable phone
+UI past ~5).
 
 - `navigation/tab-config.ts` (new) -- single source of truth for every module tab: its icon,
   label, component, permission gate, and priority order. Replaces the permission-check block that
@@ -585,15 +647,17 @@ expenses/accounts/banking/budgets/journals/tax/recurring invoices — General Le
 Statements deliberately deferred, see the complexity note above), Project Management (Kanban —
 project/issue/label create, delete, and epic linking deliberately deferred, see above), POS
 (retail shift status + transaction visibility, and Restaurant tables/orders/kitchen/reservations/
-waitlist — both deliberately not a checkout/order-taking terminal, see above for each). Queued
-next, roughly in priority order:
+waitlist — both deliberately not a checkout/order-taking terminal, see above for each), Visa
+Services (case management — status transitions/document checklist/renewals, case and visa-type
+*creation* deliberately deferred, see above), Real Estate (properties/units/tenants/contracts/
+brokers browsing + rent collection — all *creation* forms and the CRM-linked sales pipeline
+deliberately deferred, see above). Queued next, roughly in priority order:
 
-1. Visa Services, Real Estate
-2. Reports, File Manager
-3. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+1. Reports, File Manager
+2. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
    mobile-first surface
-4. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
-5. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+3. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+4. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface
