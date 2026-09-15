@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useMyNotifications } from "@/hooks/use-notifications";
 import { ErrorState, LoadingState } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -30,6 +31,10 @@ export default function NotificationsScreen({
 }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // Same fix as AiAssistantScreen -- a raw RN <Modal> gets no safe-area handling of its own, and
+  // `presentationStyle="pageSheet"` is iOS-only, so without this the header (and its only close
+  // button) renders under the status bar on Android.
+  const insets = useSafeAreaInsets();
   const { data, isLoading, isError, refetch, isRefetching } = useMyNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
@@ -44,7 +49,7 @@ export default function NotificationsScreen({
 
   return (
     <View style={styles.flex}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <Text style={styles.headerTitle}>Notifications</Text>
         <View style={styles.headerActions}>
           {data && data.unreadCount > 0 && (
@@ -69,7 +74,7 @@ export default function NotificationsScreen({
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: spacing.lg + insets.bottom }]}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
         >
           {data.items.map((n) => (

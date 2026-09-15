@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ApiError } from "@/lib/api-client";
 import { useAiAgents, useAiConversation, useClearConversation, useConfirmAction, useSendChat } from "@/hooks/use-ai";
 import type { ChatHistoryItem, PendingAction } from "@/types/ai";
@@ -66,6 +67,12 @@ function pendingFields(argumentsJson: string): { label: string; value: string }[
 export default function AiAssistantScreen({ onClose }: { onClose: () => void }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  // This screen is presented as a raw RN <Modal>, not a React Navigation screen -- so unlike every
+  // tab/stack screen (whose header React Navigation already keeps clear of the status bar), it
+  // gets no safe-area handling for free. `presentationStyle="pageSheet"` covers iOS on its own, but
+  // that prop is iOS-only and silently ignored on Android, where the modal draws truly edge-to-edge
+  // -- the header (and its only close button) rendered right under the status bar, unreachable.
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -151,7 +158,7 @@ export default function AiAssistantScreen({ onClose }: { onClose: () => void }) 
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <View style={styles.headerLeft}>
           <View style={styles.avatar}>
             <Feather name="message-circle" size={16} color={colors.white} />
@@ -203,7 +210,7 @@ export default function AiAssistantScreen({ onClose }: { onClose: () => void }) 
         </ScrollView>
       ) : null}
 
-      <View style={styles.inputRow}>
+      <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
         <TextInput
           style={styles.input}
           value={input}

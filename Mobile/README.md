@@ -224,6 +224,20 @@ streaming to replicate):
 - **Explicitly out of scope for this pass**: the settings modal (provider/model/tier/fallback
   config), Telegram linking, the voice agent, and scheduled automations — all real web features,
   all separable follow-ups once the core chat flow is confirmed working on-device.
+- **Bug fixed (reported: opened the assistant and had no way back — no close button visible, no
+  tab bar since the modal covers it)**: `AiAssistantScreen` is presented as a raw RN `<Modal>`, not
+  a React Navigation screen, so unlike every tab/stack screen (whose header React Navigation
+  already keeps clear of the status bar for free) it got no safe-area handling of its own. The
+  Modal's `presentationStyle="pageSheet"` masked this on iOS (that presentation style handles its
+  own safe area natively), but the prop is **iOS-only** and silently ignored on Android, where the
+  modal draws truly edge-to-edge — the header, and its only close ("x") button, rendered right
+  under the status bar, unreachable. Fixed by reading `useSafeAreaInsets()` and adding
+  `insets.top` to the header's padding (and `insets.bottom` to the input row, so the keyboard
+  toolbar clears the home indicator too). `NotificationsScreen.tsx` below shares the exact same
+  Modal pattern and got the identical fix in the same pass, before it could surface the same bug.
+  Every other `<Modal>` in the app (`MovePickerModal`, `RecordPaymentModal`, the visa/real-estate/
+  restaurant confirm dialogs) is a small `transparent` centered overlay, not a full-screen page
+  sheet with its own header competing with the status bar — confirmed unaffected.
 
 **CRM (leads + pipeline)** — complete for this pass:
 - Leads: search, status filters, hottest-first sort (score desc), infinite scroll, pull-to-refresh,
