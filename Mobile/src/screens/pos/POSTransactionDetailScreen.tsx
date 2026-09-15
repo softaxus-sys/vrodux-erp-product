@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTransaction } from "@/hooks/use-pos";
@@ -15,7 +15,9 @@ export default function POSTransactionDetailScreen({ route, navigation }: Props)
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const { transactionId, transactionNumber } = route.params;
-  navigation.setOptions({ headerTitle: transactionNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: transactionNumber });
+  }, [navigation, transactionNumber]);
 
   const transaction = useTransaction(transactionId);
 

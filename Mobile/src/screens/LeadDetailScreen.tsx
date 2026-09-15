@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useConvertLead, useLead, useSetLeadStatus } from "@/hooks/use-leads";
@@ -17,7 +17,9 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { leadId, leadName } = route.params;
-  navigation.setOptions({ headerTitle: leadName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: leadName });
+  }, [navigation, leadName]);
 
   const lead = useLead(leadId);
   const activities = useActivities("lead", leadId);

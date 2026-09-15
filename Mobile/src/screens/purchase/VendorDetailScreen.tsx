@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useVendor } from "@/hooks/use-purchase";
@@ -13,7 +13,9 @@ export default function VendorDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { vendorId, vendorName } = route.params;
-  navigation.setOptions({ headerTitle: vendorName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: vendorName });
+  }, [navigation, vendorName]);
 
   const vendor = useVendor(vendorId);
 

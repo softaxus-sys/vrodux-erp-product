@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -45,7 +45,9 @@ export default function PerformanceReviewDetailScreen({ route, navigation }: Pro
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { reviewId, employeeName } = route.params;
-  navigation.setOptions({ headerTitle: employeeName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: employeeName });
+  }, [navigation, employeeName]);
 
   const review = useReview(reviewId);
   const startReview = useStartReview();

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDeal, useMoveDealStage } from "@/hooks/use-deals";
@@ -21,7 +21,9 @@ export default function DealDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { dealId, dealTitle } = route.params;
-  navigation.setOptions({ headerTitle: dealTitle });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: dealTitle });
+  }, [navigation, dealTitle]);
 
   const deal = useDeal(dealId);
   const activities = useActivities("deal", dealId);

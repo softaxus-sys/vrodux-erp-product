@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useApplicants } from "@/hooks/use-hr-recruitment";
@@ -29,7 +29,9 @@ export default function JobPostingDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { jobId, jobTitle } = route.params;
-  navigation.setOptions({ headerTitle: jobTitle });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: jobTitle });
+  }, [navigation, jobTitle]);
 
   const job = useJobPosting(jobId);
   const applicants = useApplicants({ jobId, pageSize: 50 });

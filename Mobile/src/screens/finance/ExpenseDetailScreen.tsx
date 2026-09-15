@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useExpense } from "@/hooks/use-finance";
@@ -16,7 +16,9 @@ export default function ExpenseDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { expenseId, expenseNumber } = route.params;
-  navigation.setOptions({ headerTitle: expenseNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: expenseNumber });
+  }, [navigation, expenseNumber]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   const expense = useExpense(expenseId);

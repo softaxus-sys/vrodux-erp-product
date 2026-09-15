@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useIssues } from "@/hooks/use-project-management";
@@ -22,7 +22,9 @@ export default function IssuesListScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { projectId, projectName } = route.params;
-  navigation.setOptions({ headerTitle: `${projectName} · Issues` });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: `${projectName} · Issues` });
+  }, [navigation, `${projectName} · Issues`]);
 
   const [search, setSearch] = useState("");
   const [type, setType] = useState<IssueType | "all">("all");

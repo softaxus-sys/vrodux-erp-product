@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -34,7 +34,9 @@ export default function IssueDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { issueId, issueKey } = route.params;
-  navigation.setOptions({ headerTitle: issueKey });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: issueKey });
+  }, [navigation, issueKey]);
 
   const canEdit = hasPermission(PM_ISSUES_EDIT);
   const canComment = hasPermission(PM_ISSUES_CREATE);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePostJournalEntry, useVoidJournalEntry } from "@/hooks/use-finance-ledger";
@@ -18,7 +18,9 @@ export default function JournalDetailScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const [journal, setJournal] = useState(route.params.journal);
-  navigation.setOptions({ headerTitle: journal.journalNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: journal.journalNumber });
+  }, [navigation, journal.journalNumber]);
 
   const post = usePostJournalEntry();
   const voidEntry = useVoidJournalEntry();

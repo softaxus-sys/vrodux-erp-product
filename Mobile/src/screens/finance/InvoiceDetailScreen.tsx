@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useInvoice, useMarkInvoicePaid, useSendInvoice } from "@/hooks/use-finance";
@@ -18,7 +18,9 @@ export default function InvoiceDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { invoiceId, invoiceNumber } = route.params;
-  navigation.setOptions({ headerTitle: invoiceNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: invoiceNumber });
+  }, [navigation, invoiceNumber]);
   const canEdit = hasPermission(FINANCE_INVOICING_EDIT);
 
   const invoice = useInvoice(invoiceId);

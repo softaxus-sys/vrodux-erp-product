@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -16,7 +16,9 @@ export default function TenantDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { tenant: t } = route.params;
-  navigation.setOptions({ headerTitle: t.name });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: t.name });
+  }, [navigation, t.name]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   const contracts = useContractsByTenant(t.id);

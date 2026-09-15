@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useBoardColumns, useIssues, useMoveIssue } from "@/hooks/use-project-management";
@@ -17,7 +17,9 @@ export default function BoardScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { projectId, projectName } = route.params;
-  navigation.setOptions({ headerTitle: `${projectName} · Board` });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: `${projectName} · Board` });
+  }, [navigation, `${projectName} · Board`]);
 
   const [moveFor, setMoveFor] = useState<IssueSummaryDto | null>(null);
 

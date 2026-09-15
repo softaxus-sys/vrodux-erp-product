@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProjectMembers } from "@/hooks/use-project-management";
@@ -15,7 +15,9 @@ export default function ProjectMembersScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { projectId, projectName } = route.params;
-  navigation.setOptions({ headerTitle: `${projectName} · Members` });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: `${projectName} · Members` });
+  }, [navigation, `${projectName} · Members`]);
 
   const query = useProjectMembers(projectId);
 

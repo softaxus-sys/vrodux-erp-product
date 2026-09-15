@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -14,7 +14,9 @@ export default function BrokerDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { broker: b } = route.params;
-  navigation.setOptions({ headerTitle: b.name });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: b.name });
+  }, [navigation, b.name]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   return (

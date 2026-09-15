@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProduct, useProductStock } from "@/hooks/use-inventory";
@@ -14,7 +14,9 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { productId, productName } = route.params;
-  navigation.setOptions({ headerTitle: productName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: productName });
+  }, [navigation, productName]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   const product = useProduct(productId);

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProject } from "@/hooks/use-project-management";
@@ -12,7 +12,9 @@ export default function ProjectDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { projectId, projectName } = route.params;
-  navigation.setOptions({ headerTitle: projectName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: projectName });
+  }, [navigation, projectName]);
 
   const project = useProject(projectId);
 

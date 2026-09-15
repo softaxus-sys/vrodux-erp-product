@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ReportTable } from "@/components/reports/ReportTable";
@@ -24,7 +24,9 @@ export default function ReportRunnerScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { reportId } = route.params;
   const report = REPORT_REGISTRY.find((r) => r.id === reportId);
-  navigation.setOptions({ headerTitle: report?.title ?? "Report" });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: report?.title ?? "Report" });
+  }, [navigation, report?.title ?? "Report"]);
 
   // Same 30-days-ago default the web runner seeds a fresh filter panel with.
   const [from, setFrom] = useState(daysAgo(30));

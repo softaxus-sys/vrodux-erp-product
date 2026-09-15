@@ -21,7 +21,9 @@ export default function BankAccountDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { accountId, accountName } = route.params;
-  navigation.setOptions({ headerTitle: accountName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: accountName });
+  }, [navigation, accountName]);
 
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<BankTransactionDto[]>([]);

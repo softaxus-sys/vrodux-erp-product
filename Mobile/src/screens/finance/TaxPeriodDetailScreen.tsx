@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useTaxTransactions } from "@/hooks/use-finance-ledger";
@@ -18,7 +18,9 @@ export default function TaxPeriodDetailScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const { period, periodLabel } = route.params;
-  navigation.setOptions({ headerTitle: periodLabel });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: periodLabel });
+  }, [navigation, periodLabel]);
 
   const query = useTaxTransactions(period);
 

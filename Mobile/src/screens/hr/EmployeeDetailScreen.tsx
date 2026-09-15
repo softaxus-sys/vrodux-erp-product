@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEmployee } from "@/hooks/use-hr-directory";
@@ -25,7 +25,9 @@ export default function EmployeeDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { employeeId, employeeName } = route.params;
-  navigation.setOptions({ headerTitle: employeeName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: employeeName });
+  }, [navigation, employeeName]);
 
   const employee = useEmployee(employeeId);
 

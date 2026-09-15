@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useGenerateRecurringNow, usePauseRecurring, useResumeRecurring } from "@/hooks/use-finance-ledger";
@@ -20,7 +20,9 @@ export default function RecurringInvoiceDetailScreen({ route, navigation }: Prop
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const [recurring, setRecurring] = useState(route.params.recurring);
   const [generateResult, setGenerateResult] = useState<string | null>(null);
-  navigation.setOptions({ headerTitle: recurring.templateName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: recurring.templateName });
+  }, [navigation, recurring.templateName]);
 
   const pause = usePauseRecurring();
   const resume = useResumeRecurring();

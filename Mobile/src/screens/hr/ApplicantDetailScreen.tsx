@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -18,7 +18,9 @@ export default function ApplicantDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { applicantId, applicantName } = route.params;
-  navigation.setOptions({ headerTitle: applicantName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: applicantName });
+  }, [navigation, applicantName]);
 
   const applicant = useApplicant(applicantId);
   const updateStage = useUpdateApplicantStage();

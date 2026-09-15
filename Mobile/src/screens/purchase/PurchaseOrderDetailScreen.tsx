@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePurchaseOrder, useSetPurchaseOrderStatus } from "@/hooks/use-purchase";
@@ -16,7 +16,9 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { orderId, orderNumber } = route.params;
-  navigation.setOptions({ headerTitle: orderNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: orderNumber });
+  }, [navigation, orderNumber]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const canEdit = hasPermission(PURCHASE_ORDERS_EDIT);
 

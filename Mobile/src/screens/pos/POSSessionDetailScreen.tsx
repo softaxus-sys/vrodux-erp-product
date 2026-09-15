@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSession, useSessionCashMovements, useSessionTransactions } from "@/hooks/use-pos";
@@ -16,7 +16,9 @@ export default function POSSessionDetailScreen({ route, navigation }: Props) {
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const { sessionId, registerId } = route.params;
-  navigation.setOptions({ headerTitle: `Register ${registerId}` });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: `Register ${registerId}` });
+  }, [navigation, `Register ${registerId}`]);
 
   const session = useSession(sessionId);
   const transactions = useSessionTransactions(sessionId, 1, 20);

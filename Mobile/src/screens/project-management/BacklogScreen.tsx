@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCompleteSprint, useIssues, useMoveIssueToSprint, useSprints, useStartSprint } from "@/hooks/use-project-management";
@@ -17,7 +17,9 @@ export default function BacklogScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { projectId, projectName } = route.params;
-  navigation.setOptions({ headerTitle: `${projectName} · Backlog` });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: `${projectName} · Backlog` });
+  }, [navigation, `${projectName} · Backlog`]);
 
   const [moveFor, setMoveFor] = useState<IssueSummaryDto | null>(null);
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useContract, useRecordPayment, useRemindContract, useWaiveInstallment } from "@/hooks/use-real-estate";
@@ -24,7 +24,9 @@ export default function ContractDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { contractId, contractNumber } = route.params;
-  navigation.setOptions({ headerTitle: contractNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: contractNumber });
+  }, [navigation, contractNumber]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const canRecord = hasPermission(REAL_ESTATE_RENT_RECORD);
   const canRemind = hasPermission(REAL_ESTATE_RENT_REMIND);

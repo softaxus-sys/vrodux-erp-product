@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
@@ -24,7 +24,9 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { quotationId, quotationNumber } = route.params;
-  navigation.setOptions({ headerTitle: quotationNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: quotationNumber });
+  }, [navigation, quotationNumber]);
   const userName = useAuthStore((s) => s.user?.fullName ?? "");
   const canEdit = hasPermission(SALES_QUOTATIONS_EDIT);
 

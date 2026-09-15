@@ -850,6 +850,53 @@ row (not a comfortable phone UI past ~5).
   the slot to zero width instead of just hiding its content, so the bar re-flows to just the tabs
   actually shown.
 
+## Bug fixed: `navigation.setOptions` called during render (32 screens)
+
+**Reported symptom**: an on-device error, `Cannot update a component ('NativeStackNavigator')
+while rendering a different component ('LeadDetailScreen')`. Not new-code-only — a systemic,
+pre-existing pattern across nearly every "Detail" screen in the app (32 files), only now surfacing
+as a hard error under React 19's stricter render-purity checks.
+
+### Cause
+Every detail screen sets its own header title from data that's only known once `route.params` (or
+a fetched record) is available — e.g. `LeadDetailScreen.tsx` had:
+```tsx
+const { leadId, leadName } = route.params;
+navigation.setOptions({ headerTitle: leadName });   // called directly in the render body
+```
+`navigation.setOptions` internally updates state on the parent `NativeStackNavigator` — doing that
+synchronously while `LeadDetailScreen` itself is still rendering is exactly the "update one
+component while rendering a different one" violation React now refuses outright, rather than
+merely warning about as older versions did. The same one-line pattern was copy/pasted into every
+new detail screen as the module-parity work progressed, so the bug scaled with the app.
+
+### Fix
+Wrapped every offending call in a `useEffect`, e.g.:
+```tsx
+useEffect(() => {
+  navigation.setOptions({ headerTitle: leadName });
+}, [navigation, leadName]);
+```
+Applied mechanically (a small Python pass, then verified by re-reading a sample and a full
+`tsc --noEmit` + `expo export`) across all 32 affected screens: `DealDetailScreen`, Finance's
+`BankAccountDetailScreen`/`ExpenseDetailScreen`/`InvoiceDetailScreen`/`JournalDetailScreen`/
+`RecurringInvoiceDetailScreen`/`TaxPeriodDetailScreen`, HR's `ApplicantDetailScreen`/
+`EmployeeDetailScreen`/`JobPostingDetailScreen`/`PerformanceReviewDetailScreen`, Inventory's
+`ProductDetailScreen`, `LeadDetailScreen`, POS's `POSSessionDetailScreen`/
+`POSTransactionDetailScreen`, Project Management's `BacklogScreen`/`BoardScreen`/
+`IssueDetailScreen`/`IssuesListScreen`/`ProjectDetailScreen`/`ProjectMembersScreen`, Purchase's
+`PurchaseOrderDetailScreen`/`VendorDetailScreen`, Real Estate's `BrokerDetailScreen`/
+`ContractDetailScreen`/`PropertyDetailScreen`/`TenantDetailScreen`, `ReportRunnerScreen`,
+Restaurant's `OrderDetailScreen`, Sales's `OrderDetailScreen`/`QuotationDetailScreen`, and Visa's
+`CaseDetailScreen`. Two screens that looked similar at a glance (`ExpensesListScreen`,
+`ProductsListScreen`) were already correctly wrapping their `setOptions` calls (for a
+`headerRight` button, not a title) in a `useEffect` — confirmed and left untouched.
+
+### The rule going forward
+**Any `navigation.setOptions(...)` call belongs inside a `useEffect`, never directly in a
+screen's render body** — even though `setOptions` "looks like" a plain synchronous option-setter,
+it always updates the parent navigator's state.
+
 ## Push Notifications
 
 **Phase 1 — the foundation (device registration, delivery, an in-app feed) plus one real trigger
