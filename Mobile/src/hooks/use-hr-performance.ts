@@ -19,10 +19,11 @@ export function useReview(id: string) {
   });
 }
 
-export function usePerformanceSummary() {
+export function usePerformanceSummary(enabled = true) {
   return useQuery({
     queryKey: [QK, "summary"],
     queryFn: hrPerformanceApi.getSummary,
+    enabled,
   });
 }
 

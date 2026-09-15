@@ -73,7 +73,8 @@ src/
   screens/
     LoginScreen.tsx
     TwoFactorScreen.tsx  — step 2 of the two-phase 2FA login (Module 14)
-    HomeScreen.tsx       — placeholder dashboard; shows session/tenant info, not real KPIs yet
+    HomeScreen.tsx       — real cross-module KPI dashboard (see "Dashboard KPIs" below) + the
+                          2FA-enrollment nudge banner + workspace/plan info + sign out
     LeadsListScreen.tsx / LeadDetailScreen.tsx
     DealsListScreen.tsx / DealDetailScreen.tsx
     ApprovalsScreen.tsx  — single-screen inbox: one section per source, inline approve/reject
@@ -743,6 +744,41 @@ mobile-native workflow actions:
   its own record's full field set, same call as Restaurant's Tables and Real Estate's Units), and
   Construction's bidding pipeline.
 
+## Dashboard KPIs
+
+`HomeScreen.tsx`'s "Overview" section replaces the old session-diagnostics placeholder with real
+cross-module KPI tiles — one compact card per module the signed-in user actually has access to,
+reusing the same summary/dashboard hooks and endpoints every other screen in this app already calls.
+No new aggregation endpoint was built for this (in contrast to `FrontendVite`'s heavier client-side
+dashboard aggregation, which its own `CLAUDE.md` Module 13 flags as "an approximation for large
+tenants") — the one exception is CRM, described elsewhere in this codebase as the module the mobile
+app was built around first and the most field-usable one, which had a real `GET /api/crm/dashboard`
+endpoint that had simply never been wired into mobile before now (`crmApi.getDashboard` +
+`useCrmDashboard`, new `CrmDashboardSummaryDto` trimmed to the scalar totals the endpoint returns).
+
+Every tile is gated behind the exact same `hasModuleAccess`/`hasPermission` checks each module's own
+tab-config.ts entry uses, and every underlying hook takes an `enabled` flag so a query never fires for
+a module the user can't see (`useCrmDashboard`, `useHrSummary`, `useAccountingSummary`,
+`useBankingSummary`, `usePosDashboard`, `useOwnerDashboard` (Restaurant), `useVisaDashboard`,
+`usePropertiesSummary` + `useContractsSummary` (Real Estate), `useB2BSummary`, `useEducationSummary`,
+`useHealthcareSummary`, `useInsuranceSummary`, `useProjectsSummary` (Construction), `useRoomsSummary` +
+`useBookingsSummary` (Hospitality) — the last four already existed from the Industry Verticals pass
+and are simply given a headline card here). Finance's Accounting and Banking summaries are combined
+into one card via a small local `combineQueries` helper; Real Estate and Hospitality get their own
+bespoke two-query cards (`RealEstateKpiCard`/`HospitalityKpiCard`) since either query can be present on
+its own rather than requiring both. Money tiles render through the shared `formatCompactValue(value,
+currency)` helper (from `crm-helpers.ts`) so large figures stay compact ("AED 1.2M") the same way they
+do everywhere else in the app.
+
+- **Deliberately excluded**: Sales, Purchase and Inventory have no tenant-wide summary/totals
+  endpoint on the backend (confirmed by the same controller audit done for their own module sections
+  above — only per-row list DTOs exist), so there's nothing to reuse and no aggregation was built for
+  them here. Finance's Budgeting/Journals/Tax/Recurring-invoices summaries are left out too — Finance's
+  card is deliberately just the two headline summaries (Accounting + Banking), not every sub-ledger.
+  A local `SimpleQuery<T>` structural-typing interface (not the full `UseQueryResult<T>`) backs the
+  shared `KpiCard`/`combineQueries` components — real query results are passed in directly with no
+  wrapping, since they're already structurally compatible.
+
 ## Tab bar overflow ("More" tab)
 
 There are up to twenty-two module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
@@ -820,8 +856,8 @@ gates behind `hasModuleAccess`/`hasRawPermission`. Queued next:
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface
 already exists — the approvals inbox — but no APNs/FCM integration exists anywhere in the backend
-yet), dashboard KPIs, EAS build config, per-device refresh tokens. (Barcode scanning for Inventory
-is done — see its own section above.)
+yet), EAS build config, per-device refresh tokens. (Barcode scanning for Inventory and dashboard
+KPIs are done — see their own sections above.)
 
 ## Conventions carried over from FrontendVite
 

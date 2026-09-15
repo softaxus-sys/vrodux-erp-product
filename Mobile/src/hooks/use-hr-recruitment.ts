@@ -56,9 +56,10 @@ export function useUpdateApplicantStage() {
   });
 }
 
-export function useRecruitmentSummary() {
+export function useRecruitmentSummary(enabled = true) {
   return useQuery({
     queryKey: [QK, "summary"],
     queryFn: hrRecruitmentApi.getSummary,
+    enabled,
   });
 }

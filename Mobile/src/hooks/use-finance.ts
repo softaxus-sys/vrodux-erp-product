@@ -85,10 +85,11 @@ export function useAccount(id: string) {
   });
 }
 
-export function useAccountingSummary() {
+export function useAccountingSummary(enabled = true) {
   return useQuery({
     queryKey: [QK, "accounting-summary"],
     queryFn: financeApi.getAccountingSummary,
+    enabled,
   });
 }
 
@@ -115,10 +116,11 @@ export function useBankTransactions(params: BankTxPageParams) {
   });
 }
 
-export function useBankingSummary() {
+export function useBankingSummary(enabled = true) {
   return useQuery({
     queryKey: [QK, "banking-summary"],
     queryFn: financeApi.getBankingSummary,
+    enabled,
   });
 }
 

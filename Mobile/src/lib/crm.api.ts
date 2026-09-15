@@ -4,6 +4,7 @@ import type {
   ConvertLeadRequest,
   ConvertLeadResult,
   CreateActivityRequest,
+  CrmDashboardSummaryDto,
   DealDto,
   DealsPageParams,
   LeadDto,
@@ -50,6 +51,11 @@ function buildDealsQuery(p: DealsPageParams): string {
 }
 
 export const crmApi = {
+  // ── Dashboard ─────────────────────────────────────────────────────────
+  // Already tier-scoped server-side (a team lead's numbers are their team's, not the tenant's) --
+  // see CrmDashboardSummaryDto's own note for why only the scalar totals are read here.
+  getDashboard: (): Promise<CrmDashboardSummaryDto> => apiClient.get(`${BASE}/dashboard`),
+
   // ── Leads ──────────────────────────────────────────────────────────────
   getLeadsPaged: (params: LeadsPageParams = {}): Promise<PagedLeads> =>
     apiClient.get(`${BASE}/leads/paged?${buildLeadsQuery(params)}`),

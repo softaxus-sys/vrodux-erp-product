@@ -18,10 +18,11 @@ export function useEmployee(id: string) {
   });
 }
 
-export function useHrSummary() {
+export function useHrSummary(enabled = true) {
   return useQuery({
     queryKey: [QK, "summary"],
     queryFn: hrDirectoryApi.getSummary,
+    enabled,
   });
 }
 

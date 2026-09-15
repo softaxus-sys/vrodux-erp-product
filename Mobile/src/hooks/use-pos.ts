@@ -51,10 +51,11 @@ export function useTransaction(id: string) {
   });
 }
 
-export function usePosDashboard() {
+export function usePosDashboard(enabled = true) {
   return useQuery({
     queryKey: [QK, "dashboard"],
     queryFn: posApi.getDashboard,
     refetchInterval: 60_000,
+    enabled,
   });
 }
