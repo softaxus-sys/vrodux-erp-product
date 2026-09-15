@@ -685,12 +685,61 @@ signed-in user's own account:
   (would need `expo-image-picker`, a new dependency — same call as Finance's receipt-photo
   attach).
 
+**Industry Verticals (B2B, Education, Healthcare, Insurance, Construction, Hospitality)** — six
+tabs, but niche in practice: a tenant picks one industry pack at onboarding, not several, so at
+most one or two of these ever show for a given session despite the long list in
+`MODULE_TAB_ORDER`. Read-only browse for every one of them except Hospitality's two genuinely
+mobile-native workflow actions:
+- **B2B / Education / Healthcare / Insurance share one generic engine.** All four live in the CRM
+  assembly (`Softaxis.CRM.API`) and follow an identical shape — confirmed by reading all four
+  controllers directly, not assumed: `GET /{feature}?status=&search=&page=&pageSize=` returning
+  `{items,page,pageSize,totalCount,totalPages}`, create/status-edit/delete all deferred (real
+  multi-field forms, same call as everywhere else). Rather than four sets of near-duplicate list
+  screens, `hooks/use-vertical-list.ts`'s `usePagedVerticalList` centralizes the infinite-scroll +
+  search + status-filter state machine once, and `components/verticals/PagedListView.tsx` owns the
+  shared chrome (search bar, status chips, pull-to-refresh, empty/error states) — each of the
+  twelve concrete list screens (3 sub-features × 4 packs) is ~60 lines: a query hook call, a
+  row renderer, and a `<PagedListView>`.
+  - B2B: Proposals → Service Contracts (AMC/SLA/Retainer) → Support Tickets.
+  - Education: Admissions → Students → Enrollments (with fee balance shown per enrollment).
+  - Healthcare: Patients → Appointments → Treatment Plans.
+  - Insurance: Policies → Renewals → Claims.
+  - **Status badges use a keyword heuristic** (`lib/verticals-shared.ts`'s `guessStatusTone` —
+    "cancel"/"reject"/"expired" → destructive, "complete"/"approved"/"active" → success,
+    "pending"/"draft"/"open" → warning, else neutral) rather than a hand-enumerated status map per
+    entity. Twelve exact status vocabularies would be a lot of domain-reading for a read-only
+    badge with no write action riding on it being exactly right — unlike Visa's `CASE_STATUS_TONE`
+    or Restaurant's `ORDER_STATUS_TONE`, which gate real status-transition buttons and do need to
+    be exact. Status filter chips are likewise built from whatever values are actually present in
+    the loaded page (same pattern as File Manager's document-type filter), not a guessed list.
+- **Construction** (its own microservice) — Projects, Sites, Contractors, BOQs, all confirmed
+  non-paginated `GetAll` (no controller here takes `page`/`pageSize`) and with no
+  `[RequirePermission]` at all (`[Authorize]` only) — gated on module access alone. Client-side
+  search + status filter over the full result set, same reasoning as Hospitality's Rooms below.
+  **The CRM-linked bidding lifecycle** (`ConstructionSalesController`'s RFQs → Estimates →
+  Contracts) is a separate sub-feature, deferred — same call as Real Estate's CRM-linked sales
+  pipeline.
+- **Hospitality** (its own microservice, also no `[RequirePermission]` anywhere) — Rooms
+  (read-only, non-paginated, mirrors Restaurant's Tables screen), Bookings (paginated, **Check In**
+  / **Check Out** wired to the real `PATCH .../checkin` / `.../checkout` endpoints — an
+  unambiguous two-state front-desk action, not a status field needing a guess), Housekeeping
+  (paginated with an extra task-type filter, **Start** / **Mark Complete** / **Verify** wired to
+  their own endpoints — a housekeeper walking room to room with a phone is exactly the "workflow,
+  not cash" case CLAUDE.md's Module 49 draws the line at, same reasoning already used for
+  Restaurant's kitchen tickets and Real Estate's rent collection).
+- **Deliberately not built anywhere in this section**: creation forms for any of the twelve
+  CRM-vertical sub-features, room/booking/task creation, detail screens (every row already shows
+  its own record's full field set, same call as Restaurant's Tables and Real Estate's Units), and
+  Construction's bidding pipeline.
+
 ## Tab bar overflow ("More" tab)
 
-There are up to sixteen module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
-Inventory/Finance/POS/Restaurant/Visa/RealEstate/Reports/FileManager/Settings) behind Dashboard,
-each independently gated (Settings unconditionally, see above) -- a given session usually sees far
-fewer, but nothing capped how many could render directly, and React Navigation's bottom-tabs will
+There are up to twenty-two module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
+Inventory/Finance/POS/Restaurant/Visa/RealEstate/B2B/Education/Healthcare/Insurance/Construction/
+Hospitality/Reports/FileManager/Settings) behind Dashboard, each independently gated (Settings
+unconditionally, see above) -- a given session usually sees far fewer (the six industry verticals
+in particular are mutually niche, see their own section above), but nothing capped how many could
+render directly, and React Navigation's bottom-tabs will
 happily lay out a dozen-plus icons in a
 row (not a comfortable phone UI past ~5).
 
@@ -749,10 +798,13 @@ runnable — CRM's 8 analytical reports and every export format deliberately def
 File Manager (the CRM document library, browse-only — download/preview deliberately deferred
 pending new native dependencies, see above), Settings (My Account — profile/password/2FA, ungated
 — the admin console (users/roles/branches/integrations/general settings) deliberately deferred,
-see above). Queued next, roughly in priority order:
+see above), Industry Verticals (B2B/Education/Healthcare/Insurance/Construction/Hospitality —
+read-only browse for all six plus Hospitality's check-in/out and housekeeping workflow actions;
+creation forms, detail screens, and Construction's CRM-linked bidding pipeline deliberately
+deferred, see above). **Full ERP module parity is now reached** for every module the web app
+gates behind `hasModuleAccess`/`hasRawPermission`. Queued next:
 
-1. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
-2. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+1. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface

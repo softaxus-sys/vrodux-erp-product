@@ -33,6 +33,10 @@ import {
   REAL_ESTATE_UNITS_VIEW,
 } from "@/lib/real-estate.api";
 import { FILE_MANAGER_VIEW } from "@/lib/file-manager.api";
+import { B2B_CONTRACTS_VIEW, B2B_PROPOSALS_VIEW, B2B_TICKETS_VIEW } from "@/lib/b2b.api";
+import { EDUCATION_ADMISSIONS_VIEW, EDUCATION_ENROLLMENTS_VIEW, EDUCATION_STUDENTS_VIEW } from "@/lib/education.api";
+import { HEALTHCARE_APPOINTMENTS_VIEW, HEALTHCARE_PATIENTS_VIEW, HEALTHCARE_TREATMENT_PLANS_VIEW } from "@/lib/healthcare.api";
+import { INSURANCE_CLAIMS_VIEW, INSURANCE_POLICIES_VIEW, INSURANCE_RENEWALS_VIEW } from "@/lib/insurance.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
 import FileManagerScreen from "@/screens/FileManagerScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
@@ -48,6 +52,12 @@ import POSStack from "@/navigation/POSStack";
 import RestaurantStack from "@/navigation/RestaurantStack";
 import VisaStack from "@/navigation/VisaStack";
 import RealEstateStack from "@/navigation/RealEstateStack";
+import B2BStack from "@/navigation/B2BStack";
+import EducationStack from "@/navigation/EducationStack";
+import HealthcareStack from "@/navigation/HealthcareStack";
+import InsuranceStack from "@/navigation/InsuranceStack";
+import ConstructionStack from "@/navigation/ConstructionStack";
+import HospitalityStack from "@/navigation/HospitalityStack";
 import ReportsStack from "@/navigation/ReportsStack";
 import type { AppTabParamList } from "@/navigation/types";
 
@@ -86,6 +96,14 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Restaurant", label: "Restaurant", subtitle: "Tables, orders, kitchen, reservations", icon: "coffee", component: RestaurantStack, isStack: true },
   { key: "Visa", label: "Visa", subtitle: "Cases, documents, renewals", icon: "flag", component: VisaStack, isStack: true },
   { key: "RealEstate", label: "Real Estate", subtitle: "Properties, tenants, rent collection", icon: "home", component: RealEstateStack, isStack: true },
+  // Industry verticals -- niche by nature (a tenant picks one industry pack, not several), so in
+  // practice at most one or two of these six ever show for a given session despite the long list.
+  { key: "B2B", label: "B2B Services", subtitle: "Proposals, contracts, support tickets", icon: "briefcase", component: B2BStack, isStack: true },
+  { key: "Education", label: "Education", subtitle: "Admissions, students, enrollments", icon: "book-open", component: EducationStack, isStack: true },
+  { key: "Healthcare", label: "Healthcare", subtitle: "Patients, appointments, treatment plans", icon: "activity", component: HealthcareStack, isStack: true },
+  { key: "Insurance", label: "Insurance", subtitle: "Policies, renewals, claims", icon: "shield", component: InsuranceStack, isStack: true },
+  { key: "Construction", label: "Construction", subtitle: "Projects, sites, contractors, BOQs", icon: "tool", component: ConstructionStack, isStack: true },
+  { key: "Hospitality", label: "Hospitality", subtitle: "Rooms, bookings, housekeeping", icon: "key", component: HospitalityStack, isStack: true },
   { key: "Reports", label: "Reports", subtitle: "POS and Inventory tabular reports", icon: "bar-chart-2", component: ReportsStack, isStack: true },
   { key: "FileManager", label: "File Manager", subtitle: "Browse CRM document library", icon: "folder", component: FileManagerScreen, isStack: false },
   // Last on purpose -- ungated (every session qualifies, see isTabAvailable below), so it should
@@ -158,6 +176,22 @@ function isTabAvailable(key: ModuleTabKey): boolean {
           REAL_ESTATE_BROKERS_VIEW,
         )
       );
+    case "B2B":
+      // Any one of the three read keys is enough -- the home screen's menu cards and each
+      // sub-feature list re-check their own specific permission.
+      return hasModuleAccess("b2b") && hasPermission(B2B_PROPOSALS_VIEW, B2B_CONTRACTS_VIEW, B2B_TICKETS_VIEW);
+    case "Education":
+      return hasModuleAccess("education") && hasPermission(EDUCATION_ADMISSIONS_VIEW, EDUCATION_STUDENTS_VIEW, EDUCATION_ENROLLMENTS_VIEW);
+    case "Healthcare":
+      return hasModuleAccess("healthcare") && hasPermission(HEALTHCARE_PATIENTS_VIEW, HEALTHCARE_APPOINTMENTS_VIEW, HEALTHCARE_TREATMENT_PLANS_VIEW);
+    case "Insurance":
+      return hasModuleAccess("insurance") && hasPermission(INSURANCE_POLICIES_VIEW, INSURANCE_RENEWALS_VIEW, INSURANCE_CLAIMS_VIEW);
+    case "Construction":
+      // No [RequirePermission] exists anywhere in this service (confirmed by reading every
+      // controller directly) -- module access is the only real gate, same as Hospitality below.
+      return hasModuleAccess("construction");
+    case "Hospitality":
+      return hasModuleAccess("hospitality");
     case "Reports":
       // POS/Inventory reports carry no permission gate on the backend at all (confirmed by
       // reading ReportsController/InventoryReportsController directly) -- the web hub itself only

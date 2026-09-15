@@ -131,6 +131,53 @@ export type ReportsStackParamList = {
   ReportRunner: { reportId: string };
 };
 
+// ── Industry verticals -- read-only browse, no detail screens (see README for what's deferred
+// in each). B2B/Education/Healthcare/Insurance share an identical 3-sub-feature shape (all in the
+// CRM assembly); Construction and Hospitality are their own microservices.
+
+export type B2BStackParamList = {
+  B2BHome: undefined;
+  ProposalsList: undefined;
+  ContractsList: undefined;
+  TicketsList: undefined;
+};
+
+export type EducationStackParamList = {
+  EducationHome: undefined;
+  AdmissionsList: undefined;
+  StudentsList: undefined;
+  EnrollmentsList: undefined;
+};
+
+export type HealthcareStackParamList = {
+  HealthcareHome: undefined;
+  PatientsList: undefined;
+  AppointmentsList: undefined;
+  TreatmentPlansList: undefined;
+};
+
+export type InsuranceStackParamList = {
+  InsuranceHome: undefined;
+  PoliciesList: undefined;
+  RenewalsList: undefined;
+  ClaimsList: undefined;
+};
+
+export type ConstructionStackParamList = {
+  ConstructionHome: undefined;
+  ProjectsList: undefined;
+  SitesList: undefined;
+  ContractorsList: undefined;
+  BoqsList: undefined;
+};
+
+export type HospitalityStackParamList = {
+  HospitalityHome: undefined;
+  RoomsList: undefined;
+  BookingsList: undefined;
+  HousekeepingList: undefined;
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
@@ -146,6 +193,12 @@ export type AppTabParamList = {
   Restaurant: undefined;
   Visa: undefined;
   RealEstate: undefined;
+  B2B: undefined;
+  Education: undefined;
+  Healthcare: undefined;
+  Insurance: undefined;
+  Construction: undefined;
+  Hospitality: undefined;
   Reports: undefined;
   /** A single screen, not a stack -- same as Approvals (no per-record navigation, everything the
    *  screen shows is scoped from the session's own access already). */
