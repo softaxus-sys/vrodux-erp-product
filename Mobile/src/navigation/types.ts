@@ -31,6 +31,7 @@ export type HrStackParamList = {
 export type InventoryStackParamList = {
   ProductsList: undefined;
   ProductDetail: { productId: string; productName: string };
+  BarcodeScanner: undefined;
 };
 
 export type SalesStackParamList = {

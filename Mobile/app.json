@@ -39,6 +39,14 @@
             "backgroundColor": "#020817"
           }
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Vrodux ERP uses the camera to scan product barcodes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
       ]
     ]
   }

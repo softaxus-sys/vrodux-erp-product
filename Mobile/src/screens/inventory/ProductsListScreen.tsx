@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProductsPaged } from "@/hooks/use-inventory";
 import { formatCompactValue } from "@/lib/crm-helpers";
@@ -23,6 +24,17 @@ export default function ProductsListScreen({ navigation }: Props) {
   const [items, setItems] = useState<ProductSummaryDto[]>([]);
 
   const query = useProductsPaged({ page, pageSize: PAGE_SIZE, search, isLowStock: lowStockOnly || undefined });
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => navigation.navigate("BarcodeScanner")} hitSlop={8} style={styles.headerButtonWrap}>
+          <Feather name="camera" size={16} color={colors.primary} />
+          <Text style={styles.headerButton}>Scan</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, colors, styles]);
 
   useEffect(() => {
     setPage(1);
@@ -115,6 +127,8 @@ function ProductRow({
 function createStyles(colors: AppColors) {
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    headerButtonWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    headerButton: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
     filterRow: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
     footerSpinner: { paddingVertical: spacing.lg },
     list: { paddingVertical: spacing.md },

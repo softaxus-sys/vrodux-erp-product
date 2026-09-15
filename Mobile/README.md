@@ -333,8 +333,19 @@ its own module+permission so a session only ever queries what it can act on:
 - Products: search, low-stock filter, infinite scroll, pull-to-refresh.
 - Product detail: price/tax/stock stats, description, per-warehouse on-hand quantity (each row
   flagged when it's below that warehouse's reorder level).
-- Gated on `inventory.stock.view`. **Explicitly out of scope**: create/edit, activate/deactivate,
-  barcode scanning (the backend has a lookup-by-barcode endpoint; no camera/scanner UI built yet).
+- **Barcode scanning** — a "Scan" header button opens a full-screen `expo-camera` `CameraView`
+  (the one new native dependency added in this pass, since it's a genuine capability gap a phone
+  camera fills that the earlier "avoid new native deps" calls elsewhere didn't apply to — there's
+  no software substitute for a camera) recognising EAN-13/EAN-8/UPC-A/UPC-E/Code128/Code39/QR,
+  calling the same `GET /products/barcode/{barcode}` endpoint the product search bar's placeholder
+  text already referenced. A successful scan replaces straight into Product Detail; a miss re-arms
+  the camera with an inline error rather than bouncing back to the list, since the likely next
+  action is "try again" (bad angle, damaged label), not "give up." A **manual entry fallback**
+  (type the digits) covers a camera-permission denial and a barcode the scanner genuinely can't
+  read. Camera/microphone permission strings are in `app.json`'s `expo-camera` plugin config;
+  `recordAudioAndroid`/`microphonePermission` are both disabled since barcode scanning needs
+  neither.
+- Gated on `inventory.stock.view`. **Explicitly out of scope**: create/edit, activate/deactivate.
 
 **Sales (orders + quotations)** — orders reuse Purchase's pre-CQRS pattern; quotations are the
 richer CQRS feature (Module 51) with only read + the safe workflow actions surfaced, never the
@@ -809,7 +820,8 @@ gates behind `hasModuleAccess`/`hasRawPermission`. Queued next:
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface
 already exists — the approvals inbox — but no APNs/FCM integration exists anywhere in the backend
-yet), dashboard KPIs, EAS build config, per-device refresh tokens, barcode scanning for Inventory.
+yet), dashboard KPIs, EAS build config, per-device refresh tokens. (Barcode scanning for Inventory
+is done — see its own section above.)
 
 ## Conventions carried over from FrontendVite
 
