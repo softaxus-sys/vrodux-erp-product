@@ -593,13 +593,73 @@ does away from a desk.
   `real-estate.sales.*` permission group) — a separate sub-feature big enough to need its own
   scoping pass, same as Restaurant's delivery/happy-hour features were left out.
 
+**Reports** — the generic tabular report engine (POS + Inventory), not the CRM analytical reports.
+`FrontendVite/src/modules/reports/config/report-registry.ts` defines 44 reports across three
+categories (19 POS, 17 Inventory, 8 CRM); this covers the 36 POS/Inventory ones, all genuinely
+runnable, not a trimmed-down subset:
+- **CRM's 8 reports are excluded entirely.** They're analytical (funnels, win/loss trends, forecast
+  rollups) — the web registry itself gives them `href` deep links into the CRM module instead of
+  the tabular runner, because flattening them into `{rows, totalCount}` would throw away the thing
+  that makes them readable. There's no CRM reports screen on mobile to deep-link into, so they're
+  left out rather than half-built.
+- **Filter fidelity, verified by reading the web runner's own code, not assumed**: its
+  `buildApiParams()` switch only forwards twelve keys to the backend (`dateRange` as `from`/`to`,
+  `paymentMethod`, `status`, `taxPeriod`, `valuationMethod`, `fiscalYear`, `movementType`,
+  `itcStatus`, `writeOffReason`→`fromProvince`, `idleDays`, `expiryWindow`→`expiryWindowDays`) —
+  every other filter the web registry *displays* (cashier/warehouse/category/branch pickers,
+  `invoiceType`, `fbrstatus`, `filerStatus`, `serviceType`, `recoverable`, `urgency`) is rendered
+  but never actually reaches the API today, confirmed against the switch statement itself, not
+  inferred. `lib/reports.api.ts`'s trimmed registry reproduces only the twelve that work, so mobile
+  filters exactly as effectively as web — nothing lost by leaving the rest out.
+- Hub: search + two category sections (POS/Inventory, each only shown if the tenant has that
+  module — confirmed neither `ReportsController` nor `InventoryReportsController` carries a
+  `[RequirePermission]` at all, just `[Authorize]`, so module access is the only real gate on
+  web too) filtered to the tenant's resolved country (`resolveCountryCode`, ported from the web
+  hub's own function) plus universal reports — country is derived, never user-selectable, same as
+  web.
+- Runner: date range (two `YYYY-MM-DD` text inputs, defaulting to the last 30 days like the
+  backend's own default) + the report's one functional select/number filter, if it has one, as
+  Chips or a numeric input → Run → a horizontally-scrollable table (`columns`/`rows`/`totalCount`
+  come back identically shaped from both services). Capped at 200 rendered rows with a "narrow the
+  date range for the rest" hint rather than paginating — the same "keep it readable on a phone"
+  call CLAUDE.md made deferring Trial Balance/Financial Statements entirely from Finance, except
+  here the report is fully runnable and the cap is only a rendering limit, not a missing feature.
+- **Deliberately not built**: CSV/Excel/PDF/XML export (all four formats the web registry lists
+  per report), the cashier/warehouse/category/branch pickers (would need their own lookup-list
+  fetches for filters that don't do anything server-side yet anyway, per the fidelity note above).
+
+**File Manager** — browses the CRM document library, the only document store that exists anywhere
+in this codebase today (HR holds a single receipt blob per expense, Visa's `CaseDocument` stores a
+URL not a file, every other module has no file storage at all — CLAUDE.md Module 26). One screen,
+no stack, same as Approvals:
+- `GET /api/crm/documents/library` — the tenant-wide search endpoint, already owner-scoped
+  server-side by the caller's CRM access tier (an assigned-only rep sees only their own documents;
+  a team lead their team's; an admin everything) — mobile does no scoping of its own, it only lays
+  out what the API already returned, same principle CLAUDE.md's File Manager module states for web.
+- Search (flattens the folder grouping while typing — finding a file by name shouldn't require
+  knowing which owner's folder it's in, same call web's File Manager makes) + a related-record-type
+  filter (Lead/Opportunity/Account/Contact) + a document-type filter built from whatever categories
+  are actually present in the results (same pattern as HR's department filter chips).
+  Grouped by owner when not searching, the signed-in user's own folder sorted first.
+- Gated on `file-manager.view` for the tab itself, and separately on holding a view tier in any of
+  `crm.leads/.pipeline/.customers` (all three — a document can hang off a lead, an opportunity, or
+  an account) for whether the library actually has anything to show. A `file-manager.view` holder
+  with no CRM access opens the tab and sees "no document libraries available to you yet" rather
+  than the tab disappearing outright — same split web's Module 35 fix established.
+- **Deliberately not built**: download or in-app preview (the content endpoint streams raw bytes
+  with `Content-Disposition: attachment`, not JSON — reading it authenticated from a phone needs
+  `expo-file-system`/`expo-sharing`, new native dependencies not added in this pass, same call
+  already made for HR's payslip PDF and Finance's receipt-photo attach), upload (there's no generic
+  upload target on web either — documents attach from a record's own Documents tab), and
+  edit/delete of a document's metadata.
+
 ## Tab bar overflow ("More" tab)
 
-There are up to thirteen module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
-Inventory/Finance/POS/Restaurant/Visa/RealEstate) behind Dashboard, each independently gated -- a
-given session usually sees far fewer, but nothing capped how many could render directly, and React
-Navigation's bottom-tabs will happily lay out a dozen-plus icons in a row (not a comfortable phone
-UI past ~5).
+There are up to fifteen module tabs (Leads/Pipeline/Approvals/HR/Projects/Sales/Purchase/
+Inventory/Finance/POS/Restaurant/Visa/RealEstate/Reports/FileManager) behind Dashboard, each
+independently gated -- a given session usually sees far fewer, but nothing capped how many could
+render directly, and React Navigation's bottom-tabs will happily lay out a dozen-plus icons in a
+row (not a comfortable phone UI past ~5).
 
 - `navigation/tab-config.ts` (new) -- single source of truth for every module tab: its icon,
   label, component, permission gate, and priority order. Replaces the permission-check block that
@@ -651,13 +711,15 @@ waitlist — both deliberately not a checkout/order-taking terminal, see above f
 Services (case management — status transitions/document checklist/renewals, case and visa-type
 *creation* deliberately deferred, see above), Real Estate (properties/units/tenants/contracts/
 brokers browsing + rent collection — all *creation* forms and the CRM-linked sales pipeline
-deliberately deferred, see above). Queued next, roughly in priority order:
+deliberately deferred, see above), Reports (the 36 POS/Inventory tabular reports, all genuinely
+runnable — CRM's 8 analytical reports and every export format deliberately deferred, see above),
+File Manager (the CRM document library, browse-only — download/preview deliberately deferred
+pending new native dependencies, see above). Queued next, roughly in priority order:
 
-1. Reports, File Manager
-2. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
+1. Settings (users/roles/branches/integrations/security) — admin-heavy, lower priority for a
    mobile-first surface
-3. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
-4. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
+2. Industry verticals (b2b/education/healthcare/insurance/construction/hospitality) — niche, last
+3. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
 Also still queued from before: push notifications (a real "something is waiting on you" surface

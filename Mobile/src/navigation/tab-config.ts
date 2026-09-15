@@ -32,7 +32,9 @@ import {
   REAL_ESTATE_TENANTS_VIEW,
   REAL_ESTATE_UNITS_VIEW,
 } from "@/lib/real-estate.api";
+import { FILE_MANAGER_VIEW } from "@/lib/file-manager.api";
 import ApprovalsScreen from "@/screens/ApprovalsScreen";
+import FileManagerScreen from "@/screens/FileManagerScreen";
 import LeadsStack from "@/navigation/LeadsStack";
 import DealsStack from "@/navigation/DealsStack";
 import HrStack from "@/navigation/HrStack";
@@ -45,6 +47,7 @@ import POSStack from "@/navigation/POSStack";
 import RestaurantStack from "@/navigation/RestaurantStack";
 import VisaStack from "@/navigation/VisaStack";
 import RealEstateStack from "@/navigation/RealEstateStack";
+import ReportsStack from "@/navigation/ReportsStack";
 import type { AppTabParamList } from "@/navigation/types";
 
 export type ModuleTabKey = Exclude<keyof AppTabParamList, "Dashboard" | "More">;
@@ -82,6 +85,8 @@ const MODULE_TAB_ORDER: ModuleTabDef[] = [
   { key: "Restaurant", label: "Restaurant", subtitle: "Tables, orders, kitchen, reservations", icon: "coffee", component: RestaurantStack, isStack: true },
   { key: "Visa", label: "Visa", subtitle: "Cases, documents, renewals", icon: "flag", component: VisaStack, isStack: true },
   { key: "RealEstate", label: "Real Estate", subtitle: "Properties, tenants, rent collection", icon: "home", component: RealEstateStack, isStack: true },
+  { key: "Reports", label: "Reports", subtitle: "POS and Inventory tabular reports", icon: "bar-chart-2", component: ReportsStack, isStack: true },
+  { key: "FileManager", label: "File Manager", subtitle: "Browse CRM document library", icon: "folder", component: FileManagerScreen, isStack: false },
 ];
 
 /** Static per session -- permission/module claims only change on next login/refresh, same as
@@ -148,6 +153,17 @@ function isTabAvailable(key: ModuleTabKey): boolean {
           REAL_ESTATE_BROKERS_VIEW,
         )
       );
+    case "Reports":
+      // POS/Inventory reports carry no permission gate on the backend at all (confirmed by
+      // reading ReportsController/InventoryReportsController directly) -- the web hub itself only
+      // gates on module access for these two categories, so this mirrors that exactly.
+      return hasModuleAccess("pos") || hasModuleAccess("inventory");
+    case "FileManager":
+      // Same split as web's Module 35 fix: opening the tab only needs file-manager.view -- what
+      // it can actually list (CRM's document library) is a separate, stricter check made inside
+      // the screen itself, so a user with this key but no CRM access sees an honest empty state
+      // rather than the tab vanishing outright.
+      return hasModuleAccess("file-manager") && hasPermission(FILE_MANAGER_VIEW);
   }
 }
 

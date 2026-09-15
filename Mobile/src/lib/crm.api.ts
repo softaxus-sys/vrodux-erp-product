@@ -24,6 +24,11 @@ export const CRM_LEADS_EDIT = ["crm.leads.edit", "crm.leads-team.edit", "crm.lea
 export const CRM_PIPELINE_VIEW = ["crm.pipeline.view", "crm.pipeline-team.view", "crm.pipeline-assigned.view"];
 export const CRM_PIPELINE_EDIT = ["crm.pipeline.edit", "crm.pipeline-team.edit", "crm.pipeline-assigned.edit"];
 
+/** Same tier pattern, for accounts -- no dedicated Accounts screen exists on mobile yet, but File
+ *  Manager's CRM document library needs this tier too (a document can hang off a customer, not
+ *  just a lead/deal), same as web's file-manager-view.tsx checking all three areas. */
+export const CRM_CUSTOMERS_VIEW = ["crm.customers.view", "crm.customers-team.view", "crm.customers-assigned.view"];
+
 function buildLeadsQuery(p: LeadsPageParams): string {
   const qs = new URLSearchParams();
   if (p.page) qs.set("page", String(p.page));

@@ -126,6 +126,11 @@ export type RealEstateStackParamList = {
   BrokerDetail: { broker: import("@/types/real-estate").BrokerDto };
 };
 
+export type ReportsStackParamList = {
+  ReportsHub: undefined;
+  ReportRunner: { reportId: string };
+};
+
 export type AppTabParamList = {
   Dashboard: undefined;
   Leads: undefined;
@@ -141,6 +146,10 @@ export type AppTabParamList = {
   Restaurant: undefined;
   Visa: undefined;
   RealEstate: undefined;
+  Reports: undefined;
+  /** A single screen, not a stack -- same as Approvals (no per-record navigation, everything the
+   *  screen shows is scoped from the session's own access already). */
+  FileManager: undefined;
   /** Only registered when a session has more module tabs than fit in the bar -- see
    *  `navigation/tab-config.ts`. Houses whatever didn't fit as its own MenuCard list. */
   More: undefined;
