@@ -96,6 +96,40 @@ public sealed class ReportService(POSDbContext db) : IReportService
     private static ReportResult Build(string[] cols, IReadOnlyList<Dictionary<string, object?>> rows)
         => new(cols, rows, rows.Count);
 
+    // ── Product reference lookup ──────────────────────────────────────────────
+    //
+    // POSLineItem.Product is deliberately Ignore()d in the EF model: a line item's
+    // ProductId may point at pos.products OR inventory.products, so there is no
+    // navigation to Include. Reports that need the product's category or cost must
+    // therefore resolve it separately, by id, after the line items are materialised.
+    // A product that lives in the inventory schema (or has since been deleted) simply
+    // has no entry here and falls back to the caller's placeholder.
+
+    private sealed record ProductRef(Guid CategoryId, string CategoryName, decimal CostPrice);
+
+    private async Task<Dictionary<Guid, ProductRef>> LoadProductRefsAsync(
+        IReadOnlyCollection<Guid> productIds, CancellationToken ct)
+    {
+        if (productIds.Count == 0)
+            return new();
+
+        var rows = await db.Products
+            .Where(pr => productIds.Contains(pr.Id))
+            .Select(pr => new
+            {
+                pr.Id,
+                pr.CategoryId,
+                CategoryName = pr.Category != null ? pr.Category.Name : null,
+                pr.CostPrice
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(
+            x => x.Id,
+            x => new ProductRef(x.CategoryId, x.CategoryName ?? "—", x.CostPrice));
+    }
+
     // ── 1. Shift Summary (Z-Report) ───────────────────────────────────────────
 
     private async Task<ReportResult> ShiftSummaryAsync(ReportParams p, CancellationToken ct)
@@ -194,18 +228,33 @@ public sealed class ReportService(POSDbContext db) : IReportService
 
         var items = await db.LineItems
             .Include(i => i.Transaction)
-            .Include(i => i.Product)
-                .ThenInclude(pr => pr.Category)
             .Where(i => i.Transaction.CompletedAt >= from && i.Transaction.CompletedAt < to)
             .Where(i => i.Transaction.Status == TransactionStatus.Completed && i.Transaction.Type == TransactionType.Sale)
-            .Where(i => p.CategoryId == null || i.Product.CategoryId == p.CategoryId)
             .AsNoTracking()
             .ToListAsync(ct);
+
+        var products = await LoadProductRefsAsync(
+            items.Select(i => i.ProductId).Distinct().ToList(), ct);
+
+        // Category filtering happens here rather than in the query: the product is not a
+        // navigation, so a line item whose product we cannot resolve has no category and
+        // is excluded when a specific category was asked for.
+        if (p.CategoryId is { } categoryId)
+            items = items
+                .Where(i => products.TryGetValue(i.ProductId, out var pr) && pr.CategoryId == categoryId)
+                .ToList();
 
         var cols = new[] { "Product", "SKU", "Category", "Units Sold", "Revenue", "Cost", "Gross Margin", "Margin %" };
 
         var rows = items
-            .GroupBy(i => new { i.ProductId, i.ProductName, SKU = i.ProductSKU ?? "—", Cat = i.Product?.Category?.Name ?? "—", Cost = i.Product?.CostPrice ?? 0m })
+            .GroupBy(i => new
+            {
+                i.ProductId,
+                i.ProductName,
+                SKU  = i.ProductSKU ?? "—",
+                Cat  = products.TryGetValue(i.ProductId, out var pr) ? pr.CategoryName : "—",
+                Cost = products.TryGetValue(i.ProductId, out var pc) ? pc.CostPrice : 0m
+            })
             .Select(g =>
             {
                 var qty    = g.Sum(i => i.Quantity);
@@ -613,19 +662,21 @@ public sealed class ReportService(POSDbContext db) : IReportService
 
         var items = await db.LineItems
             .Include(i => i.Transaction)
-            .Include(i => i.Product).ThenInclude(pr => pr.Category)
             .Where(i => i.TaxRate == 0m)
             .Where(i => i.Transaction.CompletedAt >= from && i.Transaction.CompletedAt < to)
             .Where(i => i.Transaction.Status == TransactionStatus.Completed && i.Transaction.Type == TransactionType.Sale)
             .AsNoTracking()
             .ToListAsync(ct);
 
+        var products = await LoadProductRefsAsync(
+            items.Select(i => i.ProductId).Distinct().ToList(), ct);
+
         var cols = new[] { "Date", "Product", "Category", "Supply Type", "Amount (AED)", "VAT Rate" };
 
         var rows = items.OrderBy(i => i.Transaction.CompletedAt).Select(i => Row(
             ("Date",         (object?)i.Transaction.CompletedAt.ToString("yyyy-MM-dd")),
             ("Product",      (object?)i.ProductName),
-            ("Category",     (object?)(i.Product?.Category?.Name ?? "—")),
+            ("Category",     (object?)(products.TryGetValue(i.ProductId, out var pr) ? pr.CategoryName : "—")),
             ("Supply Type",  (object?)"Zero-Rated / Exempt"),
             ("Amount (AED)", (object?)Math.Round(i.LineTotal, 2)),
             ("VAT Rate",     (object?)"0%")
@@ -797,19 +848,21 @@ public sealed class ReportService(POSDbContext db) : IReportService
         // SRB rate = 13%. Filter line items with ~13% tax rate as proxy for services
         var items = await db.LineItems
             .Include(i => i.Transaction)
-            .Include(i => i.Product).ThenInclude(pr => pr.Category)
             .Where(i => i.TaxRate >= 13m)
             .Where(i => i.Transaction.CompletedAt >= from && i.Transaction.CompletedAt < to)
             .Where(i => i.Transaction.Status == TransactionStatus.Completed && i.Transaction.Type == TransactionType.Sale)
             .AsNoTracking()
             .ToListAsync(ct);
 
+        var products = await LoadProductRefsAsync(
+            items.Select(i => i.ProductId).Distinct().ToList(), ct);
+
         var cols = new[] { "Invoice #", "Date", "Service Type", "Taxable Value (PKR)", "SST 13% (PKR)", "Total (PKR)", "SRB Filed" };
 
         var rows = items.OrderBy(i => i.Transaction.CompletedAt).Select(i => Row(
             ("Invoice #",           (object?)i.Transaction.TransactionNumber),
             ("Date",                (object?)i.Transaction.CompletedAt.ToString("yyyy-MM-dd")),
-            ("Service Type",        (object?)(i.Product?.Category?.Name ?? "Services")),
+            ("Service Type",        (object?)(products.TryGetValue(i.ProductId, out var pr) ? pr.CategoryName : "Services")),
             ("Taxable Value (PKR)", (object?)Math.Round(i.SubTotal, 2)),
             ("SST 13% (PKR)",       (object?)Math.Round(i.TaxAmount, 2)),
             ("Total (PKR)",         (object?)Math.Round(i.LineTotal, 2)),
