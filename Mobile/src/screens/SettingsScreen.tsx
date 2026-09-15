@@ -12,6 +12,7 @@ import {
 } from "@/hooks/use-settings";
 import { ApiError } from "@/lib/api-client";
 import { authApi } from "@/lib/auth.api";
+import { unregisterPushAsync } from "@/lib/push";
 import { useAuthStore } from "@/store/auth.store";
 import { Badge, Button, DetailRow, ErrorState, LoadingState, SectionCard } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   async function handleLogout() {
+    await unregisterPushAsync();
     if (refreshToken && accessToken) {
       await authApi.revoke(refreshToken, accessToken);
     }

@@ -821,6 +821,97 @@ row (not a comfortable phone UI past ~5).
   first to overflow). Fixed by registering `[...direct, ...overflow]` as real `Tabs.Screen`
   routes and making only the **bar button** conditional (`tabBarButton: () => null` for overflow
   tabs) -- the bar still shows just the direct set, every tab stays reachable via "More".
+- **Second bug fixed, on the same fix above**: registering every overflow tab as a real route
+  (needed for "More" to navigate to it) reintroduced a different visual bug --
+  `@react-navigation/bottom-tabs`'s `BottomTabBar` gives **every** registered route an equal
+  `flex: 1` box in the bar's row regardless of what its `tabBarButton` renders (confirmed by
+  reading `BottomTabItem.js` directly: the wrapping `<View style={[..., style]}>` around
+  `button(...)` is rendered unconditionally, and `style` always includes `styles.bottomItem =
+  {flex:1}`). A session with a dozen-plus overflow tabs ended up with the real, visible buttons
+  squeezed into a handful of even-width slots on the left, and "More" (registered last) pushed out
+  to the far right across a wide gap of invisible-but-space-reserving slots -- i.e. every tab
+  "merging to the left with More on the right". Fixed by also setting
+  `tabBarItemStyle: { flex: 0, width: 0, minWidth: 0, padding: 0, margin: 0 }` on every overflow
+  tab's options -- it merges over (and wins against) the bar's own `{flex:1}` default, collapsing
+  the slot to zero width instead of just hiding its content, so the bar re-flows to just the tabs
+  actually shown.
+
+## Push Notifications
+
+**Phase 1 — the foundation (device registration, delivery, an in-app feed) plus one real trigger
+end-to-end**, not an exhaustive wire-up of every module's approval queues. Confirmed before
+building: there was no device-token storage, no push-sending capability, and no notifications
+screen anywhere in the app or the backend.
+
+### Why Expo's push service, not raw APNs/FCM
+The app registers one **Expo push token** per device and the backend posts to Expo's own
+`https://exp.host/--/api/v2/push/send`, which relays to APNs/FCM on our behalf. No native
+certificates, no FCM server key, nothing to rotate — this is the standard approach for an
+Expo-managed app and matches this app's "no native config beyond what Expo's own plugins need"
+posture everywhere else.
+
+### Backend (new — see the Backend repo's own CLAUDE.md for the full module writeup)
+- **Identity**: `UserDeviceToken` (per-user, no TenantId column — same shape as `RefreshToken`,
+  scoped via `UserId`), `POST /api/account/device-tokens` (register/re-register) and
+  `POST /api/account/device-tokens/unregister`. Re-registering an already-known token just updates
+  its owner rather than duplicating — a shared/reused device always points at whoever is
+  *currently* signed into it.
+- **`IPushNotificationSender`/`ExpoPushNotificationSender`** — shared in `BuildingBlocks`, not
+  Identity-specific, so any service can send a push once it has the raw tokens (there's no
+  service-to-service HTTP call in this codebase's conventions; cross-service reads go through raw
+  cross-schema SQL against the same physical database instead — see `PosSessionLedger`/Real
+  Estate's rent-alert CC list for the precedent this follows).
+- **One real trigger, wired end-to-end**: CRM's existing `LeadIngestedAlertHandler` (in-app bell +
+  email for "a lead just arrived") now also sends a push to the lead's owner's registered devices,
+  reading `[identity].[user_device_tokens]` cross-schema and cleaning up any token Expo reports as
+  permanently dead (`DeviceNotRegistered`). Chosen specifically because it already has exactly one
+  unambiguous recipient per lead — unlike the HR/Purchase/Sales/Finance approval queues below.
+
+### Mobile (this app)
+- `expo-notifications` + `expo-device` (installed via plain `npm install`, not `expo install`, per
+  the documented `EALLOWSCRIPTS` workaround), `expo-notifications` config plugin added to
+  `app.json`.
+- `src/lib/push.ts` — `registerForPushAsync()` (requests permission if needed, gets the Expo push
+  token, `POST`s it to the backend; a no-op on a simulator/emulator or if permission is denied) and
+  `unregisterPushAsync()` (best-effort, called before `logout()` in both `HomeScreen.tsx`'s and
+  `SettingsScreen.tsx`'s sign-out handlers — mirrors the existing `authApi.revoke` best-effort
+  pattern exactly). Registration runs once per authenticated session, from a `useEffect` in
+  `RootNavigator.tsx`'s `AuthenticatedApp`.
+- **In-app notifications feed** — reuses CRM's existing per-user "bell" endpoint
+  (`GET /api/crm/notifications`) rather than building a second, competing cross-module feed; today
+  that means every entry shown here originated from the one trigger above. New
+  `NotificationBellButton` rendered as every tab's `headerRight` (an "always-on, anchored to the
+  header" call, the same posture already used for the AI assistant's floating button) with an
+  unread-count badge, opening `NotificationsScreen` as a page-sheet modal (mark-one-read, mark-all-
+  read, pull-to-refresh, tap-through to the lead when a notification is lead-related).
+- **Tap-to-navigate**: a foreground/background OS notification tap
+  (`Notifications.addNotificationResponseReceivedListener`) reads the push payload's
+  `{type:"lead", leadId}` and deep-links straight to `LeadDetail` via a `useNavigationContainerRef`
+  held at the root — the same destination the in-app bell list's tap-through uses, so both paths
+  share one `openLeadDetail` helper instead of two navigation implementations that could drift.
+
+### ⚠️ Known limitation — real device delivery needs a build this app doesn't have yet
+Everything above (registration, the token round-trip, the in-app feed, local/foreground
+notification handling) can be exercised today. **A real "phone buzzes while the app is closed"
+test cannot be** until there's an EAS/dev-client build: this app currently only runs in Expo Go,
+and Expo Go on Android has not supported *receiving* a remote push since SDK 53. This is precisely
+why EAS build config is the very next queued item — the sequencing here is deliberate, not an
+oversight.
+
+### Deliberately not built in this pass
+- **HR leave/payroll approvals, Purchase requisition approvals, Sales return approvals, Finance
+  payroll sign-off** are **not** wired to push. Each of those is gated on holding a *permission*
+  (e.g. `hr.leaves.approve`), not assigned to one person the way a lead has an owner — sending a
+  push there means deciding **who** gets notified: the single nearest approver, or everyone holding
+  the permission (a broadcast, same shape as the CRM "unowned lead" fallback already documented in
+  the backend's own `LeadIngestedAlertHandler`). That's a real product decision, not a technical
+  gap, and was left for the next pass rather than guessed at here — `ApprovalsScreen`'s pull-based
+  inbox is unchanged and still the way to see these today.
+- No badge count on the app icon (`shouldSetBadge: false` in the notification handler) — the header
+  bell's own unread count already covers "something is waiting," and app-icon badges need their
+  count kept in sync from the OS side too, which is a separate small feature.
+- No notification preferences screen (mute a category, quiet hours, etc.) — there's exactly one
+  notification type today, so there's nothing yet to let someone turn off selectively.
 
 ## Next module
 
@@ -854,10 +945,9 @@ gates behind `hasModuleAccess`/`hasRawPermission`. Queued next:
 1. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
-Also still queued from before: push notifications (a real "something is waiting on you" surface
-already exists — the approvals inbox — but no APNs/FCM integration exists anywhere in the backend
-yet), EAS build config, per-device refresh tokens. (Barcode scanning for Inventory and dashboard
-KPIs are done — see their own sections above.)
+Also still queued from before: EAS build config, per-device refresh tokens. (Barcode scanning for
+Inventory, dashboard KPIs, and push notifications — Phase 1: device registration + one real
+trigger, see its own section above — are done.)
 
 ## Conventions carried over from FrontendVite
 

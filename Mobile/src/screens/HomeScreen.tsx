@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { authApi } from "@/lib/auth.api";
+import { unregisterPushAsync } from "@/lib/push";
 import { useAuthStore, hasModuleAccess, hasPermission } from "@/store/auth.store";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { CRM_LEADS_VIEW } from "@/lib/crm.api";
@@ -112,6 +113,7 @@ export default function HomeScreen({ navigation }: Props) {
     canCrm || canHrEmployees || canHrPerformance || canHrRecruitment || canFinance || canPos || canRestaurant || canVisa || canRealEstate || canB2B || canEducation || canHealthcare || canInsurance || canConstruction || canHospitality;
 
   async function handleLogout() {
+    await unregisterPushAsync();
     if (refreshToken && accessToken) {
       await authApi.revoke(refreshToken, accessToken);
     }
