@@ -18,7 +18,8 @@ internal sealed class GetSuppliersHandler(FinanceDbContext db)
             query = query.Where(x =>
                 x.Name.Contains(q.Search) ||
                 x.Code.Contains(q.Search) ||
-                (x.Email != null && x.Email.Contains(q.Search)));
+                (x.Email != null && x.Email.Contains(q.Search)) ||
+                (x.TaxNumber != null && x.TaxNumber.Contains(q.Search)));
 
         if (q.IsActive.HasValue)
             query = query.Where(x => x.IsActive == q.IsActive.Value);
@@ -27,7 +28,7 @@ internal sealed class GetSuppliersHandler(FinanceDbContext db)
             .OrderBy(x => x.Name)
             .Select(x => new
             {
-                x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address, x.AccountId,
+                x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address, x.TaxNumber, x.AccountId,
                 x.IsActive, x.CreatedAt, x.UpdatedAt
             })
             .ToListAsync(ct);
@@ -43,7 +44,7 @@ internal sealed class GetSuppliersHandler(FinanceDbContext db)
             var account = x.AccountId.HasValue && accounts.TryGetValue(x.AccountId.Value, out var a) ? a : null;
             return new SupplierDto(
                 x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address,
-                x.AccountId, account?.AccountNumber, account?.Name,
+                x.TaxNumber, x.AccountId, account?.AccountNumber, account?.Name,
                 x.IsActive, x.CreatedAt, x.UpdatedAt);
         }).ToList();
 

@@ -25,6 +25,7 @@ export function SupplierForm({ open, onClose, supplier }: SupplierFormProps) {
   const [email, setEmail]         = React.useState("");
   const [phone, setPhone]         = React.useState("");
   const [address, setAddress]     = React.useState("");
+  const [taxNumber, setTaxNumber] = React.useState("");
   const [accountId, setAccountId] = React.useState("");
   const [isActive, setIsActive]   = React.useState(true);
 
@@ -38,7 +39,7 @@ export function SupplierForm({ open, onClose, supplier }: SupplierFormProps) {
   const isValid = name.trim().length > 0;
 
   const reset = React.useCallback(() => {
-    setName(""); setEmail(""); setPhone(""); setAddress("");
+    setName(""); setEmail(""); setPhone(""); setAddress(""); setTaxNumber("");
     setAccountId(""); setIsActive(true);
     errors.clear();
   }, [errors]);
@@ -53,10 +54,11 @@ export function SupplierForm({ open, onClose, supplier }: SupplierFormProps) {
       setEmail(supplier.email ?? "");
       setPhone(supplier.phone ?? "");
       setAddress(supplier.address ?? "");
+      setTaxNumber(supplier.taxNumber ?? "");
       setAccountId(supplier.accountId ?? "");
       setIsActive(supplier.isActive);
     } else {
-      setName(""); setEmail(""); setPhone(""); setAddress("");
+      setName(""); setEmail(""); setPhone(""); setAddress(""); setTaxNumber("");
       setAccountId(""); setIsActive(true);
     }
   }, [open, supplier]);
@@ -70,6 +72,7 @@ export function SupplierForm({ open, onClose, supplier }: SupplierFormProps) {
       email:     email.trim()   || undefined,
       phone:     phone.trim()   || undefined,
       address:   address.trim() || undefined,
+      taxNumber: taxNumber.trim() || undefined,
       accountId: accountId      || undefined,
       isActive,
     };
@@ -171,6 +174,21 @@ export function SupplierForm({ open, onClose, supplier }: SupplierFormProps) {
                       className="h-9 text-sm"
                     />
                     <FieldError message={errors.get("phone")} />
+                  </div>
+
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {t("suppliers.form.taxNumber")}
+                    </label>
+                    <Input
+                      value={taxNumber}
+                      onChange={e => { setTaxNumber(e.target.value); errors.clearField("taxNumber"); }}
+                      placeholder={t("suppliers.form.taxNumberPh")}
+                      aria-invalid={!!errors.get("taxNumber")}
+                      className="h-9 text-sm font-mono"
+                    />
+                    <FieldError message={errors.get("taxNumber")} />
+                    <p className="text-[11px] text-muted-foreground">{t("suppliers.form.taxNumberHint")}</p>
                   </div>
 
                   <div className="col-span-2 space-y-1.5">

@@ -169,7 +169,9 @@ export function SuppliersView() {
                       </Avatar>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold truncate">{s.name}</p>
-                        <p className="text-xs text-muted-foreground font-mono">{s.code || "—"}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {s.taxNumber ? `TRN ${s.taxNumber}` : (s.code || "—")}
+                        </p>
                       </div>
                     </div>
                   </td>

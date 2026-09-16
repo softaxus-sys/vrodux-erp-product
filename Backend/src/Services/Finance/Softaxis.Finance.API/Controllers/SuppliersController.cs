@@ -51,7 +51,7 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
         CancellationToken ct) =>
         NoContentOrError(await sender.Send(
             new UpdateSupplierCommand(id, req.Name, req.Email, req.Phone,
-                req.Address, req.AccountId, req.IsActive), ct));
+                req.Address, req.AccountId, req.IsActive, req.TaxNumber), ct));
 
     /// <summary>DELETE /api/finance/suppliers/{id}</summary>
     [HttpDelete("{id:guid}")]
@@ -67,5 +67,6 @@ public sealed class SuppliersController(ISender sender) : FinanceControllerBase
         string? Phone     = null,
         string? Address   = null,
         Guid?   AccountId = null,
-        bool    IsActive  = true);
+        bool    IsActive  = true,
+        string? TaxNumber = null);
 }

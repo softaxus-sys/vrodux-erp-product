@@ -18,7 +18,7 @@ internal sealed class GetSupplierByIdHandler(FinanceDbContext db)
             .Where(x => x.Id == q.Id)
             .Select(x => new
             {
-                x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address, x.AccountId,
+                x.Id, x.Code, x.Name, x.Email, x.Phone, x.Address, x.TaxNumber, x.AccountId,
                 x.IsActive, x.CreatedAt, x.UpdatedAt
             })
             .FirstOrDefaultAsync(ct);
@@ -35,7 +35,7 @@ internal sealed class GetSupplierByIdHandler(FinanceDbContext db)
 
         return Result.Success(new SupplierDto(
             supplier.Id, supplier.Code, supplier.Name, supplier.Email, supplier.Phone, supplier.Address,
-            supplier.AccountId, account?.AccountNumber, account?.Name,
+            supplier.TaxNumber, supplier.AccountId, account?.AccountNumber, account?.Name,
             supplier.IsActive, supplier.CreatedAt, supplier.UpdatedAt));
     }
 }

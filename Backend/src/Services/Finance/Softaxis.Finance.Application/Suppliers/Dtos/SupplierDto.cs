@@ -7,6 +7,7 @@ public sealed record SupplierDto(
     string?   Email,
     string?   Phone,
     string?   Address,
+    string?   TaxNumber,
     Guid?     AccountId,
     string?   AccountNumber,
     string?   AccountName,

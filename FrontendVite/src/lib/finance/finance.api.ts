@@ -313,6 +313,8 @@ export interface SupplierDto {
   email?: string | null;
   phone?: string | null;
   address?: string | null;
+  /** Tax registration number (UAE TRN, VAT no., …). */
+  taxNumber?: string | null;
   accountId?: string | null;
   accountNumber?: string | null;
   accountName?: string | null;
@@ -327,6 +329,7 @@ export interface CreateSupplierRequest {
   email?: string;
   phone?: string;
   address?: string;
+  taxNumber?: string;
   /** Optional link to a Chart-of-Accounts payable account. */
   accountId?: string;
   isActive?: boolean;
