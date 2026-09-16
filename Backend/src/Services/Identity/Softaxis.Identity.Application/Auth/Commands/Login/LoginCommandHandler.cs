@@ -104,13 +104,21 @@ public sealed class LoginCommandHandler(
         // issuing the new one, so signing in here signs them out everywhere else.
         if (policy.SingleSession)
             await refreshRepo.RevokeAllForUserAsync(user.Id, ct);
+        // Otherwise, still retire any session already open on this same device -- a device only
+        // ever holds one live row (e.g. a re-install with the same persisted DeviceId, or logging
+        // back in after the previous session on this device fully expired), same idempotency as
+        // re-registering a push token.
+        else if (!string.IsNullOrWhiteSpace(cmd.DeviceId))
+            await refreshRepo.RevokeActiveForUserDeviceAsync(user.Id, cmd.DeviceId, ct);
 
         // Issue tokens
         var permKeys = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
         var rawRefresh = jwtService.GenerateRefreshTokenRaw();
         var refreshHash = jwtService.HashToken(rawRefresh);
 
-        var refreshToken = new RefreshTokenEntity(user.Id, refreshHash, jwtService.RefreshTokenExpiry, cmd.IpAddress);
+        var refreshToken = new RefreshTokenEntity(
+            user.Id, refreshHash, jwtService.RefreshTokenExpiry, cmd.IpAddress,
+            cmd.DeviceId, cmd.DeviceName, cmd.Platform);
         refreshRepo.Add(refreshToken);
         userRepo.Update(user);
 

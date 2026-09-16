@@ -6,6 +6,8 @@ import {
   useDisableTwoFactor,
   useEnableTwoFactor,
   useMe,
+  useRevokeSession,
+  useSessions,
   useSetupTwoFactor,
   useTwoFactorStatus,
   useUpdateProfile,
@@ -14,9 +16,10 @@ import { ApiError } from "@/lib/api-client";
 import { authApi } from "@/lib/auth.api";
 import { unregisterPushAsync } from "@/lib/push";
 import { useAuthStore } from "@/store/auth.store";
-import { Badge, Button, DetailRow, ErrorState, LoadingState, SectionCard } from "@/components/ui";
+import { Badge, Button, DetailRow, ErrorState, ListItemCard, LoadingState, SectionCard } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { TwoFactorSetupDto } from "@/types/settings";
+import type { SessionDto } from "@/types/auth";
 
 /** "My Account" -- profile, password, and 2FA for the signed-in user. No permission gate, same
  *  as the backend endpoints it calls (see types/settings.ts's top-of-file note). The admin half
@@ -43,6 +46,7 @@ export default function SettingsScreen() {
       <ProfileSection />
       <ChangePasswordSection />
       <TwoFactorSection />
+      <DevicesSection />
       <View style={styles.signOutRow}>
         <Button label="Sign out" variant="outline" icon="log-out" onPress={handleLogout} fullWidth />
       </View>
@@ -280,6 +284,88 @@ function TwoFactorSection() {
   );
 }
 
+// ── Devices ("my sessions") ──────────────────────────────────────────────────────────────────
+
+/** Every active login session for this account, across every device -- one row per token
+ *  rotation chain (see Backend CLAUDE.md's per-device refresh tokens work: a device only ever
+ *  holds one live row). "This device" is deliberately not individually revocable from here --
+ *  that's the Sign out button at the bottom of the screen, which also clears local state; a
+ *  revoke-by-id here would kill the session server-side but leave the app still holding
+ *  (now-dead) tokens until the next request forces a re-login. */
+function DevicesSection() {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
+  const sessions = useSessions();
+  const revoke = useRevokeSession();
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+
+  async function handleRevoke(session: SessionDto) {
+    setRevokingId(session.id);
+    try {
+      await revoke.mutateAsync(session.id);
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  return (
+    <SectionCard title="Devices">
+      {sessions.isLoading ? (
+        <LoadingState size="small" />
+      ) : sessions.isError ? (
+        <ErrorState message="Couldn't load your devices." onRetry={() => sessions.refetch()} />
+      ) : (sessions.data ?? []).length === 0 ? (
+        <Text style={styles.bodyText}>No active sessions found.</Text>
+      ) : (
+        <View style={styles.formGap}>
+          {(sessions.data ?? []).map((s) => (
+            <DeviceRow
+              key={s.id}
+              session={s}
+              revoking={revokingId === s.id}
+              onRevoke={() => handleRevoke(s)}
+            />
+          ))}
+        </View>
+      )}
+    </SectionCard>
+  );
+}
+
+function DeviceRow({ session, revoking, onRevoke }: { session: SessionDto; revoking: boolean; onRevoke: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
+  const icon = session.platform === "ios" || session.platform === "android" ? "smartphone" : session.platform === "web" ? "monitor" : "help-circle";
+
+  return (
+    <ListItemCard>
+      <View style={styles.deviceRowTop}>
+        <View style={styles.deviceRowLeft}>
+          <Feather name={icon} size={18} color={colors.mutedForeground} />
+          <Text style={styles.deviceName} numberOfLines={1}>
+            {session.deviceName ?? "Unknown device"}
+          </Text>
+        </View>
+        {session.isCurrent ? <Badge label="This device" tone="success" /> : null}
+      </View>
+      <Text style={styles.deviceMeta}>
+        Signed in {new Date(session.createdAt).toLocaleString()}
+        {session.createdByIp ? ` · ${session.createdByIp}` : ""}
+      </Text>
+      {!session.isCurrent ? (
+        <Button
+          label={revoking ? "Signing out…" : "Sign out this device"}
+          size="sm"
+          variant="outline"
+          disabled={revoking}
+          onPress={onRevoke}
+          style={styles.deviceRevokeButton}
+        />
+      ) : null}
+    </ListItemCard>
+  );
+}
+
 // ── Shared bits ──────────────────────────────────────────────────────────────────────────────
 
 function Field({
@@ -350,5 +436,11 @@ function createStyles(colors: AppColors) {
 
     codesBox: { backgroundColor: colors.cardMuted, borderRadius: radius.md, padding: spacing.md, gap: 4 },
     codeText: { fontSize: fontSize.base, color: colors.foreground, letterSpacing: 1 },
+
+    deviceRowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+    deviceRowLeft: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flexShrink: 1 },
+    deviceName: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    deviceMeta: { fontSize: fontSize.xs, color: colors.mutedForeground, marginTop: 2 },
+    deviceRevokeButton: { marginTop: spacing.sm, alignSelf: "flex-start" },
   });
 }

@@ -735,6 +735,14 @@ signed-in user's own account:
   earlier pass but never read anywhere. `HomeScreen` now shows a dismissible banner when it's set,
   with a "Set up now" button that jumps straight to this tab — the ephemeral flag (not persisted,
   same as `mfaToken`) is cleared on tap.
+- **Devices** — "my devices" session list (see CLAUDE.md's per-device refresh tokens module):
+  every active login session for this account (platform icon, device name, signed-in time + IP,
+  "This device" badge), with a "Sign out this device" action on every row except the current one
+  (that's still the Sign out button at the bottom of the screen, since it also clears local
+  storage — see `src/lib/device-id.ts`'s own comment for why a self-revoke here would be wrong).
+  This app is the reference client for the feature: it generates and persists its own stable device
+  id (`expo-secure-store`, outside the session blob so it survives logout), and sends it at
+  login/refresh so the backend can dedupe/label sessions. Web has no equivalent screen yet.
 - **Deliberately not built**: users/roles/permissions-matrix, branches, integrations
   (OAuth + encrypted-credential setup guides), general company settings (logo, currency, tax
   number) — all real desktop-appropriate admin surfaces, same complexity class as the Reports
@@ -1039,9 +1047,9 @@ gates behind `hasModuleAccess`/`hasRawPermission`. Queued next:
 1. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
-Also still queued from before: EAS build config, per-device refresh tokens. (Barcode scanning for
-Inventory, dashboard KPIs, and push notifications — Phase 1: device registration + one real
-trigger, see its own section above — are done.)
+Also still queued from before: EAS build config. (Barcode scanning for Inventory, dashboard KPIs,
+push notifications — Phase 1: device registration + one real trigger, see its own section above —
+and per-device refresh tokens / "my devices" session management, see Settings above — are done.)
 
 ## Conventions carried over from FrontendVite
 

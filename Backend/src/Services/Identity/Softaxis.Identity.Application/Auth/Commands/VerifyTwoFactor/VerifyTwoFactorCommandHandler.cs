@@ -60,11 +60,19 @@ public sealed class VerifyTwoFactorCommandHandler(
             ? await tenantRepo.GetByIdAsync(user.TenantId.Value, ct)
             : null;
 
+        // Same device-dedup as LoginCommandHandler -- keeps one row per device. (Unlike Login,
+        // this path does not apply the tenant's SingleSession policy -- 2FA login pre-dates that
+        // policy check and was never wired to it; left as-is here, not silently expanded.)
+        if (!string.IsNullOrWhiteSpace(cmd.DeviceId))
+            await refreshRepo.RevokeActiveForUserDeviceAsync(user.Id, cmd.DeviceId, ct);
+
         var permKeys    = await permissionRepo.GetPermissionKeysForUserAsync(user.Id, ct);
         var rawRefresh  = jwtService.GenerateRefreshTokenRaw();
         var refreshHash = jwtService.HashToken(rawRefresh);
 
-        refreshRepo.Add(new RefreshTokenEntity(user.Id, refreshHash, jwtService.RefreshTokenExpiry, cmd.IpAddress));
+        refreshRepo.Add(new RefreshTokenEntity(
+            user.Id, refreshHash, jwtService.RefreshTokenExpiry, cmd.IpAddress,
+            cmd.DeviceId, cmd.DeviceName, cmd.Platform));
         userRepo.Update(user);
         auditRepo.Add(new AuditLog(user.Id, "LOGIN", "User", user.Id.ToString(), null, null, cmd.IpAddress, null, true, user.TenantId));
 

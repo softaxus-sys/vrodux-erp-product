@@ -16,6 +16,10 @@ public sealed class RefreshTokenConfiguration : IEntityTypeConfiguration<Refresh
         builder.Property(t => t.CreatedByIp).HasMaxLength(50);
         builder.Property(t => t.RevokedByIp).HasMaxLength(50);
         builder.Property(t => t.ReplacedByTokenHash).HasMaxLength(500);
+        builder.Property(t => t.DeviceId).HasMaxLength(100);
+        builder.Property(t => t.DeviceName).HasMaxLength(200);
+        builder.Property(t => t.Platform).HasMaxLength(20);
+        builder.HasIndex(t => new { t.UserId, t.DeviceId });
 
         builder.HasOne(t => t.User)
             .WithMany()

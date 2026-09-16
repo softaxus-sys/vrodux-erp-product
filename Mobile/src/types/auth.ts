@@ -30,6 +30,19 @@ export interface AuthTokenDto {
   mustSetUpTwoFactor?: boolean;
 }
 
+/** One active login session ("my devices" -- see Backend CLAUDE.md's per-device refresh tokens
+ *  work). deviceName/platform are null for a session predating this feature or whose client never
+ *  sent them; still listed, just unlabeled. */
+export interface SessionDto {
+  id: string;
+  deviceName: string | null;
+  platform: string | null;
+  createdByIp: string | null;
+  createdAt: string;
+  expiresAt: string;
+  isCurrent: boolean;
+}
+
 /** Decoded from the JWT payload at login -- the same claims buildTenantFromClaims reads on web. */
 export interface TenantClaims {
   id: string;

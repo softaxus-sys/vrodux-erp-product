@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { accountApi, twoFactorApi } from "@/lib/settings.api";
+import { authApi } from "@/lib/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import type { ChangeMyPasswordRequest, UpdateMeRequest } from "@/types/settings";
 
@@ -48,5 +49,17 @@ export function useDisableTwoFactor() {
   return useMutation({
     mutationFn: (code: string) => twoFactorApi.disable(code),
     onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "2fa-status"] }),
+  });
+}
+
+export function useSessions() {
+  return useQuery({ queryKey: [QK, "sessions"], queryFn: authApi.getSessions });
+}
+
+export function useRevokeSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => authApi.revokeSession(sessionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "sessions"] }),
   });
 }
