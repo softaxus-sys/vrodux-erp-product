@@ -24,6 +24,8 @@ import type {
   ExpenseDto,
   SupplierDto,
   CreateSupplierRequest, UpdateSupplierRequest,
+  FinanceCustomerDto, CreateFinanceCustomerRequest, UpdateFinanceCustomerRequest,
+  AgingReportDto, StatementDto,
   TrialBalanceLine,
 } from "@/lib/finance/finance.api";
 
@@ -299,6 +301,92 @@ export function useDeleteSupplier() {
       toast.success("Supplier removed.");
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Customers (AR master) ──────────────────────────────────────────────────────
+
+export function useFinanceCustomers(params?: { search?: string; isActive?: boolean }) {
+  return useQuery({
+    queryKey: [QK, "customers", params],
+    queryFn:  () => financeApi.getFinanceCustomers(params),
+    select:   (data) => toItems<FinanceCustomerDto>(data),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateFinanceCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateFinanceCustomerRequest) => financeApi.createFinanceCustomer(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "customers"] });
+      toast.success("Customer created.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateFinanceCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: UpdateFinanceCustomerRequest & { id: string }) =>
+      financeApi.updateFinanceCustomer(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "customers"] });
+      toast.success("Customer updated.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteFinanceCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteFinanceCustomer(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "customers"] });
+      // Invoices carry a denormalised customerName.
+      qc.invalidateQueries({ queryKey: [QK, "invoices"] });
+      toast.success("Customer removed.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ─── Ageing & statements ────────────────────────────────────────────────────────
+
+/** `asOf` is part of the key: the same report at a different date is a different result. */
+export function useArAging(asOf?: string, enabled = true) {
+  return useQuery<AgingReportDto>({
+    queryKey: [QK, "ar-aging", asOf ?? "today"],
+    queryFn:  () => financeApi.getArAging(asOf),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useApAging(asOf?: string, enabled = true) {
+  return useQuery<AgingReportDto>({
+    queryKey: [QK, "ap-aging", asOf ?? "today"],
+    queryFn:  () => financeApi.getApAging(asOf),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+/** One hook for both sides — the statement shape is identical, only the route differs. */
+export function usePartyStatement(
+  side: "ar" | "ap",
+  partyId?: string,
+  range?: { from?: string; to?: string },
+) {
+  return useQuery<StatementDto>({
+    queryKey: [QK, "statement", side, partyId, range?.from ?? "", range?.to ?? ""],
+    queryFn:  () => side === "ar"
+      ? financeApi.getCustomerStatement(partyId!, range?.from, range?.to)
+      : financeApi.getSupplierStatement(partyId!, range?.from, range?.to),
+    enabled: !!partyId,
   });
 }
 
