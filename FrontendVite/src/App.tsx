@@ -30,6 +30,7 @@ const StatementsPage       = lazyWithRetry(() => import("@/pages/finance/stateme
 const InvoicingPage        = lazyWithRetry(() => import("@/pages/finance/invoicing"));
 const RecurringInvoicesPage = lazyWithRetry(() => import("@/pages/finance/recurring"));
 const ExpensesPage         = lazyWithRetry(() => import("@/pages/finance/expenses"));
+const SuppliersPage        = lazyWithRetry(() => import("@/pages/finance/suppliers"));
 const BudgetingPage        = lazyWithRetry(() => import("@/pages/finance/budgeting"));
 const TaxPage              = lazyWithRetry(() => import("@/pages/finance/tax"));
 const BankingPage          = lazyWithRetry(() => import("@/pages/finance/banking"));
@@ -327,6 +328,7 @@ export function App() {
             <Route path="/finance/invoicing"      element={<InvoicingPage />} />
             <Route path="/finance/recurring"      element={<RecurringInvoicesPage />} />
             <Route path="/finance/expenses"       element={<ExpensesPage />} />
+            <Route path="/finance/suppliers"      element={<SuppliersPage />} />
             <Route path="/finance/budgeting"      element={<BudgetingPage />} />
             <Route path="/finance/tax"            element={<TaxPage />} />
             <Route path="/finance/banking"        element={<BankingPage />} />

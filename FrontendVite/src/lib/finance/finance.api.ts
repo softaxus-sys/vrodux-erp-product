@@ -321,6 +321,21 @@ export interface SupplierDto {
   updatedAt?: string | null;
 }
 
+/** Create payload. `code` is generated server-side, so it is not sent. */
+export interface CreateSupplierRequest {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  /** Optional link to a Chart-of-Accounts payable account. */
+  accountId?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateSupplierRequest extends CreateSupplierRequest {
+  isActive: boolean;
+}
+
 // ─── Purchase Bills (AP Invoices) ────────────────────────────────────────────────
 
 export type PurchaseBillStatus = "draft" | "approved" | "partially_paid" | "paid" | "cancelled";
@@ -821,6 +836,10 @@ export const financeApi = {
     const query = qs.toString();
     return rawApiClient.get(`${BASE}/suppliers${query ? `?${query}` : ""}`);
   },
+  getSupplierById: (id: string): Promise<SupplierDto> => rawApiClient.get(`${BASE}/suppliers/${id}`),
+  createSupplier:  (data: CreateSupplierRequest): Promise<SupplierDto> => rawApiClient.post(`${BASE}/suppliers`, data),
+  updateSupplier:  (id: string, data: UpdateSupplierRequest): Promise<void> => rawApiClient.put(`${BASE}/suppliers/${id}`, data),
+  deleteSupplier:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/suppliers/${id}`),
 
   // Purchase Bills (AP Invoices)
   getPurchaseBills: (params?: { page?: number; pageSize?: number; search?: string; status?: string; supplierId?: string; outstanding?: boolean }): Promise<PagedResult<PurchaseBillSummaryDto>> => {

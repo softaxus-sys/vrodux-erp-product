@@ -23,6 +23,7 @@ import type {
   InvoiceDto,
   ExpenseDto,
   SupplierDto,
+  CreateSupplierRequest, UpdateSupplierRequest,
   TrialBalanceLine,
 } from "@/lib/finance/finance.api";
 
@@ -250,6 +251,54 @@ export function useSuppliers(params?: { search?: string; isActive?: boolean }) {
     queryFn:  () => financeApi.getSuppliers(params),
     select:   (data) => toItems<SupplierDto>(data),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSupplierById(id?: string) {
+  return useQuery({
+    queryKey: [QK, "supplier", id],
+    queryFn:  () => financeApi.getSupplierById(id!),
+    enabled:  !!id,
+  });
+}
+
+export function useCreateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateSupplierRequest) => financeApi.createSupplier(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "suppliers"] });
+      toast.success("Supplier created.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: UpdateSupplierRequest & { id: string }) =>
+      financeApi.updateSupplier(id, data),
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: [QK, "suppliers"] });
+      qc.invalidateQueries({ queryKey: [QK, "supplier", vars.id] });
+      toast.success("Supplier updated.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.deleteSupplier(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "suppliers"] });
+      // Bills carry a denormalised supplierName, so a rename/removal must refresh them too.
+      qc.invalidateQueries({ queryKey: [QK, "purchase-bills"] });
+      toast.success("Supplier removed.");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

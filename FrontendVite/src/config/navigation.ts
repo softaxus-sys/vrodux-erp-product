@@ -141,6 +141,13 @@ export const navigationConfig: NavGroup[] = [
             icon: "CreditCard",
           },
           {
+            id: "suppliers",
+            label: "Suppliers",
+            labelAr: "الموردون",
+            href: "/finance/suppliers",
+            icon: "Building2",
+          },
+          {
             id: "budgeting",
             label: "Budgeting",
             labelAr: "الميزانية",
