@@ -26,6 +26,9 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
     public DbSet<CustomerGroup>       CustomerGroups       => Set<CustomerGroup>();
     public DbSet<Voucher>             Vouchers             => Set<Voucher>();
     public DbSet<CashMovement>        CashMovements        => Set<CashMovement>();
+    public DbSet<PosSettings>         PosSettings          => Set<PosSettings>();
+    public DbSet<OfflineSyncBatch>    OfflineSyncBatches   => Set<OfflineSyncBatch>();
+    public DbSet<PosTillStatus>       PosTillStatuses      => Set<PosTillStatus>();
 
     // Vendors & Purchase
     public DbSet<Vendor>            Vendors              => Set<Vendor>();
@@ -67,6 +70,12 @@ public sealed class POSDbContext(DbContextOptions<POSDbContext> options, IMediat
         TenantIsolation.TenantUniqueIndex<TaxRate>(modelBuilder, [nameof(TaxRate.Code)]);
         TenantIsolation.TenantUniqueIndex<Vendor>(modelBuilder, [nameof(Vendor.Code)], extraFilter: "[Code] IS NOT NULL");
         TenantIsolation.TenantUniqueIndex<Voucher>(modelBuilder, [nameof(Voucher.Code)]);
+
+        // Offline sync idempotency: a record uploaded twice (retried sync, double-click) must land once.
+        TenantIsolation.TenantUniqueIndex<POSSession>(modelBuilder, [nameof(POSSession.ClientRef)], extraFilter: "[ClientRef] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<POSTransaction>(modelBuilder, [nameof(POSTransaction.ClientRef)], extraFilter: "[ClientRef] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<CashMovement>(modelBuilder, [nameof(CashMovement.ClientRef)], extraFilter: "[ClientRef] IS NOT NULL");
+        TenantIsolation.TenantUniqueIndex<PosTillStatus>(modelBuilder, [nameof(PosTillStatus.DeviceId)]);
 
         base.OnModelCreating(modelBuilder);
     }

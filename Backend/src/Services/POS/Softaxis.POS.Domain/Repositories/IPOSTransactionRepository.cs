@@ -33,6 +33,8 @@ public interface IPOSTransactionRepository
           int TotalCount)>
         GetDailyBreakdownAsync(DateTime dayStartUtc, DateTime dayEndUtc, CancellationToken ct = default);
 
+    Task<POSTransaction?>  GetByClientRefAsync(string clientRef, CancellationToken ct = default);
+
     void Add(POSTransaction transaction);
     void Update(POSTransaction transaction);
 }

@@ -6,4 +6,6 @@ public sealed class UnitOfWork(POSDbContext db) : IUnitOfWork
 {
     public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);
+
+    public void DiscardChanges() => db.ChangeTracker.Clear();
 }

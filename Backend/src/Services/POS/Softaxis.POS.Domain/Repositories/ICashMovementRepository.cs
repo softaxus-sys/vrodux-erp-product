@@ -5,5 +5,6 @@ namespace Softaxis.POS.Domain.Repositories;
 public interface ICashMovementRepository
 {
     Task<List<CashMovement>> GetBySessionAsync(Guid sessionId, CancellationToken ct = default);
+    Task<CashMovement?> GetByClientRefAsync(string clientRef, CancellationToken ct = default);
     void Add(CashMovement movement);
 }

@@ -32,6 +32,14 @@ public sealed class CreateSaleCommandHandler(
 
     public async Task<Result<POSTransactionDto>> Handle(CreateSaleCommand cmd, CancellationToken ct)
     {
+        // ── Offline replay: already on the server? Return it instead of charging twice ──
+        if (cmd.Offline is not null)
+        {
+            var existing = await txnRepo.GetByClientRefAsync(cmd.Offline.ClientRef, ct);
+            if (existing is not null)
+                return Result.Success(MapToDto(existing, existing.Customer?.Name));
+        }
+
         // ── Validate session ─────────────────────────────────────────────────
         var session = await sessionRepo.GetByIdAsync(cmd.SessionId, ct);
         if (session is null)
@@ -58,11 +66,16 @@ public sealed class CreateSaleCommandHandler(
             if (product is null)
                 return Result.Failure<POSTransactionDto>(Error.NotFoundById("Product", req.ProductId));
 
-            if (!product.IsActive)
+            // An offline sale already happened at the till: the customer paid and left with the goods.
+            // Refusing it now for a product deactivated since, or stock that ran out, would lose
+            // real revenue from the books without undoing the sale. The sync reports the stock instead.
+            var isOffline = cmd.Offline is not null;
+
+            if (!product.IsActive && !isOffline)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Product.Inactive",
                     $"Product '{product.Name}' is not available for sale."));
 
-            if (product.TrackInventory && product.StockQuantity < req.Quantity)
+            if (!isOffline && product.TrackInventory && product.StockQuantity < req.Quantity)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Product.InsufficientStock",
                     $"Insufficient stock for '{product.Name}'. Available: {product.StockQuantity}."));
 
@@ -157,6 +170,9 @@ public sealed class CreateSaleCommandHandler(
         var completeResult = transaction.Complete(lineItems, payments, cmd.Notes);
         if (completeResult.IsFailure)
             return Result.Failure<POSTransactionDto>(completeResult.Error);
+
+        if (cmd.Offline is not null)
+            transaction.MarkOffline(cmd.Offline.ClientRef, cmd.Offline.ReceiptNumber, cmd.Offline.OccurredAtUtc);
 
         // ── Deduct stock in the correct schema (pos or inventory) ─────────────
         foreach (var d in drafts)

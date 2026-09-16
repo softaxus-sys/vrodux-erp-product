@@ -50,7 +50,9 @@ public sealed class TransactionsController(ISender sender) : BaseApiController(s
     /// <summary>Create and complete a sale transaction.</summary>
     [HttpPost("sale")]
     public async Task<IActionResult> CreateSale([FromBody] CreateSaleCommand cmd, CancellationToken ct = default)
-        => HandleResult(await Sender.Send(cmd, ct), successCode: 201);
+        // Strip any client-supplied offline context: it relaxes stock checks and is reserved for
+        // the day-end sync, which builds the command itself.
+        => HandleResult(await Sender.Send(cmd with { Offline = null }, ct), successCode: 201);
 
     /// <summary>Void a completed transaction.</summary>
     [HttpPost("{id:guid}/void")]

@@ -14,6 +14,7 @@
 import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/store/auth.store";
+import { usePosOffline } from "@/contexts/pos-offline-context";
 import {
   paymentMethodsApi,
   type PaymentMethodDto,
@@ -96,9 +97,13 @@ export function usePaymentMethods(): PaymentMethodDef[] {
     [countryCode],
   );
 
+  const off = usePosOffline();
   const { data } = useQuery({
-    queryKey: pmKeys.all,
-    queryFn:  () => paymentMethodsApi.getAll(),
+    queryKey: off ? [...pmKeys.all, "offline"] : pmKeys.all,
+    // Offline: the tenant's own method config as captured in the till's catalogue snapshot.
+    queryFn:  off
+      ? async () => (await off.engine.getSnapshot())?.paymentMethods ?? []
+      : () => paymentMethodsApi.getAll(),
     staleTime: 5 * 60 * 1000,
     placeholderData: [],   // no loading flicker
   });

@@ -17,6 +17,15 @@ public sealed class CashMovement : AuditableEntity<Guid>
     public decimal          Amount    { get; private set; }
     public string           Reason    { get; private set; } = default!;
 
+    /// <summary>Client-generated id of a movement recorded offline (idempotency key for sync).</summary>
+    public string?          ClientRef { get; private set; }
+
+    public void MarkOffline(string clientRef, DateTime occurredAtUtc)
+    {
+        ClientRef = clientRef.Trim();
+        CreatedAt = occurredAtUtc;
+    }
+
     // Navigation
     public POSSession Session { get; private set; } = default!;
 

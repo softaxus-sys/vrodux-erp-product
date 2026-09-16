@@ -573,6 +573,7 @@ export const navigationConfig: NavGroup[] = [
         module: "pos",
         children: [
           // module: "pos" → visible to all with POS access (cashier, supervisor, manager)
+          { id: "pos-dashboard",   label: "Dashboard",       href: "/pos/dashboard",   icon: "LayoutDashboard", module: "pos" },
           { id: "retail-pos",      label: "Retail POS",      href: "/pos/retail",      icon: "ShoppingBag",     module: "pos" },
           { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos" },
           // module: "restaurant" → only visible to users with restaurant module access

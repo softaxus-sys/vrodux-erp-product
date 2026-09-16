@@ -101,6 +101,7 @@ const SitesPage            = lazyWithRetry(() => import("@/pages/construction/si
 
 // ── POS ───────────────────────────────────────────────────────────────────────
 const RetailPOSPage        = lazyWithRetry(() => import("@/pages/pos/retail"));
+const PosDashboardPage     = lazyWithRetry(() => import("@/pages/pos/dashboard"));
 const RestaurantPOSPage    = lazyWithRetry(() => import("@/pages/pos/restaurant"));
 const KitchenDisplayPage   = lazyWithRetry(() => import("@/pages/pos/kitchen"));
 const FloorDesignerPage    = lazyWithRetry(() => import("@/pages/pos/floor-designer"));
@@ -435,6 +436,7 @@ export function App() {
 
           {/* ── POS ─────────────────────────────────────────────────────────── */}
           <Route element={<ModuleGuard module="pos" />}>
+            <Route path="/pos/dashboard"   element={<PosDashboardPage />} />
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
             <Route path="/pos/restaurant"  element={<RestaurantPOSPage />} />

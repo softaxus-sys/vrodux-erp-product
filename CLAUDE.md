@@ -6148,3 +6148,113 @@ backend `MeController` documents on itself).
 - Smaller polish items already flagged above: leave-date native picker, payslip PDF export, offline
   handling / error boundaries, per-device refresh tokens (raised in the original mobile-strategy
   discussion, not built — the backend does not scope refresh tokens per device today).
+
+---
+
+## Module 57 — POS: Offline mode (local-first tills, day-end "Sync to Cloud", per-tenant switch)
+
+Retail tills can keep selling with no internet. **Every tenant chooses online or offline mode** (Settings → POS
+Payments → "Retail POS mode", gated `pos.sessions.approve` — no dedicated POS-settings key is seeded).
+
+### Switching modes requires everything synced (enforced server-side)
+- **→ offline:** refused (`PosSettings.InUse` → 409) while any **online** shift is open.
+- **→ online:** refused while any **offline** shift is open on the server, or any till reports unsynced records.
+  The server can't see a till's IndexedDB, so each offline-mode till reports its backlog to
+  `POST /api/pos-offline/till-status` (`PosTillStatus`, unique per tenant + device id, debounced on every
+  local change and on reconnect). `GET /api/pos-settings/switch-readiness` lists the blockers; the settings
+  card polls it and only enables the switch once it's clear.
+- **Force** (`force: true`) exists only for → online with tills-only blockers (a lost/broken till). It never
+  bypasses open shifts. A till that still has records after a forced switch is locked on a **"Sync this till
+  before continuing"** screen (`PosOfflineProvider` drain mode): open local shifts are closed at expected cash
+  (noted as uncounted) and uploaded with `forceClose`; live selling resumes only when its queue is empty.
+  The sync endpoint therefore does **not** check the current mode — refusing a drain would strand real sales.
+
+### Model (decided with the user)
+- **Local-first, sync at day end.** An offline-mode tenant records shift open/close, sales, refunds, voids
+  and cash in/out in **IndexedDB** (browser + Electron, one codebase). Nothing uploads until the cashier
+  presses **Sync to Cloud** (top-bar button, open-shift banner, auto-offered after closing a shift).
+- **Stock: accept and flag.** Offline sales are never refused at sync for stock that ran out or a product
+  deactivated since — the goods already left. The sync response lists products now below zero.
+- Hold/recall was already client-side and needed no change. **Vouchers and loyalty are refused offline**
+  (they need live validation); a customer picker offline still depends on the API.
+
+### Backend (POS)
+- `PosSettings` (tenant row, `OfflineModeEnabled`, not created by a GET) + `OfflineSyncBatch` (audit).
+  `GET/PUT /api/pos-settings`, `POST /api/pos-offline/sync`. Migration `AddPosOfflineMode`.
+- **Idempotency:** `ClientRef` on `POSSession`, `POSTransaction`, `CashMovement`, each with a
+  **tenant-scoped filtered unique index**. `POSTransaction.OfflineReceiptNumber` keeps the printed number.
+- `SyncOfflineDayCommandHandler` replays events **through the existing handlers** (`CreateSale`, `Refund`,
+  `Void`, `RecordCashMovement`) via `ISender`, so pricing/tax/discount/loyalty/stock logic is identical.
+  Offline differences live only in `OfflineContext` (ClientRef, backdated time, receipt no., relaxed stock).
+- **`OfflineContext` must never bind from a request body** — `TransactionsController.CreateSale` strips it
+  (`cmd with { Offline = null }`); refund/cash commands are constructed by their controllers without it.
+- Each event commits on its own; a rejected one never blocks the rest. After any rejection the handler calls
+  the new `IUnitOfWork.DiscardChanges()` (ChangeTracker.Clear) so half-mutated entities (loyalty, voucher
+  usage) can't ride along on the next save. Shifts are created directly (not `OpenSessionCommand`) — the
+  one-open-shift rules describe the live till, not history. A shift with rejected records is **left open**
+  unless the cashier ticks "close anyway" (`ForceClose`), so its Z-report isn't silently short.
+
+### Frontend
+- `lib/pos/offline/offline-db.ts` (zero-dep IndexedDB) + `offline-pos.ts` engine (`OfflinePos`): catalogue
+  snapshot (products + payment methods, refreshed whenever online, keeps unsynced local deductions), shifts,
+  events, receipt numbers `OFF-{register}-{yyyymmdd}-{nnnn}`, atomic writes, serialised per tab, `sync()`.
+  DB is keyed by tenant **and** user so two cashiers/workspaces on one machine never share a queue.
+- `contexts/pos-offline-context.tsx` `PosOfflineProvider` (wraps only `/pos/retail`) — reads the setting,
+  caches it in localStorage so a till booting offline still knows. `usePosOffline()` returns null in live mode.
+- The existing hooks branch on it (`use-sessions`, `use-transactions`, `use-products`,
+  `use-payment-methods`) so `ShiftGate`, both retail views and the void/refund dialogs work unchanged.
+  `ProductTile` gained `allowOversell`; the scanner skips the API barcode fallback offline; the cashier view
+  takes categories from the local catalogue (`useOfflineCategories`).
+- `components/pos/offline-sync.tsx`: button, banner, dialog (online state, pending counts, catalogue age +
+  refresh, rejected records with reasons, force-close, result summary incl. negative stock).
+- `public/sw.js` + registration in `main.tsx` (prod, http(s) only — not Electron): network-first shell,
+  cache-first `/assets/*`, never touches `/api`. A browser till must open the POS once online first.
+
+### Build / Verification Status
+- **POS.API + ApiGateway:** 0 errors ✅ · **Frontend `tsc -p tsconfig.app.json`:** 0 errors ✅
+- Migration `AddPosOfflineMode` created (auto-applies on startup).
+- **Not runtime-tested** — needs republish + restart. E2E: enable the switch → open `/pos/retail` online
+  once → go offline (DevTools) → open shift, sell (incl. an out-of-stock item), refund, void, cash out, close
+  → back online → Sync → shift + transactions appear with `OFF-…` numbers, negative stock listed; sync again
+  → all "already on the server".
+
+### Known limits (flagged, not built)
+- Restaurant POS is untouched (live only). Customer search, voucher/loyalty, product add need a connection.
+- Void of a server-side (pre-offline) sale isn't possible offline — history shows this till's local records.
+- Existing bug noticed, not fixed: `VoidTransactionCommandHandler` restores stock via the pos-schema product
+  repo only (inventory-schema products aren't restored on void) and checks `pos.transaction.void` (singular).
+
+---
+
+## Module 58 — POS: Retail POS dashboard (`/pos/dashboard`)
+
+The only POS dashboard was the Restaurant one (`/pos/dashboards`, `restaurant` module); retail tills had none —
+just the four hourly/payment charts on the main dashboard. New page: first item in the POS nav.
+
+### Backend (POS, CQRS)
+- `GET /api/pos-dashboard/overview?from=&to=&utcOffsetMinutes=` → `GetPosOverviewQuery` → handler (gated
+  `pos.reports.view` in the handler — POS controllers are `[Authorize]`-only) → `IPosDashboardReadService`
+  (`Infrastructure/Services/PosDashboardReadService.cs`, SQL aggregation, tenant-filtered, `!IsDeleted` by hand).
+- Local calendar range (≤ 92 days) + the **previous period of equal length** for every KPI.
+- **Figure definitions (read before trusting a number):** a refund marks its original sale `Voided` with the note
+  `"Refunded via …"`, so **gross = completed sales + those refunded sales**; refunds = completed refund
+  transactions; **net = gross − refunds**; voids = sales voided *without* that note (never revenue). Counting only
+  `Completed` sales (as the old hourly chart does) subtracts a refund twice.
+- Trend is zero-filled and bucketed on the caller's clock: 24 hours for a single day, otherwise one bucket per day.
+- Also returns payment mix (by amount), top 10 products by revenue, top 10 cashiers, **live** open shifts (not
+  range-bound, offline shifts flagged), and — when offline mode is on — tills reporting unsynced records.
+
+### Frontend
+- `lib/pos/pos-dashboard.api.ts`, `hooks/pos/use-pos-dashboard.ts` (60 s refresh, keeps previous data while a
+  new range loads), `modules/pos/dashboard/components/pos-dashboard-view.tsx`, `pages/pos/dashboard.tsx`.
+- Presets Today / Yesterday / 7 d / 30 d / This month (computed locally). KPI tiles with % change vs the
+  previous period (no % when the previous period is zero). Single-hue bar trend (one axis; transactions and
+  refunds in the tooltip), ranked bar lists, open-shifts table, offline-sync notice ("N records not in these
+  figures yet"), low-stock card only when the user has Inventory + `inventory.stock.view`.
+- Page-level `<Can permission="pos.reports.view">` with an explanatory fallback.
+
+### Build / Verification Status
+- **POS.API:** 0 errors ✅ · **Frontend `tsc -p tsconfig.app.json`:** 0 errors ✅ · no migration.
+- Full gateway build blocked only by file locks from the running gateway / Visual Studio (not compile errors).
+- **Not runtime-tested** — restart the gateway, open POS → Dashboard, compare Today's net sales with the
+  Close-Shift summary, refund a sale and confirm gross is unchanged while refunds and net move.

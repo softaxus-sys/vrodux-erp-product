@@ -18,6 +18,8 @@ public interface IPOSSessionRepository
         DateTime? to = null,
         CancellationToken ct = default);
 
+    Task<POSSession?>  GetByClientRefAsync(string clientRef, CancellationToken ct = default);
+
     void Add(POSSession session);
     void Update(POSSession session);
 }

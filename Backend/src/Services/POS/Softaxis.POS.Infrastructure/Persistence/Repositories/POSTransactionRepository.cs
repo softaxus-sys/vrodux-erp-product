@@ -20,6 +20,9 @@ public sealed class POSTransactionRepository(POSDbContext db) : IPOSTransactionR
     public Task<POSTransaction?> GetByNumberAsync(string transactionNumber, CancellationToken ct = default) =>
         FullQuery.FirstOrDefaultAsync(t => t.TransactionNumber == transactionNumber, ct);
 
+    public Task<POSTransaction?> GetByClientRefAsync(string clientRef, CancellationToken ct = default) =>
+        FullQuery.FirstOrDefaultAsync(t => t.ClientRef == clientRef, ct);
+
     public async Task<string> GenerateTransactionNumberAsync(CancellationToken ct = default)
     {
         // Format: TXN-YYYYMMDD-NNNN (sequential per day)

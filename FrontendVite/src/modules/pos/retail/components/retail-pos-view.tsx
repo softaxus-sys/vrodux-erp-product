@@ -24,6 +24,8 @@ import { DiscountPanel, type AppliedDiscount } from "./discount-panel";
 import { SplitPaymentDialog } from "./split-payment-dialog";
 import { CashMovementDialog } from "./cash-movement-dialog";
 import { productsApi } from "@/lib/pos/products.api";
+import { usePosOffline } from "@/contexts/pos-offline-context";
+import { OfflineSyncButton } from "@/components/pos/offline-sync";
 import { transactionsApi } from "@/lib/pos/transactions.api";
 import type { POSTransactionSummaryDto } from "@/lib/pos/types";
 import { toast } from "sonner";
@@ -81,6 +83,9 @@ export function RetailPOSView() {
   const { openDrawer, printRaw, printerStatus } = useHardware();
   // Must be called before any conditional return (rules of hooks)
   const { sessionId, shiftDuration, canCloseShift, openClosePanel } = useShift();
+  // Offline mode: stock isn't live, so zero-stock items stay sellable (flagged at sync).
+  const offline = usePosOffline();
+  const allowOversell = !!offline;
 
   // ── POS permission flags ──────────────────────────────────────────────────────
   const canAddProduct   = hasRawPermission("pos.products.create");
@@ -204,12 +209,12 @@ export function RetailPOSView() {
     onScan: async ({ barcode }) => {
       // First try local cache
       const local = allProducts.find(p => p.barcode === barcode || p.sku === barcode);
-      if (local && local.stock > 0) {
+      if (local && (local.stock > 0 || allowOversell)) {
         addToCart(local);
         setScanItemName(local.name);
         setScanFeedback("found");
-      } else if (!local) {
-        // Fallback: query API by barcode
+      } else if (!local && !offline) {
+        // Fallback: query API by barcode (live mode only — offline, the local catalogue is all there is)
         try {
           const product = await productsApi.getByBarcode(barcode);
           if (product.isActive && product.stockQuantity > 0) {
@@ -417,6 +422,7 @@ export function RetailPOSView() {
         <div className="flex items-center gap-2">
           {sessionId && <ShiftPill duration={shiftDuration} extra={formatCurrency(sessionStats.totalSales, currency)} />}
           <HardwareStatusBar />
+          <OfflineSyncButton />
           <TopBarButton icon={ShoppingCart} label="Sell" active={activeTab === "pos"} onClick={() => setActiveTab("pos")} />
           <TopBarButton icon={Receipt} label="History" active={activeTab === "history"} badge={sessionStats.totalTransactions}
             onClick={() => setActiveTab("history")} />
@@ -544,7 +550,7 @@ export function RetailPOSView() {
               ) : filtered.length > 0 ? (
                 <div className={PRODUCT_GRID}>
                   {filtered.map(p => (
-                    <ProductTile key={p.id} product={p} currency={currency} inCart={cartQty[p.id] ?? 0} onAdd={() => addToCart(p)} />
+                    <ProductTile key={p.id} product={p} currency={currency} inCart={cartQty[p.id] ?? 0} onAdd={() => addToCart(p)} allowOversell={allowOversell} />
                   ))}
                 </div>
               ) : (
