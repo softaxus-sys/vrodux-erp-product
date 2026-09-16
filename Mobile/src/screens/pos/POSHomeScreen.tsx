@@ -3,7 +3,8 @@ import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useActiveSessions, usePosDashboard } from "@/hooks/use-pos";
 import { formatCompactValue } from "@/lib/crm-helpers";
-import { useAuthStore } from "@/store/auth.store";
+import { POS_SESSIONS_CREATE } from "@/lib/pos.api";
+import { hasPermission, useAuthStore } from "@/store/auth.store";
 import type { POSSessionSummaryDto } from "@/types/pos";
 import type { POSStackParamList } from "@/navigation/types";
 import { Badge, EmptyState, ErrorState, ListItemCard, LoadingState, MenuCard, SectionCard } from "@/components/ui";
@@ -11,12 +12,15 @@ import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/th
 
 type Props = NativeStackScreenProps<POSStackParamList, "POSHome">;
 
-/** "Manager visibility," not a checkout terminal -- see types/pos.ts's own top-of-file note for
- *  why sale/void/refund/session-open/close deliberately have no mobile screen at all. */
+/** Shift status + today's sales feed are genuinely useful checked-on-the-go -- see
+ *  Mobile/README.md's "POS Checkout" section for the camera-as-scanner checkout flow that lives
+ *  behind Open Shift → a session's own New Sale / Close Shift actions, and what's still
+ *  deliberately excluded (split-tender, discounts, printed receipts, void/refund, hold/recall). */
 export default function POSHomeScreen({ navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  const canOpenShift = hasPermission(POS_SESSIONS_CREATE);
 
   const dashboard = usePosDashboard();
   const sessions = useActiveSessions();
@@ -75,6 +79,15 @@ export default function POSHomeScreen({ navigation }: Props) {
       )}
 
       <View style={styles.menu}>
+        {canOpenShift ? (
+          <MenuCard
+            icon="unlock"
+            title="Open Shift"
+            subtitle="Start a new register for a checkout"
+            tint={colors.success}
+            onPress={() => navigation.navigate("OpenShift")}
+          />
+        ) : null}
         <MenuCard
           icon="list"
           title="All Transactions"

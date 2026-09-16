@@ -66,16 +66,27 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
         ))}
       </SectionCard>
 
-      {canEdit && o.status === "draft" ? (
+      {canEdit && (o.status === "draft" || o.status === "sent" || o.status === "partial") ? (
         <SectionCard title="Actions">
-          <Button
-            label={setStatus.isPending ? "Sending..." : "Send to Vendor"}
-            icon="send"
-            disabled={setStatus.isPending}
-            onPress={() => setStatus.mutate({ id: o.id, status: "sent" })}
-            fullWidth
-          />
+          {o.status === "draft" ? (
+            <Button
+              label={setStatus.isPending ? "Sending..." : "Send to Vendor"}
+              icon="send"
+              disabled={setStatus.isPending}
+              onPress={() => setStatus.mutate({ id: o.id, status: "sent" })}
+              fullWidth
+            />
+          ) : null}
           {setStatus.isError ? <Text style={styles.errorText}>Couldn&apos;t send this order.</Text> : null}
+          {o.status === "sent" || o.status === "partial" ? (
+            <Button
+              label="Receive"
+              icon="camera"
+              variant={o.status === "partial" ? "outline" : "primary"}
+              onPress={() => navigation.navigate("ReceiveOrder", { orderId: o.id, orderNumber: o.orderNumber })}
+              fullWidth
+            />
+          ) : null}
         </SectionCard>
       ) : null}
     </ScrollView>

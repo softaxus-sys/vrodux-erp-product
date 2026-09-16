@@ -98,3 +98,39 @@ export const PURCHASE_ORDER_STATUS_TONE: Record<PurchaseOrderStatus, "success" |
   received: "success",
   cancelled: "destructive",
 };
+
+/**
+ * Goods Receipt Note -- field names copied exactly from the backend's
+ * CreateGoodsReceiptNoteCommand/GoodsReceiptNoteItemRequest (Softaxis.Purchase.Application).
+ * Only touched lines are sent -- the backend requires ReceivedQuantity > 0 per item, so a line
+ * nobody scanned/adjusted is simply omitted rather than sent as 0.
+ */
+export interface CreateGrnItemRequest {
+  purchaseOrderItemId?: string | null;
+  productId?: string | null;
+  description: string;
+  orderedQuantity: number;
+  receivedQuantity: number;
+  unitCost: number;
+}
+
+export interface CreateGrnRequest {
+  purchaseOrderId: string;
+  grnDate: string;
+  driverName?: string | null;
+  notes?: string | null;
+  items: CreateGrnItemRequest[];
+}
+
+export interface GoodsReceiptNoteDto {
+  id: string;
+  grnNumber: string;
+  purchaseOrderId: string;
+  purchaseOrderNumber: string;
+  vendorId: string;
+  vendorName: string;
+  grnDate: string;
+  driverName?: string | null;
+  notes?: string | null;
+  status: string;
+}

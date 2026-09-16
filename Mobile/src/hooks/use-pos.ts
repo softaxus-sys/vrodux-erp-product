@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { posApi } from "@/lib/pos.api";
-import type { TransactionsPageParams } from "@/types/pos";
+import type { CloseSessionRequest, CreateSaleRequest, OpenSessionRequest, TransactionsPageParams } from "@/types/pos";
 
 const QK = "pos" as const;
 
@@ -57,5 +57,43 @@ export function usePosDashboard(enabled = true) {
     queryFn: posApi.getDashboard,
     refetchInterval: 60_000,
     enabled,
+  });
+}
+
+// ── Checkout ─────────────────────────────────────────────────────────────
+
+export function useOpenSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: OpenSessionRequest) => posApi.openSession(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "active-sessions"] }),
+  });
+}
+
+export function useCloseSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, payload }: { sessionId: string; payload: CloseSessionRequest }) =>
+      posApi.closeSession(sessionId, payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK, "active-sessions"] }),
+  });
+}
+
+export function useCreateSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateSaleRequest) => posApi.createSale(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "active-sessions"] });
+      qc.invalidateQueries({ queryKey: [QK, "transactions"] });
+      qc.invalidateQueries({ queryKey: [QK, "dashboard"] });
+    },
+  });
+}
+
+export function usePaymentMethods() {
+  return useQuery({
+    queryKey: [QK, "payment-methods"],
+    queryFn: posApi.getPaymentMethods,
   });
 }

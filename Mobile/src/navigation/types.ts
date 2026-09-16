@@ -46,6 +46,7 @@ export type PurchaseStackParamList = {
   PurchaseHome: undefined;
   PurchaseOrdersList: undefined;
   PurchaseOrderDetail: { orderId: string; orderNumber: string };
+  ReceiveOrder: { orderId: string; orderNumber: string };
   VendorsList: undefined;
   VendorDetail: { vendorId: string; vendorName: string };
 };
@@ -87,6 +88,9 @@ export type POSStackParamList = {
   POSSessionDetail: { sessionId: string; registerId: string };
   POSTransactionsList: undefined;
   POSTransactionDetail: { transactionId: string; transactionNumber: string };
+  OpenShift: undefined;
+  CloseShift: { sessionId: string };
+  NewSale: { sessionId: string };
 };
 
 export type RestaurantStackParamList = {

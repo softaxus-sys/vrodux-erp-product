@@ -3,10 +3,11 @@ import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSession, useSessionCashMovements, useSessionTransactions } from "@/hooks/use-pos";
 import { formatCompactValue } from "@/lib/crm-helpers";
-import { useAuthStore } from "@/store/auth.store";
+import { POS_SESSIONS_CREATE, POS_TRANSACTIONS_CREATE } from "@/lib/pos.api";
+import { hasPermission, useAuthStore } from "@/store/auth.store";
 import type { POSTransactionSummaryDto } from "@/types/pos";
 import type { POSStackParamList } from "@/navigation/types";
-import { Badge, DetailRow, ErrorState, ListItemCard, LoadingState, SectionCard, Stat } from "@/components/ui";
+import { Badge, Button, DetailRow, ErrorState, ListItemCard, LoadingState, SectionCard, Stat } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<POSStackParamList, "POSSessionDetail">;
@@ -15,6 +16,8 @@ export default function POSSessionDetailScreen({ route, navigation }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
+  const canSell = hasPermission(POS_TRANSACTIONS_CREATE);
+  const canCloseShift = hasPermission(POS_SESSIONS_CREATE);
   const { sessionId, registerId } = route.params;
   useEffect(() => {
     navigation.setOptions({ headerTitle: `Register ${registerId}` });
@@ -45,6 +48,28 @@ export default function POSSessionDetailScreen({ route, navigation }: Props) {
           <Stat label="Transactions" value={String(s.totalTransactions)} />
         </View>
       </View>
+
+      {!s.closedAt && (canSell || canCloseShift) ? (
+        <View style={styles.actionsRow}>
+          {canSell ? (
+            <Button
+              label="New Sale"
+              icon="shopping-cart"
+              onPress={() => navigation.navigate("NewSale", { sessionId })}
+              style={styles.actionButton}
+            />
+          ) : null}
+          {canCloseShift ? (
+            <Button
+              label="Close Shift"
+              icon="lock"
+              variant="outline"
+              onPress={() => navigation.navigate("CloseShift", { sessionId })}
+              style={styles.actionButton}
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       <SectionCard title="Cash">
         <DetailRow label="Opening cash" value={formatCompactValue(s.openingCash, currency)} />
@@ -118,6 +143,9 @@ function createStyles(colors: AppColors) {
     headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     title: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground },
     statsRow: { flexDirection: "row", gap: spacing.xl },
+
+    actionsRow: { flexDirection: "row", gap: spacing.sm },
+    actionButton: { flex: 1 },
 
     movementRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 },
     movementReason: { fontSize: fontSize.base, color: colors.foreground, flexShrink: 1 },

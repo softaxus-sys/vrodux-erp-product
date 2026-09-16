@@ -1,11 +1,9 @@
 /**
- * Deliberately read-only ("manager visibility"), not a checkout terminal -- a phone isn't a cash
- * drawer, receipt printer, or barcode scanner, and CLAUDE.md's Module 49 already excluded POS
- * sale/void/refund/session-open/close from the AI assistant for exactly that reason ("those move
- * cash in a physical drawer against an open shift and belong at the terminal"). The same
- * reasoning applies here: shift status, today's sales, and a transaction feed are genuinely
- * useful checked-on-the-go, actually taking a payment is not. Mirrors
- * FrontendVite/src/lib/pos/{sessions,transactions,reports}.api.ts's read-side DTOs.
+ * Was deliberately read-only ("manager visibility") until the mobile checkout feature below --
+ * see Mobile/README.md's "POS Checkout" section for the reasoning that changed (camera-as-scanner,
+ * no cash drawer required) and what's still deliberately excluded (split-tender, discounts,
+ * printed receipts, void/refund, hold/recall). Read-side DTOs below still mirror
+ * FrontendVite/src/lib/pos/{sessions,transactions,reports}.api.ts's own shapes.
  */
 export interface POSSessionSummaryDto {
   id: string;
@@ -124,4 +122,57 @@ export interface PosDashboardDto {
   methods: PaymentMethodCountDto[];
   totalSales: number;
   totalTransactions: number;
+}
+
+// ── Checkout (write side) ────────────────────────────────────────────────────
+
+export interface OpenSessionRequest {
+  registerId: string;
+  openingCash: number;
+}
+
+export interface CloseSessionRequest {
+  closingCash: number;
+  notes?: string | null;
+}
+
+export interface CreateSaleLineItemRequest {
+  productId: string;
+  quantity: number;
+}
+
+export interface CreateSalePaymentRequest {
+  method: string;
+  amount: number;
+}
+
+export interface CreateSaleRequest {
+  sessionId: string;
+  lineItems: CreateSaleLineItemRequest[];
+  payments: CreateSalePaymentRequest[];
+  notes?: string | null;
+}
+
+/** Field names mirror the backend's PaymentMethodConfigDto exactly. `isEnabled`/`sortOrder` drive
+ *  which methods the checkout picker offers and in what order -- tenant-configurable, not
+ *  hardcoded, same as the web checkout's payment grid. */
+export interface PaymentMethodDto {
+  id: string;
+  code: string;
+  label: string;
+  iconKey: string;
+  countries: string;
+  description: string | null;
+  sortOrder: number;
+  isEnabled: boolean;
+  isSystem: boolean;
+}
+
+/** A line actually in the cart -- resolved from a barcode scan via inventoryApi.getProductByBarcode
+ *  (not a POS-side type; kept local to the cart-building screen). */
+export interface CartLine {
+  productId: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
 }

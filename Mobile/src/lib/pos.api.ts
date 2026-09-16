@@ -1,6 +1,10 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type {
   CashMovementDto,
+  CloseSessionRequest,
+  CreateSaleRequest,
+  OpenSessionRequest,
+  PaymentMethodDto,
   POSSessionDto,
   POSSessionSummaryDto,
   POSTransactionDto,
@@ -11,14 +15,20 @@ import type {
 
 const SESSIONS_BASE = "/api/sessions";
 const TRANSACTIONS_BASE = "/api/transactions";
+const PAYMENT_METHODS_BASE = "/api/payment-methods";
 
-/** Read/visibility keys only -- `pos.transactions.void/refund/discount` and
- *  `pos.sessions.create/approve` (open/close/suspend a till) are deliberately not used anywhere
- *  on mobile, same reasoning CLAUDE.md's Module 49 used to exclude those from the AI assistant:
- *  they move cash in a physical drawer against an open shift and belong at the terminal. */
+/** Read/visibility keys. `pos.transactions.void/refund/discount` (still deliberately excluded --
+ *  same reasoning CLAUDE.md's Module 49 used for the AI assistant) and the two *_CREATE keys below
+ *  are the full set mobile now uses; see Mobile/README.md's "POS Checkout" section. */
 export const POS_SESSIONS_VIEW = "pos.sessions.view";
 export const POS_TRANSACTIONS_VIEW = "pos.transactions.view";
 export const POS_REPORTS_VIEW = "pos.reports.view";
+/** Open/close a shift. Gates the "Open/Close Shift" screens only -- the backend endpoints
+ *  currently enforce `[Authorize]` alone (confirmed by reading SessionsController directly), but
+ *  mobile still gates its own UI on the intended permission key, same as every other module here. */
+export const POS_SESSIONS_CREATE = "pos.sessions.create";
+/** Record a sale. Same enforcement caveat as above -- gates the "New Sale" entry point. */
+export const POS_TRANSACTIONS_CREATE = "pos.transactions.create";
 
 function buildTransactionsQuery(p: TransactionsPageParams): string {
   const qs = new URLSearchParams();
@@ -61,4 +71,14 @@ export const posApi = {
     const utcOffsetMinutes = -now.getTimezoneOffset();
     return apiClient.get(`${TRANSACTIONS_BASE}/dashboard?date=${date}&utcOffsetMinutes=${utcOffsetMinutes}`);
   },
+
+  // ── Checkout ─────────────────────────────────────────────────────────────
+  openSession: (payload: OpenSessionRequest): Promise<POSSessionDto> => apiClient.post(`${SESSIONS_BASE}/open`, payload),
+
+  closeSession: (sessionId: string, payload: CloseSessionRequest): Promise<POSSessionDto> =>
+    apiClient.post(`${SESSIONS_BASE}/${sessionId}/close`, payload),
+
+  createSale: (payload: CreateSaleRequest): Promise<POSTransactionDto> => apiClient.post(`${TRANSACTIONS_BASE}/sale`, payload),
+
+  getPaymentMethods: (): Promise<PaymentMethodDto[]> => apiClient.get(PAYMENT_METHODS_BASE),
 };

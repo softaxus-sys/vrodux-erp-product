@@ -375,11 +375,21 @@ full section/item document editor:
   the public share-link management, invoice linking.
 
 **Purchase (vendors + purchase orders)** — same pre-CQRS tech debt as Sales orders on the backend
-(CLAUDE.md Module 5p), read-only from the client's perspective either way:
+(CLAUDE.md Module 5p):
 - Vendors: search, detail with call/email quick actions, rating, payment terms, order count.
-- Purchase orders: status filter chips, detail with line items/totals, "Send to Vendor" on a draft.
-- Gated on `purchase.vendors.view` / `purchase.orders.view`. **Explicitly out of scope**: Receive
-  (GRN) and Return — both need a multi-line wizard on web; creating a vendor or a PO.
+  Read-only.
+- Purchase orders: status filter chips, detail with line items/totals, "Send to Vendor" on a
+  draft, **Receive** on a sent/partial order.
+- Receive Order (GRN): the same camera-as-scanner idea as POS checkout, applied to receiving a
+  delivery — scan each item as it's unpacked (via `inventoryApi.getProductByBarcode`, the same
+  cross-schema lookup Inventory's own scanner uses) to bump its received quantity against this
+  order's line items, adjust by hand for anything unscannable, then `POST /api/purchase/grn` —
+  same endpoint and field names as web's `create-grn-form.tsx`, including that simplification's own
+  "received so far" starting at 0 per line rather than summing prior GRNs for this PO.
+- Gated on `purchase.vendors.view` / `purchase.orders.view` (read-side) — Receive itself follows
+  whatever edit/create gate already shows the "Send to Vendor" action alongside it, no separate key.
+  **Explicitly out of scope**: Return (needs its own multi-line wizard, same shape as GRN but for
+  the opposite direction); creating a vendor or a PO from scratch.
 
 **Finance (invoices + expenses)**:
 - Invoices: status filter chips, detail with line items/totals, Send (draft) / Mark Paid
@@ -479,33 +489,54 @@ strip in the header:
   issue inline input the web board has at the bottom of each column, CSV/PDF export from the
   Issues list.
 
-**POS — deliberately scoped as "manager visibility," not a checkout terminal.** Every other
+**POS — "manager visibility" plus a camera-as-scanner checkout, not a full terminal.** Every other
 module in this app is a mobile-appropriate *subset* of its web equivalent; POS on web is a full
-point-of-sale terminal (cash drawer, receipt printer, barcode scanner, live checkout), and there
-is no sensible mobile subset of *that* — a phone isn't a cash drawer. Before building anything,
-checked how this codebase already answers the analogous question: CLAUDE.md's Module 49 (AI
-Assistant) explicitly excludes POS sale/void/refund/session-open/close from the assistant's
-toolset with the reasoning **"those move cash in a physical drawer against an open shift and
-belong at the terminal."** That reasoning applies identically here, so mobile POS is built as the
-thing a phone is actually good for: checking status on the go.
+point-of-sale terminal (cash drawer, receipt printer, dedicated barcode scanner, live checkout).
+This was originally built read-only for exactly that reason — a phone isn't a cash drawer, and
+CLAUDE.md's Module 49 (AI Assistant) excludes POS sale/void/refund/session-open/close from the
+assistant's toolset with the reasoning "those move cash in a physical drawer against an open
+shift and belong at the terminal." That reasoning still holds for **void/refund/discount** and any
+flow needing a real till float, which is why those stay out. It does *not* hold for a tenant with
+no physical drawer at all — a phone's own camera is a perfectly real barcode scanner for that
+business — so a scoped checkout was added on top of the original read-only screens rather than
+replacing them.
 - Home screen: today's dashboard (total sales, transaction count, payment-method mix — `GET
   /transactions/dashboard`, which is itself terminal-timezone-aware: it sends the device's own
   local date + UTC offset, mirroring the web client's exact calculation, so "today" means the
   viewer's own day rather than UTC's) + a live list of every currently-open shift (`GET
-  /sessions/active`, auto-refreshed every 60s) → shift detail (opening/expected/closing cash,
-  variance, cash pay-in/pay-out movements, that shift's transactions).
+  /sessions/active`, auto-refreshed every 60s) → shift detail. An **Open Shift** card (gated on
+  `pos.sessions.create`) starts a new register.
+- Open Shift: register id (defaulted per-user so two staff opening from their own phones don't
+  collide on the backend's one-open-session-per-register rule) + starting cash, defaulted to 0 —
+  fully backend-supported (`OpenSessionCommandValidator` only requires `>= 0`) for the no-drawer
+  case, not a workaround.
+- Shift detail: opening/expected/closing cash, variance, cash pay-in/pay-out movements, that
+  shift's transactions, plus (while the shift is open, gated on `pos.transactions.create` /
+  `pos.sessions.create` respectively) **New Sale** and **Close Shift** buttons.
+- New Sale: live camera barcode scan (`LiveBarcodeScanner`, shared with Purchase's Receive Order
+  below) resolves each scan via the same cross-schema product lookup Inventory's own scanner uses,
+  builds a cart (scan again to bump quantity, or adjust/remove from a review screen), then a single
+  payment method (tenant-configured list from `GET /payment-methods`, sorted/filtered the same way
+  the web checkout's payment grid is) and `POST /transactions/sale`. Ends on a receipt summary with
+  a native Share sheet. Single payment method per sale, no discounts, no held sales — see below.
+- Close Shift: counted cash (defaulted to 0, same no-drawer reasoning as Open Shift) + optional
+  notes → `POST /sessions/{id}/close`; the expected/closing/variance summary shown afterward comes
+  straight back from that response, never recomputed client-side, so it can't disagree with what
+  the shift detail screen shows for the same session on the next visit.
 - All transactions: paginated, searchable, filterable by type (Sale/Refund/Void) → transaction
-  detail (line items, totals, payments, change given).
-- Gated on any of `pos.sessions.view` / `pos.transactions.view` / `pos.reports.view` — confirmed
-  these are genuinely separate from the void/refund/session-management keys
-  (`pos.transactions.void/refund/discount`, `pos.sessions.create/approve`), so "read-only manager
-  visibility" is an access-control boundary the backend already draws, not one invented for mobile.
-- **Deliberately not built, on purpose, not just "not yet"**: any checkout flow (cart, barcode
-  scan, take payment), opening/closing/suspending a shift, voiding or refunding a transaction,
-  cash pay-in/pay-out entry, receipt printing. All of these need real hardware (scanner, printer,
-  cash drawer trigger) a phone doesn't have anyway, on top of the "shouldn't happen off the
-  terminal" reasoning above. POS Customers (a distinct resource from CRM customers — loyalty
-  points, wallet balance, house-account credit) is a plausible small follow-up flagged, not built.
+  detail (line items, totals, payments, change given). Still read-only.
+- Gated on any of `pos.sessions.view` / `pos.transactions.view` / `pos.reports.view` for the
+  read-only surfaces; `pos.sessions.create` / `pos.transactions.create` additionally gate Open
+  Shift / Close Shift / New Sale specifically — confirmed these are genuinely separate permission
+  keys from `pos.transactions.void/refund/discount` and `pos.sessions.approve`, so a tenant can
+  grant "can open a shift and sell" without also granting void/refund/discount.
+- **Deliberately still not built, on purpose, not just "not yet"**: split-tender / multiple
+  payment methods per sale, line discounts, held/recalled sales, printed receipts (Share sheet
+  instead), voiding or refunding a transaction, cash pay-in/pay-out entry mid-shift. All of these
+  either need real hardware this phone-as-terminal flow doesn't try to replace, or are the
+  "shouldn't happen off a supervised terminal" cases Module 49's reasoning above still applies to.
+  POS Customers (a distinct resource from CRM customers — loyalty points, wallet balance,
+  house-account credit) is a plausible small follow-up flagged, not built.
 
 **Restaurant POS — "front-of-house + kitchen coordination," not an order-taking terminal.** Same
 scoping question as retail POS above, applied to a genuinely bigger backend surface: the web app's
@@ -987,8 +1018,10 @@ every module already here does.
 expenses/accounts/banking/budgets/journals/tax/recurring invoices — General Ledger + Financial
 Statements deliberately deferred, see the complexity note above), Project Management (Kanban —
 project/issue/label create, delete, and epic linking deliberately deferred, see above), POS
-(retail shift status + transaction visibility, and Restaurant tables/orders/kitchen/reservations/
-waitlist — both deliberately not a checkout/order-taking terminal, see above for each), Visa
+(retail shift status + transaction visibility, plus open-shift/camera-scan checkout/close-shift —
+split-tender, discounts, void/refund and printed receipts deliberately deferred, see above — and
+Restaurant tables/orders/kitchen/reservations/waitlist, deliberately still not an order-taking
+terminal, see above), Visa
 Services (case management — status transitions/document checklist/renewals, case and visa-type
 *creation* deliberately deferred, see above), Real Estate (properties/units/tenants/contracts/
 brokers browsing + rent collection — all *creation* forms and the CRM-linked sales pipeline
