@@ -13,7 +13,7 @@ internal sealed class GetPropertiesSummaryHandler(RealEstateDbContext db)
     public async Task<Result<PropertiesSummaryDto>> Handle(GetPropertiesSummaryQuery query, CancellationToken ct)
     {
         var all = await db.Properties.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.TotalUnits, x.OccupiedUnits, x.MarketValue, x.PropertyType })
+            .Select(x => new { x.Status, x.TotalUnits, x.OccupiedUnits, x.MarketValue, x.PropertyType, x.ListOnWebsite })
             .ToListAsync(ct);
 
         var totalUnits = all.Sum(x => x.TotalUnits);
@@ -27,6 +27,7 @@ internal sealed class GetPropertiesSummaryHandler(RealEstateDbContext db)
             totalUnits,
             occupiedUnits,
             totalUnits > 0 ? Math.Round((double)occupiedUnits / totalUnits * 100, 1) : 0,
-            all.Sum(x => x.MarketValue)));
+            all.Sum(x => x.MarketValue),
+            all.Count(x => x.ListOnWebsite)));
     }
 }

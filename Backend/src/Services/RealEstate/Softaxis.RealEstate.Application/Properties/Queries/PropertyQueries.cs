@@ -16,3 +16,13 @@ public sealed record GetPropertiesQuery(
 public sealed record GetPropertyByIdQuery(Guid Id) : IQuery<PropertyDto>;
 
 public sealed record GetPropertiesSummaryQuery : IQuery<PropertiesSummaryDto>;
+
+/// <summary>
+/// Fetches one image's raw bytes for the serving endpoint.
+///
+/// Scoped by property id as well as image id so a guessed image id cannot be pulled through an
+/// unrelated property — the tenant filter already bounds it, but the pairing makes the intent
+/// explicit and the query cheap to index.
+/// </summary>
+public sealed record GetPropertyImageQuery(Guid PropertyId, Guid ImageId)
+    : IQuery<PropertyImageFileDto>;

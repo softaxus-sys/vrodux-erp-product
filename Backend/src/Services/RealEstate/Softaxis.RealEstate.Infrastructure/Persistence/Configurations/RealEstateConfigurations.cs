@@ -7,6 +7,7 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Configurations;
 public sealed class RealEstateConfigurations :
     IEntityTypeConfiguration<Property>,
     IEntityTypeConfiguration<PropertyUnit>,
+    IEntityTypeConfiguration<PropertyImage>,
     IEntityTypeConfiguration<Tenant>,
     IEntityTypeConfiguration<LeaseContract>,
     IEntityTypeConfiguration<Broker>
@@ -27,6 +28,21 @@ public sealed class RealEstateConfigurations :
         b.Property(x => x.Developer).HasMaxLength(200);
         b.Property(x => x.Description).HasMaxLength(1000);
         b.HasMany(x => x.Units).WithOne().HasForeignKey(u => u.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        b.HasMany(x => x.Images).WithOne().HasForeignKey(i => i.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        b.HasQueryFilter(x => !x.IsDeleted);
+    }
+
+    public void Configure(EntityTypeBuilder<PropertyImage> b)
+    {
+        b.ToTable("PropertyImages");
+        b.HasKey(x => x.Id);
+        // varbinary(max): a photograph has no sensible length cap, and the API enforces the real
+        // limit on the way in rather than letting the column truncate silently.
+        b.Property(x => x.Data).IsRequired();
+        b.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
+        b.Property(x => x.FileName).HasMaxLength(255);
+        b.Property(x => x.Caption).HasMaxLength(500);
+        b.HasIndex(x => x.PropertyId);
         b.HasQueryFilter(x => !x.IsDeleted);
     }
 

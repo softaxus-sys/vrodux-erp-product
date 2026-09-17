@@ -18,6 +18,7 @@ internal sealed class GetPropertyByIdHandler(RealEstateDbContext db)
         if (p is null)
             return Result.Failure<PropertyDto>(Error.NotFoundById("Property", query.Id));
 
-        return Result.Success(PropertyMappings.ToDto(p));
+        var images = await PropertyMappings.LoadImagesAsync(db, [p.Id], ct);
+        return Result.Success(PropertyMappings.ToDto(p, images.GetValueOrDefault(p.Id, [])));
     }
 }

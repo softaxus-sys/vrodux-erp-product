@@ -13,6 +13,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
+    public DbSet<PropertyImage> PropertyImages => Set<PropertyImage>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<LeaseContract> LeaseContracts => Set<LeaseContract>();
     public DbSet<Broker> Brokers => Set<Broker>();
