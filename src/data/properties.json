@@ -3,10 +3,20 @@
     "slug": "marsa-quay-residence-1204",
     "reference": "LP-1204",
     "purpose": "buy",
+    "category": "residential",
     "type": "apartment",
-    "title": { "en": "Corner three-bedroom with open marina views", "ar": "شقة زاوية بثلاث غرف وإطلالة مفتوحة على المارينا" },
-    "community": { "en": "Dubai Marina", "ar": "دبي مارينا" },
-    "emirate": { "en": "Dubai", "ar": "دبي" },
+    "title": {
+      "en": "Corner three-bedroom with open marina views",
+      "ar": "شقة زاوية بثلاث غرف وإطلالة مفتوحة على المارينا"
+    },
+    "community": {
+      "en": "Dubai Marina",
+      "ar": "دبي مارينا"
+    },
+    "emirate": {
+      "en": "Dubai",
+      "ar": "دبي"
+    },
     "description": {
       "en": "A corner unit on a high floor, with the living space turned toward the water rather than the tower opposite. The layout keeps the bedrooms on their own wing, which is unusual at this size. Vacant on transfer.",
       "ar": "وحدة زاوية في طابق مرتفع، مساحة المعيشة فيها موجّهة نحو الماء لا نحو البرج المقابل. يفصل التصميم غرف النوم في جناح مستقل، وهو أمر غير معتاد في هذه المساحة. خالية عند نقل الملكية."
@@ -17,21 +27,46 @@
     "areaSqft": 2180,
     "furnishing": "unfurnished",
     "features": {
-      "en": ["Corner unit, dual aspect", "Full marina view", "Two parking bays", "Chiller free", "Vacant on transfer"],
-      "ar": ["وحدة زاوية بواجهتين", "إطلالة كاملة على المارينا", "موقفا سيارات", "تبريد مجاني", "خالية عند نقل الملكية"]
+      "en": [
+        "Corner unit, dual aspect",
+        "Full marina view",
+        "Two parking bays",
+        "Chiller free",
+        "Vacant on transfer"
+      ],
+      "ar": [
+        "وحدة زاوية بواجهتين",
+        "إطلالة كاملة على المارينا",
+        "موقفا سيارات",
+        "تبريد مجاني",
+        "خالية عند نقل الملكية"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.0805, "lng": 55.1403 },
+    "coordinates": {
+      "lat": 25.0805,
+      "lng": 55.1403
+    },
     "featured": true
   },
   {
     "slug": "sidra-gardens-villa-44",
     "reference": "LP-2288",
     "purpose": "buy",
+    "category": "residential",
     "type": "villa",
-    "title": { "en": "Extended five-bedroom backing onto the park", "ar": "فيلا خمس غرف موسّعة تطل على الحديقة" },
-    "community": { "en": "Dubai Hills Estate", "ar": "دبي هيلز إستيت" },
-    "emirate": { "en": "Dubai", "ar": "دبي" },
+    "title": {
+      "en": "Extended five-bedroom backing onto the park",
+      "ar": "فيلا خمس غرف موسّعة تطل على الحديقة"
+    },
+    "community": {
+      "en": "Dubai Hills Estate",
+      "ar": "دبي هيلز إستيت"
+    },
+    "emirate": {
+      "en": "Dubai",
+      "ar": "دبي"
+    },
     "description": {
       "en": "One of the few plots on this street with nothing built behind it. The previous owner extended the ground floor into a family room and added a covered terrace, both with approvals on file. Mature landscaping, pool already installed.",
       "ar": "من القطع القليلة في هذا الشارع التي لا يوجد خلفها أي بناء. وسّع المالك السابق الطابق الأرضي إلى غرفة عائلية وأضاف تراساً مظللاً، وكلاهما موثّق بالموافقات اللازمة. تنسيق حدائق ناضج ومسبح قائم."
@@ -42,21 +77,46 @@
     "areaSqft": 6420,
     "furnishing": "unfurnished",
     "features": {
-      "en": ["Backs onto park, no rear neighbour", "Approved ground-floor extension", "Private pool", "Driver and maid rooms", "Walk to the school gate"],
-      "ar": ["تطل على الحديقة بلا جيران خلفيين", "توسعة معتمدة في الطابق الأرضي", "مسبح خاص", "غرفتا سائق وخادمة", "على مسافة مشي من بوابة المدرسة"]
+      "en": [
+        "Backs onto park, no rear neighbour",
+        "Approved ground-floor extension",
+        "Private pool",
+        "Driver and maid rooms",
+        "Walk to the school gate"
+      ],
+      "ar": [
+        "تطل على الحديقة بلا جيران خلفيين",
+        "توسعة معتمدة في الطابق الأرضي",
+        "مسبح خاص",
+        "غرفتا سائق وخادمة",
+        "على مسافة مشي من بوابة المدرسة"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.1108, "lng": 55.2461 },
+    "coordinates": {
+      "lat": 25.1108,
+      "lng": 55.2461
+    },
     "featured": true
   },
   {
     "slug": "saadiyat-lagoon-townhouse-12",
     "reference": "LP-3071",
     "purpose": "buy",
+    "category": "residential",
     "type": "townhouse",
-    "title": { "en": "Four-bedroom townhouse a short walk from the beach", "ar": "تاون هاوس بأربع غرف على مسافة قصيرة من الشاطئ" },
-    "community": { "en": "Saadiyat Island", "ar": "جزيرة السعديات" },
-    "emirate": { "en": "Abu Dhabi", "ar": "أبوظبي" },
+    "title": {
+      "en": "Four-bedroom townhouse a short walk from the beach",
+      "ar": "تاون هاوس بأربع غرف على مسافة قصيرة من الشاطئ"
+    },
+    "community": {
+      "en": "Saadiyat Island",
+      "ar": "جزيرة السعديات"
+    },
+    "emirate": {
+      "en": "Abu Dhabi",
+      "ar": "أبوظبي"
+    },
     "description": {
       "en": "End unit, so the garden wraps around two sides instead of one. Handed over in 2023 and lightly used since — the kitchen has never been cooked in properly. Beach access is through the community gate, not a public car park.",
       "ar": "وحدة طرفية، لذا تلتف الحديقة حول جانبين بدل جانب واحد. سُلّمت عام 2023 واستُخدمت قليلاً منذ ذلك الحين. الوصول إلى الشاطئ عبر بوابة المجتمع لا عبر موقف عام."
@@ -67,21 +127,44 @@
     "areaSqft": 3640,
     "furnishing": "semi_furnished",
     "features": {
-      "en": ["End unit, wraparound garden", "Beach access via community gate", "Handed over 2023", "Two covered parking bays"],
-      "ar": ["وحدة طرفية بحديقة محيطة", "وصول إلى الشاطئ عبر بوابة المجتمع", "سُلّمت عام 2023", "موقفان مظللان"]
+      "en": [
+        "End unit, wraparound garden",
+        "Beach access via community gate",
+        "Handed over 2023",
+        "Two covered parking bays"
+      ],
+      "ar": [
+        "وحدة طرفية بحديقة محيطة",
+        "وصول إلى الشاطئ عبر بوابة المجتمع",
+        "سُلّمت عام 2023",
+        "موقفان مظللان"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 24.5391, "lng": 54.4419 },
+    "coordinates": {
+      "lat": 24.5391,
+      "lng": 54.4419
+    },
     "featured": true
   },
   {
     "slug": "central-park-penthouse-ph2",
     "reference": "LP-1890",
     "purpose": "buy",
+    "category": "residential",
     "type": "penthouse",
-    "title": { "en": "Full-floor penthouse with private lift access", "ar": "بنتهاوس بطابق كامل ومصعد خاص" },
-    "community": { "en": "Downtown Dubai", "ar": "وسط مدينة دبي" },
-    "emirate": { "en": "Dubai", "ar": "دبي" },
+    "title": {
+      "en": "Full-floor penthouse with private lift access",
+      "ar": "بنتهاوس بطابق كامل ومصعد خاص"
+    },
+    "community": {
+      "en": "Downtown Dubai",
+      "ar": "وسط مدينة دبي"
+    },
+    "emirate": {
+      "en": "Dubai",
+      "ar": "دبي"
+    },
     "description": {
       "en": "The whole floor, reached by a lift that opens into the apartment rather than a shared corridor. Ceilings run to 3.6 metres and the terrace is deep enough to plant on. Sold with the current fit-out, which was completed last year.",
       "ar": "الطابق بأكمله، يُوصل إليه بمصعد يفتح داخل الشقة لا على ممر مشترك. يبلغ ارتفاع الأسقف 3.6 أمتار، والتراس عميق بما يكفي للزراعة. تُباع بالتجهيزات الحالية التي أُنجزت العام الماضي."
@@ -92,21 +175,46 @@
     "areaSqft": 8900,
     "furnishing": "furnished",
     "features": {
-      "en": ["Full floor, private lift lobby", "3.6m ceilings", "Wraparound terrace", "Sold with current fit-out", "Four parking bays"],
-      "ar": ["طابق كامل بردهة مصعد خاصة", "أسقف بارتفاع 3.6 متر", "تراس محيط", "تُباع بالتجهيزات الحالية", "أربعة مواقف"]
+      "en": [
+        "Full floor, private lift lobby",
+        "3.6m ceilings",
+        "Wraparound terrace",
+        "Sold with current fit-out",
+        "Four parking bays"
+      ],
+      "ar": [
+        "طابق كامل بردهة مصعد خاصة",
+        "أسقف بارتفاع 3.6 متر",
+        "تراس محيط",
+        "تُباع بالتجهيزات الحالية",
+        "أربعة مواقف"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.1972, "lng": 55.2744 },
+    "coordinates": {
+      "lat": 25.1972,
+      "lng": 55.2744
+    },
     "featured": true
   },
   {
     "slug": "the-quays-apartment-808",
     "reference": "LP-4410",
     "purpose": "rent",
+    "category": "residential",
     "type": "apartment",
-    "title": { "en": "Furnished two-bedroom, available immediately", "ar": "شقة غرفتين مفروشة، متاحة فوراً" },
-    "community": { "en": "Business Bay", "ar": "الخليج التجاري" },
-    "emirate": { "en": "Dubai", "ar": "دبي" },
+    "title": {
+      "en": "Furnished two-bedroom, available immediately",
+      "ar": "شقة غرفتين مفروشة، متاحة فوراً"
+    },
+    "community": {
+      "en": "Business Bay",
+      "ar": "الخليج التجاري"
+    },
+    "emirate": {
+      "en": "Dubai",
+      "ar": "دبي"
+    },
     "description": {
       "en": "Furnished to a standard you could actually live with rather than a landlord package. Canal side of the building, so the balcony is quiet in the evening. Landlord will consider two cheques for the right tenant.",
       "ar": "مفروشة بمستوى يمكنك العيش به فعلاً، لا بأثاث تأجيري نمطي. تقع على جهة القناة، ما يجعل الشرفة هادئة مساءً. المالك مستعد للنظر في دفعتين للمستأجر المناسب."
@@ -117,21 +225,46 @@
     "areaSqft": 1340,
     "furnishing": "furnished",
     "features": {
-      "en": ["Canal side", "Fully furnished", "Two cheques considered", "Available immediately", "One parking bay"],
-      "ar": ["على جهة القناة", "مفروشة بالكامل", "إمكانية الدفع على دفعتين", "متاحة فوراً", "موقف سيارة واحد"]
+      "en": [
+        "Canal side",
+        "Fully furnished",
+        "Two cheques considered",
+        "Available immediately",
+        "One parking bay"
+      ],
+      "ar": [
+        "على جهة القناة",
+        "مفروشة بالكامل",
+        "إمكانية الدفع على دفعتين",
+        "متاحة فوراً",
+        "موقف سيارة واحد"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.1857, "lng": 55.2769 },
+    "coordinates": {
+      "lat": 25.1857,
+      "lng": 55.2769
+    },
     "featured": false
   },
   {
     "slug": "mina-heights-studio-505",
     "reference": "LP-4712",
     "purpose": "rent",
+    "category": "residential",
     "type": "apartment",
-    "title": { "en": "Studio with a separate kitchen, not a kitchenette", "ar": "استوديو بمطبخ منفصل لا ركن طبخ" },
-    "community": { "en": "Al Reem Island", "ar": "جزيرة الريم" },
-    "emirate": { "en": "Abu Dhabi", "ar": "أبوظبي" },
+    "title": {
+      "en": "Studio with a separate kitchen, not a kitchenette",
+      "ar": "استوديو بمطبخ منفصل لا ركن طبخ"
+    },
+    "community": {
+      "en": "Al Reem Island",
+      "ar": "جزيرة الريم"
+    },
+    "emirate": {
+      "en": "Abu Dhabi",
+      "ar": "أبوظبي"
+    },
     "description": {
       "en": "Larger than most studios in the building because the kitchen is walled off, which leaves the living area genuinely usable. Building has a proper gym rather than three machines in a corridor.",
       "ar": "أوسع من معظم استوديوهات المبنى لأن المطبخ مفصول بجدار، ما يترك مساحة المعيشة قابلة للاستخدام فعلاً. يضم المبنى صالة رياضية حقيقية لا ثلاثة أجهزة في ممر."
@@ -142,21 +275,44 @@
     "areaSqft": 610,
     "furnishing": "unfurnished",
     "features": {
-      "en": ["Separate walled kitchen", "Full building gym and pool", "One parking bay", "Chiller included"],
-      "ar": ["مطبخ منفصل بجدار", "صالة رياضية ومسبح في المبنى", "موقف سيارة واحد", "التبريد مشمول"]
+      "en": [
+        "Separate walled kitchen",
+        "Full building gym and pool",
+        "One parking bay",
+        "Chiller included"
+      ],
+      "ar": [
+        "مطبخ منفصل بجدار",
+        "صالة رياضية ومسبح في المبنى",
+        "موقف سيارة واحد",
+        "التبريد مشمول"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 24.4939, "lng": 54.4053 },
+    "coordinates": {
+      "lat": 24.4939,
+      "lng": 54.4053
+    },
     "featured": false
   },
   {
     "slug": "hillside-plot-g17",
     "reference": "LP-5003",
     "purpose": "buy",
+    "category": "residential",
     "type": "plot",
-    "title": { "en": "Residential plot with approved G+1 massing", "ar": "أرض سكنية بمخطط كتلي معتمد أرضي + طابق" },
-    "community": { "en": "Al Barari", "ar": "البراري" },
-    "emirate": { "en": "Dubai", "ar": "دبي" },
+    "title": {
+      "en": "Residential plot with approved G+1 massing",
+      "ar": "أرض سكنية بمخطط كتلي معتمد أرضي + طابق"
+    },
+    "community": {
+      "en": "Al Barari",
+      "ar": "البراري"
+    },
+    "emirate": {
+      "en": "Dubai",
+      "ar": "دبي"
+    },
     "description": {
       "en": "Cleared, serviced and with the massing study already approved, which removes roughly four months from a build programme. Corner position with two street frontages. Drawings transfer with the plot.",
       "ar": "أرض مهيأة ومخدّمة بمرافق، ودراسة الكتلة البنائية معتمدة مسبقاً، ما يختصر نحو أربعة أشهر من برنامج البناء. موقع زاوية بواجهتين على شارعين. تُنقل المخططات مع الأرض."
@@ -167,21 +323,44 @@
     "areaSqft": 14200,
     "furnishing": "unfurnished",
     "features": {
-      "en": ["Approved G+1 massing", "Corner plot, two frontages", "Fully serviced", "Drawings included"],
-      "ar": ["مخطط كتلي معتمد أرضي + طابق", "أرض زاوية بواجهتين", "مخدّمة بالكامل بالمرافق", "المخططات مشمولة"]
+      "en": [
+        "Approved G+1 massing",
+        "Corner plot, two frontages",
+        "Fully serviced",
+        "Drawings included"
+      ],
+      "ar": [
+        "مخطط كتلي معتمد أرضي + طابق",
+        "أرض زاوية بواجهتين",
+        "مخدّمة بالكامل بالمرافق",
+        "المخططات مشمولة"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.1289, "lng": 55.3169 },
+    "coordinates": {
+      "lat": 25.1289,
+      "lng": 55.3169
+    },
     "featured": false
   },
   {
     "slug": "marjan-shoreline-apartment-1102",
     "reference": "LP-6120",
     "purpose": "buy",
+    "category": "new_project",
     "type": "apartment",
-    "title": { "en": "Two-bedroom on the shoreline, handover 2027", "ar": "شقة غرفتين على الواجهة البحرية، التسليم 2027" },
-    "community": { "en": "Al Marjan Island", "ar": "جزيرة المرجان" },
-    "emirate": { "en": "Ras Al Khaimah", "ar": "رأس الخيمة" },
+    "title": {
+      "en": "Two-bedroom on the shoreline, handover 2027",
+      "ar": "شقة غرفتين على الواجهة البحرية، التسليم 2027"
+    },
+    "community": {
+      "en": "Al Marjan Island",
+      "ar": "جزيرة المرجان"
+    },
+    "emirate": {
+      "en": "Ras Al Khaimah",
+      "ar": "رأس الخيمة"
+    },
     "description": {
       "en": "Bought off-plan at launch pricing and being resold at original cost plus paid instalments. Front line to the water with nothing permitted to be built between the building and the beach.",
       "ar": "اشتُريت على المخطط بسعر الإطلاق ويعاد بيعها بالتكلفة الأصلية مضافاً إليها الأقساط المدفوعة. في الصف الأول المطل على الماء، ولا يُسمح بأي بناء بين المبنى والشاطئ."
@@ -193,21 +372,44 @@
     "furnishing": "unfurnished",
     "handover": "Q3 2027",
     "features": {
-      "en": ["Front line to the beach", "Resale at original launch price", "Payment plan transfers", "Handover Q3 2027"],
-      "ar": ["الصف الأول المطل على الشاطئ", "إعادة بيع بسعر الإطلاق الأصلي", "خطة السداد قابلة للنقل", "التسليم الربع الثالث 2027"]
+      "en": [
+        "Front line to the beach",
+        "Resale at original launch price",
+        "Payment plan transfers",
+        "Handover Q3 2027"
+      ],
+      "ar": [
+        "الصف الأول المطل على الشاطئ",
+        "إعادة بيع بسعر الإطلاق الأصلي",
+        "خطة السداد قابلة للنقل",
+        "التسليم الربع الثالث 2027"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.6872, "lng": 55.7231 },
+    "coordinates": {
+      "lat": 25.6872,
+      "lng": 55.7231
+    },
     "featured": false
   },
   {
     "slug": "dic-office-floor-9",
     "reference": "LP-7204",
     "purpose": "rent",
+    "category": "commercial",
     "type": "office",
-    "title": { "en": "Fitted office floor, ready to occupy", "ar": "طابق مكتبي مجهّز وجاهز للإشغال" },
-    "community": { "en": "Dubai Internet City", "ar": "مدينة دبي للإنترنت" },
-    "emirate": { "en": "Dubai", "ar": "دبي" },
+    "title": {
+      "en": "Fitted office floor, ready to occupy",
+      "ar": "طابق مكتبي مجهّز وجاهز للإشغال"
+    },
+    "community": {
+      "en": "Dubai Internet City",
+      "ar": "مدينة دبي للإنترنت"
+    },
+    "emirate": {
+      "en": "Dubai",
+      "ar": "دبي"
+    },
     "description": {
       "en": "Handed back fitted by the outgoing tenant — meeting rooms, server room and a kitchen are all in place, so the fit-out cost and the three months it usually takes both disappear. Free zone licence holders only.",
       "ar": "أُعيد الطابق مجهّزاً من المستأجر السابق، بغرف اجتماعات وغرفة خوادم ومطبخ جاهزة، ما يلغي كلفة التجهيز والأشهر الثلاثة التي يستغرقها عادة. لحاملي رخص المنطقة الحرة فقط."
@@ -218,11 +420,24 @@
     "areaSqft": 4200,
     "furnishing": "furnished",
     "features": {
-      "en": ["Handed back fitted", "Meeting rooms and server room in place", "Free zone licence required", "Six parking bays"],
-      "ar": ["مُعاد تسليمه مجهزاً", "غرف اجتماعات وغرفة خوادم جاهزة", "يتطلب رخصة منطقة حرة", "ستة مواقف"]
+      "en": [
+        "Handed back fitted",
+        "Meeting rooms and server room in place",
+        "Free zone licence required",
+        "Six parking bays"
+      ],
+      "ar": [
+        "مُعاد تسليمه مجهزاً",
+        "غرف اجتماعات وغرفة خوادم جاهزة",
+        "يتطلب رخصة منطقة حرة",
+        "ستة مواقف"
+      ]
     },
     "images": [],
-    "coordinates": { "lat": 25.0939, "lng": 55.1636 },
+    "coordinates": {
+      "lat": 25.0939,
+      "lng": 55.1636
+    },
     "featured": false
   }
 ]

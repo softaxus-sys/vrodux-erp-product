@@ -1,45 +1,50 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Brand tokens live here, not scattered through components.
- * Swap these three ramps and the whole site re-skins for the client.
+ * Brand tokens live here and in src/lib/brand.ts. The ramps below are the
+ * client's existing palette, carried over so the new site matches their
+ * established identity.
  */
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        ink: {
-          50: "#f6f6f5",
-          100: "#e7e7e4",
-          200: "#cfcfc9",
-          300: "#adaca3",
-          400: "#85837a",
-          500: "#6a6860",
-          600: "#54524c",
-          700: "#44423e",
-          800: "#2b2a27",
-          900: "#1a1918",
-          950: "#0f0e0d",
+        // Brand red.
+        brand: {
+          50: "#FEF2F2",
+          100: "#FEE2E2",
+          200: "#FECACA",
+          300: "#FCA5A5",
+          400: "#F26D70",
+          500: "#E5262B",
+          600: "#C81F24",
+          700: "#A81A1E",
+          800: "#8A1619",
+          900: "#6B1114",
         },
-        sand: {
-          50: "#fbf8f3",
-          100: "#f4ede0",
-          200: "#e7d9bf",
-          300: "#d7bf96",
-          400: "#c5a16c",
-          500: "#b78a4f",
-          600: "#a67343",
-          700: "#8a5a39",
-          800: "#714935",
-          900: "#5d3e2e",
+        // Neutral ramp, matching the client's existing greys.
+        ink: {
+          50: "#F7FAFC",
+          100: "#EDF2F7",
+          200: "#E2E8F0",
+          300: "#CBD5E0",
+          400: "#A0AEC0",
+          500: "#718096",
+          600: "#4A5568",
+          700: "#2D3748",
+          800: "#1A202C",
+          900: "#141922",
+          950: "#0D1017",
         },
       },
       fontFamily: {
-        display: ["var(--font-display)", "Georgia", "serif"],
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        // Cabin for headings and navigation, Poppins for body — the client's
+        // existing typefaces.
+        display: ["var(--font-display)", "Cabin", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "Poppins", "system-ui", "sans-serif"],
       },
-      letterSpacing: { widest: "0.22em" },
+      letterSpacing: { widest: "0.18em" },
       maxWidth: { content: "78rem" },
       keyframes: {
         rise: {

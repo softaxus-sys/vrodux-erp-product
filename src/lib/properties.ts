@@ -1,5 +1,5 @@
 import raw from "@/data/properties.json";
-import type { Property, Purpose, PropertyType } from "@/lib/types";
+import type { Category, Property, Purpose, PropertyType } from "@/lib/types";
 
 const properties = raw as Property[];
 
@@ -27,6 +27,8 @@ export function getRelatedProperties(property: Property, limit = 3): Property[] 
 
 export interface PropertyFilters {
   purpose?: Purpose | "any";
+  category?: Category | "any";
+  developer?: string;
   community?: string;
   type?: PropertyType | "any";
   bedrooms?: number | "any";
@@ -42,6 +44,8 @@ export interface PropertyFilters {
 export function filterProperties(list: Property[], f: PropertyFilters): Property[] {
   return list.filter((p) => {
     if (f.purpose && f.purpose !== "any" && p.purpose !== f.purpose) return false;
+    if (f.category && f.category !== "any" && p.category !== f.category) return false;
+    if (f.developer && f.developer !== "any" && p.developer?.en !== f.developer) return false;
     if (f.community && f.community !== "any" && p.community.en !== f.community) return false;
     if (f.type && f.type !== "any" && p.type !== f.type) return false;
     if (typeof f.bedrooms === "number" && p.bedrooms < f.bedrooms) return false;
@@ -63,4 +67,19 @@ export function getCommunities(): { value: string; label: { en: string; ar: stri
 
 export function getPropertyTypes(): PropertyType[] {
   return [...new Set(properties.map((p) => p.type))];
+}
+
+/** Developers that actually have listings, for the New Projects submenu. */
+export function getDevelopers(): { value: string; label: { en: string; ar: string } }[] {
+  const seen = new Map<string, { en: string; ar: string }>();
+  for (const p of properties) {
+    if (p.category === "new_project" && p.developer && !seen.has(p.developer.en)) {
+      seen.set(p.developer.en, p.developer);
+    }
+  }
+  return [...seen.entries()].map(([value, label]) => ({ value, label }));
+}
+
+export function countByCategory(category: Category): number {
+  return properties.filter((p) => p.category === category).length;
 }
