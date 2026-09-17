@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 font-sans antialiased;
+  }
+
+  /* Arabic sets its own stack: the display serif has no Arabic coverage, so a
+     serif-only rule would silently fall back to a random system font. */
+  html[lang="ar"] body {
+    font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
+  }
+
+  html[lang="ar"] .font-display {
+    font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
+    letter-spacing: 0;
+  }
+
+  ::selection {
+    @apply bg-sand-300 text-ink-950;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-sand-500 ring-offset-2 ring-offset-ink-50;
+  }
+}
+
+@layer components {
+  .container-content {
+    @apply mx-auto w-full max-w-content px-5 sm:px-8 lg:px-12;
+  }
+
+  .eyebrow {
+    @apply text-[0.7rem] font-medium uppercase tracking-widest text-sand-600;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm
+           font-medium transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply btn bg-ink-900 text-ink-50 hover:bg-ink-800;
+  }
+
+  .btn-accent {
+    @apply btn bg-sand-500 text-ink-950 hover:bg-sand-400;
+  }
+
+  .btn-ghost {
+    @apply btn border border-ink-300 text-ink-800 hover:border-ink-900 hover:bg-ink-900 hover:text-ink-50;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink-500;
+  }
+
+  /* bg-white on selects, never bg-transparent: a transparent select renders the
+     OS-native popup, which ignores the site's palette entirely. */
+  .field {
+    @apply w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900
+           placeholder:text-ink-400 focus:border-sand-500 focus:outline-none focus:ring-1 focus:ring-sand-500;
+  }
+
+  .field-error {
+    @apply border-red-400 focus:border-red-500 focus:ring-red-500;
+  }
+}
