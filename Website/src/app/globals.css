@@ -2,9 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Brand tokens. Mirrors src/lib/brand.ts — keep the two in step.
+ * Values carried over from the client's existing site.
+ */
 :root {
-  --font-display: "Cormorant Garamond", Georgia, serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Cabin", system-ui, sans-serif;
+  --font-sans: "Poppins", system-ui, sans-serif;
+
+  --brand-accent: #e5262b;
+  --brand-accent-hover: #c81f24;
+  --brand-primary: #1a202c;
+  --brand-bg: #ffffff;
+  --brand-bg-alt: #edf2f7;
 }
 
 @layer base {
@@ -13,26 +23,23 @@
   }
 
   body {
-    @apply bg-ink-50 text-ink-900 font-sans antialiased;
+    @apply bg-white text-ink-800 font-sans antialiased;
   }
 
-  /* Arabic sets its own stack: the display serif has no Arabic coverage, so a
-     serif-only rule would silently fall back to a random system font. */
-  html[lang="ar"] body {
-    font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
-  }
-
+  /* Cabin and Poppins have no Arabic coverage, so a shared rule would silently
+     fall back to whatever the OS picks. Arabic gets its own face. */
+  html[lang="ar"] body,
   html[lang="ar"] .font-display {
     font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
     letter-spacing: 0;
   }
 
   ::selection {
-    @apply bg-sand-300 text-ink-950;
+    @apply bg-brand-500 text-white;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-sand-500 ring-offset-2 ring-offset-ink-50;
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2;
   }
 }
 
@@ -42,24 +49,25 @@
   }
 
   .eyebrow {
-    @apply text-[0.7rem] font-medium uppercase tracking-widest text-sand-600;
+    @apply text-[0.7rem] font-semibold uppercase tracking-widest text-brand-500;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm
-           font-medium transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-medium
+           transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
+  /* The client's buttons are square-cornered, not pill-shaped. */
   .btn-primary {
-    @apply btn bg-ink-900 text-ink-50 hover:bg-ink-800;
+    @apply btn bg-ink-800 text-white hover:bg-ink-900;
   }
 
   .btn-accent {
-    @apply btn bg-sand-500 text-ink-950 hover:bg-sand-400;
+    @apply btn bg-brand-500 text-white hover:bg-brand-600;
   }
 
   .btn-ghost {
-    @apply btn border border-ink-300 text-ink-800 hover:border-ink-900 hover:bg-ink-900 hover:text-ink-50;
+    @apply btn border-2 border-ink-800 font-semibold text-ink-800 hover:bg-ink-800 hover:text-white;
   }
 
   .field-label {
@@ -69,11 +77,11 @@
   /* bg-white on selects, never bg-transparent: a transparent select renders the
      OS-native popup, which ignores the site's palette entirely. */
   .field {
-    @apply w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm text-ink-900
-           placeholder:text-ink-400 focus:border-sand-500 focus:outline-none focus:ring-1 focus:ring-sand-500;
+    @apply w-full border border-ink-300 bg-white px-3.5 py-2.5 text-sm text-ink-800
+           placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
   }
 
   .field-error {
-    @apply border-red-400 focus:border-red-500 focus:ring-red-500;
+    @apply border-brand-500 focus:border-brand-600 focus:ring-brand-600;
   }
 }

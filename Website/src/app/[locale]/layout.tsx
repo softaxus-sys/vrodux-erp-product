@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
+import { buildNav } from "@/lib/nav";
+import { getDevelopers } from "@/lib/properties";
 import { Footer } from "@/components/Footer";
 import { isLocale, locales, localeMeta, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/lib/dictionary";
@@ -61,11 +63,11 @@ export default async function LocaleLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&family=Noto+Kufi+Arabic:wght@300;400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&family=Noto+Kufi+Arabic:wght@300;400;500;600&display=swap"
         />
       </head>
       <body className="flex min-h-screen flex-col">
-        <Header locale={typed} dict={dict} />
+        <Header locale={typed} dict={dict} items={buildNav(typed, dict, getDevelopers())} />
         <main className="flex-1">{children}</main>
         <Footer locale={typed} dict={dict} />
       </body>

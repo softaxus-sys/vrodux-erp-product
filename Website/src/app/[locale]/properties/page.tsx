@@ -12,7 +12,7 @@ import {
   getCommunities,
   getPropertyTypes,
 } from "@/lib/properties";
-import type { PropertyType, Purpose } from "@/lib/types";
+import type { Category, PropertyType, Purpose } from "@/lib/types";
 
 export async function generateMetadata({
   params,
@@ -53,6 +53,8 @@ export default async function PropertiesPage({
   const bedroomsRaw = one("bedrooms");
   const results = filterProperties(getAllProperties(), {
     purpose: (one("purpose") as Purpose | "any") ?? "any",
+    category: (one("category") as Category | "any") ?? "any",
+    developer: one("developer"),
     community: one("community"),
     type: (one("type") as PropertyType | "any") ?? "any",
     bedrooms: bedroomsRaw === undefined || bedroomsRaw === "any" ? "any" : Number(bedroomsRaw),
@@ -60,11 +62,23 @@ export default async function PropertiesPage({
     priceMax: toNumber(one("priceMax")),
   });
 
+  const category = one("category");
+  const developer = one("developer");
+  const heading =
+    developer ??
+    (category === "commercial"
+      ? dict.nav.commercial
+      : category === "residential"
+        ? dict.nav.residentials
+        : category === "new_project"
+          ? dict.nav.newProjects
+          : dict.nav.properties);
+
   return (
     <section className="container-content py-14 sm:py-20">
       <p className="eyebrow">{dict.brand.tagline}</p>
-      <h1 className="mt-3 font-display text-4xl text-ink-900 sm:text-5xl">
-        {dict.nav.properties}
+      <h1 className="mt-3 font-display text-4xl font-semibold text-ink-800 sm:text-5xl">
+        {heading}
       </h1>
 
       <div className="mt-8">

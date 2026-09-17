@@ -1,11 +1,20 @@
 {
-  "brand": { "name": "Leading Properties", "tagline": "Private Client Real Estate, UAE" },
+  "brand": {
+    "name": "Leading Properties",
+    "tagline": "Private Client Real Estate, UAE"
+  },
   "nav": {
     "home": "Home",
     "properties": "Properties",
-    "about": "About",
-    "contact": "Contact",
-    "enquire": "Enquire"
+    "about": "About Us",
+    "contact": "Contact Us",
+    "enquire": "Enquire",
+    "callUs": "Call us",
+    "commercial": "Commercial",
+    "residentials": "Residentials",
+    "newProjects": "New Projects",
+    "allProjects": "All Projects",
+    "sale": "Sale"
   },
   "home": {
     "eyebrow": "Dubai · Abu Dhabi · Ras Al Khaimah",
@@ -16,10 +25,22 @@
     "searchTitle": "Find an address",
     "statsTitle": "Why owners work with us",
     "stats": [
-      { "value": "AED 2.4B", "label": "Transacted since 2016" },
-      { "value": "18 days", "label": "Median time to offer" },
-      { "value": "72%", "label": "Business from referrals" },
-      { "value": "11", "label": "Languages spoken in-house" }
+      {
+        "value": "AED 2.4B",
+        "label": "Transacted since 2016"
+      },
+      {
+        "value": "18 days",
+        "label": "Median time to offer"
+      },
+      {
+        "value": "72%",
+        "label": "Business from referrals"
+      },
+      {
+        "value": "11",
+        "label": "Languages spoken in-house"
+      }
     ],
     "featuredTitle": "Currently representing",
     "featuredLede": "A selection from the portfolio. The full list, including off-market instructions, is shared on request.",
@@ -104,9 +125,18 @@
     ],
     "valuesTitle": "What we hold to",
     "values": [
-      { "title": "No inflated valuations", "body": "We price to sell, and we show you the comparables we used." },
-      { "title": "No portal-only listings", "body": "If we represent it, you can see it in person this week." },
-      { "title": "No handing you around", "body": "One named adviser, from enquiry to handover." }
+      {
+        "title": "No inflated valuations",
+        "body": "We price to sell, and we show you the comparables we used."
+      },
+      {
+        "title": "No portal-only listings",
+        "body": "If we represent it, you can see it in person this week."
+      },
+      {
+        "title": "No handing you around",
+        "body": "One named adviser, from enquiry to handover."
+      }
     ]
   },
   "contact": {
