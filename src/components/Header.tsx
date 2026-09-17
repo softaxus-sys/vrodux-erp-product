@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { Logo } from "@/components/Logo";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -47,13 +48,8 @@ export function Header({ locale, dict }: { locale: Locale; dict: Dictionary }) {
       }`}
     >
       <div className="container-content flex h-20 items-center justify-between gap-6">
-        <Link href={`/${locale}`} className="group flex flex-col leading-none">
-          <span className="font-display text-xl tracking-tight text-ink-900 sm:text-2xl">
-            {dict.brand.name}
-          </span>
-          <span className="mt-1 text-[0.6rem] uppercase tracking-widest text-ink-400">
-            {dict.brand.tagline}
-          </span>
+        <Link href={`/${locale}`} className="group flex items-center">
+          <Logo name={dict.brand.name} tagline={dict.brand.tagline} />
         </Link>
 
         <nav className="hidden items-center gap-8 lg:flex">
