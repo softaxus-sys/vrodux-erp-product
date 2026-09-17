@@ -5,6 +5,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <!-- This is a plain Microsoft.NET.Sdk project, not Sdk.Web, so ASP.NET types are not
+         implicitly available. Needed for [EnableCors] on the public listings controller;
+         the same reference CRM.API carries for the same reason. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.*" />
   </ItemGroup>
   <ItemGroup>

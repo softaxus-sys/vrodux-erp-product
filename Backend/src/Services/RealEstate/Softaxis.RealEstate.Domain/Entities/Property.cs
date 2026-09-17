@@ -16,10 +16,24 @@ public sealed class Property
     public decimal MarketValue { get; private set; }
     public string? Developer { get; private set; }
     public string? Description { get; private set; }
+
+    /// <summary>
+    /// Whether this property is published to the client's public website.
+    ///
+    /// Defaults to false: a property is created here for portfolio management, and publishing it
+    /// is a separate, deliberate decision. Defaulting to true would push every building a client
+    /// records — including ones they manage but do not market — onto their public site.
+    /// </summary>
+    public bool ListOnWebsite { get; private set; }
+
+    /// <summary>When it was last published, so the website can show genuinely new listings first.</summary>
+    public DateTime? PublishedAt { get; private set; }
+
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
     public List<PropertyUnit> Units { get; private set; } = [];
+    public List<PropertyImage> Images { get; private set; } = [];
 
     public Property(string name, string propertyType, string address, string city, string emirate,
         decimal totalArea, int totalUnits, decimal marketValue, string? developer, string? description)
@@ -36,6 +50,20 @@ public sealed class Property
         Name = name; PropertyType = propertyType; Address = address; City = city; Emirate = emirate;
         TotalArea = totalArea; TotalUnits = totalUnits; MarketValue = marketValue;
         Developer = developer; Description = description;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Publishes to, or withdraws from, the public website.
+    ///
+    /// PublishedAt is stamped only on the transition into published, and deliberately kept on
+    /// withdrawal — re-listing a property that came off the market briefly should not present it
+    /// as brand new, and the original publication date is the honest one.
+    /// </summary>
+    public void SetWebsiteListing(bool listed)
+    {
+        if (listed && !ListOnWebsite) PublishedAt = DateTime.UtcNow;
+        ListOnWebsite = listed;
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -231,6 +231,16 @@ try
             .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod());
+
+        // A tenant's own public website reads its published property listings from a different
+        // origin (and, once live, from visitors' browsers all over the world). Read-only,
+        // anonymous, and scoped to one tenant by the slug in the URL — so any-origin is correct
+        // here too. No credentials, deliberately: nothing behind this policy should ever be
+        // reachable with a session cookie attached.
+        opts.AddPolicy("PublicSite", p => p
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .WithMethods("GET"));
     });
 
     // ─────────────────────────────────────────────────────────────────────────

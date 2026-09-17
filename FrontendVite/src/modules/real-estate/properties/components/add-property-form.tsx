@@ -4,7 +4,13 @@ import { X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useCreateProperty, useUpdateProperty } from "@/hooks/real-estate/use-re";
+import {
+  useCreateProperty,
+  useUpdateProperty,
+  useAddPropertyImages,
+  useSetPropertyWebsiteListing,
+} from "@/hooks/real-estate/use-re";
+import { PropertyPhotos, type StagedImage } from "./property-photos";
 import type { PropertyDto } from "@/lib/real-estate/re.api";
 
 const PROPERTY_TYPES = ["Residential Tower", "Commercial Building", "Mixed-Use", "Villa Complex", "Retail Mall", "Warehouse", "Land / Plot", "Hotel Apartment"];
@@ -54,15 +60,22 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
   const [propertyManager, setPropertyManager] = React.useState("");
   const [notes, setNotes]             = React.useState("");
 
+  /** Photos chosen before the property exists; uploaded once it has an id. */
+  const [staged, setStaged]           = React.useState<StagedImage[]>([]);
+  const [listOnWebsite, setListOnWebsite] = React.useState(false);
+
   const createMut = useCreateProperty();
   const updateMut = useUpdateProperty();
-  const saving = createMut.isPending || updateMut.isPending;
+  const addImages = useAddPropertyImages();
+  const setListing = useSetPropertyWebsiteListing();
+  const saving = createMut.isPending || updateMut.isPending || addImages.isPending || setListing.isPending;
   const isValid = name.trim() && propertyType && emirate;
 
   const reset = () => {
     setName(""); setPropertyType("Residential Tower"); setEmirate("Dubai"); setArea("");
     setAddress(""); setPlotNo(""); setTitleDeedNo(""); setTotalUnits(""); setTotalArea("");
     setBuiltYear(""); setPurchasePrice(""); setCurrentValue(""); setPropertyManager(""); setNotes("");
+    setStaged([]); setListOnWebsite(false);
   };
 
   // Prefill on edit / clear on close
@@ -83,6 +96,8 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
       setCurrentValue(editing.marketValue ? String(editing.marketValue) : "");
       setPropertyManager(editing.developer ?? "");
       setNotes(editing.description ?? "");
+      setListOnWebsite(editing.listOnWebsite ?? false);
+      setStaged([]);
     }
   }, [open, editing]);
 
@@ -100,11 +115,35 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
     };
     try {
       if (editing) {
-        await updateMut.mutateAsync({ id: editing.id, data: payload });
+        // listOnWebsite rides along on the update, where the property already has its photos.
+        await updateMut.mutateAsync({ id: editing.id, data: { ...payload, listOnWebsite } });
         toast.success("Property updated");
       } else {
-        await createMut.mutateAsync(payload);
+        const created = await createMut.mutateAsync(payload);
         toast.success("Property created");
+
+        // Photos second: they need the id that create just returned.
+        if (staged.length > 0) {
+          try {
+            await addImages.mutateAsync({ propertyId: created.id, images: staged });
+          } catch {
+            // The hook has already reported it. The property itself saved, so this is not a
+            // failed save — say what actually happened rather than rolling anything back.
+            toast.error("Property saved, but the photos did not upload. Add them from Edit.");
+            onClose();
+            return;
+          }
+        }
+
+        // Publishing last, and only with photos: the server rejects an empty listing, so
+        // attempting it before the upload would fail every time.
+        if (listOnWebsite) {
+          if (staged.length === 0) {
+            toast.warning("Add a photo before listing this property on the website.");
+          } else {
+            await setListing.mutateAsync({ propertyId: created.id, listOnWebsite: true });
+          }
+        }
       }
       onClose();
     } catch (e: any) {
@@ -209,6 +248,30 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
                   </div>
                 </div>
               </div>
+
+              <div className="pt-1">
+                <PropertyPhotos
+                  propertyId={editing?.id}
+                  images={editing?.images}
+                  staged={staged}
+                  onStagedChange={setStaged}
+                />
+              </div>
+
+              <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-muted/40 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={listOnWebsite}
+                  onChange={e => setListOnWebsite(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">List on website</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5">
+                    Publish this property to your public website. Needs at least one photo.
+                  </span>
+                </span>
+              </label>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</label>
