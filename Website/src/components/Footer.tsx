@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -11,7 +12,7 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
     <footer className="mt-24 bg-ink-950 text-ink-300">
       <div className="container-content grid gap-12 py-16 md:grid-cols-[1.5fr_1fr_1fr]">
         <div>
-          <p className="font-display text-2xl text-ink-50">{dict.brand.name}</p>
+          <Logo name={dict.brand.name} variant="dark" />
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-400">{dict.footer.blurb}</p>
           <div className="mt-6 space-y-1.5 text-sm">
             <a href={`tel:${phone.replace(/\s/g, "")}`} className="block hover:text-sand-300">
