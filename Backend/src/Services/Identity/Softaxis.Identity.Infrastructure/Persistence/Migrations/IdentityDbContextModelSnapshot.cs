@@ -2289,6 +2289,20 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("1557a519-eb0f-727f-b32f-0876fb620c3e"),
+                            Action = "view",
+                            Description = "View support tickets",
+                            ModuleId = "support.tickets"
+                        },
+                        new
+                        {
+                            Id = new Guid("6bb6289a-4692-2fc8-ad20-da5f6b5f6ce2"),
+                            Action = "edit",
+                            Description = "Edit support tickets",
+                            ModuleId = "support.tickets"
+                        },
+                        new
+                        {
                             Id = new Guid("fa120075-a9f0-830d-d1d6-d7cb86ed4add"),
                             Action = "view",
                             Description = "View restaurant tables",

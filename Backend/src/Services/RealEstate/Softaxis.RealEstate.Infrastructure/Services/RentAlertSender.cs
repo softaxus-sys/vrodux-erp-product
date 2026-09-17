@@ -310,7 +310,7 @@ internal sealed class RentAlertSender(
                 JOIN [identity].[permissions] p       ON p.Id = rp.PermissionId
                 WHERE u.IsDeleted = 0
                   AND u.TenantId = {tenantId}
-                  AND p.Module LIKE 'real-estate%'").ToListAsync(ct);
+                  AND p.ModuleId LIKE 'real-estate%'").ToListAsync(ct);
 
             list.AddRange(emails.Where(e => !string.IsNullOrWhiteSpace(e)));
         }

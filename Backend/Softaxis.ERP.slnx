@@ -93,6 +93,12 @@
     <Project Path="src/Services/VisaServices/Softaxis.VisaServices.Domain/Softaxis.VisaServices.Domain.csproj" />
     <Project Path="src/Services/VisaServices/Softaxis.VisaServices.Infrastructure/Softaxis.VisaServices.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Support/">
+    <Project Path="src/Services/Support/Softaxis.Support.API/Softaxis.Support.API.csproj" />
+    <Project Path="src/Services/Support/Softaxis.Support.Application/Softaxis.Support.Application.csproj" />
+    <Project Path="src/Services/Support/Softaxis.Support.Domain/Softaxis.Support.Domain.csproj" />
+    <Project Path="src/Services/Support/Softaxis.Support.Infrastructure/Softaxis.Support.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Recipe/">
     <Project Path="src/Services/Recipe/Softaxis.Recipe.API/Softaxis.Recipe.API.csproj" />
     <Project Path="src/Services/Recipe/Softaxis.Recipe.Domain/Softaxis.Recipe.Domain.csproj" />

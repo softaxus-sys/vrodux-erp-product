@@ -26,6 +26,7 @@ using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
+using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
@@ -107,6 +108,7 @@ try
     // AI Assistant: DbContext, provider abstraction (Claude/Groq), orchestrator, tools
     builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
     builder.Services.AddVisaServicesInfrastructure(builder.Configuration);
+    builder.Services.AddSupportInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -166,6 +168,19 @@ try
         Softaxis.Restaurant.API.Realtime.SignalRRestaurantNotifier>();
     builder.Services.AddSignalR();
 
+    // Support.Application.Abstractions.ICurrentUser  →  Support CurrentUserService (cross-tenant
+    // ticket access — the one ICurrentUser in this codebase that also surfaces the caller's OWN
+    // tenant id/name, since Support tickets are not ambient-tenant-scoped like every other module)
+    builder.Services.AddScoped<
+        Softaxis.Support.Application.Abstractions.ICurrentUser,
+        Softaxis.Support.API.Middleware.CurrentUserService>();
+
+    // Support.Application.Abstractions.ISupportRealtimeNotifier  →  SignalR push, group-targeted
+    // (never broadcast — see the interface's own remarks on why this differs from Restaurant's).
+    builder.Services.AddScoped<
+        Softaxis.Support.Application.Abstractions.ISupportRealtimeNotifier,
+        Softaxis.Support.API.Realtime.SignalRSupportNotifier>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -184,6 +199,7 @@ try
         .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddJsonOptions(o =>
         {
             // Emit every DateTime as an explicit UTC instant ("…Z").
@@ -297,6 +313,7 @@ try
         await app.Services.MigrateAndSeedProjectManagementAsync(); // Project Management
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
         await app.Services.MigrateAndSeedVisaServicesAsync();       // Visa Services
+        await app.Services.MigrateAndSeedSupportAsync();            // Support
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
@@ -341,13 +358,14 @@ try
     app.UseAuthorization();
     app.MapControllers();
     app.MapHub<Softaxis.Restaurant.API.Realtime.RestaurantHub>("/hubs/restaurant");
+    app.MapHub<Softaxis.Support.API.Realtime.SupportHub>("/hubs/support");
 
     app.MapGet("/health", () => Results.Ok(new
     {
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Support" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);

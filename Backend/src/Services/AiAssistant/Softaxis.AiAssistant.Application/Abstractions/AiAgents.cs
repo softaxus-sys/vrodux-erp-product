@@ -25,6 +25,7 @@ public static class AiAgents
         ["healthcare"]        = "Healthcare",
         ["insurance"]          = "Insurance",
         ["operations"]         = "Operations",
+        ["support"]            = "Support",
     };
 
     public static string Label(string agentKey) =>

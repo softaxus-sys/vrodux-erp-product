@@ -44,12 +44,15 @@ export const MODULE_GROUPS: Record<string, string> = {
   visa: "Visa Services", restaurant: "Restaurant", reports: "Reports",
   "real-estate": "Real Estate",
   "file-manager": "File Manager",
+  // Only meaningful for whichever tenant is configured as the Support operator (Softaxis's own
+  // workspace) — see ISupportAccessGuard on the backend. Granting it elsewhere does nothing.
+  support: "Support",
 };
 
 export const GROUP_ORDER = [
   "POS", "Restaurant", "Inventory", "Finance", "Sales", "Purchase", "CRM",
   "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "HR",
-  "Project Management", "Reports", "File Manager", "Settings",
+  "Project Management", "Reports", "File Manager", "Support", "Settings",
 ];
 
 /** Group permissions by module id, then bucket module ids under their display group. */

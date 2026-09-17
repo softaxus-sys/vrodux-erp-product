@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Softaxis.Identity.Application.Abstractions;
@@ -18,7 +19,7 @@ public sealed class JwtSettings
     public int     RefreshTokenDays    { get; init; } = 30;
 }
 
-public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenService
+public sealed class JwtTokenService(IOptions<JwtSettings> options, IConfiguration configuration) : IJwtTokenService
 {
     private readonly JwtSettings _settings = options.Value;
 
@@ -104,6 +105,19 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options) : IJwtTokenSe
             // Only meaningful while Status == Trial.
             if (tenant.TrialDaysRemaining is { } daysLeft)
                 claims.Add(new Claim("trial_days_left", daysLeft.ToString()));
+
+            // Lets the frontend tell "an operator-tenant Support agent" apart from any other
+            // tenant's Administrator — every tenant's Administrator role auto-holds
+            // support.tickets.view/edit (SyncAdministratorPermissionsAsync grants every seeded
+            // key to every Administrator), so the permission claim alone cannot distinguish them
+            // client-side. The backend's own ISupportAccessGuard already refuses the cross-tenant
+            // queue for everyone but the configured operator tenant regardless of this claim —
+            // this is purely so the frontend can hide the dead-end nav item/page for the other
+            // ~all tenants, not a security boundary itself.
+            var operatorTenantId = configuration["Support:OperatorTenantId"];
+            if (!string.IsNullOrWhiteSpace(operatorTenantId)
+                && Guid.TryParse(operatorTenantId, out var opId) && opId == tenant.Id)
+                claims.Add(new Claim("support_operator", "true"));
         }
 
         // Embed all permissions as claims — avoids DB round-trip on every request

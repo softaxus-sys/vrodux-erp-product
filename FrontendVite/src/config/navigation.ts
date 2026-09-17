@@ -40,6 +40,18 @@ export const navigationConfig: NavGroup[] = [
         icon: "FolderOpen",
         module: "file-manager",
       },
+      {
+        id: "support",
+        label: "Help & Support",
+        labelAr: "المساعدة والدعم",
+        icon: "LifeBuoy",
+        module: "support",
+        children: [
+          { id: "support-my-tickets", label: "My Tickets", labelAr: "تذاكري", href: "/support", icon: "MessageSquare", module: "support" },
+          // Only ever meaningful for the Softaxis operator tenant — see SupportQueueGuard.
+          { id: "support-queue", label: "Ticket Queue", labelAr: "قائمة التذاكر", href: "/support/queue", icon: "Headset", module: "support", requiresPermission: "support.tickets.view" },
+        ],
+      },
     ],
   },
   {
