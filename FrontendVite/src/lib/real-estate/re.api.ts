@@ -40,6 +40,15 @@ export interface PropertyUnitSummaryDto {
   currentTenantName: string | null;
 }
 
+export interface PropertyImageDto {
+  id: string;
+  contentType: string;
+  fileName: string | null;
+  caption: string | null;
+  sortOrder: number;
+  isPrimary: boolean;
+}
+
 export interface PropertyDto {
   id: string;
   propertyNumber: string;
@@ -57,6 +66,12 @@ export interface PropertyDto {
   /** Only populated by GET /properties/{id}; the list returns it too but it is the detail that
    *  matters — rent per property is derived from these, since the property has no rent of its own. */
   units: PropertyUnitSummaryDto[];
+  /** Whether the property is published to the public website. */
+  listOnWebsite: boolean;
+  publishedAt: string | null;
+  /** Metadata only — the bytes come from propertyImageUrl(). */
+  images: PropertyImageDto[] | null;
+  primaryImageId: string | null;
 }
 
 export interface UnitDto {
@@ -411,6 +426,11 @@ export interface UpsertPropertyInput {
   marketValue: number;
   developer?: string | null;
   description?: string | null;
+  /**
+   * Omit to leave the current setting alone. Sending `false` from a form that does not offer
+   * the toggle would unpublish the property on every save.
+   */
+  listOnWebsite?: boolean;
 }
 
 export interface PagedResult<T> {
@@ -440,12 +460,37 @@ export const reApi = {
     return rawApiClient.get(`${BASE}/properties?${qs}`);
   },
   getPropertySummary:  (): Promise<RePropertySummaryDto>   => rawApiClient.get(`${BASE}/properties/summary`),
-  createProperty:      (data: UpsertPropertyInput)         => rawApiClient.post(`${BASE}/properties`, data),
+  createProperty:      (data: UpsertPropertyInput): Promise<PropertyDto> => rawApiClient.post(`${BASE}/properties`, data),
   /** Bulk import. Rows the server could not take come back described, not silently dropped. */
   importProperties:    (rows: Record<string, string>[]): Promise<ImportOutcome> =>
     rawApiClient.post(`${BASE}/properties/import`, { rows }),
   updateProperty:      (id: string, data: UpsertPropertyInput) => rawApiClient.put(`${BASE}/properties/${id}`, data),
   deleteProperty:      (id: string)                        => rawApiClient.delete(`${BASE}/properties/${id}`),
+
+  /**
+   * Source URL for one photo. Used directly as an <img src>, so the browser fetches and caches
+   * each image itself rather than the app carrying megabytes of base64 around in memory.
+   */
+  propertyImageUrl: (propertyId: string, imageId: string) =>
+    `${BASE}/properties/${propertyId}/images/${imageId}`,
+
+  addPropertyImages: (
+    propertyId: string,
+    images: { data: string; fileName?: string; caption?: string }[],
+  ): Promise<PropertyImageDto[]> =>
+    rawApiClient.post(`${BASE}/properties/${propertyId}/images`, { images }),
+
+  deletePropertyImage: (propertyId: string, imageId: string) =>
+    rawApiClient.delete(`${BASE}/properties/${propertyId}/images/${imageId}`),
+
+  setPrimaryPropertyImage: (propertyId: string, imageId: string) =>
+    rawApiClient.patch(`${BASE}/properties/${propertyId}/images/${imageId}/primary`, {}),
+
+  reorderPropertyImages: (propertyId: string, orderedIds: string[]) =>
+    rawApiClient.patch(`${BASE}/properties/${propertyId}/images/order`, { orderedIds }),
+
+  setPropertyWebsiteListing: (propertyId: string, listOnWebsite: boolean) =>
+    rawApiClient.patch(`${BASE}/properties/${propertyId}/website-listing`, { listOnWebsite }),
 
   getUnits: (p: RePageParams & { propertyId?: string } = {}): Promise<PagedResult<UnitDto>> => {
     const qs = new URLSearchParams();

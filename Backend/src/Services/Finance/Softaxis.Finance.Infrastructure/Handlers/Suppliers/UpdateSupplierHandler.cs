@@ -25,7 +25,7 @@ internal sealed class UpdateSupplierHandler(FinanceDbContext db)
                         $"Account '{cmd.AccountId}' was not found."));
         }
 
-        supplier.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId, cmd.IsActive);
+        supplier.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.TaxNumber, cmd.AccountId, cmd.IsActive);
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }

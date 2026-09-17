@@ -10,7 +10,9 @@ public sealed record CreateSaleCommand(
     IReadOnlyList<LineItemRequest> LineItems,
     IReadOnlyList<PaymentRequest>  Payments,
     string?                     Notes,
-    OrderDiscountRequest?       OrderDiscount = null) : ICommand<POSTransactionDto>;
+    OrderDiscountRequest?       OrderDiscount = null,
+    // Set only by the offline day-end sync — never bound from a request (see OfflineContext).
+    Common.OfflineContext?      Offline       = null) : ICommand<POSTransactionDto>;
 
 /// <summary>
 /// Order-level discount descriptor. Resolved and validated server-side.

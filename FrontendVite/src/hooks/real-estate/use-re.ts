@@ -56,6 +56,63 @@ export function useDeleteProperty() {
   return useMutation({ mutationFn: (id: string) => reApi.deleteProperty(id), onSuccess: invalidate });
 }
 
+// ── Property photographs & website listing ──────────────────────────────────
+
+/**
+ * Uploads photos. The caller reads each file to a data URI first; this only ships it.
+ *
+ * Invalidates the property queries because the gallery, the cover image and the
+ * "can this be published" state all change together.
+ */
+export function useAddPropertyImages() {
+  const invalidate = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (v: { propertyId: string; images: { data: string; fileName?: string }[] }) =>
+      reApi.addPropertyImages(v.propertyId, v.images),
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeletePropertyImage() {
+  const invalidate = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (v: { propertyId: string; imageId: string }) =>
+      reApi.deletePropertyImage(v.propertyId, v.imageId),
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSetPrimaryPropertyImage() {
+  const invalidate = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (v: { propertyId: string; imageId: string }) =>
+      reApi.setPrimaryPropertyImage(v.propertyId, v.imageId),
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/**
+ * Publishes or withdraws a property from the public website.
+ *
+ * The server refuses to publish a property with no photo, so the error is surfaced rather
+ * than swallowed — that message is the instruction the user needs.
+ */
+export function useSetPropertyWebsiteListing() {
+  const invalidate = useInvalidateProperties();
+  return useMutation({
+    mutationFn: (v: { propertyId: string; listOnWebsite: boolean }) =>
+      reApi.setPropertyWebsiteListing(v.propertyId, v.listOnWebsite),
+    onSuccess: (_d, v) => {
+      invalidate();
+      toast.success(v.listOnWebsite ? "Listed on the website." : "Removed from the website.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useUnits(params: RePageParams & { propertyId?: string } = {}) {
   return useQuery({
     queryKey: [QK, "units", params],

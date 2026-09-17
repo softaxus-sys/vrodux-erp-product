@@ -9,7 +9,9 @@ public sealed record RecordCashMovementCommand(
     Guid    SessionId,
     string  Type,
     decimal Amount,
-    string  Reason) : ICommand<CashMovementDto>;
+    string  Reason,
+    // Set only by the offline day-end sync — never bound from a request (see OfflineContext).
+    Common.OfflineContext? Offline = null) : ICommand<CashMovementDto>;
 
 public sealed class RecordCashMovementCommandValidator : AbstractValidator<RecordCashMovementCommand>
 {

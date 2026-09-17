@@ -72,3 +72,11 @@ async function boot() {
 }
 
 boot();
+
+// App-shell cache so a browser till can reload the POS with no internet (see public/sw.js).
+// Not for Electron: it loads from file://, where service workers don't apply and aren't needed.
+if (import.meta.env.PROD && !isDesktop && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  });
+}

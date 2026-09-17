@@ -35,6 +35,8 @@ public sealed class RecordCashMovementCommandHandler(
         var movement = createResult.Value;
         movement.CreatedAt = DateTime.UtcNow;
         movement.CreatedBy = currentUser.Username ?? "system";
+        if (cmd.Offline is not null)
+            movement.MarkOffline(cmd.Offline.ClientRef, cmd.Offline.OccurredAtUtc);
 
         var adjust = session.RecordCashMovement(cmd.Amount, isPayIn);
         if (adjust.IsFailure)

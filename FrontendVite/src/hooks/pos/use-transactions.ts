@@ -11,6 +11,7 @@ import type {
   LineItemRequest,
 } from "@/lib/pos/types";
 import type { PagedResult } from "@/lib/api-client";
+import { usePosOffline } from "@/contexts/pos-offline-context";
 import { toast } from "sonner";
 
 // ── Query keys ────────────────────────────────────────────────────────────────
@@ -23,12 +24,20 @@ export const txnKeys = {
   detail:  (id: string) => [...txnKeys.details(), id] as const,
 };
 
+// Hooks branch on usePosOffline(): null = live mode (unchanged), otherwise this till's local records.
+
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export function useTransactions(params: GetTransactionsParams = {}) {
+  const off = usePosOffline();
   return useQuery<PagedResult<POSTransactionSummaryDto>>({
-    queryKey: txnKeys.list(params),
-    queryFn:  () => transactionsApi.getAll(params),
+    queryKey: off ? [...txnKeys.list(params), "offline"] : txnKeys.list(params),
+    queryFn:  off
+      ? async () => {
+          const items = await off.engine.listTransactions(params.sessionId);
+          return { items, page: 1, pageSize: items.length, totalCount: items.length, totalPages: 1, hasNext: false, hasPrev: false };
+        }
+      : () => transactionsApi.getAll(params),
   });
 }
 
@@ -46,9 +55,10 @@ export function usePosDashboard() {
 }
 
 export function useTransaction(id: string) {
+  const off = usePosOffline();
   return useQuery<POSTransactionDto>({
-    queryKey: txnKeys.detail(id),
-    queryFn:  () => transactionsApi.getById(id),
+    queryKey: off ? [...txnKeys.detail(id), "offline"] : txnKeys.detail(id),
+    queryFn:  () => off ? off.engine.getTransaction(id) : transactionsApi.getById(id),
     enabled:  !!id,
   });
 }
@@ -63,13 +73,17 @@ function invalidateStock(qc: ReturnType<typeof useQueryClient>) {
 
 export function useCreateSale() {
   const qc = useQueryClient();
+  const off = usePosOffline();
   return useMutation({
-    mutationFn: (payload: CreateSaleRequest) => transactionsApi.createSale(payload),
+    mutationFn: (payload: CreateSaleRequest) =>
+      off ? off.engine.recordSale(payload) : transactionsApi.createSale(payload),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: txnKeys.lists() });
       invalidateStock(qc);
       qc.setQueryData(txnKeys.detail(data.id), data);
-      toast.success(`Sale ${data.transactionNumber} completed.`);
+      toast.success(off
+        ? `Sale ${data.transactionNumber} saved on this till.`
+        : `Sale ${data.transactionNumber} completed.`);
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -77,6 +91,7 @@ export function useCreateSale() {
 
 export function useVoidTransaction() {
   const qc = useQueryClient();
+  const off = usePosOffline();
   return useMutation({
     mutationFn: ({
       transactionId,
@@ -84,7 +99,9 @@ export function useVoidTransaction() {
     }: {
       transactionId: string;
       reason?: string | null;
-    }) => transactionsApi.void(transactionId, { reason }),
+    }) => off
+      ? off.engine.voidTransaction(transactionId, reason ?? null)
+      : transactionsApi.void(transactionId, { reason }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: txnKeys.lists() });
       invalidateStock(qc); // stock restored — update both POS and Inventory views
@@ -97,6 +114,7 @@ export function useVoidTransaction() {
 
 export function useRefundTransaction() {
   const qc = useQueryClient();
+  const off = usePosOffline();
   return useMutation({
     mutationFn: ({
       transactionId,
@@ -104,7 +122,9 @@ export function useRefundTransaction() {
     }: {
       transactionId: string;
       payload: RefundRequest;
-    }) => transactionsApi.refund(transactionId, payload),
+    }) => off
+      ? off.engine.refund(transactionId, payload)
+      : transactionsApi.refund(transactionId, payload),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: txnKeys.lists() });
       invalidateStock(qc); // stock restored — update both POS and Inventory views

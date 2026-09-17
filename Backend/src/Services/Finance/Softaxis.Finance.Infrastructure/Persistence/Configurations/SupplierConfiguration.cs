@@ -18,6 +18,8 @@ internal sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(x => x.Email).HasMaxLength(200);
         builder.Property(x => x.Phone).HasMaxLength(30);
         builder.Property(x => x.Address).HasMaxLength(500);
+        // 50, not 15: a UAE TRN is 15 digits but suppliers abroad have longer VAT/GST numbers.
+        builder.Property(x => x.TaxNumber).HasMaxLength(50);
         builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);

@@ -855,5 +855,216 @@
       "deleted": "Account deleted.",
       "deleteFailed": "Could not delete account."
     }
+  },
+  "suppliers": {
+    "title": "Suppliers",
+    "subtitle": "Manage accounts-payable suppliers used on purchase invoices and expenses.",
+    "new": "New Supplier",
+    "searchPh": "Search suppliers…",
+    "loading": "Loading suppliers…",
+    "loadMore": "Load more",
+    "showing": "Showing {{shown}} of {{total}}",
+    "stats": {
+      "total": "Total Suppliers",
+      "active": "Active",
+      "inactive": "Inactive",
+      "linked": "Linked to Account"
+    },
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "table": {
+      "supplier": "Supplier",
+      "contact": "Contact",
+      "account": "Payable Account",
+      "status": "Status",
+      "actions": "Actions",
+      "noAccount": "Not linked"
+    },
+    "empty": {
+      "none": "No suppliers yet. Add one to use it on purchase invoices.",
+      "filtered": "No suppliers match your search."
+    },
+    "actions": {
+      "edit": "Edit supplier",
+      "delete": "Remove supplier"
+    },
+    "delete": {
+      "title": "Remove supplier?",
+      "body": "{{name}} will no longer be selectable on new purchase invoices. Existing invoices keep their record.",
+      "confirm": "Remove",
+      "removing": "Removing…"
+    },
+    "form": {
+      "title": "New Supplier",
+      "editTitle": "Edit Supplier",
+      "subtitle": "Register a supplier for accounts payable.",
+      "editSubtitle": "Updating {{name}}",
+      "details": "Supplier Details",
+      "accounting": "Accounting",
+      "name": "Name",
+      "namePh": "e.g. TPMS Businessmen Services",
+      "email": "Email",
+      "emailPh": "billing@supplier.com",
+      "phone": "Phone",
+      "phonePh": "+971 50 000 0000",
+      "address": "Address",
+      "addressPh": "Street, city, country",
+      "taxNumber": "Tax Number (TRN)",
+      "taxNumberPh": "e.g. 103276091800003",
+      "taxNumberHint": "The supplier's tax registration number, printed on their tax invoices. Spaces are removed on save.",
+      "account": "Payable Account",
+      "accountNone": "Use the default payables account",
+      "accountHint": "Optional. Link a liability account to post this supplier's balances to a dedicated control account.",
+      "active": "Active",
+      "activeHint": "Inactive suppliers stay on historic records but are hidden from new invoice dropdowns.",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "create": "Create Supplier",
+      "saving": "Saving…"
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "subtitle": "Manage billing customers used on invoices and receivables.",
+    "new": "New Customer",
+    "searchPh": "Search customers…",
+    "loading": "Loading customers…",
+    "loadMore": "Load more",
+    "showing": "Showing {{shown}} of {{total}}",
+    "stats": {
+      "total": "Total Customers",
+      "active": "Active",
+      "inactive": "Inactive",
+      "linked": "Linked to Account"
+    },
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "table": {
+      "name": "Customer",
+      "contact": "Contact",
+      "account": "Receivable Account",
+      "status": "Status",
+      "actions": "Actions",
+      "noAccount": "Not linked"
+    },
+    "empty": {
+      "none": "No customers yet. Add one to bill them on an invoice.",
+      "filtered": "No customers match your search."
+    },
+    "actions": {
+      "edit": "Edit customer",
+      "delete": "Remove customer"
+    },
+    "delete": {
+      "title": "Remove customer?",
+      "body": "{{name}} will no longer be selectable on new invoices. Existing invoices keep their record.",
+      "confirm": "Remove",
+      "removing": "Removing…"
+    },
+    "form": {
+      "title": "New Customer",
+      "editTitle": "Edit Customer",
+      "subtitle": "Register a customer for invoicing and receivables.",
+      "editSubtitle": "Updating {{name}}",
+      "details": "Customer Details",
+      "accounting": "Accounting",
+      "name": "Name",
+      "namePh": "e.g. Acme Trading LLC",
+      "email": "Email",
+      "emailPh": "accounts@customer.com",
+      "phone": "Phone",
+      "phonePh": "+971 50 000 0000",
+      "ccEmails": "CC on invoice emails",
+      "ccEmailsPh": "finance@customer.com; ap@customer.com",
+      "ccEmailsHint": "Optional. Extra recipients copied when an invoice is emailed. Separate with commas or semicolons.",
+      "address": "Address",
+      "addressPh": "Street, city, country",
+      "account": "Receivable Account",
+      "accountNone": "Use the default receivables account",
+      "accountHint": "Optional. Link an asset account to post this customer's balances to a dedicated control account.",
+      "active": "Active",
+      "activeHint": "Inactive customers stay on historic records but are hidden from new invoice dropdowns.",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "create": "Create Customer",
+      "saving": "Saving…"
+    }
+  },
+  "ageing": {
+    "title": "Ageing & Statements",
+    "subtitle": "How much is outstanding, how overdue it is, and who owes it.",
+    "receivables": "Receivables (AR)",
+    "payables": "Payables (AP)",
+    "asOf": "As of",
+    "today": "Today",
+    "from": "From",
+    "to": "To",
+    "clear": "Clear",
+    "loading": "Loading the ageing report…",
+    "failed": "Could not load the ageing report.",
+    "retry": "Retry",
+    "noAccess": "You don't have permission to view this side.",
+    "denied": {
+      "title": "No access to ageing",
+      "body": "Viewing receivables needs the invoicing view permission, and payables needs the expenses view permission."
+    },
+    "buckets": {
+      "current": "Current",
+      "1-30": "1–30 days",
+      "31-60": "31–60 days",
+      "61-90": "61–90 days",
+      "90plus": "90+ days"
+    },
+    "totalDue": "Total Outstanding",
+    "filteredTotal": "Filtered total",
+    "clearBucket": "Clear “{{bucket}}” filter",
+    "topCustomers": "Top customers by amount owed",
+    "topSuppliers": "Top suppliers by amount owed",
+    "openStatement": "Open statement",
+    "noStatement": "No statement — this document has no linked party record",
+    "docsCount": "{{count}} document",
+    "docsCount_other": "{{count}} documents",
+    "worstOverdue": "{{days}}d overdue",
+    "daysShort": "{{days}}d",
+    "customer": "Customer",
+    "supplier": "Supplier",
+    "document": "Document",
+    "docDate": "Document Date",
+    "dueDate": "Due Date",
+    "total": "Total",
+    "paid": "Paid",
+    "due": "Due",
+    "daysOverdue": "Days Overdue",
+    "bucket": "Bucket",
+    "searchArPh": "Search customer or invoice…",
+    "searchApPh": "Search supplier or bill…",
+    "emptyNone": "Nothing outstanding as of this date.",
+    "emptyFiltered": "No documents match your filters.",
+    "loadMore": "Load more",
+    "showing": "Showing {{shown}} of {{total}}",
+    "arTitle": "Aged Receivables",
+    "apTitle": "Aged Payables",
+    "statement": {
+      "title": "Statement — {{name}}",
+      "arSub": "Invoices and receipts",
+      "apSub": "Bills and payments",
+      "date": "Date",
+      "type": "Type",
+      "reference": "Reference",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "closing": "Closing balance",
+      "allTime": "All time",
+      "loading": "Loading statement…",
+      "failed": "Could not load the statement.",
+      "empty": "No transactions in this period."
+    }
   }
 }

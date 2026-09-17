@@ -19,6 +19,10 @@ public sealed class POSSession : AuditableEntity<Guid>
     public decimal       CashVariance   { get; private set; }
     public string?       Notes          { get; private set; }
 
+    /// <summary>Client-generated id of a shift recorded offline; null for shifts opened online.</summary>
+    public string?       ClientRef      { get; private set; }
+    public bool          IsOffline      => ClientRef is not null;
+
     // Summary totals (computed at close)
     public int     TotalTransactions { get; private set; }
     public decimal TotalSales        { get; private set; }
@@ -93,6 +97,22 @@ public sealed class POSSession : AuditableEntity<Guid>
         RaiseDomainEvent(new SessionClosedEvent(Id, CashierId, TotalSales, TotalRefunds, CashVariance));
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Stamp a shift uploaded from an offline till with its client id and the times it actually
+    /// opened/closed at the till, rather than the moment it reached the server.
+    /// </summary>
+    public void MarkOffline(string clientRef, DateTime openedAtUtc, string? notes)
+    {
+        ClientRef = clientRef.Trim();
+        OpenedAt  = openedAtUtc;
+        if (!string.IsNullOrWhiteSpace(notes)) Notes = notes.Trim();
+    }
+
+    public void BackdateClosed(DateTime closedAtUtc)
+    {
+        if (Status == SessionStatus.Closed) ClosedAt = closedAtUtc;
     }
 
     public void RecordTransaction(decimal amount, bool isRefund)

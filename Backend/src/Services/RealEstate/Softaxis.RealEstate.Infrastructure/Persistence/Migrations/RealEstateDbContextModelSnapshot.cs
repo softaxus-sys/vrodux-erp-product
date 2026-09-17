@@ -326,6 +326,9 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("ListOnWebsite")
+                        .HasColumnType("bit");
+
                     b.Property<decimal>("MarketValue")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -351,6 +354,9 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -371,6 +377,56 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasIndex("OwnerTenantId");
 
                     b.ToTable("Properties", "real_estate");
+                });
+
+            modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.PropertyImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Caption")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("OwnerTenantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerTenantId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("PropertyImages", "real_estate");
                 });
 
             modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.PropertyUnit", b =>
@@ -900,6 +956,43 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                     b.ToTable("Tenants", "real_estate");
                 });
 
+            modelBuilder.Entity("Softaxis.RealEstate.Infrastructure.Persistence.TenantLookup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("tenants", "identity", t =>
+                        {
+                            t.ExcludeFromMigrations();
+                        });
+                });
+
+            modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.PropertyImage", b =>
+                {
+                    b.HasOne("Softaxis.RealEstate.Domain.Entities.Property", null)
+                        .WithMany("Images")
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.PropertyUnit", b =>
                 {
                     b.HasOne("Softaxis.RealEstate.Domain.Entities.Property", null)
@@ -925,6 +1018,8 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("Softaxis.RealEstate.Domain.Entities.Property", b =>
                 {
+                    b.Navigation("Images");
+
                     b.Navigation("Units");
                 });
 #pragma warning restore 612, 618

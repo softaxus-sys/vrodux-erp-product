@@ -33,11 +33,14 @@ export function CommandPalette() {
   }, [navigationConfig]);
 
   const quickActions = React.useMemo(() => [
-    { label: t("command.createInvoice"),    href: "/finance/invoicing/new" },
-    { label: t("command.addEmployee"),      href: "/hr/employees/new" },
-    { label: t("command.newPurchaseOrder"), href: "/purchase/orders/new" },
-    { label: t("command.addCustomer"),      href: "/crm/customers/new" },
-    { label: t("command.newQuotation"),     href: "/sales/quotations/new" },
+    // These point at the LIST page, not a "/new" route. No /new route has ever existed for any of
+    // them — creation happens in a drawer on the list page — so every one of these previously fell
+    // through to the catch-all and silently redirected to the dashboard.
+    { label: t("command.createInvoice"),    href: "/finance/invoicing" },
+    { label: t("command.addEmployee"),      href: "/hr/employees" },
+    { label: t("command.newPurchaseOrder"), href: "/purchase/orders" },
+    { label: t("command.addCustomer"),      href: "/crm/customers" },
+    { label: t("command.newQuotation"),     href: "/sales/quotations" },
   ], [t]);
 
   React.useEffect(() => {

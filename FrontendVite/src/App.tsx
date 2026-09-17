@@ -32,6 +32,9 @@ const StatementsPage       = lazyWithRetry(() => import("@/pages/finance/stateme
 const InvoicingPage        = lazyWithRetry(() => import("@/pages/finance/invoicing"));
 const RecurringInvoicesPage = lazyWithRetry(() => import("@/pages/finance/recurring"));
 const ExpensesPage         = lazyWithRetry(() => import("@/pages/finance/expenses"));
+const SuppliersPage        = lazyWithRetry(() => import("@/pages/finance/suppliers"));
+const FinanceCustomersPage = lazyWithRetry(() => import("@/pages/finance/customers"));
+const AgeingPage           = lazyWithRetry(() => import("@/pages/finance/ageing"));
 const BudgetingPage        = lazyWithRetry(() => import("@/pages/finance/budgeting"));
 const TaxPage              = lazyWithRetry(() => import("@/pages/finance/tax"));
 const BankingPage          = lazyWithRetry(() => import("@/pages/finance/banking"));
@@ -53,6 +56,7 @@ const CustomersPage        = lazyWithRetry(() => import("@/pages/crm/customers")
 const CrmActivitiesPage    = lazyWithRetry(() => import("@/pages/crm/activities"));
 const CrmDocumentsPage     = lazyWithRetry(() => import("@/pages/crm/documents"));
 const CrmReportsPage       = lazyWithRetry(() => import("@/pages/crm/reports"));
+const CrmListingsPage      = lazyWithRetry(() => import("@/pages/crm/listings"));
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
 const QuotationsPage       = lazyWithRetry(() => import("@/pages/sales/quotations"));
@@ -99,6 +103,7 @@ const SitesPage            = lazyWithRetry(() => import("@/pages/construction/si
 
 // ── POS ───────────────────────────────────────────────────────────────────────
 const RetailPOSPage        = lazyWithRetry(() => import("@/pages/pos/retail"));
+const PosDashboardPage     = lazyWithRetry(() => import("@/pages/pos/dashboard"));
 const RestaurantPOSPage    = lazyWithRetry(() => import("@/pages/pos/restaurant"));
 const KitchenDisplayPage   = lazyWithRetry(() => import("@/pages/pos/kitchen"));
 const FloorDesignerPage    = lazyWithRetry(() => import("@/pages/pos/floor-designer"));
@@ -351,6 +356,9 @@ export function App() {
             <Route path="/finance/invoicing"      element={<InvoicingPage />} />
             <Route path="/finance/recurring"      element={<RecurringInvoicesPage />} />
             <Route path="/finance/expenses"       element={<ExpensesPage />} />
+            <Route path="/finance/suppliers"      element={<SuppliersPage />} />
+            <Route path="/finance/customers"      element={<FinanceCustomersPage />} />
+            <Route path="/finance/ageing"         element={<AgeingPage />} />
             <Route path="/finance/budgeting"      element={<BudgetingPage />} />
             <Route path="/finance/tax"            element={<TaxPage />} />
             <Route path="/finance/banking"        element={<BankingPage />} />
@@ -379,6 +387,7 @@ export function App() {
             <Route path="/crm/activities" element={<CrmActivitiesPage />} />
             <Route path="/crm/documents" element={<CrmDocumentsPage />} />
             <Route path="/crm/reports"   element={<CrmReportsPage />} />
+            <Route path="/crm/listings"  element={<CrmListingsPage />} />
           </Route>
 
           {/* ── Sales ───────────────────────────────────────────────────────── */}
@@ -452,6 +461,7 @@ export function App() {
 
           {/* ── POS ─────────────────────────────────────────────────────────── */}
           <Route element={<ModuleGuard module="pos" />}>
+            <Route path="/pos/dashboard"   element={<PosDashboardPage />} />
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
             <Route path="/pos/restaurant"  element={<RestaurantPOSPage />} />

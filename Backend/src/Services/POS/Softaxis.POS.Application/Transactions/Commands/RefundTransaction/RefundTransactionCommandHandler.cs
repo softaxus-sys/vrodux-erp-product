@@ -97,6 +97,9 @@ public sealed class RefundTransactionCommandHandler(
         if (completeResult.IsFailure)
             return Result.Failure<POSTransactionDto>(completeResult.Error);
 
+        if (cmd.Offline is not null)
+            refundTxn.MarkOffline(cmd.Offline.ClientRef, cmd.Offline.ReceiptNumber, cmd.Offline.OccurredAtUtc);
+
         // Restore stock in the correct schema (pos or inventory)
         foreach (var req in cmd.LineItems)
         {

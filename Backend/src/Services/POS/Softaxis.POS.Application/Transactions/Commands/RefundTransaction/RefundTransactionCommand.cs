@@ -9,7 +9,9 @@ public sealed record RefundTransactionCommand(
     Guid                        SessionId,
     IReadOnlyList<LineItemRequest> LineItems,   // partial refund: subset of original items
     IReadOnlyList<PaymentRequest>  Payments,
-    string?                     Reason) : ICommand<POSTransactionDto>;
+    string?                     Reason,
+    // Set only by the offline day-end sync — never bound from a request (see OfflineContext).
+    Common.OfflineContext?      Offline = null) : ICommand<POSTransactionDto>;
 
 public sealed class RefundTransactionCommandValidator : AbstractValidator<RefundTransactionCommand>
 {

@@ -318,7 +318,7 @@ public static class FinanceSeedData
         foreach (var (name, id) in SupplierIdByName)
         {
             if (existing.Contains(id)) continue;
-            var supplier = new Supplier(name, null, null, null, AccAccountsPay);
+            var supplier = new Supplier(name, null, null, null, null, AccAccountsPay);
             SetId(supplier, id);
             db.Suppliers.Add(supplier);
         }

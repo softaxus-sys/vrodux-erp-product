@@ -22,9 +22,9 @@ internal sealed class CreateSupplierHandler(FinanceDbContext db)
                         $"Account '{cmd.AccountId}' was not found."));
         }
 
-        var supplier = new Supplier(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId);
+        var supplier = new Supplier(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.TaxNumber, cmd.AccountId);
         if (!cmd.IsActive)
-            supplier.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId, false);
+            supplier.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.TaxNumber, cmd.AccountId, false);
 
         db.Suppliers.Add(supplier);
         await db.SaveChangesAsync(ct);
@@ -35,7 +35,7 @@ internal sealed class CreateSupplierHandler(FinanceDbContext db)
 
         return Result.Success(new SupplierDto(
             supplier.Id, supplier.Code, supplier.Name, supplier.Email, supplier.Phone, supplier.Address,
-            supplier.AccountId, account?.AccountNumber, account?.Name,
+            supplier.TaxNumber, supplier.AccountId, account?.AccountNumber, account?.Name,
             supplier.IsActive, supplier.CreatedAt, supplier.UpdatedAt));
     }
 }

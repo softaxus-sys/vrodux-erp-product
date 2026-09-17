@@ -11,7 +11,8 @@ public sealed record UpdateSupplierCommand(
     string? Phone     = null,
     string? Address   = null,
     Guid?   AccountId = null,
-    bool    IsActive  = true
+    bool    IsActive  = true,
+    string? TaxNumber = null
 ) : ICommand;
 
 public sealed class UpdateSupplierValidator : AbstractValidator<UpdateSupplierCommand>
@@ -36,5 +37,9 @@ public sealed class UpdateSupplierValidator : AbstractValidator<UpdateSupplierCo
         RuleFor(x => x.Address)
             .MaximumLength(500).WithMessage("Address must be ≤ 500 characters.")
             .When(x => x.Address is not null);
+
+        RuleFor(x => x.TaxNumber)
+            .MaximumLength(50).WithMessage("Tax number must be ≤ 50 characters.")
+            .When(x => x.TaxNumber is not null);
     }
 }

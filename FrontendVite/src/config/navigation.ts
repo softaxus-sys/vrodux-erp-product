@@ -153,6 +153,27 @@ export const navigationConfig: NavGroup[] = [
             icon: "CreditCard",
           },
           {
+            id: "finance-customers",
+            label: "Customers",
+            labelAr: "العملاء",
+            href: "/finance/customers",
+            icon: "Users",
+          },
+          {
+            id: "suppliers",
+            label: "Suppliers",
+            labelAr: "الموردون",
+            href: "/finance/suppliers",
+            icon: "Building2",
+          },
+          {
+            id: "ageing",
+            label: "Ageing & Statements",
+            labelAr: "الأعمار وكشوف الحساب",
+            href: "/finance/ageing",
+            icon: "Clock",
+          },
+          {
             id: "budgeting",
             label: "Budgeting",
             labelAr: "الميزانية",
@@ -269,6 +290,13 @@ export const navigationConfig: NavGroup[] = [
             labelAr: "العملاء المحتملون",
             href: "/crm/leads",
             icon: "UserSearch",
+          },
+          {
+            id: "crm-listings",
+            label: "My Listings",
+            labelAr: "إعلاناتي",
+            href: "/crm/listings",
+            icon: "Home",
           },
           {
             id: "pipeline",
@@ -557,6 +585,7 @@ export const navigationConfig: NavGroup[] = [
         module: "pos",
         children: [
           // module: "pos" → visible to all with POS access (cashier, supervisor, manager)
+          { id: "pos-dashboard",   label: "Dashboard",       href: "/pos/dashboard",   icon: "LayoutDashboard", module: "pos" },
           { id: "retail-pos",      label: "Retail POS",      href: "/pos/retail",      icon: "ShoppingBag",     module: "pos" },
           { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos" },
           // module: "restaurant" → only visible to users with restaurant module access

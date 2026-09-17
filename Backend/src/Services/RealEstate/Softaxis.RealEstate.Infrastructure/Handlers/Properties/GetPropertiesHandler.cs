@@ -43,7 +43,11 @@ internal sealed class GetPropertiesHandler(RealEstateDbContext db)
             .Take(pageSize)
             .ToListAsync(ct);
 
+        // One extra query for the whole page, never one per property.
+        var images = await PropertyMappings.LoadImagesAsync(db, items.Select(x => x.Id).ToList(), ct);
+
         return Result.Success(PagedResult<PropertyDto>.Create(
-            items.Select(PropertyMappings.ToDto).ToList(), total, page, pageSize));
+            items.Select(x => PropertyMappings.ToDto(x, images.GetValueOrDefault(x.Id, []))).ToList(),
+            total, page, pageSize));
     }
 }

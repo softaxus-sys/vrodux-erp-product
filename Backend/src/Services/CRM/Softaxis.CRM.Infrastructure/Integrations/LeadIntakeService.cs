@@ -32,17 +32,38 @@ public sealed class LeadIntakeService(
         ApplyFieldMappings(lead, integration);
         NormalizeNames(lead);
 
+        if (Clean(lead.Email) is null && Clean(lead.Phone) is null
+            && Clean(lead.FirstName) is null && Clean(lead.LastName) is null)
+            return IntakeResult.Rejected("Lead has no email, phone, or name — nothing to create.");
+
+        // Resolved first, because when the source knows whose lead it is, the owner is part of
+        // what makes two records "the same". A listing an agent registered as theirs wins over every
+        // other rule: it is the agency's own statement of who published the property.
+        PortalListing? registered = null;
+        if (owner is null)
+        {
+            registered = await FindRegisteredListingAsync(lead, integration, tenantId, ct);
+            owner = registered is not null ? await RegisteredListingOwnerAsync(registered, tenantId, ct) : null;
+            if (owner is null) registered = null;   // agent no longer here: fall back, and don't credit the listing
+            owner ??= await ResolveFromSourceAsync(lead, integration, tenantId, ct);
+        }
+
+        var result = await IngestResolvedAsync(lead, tenantId, integration, owner, ct);
+
+        // Counted only when a lead was actually created or updated — a webhook retry is not a new
+        // enquiry. Saved with the lead by the caller's SaveChanges; the listing is a tracked entity.
+        if (registered is not null && result.Outcome is IntakeOutcome.Created or IntakeOutcome.Updated)
+            registered.RecordEnquiry();
+        return result;
+    }
+
+    private async Task<IntakeResult> IngestResolvedAsync(
+        CanonicalLead lead, Guid tenantId, Integration? integration, LeadOwner? owner, CancellationToken ct)
+    {
         var email = Clean(lead.Email)?.ToLowerInvariant();
         var phone = Clean(lead.Phone);
         var first = Clean(lead.FirstName);
         var last  = Clean(lead.LastName);
-
-        if (email is null && phone is null && first is null && last is null)
-            return IntakeResult.Rejected("Lead has no email, phone, or name — nothing to create.");
-
-        // Resolved first, because when the source knows whose lead it is, the owner is part of
-        // what makes two records "the same".
-        owner ??= await ResolveAsync(lead, integration, tenantId, ct);
 
         // Every enquiry naming both a listing and its agent teaches the listing map, so a later
         // enquiry carrying only the reference (Bayut's WhatsApp push) still reaches that agent.
@@ -364,6 +385,54 @@ public sealed class LeadIntakeService(
     /// honouring that beats round-robining it to whoever is next.</para>
     /// </summary>
     public async Task<LeadOwner?> ResolveAsync(
+        CanonicalLead lead, Integration? integration, Guid tenantId, CancellationToken ct)
+    {
+        if (await FindRegisteredListingAsync(lead, integration, tenantId, ct) is { } registered
+            && await RegisteredListingOwnerAsync(registered, tenantId, ct) is { } owner)
+            return owner;
+        return await ResolveFromSourceAsync(lead, integration, tenantId, ct);
+    }
+
+    /// <summary>
+    /// The listing an agent registered in Vrodux (CRM → My Listings) that this enquiry is about, or null.
+    ///
+    /// <para>Tenant-explicit — webhooks arrive with no ambient tenant, so the query filter is ignored and
+    /// the tenant is applied by hand. Matched on either key, since a push may carry the reference, the
+    /// id, or both. When the two keys point at different registrations the reference wins: it is the
+    /// account's own code, the id is only read out of a URL.</para>
+    /// </summary>
+    private async Task<PortalListing?> FindRegisteredListingAsync(
+        CanonicalLead lead, Integration? integration, Guid tenantId, CancellationToken ct)
+    {
+        var keys = ListingKeys(lead).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (keys.Count == 0) return null;
+
+        var query = db.PortalListings.IgnoreQueryFilters()
+            .Where(x => EF.Property<Guid?>(x, TenantIsolation.Column) == tenantId && !x.IsDeleted && x.IsActive
+                        && ((x.Reference != null && keys.Contains(x.Reference))
+                            || (x.ListingId != null && keys.Contains(x.ListingId))));
+        if (integration is not null) query = query.Where(x => x.Portal == integration.ProviderKey);
+
+        var hits = await query.Take(5).ToListAsync(ct);
+        if (hits.Count == 0) return null;
+
+        var reference = Clean(lead.ListingReference);
+        return hits.FirstOrDefault(x => reference is not null
+                                        && string.Equals(x.Reference, reference, StringComparison.OrdinalIgnoreCase))
+               ?? hits[0];
+    }
+
+    /// <summary>The registered agent as a lead owner — null when their login no longer exists here.</summary>
+    private async Task<LeadOwner?> RegisteredListingOwnerAsync(PortalListing listing, Guid tenantId, CancellationToken ct)
+    {
+        var exists = await db.Set<IdentityUserView>().AsNoTracking()
+            .AnyAsync(u => u.Id == listing.AgentUserId && u.TenantId == tenantId && !u.IsDeleted, ct);
+        if (!exists) return null;
+        return new LeadOwner(listing.AgentUserId, listing.AgentName,
+            listing.TeamId ?? await SoleTeamAsync(listing.AgentUserId, tenantId, ct));
+    }
+
+    private async Task<LeadOwner?> ResolveFromSourceAsync(
         CanonicalLead lead, Integration? integration, Guid tenantId, CancellationToken ct)
     {
         var routing = ParseRouting(integration?.RoutingConfig);

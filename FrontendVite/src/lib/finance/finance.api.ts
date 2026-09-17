@@ -304,9 +304,9 @@ export interface ExpensesSummaryDto {
   pendingApproval: number;
 }
 
-// ─── Suppliers ──────────────────────────────────────────────────────────────────
+// ─── Customers (AR master) ──────────────────────────────────────────────────────
 
-export interface SupplierDto {
+export interface FinanceCustomerDto {
   id: string;
   code: string;
   name: string;
@@ -316,9 +316,108 @@ export interface SupplierDto {
   accountId?: string | null;
   accountNumber?: string | null;
   accountName?: string | null;
+  /** Comma/semicolon separated additional recipients for invoice emails. */
+  ccEmails?: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt?: string | null;
+}
+
+/** Create payload. `code` is generated server-side, so it is not sent. */
+export interface CreateFinanceCustomerRequest {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  accountId?: string;
+  ccEmails?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateFinanceCustomerRequest extends CreateFinanceCustomerRequest {
+  isActive: boolean;
+}
+
+// ─── Ageing & Statements ────────────────────────────────────────────────────────
+
+/** Fixed server-side in AgingHelpers.BucketOrder — keep in lockstep. */
+export const AGING_BUCKETS = ["current", "1-30", "31-60", "61-90", "90+"] as const;
+export type AgingBucket = (typeof AGING_BUCKETS)[number];
+
+export interface AgingLineDto {
+  id: string;
+  documentNumber: string;
+  partyId?: string | null;
+  partyName: string;
+  documentDate: string;
+  dueDate: string;
+  total: number;
+  amountPaid: number;
+  amountDue: number;
+  daysOverdue: number;
+  bucket: AgingBucket;
+}
+
+export interface AgingBucketTotalDto { bucket: AgingBucket; amount: number }
+
+export interface AgingReportDto {
+  asOf: string;
+  lines: AgingLineDto[];
+  bucketTotals: AgingBucketTotalDto[];
+  totalDue: number;
+}
+
+export interface StatementLineDto {
+  date: string;
+  type: string;
+  reference: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface StatementDto {
+  partyId: string;
+  partyName: string;
+  lines: StatementLineDto[];
+  totalDebit: number;
+  totalCredit: number;
+  closingBalance: number;
+}
+
+// ─── Suppliers ──────────────────────────────────────────────────────────────────
+
+export interface SupplierDto {
+  id: string;
+  code: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  /** Tax registration number (UAE TRN, VAT no., …). */
+  taxNumber?: string | null;
+  accountId?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+/** Create payload. `code` is generated server-side, so it is not sent. */
+export interface CreateSupplierRequest {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  taxNumber?: string;
+  /** Optional link to a Chart-of-Accounts payable account. */
+  accountId?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateSupplierRequest extends CreateSupplierRequest {
+  isActive: boolean;
 }
 
 // ─── Purchase Bills (AP Invoices) ────────────────────────────────────────────────
@@ -820,6 +919,43 @@ export const financeApi = {
     if (params?.isActive !== undefined) qs.set("isActive", String(params.isActive));
     const query = qs.toString();
     return rawApiClient.get(`${BASE}/suppliers${query ? `?${query}` : ""}`);
+  },
+  getSupplierById: (id: string): Promise<SupplierDto> => rawApiClient.get(`${BASE}/suppliers/${id}`),
+  createSupplier:  (data: CreateSupplierRequest): Promise<SupplierDto> => rawApiClient.post(`${BASE}/suppliers`, data),
+  updateSupplier:  (id: string, data: UpdateSupplierRequest): Promise<void> => rawApiClient.put(`${BASE}/suppliers/${id}`, data),
+  deleteSupplier:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/suppliers/${id}`),
+
+  // Customers (AR master)
+  getFinanceCustomers: (params?: { search?: string; isActive?: boolean }): Promise<FinanceCustomerDto[]> => {
+    const qs = new URLSearchParams();
+    if (params?.search)                 qs.set("search",   params.search);
+    if (params?.isActive !== undefined) qs.set("isActive", String(params.isActive));
+    const query = qs.toString();
+    return rawApiClient.get(`${BASE}/customers${query ? `?${query}` : ""}`);
+  },
+  getFinanceCustomerById: (id: string): Promise<FinanceCustomerDto> => rawApiClient.get(`${BASE}/customers/${id}`),
+  createFinanceCustomer:  (data: CreateFinanceCustomerRequest): Promise<FinanceCustomerDto> => rawApiClient.post(`${BASE}/customers`, data),
+  updateFinanceCustomer:  (id: string, data: UpdateFinanceCustomerRequest): Promise<void> => rawApiClient.put(`${BASE}/customers/${id}`, data),
+  deleteFinanceCustomer:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/customers/${id}`),
+
+  // Ageing & statements. `asOf` is yyyy-MM-dd; omitted means today on the server.
+  getArAging: (asOf?: string): Promise<AgingReportDto> =>
+    rawApiClient.get(`${BASE}/ar/aging${asOf ? `?asOf=${asOf}` : ""}`),
+  getApAging: (asOf?: string): Promise<AgingReportDto> =>
+    rawApiClient.get(`${BASE}/ap/aging${asOf ? `?asOf=${asOf}` : ""}`),
+  getCustomerStatement: (customerId: string, from?: string, to?: string): Promise<StatementDto> => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to)   qs.set("to",   to);
+    const q = qs.toString();
+    return rawApiClient.get(`${BASE}/ar/statement/${customerId}${q ? `?${q}` : ""}`);
+  },
+  getSupplierStatement: (supplierId: string, from?: string, to?: string): Promise<StatementDto> => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to)   qs.set("to",   to);
+    const q = qs.toString();
+    return rawApiClient.get(`${BASE}/ap/statement/${supplierId}${q ? `?${q}` : ""}`);
   },
 
   // Purchase Bills (AP Invoices)

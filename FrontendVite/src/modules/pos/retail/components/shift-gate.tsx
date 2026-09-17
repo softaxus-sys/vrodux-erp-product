@@ -30,6 +30,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useActiveSessions, useOpenSession, useCloseSession } from "@/hooks/pos/use-sessions";
 import { useTransactions } from "@/hooks/pos/use-transactions";
 import type { POSSessionSummaryDto } from "@/lib/pos/types";
+import { OfflineDayEndBanner } from "@/components/pos/offline-sync";
 
 // ─── Country denomination config ──────────────────────────────────────────────
 
@@ -262,6 +263,9 @@ function OpenShiftScreen({ onOpened }: { onOpened: (s: POSSessionSummaryDto) => 
 
         <div className="flex-1 flex items-center justify-center p-6 overflow-y-auto">
           <div className="w-full max-w-lg space-y-6">
+
+            {/* Offline mode: earlier shifts on this till still waiting to upload */}
+            <OfflineDayEndBanner />
 
             {/* User identity card */}
             <motion.div
