@@ -1,0 +1,177 @@
+{
+  "brand": { "name": "Leading Properties", "tagline": "Private Client Real Estate, UAE" },
+  "nav": {
+    "home": "Home",
+    "properties": "Properties",
+    "about": "About",
+    "contact": "Contact",
+    "enquire": "Enquire"
+  },
+  "home": {
+    "eyebrow": "Dubai · Abu Dhabi · Ras Al Khaimah",
+    "title": "Addresses worth holding on to.",
+    "lede": "We represent a deliberately small portfolio of residences across the Emirates — and we stay with our clients long after the keys change hands.",
+    "cta": "View the portfolio",
+    "ctaSecondary": "Speak to an adviser",
+    "searchTitle": "Find an address",
+    "statsTitle": "Why owners work with us",
+    "stats": [
+      { "value": "AED 2.4B", "label": "Transacted since 2016" },
+      { "value": "18 days", "label": "Median time to offer" },
+      { "value": "72%", "label": "Business from referrals" },
+      { "value": "11", "label": "Languages spoken in-house" }
+    ],
+    "featuredTitle": "Currently representing",
+    "featuredLede": "A selection from the portfolio. The full list, including off-market instructions, is shared on request.",
+    "viewAll": "See all properties",
+    "processTitle": "How we work",
+    "process": [
+      {
+        "step": "01",
+        "title": "Understand the brief",
+        "body": "A conversation before a viewing. We would rather show you three right homes than thirty plausible ones."
+      },
+      {
+        "step": "02",
+        "title": "Open the off-market book",
+        "body": "A meaningful share of what we transact is never advertised. Registered clients see it first."
+      },
+      {
+        "step": "03",
+        "title": "Negotiate and close",
+        "body": "Valuation, structuring, conveyancing and handover — coordinated by one named adviser, end to end."
+      }
+    ],
+    "ctaBandTitle": "Considering a sale, or looking quietly?",
+    "ctaBandBody": "Tell us what you are after. We will come back within one working day, in confidence.",
+    "ctaBandButton": "Start a conversation"
+  },
+  "search": {
+    "purpose": "Purpose",
+    "buy": "Buy",
+    "rent": "Rent",
+    "any": "Any",
+    "community": "Community",
+    "type": "Property type",
+    "bedrooms": "Bedrooms",
+    "priceMin": "Min price",
+    "priceMax": "Max price",
+    "submit": "Search",
+    "reset": "Clear filters",
+    "results_one": "{{count}} property",
+    "results_other": "{{count}} properties",
+    "empty": "Nothing matches those filters yet.",
+    "emptyBody": "Widen the search, or tell us what you are looking for and we will check the off-market book.",
+    "studio": "Studio"
+  },
+  "property": {
+    "reference": "Reference",
+    "overview": "Overview",
+    "features": "Features",
+    "location": "Location",
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms",
+    "area": "Built-up area",
+    "type": "Type",
+    "purpose": "Purpose",
+    "handover": "Handover",
+    "furnishing": "Furnishing",
+    "enquireTitle": "Enquire about this property",
+    "enquireBody": "Your adviser will respond within one working day.",
+    "back": "Back to properties",
+    "similar": "Nearby in the portfolio",
+    "gallery": "Gallery",
+    "perYear": "/ year",
+    "priceOnRequest": "Price on request"
+  },
+  "about": {
+    "eyebrow": "About us",
+    "title": "A small firm, on purpose.",
+    "lede": "Leading Properties was founded on a simple observation: most buyers in this market are shown inventory, not advice. We kept the team small so that the person who takes your first call is the person who hands you the keys.",
+    "sections": [
+      {
+        "title": "Independent by design",
+        "body": "We are not tied to a developer or a single tower. That is what lets us tell a client when the right answer is to wait, or to buy somewhere we have nothing listed."
+      },
+      {
+        "title": "Licensed and accountable",
+        "body": "Registered with the relevant emirate authorities, with every transaction run through formal escrow and conveyancing. Ask us for our permit numbers at any point."
+      },
+      {
+        "title": "Long after handover",
+        "body": "Snagging, leasing, service-charge disputes, resale — the relationship does not end at the transfer counter. Most of our work comes from people we sold to years ago."
+      }
+    ],
+    "valuesTitle": "What we hold to",
+    "values": [
+      { "title": "No inflated valuations", "body": "We price to sell, and we show you the comparables we used." },
+      { "title": "No portal-only listings", "body": "If we represent it, you can see it in person this week." },
+      { "title": "No handing you around", "body": "One named adviser, from enquiry to handover." }
+    ]
+  },
+  "contact": {
+    "eyebrow": "Contact",
+    "title": "Tell us what you are looking for.",
+    "lede": "The more you tell us, the less of your time we waste. Every enquiry is read by an adviser, not a call centre.",
+    "officeTitle": "Office",
+    "hoursTitle": "Hours",
+    "hours": "Sunday to Thursday, 9:00 – 18:00 GST\nSaturday by appointment",
+    "callUs": "Call",
+    "whatsapp": "WhatsApp",
+    "emailUs": "Email"
+  },
+  "form": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "whatsapp": "WhatsApp (optional)",
+    "interestedIn": "What are you looking for?",
+    "interestedInPlaceholder": "e.g. 3-bed villa, Dubai Hills",
+    "budget": "Budget",
+    "budgetPlaceholder": "e.g. 4–6M AED",
+    "timeframe": "When are you planning to buy?",
+    "message": "Anything else we should know?",
+    "submit": "Send enquiry",
+    "sending": "Sending…",
+    "successTitle": "Thank you — we have it.",
+    "successBody": "An adviser will be in touch within one working day.",
+    "errorTitle": "That did not send.",
+    "errorBody": "Please try again, or call us directly.",
+    "required": "Required",
+    "invalidEmail": "Enter a valid email address",
+    "needContact": "Please give us an email or a phone number so we can reply.",
+    "consent": "By sending this you agree we may contact you about your enquiry.",
+    "timeframeOptions": {
+      "immediate": "Immediately",
+      "1_month": "Within a month",
+      "1_3_months": "1–3 months",
+      "3_6_months": "3–6 months",
+      "6_plus": "6+ months",
+      "browsing": "Just researching"
+    }
+  },
+  "footer": {
+    "blurb": "Private client real estate across the United Arab Emirates.",
+    "explore": "Explore",
+    "legal": "Legal",
+    "privacy": "Privacy policy",
+    "terms": "Terms of use",
+    "rights": "All rights reserved.",
+    "permit": "RERA ORN 00000 · Trade licence 000000"
+  },
+  "common": {
+    "language": "Language",
+    "menu": "Menu",
+    "close": "Close",
+    "from": "From",
+    "bed": "bed",
+    "beds": "beds",
+    "bath": "bath",
+    "baths": "baths",
+    "sqft": "sq ft",
+    "notFoundTitle": "We could not find that page.",
+    "notFoundBody": "The link may be out of date, or the property may have been withdrawn.",
+    "notFoundCta": "Back to the portfolio"
+  }
+}
