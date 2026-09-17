@@ -20,8 +20,15 @@ namespace Softaxis.RealEstate.Infrastructure.Handlers.PublicListings;
 /// explicit OwnerTenantId predicate below — omitting it publishes the entire platform's
 /// portfolio on one customer's website.
 /// </summary>
-/// <summary>Just enough of an image to build a listing: its id and its place in the gallery.</summary>
-internal readonly record struct ImageRef(Guid Id, int SortOrder, bool IsPrimary);
+/// <summary>
+/// Just enough of an image to build a listing: its id and its place in the gallery.
+///
+/// A record CLASS, not a record struct. FirstOrDefault over a struct returns a zero value rather
+/// than null, so `FirstOrDefault(...)?.Id` does not compile — and had it been written to compile
+/// against a struct, an empty gallery would have yielded Guid.Empty as the "primary image id"
+/// instead of no image at all.
+/// </summary>
+internal sealed record ImageRef(Guid Id, int SortOrder, bool IsPrimary);
 
 internal static class PublicListingScope
 {
