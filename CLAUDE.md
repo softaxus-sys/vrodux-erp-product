@@ -6356,3 +6356,50 @@ just the four hourly/payment charts on the main dashboard. New page: first item 
 - Full gateway build blocked only by file locks from the running gateway / Visual Studio (not compile errors).
 - **Not runtime-tested** — restart the gateway, open POS → Dashboard, compare Today's net sales with the
   Close-Shift summary, refund a sale and confirm gross is unchanged while refunds and net move.
+
+---
+
+## Module 60 — Ops: `/opt/vrodux/current/.env` vs `/opt/vrodux/shared/.env` drift (SQL Server + Redis auth)
+
+**Found while setting `Support:OperatorTenantId` (Module: Support ticketing) on the Contabo server.** Manually
+running `docker compose -f docker-compose.prod.yml up -d vrodux-api` from `/opt/vrodux/current` — with no
+`--env-file` flag — makes Compose default to reading `.env` in the **current working directory**
+(`/opt/vrodux/current/.env`), not the canonical secrets file. The real CD pipeline (`.github/workflows/deploy.yml`)
+always passes `--env-file "${APP_DIR}/shared/.env"` explicitly and only ever touches `vrodux-api`/`vrodux-web`
+with `--no-deps` — it never recreates `vrodux-sqlserver` or `vrodux-redis`. A manual `up -d` without those two
+things (no `--env-file`, no `--no-deps`) pulled `sqlserver`/`redis` into the dependency graph and recreated them
+using the stale, drifted `current/.env` instead of the correct `shared/.env`.
+
+**Consequence:** `vrodux-sqlserver` came up "Up (unhealthy)" — the container itself connects to its existing,
+already-initialized data volume fine (SQL Server only ever applies its `SA_PASSWORD` env var on a *first* init of
+an empty volume, never after), but its healthcheck script re-evaluates `${SQL_SA_PASSWORD}` against the *new*
+container's env at every probe, and that env came from the wrong file → the probe's login fails even though the
+real `sa` password (matching `shared/.env`) never changed. Separately, `vrodux-redis` crash-looped with `*** FATAL
+CONFIG FILE ERROR *** ... 'requirepass' wrong number of arguments` — the **deployed** `docker/redis/redis.conf`
+on the server had a hand-edited `requirepass` line that doesn't exist in the tracked repo file (the repo's
+`redis.conf` deliberately has no `requirepass` — auth is injected only via the compose `command:`'s
+`--requirepass ${REDIS_PASSWORD}`), and that stray line had ended up with no value.
+
+**Fix applied:** since the deploy pipeline's `git checkout -f FETCH_HEAD` in `/opt/vrodux/current` resets every
+*tracked* file to match the deployed commit exactly (but never touches `.env`, which is gitignored), simply
+triggering a normal deploy restores `docker/redis/redis.conf` to the clean tracked version on disk. Combined
+with the pipeline always using `--env-file shared/.env` + `--no-deps` for `vrodux-api`, a fresh deploy recreates
+`vrodux-api`/`vrodux-web` with the *correct* credentials regardless of `vrodux-sqlserver`'s own (cosmetically)
+unhealthy status — `--no-deps` bypasses the `depends_on: condition: service_healthy` gate, and the app's own DB
+connectivity works because the real stored `sa` password already matches `shared/.env`.
+
+**Known limitation, not fixed by a deploy alone:** because the pipeline is deliberately scoped to
+`vrodux-api`/`vrodux-web` only, `vrodux-sqlserver` and `vrodux-redis` themselves are never recreated by an
+ordinary deploy — so `vrodux-sqlserver` can keep reporting "unhealthy" (cosmetic — its healthcheck uses the
+container's own stale baked-in env) and, more importantly, a bind-mounted single file like `redis.conf` may not
+be picked up by an already-running container even after the host file is corrected (Linux bind-mounts a file by
+inode at container creation; git's checkout replaces the file via atomic rename, i.e. a new inode) — the
+container needs an actual **recreate**, not just a restart, to see the fixed file. Fully cleaning this up needs
+someone to run, on the server: `cd /opt/vrodux/current && docker compose -f docker-compose.prod.yml --env-file
+/opt/vrodux/shared/.env up -d --force-recreate vrodux-sqlserver vrodux-redis` — recreating those two against the
+*correct* env file and the freshly-checked-out `redis.conf`.
+
+**Takeaway for future manual ops on this server:** never run `docker compose` from `/opt/vrodux/current` without
+`--env-file /opt/vrodux/shared/.env` — the two `.env` files are allowed to drift apart (only `shared/.env` is
+authoritative) and Compose silently prefers whatever `.env` sits in the working directory when the flag is
+omitted.
