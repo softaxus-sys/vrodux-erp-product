@@ -7,19 +7,24 @@
  */
 
 /**
- * Path to the client's logo inside /public.
- * null falls back to a typeset wordmark built from the brand name.
+ * The client's logo, served from /public.
  *
- * The client's mark exists as:
- *   - cropped-leading-properties-logo.png  (colour, for light backgrounds)
- *   - Leading-Properties-Logo-Black.jpg    (black, for light backgrounds)
- * Ask the client for the original SVG or a transparent PNG at 2x header width —
- * the JPG cannot be used over a coloured background because it has no
- * transparency, and the logo renders at three sizes across the site.
+ * Drop the file in as Website/public/logo.png (or .svg) and it appears
+ * automatically — no code change needed. If the file is absent the Logo
+ * component falls back to a typeset wordmark rather than a broken image.
+ *
+ * Prefer the original SVG: the mark renders at several sizes across the site
+ * and a small raster will soften in the header. Failing that, a PNG with a
+ * transparent background at roughly 2x the header width (about 380px).
  */
-export const LOGO_SRC: string | null = null;
+export const LOGO_SRC: string | null = "/logo.png";
 
-/** Logo for dark backgrounds (the footer). Falls back to LOGO_SRC. */
+/**
+ * Logo for dark backgrounds (the footer). The client's standard mark is black
+ * type, which disappears on the dark footer — so supply a white/reversed
+ * version here as /public/logo-light.png. Until then the footer falls back to
+ * the wordmark, which stays legible.
+ */
 export const LOGO_SRC_DARK: string | null = null;
 
 /** Rendered logo width in the header, in pixels. Height scales automatically. */
