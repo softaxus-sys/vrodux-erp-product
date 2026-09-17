@@ -9,7 +9,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
 {
     // NOTE: this service's entities already have a "TenantId" meaning the RENTER/lessee,
     // so SaaS-tenant isolation uses a distinct "OwnerTenantId" column.
-    private const string OwnerTenant = "OwnerTenantId";
+    public const string OwnerTenant = "OwnerTenantId";
 
     public DbSet<Property> Properties => Set<Property>();
     public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
@@ -23,6 +23,9 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     public DbSet<RentInstallment> RentInstallments => Set<RentInstallment>();
     public DbSet<RentAlertSettings> RentAlertSettings => Set<RentAlertSettings>();
     public DbSet<RentAlertLog> RentAlertLogs => Set<RentAlertLog>();
+
+    /// <summary>Read-only view of identity.tenants — see <see cref="TenantLookup"/>.</summary>
+    public DbSet<TenantLookup> TenantLookups => Set<TenantLookup>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -47,6 +50,18 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         // One settings row per workspace.
         TenantIsolation.TenantUniqueIndex<RentAlertSettings>(
             mb, [], excludeSoftDeleted: false, column: OwnerTenant);
+
+        // Owned by Identity: mapped for reading only, and excluded from migrations so this
+        // service never tries to create or alter that table.
+        mb.Entity<TenantLookup>(b =>
+        {
+            b.ToTable("tenants", "identity", t => t.ExcludeFromMigrations());
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Id).ValueGeneratedNever();
+            b.Property(x => x.Slug).HasMaxLength(100);
+            b.Property(x => x.Name).HasMaxLength(200);
+            b.Property(x => x.Status).HasMaxLength(30);
+        });
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
