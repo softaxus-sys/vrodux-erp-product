@@ -15,7 +15,7 @@ import {
   Settings2, SlidersHorizontal, ShieldCheck, GitBranch, Plug, ScrollText,
   Zap, Bell, FolderTree, Tag, Ruler, Ticket, Repeat, Activity, Briefcase,
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins,
-  Stamp, CalendarClock, Printer, Globe
+  Stamp, CalendarClock, Printer, Globe,
   LifeBuoy, MessageSquare, Headset,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   Settings2, SlidersHorizontal, ShieldCheck, GitBranch, Plug, ScrollText,
   Zap, Bell, FolderTree, Tag, Ruler, Ticket, Repeat, Activity, Briefcase,
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins,
-  Stamp, CalendarClock, Printer, Globe
+  Stamp, CalendarClock, Printer, Globe,
   LifeBuoy, MessageSquare, Headset,
 };
 
