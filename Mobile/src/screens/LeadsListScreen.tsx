@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useLeadsPaged } from "@/hooks/use-leads";
 import { buildLeadSummary, formatCompactValue, leadHeat, urgencyLabel } from "@/lib/crm-helpers";
 import type { LeadDto } from "@/types/crm";
 import { Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { LeadsStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<LeadsStackParamList, "LeadsList">;
@@ -21,6 +21,8 @@ const FILTERS: { key: string; label: string }[] = [
 const PAGE_SIZE = 25;
 
 export default function LeadsListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [status, setStatus] = useState("open");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -91,6 +93,8 @@ export default function LeadsListScreen({ navigation }: Props) {
 }
 
 function LeadRow({ lead, onPress }: { lead: LeadDto; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const heat = leadHeat(lead.score);
   const urgency = urgencyLabel(lead.purchaseUrgency);
   return (
@@ -113,18 +117,20 @@ function LeadRow({ lead, onPress }: { lead: LeadDto; onPress: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  score: { fontSize: fontSize.base, color: colors.mutedForeground, fontWeight: fontWeight.semibold },
-  company: { fontSize: fontSize.base, color: colors.foregroundSecondary },
-  summary: { fontSize: fontSize.base, color: colors.mutedForeground },
-  rowBottom: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
-  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
-  urgency: { fontSize: fontSize.sm, color: colors.warning },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    score: { fontSize: fontSize.base, color: colors.mutedForeground, fontWeight: fontWeight.semibold },
+    company: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+    summary: { fontSize: fontSize.base, color: colors.mutedForeground },
+    rowBottom: { flexDirection: "row", justifyContent: "space-between", marginTop: spacing.xs },
+    value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+    urgency: { fontSize: fontSize.sm, color: colors.warning },
+  });
+}

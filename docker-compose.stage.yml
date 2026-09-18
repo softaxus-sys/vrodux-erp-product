@@ -36,6 +36,11 @@ services:
   redis:
     image: redis:7-alpine
     container_name: vrodux-stage-redis
+    environment:
+      # Needed only so the healthcheck's $${REDIS_PASSWORD} (escaped, expanded by the
+      # container's own shell, not by Compose) has something to expand — the actual
+      # server password comes from the unescaped ${REDIS_PASSWORD} in `command:` below.
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
     command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - stage-redis-data:/data
@@ -86,6 +91,8 @@ services:
       ConnectionStrings__ProjectManagementDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       ConnectionStrings__AiAssistantDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       ConnectionStrings__VisaDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__SupportDb: "Server=vrodux-stage-sqlserver;Database=SoftaxisErpDb_Staging;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
       Jwt__Secret: "${JWT_SECRET}"
       Jwt__Issuer: "Softaxis.Identity.API"
       Jwt__Audience: "Softaxis.ERP.Clients"

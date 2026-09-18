@@ -149,6 +149,16 @@ public static class PermissionSeedData
         // Visa Services (UAE visa consultancy — cases, applicants, documents)
         ["visa.cases"] = ["view","create","edit","delete"],
 
+        // Support (Softaxis's own operator-tenant ticket queue). Only "view"/"edit" — both
+        // standard actions already in ACTION_ORDER on the frontend, so no matrix-column change
+        // is needed there. Raising a ticket / reading your own tenant's tickets needs no
+        // permission at all (gated on nothing, like changing your own password) — these two
+        // keys govern only the agent-side queue, and only mean anything for whichever tenant is
+        // configured as Support:OperatorTenantId (see ISupportAccessGuard). Granting them to a
+        // normal customer tenant's role does nothing — it is not sufficient on its own to open
+        // the cross-tenant queue.
+        ["support.tickets"] = ["view","edit"],
+
         // Restaurant POS (tables, menu, orders incl. void/discount/refund, kitchen, reservations)
         ["restaurant.tables"]       = ["view","create","edit"],
         ["restaurant.menu"]         = ["view","create","edit"],

@@ -8,10 +8,12 @@ using Softaxis.Identity.Application.Auth.Commands.Login;
 using Softaxis.Identity.Application.Auth.Commands.RefreshToken;
 using Softaxis.Identity.Application.Auth.Commands.Register;
 using Softaxis.Identity.Application.Auth.Commands.ResetPassword;
+using Softaxis.Identity.Application.Auth.Commands.RevokeSession;
 using Softaxis.Identity.Application.Auth.Commands.RevokeToken;
 using Softaxis.Identity.Application.Auth.Commands.VerifyEmail;
 using Softaxis.Identity.Application.Auth.Commands.VerifyTwoFactor;
 using Softaxis.Identity.Application.Auth.Commands.ResendVerification;
+using Softaxis.Identity.Application.Auth.Queries.GetMySessions;
 using Softaxis.Identity.Application.DTOs;
 using Softaxis.Identity.Application.Users.Commands.ChangePassword;
 using Softaxis.Identity.Application.Users.Commands.UpdateUser;
@@ -43,7 +45,9 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
     [ProducesResponseType(typeof(ApiResponse<AuthTokenDto>), 400)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        var command = new LoginCommand(request.Email, request.Password, HttpContext.Connection.RemoteIpAddress?.ToString());
+        var command = new LoginCommand(
+            request.Email, request.Password, HttpContext.Connection.RemoteIpAddress?.ToString(),
+            request.DeviceId, request.DeviceName, request.Platform);
         var result  = await Sender.Send(command, ct);
         return HandleResult(result);
     }
@@ -55,7 +59,9 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
     [ProducesResponseType(typeof(ApiResponse<AuthTokenDto>), 400)]
     public async Task<IActionResult> VerifyTwoFactor([FromBody] VerifyTwoFactorRequest request, CancellationToken ct)
     {
-        var command = new VerifyTwoFactorCommand(request.MfaToken, request.Code, HttpContext.Connection.RemoteIpAddress?.ToString());
+        var command = new VerifyTwoFactorCommand(
+            request.MfaToken, request.Code, HttpContext.Connection.RemoteIpAddress?.ToString(),
+            request.DeviceId, request.DeviceName, request.Platform);
         return HandleResult(await Sender.Send(command, ct));
     }
 
@@ -65,7 +71,9 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
     [ProducesResponseType(typeof(ApiResponse<AuthTokenDto>), 200)]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request, CancellationToken ct)
     {
-        var command = new RefreshTokenCommand(request.Token, HttpContext.Connection.RemoteIpAddress?.ToString());
+        var command = new RefreshTokenCommand(
+            request.Token, HttpContext.Connection.RemoteIpAddress?.ToString(),
+            request.DeviceId, request.DeviceName, request.Platform);
         return HandleResult(await Sender.Send(command, ct));
     }
 
@@ -76,6 +84,25 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
     {
         var command = new RevokeTokenCommand(request.Token, HttpContext.Connection.RemoteIpAddress?.ToString());
         return HandleResult(await Sender.Send(command, ct));
+    }
+
+    /// <summary>List the current user's active login sessions ("my devices") -- newest first.</summary>
+    [HttpGet("sessions")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SessionDto>>), 200)]
+    public async Task<IActionResult> GetSessions([FromQuery] string? deviceId, CancellationToken ct)
+    {
+        if (currentUser.Id is null) return Unauthorized();
+        return HandleResult(await Sender.Send(new GetMySessionsQuery(currentUser.Id.Value, deviceId), ct));
+    }
+
+    /// <summary>Revoke one of the current user's own sessions by id -- e.g. "log out that old phone" from a different device.</summary>
+    [HttpPost("sessions/{id:guid}/revoke")]
+    [Authorize]
+    public async Task<IActionResult> RevokeSession(Guid id, CancellationToken ct)
+    {
+        if (currentUser.Id is null) return Unauthorized();
+        return HandleResult(await Sender.Send(new RevokeSessionCommand(currentUser.Id.Value, id), ct));
     }
 
     /// <summary>Request a password-reset email (anonymous).</summary>
@@ -153,8 +180,16 @@ public sealed class AuthController(ISender sender, ICurrentUser currentUser) : B
 
 // ── Request models ────────────────────────────────────────────────────────────
 
-public sealed record LoginRequest(string Email, string Password);
-public sealed record RefreshRequest(string Token);
+public sealed record LoginRequest(
+    string  Email,
+    string  Password,
+    // Client-generated, persisted stable id for this install -- optional, only used to label and
+    // individually manage a "my devices" session list (see GET/POST .../sessions). A client that
+    // never sends one just doesn't get its sessions labeled/individually revocable.
+    string? DeviceId = null,
+    string? DeviceName = null,
+    string? Platform = null);
+public sealed record RefreshRequest(string Token, string? DeviceId = null, string? DeviceName = null, string? Platform = null);
 public sealed record RevokeRequest(string Token);
 
 public sealed record UpdateMeRequest(
@@ -176,4 +211,4 @@ public sealed record ResetPasswordRequest(
 
 public sealed record VerifyEmailRequest(string Email, string Token);
 public sealed record ResendVerificationRequest(string Email);
-public sealed record VerifyTwoFactorRequest(string MfaToken, string Code);
+public sealed record VerifyTwoFactorRequest(string MfaToken, string Code, string? DeviceId = null, string? DeviceName = null, string? Platform = null);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
@@ -12,7 +12,7 @@ import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { QUOTATION_STATUS_LABELS } from "@/types/sales";
 import { Badge, Button, DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<SalesStackParamList, "QuotationDetail">;
@@ -21,8 +21,12 @@ const RESPONDABLE = new Set(["sent", "viewed"]);
 const SENDABLE = new Set(["draft", "sent", "viewed"]);
 
 export default function QuotationDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { quotationId, quotationNumber } = route.params;
-  navigation.setOptions({ headerTitle: quotationNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: quotationNumber });
+  }, [navigation, quotationNumber]);
   const userName = useAuthStore((s) => s.user?.fullName ?? "");
   const canEdit = hasPermission(SALES_QUOTATIONS_EDIT);
 
@@ -162,36 +166,38 @@ export default function QuotationDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  bodyText: { fontSize: fontSize.sm, color: colors.foreground, fontStyle: "italic" },
-  notes: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    bodyText: { fontSize: fontSize.sm, color: colors.foreground, fontStyle: "italic" },
+    notes: { fontSize: fontSize.sm, color: colors.mutedForeground },
 
-  itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
-  itemTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
-  itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+    itemTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+    itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
 
-  actionsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
-  respondRow: { marginTop: spacing.sm },
+    actionsRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
+    respondRow: { marginTop: spacing.sm },
 
-  respondForm: { gap: spacing.sm, marginTop: spacing.sm },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    minHeight: 44,
-    backgroundColor: colors.card,
-    textAlignVertical: "top",
-    fontSize: fontSize.base,
-    color: colors.foreground,
-  },
-});
+    respondForm: { gap: spacing.sm, marginTop: spacing.sm },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 2,
+      minHeight: 44,
+      backgroundColor: colors.card,
+      textAlignVertical: "top",
+      fontSize: fontSize.base,
+      color: colors.foreground,
+    },
+  });
+}

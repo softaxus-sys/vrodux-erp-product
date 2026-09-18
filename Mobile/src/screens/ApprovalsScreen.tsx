@@ -27,7 +27,7 @@ import {
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasModuleAccess, hasPermission, useAuthStore } from "@/store/auth.store";
 import { Button, Card, ErrorState, LoadingState, SectionCard } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type {
   PayrollActionKind,
   PendingLeaveDto,
@@ -47,6 +47,8 @@ const PAYROLL_ACTION_LABEL: Record<PayrollActionKind, string> = {
 };
 
 export default function ApprovalsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const user = useAuthStore((s) => s.user);
   const tenant = useAuthStore((s) => s.tenant);
   const approverId = user?.id ?? "";
@@ -251,6 +253,8 @@ function LeaveRow({
   onApprove: () => void;
   onReject: (notes?: string) => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [notes, setNotes] = useState("");
 
@@ -294,6 +298,8 @@ function PurchaseRow({
   onApprove: () => void;
   onReject: (reason: string) => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -345,6 +351,8 @@ function SalesReturnRow({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [confirmingReject, setConfirmingReject] = useState(false);
 
   return (
@@ -402,6 +410,8 @@ function PayrollRow({
   onAct: () => void;
   onReject?: (reason?: string) => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
 
@@ -441,6 +451,8 @@ function PayrollRow({
 // ── Shared bits ──────────────────────────────────────────────────────────────────────────────
 
 function CountBadge({ count }: { count?: number }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (!count) return null;
   return (
     <View style={styles.countBadge}>
@@ -450,6 +462,8 @@ function CountBadge({ count }: { count?: number }) {
 }
 
 function ApproveRejectRow({ approving, onApprove, onReject }: { approving: boolean; onApprove: () => void; onReject: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.actionsRow}>
       <Button label={approving ? "..." : "Approve"} size="sm" disabled={approving} onPress={onApprove} />
@@ -475,6 +489,8 @@ function RejectForm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.rejectForm}>
       <TextInput
@@ -500,50 +516,52 @@ function RejectForm({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
-  emptyIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
-  emptyText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
+    emptyIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
+    emptyTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+    emptyText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
 
-  allClearBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.successSoft,
-    borderWidth: 1,
-    borderColor: colors.successLight,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  allClearText: { fontSize: fontSize.base, color: colors.success, fontWeight: fontWeight.semibold },
+    allClearBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.successSoft,
+      borderWidth: 1,
+      borderColor: colors.successLight,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm + 2,
+    },
+    allClearText: { fontSize: fontSize.base, color: colors.success, fontWeight: fontWeight.semibold },
 
-  emptySection: { fontSize: fontSize.base, color: colors.mutedForeground },
+    emptySection: { fontSize: fontSize.base, color: colors.mutedForeground },
 
-  countBadge: { backgroundColor: colors.primary, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 1 },
-  countBadgeText: { color: colors.onPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
+    countBadge: { backgroundColor: colors.primary, borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 1 },
+    countBadgeText: { color: colors.onPrimary, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
 
-  row: { gap: spacing.xs, marginBottom: spacing.sm },
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
-  rowTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  rowSubtitle: { fontSize: fontSize.sm, color: colors.mutedForeground },
-  rowNotes: { fontSize: fontSize.sm, color: colors.foregroundSecondary, fontStyle: "italic" },
-  value: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
+    row: { gap: spacing.xs, marginBottom: spacing.sm },
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+    rowTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    rowSubtitle: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    rowNotes: { fontSize: fontSize.sm, color: colors.foregroundSecondary, fontStyle: "italic" },
+    value: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.foreground },
 
-  actionsRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs, flexWrap: "wrap" },
+    actionsRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs, flexWrap: "wrap" },
 
-  rejectForm: { gap: spacing.sm, marginTop: spacing.xs },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    minHeight: 44,
-    backgroundColor: colors.card,
-    textAlignVertical: "top",
-    fontSize: fontSize.base,
-    color: colors.foreground,
-  },
-});
+    rejectForm: { gap: spacing.sm, marginTop: spacing.xs },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 2,
+      minHeight: 44,
+      backgroundColor: colors.card,
+      textAlignVertical: "top",
+      fontSize: fontSize.base,
+      color: colors.foreground,
+    },
+  });
+}

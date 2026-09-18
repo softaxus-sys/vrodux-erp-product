@@ -1,5 +1,5 @@
 import { Pressable, View, StyleSheet, type ViewStyle } from "react-native";
-import { colors, radius, shadow, spacing } from "@/theme";
+import { radius, shadow, spacing, useAppTheme, type AppColors } from "@/theme";
 
 /**
  * The pressable card shell every FlatList row across the app sits inside -- rounded, subtle
@@ -11,6 +11,8 @@ import { colors, radius, shadow, spacing } from "@/theme";
  * renders as a static card instead of a touch target that silently does nothing when tapped.
  */
 export function ListItemCard({ onPress, children, style }: { onPress?: () => void; children: React.ReactNode; style?: ViewStyle }) {
+  const { colors } = useAppTheme();
+  const styles = createStyles(colors);
   if (!onPress) {
     return <View style={[styles.card, style]}>{children}</View>;
   }
@@ -24,17 +26,19 @@ export function ListItemCard({ onPress, children, style }: { onPress?: () => voi
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm + 2,
-    gap: 4,
-    ...shadow,
-  },
-  pressed: { backgroundColor: colors.cardMuted, borderColor: colors.primaryLight },
-});
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: colors.card,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.lg,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm + 2,
+      gap: 4,
+      ...shadow,
+    },
+    pressed: { backgroundColor: colors.cardMuted, borderColor: colors.primaryLight },
+  });
+}

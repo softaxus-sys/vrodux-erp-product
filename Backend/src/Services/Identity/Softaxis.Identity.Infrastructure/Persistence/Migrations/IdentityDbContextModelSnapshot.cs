@@ -2289,6 +2289,20 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("1557a519-eb0f-727f-b32f-0876fb620c3e"),
+                            Action = "view",
+                            Description = "View support tickets",
+                            ModuleId = "support.tickets"
+                        },
+                        new
+                        {
+                            Id = new Guid("6bb6289a-4692-2fc8-ad20-da5f6b5f6ce2"),
+                            Action = "edit",
+                            Description = "Edit support tickets",
+                            ModuleId = "support.tickets"
+                        },
+                        new
+                        {
                             Id = new Guid("fa120075-a9f0-830d-d1d6-d7cb86ed4add"),
                             Action = "view",
                             Description = "View restaurant tables",
@@ -2707,8 +2721,20 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("DeviceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("ReplacedByTokenHash")
                         .HasMaxLength(500)
@@ -2734,7 +2760,7 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.HasIndex("TokenHash")
                         .IsUnique();
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "DeviceId");
 
                     b.ToTable("refresh_tokens", "identity");
                 });
@@ -3324,6 +3350,44 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("users", "identity");
                 });
 
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserDeviceToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ExpoPushToken")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("LastSeenAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpoPushToken")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_device_tokens", "identity");
+                });
+
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserPermission", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -3432,6 +3496,17 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserDeviceToken", b =>
+                {
+                    b.HasOne("Softaxis.Identity.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Softaxis.Identity.Domain.Entities.UserPermission", b =>

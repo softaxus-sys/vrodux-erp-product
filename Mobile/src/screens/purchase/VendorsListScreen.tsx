@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useVendorsPaged } from "@/hooks/use-purchase";
 import type { VendorDto } from "@/types/purchase";
 import type { PurchaseStackParamList } from "@/navigation/types";
 import { EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<PurchaseStackParamList, "VendorsList">;
 
 const PAGE_SIZE = 25;
 
 export default function VendorsListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<VendorDto[]>([]);
@@ -71,6 +73,8 @@ export default function VendorsListScreen({ navigation }: Props) {
 }
 
 function VendorRow({ vendor, onPress }: { vendor: VendorDto; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
@@ -87,13 +91,15 @@ function VendorRow({ vendor, onPress }: { vendor: VendorDto; onPress: () => void
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  rating: { fontSize: fontSize.base, color: colors.warning, fontWeight: fontWeight.semibold },
-  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    rating: { fontSize: fontSize.base, color: colors.warning, fontWeight: fontWeight.semibold },
+    meta: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+  });
+}

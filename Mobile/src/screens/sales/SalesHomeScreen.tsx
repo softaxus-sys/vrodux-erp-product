@@ -3,12 +3,13 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { hasPermission } from "@/store/auth.store";
 import { SALES_ORDERS_VIEW, SALES_QUOTATIONS_VIEW } from "@/lib/sales.api";
 import { MenuCard } from "@/components/ui";
-import { colors, spacing } from "@/theme";
+import { spacing, useAppTheme } from "@/theme";
 import type { SalesStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<SalesStackParamList, "SalesHome">;
 
 export default function SalesHomeScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
   const canOrders = hasPermission(SALES_ORDERS_VIEW);
   const canQuotations = hasPermission(SALES_QUOTATIONS_VIEW);
 

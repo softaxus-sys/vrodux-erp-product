@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState, useMemo } from "react";
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProductsPaged } from "@/hooks/use-inventory";
 import { formatCompactValue } from "@/lib/crm-helpers";
@@ -7,13 +8,15 @@ import { useAuthStore } from "@/store/auth.store";
 import type { ProductSummaryDto } from "@/types/inventory";
 import type { InventoryStackParamList } from "@/navigation/types";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<InventoryStackParamList, "ProductsList">;
 
 const PAGE_SIZE = 25;
 
 export default function ProductsListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const [search, setSearch] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
@@ -21,6 +24,17 @@ export default function ProductsListScreen({ navigation }: Props) {
   const [items, setItems] = useState<ProductSummaryDto[]>([]);
 
   const query = useProductsPaged({ page, pageSize: PAGE_SIZE, search, isLowStock: lowStockOnly || undefined });
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => navigation.navigate("BarcodeScanner")} hitSlop={8} style={styles.headerButtonWrap}>
+          <Feather name="camera" size={16} color={colors.primary} />
+          <Text style={styles.headerButton}>Scan</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, colors, styles]);
 
   useEffect(() => {
     setPage(1);
@@ -88,6 +102,8 @@ function ProductRow({
   currency: string;
   onPress: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
@@ -108,17 +124,21 @@ function ProductRow({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    headerButtonWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    headerButton: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    filterRow: { flexDirection: "row", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  price: { fontSize: fontSize.base, color: colors.foreground, fontWeight: fontWeight.semibold },
-  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary },
-  rowBottom: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
-  stock: { fontSize: fontSize.sm, color: colors.mutedForeground },
-  stockLow: { color: colors.warning, fontWeight: fontWeight.semibold },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    price: { fontSize: fontSize.base, color: colors.foreground, fontWeight: fontWeight.semibold },
+    meta: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+    rowBottom: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
+    stock: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    stockLow: { color: colors.warning, fontWeight: fontWeight.semibold },
+  });
+}

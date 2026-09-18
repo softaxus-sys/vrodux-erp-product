@@ -30,12 +30,17 @@ public sealed class RefreshTokenCommandHandler(
         if (user is null || user.Status != Domain.Enums.UserStatus.Active)
             return Result.Failure<AuthTokenDto>(Error.Custom("Auth.Refresh.UserInactive", "User account is not active."));
 
-        // Rotate: revoke old, issue new
+        // Rotate: revoke old, issue new -- device info carries forward from the token being
+        // rotated unless this call supplies its own (see the command's own comment).
         var newRaw      = jwtService.GenerateRefreshTokenRaw();
         var newHash     = jwtService.HashToken(newRaw);
         refreshToken.Revoke(cmd.IpAddress, newHash);
 
-        var newToken = new RefreshTokenEntity(user.Id, newHash, jwtService.RefreshTokenExpiry, cmd.IpAddress);
+        var newToken = new RefreshTokenEntity(
+            user.Id, newHash, jwtService.RefreshTokenExpiry, cmd.IpAddress,
+            cmd.DeviceId ?? refreshToken.DeviceId,
+            cmd.DeviceName ?? refreshToken.DeviceName,
+            cmd.Platform ?? refreshToken.Platform);
         refreshRepo.Add(newToken);
         refreshRepo.Update(refreshToken);
 

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { fontSize, fontWeight, radius, spacing, toneColors, type Tone } from "@/theme";
+import { fontSize, fontWeight, getToneColors, radius, spacing, useAppTheme, type Tone } from "@/theme";
 
 interface BadgeProps {
   label: string;
@@ -9,7 +9,8 @@ interface BadgeProps {
 }
 
 export function Badge({ label, tone = "neutral", dot = true }: BadgeProps) {
-  const t = toneColors[tone];
+  const { colors } = useAppTheme();
+  const t = getToneColors(colors)[tone];
   return (
     <View style={[styles.base, { backgroundColor: t.bg }]}>
       {dot ? <View style={[styles.dot, { backgroundColor: t.dot }]} /> : null}

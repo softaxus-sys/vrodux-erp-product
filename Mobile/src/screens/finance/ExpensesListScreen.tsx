@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -9,7 +9,7 @@ import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_LABELS, EXPENSE_STATUS_TONE } from "@/types/finance";
 import type { ExpenseCategory, ExpenseDto } from "@/types/finance";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "ExpensesList">;
@@ -26,6 +26,8 @@ const FILTERS: { key: string; label: string }[] = [
 const PAGE_SIZE = 25;
 
 export default function ExpensesListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const canCreate = hasPermission(FINANCE_EXPENSES_CREATE);
   const [status, setStatus] = useState("all");
@@ -108,6 +110,8 @@ export default function ExpensesListScreen({ navigation }: Props) {
 }
 
 function ExpenseRow({ expense, currency, onPress }: { expense: ExpenseDto; currency: string; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const categoryLabel = EXPENSE_CATEGORY_LABELS[expense.category as ExpenseCategory] ?? expense.category;
   return (
     <ListItemCard onPress={onPress}>
@@ -125,16 +129,18 @@ function ExpenseRow({ expense, currency, onPress }: { expense: ExpenseDto; curre
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  headerButtonWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  headerButton: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    headerButtonWrap: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    headerButton: { color: colors.primary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+    filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
-  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+    meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
+  });
+}

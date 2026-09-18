@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useConvertLead, useLead, useSetLeadStatus } from "@/hooks/use-leads";
@@ -8,14 +8,18 @@ import { useAuthStore } from "@/store/auth.store";
 import { LEAD_STATUS_LABELS, NEXT_STATUSES } from "@/types/crm";
 import type { ActivityType } from "@/types/crm";
 import { Badge, Button, Chip, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { LeadsStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<LeadsStackParamList, "LeadDetail">;
 
 export default function LeadDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { leadId, leadName } = route.params;
-  navigation.setOptions({ headerTitle: leadName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: leadName });
+  }, [navigation, leadName]);
 
   const lead = useLead(leadId);
   const activities = useActivities("lead", leadId);
@@ -237,40 +241,42 @@ export default function LeadDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", gap: spacing.xxl, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", gap: spacing.xxl, marginTop: spacing.sm },
 
-  actionsRow: { flexDirection: "row", gap: spacing.sm },
-  actionButton: { flex: 1, paddingHorizontal: spacing.sm },
+    actionsRow: { flexDirection: "row", gap: spacing.sm },
+    actionButton: { flex: 1, paddingHorizontal: spacing.sm },
 
-  bodyText: { fontSize: fontSize.lg, color: colors.foreground },
-  notes: { fontSize: fontSize.base, color: colors.mutedForeground, fontStyle: "italic" },
+    bodyText: { fontSize: fontSize.lg, color: colors.foreground },
+    notes: { fontSize: fontSize.base, color: colors.mutedForeground, fontStyle: "italic" },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 
-  confirmRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
-  confirmText: { fontSize: fontSize.base, color: colors.foreground },
+    confirmRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
+    confirmText: { fontSize: fontSize.base, color: colors.foreground },
 
-  formGap: { gap: spacing.sm + 2 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    backgroundColor: colors.card,
-    fontSize: fontSize.md,
-    color: colors.foreground,
-  },
-  multiline: { minHeight: 44, textAlignVertical: "top" },
-  buttonsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+    formGap: { gap: spacing.sm + 2 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 2,
+      backgroundColor: colors.card,
+      fontSize: fontSize.md,
+      color: colors.foreground,
+    },
+    multiline: { minHeight: 44, textAlignVertical: "top" },
+    buttonsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  activityRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
-  activitySubject: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-  activityDate: { fontSize: fontSize.xs, color: colors.subtleForeground },
-});
+    activityRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
+    activitySubject: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+    activityDate: { fontSize: fontSize.xs, color: colors.subtleForeground },
+  });
+}

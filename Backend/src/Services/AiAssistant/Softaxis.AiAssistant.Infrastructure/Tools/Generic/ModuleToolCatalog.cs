@@ -144,6 +144,24 @@ public static class ModuleToolCatalog
             new("withinDays", "integer", "Horizon in days (default 90) (optional)"),
         ]),
 
+        // ── Support (raising/tracking a ticket with the VroduxERP team) ─────────
+        // No permission required — every workspace can see its own support history, same as
+        // raising one requires none. This tool is deliberately available in every tenant
+        // regardless of which modules they've licensed (see AiToolRegistry's "support" bypass).
+        new("support_list_my_tickets", "List your workspace's support tickets with the VroduxERP team.", "support", "api/support/my-tickets", null,
+        [
+            new("status", "string", "Only tickets in this status: open, in_progress, waiting_on_customer, resolved, closed (optional)"),
+        ]),
+        // ── Agent-side (Softaxis support agents only) — needs support.tickets.view AND the
+        //    caller's own tenant to be the configured Support operator tenant (AiToolRegistry).
+        new("support_list_queue", "List EVERY tenant's support tickets — the Softaxis agent queue, not your own workspace's tickets.", "support", "api/support/queue", "support.tickets.view",
+        [
+            new("status",           "string", "Only tickets in this status (optional)"),
+            new("category",         "string", "Only tickets in this category (optional)"),
+            new("assignedToUserId", "string", "Only tickets assigned to this agent's user id (GUID) (optional)"),
+        ]),
+        new("support_list_agents", "List Softaxis support agents — who a ticket can be assigned to.", "support", "api/support/agents", "support.tickets.view"),
+
         // ── B2B pack ──────────────────────────────────────────────────────────
         new("b2b_list_proposals", "List B2B proposals — client, title, amount, status, valid-until.", "b2b", "api/b2b/proposals", "b2b.proposals.view"),
         new("b2b_list_contracts", "List B2B service contracts — client, type, value, dates, SLA tier.", "b2b", "api/b2b/contracts", "b2b.contracts.view"),
@@ -196,6 +214,10 @@ public static class ModuleToolCatalog
         new("projects_get_project", "Get one project's full detail by id.", "project-management", "api/projectmanagement/projects/{id}", "projectId", "project-management.projects.view"),
         new("restaurant_get_order", "Get one restaurant order's full detail by id, including items and payments.", "restaurant", "api/restaurant/orders/{id}", "orderId", "restaurant.orders.view"),
         new("visa_get_case", "Get one visa case's full detail by id, including applicants and documents.", "visa", "api/visa/cases/{id}", "caseId", "visa.cases.view"),
+        // No permission required — same posture as support_list_my_tickets; the backend itself
+        // only ever returns a ticket that belongs to the caller's own workspace (or, for a
+        // Softaxis agent, any ticket) — see SupportTicketsController.GetById.
+        new("support_get_ticket", "Get one of your support tickets' full detail and message thread by id.", "support", "api/support/tickets/{id}", "id", ""),
         new("pos_get_product", "Get one POS product's full detail by id.", "pos", "api/products/{id}", "productId", "pos.products.view"),
         new("pos_get_customer", "Get one POS customer's full detail by id.", "pos", "api/customers/{id}", "customerId", "pos.customers.view"),
     ];
@@ -533,6 +555,17 @@ public static class ModuleToolCatalog
             new("defaultGovtFee",    "number", "Default government fee (required)", true),
             new("defaultServiceFee", "number", "Default service fee (required)", true),
             new("processingDays",    "integer","Typical processing days (required)", true),
+        ]),
+
+        // ── Support — no permission required (open to any workspace user; see the note by
+        //    support_list_my_tickets above). The tenant/user this ticket is raised for is always
+        //    resolved server-side from the caller's own JWT — never accepted from this tool. ────
+        new("support_create_ticket", "Raise a new support ticket with the VroduxERP team on behalf of the current workspace.", "support", "api/support/tickets", "",
+        [
+            new("subject",  "string", "Short subject line (required)", true),
+            new("message",  "string", "Full description of the issue or request (required)", true),
+            new("category", "string", "billing | technical | feature_request | onboarding | account_security | general", false, "general"),
+            new("priority", "string", "low | medium | high | urgent", false, "medium"),
         ]),
 
         // ── B2B pack ──────────────────────────────────────────────────────────
@@ -1267,6 +1300,37 @@ public static class ModuleToolCatalog
             new("caseId", "string", "Visa case id (GUID) (required)", true),
             new("note",   "string", "The note text (required)", true),
             new("byName", "string", "Who is adding it", false, AiFieldDefaults.CurrentUserName),
+        ]),
+        // No permission required — see support_list_my_tickets above.
+        new("support_reply_ticket", "Add a reply to one of your workspace's support tickets. Look the ticket up first via support_list_my_tickets or support_get_ticket.", "support", "POST", "api/support/tickets/{id}/messages", "",
+        [
+            new("id",   "string", "Ticket id (GUID) (required)", true),
+            new("body", "string", "The reply message (required)", true),
+        ]),
+        // ── Agent-side (Softaxis support agents only) — same operator-tenant + permission gate
+        //    as support_list_queue above.
+        new("support_change_ticket_status", "Move a support ticket to a new status. Legal moves: open→in_progress/resolved/closed; in_progress→waiting_on_customer/resolved/closed; waiting_on_customer→in_progress/resolved/closed; resolved→closed/in_progress (reopen); closed→in_progress (reopen).", "support", "PATCH", "api/support/tickets/{id}/status", "support.tickets.edit",
+        [
+            new("id",     "string", "Ticket id (GUID) (required)", true),
+            new("status", "string", "New status (required)", true),
+        ]),
+        new("support_claim_ticket", "Assign a support ticket to yourself.", "support", "PATCH", "api/support/tickets/{id}/assign", "support.tickets.edit",
+        [
+            new("id",               "string", "Ticket id (GUID) (required)", true),
+            new("assignToUserId",   "string", "Assignee user id", false, AiFieldDefaults.CurrentUserId),
+            new("assignToUserName", "string", "Assignee name", false, AiFieldDefaults.CurrentUserName),
+        ]),
+        new("support_assign_ticket", "Hand a support ticket off to a named agent (or unassign it by leaving assignToUserId blank). Look the agent's id up first via support_list_agents.", "support", "PATCH", "api/support/tickets/{id}/assign", "support.tickets.edit",
+        [
+            new("id",               "string", "Ticket id (GUID) (required)", true),
+            new("assignToUserId",   "string", "Agent's user id (GUID) — leave blank to unassign (optional)"),
+            new("assignToUserName", "string", "Agent's name (optional)"),
+            new("note",             "string", "Handoff note (optional)"),
+        ]),
+        new("support_set_ticket_priority", "Change a support ticket's priority.", "support", "PATCH", "api/support/tickets/{id}/priority", "support.tickets.edit",
+        [
+            new("id",       "string", "Ticket id (GUID) (required)", true),
+            new("priority", "string", "low | medium | high | urgent (required)", true),
         ]),
         new("visa_add_case_document", "Add a document requirement to a visa case's checklist.", "visa", "POST", "api/visa/cases/{caseId}/documents", "visa.cases.edit",
         [

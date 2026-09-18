@@ -1,5 +1,7 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type {
+  CreateGrnRequest,
+  GoodsReceiptNoteDto,
   PurchaseOrderDto,
   PurchaseOrdersPageParams,
   PurchaseOrderSummaryDto,
@@ -46,4 +48,8 @@ export const purchaseApi = {
     apiClient.get(`${BASE}/vendors?${buildVendorsQuery(params)}`),
 
   getVendor: (id: string): Promise<VendorDto> => apiClient.get(`${BASE}/vendors/${id}`),
+
+  // Receiving a delivery against an order -- gates on the same PURCHASE_ORDERS_EDIT key as
+  // setOrderStatus above (GRN has no dedicated permission key server-side either).
+  createGrn: (payload: CreateGrnRequest): Promise<GoodsReceiptNoteDto> => apiClient.post(`${BASE}/grn`, payload),
 };

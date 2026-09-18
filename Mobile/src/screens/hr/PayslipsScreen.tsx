@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useMyPayslips } from "@/hooks/use-hr-self";
 import type { EmployeePayslipDto } from "@/types/hr";
 import { EmptyListState, ErrorState, ListItemCard, LoadingState } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 const PAGE_SIZE = 24;
 
@@ -13,6 +13,8 @@ function money(n: number): string {
 }
 
 export default function PayslipsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<EmployeePayslipDto[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -57,6 +59,8 @@ export default function PayslipsScreen() {
 }
 
 function Row({ slip, expanded, onToggle }: { slip: EmployeePayslipDto; expanded: boolean; onToggle: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ListItemCard onPress={onToggle}>
       <View style={styles.rowTop}>
@@ -82,6 +86,8 @@ function Row({ slip, expanded, onToggle }: { slip: EmployeePayslipDto; expanded:
 }
 
 function DetailLine({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.detailLine}>
       <Text style={[styles.detailLabel, bold && styles.detailBold]}>{label}</Text>
@@ -90,21 +96,23 @@ function DetailLine({ label, value, bold }: { label: string; value: number; bold
   );
 }
 
-const styles = StyleSheet.create({
-  list: { paddingVertical: spacing.md },
-  footerSpinner: { paddingVertical: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    list: { paddingVertical: spacing.md },
+    footerSpinner: { paddingVertical: spacing.lg },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between" },
-  period: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground },
-  net: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
-  statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  status: { fontSize: fontSize.sm, color: colors.mutedForeground, textTransform: "capitalize" },
+    rowTop: { flexDirection: "row", justifyContent: "space-between" },
+    period: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground },
+    net: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+    statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    status: { fontSize: fontSize.sm, color: colors.mutedForeground, textTransform: "capitalize" },
 
-  detail: { marginTop: spacing.sm, backgroundColor: colors.cardMuted, borderRadius: 8, padding: spacing.sm + 2, gap: 4 },
-  detailLine: { flexDirection: "row", justifyContent: "space-between" },
-  detailLabel: { fontSize: fontSize.base, color: colors.foregroundSecondary },
-  detailValue: { fontSize: fontSize.base, color: colors.foreground },
-  detailBold: { fontWeight: fontWeight.bold },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 2 },
-  notes: { fontSize: fontSize.xs, color: colors.subtleForeground, marginTop: spacing.xs },
-});
+    detail: { marginTop: spacing.sm, backgroundColor: colors.cardMuted, borderRadius: 8, padding: spacing.sm + 2, gap: 4 },
+    detailLine: { flexDirection: "row", justifyContent: "space-between" },
+    detailLabel: { fontSize: fontSize.base, color: colors.foregroundSecondary },
+    detailValue: { fontSize: fontSize.base, color: colors.foreground },
+    detailBold: { fontWeight: fontWeight.bold },
+    divider: { height: 1, backgroundColor: colors.border, marginVertical: 2 },
+    notes: { fontSize: fontSize.xs, color: colors.subtleForeground, marginTop: spacing.xs },
+  });
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -15,12 +15,14 @@ import { ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { Button } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { AuthStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<AuthStackParamList, "Login">;
 
 export default function LoginScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -123,41 +125,43 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
-  container: { flexGrow: 1, justifyContent: "center", padding: spacing.xxl, gap: spacing.xxl },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    flex: { flex: 1, backgroundColor: colors.background },
+    container: { flexGrow: 1, justifyContent: "center", padding: spacing.xxl, gap: spacing.xxl },
 
-  brandBlock: { alignItems: "center", gap: spacing.sm },
-  title: { fontSize: fontSize.xxxl, fontWeight: fontWeight.extrabold, color: colors.foreground, marginTop: spacing.xs },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    brandBlock: { alignItems: "center", gap: spacing.sm },
+    title: { fontSize: fontSize.xxxl, fontWeight: fontWeight.extrabold, color: colors.foreground, marginTop: spacing.xs },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
 
-  form: { gap: spacing.lg },
-  field: { gap: spacing.xs + 2 },
-  label: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
-  inputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.card,
-    paddingHorizontal: spacing.md,
-  },
-  inputIcon: { marginRight: spacing.sm },
-  inputTrailingIcon: { marginLeft: spacing.sm, padding: spacing.xs },
-  input: { flex: 1, paddingVertical: spacing.md, fontSize: fontSize.lg, color: colors.foreground },
+    form: { gap: spacing.lg },
+    field: { gap: spacing.xs + 2 },
+    label: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foregroundSecondary },
+    inputWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      backgroundColor: colors.card,
+      paddingHorizontal: spacing.md,
+    },
+    inputIcon: { marginRight: spacing.sm },
+    inputTrailingIcon: { marginLeft: spacing.sm, padding: spacing.xs },
+    input: { flex: 1, paddingVertical: spacing.md, fontSize: fontSize.lg, color: colors.foreground },
 
-  errorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.destructiveSoft,
-    borderWidth: 1,
-    borderColor: colors.destructiveLight,
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  errorText: { color: colors.destructive, fontSize: fontSize.base, flexShrink: 1 },
+    errorBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.destructiveSoft,
+      borderWidth: 1,
+      borderColor: colors.destructiveLight,
+      borderRadius: radius.md,
+      padding: spacing.md,
+    },
+    errorText: { color: colors.destructive, fontSize: fontSize.base, flexShrink: 1 },
 
-  submitButton: { marginTop: spacing.xs, paddingVertical: spacing.md + 2 },
-});
+    submitButton: { marginTop: spacing.xs, paddingVertical: spacing.md + 2 },
+  });
+}

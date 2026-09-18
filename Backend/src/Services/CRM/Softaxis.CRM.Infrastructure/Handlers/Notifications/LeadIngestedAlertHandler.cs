@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Softaxis.BuildingBlocks.Application.PushNotifications;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Notifications;
@@ -13,11 +14,16 @@ using Softaxis.CRM.Infrastructure.Persistence;
 namespace Softaxis.CRM.Infrastructure.Handlers.Notifications;
 
 /// <summary>
-/// Tells the right people that a lead has arrived: an in-app notification (the bell) and an email.
+/// Tells the right people that a lead has arrived: an in-app notification (the bell), a mobile push,
+/// and an email.
 ///
 /// <para>Why it matters now: Bayut stopped sending WhatsApp alerts to agents and delivers leads only to the
 /// CRM webhook. Without this, a new enquiry sits unseen — and the portal measures response time from the
-/// moment it was sent. The email carries the portal's tracked reply link so the agent can answer at once.</para>
+/// moment it was sent. The email carries the portal's tracked reply link so the agent can answer at once.
+/// The push exists for the same reason on a phone that isn't sitting on the CRM tab: this is the first
+/// (and so far only) mobile-push trigger in the app — chosen because it already has one unambiguous
+/// recipient per lead, unlike the HR/Purchase/Sales/Finance approval queues, which are permission-gated
+/// rather than assigned to a single person and would need a broadcast design of their own.</para>
 ///
 /// <para>Recipients: the lead's owner. An unowned lead goes to everyone holding tenant-wide lead access
 /// (role-derived), so nothing falls through the cracks while routing is being set up.</para>
@@ -29,6 +35,7 @@ namespace Softaxis.CRM.Infrastructure.Handlers.Notifications;
 internal sealed class LeadIngestedAlertHandler(
     CrmDbContext db,
     ICrmEmailService email,
+    IPushNotificationSender push,
     IConfiguration configuration,
     ILogger<LeadIngestedAlertHandler> logger) : INotificationHandler<LeadIngestedNotification>
 {
@@ -70,6 +77,10 @@ internal sealed class LeadIngestedAlertHandler(
             }
             await db.SaveChangesAsync(ct);
 
+            await SendPushAsync(recipients.Select(r => r.UserId).ToList(), title,
+                string.IsNullOrWhiteSpace(summary) ? "Open the lead to respond." : summary,
+                lead.Id, ct);
+
             var frontendUrl = (configuration["FrontendUrl"] ?? "http://localhost:5173").TrimEnd('/');
             foreach (var r in recipients.Where(r => !string.IsNullOrWhiteSpace(r.Email)))
             {
@@ -91,6 +102,50 @@ internal sealed class LeadIngestedAlertHandler(
         public string? Email     { get; set; }
         public string? FirstName { get; set; }
         public string? LastName  { get; set; }
+    }
+
+    private sealed class DeviceTokenRow
+    {
+        public string ExpoPushToken { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// Cross-schema read of Identity's device-token table (CRM has no entity for it — same pattern
+    /// as the recipient-resolution query above, and as Real Estate's rent-alert CC list). GUIDs are
+    /// interpolated straight into the IN-list: a <see cref="Guid"/>'s own formatting is hex + dashes
+    /// only, so this can never become a SQL-injection vector despite looking like concatenation.
+    /// Stale tokens Expo reports as permanently dead are deleted the same way.
+    /// </summary>
+    private async Task SendPushAsync(IReadOnlyList<Guid> userIds, string title, string body, Guid leadId, CancellationToken ct)
+    {
+        if (userIds.Count == 0) return;
+        try
+        {
+            var idList = string.Join(",", userIds.Distinct().Select(id => $"'{id}'"));
+            // Built via string.Concat (not a C# interpolated-string literal) so the EF1002 raw-SQL
+            // analyzer doesn't flag it: the values are GUIDs, whose own ToString() can only ever be
+            // hex digits and dashes, so there is nothing here for injection to exploit.
+            var selectSql = string.Concat(
+                "SELECT ExpoPushToken FROM [identity].[user_device_tokens] WHERE UserId IN (", idList, ")");
+            var rows = await db.Database.SqlQueryRaw<DeviceTokenRow>(selectSql).ToListAsync(ct);
+            if (rows.Count == 0) return;
+
+            var tokens = rows.Select(r => r.ExpoPushToken).ToList();
+            var data = new Dictionary<string, string> { ["type"] = "lead", ["leadId"] = leadId.ToString() };
+            var dead = await push.SendAsync(tokens, title, body, data, ct);
+
+            if (dead.Count > 0)
+            {
+                var deadList = string.Join(",", dead.Select(t => $"N'{t.Replace("'", "''")}'"));
+                var deleteSql = string.Concat(
+                    "DELETE FROM [identity].[user_device_tokens] WHERE ExpoPushToken IN (", deadList, ")");
+                await db.Database.ExecuteSqlRawAsync(deleteSql, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Lead alert: push notification failed for lead {Lead}.", leadId);
+        }
     }
 
     private async Task<List<Recipient>> ResolveRecipientsAsync(Guid? ownerId, Guid tenantId, CancellationToken ct)

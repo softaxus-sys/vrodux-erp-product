@@ -1,22 +1,34 @@
+import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAttendanceToday, useCheckIn, useCheckOut, useMyProfile } from "@/hooks/use-hr-self";
-import { hasPermission } from "@/store/auth.store";
+import { hasModuleAccess, hasPermission } from "@/store/auth.store";
 import { HR_SELF_ATTENDANCE, HR_SELF_LEAVE, HR_SELF_PAYSLIP, HR_SELF_VIEW } from "@/lib/hr.api";
+import { HR_EMPLOYEES_VIEW } from "@/lib/hr-directory.api";
+import { HR_RECRUITMENT_VIEW } from "@/lib/hr-recruitment.api";
+import { HR_PERFORMANCE_VIEW } from "@/lib/hr-performance.api";
 import { ApiError } from "@/lib/api-client";
 import { NOT_LINKED_ERROR_CODE } from "@/types/hr";
 import { Badge, Button, Card, LoadingState, MenuCard } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { HrStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<HrStackParamList, "HrHome">;
 
 export default function HrHomeScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const canViewProfile = hasPermission(HR_SELF_VIEW);
   const canAttendance = hasPermission(HR_SELF_ATTENDANCE);
   const canLeave = hasPermission(HR_SELF_LEAVE);
   const canPayslip = hasPermission(HR_SELF_PAYSLIP);
+  // Directory access (viewing OTHER employees/departments) is independent of self-service --
+  // a manager can hold this without their own login being linked to an employee record, and
+  // must not lose it just because the self-service section below can't load.
+  const canViewEmployees = hasModuleAccess("hr") && hasPermission(HR_EMPLOYEES_VIEW);
+  const canRecruitment = hasModuleAccess("hr") && hasPermission(HR_RECRUITMENT_VIEW);
+  const canPerformance = hasModuleAccess("hr") && hasPermission(HR_PERFORMANCE_VIEW);
 
   const profile = useMyProfile();
   const today = useAttendanceToday();
@@ -26,7 +38,7 @@ export default function HrHomeScreen({ navigation }: Props) {
   const notLinked =
     profile.isError && profile.error instanceof ApiError && profile.error.errorCode === NOT_LINKED_ERROR_CODE;
 
-  if (notLinked) {
+  if (notLinked && !canViewEmployees && !canRecruitment && !canPerformance) {
     return (
       <View style={styles.centered}>
         <View style={styles.notLinkedIcon}>
@@ -42,7 +54,12 @@ export default function HrHomeScreen({ navigation }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {canViewProfile ? (
+      {notLinked ? (
+        <View style={styles.notLinkedBanner}>
+          <Feather name="info" size={14} color={colors.mutedForeground} />
+          <Text style={styles.notLinkedBannerText}>Your login isn't linked to an employee record yet -- self-service is unavailable until it is.</Text>
+        </View>
+      ) : canViewProfile ? (
         profile.isLoading ? (
           <LoadingState size="small" />
         ) : profile.data ? (
@@ -60,7 +77,7 @@ export default function HrHomeScreen({ navigation }: Props) {
         ) : null
       ) : null}
 
-      {canAttendance ? (
+      {canAttendance && !notLinked ? (
         <Card style={styles.todayCard}>
           <View style={styles.todayHeaderRow}>
             <Text style={styles.todayLabel}>Today</Text>
@@ -103,17 +120,39 @@ export default function HrHomeScreen({ navigation }: Props) {
         </Card>
       ) : null}
 
-      <View style={styles.menu}>
-        {canAttendance ? (
-          <MenuCard icon="calendar" title="Attendance" subtitle="History and check-in/out" onPress={() => navigation.navigate("Attendance")} />
-        ) : null}
-        {canLeave ? (
-          <MenuCard icon="sun" title="Leave" subtitle="Balances and requests" tint={colors.info} onPress={() => navigation.navigate("Leave")} />
-        ) : null}
-        {canPayslip ? (
-          <MenuCard icon="file-text" title="Payslips" subtitle="Salary history" tint={colors.success} onPress={() => navigation.navigate("Payslips")} />
-        ) : null}
-      </View>
+      {!notLinked && (canAttendance || canLeave || canPayslip) ? (
+        <View style={styles.menu}>
+          {canAttendance ? (
+            <MenuCard icon="calendar" title="Attendance" subtitle="History and check-in/out" onPress={() => navigation.navigate("Attendance")} />
+          ) : null}
+          {canLeave ? (
+            <MenuCard icon="sun" title="Leave" subtitle="Balances and requests" tint={colors.info} onPress={() => navigation.navigate("Leave")} />
+          ) : null}
+          {canPayslip ? (
+            <MenuCard icon="file-text" title="Payslips" subtitle="Salary history" tint={colors.success} onPress={() => navigation.navigate("Payslips")} />
+          ) : null}
+        </View>
+      ) : null}
+
+      {canViewEmployees ? (
+        <View style={styles.menu}>
+          <Text style={styles.sectionLabel}>Directory</Text>
+          <MenuCard icon="users" title="Employees" subtitle="Company-wide directory" tint={colors.primary} onPress={() => navigation.navigate("EmployeesList")} />
+          <MenuCard icon="briefcase" title="Departments" subtitle="Teams and headcount" tint={colors.mutedForeground} onPress={() => navigation.navigate("DepartmentsList")} />
+        </View>
+      ) : null}
+
+      {canRecruitment || canPerformance ? (
+        <View style={styles.menu}>
+          <Text style={styles.sectionLabel}>Management</Text>
+          {canRecruitment ? (
+            <MenuCard icon="user-plus" title="Recruitment" subtitle="Job postings and applicants" tint={colors.success} onPress={() => navigation.navigate("JobPostingsList")} />
+          ) : null}
+          {canPerformance ? (
+            <MenuCard icon="award" title="Performance" subtitle="Reviews and goals" tint={colors.warning} onPress={() => navigation.navigate("PerformanceReviewsList")} />
+          ) : null}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -124,6 +163,8 @@ function initials(name: string): string {
 }
 
 function TodayStat({ label, value }: { label: string; value: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View>
       <Text style={styles.todayStatLabel}>{label}</Text>
@@ -132,36 +173,42 @@ function TodayStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
-  notLinkedIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
-  notLinkedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
-  notLinkedText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl, gap: spacing.sm },
+    notLinkedIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: colors.muted, alignItems: "center", justifyContent: "center", marginBottom: spacing.xs },
+    notLinkedTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.foreground },
+    notLinkedText: { fontSize: fontSize.md, color: colors.mutedForeground, textAlign: "center" },
+    notLinkedBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.muted, borderRadius: 10, padding: spacing.md },
+    notLinkedBannerText: { flex: 1, fontSize: fontSize.sm, color: colors.mutedForeground },
 
-  profileCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.xs },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { color: colors.onPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
-  profileText: { flex: 1 },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
+    sectionLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: spacing.xs },
 
-  todayCard: { gap: spacing.sm },
-  todayHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  todayLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.4 },
-  todayRow: { flexDirection: "row", gap: spacing.xxxl },
-  todayStatLabel: { fontSize: fontSize.xs, color: colors.subtleForeground, textTransform: "uppercase" },
-  todayStatValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground, marginTop: 2 },
-  todayButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-  todayButton: { flex: 1 },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+    profileCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.xs },
+    avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: { color: colors.onPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+    profileText: { flex: 1 },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground, marginTop: 2 },
 
-  menu: { gap: spacing.sm + 2 },
-});
+    todayCard: { gap: spacing.sm },
+    todayHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    todayLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.mutedForeground, textTransform: "uppercase", letterSpacing: 0.4 },
+    todayRow: { flexDirection: "row", gap: spacing.xxxl },
+    todayStatLabel: { fontSize: fontSize.xs, color: colors.subtleForeground, textTransform: "uppercase" },
+    todayStatValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.foreground, marginTop: 2 },
+    todayButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
+    todayButton: { flex: 1 },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
+
+    menu: { gap: spacing.sm + 2 },
+  });
+}

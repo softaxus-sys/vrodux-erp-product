@@ -167,6 +167,7 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
   "settings": true, "users": true, "ai-assistant": true, "notifications": true,
   "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
   "insurance": true, "b2b": true, "project-management": true, "visa": true,
+  "support": true,
 };
 
 /** Legacy stored code → canonical ModuleKey. Mirrors `Tenant.LegacyModuleAliases` (backend). */
@@ -213,7 +214,7 @@ function canonicalModuleCode(code: string): ModuleKey | null {
 function backendModulesToFrontend(backendModules: string[]): ModuleKey[] {
   // Pure UI surfaces, never part of plan entitlement. These match hasModuleAccess step 2, which
   // short-circuits before the enabledModules check — listed here only for consistency.
-  const keys = new Set<ModuleKey>(["dashboard", "notifications"]);
+  const keys = new Set<ModuleKey>(["dashboard", "notifications", "support"]);
 
   for (const m of backendModules) {
     const key = canonicalModuleCode(m);
@@ -360,6 +361,16 @@ interface AuthState {
    */
   rawPermissions: string[];
 
+  /**
+   * True only when this account's tenant is the configured Support operator tenant (Softaxis's
+   * own workspace) — from the JWT `support_operator` claim. `support.tickets.*` permission keys
+   * are auto-granted to every tenant's Administrator role (harmless: the backend's own
+   * ISupportAccessGuard refuses the cross-tenant queue for anyone outside the operator tenant
+   * regardless), so `hasRawPermission` alone cannot tell an operator-tenant agent apart from any
+   * other tenant's admin. Combine this with hasRawPermission when gating Support-queue UI.
+   */
+  isSupportOperator: boolean;
+
   /** Set while a super-admin is viewing the app AS a tenant (impersonation). null = not impersonating. */
   impersonation: { tenantId: string; tenantName: string; tenantSlug: string } | null;
   /** The super-admin's own session, saved so exitImpersonation() can restore it. */
@@ -421,6 +432,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       rawPermissions: [],
+      isSupportOperator: false,
       impersonation: null,
       superSession: null,
 
@@ -447,12 +459,13 @@ export const useAuthStore = create<AuthState>()(
           : DEFAULT_TENANT;
 
         set({
-          token:           accessToken,
-          refreshToken:    refreshToken,
+          token:             accessToken,
+          refreshToken:      refreshToken,
           user,
           tenant,
-          isAuthenticated: true,
-          rawPermissions:  extractRawPermissions(userDto),
+          isAuthenticated:   true,
+          rawPermissions:    extractRawPermissions(userDto),
+          isSupportOperator: claims['support_operator'] === 'true',
         });
       },
 
@@ -565,8 +578,14 @@ export const useAuthStore = create<AuthState>()(
         //    keys (file-manager.view/export) and falls through to the normal checks below, so a
         //    tenant can decide who browses stored documents. Admins/managers still pass at step 4,
         //    and every legacy role in ROLE_DEFAULTS lists it, so only custom roles need the grant.
+        // "support" (Help & Support / My Tickets) is always on too — raising a ticket with the
+        // vendor needs no plan/module entitlement, same reasoning as 2FA setup. The agent-side
+        // Ticket Queue underneath it is a separate nav child carrying its own requiresPermission
+        // ("support.tickets.view"), which only Softaxis's own operator-tenant agents ever hold —
+        // see the backend's ISupportAccessGuard for why holding the permission key alone still
+        // does not open the cross-tenant queue for anyone else.
         if (module === "dashboard" || module === "notifications" ||
-            module === "ai-assistant") return true;
+            module === "ai-assistant" || module === "support") return true;
 
         // ── 3. Tenant must have the module enabled — applies to EVERYONE,
         //       including tenant_admin. A tenant admin can only ever see the
@@ -640,6 +659,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken:    state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         rawPermissions:  state.rawPermissions,
+        isSupportOperator: state.isSupportOperator,
         impersonation:   state.impersonation,
         superSession:    state.superSession,
       }),

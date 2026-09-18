@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useInvoice, useMarkInvoicePaid, useSendInvoice } from "@/hooks/use-finance";
@@ -6,7 +7,7 @@ import { formatCompactValue } from "@/lib/crm-helpers";
 import { hasPermission } from "@/store/auth.store";
 import { INVOICE_STATUS_LABELS } from "@/types/finance";
 import { Button, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "InvoiceDetail">;
@@ -14,8 +15,12 @@ type Props = NativeStackScreenProps<FinanceStackParamList, "InvoiceDetail">;
 const PAYABLE = new Set(["sent", "overdue", "partial"]);
 
 export default function InvoiceDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { invoiceId, invoiceNumber } = route.params;
-  navigation.setOptions({ headerTitle: invoiceNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: invoiceNumber });
+  }, [navigation, invoiceNumber]);
   const canEdit = hasPermission(FINANCE_INVOICING_EDIT);
 
   const invoice = useInvoice(invoiceId);
@@ -81,20 +86,22 @@ export default function InvoiceDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  bodyText: { fontSize: fontSize.md, color: colors.foreground },
+    bodyText: { fontSize: fontSize.md, color: colors.foreground },
 
-  itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
-  itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-  itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+    itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+    itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
 
-  actionsRow: { flexDirection: "row", gap: spacing.sm },
-});
+    actionsRow: { flexDirection: "row", gap: spacing.sm },
+  });
+}

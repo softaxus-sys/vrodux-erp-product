@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProduct, useProductStock } from "@/hooks/use-inventory";
@@ -5,13 +6,17 @@ import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
 import type { InventoryStackParamList } from "@/navigation/types";
 import { Badge, DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<InventoryStackParamList, "ProductDetail">;
 
 export default function ProductDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { productId, productName } = route.params;
-  navigation.setOptions({ headerTitle: productName });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: productName });
+  }, [navigation, productName]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   const product = useProduct(productId);
@@ -82,21 +87,23 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
-  badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    badgeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
 
-  bodyText: { fontSize: fontSize.md, color: colors.foreground },
-  notes: { fontSize: fontSize.base, color: colors.mutedForeground },
+    bodyText: { fontSize: fontSize.md, color: colors.foreground },
+    notes: { fontSize: fontSize.base, color: colors.mutedForeground },
 
-  warehouseRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
-  warehouseTop: { flexDirection: "row", justifyContent: "space-between" },
-  warehouseName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-  warehouseQty: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.foreground },
-  stockLow: { color: colors.warning },
-});
+    warehouseRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+    warehouseTop: { flexDirection: "row", justifyContent: "space-between" },
+    warehouseName: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+    warehouseQty: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: colors.foreground },
+    stockLow: { color: colors.warning },
+  });
+}

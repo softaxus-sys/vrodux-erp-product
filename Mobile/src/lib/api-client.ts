@@ -5,6 +5,7 @@
  * how they talk to the same API.
  */
 import { useAuthStore } from "@/store/auth.store";
+import { getDeviceLabel } from "@/lib/device-id";
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
@@ -120,10 +121,13 @@ let activeRefresh: Promise<string | null> | null = null;
 
 async function performRefresh(refreshToken: string): Promise<string | null> {
   try {
+    // Device fields are optional server-side and only used to keep a session labeled/individually
+    // revocable in "my devices" -- a failure to resolve them here must never block the refresh
+    // itself, so getDeviceLabel() is deliberately infallible (falls back to nulls).
     const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: refreshToken }),
+      body: JSON.stringify({ token: refreshToken, ...(await getDeviceLabel()) }),
     });
     if (!res.ok) return null;
     const body: BackendResponse<{ accessToken: string; refreshToken: string }> = await res.json();

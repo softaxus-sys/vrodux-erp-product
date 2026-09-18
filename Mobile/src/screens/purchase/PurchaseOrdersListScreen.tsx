@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePurchaseOrdersPaged } from "@/hooks/use-purchase";
@@ -8,7 +8,7 @@ import { PURCHASE_ORDER_STATUS_LABELS, PURCHASE_ORDER_STATUS_TONE } from "@/type
 import type { PurchaseOrderSummaryDto } from "@/types/purchase";
 import type { PurchaseStackParamList } from "@/navigation/types";
 import { Badge, Chip, EmptyListState, ErrorState, ListItemCard, LoadingState, SearchInput } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<PurchaseStackParamList, "PurchaseOrdersList">;
 
@@ -24,6 +24,8 @@ const FILTERS: { key: string; label: string }[] = [
 const PAGE_SIZE = 25;
 
 export default function PurchaseOrdersListScreen({ navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // PurchaseOrderSummaryDto carries no currency of its own -- purchasing is recorded in the
   // tenant's operating currency (CLAUDE.md Module 6e/50), so read it off the session claims.
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
@@ -96,6 +98,8 @@ export default function PurchaseOrdersListScreen({ navigation }: Props) {
 }
 
 function OrderRow({ order, currency, onPress }: { order: PurchaseOrderSummaryDto; currency: string; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ListItemCard onPress={onPress}>
       <View style={styles.rowTop}>
@@ -112,14 +116,16 @@ function OrderRow({ order, currency, onPress }: { order: PurchaseOrderSummaryDto
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
-  footerSpinner: { paddingVertical: spacing.lg },
-  list: { paddingVertical: spacing.md },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    filterRow: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.lg, gap: spacing.sm, marginBottom: spacing.sm },
+    footerSpinner: { paddingVertical: spacing.lg },
+    list: { paddingVertical: spacing.md },
 
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
-  value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
-  meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
-});
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, color: colors.foreground, flexShrink: 1 },
+    value: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
+    meta: { fontSize: fontSize.base, color: colors.foregroundSecondary, marginBottom: spacing.xs },
+  });
+}

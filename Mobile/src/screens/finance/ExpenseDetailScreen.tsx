@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useExpense } from "@/hooks/use-finance";
@@ -6,14 +7,18 @@ import { useAuthStore } from "@/store/auth.store";
 import { EXPENSE_CATEGORY_LABELS, EXPENSE_STATUS_LABELS } from "@/types/finance";
 import type { ExpenseCategory } from "@/types/finance";
 import { DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { FinanceStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<FinanceStackParamList, "ExpenseDetail">;
 
 export default function ExpenseDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { expenseId, expenseNumber } = route.params;
-  navigation.setOptions({ headerTitle: expenseNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: expenseNumber });
+  }, [navigation, expenseNumber]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
 
   const expense = useExpense(expenseId);
@@ -62,13 +67,15 @@ export default function ExpenseDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  bodyText: { fontSize: fontSize.md, color: colors.foreground },
-});
+    bodyText: { fontSize: fontSize.md, color: colors.foreground },
+  });
+}

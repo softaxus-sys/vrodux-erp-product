@@ -21,6 +21,8 @@ const AiAssistantPage      = lazyWithRetry(() => import("@/pages/ai-assistant"))
 const ReportsPage          = lazyWithRetry(() => import("@/pages/reports"));
 const FileManagerPage      = lazyWithRetry(() => import("@/pages/file-manager"));
 const ProfilePage          = lazyWithRetry(() => import("@/pages/profile"));
+const MyTicketsPage        = lazyWithRetry(() => import("@/pages/support/my-tickets"));
+const SupportQueuePage     = lazyWithRetry(() => import("@/pages/support/queue"));
 
 // ── Finance ───────────────────────────────────────────────────────────────────
 const AccountingPage       = lazyWithRetry(() => import("@/pages/finance/accounting"));
@@ -251,6 +253,22 @@ function SettingsGuard({ permission }: { permission: string }) {
   return <Outlet />;
 }
 
+/**
+ * SupportQueueGuard — the agent-side ticket queue, restricted to the configured Support
+ * operator tenant (Softaxis's own workspace). `support.tickets.view` alone is NOT sufficient:
+ * every tenant's Administrator role auto-holds it (SyncAdministratorPermissionsAsync grants
+ * every seeded permission to every Administrator), so hasRawPermission's tenant_admin bypass
+ * would otherwise show this page to every tenant admin on the platform. isSupportOperator
+ * (from the JWT's `support_operator` claim) narrows it to the one tenant it actually means
+ * anything for — the backend's own ISupportAccessGuard enforces the real boundary regardless.
+ */
+function SupportQueueGuard() {
+  const isSupportOperator = useAuthStore((s) => s.isSupportOperator);
+  const hasRawPermission = useAuthStore((s) => s.hasRawPermission);
+  if (!isSupportOperator || !hasRawPermission("support.tickets.view")) return <Navigate to="/dashboard" replace />;
+  return <Outlet />;
+}
+
 function PageLoader() {
   return (
     <div className="flex-1 flex items-center justify-center min-h-[200px]">
@@ -311,6 +329,13 @@ export function App() {
           <Route path="/profile"      element={<ProfilePage />} />
           {/* Appearance is in topbar for all users, no module gate needed */}
           <Route path="/settings/appearance" element={<AppearancePage />} />
+
+          {/* Help & Support — raising a ticket / reading your own tenant's tickets needs no
+              module or permission grant, same posture as changing your own password. */}
+          <Route path="/support" element={<MyTicketsPage />} />
+          <Route element={<SupportQueueGuard />}>
+            <Route path="/support/queue" element={<SupportQueuePage />} />
+          </Route>
 
           {/* ── Utility modules (accessible if any module permission exists) ── */}
           <Route element={<ModuleGuard module="ai-assistant" />}>

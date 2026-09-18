@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { usePurchaseOrder, useSetPurchaseOrderStatus } from "@/hooks/use-purchase";
@@ -7,13 +8,17 @@ import { hasPermission, useAuthStore } from "@/store/auth.store";
 import { PURCHASE_ORDER_STATUS_LABELS } from "@/types/purchase";
 import type { PurchaseStackParamList } from "@/navigation/types";
 import { Button, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, spacing } from "@/theme";
+import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 
 type Props = NativeStackScreenProps<PurchaseStackParamList, "PurchaseOrderDetail">;
 
 export default function PurchaseOrderDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { orderId, orderNumber } = route.params;
-  navigation.setOptions({ headerTitle: orderNumber });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: orderNumber });
+  }, [navigation, orderNumber]);
   const currency = useAuthStore((s) => s.tenant?.currency ?? "");
   const canEdit = hasPermission(PURCHASE_ORDERS_EDIT);
 
@@ -61,34 +66,47 @@ export default function PurchaseOrderDetailScreen({ route, navigation }: Props) 
         ))}
       </SectionCard>
 
-      {canEdit && o.status === "draft" ? (
+      {canEdit && (o.status === "draft" || o.status === "sent" || o.status === "partial") ? (
         <SectionCard title="Actions">
-          <Button
-            label={setStatus.isPending ? "Sending..." : "Send to Vendor"}
-            icon="send"
-            disabled={setStatus.isPending}
-            onPress={() => setStatus.mutate({ id: o.id, status: "sent" })}
-            fullWidth
-          />
+          {o.status === "draft" ? (
+            <Button
+              label={setStatus.isPending ? "Sending..." : "Send to Vendor"}
+              icon="send"
+              disabled={setStatus.isPending}
+              onPress={() => setStatus.mutate({ id: o.id, status: "sent" })}
+              fullWidth
+            />
+          ) : null}
           {setStatus.isError ? <Text style={styles.errorText}>Couldn&apos;t send this order.</Text> : null}
+          {o.status === "sent" || o.status === "partial" ? (
+            <Button
+              label="Receive"
+              icon="camera"
+              variant={o.status === "partial" ? "outline" : "primary"}
+              onPress={() => navigation.navigate("ReceiveOrder", { orderId: o.id, orderNumber: o.orderNumber })}
+              fullWidth
+            />
+          ) : null}
         </SectionCard>
       ) : null}
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  errorText: { color: colors.destructive, fontSize: fontSize.sm },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    errorText: { color: colors.destructive, fontSize: fontSize.sm },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
 
-  bodyText: { fontSize: fontSize.md, color: colors.foreground },
+    bodyText: { fontSize: fontSize.md, color: colors.foreground },
 
-  itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
-  itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-  itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
-});
+    itemRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: spacing.xs },
+    itemDescription: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+    itemMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
+  });
+}

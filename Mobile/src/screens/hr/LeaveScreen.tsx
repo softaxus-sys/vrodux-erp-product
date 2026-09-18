@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useApplyLeave, useCancelLeave, useLeaveBalances, useMyLeaves } from "@/hooks/use-hr-self";
 import { LEAVE_STATUS_LABELS, LEAVE_STATUS_TONE, LEAVE_TYPE_LABELS } from "@/types/hr";
 import type { LeaveRequestDto, LeaveType } from "@/types/hr";
 import { Badge, Button, Card, Chip, EmptyState, LoadingState, SectionCard } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 
 const LEAVE_TYPES: LeaveType[] = ["annual", "sick", "unpaid", "emergency", "maternity", "paternity", "hajj"];
 
@@ -18,6 +18,8 @@ function daysBetween(start: string, end: string): number {
 }
 
 export default function LeaveScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const balances = useLeaveBalances();
   const leaves = useMyLeaves({ pageSize: 30 });
   const applyLeave = useApplyLeave();
@@ -152,6 +154,8 @@ function LeaveRow({
   onConfirmCancel: () => void;
   onDismissCancel: () => void;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Card variant="flat" padding="md" style={styles.leaveRow}>
       <View style={styles.rowTop}>
@@ -178,41 +182,43 @@ function LeaveRow({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  notes: { fontSize: fontSize.base, color: colors.mutedForeground },
-  errorText: { fontSize: fontSize.sm, color: colors.destructive, fontWeight: fontWeight.semibold },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    notes: { fontSize: fontSize.base, color: colors.mutedForeground },
+    errorText: { fontSize: fontSize.sm, color: colors.destructive, fontWeight: fontWeight.semibold },
 
-  balanceGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm + 2 },
-  balanceCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.sm + 2,
-    minWidth: 92,
-    alignItems: "center",
-  },
-  balanceType: { fontSize: fontSize.xs, color: colors.mutedForeground, textTransform: "capitalize" },
-  balanceRemaining: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.primary },
-  balanceOf: { fontSize: fontSize.xs, color: colors.subtleForeground },
+    balanceGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm + 2 },
+    balanceCard: {
+      backgroundColor: colors.card,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.sm + 2,
+      minWidth: 92,
+      alignItems: "center",
+    },
+    balanceType: { fontSize: fontSize.xs, color: colors.mutedForeground, textTransform: "capitalize" },
+    balanceRemaining: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.primary },
+    balanceOf: { fontSize: fontSize.xs, color: colors.subtleForeground },
 
-  applyForm: { gap: spacing.sm + 2 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    backgroundColor: colors.card,
-    fontSize: fontSize.md,
-    color: colors.foreground,
-  },
-  multiline: { minHeight: 60, textAlignVertical: "top" },
-  formButtons: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
-  cancelLink: { paddingHorizontal: 0 },
+    applyForm: { gap: spacing.sm + 2 },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 2,
+      backgroundColor: colors.card,
+      fontSize: fontSize.md,
+      color: colors.foreground,
+    },
+    multiline: { minHeight: 60, textAlignVertical: "top" },
+    formButtons: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.xs },
+    cancelLink: { paddingHorizontal: 0 },
 
-  leaveRow: { gap: spacing.xs, marginBottom: spacing.sm },
-  rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  leaveTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-});
+    leaveRow: { gap: spacing.xs, marginBottom: spacing.sm },
+    rowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    leaveTitle: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+  });
+}

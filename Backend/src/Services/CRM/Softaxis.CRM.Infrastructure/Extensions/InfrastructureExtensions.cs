@@ -3,6 +3,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Softaxis.BuildingBlocks.Infrastructure.PushNotifications;
 using Softaxis.BuildingBlocks.Infrastructure.Seeding;
 using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
@@ -52,6 +53,10 @@ public static class InfrastructureExtensions
 
         // The batched Property Finder import keeps its plan here between slices.
         services.AddMemoryCache();
+
+        // Mobile push for lead-ingested alerts — the tokens themselves live in Identity
+        // ([identity].[user_device_tokens]), read cross-schema by LeadIngestedAlertHandler.
+        services.AddExpoPushNotifications();
 
         // ── Integration platform (lead sources) ──────────────────────────────
         // Secret encryption over ASP.NET Core Data Protection (host calls AddDataProtection()).

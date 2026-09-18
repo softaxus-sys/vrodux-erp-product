@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useDeal, useMoveDealStage } from "@/hooks/use-deals";
@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { FORECAST_LABELS, NEXT_STAGES, PIPELINE_STAGES, STAGE_PROBABILITY } from "@/types/crm";
 import type { ActivityType, DealStage } from "@/types/crm";
 import { Button, Chip, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
-import { colors, fontSize, fontWeight, radius, spacing } from "@/theme";
+import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { DealsStackParamList } from "@/navigation/types";
 
 type Props = NativeStackScreenProps<DealsStackParamList, "DealDetail">;
@@ -18,8 +18,12 @@ function stageLabel(stage: DealStage): string {
 }
 
 export default function DealDetailScreen({ route, navigation }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { dealId, dealTitle } = route.params;
-  navigation.setOptions({ headerTitle: dealTitle });
+  useEffect(() => {
+    navigation.setOptions({ headerTitle: dealTitle });
+  }, [navigation, dealTitle]);
 
   const deal = useDeal(dealId);
   const activities = useActivities("deal", dealId);
@@ -202,41 +206,43 @@ export default function DealDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
+function createStyles(colors: AppColors) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
 
-  header: { gap: spacing.xs },
-  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
-  subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
-  statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
-  lossReason: { fontSize: fontSize.base, color: colors.destructive, marginTop: spacing.sm, fontWeight: fontWeight.medium },
+    header: { gap: spacing.xs },
+    name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.foreground },
+    subtitle: { fontSize: fontSize.md, color: colors.mutedForeground },
+    statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xl, marginTop: spacing.sm },
+    lossReason: { fontSize: fontSize.base, color: colors.destructive, marginTop: spacing.sm, fontWeight: fontWeight.medium },
 
-  actionsRow: { flexDirection: "row", gap: spacing.sm },
-  actionButton: { flex: 1, paddingHorizontal: spacing.sm },
+    actionsRow: { flexDirection: "row", gap: spacing.sm },
+    actionButton: { flex: 1, paddingHorizontal: spacing.sm },
 
-  bodyText: { fontSize: fontSize.lg, color: colors.foreground },
-  notes: { fontSize: fontSize.base, color: colors.mutedForeground, fontStyle: "italic" },
+    bodyText: { fontSize: fontSize.lg, color: colors.foreground },
+    notes: { fontSize: fontSize.base, color: colors.mutedForeground, fontStyle: "italic" },
 
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 
-  confirmRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
-  confirmText: { fontSize: fontSize.base, color: colors.foreground },
-  lostForm: { flex: 1, gap: spacing.sm + 2 },
+    confirmRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
+    confirmText: { fontSize: fontSize.base, color: colors.foreground },
+    lostForm: { flex: 1, gap: spacing.sm + 2 },
 
-  formGap: { gap: spacing.sm + 2 },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.sm + 2,
-    backgroundColor: colors.card,
-    fontSize: fontSize.md,
-    color: colors.foreground,
-  },
-  multiline: { minHeight: 44, textAlignVertical: "top" },
-  buttonsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    formGap: { gap: spacing.sm + 2 },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: radius.md,
+      padding: spacing.sm + 2,
+      backgroundColor: colors.card,
+      fontSize: fontSize.md,
+      color: colors.foreground,
+    },
+    multiline: { minHeight: 44, textAlignVertical: "top" },
+    buttonsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
 
-  activityRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
-  activitySubject: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
-  activityDate: { fontSize: fontSize.xs, color: colors.subtleForeground },
-});
+    activityRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.xs, gap: 2 },
+    activitySubject: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: colors.foreground },
+    activityDate: { fontSize: fontSize.xs, color: colors.subtleForeground },
+  });
+}

@@ -231,3 +231,19 @@ export const DEAL_STAGE_TONE: Record<DealStage, "success" | "warning" | "destruc
   won: "success",
   lost: "destructive",
 };
+
+/** Trimmed to the scalar totals `GET /api/crm/dashboard` returns -- the array breakdowns
+ *  (LeadFunnel/LeadsBySource/PipelineByStage/LeadsByMonth) are chart data, out of scope for the
+ *  mobile Dashboard's compact tile format. Already tier-scoped server-side by the handler (a team
+ *  lead's numbers are their team's, not the tenant's), same as the Leads/Pipeline lists. */
+export interface CrmDashboardSummaryDto {
+  openPipelineValue: number;
+  wonValue: number;
+  wonCount: number;
+  lostCount: number;
+  winRate: number;
+  totalLeads: number;
+  totalDeals: number;
+  openTasks: number;
+  overdueTasks: number;
+}

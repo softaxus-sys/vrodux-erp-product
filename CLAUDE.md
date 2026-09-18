@@ -6146,12 +6146,110 @@ backend `MeController` documents on itself).
 - **Dashboard tab is still a placeholder** (`HomeScreen.tsx` shows session/tenant/permission info
   only) — wiring it to real cross-module KPIs is unscoped.
 - Smaller polish items already flagged above: leave-date native picker, payslip PDF export, offline
-  handling / error boundaries, per-device refresh tokens (raised in the original mobile-strategy
-  discussion, not built — the backend does not scope refresh tokens per device today).
+  handling / error boundaries. (Per-device refresh tokens — see Module 57 below — are done.)
+
+> **Note:** this Module 56 entry is a snapshot from the initial Phase-1 pass and was never kept in
+> sync with the mobile app's actual growth — Approvals, push notifications, and full ERP module
+> parity all shipped afterward and are documented only in `Mobile/README.md`, not here. Treat
+> `Mobile/README.md` as the current source of truth for what mobile does; this entry (and its dated
+> git/deploy state above) is historical.
 
 ---
 
-## Module 57 — POS: Offline mode (local-first tills, day-end "Sync to Cloud", per-tenant switch)
+## Module 57 — Identity: per-device refresh tokens + "my devices" session management
+
+**Closes the gap Module 56 flagged** ("the backend does not scope refresh tokens per device
+today"). `RefreshToken` previously carried no notion of *which* device it belonged to — every
+session for a user looked identical (just `UserId` + `TokenHash` + `CreatedByIp`), so there was no
+way to label "this is my phone" vs "this is my laptop," and no way to revoke one specific device's
+session without already holding its raw token (the existing `POST /auth/revoke`, which is "log out
+*this* device, from this device" by design — it revokes whatever token is presented, not by id).
+
+### Model
+`RefreshToken` gains three nullable, display-only columns — `DeviceId`, `DeviceName`, `Platform`
+(migration `AddRefreshTokenDeviceInfo`, additive). `DeviceId` is **client-generated and persisted
+by the client itself** (not server-assigned) — the mobile app's `src/lib/device-id.ts` generates a
+local RFC-4122-shaped v4 UUID on first use (no new dependency — `Math.random`-based, non-
+cryptographic, fine for a display label) and stores it in `expo-secure-store` under its own key,
+deliberately **outside** the zustand auth store's session blob so signing out never resets it — a
+re-login on the same phone must keep reporting the same device.
+
+**Token rotation keeps this to one row per device.** Every refresh revokes the old token and issues
+a new one (existing behavior); the new row now also carries forward whatever device info the token
+being rotated already had (`cmd.DeviceId ?? refreshToken.DeviceId`, etc.), so a client only has to
+send its device label at login — not on every refresh — without losing the label over time. At
+**login**, if the client presents a `DeviceId` that already has another active session (a stale
+session on a re-install, or logging back in after this device's previous session fully expired),
+`IRefreshTokenRepository.RevokeActiveForUserDeviceAsync` retires it first — same idempotency as
+re-registering a push token (Module 56's `UserDeviceToken`): a device only ever holds one live row,
+by construction, never by cleanup. This is independent of (and unaffected by) the tenant's
+`SingleSession` policy (Module 52) — that policy revokes *every* session for the user regardless of
+device, by design; this only dedupes the *same* device against itself.
+
+**2FA login (`VerifyTwoFactorCommandHandler`) gets the same device-dedup**, but — noted in a code
+comment rather than silently expanded — does **not** apply the `SingleSession` policy at all; that
+check has only ever lived in the plain-password `LoginCommandHandler` and 2FA-enabled accounts
+were never wired to it. Left as a flagged gap, not fixed here (changing who gets signed out by
+`SingleSession` is a bigger, separate decision than adding device labels).
+
+### "My devices" — list + individually revoke
+- `GET /api/auth/sessions?deviceId=` → `GetMySessionsQuery` → every active `RefreshToken` for the
+  caller, newest first, as `SessionDto(Id, DeviceName, Platform, CreatedByIp, CreatedAt, ExpiresAt,
+  IsCurrent)`. The optional `deviceId` query param is **display-only** — it only decides which row
+  comes back with `IsCurrent = true` (by matching the caller's own already-known device id), never
+  which rows are returned (that's `UserId` alone, from the JWT via `ICurrentUser`). A client that
+  omits it (or predates this feature) just gets a list with nothing marked current.
+- `POST /api/auth/sessions/{id}/revoke` → `RevokeSessionCommand`, scoped to the caller's own
+  `UserId` at the repository level (`GetByIdForUserAsync(id, userId)`) so a guessed session id for
+  another user's session 404s rather than confirming it exists or letting it be revoked.
+- Distinct from `POST /auth/revoke` on purpose: that endpoint proves "I am this session" by
+  presenting the raw token and revokes it there and then (used by the client's own sign-out button,
+  which also clears local storage). The new endpoint proves "I am this *user*" via the bearer
+  access token and revokes *any* session by id — the "sign out that old phone remotely" flow, which
+  the raw-token endpoint structurally cannot do.
+
+### Mobile (this app) — the reference client for this feature
+- `src/lib/device-id.ts` — `getOrCreateDeviceId()` / `getDeviceLabel()` (adds `Device.deviceName` +
+  `Platform.OS`, both already available via `expo-device`, no new dependency).
+- `authApi.login` / `authApi.verifyTwoFactor` / `api-client.ts`'s `performRefresh` (the actual
+  401-retry refresh path — `authApi.refresh` itself has no callers) all attach the device label to
+  their request bodies. Resolving it can never fail loudly — `getDeviceLabel()` falls back to nulls
+  rather than throwing, so a secure-storage hiccup degrades to "this session just isn't labeled,"
+  never blocks signing in.
+- `authApi.getSessions()` / `authApi.revokeSession(id)` + `useSessions()` / `useRevokeSession()`
+  (`hooks/use-settings.ts`, alongside the existing 2FA hooks — same self-service surface).
+- **New "Devices" section in `SettingsScreen.tsx`** (`My Account`, no permission gate, same as
+  every other section there) — one row per session (platform icon, device name or "Unknown
+  device", signed-in time + IP, a "This device" badge). **The current device has no revoke button
+  by design** — revoking it here would kill the session server-side while the app kept using its
+  now-dead tokens until the next request forced a re-login; the existing "Sign out" button at the
+  bottom of the screen is the correct way to end *this* session, since it also clears local state.
+  Every other row gets a "Sign out this device" button.
+- **Web (FrontendVite) is NOT wired to this** — deliberately out of scope for this pass, flagged as
+  a follow-up. No device-id generation, no Settings → Security "devices" panel exists on web yet;
+  the backend endpoints work for any client that sends a `deviceId`, so wiring web later is
+  additive, not a backend change.
+
+### Build / Verification Status
+- **Identity.API:** 0 errors ✅ (pre-existing SmtpEmailService nullable warnings only) · **Full
+  ApiGateway:** 0 errors ✅ (pre-existing NU1903/Serilog-version-conflict warnings only, unchanged
+  baseline).
+- **Mobile `tsc --noEmit`:** 0 errors ✅ · **`npx expo export --platform ios`:** succeeds, no
+  resolution errors.
+- Migration `AddRefreshTokenDeviceInfo` created (3 additive nullable columns + a compound
+  `(UserId, DeviceId)` index replacing the old plain `UserId` index) — **not applied to any
+  database in this session** (no reachable SQL Server instance from this environment); auto-applies
+  on next Identity service startup via the existing `MigrateAndSeedAsync`.
+- **Pending (needs restart to pick up the migration):** log in on two different devices/sessions
+  for the same account, confirm both show up under Settings → Devices with correct platform/name,
+  confirm "This device" lands on the right row on each, revoke one from the other and confirm it's
+  signed out (next request 401s and fails to refresh); confirm a `SingleSession`-policy tenant still
+  signs out *every* other device on a fresh login, unaffected by this change. Web session management
+  UI is the natural next follow-up, not done here.
+
+---
+
+## Module 58 — POS: Offline mode (local-first tills, day-end "Sync to Cloud", per-tenant switch)
 
 Retail tills can keep selling with no internet. **Every tenant chooses online or offline mode** (Settings → POS
 Payments → "Retail POS mode", gated `pos.sessions.approve` — no dedicated POS-settings key is seeded).
@@ -6226,7 +6324,7 @@ Payments → "Retail POS mode", gated `pos.sessions.approve` — no dedicated PO
 
 ---
 
-## Module 58 — POS: Retail POS dashboard (`/pos/dashboard`)
+## Module 59 — POS: Retail POS dashboard (`/pos/dashboard`)
 
 The only POS dashboard was the Restaurant one (`/pos/dashboards`, `restaurant` module); retail tills had none —
 just the four hourly/payment charts on the main dashboard. New page: first item in the POS nav.
@@ -6258,3 +6356,50 @@ just the four hourly/payment charts on the main dashboard. New page: first item 
 - Full gateway build blocked only by file locks from the running gateway / Visual Studio (not compile errors).
 - **Not runtime-tested** — restart the gateway, open POS → Dashboard, compare Today's net sales with the
   Close-Shift summary, refund a sale and confirm gross is unchanged while refunds and net move.
+
+---
+
+## Module 60 — Ops: `/opt/vrodux/current/.env` vs `/opt/vrodux/shared/.env` drift (SQL Server + Redis auth)
+
+**Found while setting `Support:OperatorTenantId` (Module: Support ticketing) on the Contabo server.** Manually
+running `docker compose -f docker-compose.prod.yml up -d vrodux-api` from `/opt/vrodux/current` — with no
+`--env-file` flag — makes Compose default to reading `.env` in the **current working directory**
+(`/opt/vrodux/current/.env`), not the canonical secrets file. The real CD pipeline (`.github/workflows/deploy.yml`)
+always passes `--env-file "${APP_DIR}/shared/.env"` explicitly and only ever touches `vrodux-api`/`vrodux-web`
+with `--no-deps` — it never recreates `vrodux-sqlserver` or `vrodux-redis`. A manual `up -d` without those two
+things (no `--env-file`, no `--no-deps`) pulled `sqlserver`/`redis` into the dependency graph and recreated them
+using the stale, drifted `current/.env` instead of the correct `shared/.env`.
+
+**Consequence:** `vrodux-sqlserver` came up "Up (unhealthy)" — the container itself connects to its existing,
+already-initialized data volume fine (SQL Server only ever applies its `SA_PASSWORD` env var on a *first* init of
+an empty volume, never after), but its healthcheck script re-evaluates `${SQL_SA_PASSWORD}` against the *new*
+container's env at every probe, and that env came from the wrong file → the probe's login fails even though the
+real `sa` password (matching `shared/.env`) never changed. Separately, `vrodux-redis` crash-looped with `*** FATAL
+CONFIG FILE ERROR *** ... 'requirepass' wrong number of arguments` — the **deployed** `docker/redis/redis.conf`
+on the server had a hand-edited `requirepass` line that doesn't exist in the tracked repo file (the repo's
+`redis.conf` deliberately has no `requirepass` — auth is injected only via the compose `command:`'s
+`--requirepass ${REDIS_PASSWORD}`), and that stray line had ended up with no value.
+
+**Fix applied:** since the deploy pipeline's `git checkout -f FETCH_HEAD` in `/opt/vrodux/current` resets every
+*tracked* file to match the deployed commit exactly (but never touches `.env`, which is gitignored), simply
+triggering a normal deploy restores `docker/redis/redis.conf` to the clean tracked version on disk. Combined
+with the pipeline always using `--env-file shared/.env` + `--no-deps` for `vrodux-api`, a fresh deploy recreates
+`vrodux-api`/`vrodux-web` with the *correct* credentials regardless of `vrodux-sqlserver`'s own (cosmetically)
+unhealthy status — `--no-deps` bypasses the `depends_on: condition: service_healthy` gate, and the app's own DB
+connectivity works because the real stored `sa` password already matches `shared/.env`.
+
+**Known limitation, not fixed by a deploy alone:** because the pipeline is deliberately scoped to
+`vrodux-api`/`vrodux-web` only, `vrodux-sqlserver` and `vrodux-redis` themselves are never recreated by an
+ordinary deploy — so `vrodux-sqlserver` can keep reporting "unhealthy" (cosmetic — its healthcheck uses the
+container's own stale baked-in env) and, more importantly, a bind-mounted single file like `redis.conf` may not
+be picked up by an already-running container even after the host file is corrected (Linux bind-mounts a file by
+inode at container creation; git's checkout replaces the file via atomic rename, i.e. a new inode) — the
+container needs an actual **recreate**, not just a restart, to see the fixed file. Fully cleaning this up needs
+someone to run, on the server: `cd /opt/vrodux/current && docker compose -f docker-compose.prod.yml --env-file
+/opt/vrodux/shared/.env up -d --force-recreate vrodux-sqlserver vrodux-redis` — recreating those two against the
+*correct* env file and the freshly-checked-out `redis.conf`.
+
+**Takeaway for future manual ops on this server:** never run `docker compose` from `/opt/vrodux/current` without
+`--env-file /opt/vrodux/shared/.env` — the two `.env` files are allowed to drift apart (only `shared/.env` is
+authoritative) and Compose silently prefers whatever `.env` sits in the working directory when the flag is
+omitted.

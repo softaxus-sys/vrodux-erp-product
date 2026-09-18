@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Configuration;
 using Softaxis.AiAssistant.Application.Abstractions;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 
 namespace Softaxis.AiAssistant.Infrastructure.Orchestration;
 
@@ -24,10 +26,12 @@ public sealed class AiToolRegistry : IAiToolRegistry
 {
     private readonly IReadOnlyList<IAiTool> _tools;
     private readonly ICurrentUser _currentUser;
+    private readonly IConfiguration _configuration;
 
-    public AiToolRegistry(IEnumerable<IAiTool> tools, ICurrentUser currentUser)
+    public AiToolRegistry(IEnumerable<IAiTool> tools, ICurrentUser currentUser, IConfiguration configuration)
     {
         _currentUser = currentUser;
+        _configuration = configuration;
         // UseModuleTool is built here rather than injected: it needs the registry to describe what
         // is loadable, and the registry needs every IAiTool — as a DI registration that is a cycle.
         _tools = [.. tools, new UseModuleTool(this)];
@@ -72,16 +76,42 @@ public sealed class AiToolRegistry : IAiToolRegistry
     /// </summary>
     private bool IsModuleEnabled(IAiTool tool) =>
         string.Equals(tool.Agent, AiToolAgents.Core, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(tool.Agent, AiToolAgents.Support, StringComparison.OrdinalIgnoreCase)
         || _currentUser.IsSuperAdmin
         || _currentUser.HasModule(tool.Agent);
 
     /// <summary>
     /// A comma-separated <see cref="IAiTool.RequiredPermission"/> means "any of these" — see the
-    /// remarks there for why the tiered CRM scopes need it.
+    /// remarks there for why the tiered CRM scopes need it. An empty string means the same as
+    /// null ("no permission required") — several Support tools use it because raising or reading
+    /// your own workspace's tickets needs no grant, same as the HTTP endpoints themselves; the
+    /// record types those tools are built from (AiCreateSpec/AiGetByIdSpec/AiActionSpec) declare
+    /// Permission as non-nullable, so "" is how they express "none" where AiListSpec can use null
+    /// directly.
     /// </summary>
     private bool IsPermitted(IAiTool tool)
     {
-        if (tool.RequiredPermission is null || _currentUser.IsSuperAdmin) return true;
+        if (_currentUser.IsSuperAdmin) return true;
+
+        // Support's AGENT-side tools (queue, assign, status, priority) use a non-empty
+        // RequiredPermission — unlike the always-open customer tools (support_create_ticket etc.,
+        // which use ""). Those additionally require the caller's own tenant to be the configured
+        // Support operator tenant, mirroring the backend's ISupportAccessGuard and the frontend's
+        // SupportQueueGuard: `support.tickets.*` is auto-granted to every tenant's Administrator
+        // role (harmless there, since the HTTP endpoint enforces the same check regardless), but
+        // the model should never even be shown a queue tool it cannot actually use — offering a
+        // tool that always 403s reads as the assistant being broken, not as access being denied.
+        if (string.Equals(tool.Agent, AiToolAgents.Support, StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrEmpty(tool.RequiredPermission))
+        {
+            var operatorTenantId = _configuration["Support:OperatorTenantId"];
+            if (string.IsNullOrWhiteSpace(operatorTenantId)
+                || !Guid.TryParse(operatorTenantId, out var opId)
+                || TenantAmbient.TenantId != opId)
+                return false;
+        }
+
+        if (string.IsNullOrEmpty(tool.RequiredPermission)) return true;
 
         return tool.RequiredPermission
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -94,4 +124,15 @@ public static class AiToolAgents
 {
     /// <summary>Assistant plumbing available in every tenant regardless of the modules licensed.</summary>
     public const string Core = "core";
+
+    /// <summary>
+    /// Support ticket tools — available in every tenant regardless of which modules are licensed,
+    /// same reasoning as Core: raising a ticket with the vendor is not a purchasable feature, and
+    /// gating it on "support" being in Tenant.ResolvedModules would hide it from every real
+    /// customer, since "support" is deliberately not a subscribable module (see the frontend's
+    /// hasModuleAccess — it's always-on there for the same reason). Unlike Core, this DOES appear
+    /// as a selectable agent in the picker, since a user reasonably wants to address it directly
+    /// ("ask Support…") rather than treating it as invisible plumbing.
+    /// </summary>
+    public const string Support = "support";
 }
