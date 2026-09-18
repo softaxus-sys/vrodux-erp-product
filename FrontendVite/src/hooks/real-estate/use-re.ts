@@ -102,11 +102,13 @@ export function useSetPrimaryPropertyImage() {
  */
 export function useSetPropertyWebsiteListing() {
   const invalidate = useInvalidateProperties();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { propertyId: string; listOnWebsite: boolean }) =>
       reApi.setPropertyWebsiteListing(v.propertyId, v.listOnWebsite),
     onSuccess: (_d, v) => {
       invalidate();
+      qc.invalidateQueries({ queryKey: [QK, "website-integration"] });
       toast.success(v.listOnWebsite ? "Listed on the website." : "Removed from the website.");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -377,6 +379,75 @@ export function useRunAlertSweep() {
       else if (total === 0) toast.info(r.messages[0] ?? "Nothing due for a reminder today.");
       else toast.success(dryRun ? `${total} notice${total === 1 ? "" : "s"} would be sent.` : `${total} notice${total === 1 ? "" : "s"} sent.`);
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Website integration ─────────────────────────────────────────────────────
+const WEBSITE = [QK, "website-integration"];
+
+export function useWebsiteIntegration() {
+  return useQuery({ queryKey: WEBSITE, queryFn: async () => (await reApi.getWebsiteIntegration()) ?? null });
+}
+
+export function useWebsitePublished() {
+  return useQuery({ queryKey: [...WEBSITE, "published"], queryFn: reApi.getWebsitePublished });
+}
+
+function useInvalidateWebsite() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: WEBSITE });
+    qc.invalidateQueries({ queryKey: [QK, "properties"] });
+    qc.invalidateQueries({ queryKey: [QK, "property-summary"] });
+  };
+}
+
+/** No success toast: the caller shows the one-time key instead. */
+export function useCreateWebsiteIntegration() {
+  const invalidate = useInvalidateWebsite();
+  return useMutation({
+    mutationFn: reApi.createWebsiteIntegration,
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateWebsiteIntegration() {
+  const invalidate = useInvalidateWebsite();
+  return useMutation({
+    mutationFn: reApi.updateWebsiteIntegration,
+    onSuccess: () => { invalidate(); toast.success("Website details saved."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRegenerateWebsiteKey() {
+  const invalidate = useInvalidateWebsite();
+  return useMutation({
+    mutationFn: reApi.regenerateWebsiteKey,
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSetWebsiteIntegrationActive() {
+  const invalidate = useInvalidateWebsite();
+  return useMutation({
+    mutationFn: reApi.setWebsiteIntegrationActive,
+    onSuccess: (d) => {
+      invalidate();
+      toast.success(d.isActive ? "Website connection turned on." : "Website connection turned off — the website now receives no listings.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useWithdrawAllWebsiteListings() {
+  const invalidate = useInvalidateWebsite();
+  return useMutation({
+    mutationFn: reApi.withdrawAllWebsiteListings,
+    onSuccess: (n) => { invalidate(); toast.success(`${n} ${n === 1 ? "property" : "properties"} removed from the website.`); },
     onError: (e: Error) => toast.error(e.message),
   });
 }

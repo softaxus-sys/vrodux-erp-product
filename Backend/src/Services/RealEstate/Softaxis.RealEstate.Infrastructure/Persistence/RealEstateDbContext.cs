@@ -23,6 +23,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     public DbSet<RentInstallment> RentInstallments => Set<RentInstallment>();
     public DbSet<RentAlertSettings> RentAlertSettings => Set<RentAlertSettings>();
     public DbSet<RentAlertLog> RentAlertLogs => Set<RentAlertLog>();
+    public DbSet<WebsiteIntegration> WebsiteIntegrations => Set<WebsiteIntegration>();
 
     /// <summary>Read-only view of identity.tenants — see <see cref="TenantLookup"/>.</summary>
     public DbSet<TenantLookup> TenantLookups => Set<TenantLookup>();
@@ -50,6 +51,22 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         // One settings row per workspace.
         TenantIsolation.TenantUniqueIndex<RentAlertSettings>(
             mb, [], excludeSoftDeleted: false, column: OwnerTenant);
+
+        // One website per workspace.
+        TenantIsolation.TenantUniqueIndex<WebsiteIntegration>(
+            mb, [], excludeSoftDeleted: false, column: OwnerTenant);
+
+        mb.Entity<WebsiteIntegration>(b =>
+        {
+            b.ToTable("website_integrations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.Name).HasMaxLength(120).IsRequired();
+            b.Property(x => x.WebsiteOrigin).HasMaxLength(300).IsRequired();
+            b.Property(x => x.KeyHash).HasMaxLength(64).IsRequired();
+            b.Property(x => x.KeyHint).HasMaxLength(20).IsRequired();
+            // Globally unique: an anonymous request is resolved to its workspace by this hash.
+            b.HasIndex(x => x.KeyHash).IsUnique();
+        });
 
         // Owned by Identity: mapped for reading only, and excluded from migrations so this
         // service never tries to create or alter that table.

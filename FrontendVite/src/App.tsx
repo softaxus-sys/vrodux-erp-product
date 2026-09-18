@@ -85,6 +85,7 @@ const UnitsPage            = lazyWithRetry(() => import("@/pages/real-estate/uni
 const TenantsPage          = lazyWithRetry(() => import("@/pages/real-estate/tenants"));
 const ContractsPage        = lazyWithRetry(() => import("@/pages/real-estate/contracts"));
 const RentAlertsPage       = lazyWithRetry(() => import("@/pages/real-estate/rent-alerts"));
+const ReWebsitePage        = lazyWithRetry(() => import("@/pages/real-estate/website"));
 const BrokersPage          = lazyWithRetry(() => import("@/pages/real-estate/brokers"));
 const RePipelinePage       = lazyWithRetry(() => import("@/pages/real-estate/sales"));
 
@@ -402,6 +403,7 @@ export function App() {
             <Route path="/real-estate/tenants"    element={<TenantsPage />} />
             <Route path="/real-estate/contracts"  element={<ContractsPage />} />
             <Route path="/real-estate/rent-alerts" element={<RentAlertsPage />} />
+            <Route path="/real-estate/website"    element={<ReWebsitePage />} />
             <Route path="/real-estate/brokers"    element={<BrokersPage />} />
           </Route>
 

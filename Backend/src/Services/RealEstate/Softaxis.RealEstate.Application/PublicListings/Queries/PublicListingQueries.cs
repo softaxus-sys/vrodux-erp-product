@@ -2,15 +2,16 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Application.PublicListings.Dtos;
+using Softaxis.RealEstate.Application.WebsiteIntegrations;
 
 namespace Softaxis.RealEstate.Application.PublicListings.Queries;
 
 /// <summary>
-/// Published properties for one tenant's website. Anonymous: the tenant comes from the URL slug,
-/// never from a token.
+/// Published properties for the website that presented a valid API key. The workspace comes from
+/// the key (resolved into <see cref="WebsiteClientDto"/>), never from anything the caller names.
 /// </summary>
 public sealed record GetPublicPropertiesQuery(
-    string TenantSlug,
+    WebsiteClientDto Client,
     string? Search = null,
     string? PropertyType = null,
     string? Emirate = null,
@@ -18,17 +19,13 @@ public sealed record GetPublicPropertiesQuery(
     int Page = 1,
     int PageSize = 24) : IQuery<PagedResult<PublicPropertyDto>>;
 
-public sealed record GetPublicPropertyQuery(string TenantSlug, Guid Id) : IQuery<PublicPropertyDto>;
-
-public sealed record GetPublicCompanyQuery(string TenantSlug) : IQuery<PublicCompanyDto>;
+public sealed record GetPublicPropertyQuery(WebsiteClientDto Client, Guid Id) : IQuery<PublicPropertyDto>;
 
 /// <summary>
-/// One published property's photo.
-///
-/// Carries the slug and the property id as well as the image id so the handler can prove the
-/// image belongs to a property that is actually published by that tenant. Serving by image id
-/// alone would let anyone who guesses a GUID pull photographs out of unpublished properties —
-/// and out of other tenants entirely.
+/// One published property's photo, addressed by a signed, expiring URL rather than the API key —
+/// browsers and image optimisers cannot attach a header to an image request, and the key must
+/// never reach a browser.
 /// </summary>
-public sealed record GetPublicPropertyImageQuery(string TenantSlug, Guid PropertyId, Guid ImageId)
+public sealed record GetPublicPropertyImageQuery(
+    Guid IntegrationId, Guid PropertyId, Guid ImageId, long Expires, string Signature)
     : IQuery<PropertyImageFileDto>;

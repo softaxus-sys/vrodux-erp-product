@@ -15,6 +15,34 @@ function qs(params?: Record<string, string | undefined>) {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+/** The workspace's website connection. The API key itself is only ever in WebsiteApiKeyDto. */
+export interface WebsiteIntegrationDto {
+  id: string;
+  name: string;
+  websiteOrigin: string;
+  keyHint: string;
+  isActive: boolean;
+  createdAt: string;
+  keyGeneratedAt: string;
+  lastUsedAt: string | null;
+  publishedPropertyCount: number;
+}
+
+/** Returned by create / regenerate only — the one time the plaintext key is available. */
+export interface WebsiteApiKeyDto {
+  integration: WebsiteIntegrationDto;
+  apiKey: string;
+}
+
+export interface PublishedPropertyDto {
+  id: string;
+  propertyNumber: string;
+  name: string;
+  city: string;
+  publishedAt: string | null;
+  imageCount: number;
+}
+
 export type PropertyType   = "residential" | "commercial" | "mixed_use" | "industrial" | "retail";
 /** Occupancy-derived, set by the server from how many units are let. The old
  *  "active | inactive | under_development" values were never returned by anything, so every
@@ -488,6 +516,21 @@ export const reApi = {
 
   reorderPropertyImages: (propertyId: string, orderedIds: string[]) =>
     rawApiClient.patch(`${BASE}/properties/${propertyId}/images/order`, { orderedIds }),
+
+  getWebsiteIntegration: (): Promise<WebsiteIntegrationDto | undefined> =>
+    rawApiClient.get(`${BASE}/website-integration`),
+  getWebsitePublished: (): Promise<PublishedPropertyDto[]> =>
+    rawApiClient.get(`${BASE}/website-integration/published`),
+  createWebsiteIntegration: (v: { name: string; websiteUrl: string }): Promise<WebsiteApiKeyDto> =>
+    rawApiClient.post(`${BASE}/website-integration`, v),
+  updateWebsiteIntegration: (v: { name: string; websiteUrl: string }): Promise<WebsiteIntegrationDto> =>
+    rawApiClient.put(`${BASE}/website-integration`, v),
+  regenerateWebsiteKey: (): Promise<WebsiteApiKeyDto> =>
+    rawApiClient.post(`${BASE}/website-integration/regenerate-key`, {}),
+  setWebsiteIntegrationActive: (isActive: boolean): Promise<WebsiteIntegrationDto> =>
+    rawApiClient.patch(`${BASE}/website-integration/active`, { isActive }),
+  withdrawAllWebsiteListings: (): Promise<number> =>
+    rawApiClient.post(`${BASE}/website-integration/withdraw-all`, {}),
 
   setPropertyWebsiteListing: (propertyId: string, listOnWebsite: boolean) =>
     rawApiClient.patch(`${BASE}/properties/${propertyId}/website-listing`, { listOnWebsite }),

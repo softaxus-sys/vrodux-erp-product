@@ -29,8 +29,11 @@ public sealed record PublicPropertyDto(
     string? Developer,
     string? Description,
     DateTime? PublishedAt,
-    IReadOnlyList<Guid> ImageIds,
-    Guid? PrimaryImageId,
+    /// <summary>
+    /// Signed, expiring image paths (relative to the API host), cover first. They stop working
+    /// when the property is withdrawn, the integration is disabled or the key is regenerated.
+    /// </summary>
+    IReadOnlyList<string> ImageUrls,
     IReadOnlyList<PublicUnitDto> Units);
 
 /// <summary>
@@ -52,4 +55,4 @@ public sealed record PublicUnitDto(
     int Parking);
 
 /// <summary>Enough for a website to render its own header without a second call.</summary>
-public sealed record PublicCompanyDto(string Name, string Slug);
+public sealed record PublicCompanyDto(string Name);

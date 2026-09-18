@@ -2,35 +2,42 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Softaxis.RealEstate.API.Authorization;
 using Softaxis.RealEstate.API.Controllers.Common;
+using Softaxis.RealEstate.API.Extensions;
 using Softaxis.RealEstate.Application.PublicListings.Queries;
+using Softaxis.RealEstate.Application.WebsiteIntegrations;
 
 namespace Softaxis.RealEstate.API.Controllers;
 
 /// <summary>
-/// Read-only listings for a tenant's public website.
+/// Read-only listings for a workspace's own website.
 ///
-/// Anonymous by design: the tenant is identified by the slug in the URL, never by a token — the
-/// callers are ordinary visitors' browsers. This mirrors the public careers portal.
+/// Requires the website API key (<c>X-Api-Key</c>) generated under Real Estate → Website. The key
+/// decides the workspace — nothing in the URL does — and is locked to one website address; see
+/// <see cref="WebsiteApiKeyAttribute"/>.
 ///
-/// ⚠ Everything here is world-readable. The DTOs are a narrowed shape that deliberately omits
-/// the owner's internal valuation and anything identifying a current occupant; do not widen them
-/// to the internal PropertyDto for convenience.
+/// ⚠ The DTOs are a narrowed shape that deliberately omits the owner's internal valuation and
+/// anything identifying a current occupant; do not widen them to the internal PropertyDto.
 /// </summary>
 [ApiController]
-[Route("api/real-estate/public/{tenantSlug}")]
+[Route("api/real-estate/website")]
 [AllowAnonymous]
 [EnableCors("PublicSite")]
+[EnableRateLimiting(WebsiteRateLimitPolicies.WebsiteApi)]
 public sealed class PublicListingsController(ISender sender) : RealEstateControllerBase
 {
-    /// <summary>Company name for the website header, and a cheap way to validate a slug.</summary>
+    private WebsiteClientDto Client => (WebsiteClientDto)HttpContext.Items[WebsiteApiKeyAttribute.ClientItemKey]!;
+
+    /// <summary>Company name for the website header — and a cheap way for a site to test its key.</summary>
     [HttpGet("company")]
-    public async Task<IActionResult> GetCompany(string tenantSlug, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetPublicCompanyQuery(tenantSlug), ct));
+    [WebsiteApiKey]
+    public IActionResult GetCompany() => Ok(new { Name = Client.TenantName });
 
     [HttpGet("properties")]
+    [WebsiteApiKey]
     public async Task<IActionResult> GetProperties(
-        string tenantSlug,
         [FromQuery] string? search = null,
         [FromQuery] string? propertyType = null,
         [FromQuery] string? emirate = null,
@@ -39,30 +46,29 @@ public sealed class PublicListingsController(ISender sender) : RealEstateControl
         [FromQuery] int pageSize = 24,
         CancellationToken ct = default) =>
         OkOrError(await sender.Send(
-            new GetPublicPropertiesQuery(tenantSlug, search, propertyType, emirate, city, page, pageSize), ct));
+            new GetPublicPropertiesQuery(Client, search, propertyType, emirate, city, page, pageSize), ct));
 
     [HttpGet("properties/{id:guid}")]
-    public async Task<IActionResult> GetProperty(string tenantSlug, Guid id, CancellationToken ct) =>
-        OkOrError(await sender.Send(new GetPublicPropertyQuery(tenantSlug, id), ct));
+    [WebsiteApiKey]
+    public async Task<IActionResult> GetProperty(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetPublicPropertyQuery(Client, id), ct));
 
     /// <summary>
-    /// One photo of a published property.
-    ///
-    /// Cached hard and publicly: an image's bytes never change (editing means uploading a new
-    /// one), and unlike the authenticated equivalent these are genuinely public, so a CDN or the
-    /// visitor's browser may keep them. Withdrawing a property from the website stops new
-    /// requests succeeding, but anything already cached stays cached for its lifetime — which is
-    /// the normal trade for public images, and worth knowing before publishing anything
-    /// sensitive.
+    /// One photo, by the signed URL returned in a listing. No API key: browsers cannot send one
+    /// with an image request, and the key must never reach a browser. The signature expires, is
+    /// bound to the property and image, and dies with a regenerated key.
     /// </summary>
-    [HttpGet("properties/{id:guid}/images/{imageId:guid}")]
+    [HttpGet("images/{integrationId:guid}/{propertyId:guid}/{imageId:guid}")]
     public async Task<IActionResult> GetImage(
-        string tenantSlug, Guid id, Guid imageId, CancellationToken ct)
+        Guid integrationId, Guid propertyId, Guid imageId,
+        [FromQuery] long exp, [FromQuery] string? sig, CancellationToken ct)
     {
-        var result = await sender.Send(new GetPublicPropertyImageQuery(tenantSlug, id, imageId), ct);
+        var result = await sender.Send(
+            new GetPublicPropertyImageQuery(integrationId, propertyId, imageId, exp, sig ?? ""), ct);
         if (!result.IsSuccess) return OkOrError(result);
 
-        Response.Headers.CacheControl = "public, max-age=604800, immutable";
+        // Private: a shared cache would keep serving a withdrawn property's photo.
+        Response.Headers.CacheControl = "private, max-age=3600";
         return File(result.Value.Data, result.Value.ContentType);
     }
 }

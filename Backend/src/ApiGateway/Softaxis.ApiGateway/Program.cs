@@ -212,6 +212,8 @@ try
     // Sales' anonymous quotation link carries its own [EnableRateLimiting] attribute, and a
     // named policy that is never registered throws at request time.
     builder.Services.AddPublicLinkRateLimiting();
+    // Real Estate's website listings API (API-key authenticated).
+    Softaxis.RealEstate.API.Extensions.WebsiteRateLimitPolicies.AddWebsiteApiRateLimiting(builder.Services);
 
     // ── CORS ──────────────────────────────────────────────────────────────────
     builder.Services.AddCors(opts =>

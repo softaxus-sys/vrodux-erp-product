@@ -181,6 +181,9 @@ public static class PermissionSeedData
         // Sales pipeline for property SALES (site visits, reservations, bookings) — distinct from
         // leasing above, and from the generic `sales` module, which is unrelated to property.
         ["real-estate.sales"]      = ["view","create","edit","delete"],
+        // Website integration: the website's address and its API key. Edit can mint a credential
+        // that reads the workspace's published listings, so it is its own decision.
+        ["real-estate.website"]    = ["view","edit"],
     };
 
     public static IReadOnlyList<Permission> GetPermissions()
