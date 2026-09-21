@@ -5,7 +5,27 @@ public sealed class Property
     public Guid Id { get; private set; } = Guid.NewGuid();
     public string PropertyNumber { get; private set; } = null!;
     public string Name { get; private set; } = null!;
-    public string PropertyType { get; private set; } = null!; // residential/commercial/mixed
+
+    /// <summary>
+    /// The kind of property, as the workspace words it — "Apartment", "Villa", "Townhouse",
+    /// "Plot", or anything else they add.
+    ///
+    /// <para>Free text on purpose. It used to hold one of three codes (residential/commercial/mixed),
+    /// so eight display types collapsed into them and a "Warehouse" reopened as "Commercial
+    /// Building". The broad bucket that summaries count now lives in <see cref="Category"/>, which
+    /// leaves this column free to say what the property actually is.</para>
+    /// </summary>
+    public string PropertyType { get; private set; } = null!;
+
+    /// <summary>
+    /// residential / commercial / mixed — the bucket the portfolio summary counts by.
+    ///
+    /// <para>Separate from <see cref="PropertyType"/> because an agency sheet carries both: "Villa"
+    /// in the type column and "Residential" beside it. Folding them together is what made the type
+    /// list lossy.</para>
+    /// </summary>
+    public string Category { get; private set; } = "residential";
+
     public string Address { get; private set; } = null!;
     public string City { get; private set; } = null!;
     public string Emirate { get; private set; } = null!;
@@ -36,21 +56,42 @@ public sealed class Property
     public List<PropertyImage> Images { get; private set; } = [];
 
     public Property(string name, string propertyType, string address, string city, string emirate,
-        decimal totalArea, int totalUnits, decimal marketValue, string? developer, string? description)
+        decimal totalArea, int totalUnits, decimal marketValue, string? developer, string? description,
+        string? category = null)
     {
         PropertyNumber = $"PROP-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}";
         Name = name; PropertyType = propertyType; Address = address; City = city; Emirate = emirate;
         TotalArea = totalArea; TotalUnits = totalUnits; MarketValue = marketValue;
         Developer = developer; Description = description;
+        Category = NormaliseCategory(category);
     }
 
     public void Update(string name, string propertyType, string address, string city, string emirate,
-        decimal totalArea, int totalUnits, decimal marketValue, string? developer, string? description)
+        decimal totalArea, int totalUnits, decimal marketValue, string? developer, string? description,
+        string? category = null)
     {
         Name = name; PropertyType = propertyType; Address = address; City = city; Emirate = emirate;
         TotalArea = totalArea; TotalUnits = totalUnits; MarketValue = marketValue;
         Developer = developer; Description = description;
+
+        // Null leaves it alone. Callers that only know about the other fields — PropertyCounts,
+        // for one — must not reset the category to the default on every unit added.
+        if (category is not null) Category = NormaliseCategory(category);
+
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Keeps the category to the three values the summary counts. An unrecognised word falls back
+    /// to residential rather than creating a fourth bucket nothing tallies.
+    /// </summary>
+    private static string NormaliseCategory(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return "residential";
+        var t = raw.Trim().ToLowerInvariant();
+        if (t.StartsWith("commerc")) return "commercial";
+        if (t.StartsWith("mixed"))   return "mixed";
+        return "residential";
     }
 
     /// <summary>
@@ -74,79 +115,5 @@ public sealed class Property
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
-}
-
-public sealed class PropertyUnit
-{
-    public Guid Id { get; private set; } = Guid.NewGuid();
-    public Guid PropertyId { get; private set; }
-    public string UnitNumber { get; private set; } = null!;
-    public string UnitType { get; private set; } = null!; // studio/1br/2br/3br/office/retail
-    public decimal Area { get; private set; }
-    public int Floor { get; private set; }
-    public decimal RentPerYear { get; private set; }
-    public decimal SalePrice { get; private set; }
-    public string Status { get; private set; } = "vacant"; // vacant/rented/sold/maintenance
-    public Guid? CurrentTenantId { get; private set; }
-    public string? CurrentTenantName { get; private set; }
-
-    // The Add Unit form has always collected these. There was nowhere to put them, so every one
-    // was silently discarded on save — the same trap as the tenant profile fields (Module 50b).
-    public string? Furnishing    { get; private set; }   // unfurnished / semi_furnished / fully_furnished
-    public string? View          { get; private set; }
-    public int?    Bedrooms      { get; private set; }
-    public int?    Bathrooms     { get; private set; }
-    public int     Parking       { get; private set; }
-    public decimal ServiceCharge { get; private set; }
-    public string? Notes         { get; private set; }
-    public bool IsDeleted { get; private set; }
-    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
-
-    public PropertyUnit(Guid propertyId, string unitNumber, string unitType, decimal area, int floor,
-        decimal rentPerYear, decimal salePrice)
-    {
-        PropertyId = propertyId; UnitNumber = unitNumber; UnitType = unitType;
-        Area = area; Floor = floor; RentPerYear = rentPerYear; SalePrice = salePrice;
-    }
-
-    public void Update(string unitNumber, string unitType, decimal area, int floor,
-        decimal rentPerYear, decimal salePrice)
-    {
-        UnitNumber = unitNumber; UnitType = unitType; Area = area; Floor = floor;
-        RentPerYear = rentPerYear; SalePrice = salePrice; UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>The optional detail fields, kept off the constructor so it stays readable.</summary>
-    public void SetDetails(string? furnishing, string? view, int? bedrooms, int? bathrooms,
-        int parking, decimal serviceCharge, string? notes)
-    {
-        Furnishing = Trim(furnishing); View = Trim(view);
-        Bedrooms = bedrooms; Bathrooms = bathrooms;
-        Parking = Math.Max(0, parking); ServiceCharge = Math.Max(0, serviceCharge);
-        Notes = Trim(notes);
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    private static string? Trim(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
-
-    public void Occupy(Guid tenantId, string tenantName)
-    {
-        CurrentTenantId = tenantId; CurrentTenantName = tenantName;
-        Status = "rented"; UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Records occupancy where no tenant record exists — an import knows a unit is let but not to
-    /// whom. Occupy() requires a tenant, and inventing one to satisfy it would put a fictional
-    /// person on the unit and into every report that counts tenants.
-    /// </summary>
-    public void SetOccupancy(string status)
-    {
-        Status = status; UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void Vacate() { CurrentTenantId = null; CurrentTenantName = null; Status = "vacant"; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }

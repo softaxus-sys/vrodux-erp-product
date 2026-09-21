@@ -30,7 +30,27 @@ public sealed record RentalStockRow(
     string? View        = null,
     string? OwnerName   = null,
     string? OwnerPhone  = null,
-    string? Agent       = null);
+    string? Agent       = null,
+
+    // ── the rest of the sheet ──
+    // Added because these columns were being read off the file and then dropped: the sale sheets
+    // were importing a 7M asking price into the annual-rent column, and the owner's second number,
+    // the permit and the date the listing was taken on had nowhere to go at all.
+
+    /// <summary>rent / sale. Decides which money column the price lands in.</summary>
+    string? Purpose       = null,
+    /// <summary>Residential / Commercial — the building's category, beside its type.</summary>
+    string? Category      = null,
+    /// <summary>The date the listing was taken on, in whatever shape the sheet writes it.</summary>
+    string? ListedOn      = null,
+    /// <summary>Whether photographs or video exist ("yes" / "no").</summary>
+    string? Pictures      = null,
+    /// <summary>Whether it is advertised on a portal ("yes" / "no").</summary>
+    string? Listing       = null,
+    /// <summary>Who advertised it, and under which permit number.</summary>
+    string? ListedBy      = null,
+    /// <summary>A second owner contact. These sheets routinely carry two.</summary>
+    string? OwnerPhoneAlt = null);
 
 /// <summary>
 /// Counts both halves, because "312 units created" alone does not tell you whether it also invented

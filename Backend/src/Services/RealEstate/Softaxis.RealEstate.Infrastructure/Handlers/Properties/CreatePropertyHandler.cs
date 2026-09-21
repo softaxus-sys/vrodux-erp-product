@@ -13,7 +13,8 @@ internal sealed class CreatePropertyHandler(RealEstateDbContext db)
     public async Task<Result<PropertyDto>> Handle(CreatePropertyCommand cmd, CancellationToken ct)
     {
         var p = new Property(cmd.Name.Trim(), cmd.PropertyType, cmd.Address ?? "", cmd.City ?? "",
-            cmd.Emirate ?? "", cmd.TotalArea, cmd.TotalUnits, cmd.MarketValue, cmd.Developer, cmd.Description);
+            cmd.Emirate ?? "", cmd.TotalArea, cmd.TotalUnits, cmd.MarketValue, cmd.Developer, cmd.Description,
+            cmd.Category);
 
         db.Properties.Add(p);
         await db.SaveChangesAsync(ct);

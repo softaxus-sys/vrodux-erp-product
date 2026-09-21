@@ -5,7 +5,11 @@ public sealed record PropertyLocationDto(string Address, string City, string Emi
 public sealed record PropertyUnitDto(
     Guid Id, string UnitNumber, string UnitType, decimal Area, int Floor,
     decimal RentPerYear, decimal SalePrice, string Status,
-    Guid? CurrentTenantId, string? CurrentTenantName);
+    Guid? CurrentTenantId, string? CurrentTenantName,
+    // The listing half of the unit, so a building's drawer can show what each of its units is
+    // actually being offered for rather than only its rent column.
+    string? Purpose = null, string? BedsLabel = null, string? PriceLabel = null,
+    string? OwnerName = null, string? AgentName = null);
 
 /// <summary>
 /// An image's metadata. Never carries the bytes: the gallery renders each image from
@@ -26,7 +30,9 @@ public sealed record PropertyDto(
     bool ListOnWebsite = false,
     DateTime? PublishedAt = null,
     IReadOnlyList<PropertyImageDto>? Images = null,
-    Guid? PrimaryImageId = null);
+    Guid? PrimaryImageId = null,
+    /// <summary>residential / commercial / mixed — the bucket the summary tiles count by.</summary>
+    string Category = "residential");
 
 public sealed record PropertiesSummaryDto(
     int Total, int Residential, int Commercial, int Mixed,

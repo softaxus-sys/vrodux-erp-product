@@ -77,11 +77,153 @@ export interface PropertyImageDto {
   isPrimary: boolean;
 }
 
+/**
+ * One row of the agency's stock list: a unit, with the building it sits in.
+ *
+ * A listing IS a unit — `id` is the unit's id, and edit and delete act on it. The building's
+ * fields ride along so the table can be read without a second lookup, which is the whole point of
+ * merging the Properties and Units screens into one.
+ */
+export interface ListingDto {
+  id: string;
+  propertyId: string;
+  propertyNumber: string;
+
+  // the building
+  propertyName: string;
+  propertyType: string;
+  category: string;
+  address: string;
+  city: string;
+  emirate: string;
+  listOnWebsite: boolean;
+  primaryImageId: string | null;
+  imageCount: number;
+
+  // the unit
+  unitNumber: string;
+  unitType: string;
+  area: number;
+  floor: number;
+  rentPerYear: number;
+  salePrice: number;
+  status: UnitStatus;
+  currentTenantId: string | null;
+  currentTenantName: string | null;
+  furnishing: string | null;
+  view: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  parking: number;
+  serviceCharge: number;
+  notes: string | null;
+
+  // the listing
+  purpose: ListingPurpose | null;
+  /** yyyy-MM-dd. A calendar date, so it is never shifted by a timezone. */
+  listedOn: string | null;
+  /** The layout as the sheet words it — "2bhk+maid". The parsed count is `bedrooms`. */
+  bedsLabel: string | null;
+  /** The price cell as written, conditions and all. The parsed figures are rent/sale above. */
+  priceLabel: string | null;
+  areaLabel: string | null;
+  hasMedia: boolean;
+  isListed: boolean;
+  listedBy: string | null;
+  agentName: string | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneAlt: string | null;
+}
+
+export type ListingPurpose = "rent" | "sale";
+
+export interface ListingsSummaryDto {
+  total: number;
+  forRent: number;
+  forSale: number;
+  vacant: number;
+  rented: number;
+  withMedia: number;
+  advertised: number;
+  /** Rent and sale totals are kept apart — added together they describe nothing. */
+  totalAnnualRent: number;
+  totalAskingPrice: number;
+  buildings: number;
+}
+
+/**
+ * Creates the building and the unit together.
+ *
+ * `propertyId` reuses a building already on file; leaving it out and naming one in `propertyName`
+ * creates it (or reuses an existing one of the same name, server-side).
+ */
+export interface CreateListingInput {
+  propertyId?: string | null;
+  propertyName?: string | null;
+  propertyType?: string | null;
+  category?: string | null;
+  address?: string | null;
+  city?: string | null;
+  emirate?: string | null;
+  developer?: string | null;
+  propertyDescription?: string | null;
+  propertyMarketValue: number;
+
+  unitNumber?: string | null;
+  unitType?: string | null;
+  area: number;
+  floor: number;
+  rentPerYear: number;
+  salePrice: number;
+  status?: string | null;
+  furnishing?: string | null;
+  view?: string | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  parking: number;
+  serviceCharge: number;
+  notes?: string | null;
+
+  purpose?: string | null;
+  listedOn?: string | null;
+  bedsLabel?: string | null;
+  priceLabel?: string | null;
+  areaLabel?: string | null;
+  hasMedia: boolean;
+  isListed: boolean;
+  listedBy?: string | null;
+  agentName?: string | null;
+  ownerName?: string | null;
+  ownerPhone?: string | null;
+  ownerPhoneAlt?: string | null;
+}
+
+/** The update body. `propertyId` is not here: a listing cannot be moved to another building. */
+export type UpdateListingInput = Omit<CreateListingInput, "propertyId"> & {
+  unitNumber: string;
+  propertyMarketValue?: number | null;
+};
+
+export interface ListingParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  purpose?: string;
+  status?: string;
+  propertyType?: string;
+  category?: string;
+  propertyId?: string;
+  advertised?: boolean;
+}
+
 export interface PropertyDto {
   id: string;
   propertyNumber: string;
   name: string;
   propertyType: string;
+  /** residential / commercial / mixed — the bucket the portfolio tiles count by. */
+  category: string;
   status: PropertyStatus;
   location: { address: string; city: string; emirate: string };
   totalArea: number;

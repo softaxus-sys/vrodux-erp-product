@@ -92,7 +92,10 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
                     totalUnits: 0,          // recomputed from the real rows below
                     marketValue: 0,
                     developer: null,
-                    description: null);
+                    description: null,
+                    // The sheet's own Residential / Commercial column. Null falls back to
+                    // residential inside the entity rather than being guessed from the type.
+                    category: RentalStockParser.ParseCategory(row.Category));
 
                 db.Properties.Add(newProperty);
                 pending[building] = newProperty;
@@ -124,15 +127,21 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
 
             try
             {
-                var (rent, cheques) = RentalStockParser.ParseRent(row.Price);
+                var purpose = RentalStockParser.ParsePurpose(row.Purpose);
+                var isSale  = purpose == "sale";
+
+                // Which money column the price belongs in. A sale sheet's "7M" is an asking price,
+                // and the old code put every one of them into annual rent — so a building worth
+                // seven million read as a seven-million-a-year tenancy in the rent roll.
+                var (amount, cheques) = RentalStockParser.ParseRent(row.Price, annualise: !isSale);
 
                 var unit = new PropertyUnit(
                     propertyId, number!,
                     RentalStockParser.NormaliseType(row.PropertyType),
                     RentalStockParser.ParseArea(row.Area) ?? 0,
                     floor: 0,
-                    rentPerYear: rent ?? 0,
-                    salePrice: 0);
+                    rentPerYear: isSale ? 0 : amount ?? 0,
+                    salePrice:   isSale ? amount ?? 0 : 0);
 
                 unit.SetDetails(
                     RentalStockParser.ParseFurnishing(row.Furnishing),
@@ -141,11 +150,34 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
                     bathrooms: null,
                     parking: 0,
                     serviceCharge: 0,
-                    // The owner and the cheque count have no column of their own. Losing them would
-                    // be worse than recording them here, where an agent can still read them.
+                    // The cheque count still has no column of its own, so it is written here where
+                    // an agent can at least read it. The owner and agent now have real fields.
                     notes: BuildNotes(row, cheques, generated));
 
-                if (RentalStockParser.ParseStatus(row.Occupancy) is { } status)
+                // The marketing half of the row. Each of these was previously either glued into
+                // Notes as a sentence or dropped on the floor.
+                unit.SetListing(
+                    purpose,
+                    RentalStockParser.ParseListedOn(row.ListedOn),
+                    // The layout, price and area are kept exactly as written alongside the numbers
+                    // parsed out of them: "700k(rented till 29 feb 2026 in 55k)" carries a
+                    // condition that no single figure can.
+                    bedsLabel:  row.Beds?.Trim(),
+                    priceLabel: row.Price?.Trim(),
+                    areaLabel:  row.Area?.Trim(),
+                    hasMedia:   RentalStockParser.ParseYesNo(row.Pictures),
+                    isListed:   RentalStockParser.ParseYesNo(row.Listing),
+                    listedBy:   row.ListedBy?.Trim(),
+                    agentName:  row.Agent?.Trim(),
+                    ownerName:  row.OwnerName?.Trim(),
+                    ownerPhone: row.OwnerPhone?.Trim(),
+                    ownerPhoneAlt: row.OwnerPhoneAlt?.Trim());
+
+                // Occupancy where it is stated, and failing that from the price cell — these sheets
+                // write it there far more often than in a column of its own: "1.15M(vacant)",
+                // "700k(rented till 29 feb 2026 in 55k)".
+                if ((RentalStockParser.ParseStatus(row.Occupancy)
+                     ?? RentalStockParser.ParseStatus(row.Price)) is { } status)
                     unit.SetOccupancy(status);
 
                 db.PropertyUnits.Add(unit);
@@ -154,8 +186,9 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
 
                 // Flagged rather than failed: the listing is worth keeping even when its price cell
                 // is written in a way this cannot read ("market price", "500 per night").
-                if (rent is null && !string.IsNullOrWhiteSpace(row.Price))
-                    Problem(i, $"{building} {number}: could not read the rent \"{row.Price?.Trim()}\" — imported as 0.");
+                if (amount is null && !string.IsNullOrWhiteSpace(row.Price))
+                    Problem(i, $"{building} {number}: could not read a figure from \"{row.Price?.Trim()}\" — " +
+                               "imported as 0, but the cell itself is kept on the listing.");
             }
             catch (Exception ex)
             {
@@ -182,12 +215,12 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
 
     private static string? BuildNotes(RentalStockRow row, int? cheques, bool generatedNumber)
     {
+        // The owner, their contact and the agent used to be written into this sentence because
+        // they had no columns. They have their own fields now, so repeating them here would show
+        // the same facts twice on every listing.
         var parts = new List<string>();
 
-        if (!string.IsNullOrWhiteSpace(row.OwnerName))  parts.Add($"Owner: {row.OwnerName!.Trim()}");
-        if (!string.IsNullOrWhiteSpace(row.OwnerPhone)) parts.Add($"Owner contact: {row.OwnerPhone!.Trim()}");
-        if (!string.IsNullOrWhiteSpace(row.Agent))      parts.Add($"Agent: {row.Agent!.Trim()}");
-        if (cheques is { } c)                           parts.Add($"Rent over {c} cheque{(c == 1 ? "" : "s")}");
+        if (cheques is { } c)                           parts.Add($"Payable over {c} cheque{(c == 1 ? "" : "s")}");
         if (generatedNumber)                            parts.Add("Unit number not in the source file — please correct.");
 
         return parts.Count == 0 ? null : string.Join(" · ", parts);

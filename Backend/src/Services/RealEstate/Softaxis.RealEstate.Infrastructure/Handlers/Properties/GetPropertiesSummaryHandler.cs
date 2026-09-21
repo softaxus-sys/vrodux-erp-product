@@ -13,7 +13,7 @@ internal sealed class GetPropertiesSummaryHandler(RealEstateDbContext db)
     public async Task<Result<PropertiesSummaryDto>> Handle(GetPropertiesSummaryQuery query, CancellationToken ct)
     {
         var all = await db.Properties.AsNoTracking().Where(x => !x.IsDeleted)
-            .Select(x => new { x.Status, x.TotalUnits, x.OccupiedUnits, x.MarketValue, x.PropertyType, x.ListOnWebsite })
+            .Select(x => new { x.Status, x.TotalUnits, x.OccupiedUnits, x.MarketValue, x.Category, x.ListOnWebsite })
             .ToListAsync(ct);
 
         var totalUnits = all.Sum(x => x.TotalUnits);
@@ -21,9 +21,11 @@ internal sealed class GetPropertiesSummaryHandler(RealEstateDbContext db)
 
         return Result.Success(new PropertiesSummaryDto(
             all.Count,
-            all.Count(x => x.PropertyType == "residential"),
-            all.Count(x => x.PropertyType == "commercial"),
-            all.Count(x => x.PropertyType == "mixed"),
+            // Counted by Category, not PropertyType. The type column now holds what the property
+            // actually is ("Villa", "Warehouse"), so counting it here would report zero of each.
+            all.Count(x => x.Category == "residential"),
+            all.Count(x => x.Category == "commercial"),
+            all.Count(x => x.Category == "mixed"),
             totalUnits,
             occupiedUnits,
             totalUnits > 0 ? Math.Round((double)occupiedUnits / totalUnits * 100, 1) : 0,

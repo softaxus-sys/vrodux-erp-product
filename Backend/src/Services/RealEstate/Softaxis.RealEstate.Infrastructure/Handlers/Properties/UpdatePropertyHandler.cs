@@ -17,7 +17,8 @@ internal sealed class UpdatePropertyHandler(RealEstateDbContext db)
             return Result.Failure<PropertyDto>(Error.NotFoundById("Property", cmd.Id));
 
         p.Update(cmd.Name.Trim(), cmd.PropertyType, cmd.Address ?? "", cmd.City ?? "",
-            cmd.Emirate ?? "", cmd.TotalArea, cmd.TotalUnits, cmd.MarketValue, cmd.Developer, cmd.Description);
+            cmd.Emirate ?? "", cmd.TotalArea, cmd.TotalUnits, cmd.MarketValue, cmd.Developer, cmd.Description,
+            cmd.Category);
 
         // Only when the caller actually sent it. A null means "leave as is", so a form that does
         // not know about this field cannot silently unpublish the property.

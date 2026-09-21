@@ -21,7 +21,11 @@ internal static partial class RentalStockParser
     /// Handles the shapes actually present: "200K", "48K/1", "425K/2CQ.", "72K/4 CQ.",
     /// "1.5M", "14K PER MONTH", "90K TO 100K".
     /// </remarks>
-    public static (decimal? AnnualRent, int? Cheques) ParseRent(string? raw)
+    /// <param name="annualise">
+    /// False for a sale sheet. "1.2M per month" is a rent to be multiplied up; the same words on an
+    /// asking price are not, and multiplying one by twelve produces a number nobody is asking.
+    /// </param>
+    public static (decimal? AnnualRent, int? Cheques) ParseRent(string? raw, bool annualise = true)
     {
         if (string.IsNullOrWhiteSpace(raw)) return (null, null);
 
@@ -44,7 +48,7 @@ internal static partial class RentalStockParser
 
         // "14K PER MONTH" is a monthly figure in a column that otherwise holds annual rent. Storing
         // it as-is would understate the unit by a factor of twelve.
-        if (MonthlyRe().IsMatch(text)) value *= 12m;
+        if (annualise && MonthlyRe().IsMatch(text)) value *= 12m;
 
         // A bare number under 1,000 in a rent column is not a rent — it is a fragment of something
         // this parser did not understand. Refused rather than stored.
@@ -132,6 +136,88 @@ internal static partial class RentalStockParser
             : null;
     }
 
+    // ── Purpose ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// rent / sale, or null when the column says neither.
+    /// </summary>
+    /// <remarks>
+    /// Worth reading carefully rather than defaulting: the purpose decides whether the price cell
+    /// is an annual rent or an asking price, and putting a 7M sale into the rent column would show
+    /// as a seven-million-dirham-a-year tenancy in the rent roll.
+    /// </remarks>
+    public static string? ParsePurpose(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var t = raw.ToLowerInvariant();
+        if (t.Contains("sale") || t.Contains("sell") || t.Contains("buy")) return "sale";
+        if (t.Contains("rent") || t.Contains("lease") || t.Contains("let")) return "rent";
+        return null;
+    }
+
+    // ── Category ──────────────────────────────────────────────────────────────
+
+    /// <summary>residential / commercial / mixed, from the column beside the type.</summary>
+    public static string? ParseCategory(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var t = raw.ToLowerInvariant();
+        if (t.Contains("commerc")) return "commercial";
+        if (t.Contains("mixed"))   return "mixed";
+        if (t.Contains("resid"))   return "residential";
+        return null;
+    }
+
+    // ── Yes / no ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A tick-box column. Anything that is not recognisably a yes counts as no, which is the safe
+    /// direction: claiming photographs exist when they do not sends an agent looking for them.
+    /// </summary>
+    public static bool ParseYesNo(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        var t = raw.Trim().ToLowerInvariant();
+        return t is "y" or "yes" or "true" or "1" or "done" or "available"
+            || t.StartsWith("yes");
+    }
+
+    // ── Dates ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The listing date as yyyy-MM-dd, from the shapes these sheets use — "19-Sep-25",
+    /// "1-Aug-26", "2026-09-12", "12/09/2026".
+    /// </summary>
+    /// <remarks>
+    /// Day-first is tried before month-first, because these are UAE sheets and "3-6-26" means the
+    /// third of June there. Returns null rather than a guess when nothing parses: a row whose date
+    /// is "-------" is a real row in the file, and it is better dateless than dated wrongly.
+    /// </remarks>
+    public static string? ParseListedOn(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        var text = raw.Trim();
+
+        string[] formats =
+        [
+            "d-MMM-yy", "dd-MMM-yy", "d-MMM-yyyy", "dd-MMM-yyyy",
+            "d MMM yy", "d MMM yyyy", "MMM-yy", "MMMM yyyy",
+            "yyyy-MM-dd", "d/M/yyyy", "dd/MM/yyyy", "d/M/yy", "dd/MM/yy",
+        ];
+
+        if (DateTime.TryParseExact(text, formats, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var exact))
+            return exact.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        // en-GB, not the invariant culture: the invariant one reads 3/6/26 as the sixth of March.
+        if (DateTime.TryParse(text, CultureInfo.GetCultureInfo("en-GB"),
+                DateTimeStyles.None, out var loose))
+            return loose.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        return null;
+    }
+
     /// <summary>Title-cases the free-text property type ("APARTMENT", "aparatment") for display.</summary>
     public static string NormaliseType(string? raw)
     {
@@ -141,8 +227,19 @@ internal static partial class RentalStockParser
         if (t.Contains("villa"))     return "Villa";
         if (t.Contains("town"))      return "Townhouse";
         if (t.Contains("penthouse")) return "Penthouse";
+        if (t.Contains("plot") || t.Contains("land")) return "Plot / Land";
+        if (t.Contains("warehouse")) return "Warehouse";
+        if (t.Contains("office"))    return "Office";
+        if (t.Contains("shop") || t.Contains("retail")) return "Retail Shop";
+        if (t.Contains("building") || t.Contains("tower")) return "Building";
+
         // "aparatment", "appartment", "apparatment" all land here rather than being preserved as typos.
-        return "Apartment";
+        if (t.Contains("apart") || t.Contains("appart") || t.Contains("flat")) return "Apartment";
+
+        // Anything else is kept as written, tidied. Types are free text now, so a word this does
+        // not recognise is a type the workspace uses — forcing it to "Apartment", as this used to,
+        // silently relabelled every plot and warehouse in the file.
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(t.Trim());
     }
 
     [GeneratedRegex(@"(\d+(?:\.\d+)?)\s*(k|m)?", RegexOptions.IgnoreCase)]

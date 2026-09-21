@@ -61,7 +61,7 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     {
         var result = await sender.Send(new UpdatePropertyCommand(id, req.Name, req.PropertyType, req.Address,
             req.City, req.Emirate, req.TotalArea, req.TotalUnits, req.MarketValue, req.Developer, req.Description,
-            req.ListOnWebsite), ct);
+            req.Category, req.ListOnWebsite), ct);
         return OkOrError(result);
     }
 
@@ -133,6 +133,8 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
     public sealed record UpdatePropertyRequest(
         string Name, string PropertyType, string? Address, string? City, string Emirate,
         decimal TotalArea, int TotalUnits, decimal MarketValue, string? Developer, string? Description,
+        // Same rule as ListOnWebsite below: null leaves the stored category alone.
+        string? Category = null,
         // Nullable: omitting it leaves the current setting alone. A plain bool would unpublish
         // every property saved from a form that does not send the field.
         bool? ListOnWebsite = null);

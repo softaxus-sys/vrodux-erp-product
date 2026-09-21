@@ -19,6 +19,9 @@ public sealed class RealEstateConfigurations :
         b.Property(x => x.PropertyNumber).HasMaxLength(50).IsRequired();
         b.Property(x => x.Name).HasMaxLength(200).IsRequired();
         b.Property(x => x.PropertyType).HasMaxLength(50).IsRequired();
+        // Defaulted at the database as well as in the entity: existing rows predate the column, and
+        // the portfolio summary counts by it — a NULL here would drop a property out of every tally.
+        b.Property(x => x.Category).HasMaxLength(30).IsRequired().HasDefaultValue("residential");
         b.Property(x => x.Address).HasMaxLength(500).IsRequired();
         b.Property(x => x.City).HasMaxLength(100).IsRequired();
         b.Property(x => x.Emirate).HasMaxLength(100).IsRequired();
@@ -61,6 +64,25 @@ public sealed class RealEstateConfigurations :
         b.Property(x => x.View).HasMaxLength(100);
         b.Property(x => x.ServiceCharge).HasPrecision(18, 2);
         b.Property(x => x.Notes).HasMaxLength(1000);
+
+        // The listing columns. The three *Label fields are generous because they hold the sheet's
+        // own wording — "2,275,000(under hand over process)(3% commission from owner side)" is a
+        // real price cell, and truncating one loses the condition the deal was agreed on.
+        b.Property(x => x.Purpose).HasMaxLength(20);
+        b.Property(x => x.ListedOn).HasMaxLength(10);
+        b.Property(x => x.BedsLabel).HasMaxLength(200);
+        b.Property(x => x.PriceLabel).HasMaxLength(500);
+        b.Property(x => x.AreaLabel).HasMaxLength(200);
+        b.Property(x => x.ListedBy).HasMaxLength(200);
+        b.Property(x => x.AgentName).HasMaxLength(200);
+        b.Property(x => x.OwnerName).HasMaxLength(200);
+        b.Property(x => x.OwnerPhone).HasMaxLength(60);
+        b.Property(x => x.OwnerPhoneAlt).HasMaxLength(60);
+
+        // Listings are read by purpose far more than by anything else — the page opens on one.
+        b.HasIndex(x => x.Purpose);
+        b.HasIndex(x => x.PropertyId);
+
         b.HasQueryFilter(x => !x.IsDeleted);
     }
 

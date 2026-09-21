@@ -26,7 +26,8 @@ internal static class PropertyMappings
             p.ListOnWebsite,
             p.PublishedAt,
             gallery,
-            gallery.FirstOrDefault(i => i.IsPrimary)?.Id ?? gallery.FirstOrDefault()?.Id);
+            gallery.FirstOrDefault(i => i.IsPrimary)?.Id ?? gallery.FirstOrDefault()?.Id,
+            p.Category);
     }
 
     public static PropertyImageDto ToDto(PropertyImage i) => new(
@@ -34,7 +35,8 @@ internal static class PropertyMappings
 
     public static PropertyUnitDto ToDto(PropertyUnit u) => new(
         u.Id, u.UnitNumber, u.UnitType, u.Area, u.Floor, u.RentPerYear, u.SalePrice, u.Status,
-        u.CurrentTenantId, u.CurrentTenantName);
+        u.CurrentTenantId, u.CurrentTenantName,
+        u.Purpose, u.BedsLabel, u.PriceLabel, u.OwnerName, u.AgentName);
 
     /// <summary>
     /// Loads gallery metadata for many properties in ONE query, keyed by property.
