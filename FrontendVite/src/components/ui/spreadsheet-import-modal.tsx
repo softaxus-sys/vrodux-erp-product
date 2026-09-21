@@ -30,6 +30,14 @@ export interface ImportField<K extends string> {
   /** Normalised header fragments that auto-map to this field. */
   synonyms: string[];
   /**
+   * The heading written into the downloadable template, when it should differ from `label`.
+   *
+   * `label` is written for the mapping dropdown ("Price (700k, 135k, 3.25M)") — useful there,
+   * wrong as a spreadsheet column. Set this to the wording the source system actually uses so a
+   * downloaded template is a drop-in match for the file people already keep.
+   */
+  templateHeader?: string;
+  /**
    * Example value for this column in the downloadable template. Worth filling in wherever the
    * expected format is not obvious from the label — a date, a status word, a unit of measure —
    * since the sample file is the only place the user ever sees what "good" looks like.
@@ -107,6 +115,29 @@ function Inner<K extends string>({
     return "";
   }, [fields]);
 
+  /**
+   * Which row actually holds the column names.
+   *
+   * <p>Real spreadsheets routinely open with a title banner — "Apartment For Rent — Direct Company
+   * Properties" sitting alone above the real header. Taking row 0 on faith reads that banner as the
+   * column names, every column arrives unmapped, and the file looks unsupported when it is fine.</p>
+   *
+   * <p>Scored by how many distinct fields a row auto-maps, over the first few rows only. A normal
+   * file wins on row 0 trivially (nothing above it to beat), and ties keep the earliest row, so this
+   * can never move the header on a file that already worked.</p>
+   */
+  const findHeaderRow = React.useCallback((parsed: string[][]) => {
+    const limit = Math.min(parsed.length - 1, 8);
+    let bestRow = 0;
+    let bestScore = -1;
+
+    for (let i = 0; i < limit; i++) {
+      const score = new Set(parsed[i].map(autoDetect).filter(Boolean)).size;
+      if (score > bestScore) { bestScore = score; bestRow = i; }
+    }
+    return bestRow;
+  }, [autoDetect]);
+
   const handleFile = async (file: File) => {
     try {
       const parsed = await parseDelimitedFile(file);
@@ -114,10 +145,26 @@ function Inner<K extends string>({
         toast.error("That file has no rows under its header.");
         return;
       }
-      setRows(parsed);
+
+      // Anything above the header row is a banner or a blank spacer, not data — dropped so the
+      // preview and the row count reflect what will actually be imported.
+      const headerRow = findHeaderRow(parsed);
+      const usable = parsed.slice(headerRow);
+      if (usable.length < 2) {
+        toast.error("That file has no rows under its header.");
+        return;
+      }
+
+      setRows(usable);
       setFile(file.name);
-      setMapping(parsed[0].map(autoDetect));
+      setMapping(usable[0].map(autoDetect));
       setResult(null);
+
+      if (headerRow > 0) {
+        toast.info(
+          `Skipped ${headerRow} row${headerRow === 1 ? "" : "s"} above the column headings.`,
+        );
+      }
     } catch {
       toast.error("Could not read that file. CSV and Excel (.xlsx) are supported.");
     }
@@ -271,7 +318,7 @@ function Inner<K extends string>({
                   className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                   onClick={() => downloadFile(
                     `${noun.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-import-template.csv`,
-                    buildImportTemplate(fields))}>
+                    buildImportTemplate(fields.map(f => ({ label: f.templateHeader ?? f.label, sample: f.sample }))))}>
                   <Download className="h-3.5 w-3.5" />
                   Download a sample file
                 </button>
