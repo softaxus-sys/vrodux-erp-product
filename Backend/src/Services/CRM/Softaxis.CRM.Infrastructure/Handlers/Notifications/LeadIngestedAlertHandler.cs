@@ -26,10 +26,8 @@ namespace Softaxis.CRM.Infrastructure.Handlers.Notifications;
 /// recipient per lead, unlike the HR/Purchase/Sales/Finance approval queues, which are permission-gated
 /// rather than assigned to a single person and would need a broadcast design of their own.</para>
 ///
-/// <para><b>Recipients are split by channel.</b> Email and push go to the lead's owner and to nobody
-/// else, ever. Only a lead with no owner at all — not merely one whose owner could not be resolved —
-/// reaches the tenant-wide fan-out, and even then the bell carries it further than the inbox does.
-/// See <see cref="Audience"/>.</para>
+/// <para><b>Recipients: the lead's owner, and nobody else.</b> A lead with no resolvable owner goes
+/// to the tenant's CRM manager — never to the team. See <see cref="ResolveRecipientsAsync"/>.</para>
 ///
 /// <para>Runs inside intake, which may be an anonymous webhook with no ambient tenant — every query is
 /// tenant-explicit and new rows are stamped by hand. It never throws: a failed alert must not fail or
@@ -44,8 +42,11 @@ internal sealed class LeadIngestedAlertHandler(
     ICrmAssignmentNotifier supervisors,
     ILogger<LeadIngestedAlertHandler> logger) : INotificationHandler<LeadIngestedNotification>
 {
-    /// <summary>Upper bound for the "nobody owns it" fan-out, so a large team is never spammed per lead.</summary>
-    private const int MaxFallbackRecipients = 25;
+    /// <summary>The per-tenant role a CRM-enabled tenant is provisioned with (ModuleRoleCatalogue).</summary>
+    private const string CrmManagerRole = "CRM Manager";
+
+    /// <summary>A tenant should have one or two CRM managers; the cap only guards a misconfigured tenant.</summary>
+    private const int MaxManagerRecipients = 5;
 
     public async Task Handle(LeadIngestedNotification evt, CancellationToken ct)
     {
@@ -56,8 +57,8 @@ internal sealed class LeadIngestedAlertHandler(
                     && EF.Property<Guid?>(l, TenantIsolation.Column) == evt.TenantId, ct);
             if (lead is null) return;
 
-            var audience = await ResolveAudienceAsync(lead, evt.TenantId, ct);
-            if (audience.Bell.Count == 0 && audience.Inbox.Count == 0)
+            var recipients = await ResolveRecipientsAsync(lead, evt.TenantId, ct);
+            if (recipients.Count == 0)
             {
                 logger.LogInformation("Lead alert: no recipients for lead {Lead} in tenant {Tenant}.", lead.Id, evt.TenantId);
                 return;
@@ -75,7 +76,7 @@ internal sealed class LeadIngestedAlertHandler(
             // can be an anonymous webhook with no ambient tenant, and a NULL-tenant row would be
             // invisible to the very user it was raised for.
             var body = string.IsNullOrWhiteSpace(summary) ? "Open the lead to respond." : summary;
-            await notifications.PublishManyAsync(audience.Bell.Select(r => new NotificationRequest(
+            await notifications.PublishManyAsync(recipients.Select(r => new NotificationRequest(
                 RecipientUserId: r.UserId,
                 Module:          NotificationModules.Crm,
                 Event:           NotificationEvents.LeadReceived,
@@ -104,14 +105,12 @@ internal sealed class LeadIngestedAlertHandler(
                     RelatedToType: "lead",
                     RelatedToId:   lead.Id), evt.TenantId, ct);
 
-            // Push and email go to Inbox, never to Bell. The bell is a shared work queue; an
-            // inbox belongs to one person, and a lead that names an owner must never reach anyone else's.
-            await SendPushAsync(audience.Inbox.Select(r => r.UserId).ToList(), title,
+            await SendPushAsync(recipients.Select(r => r.UserId).ToList(), title,
                 string.IsNullOrWhiteSpace(summary) ? "Open the lead to respond." : summary,
                 lead.Id, ct);
 
             var frontendUrl = (configuration["FrontendUrl"] ?? "http://localhost:5173").TrimEnd('/');
-            foreach (var r in audience.Inbox.Where(r => !string.IsNullOrWhiteSpace(r.Email)))
+            foreach (var r in recipients.Where(r => !string.IsNullOrWhiteSpace(r.Email)))
             {
                 var html = BuildEmail(r.Name, portal, lead, frontendUrl + link);
                 await email.SendAsync(r.Email!, r.Name, title, html, ct);
@@ -178,19 +177,17 @@ internal sealed class LeadIngestedAlertHandler(
     }
 
     /// <summary>
-    /// Who hears about a lead, split by channel — because the two channels are not the same kind of place.
+    /// Who is told about a lead: its owner, or — when it has none — the tenant's CRM manager.
     ///
-    /// <para><b>Bell</b> is a shared work queue inside the app: fanning out there costs nobody anything
-    /// and means an unclaimed enquiry is still seen. <b>Inbox</b> (email + mobile push) belongs to one
-    /// person. A lead that names an owner must never land in a colleague's inbox under that owner's
-    /// name — which is exactly what used to happen, because a single list fed both channels and any
-    /// lead whose owner could not be resolved fell through to the whole-team fan-out.</para>
+    /// <para>There is deliberately no third case. This used to fall back to every user in the tenant
+    /// holding <c>crm.leads</c>, which is how a lead displayed as one agent's reached the whole
+    /// team's inboxes, each addressed to a different colleague. An enquiry nobody owns is a
+    /// management problem, so it goes to the one person accountable for routing it — never
+    /// broadcast.</para>
     /// </summary>
-    private sealed record Audience(IReadOnlyList<Recipient> Bell, IReadOnlyList<Recipient> Inbox);
-
-    private async Task<Audience> ResolveAudienceAsync(Lead lead, Guid tenantId, CancellationToken ct)
+    private async Task<IReadOnlyList<Recipient>> ResolveRecipientsAsync(Lead lead, Guid tenantId, CancellationToken ct)
     {
-        // 1. The lead has a real owner. They are the ONLY person emailed or pushed, always.
+        // 1. The lead has an owner: they are the only person told, on every channel.
         if (lead.AssignedToUserId is { } ownerId)
         {
             var owner = await db.Set<IdentityUserView>().AsNoTracking()
@@ -199,61 +196,54 @@ internal sealed class LeadIngestedAlertHandler(
                 .FirstOrDefaultAsync(ct);
 
             if (owner is not null)
-            {
-                IReadOnlyList<Recipient> one =
-                [new Recipient(owner.Id, owner.Email, NameOf(owner.FirstName, owner.LastName, owner.Username))];
-                return new Audience(one, one);
-            }
+                return [new Recipient(owner.Id, owner.Email, NameOf(owner.FirstName, owner.LastName, owner.Username))];
 
-            // Their login is gone (deleted, or moved workspace). Falling back to the team — which is
-            // what this used to do — would put an owned lead in colleagues' inboxes. Tell nobody and
-            // say so in the log instead; the lead itself is safely stored and still in the list.
+            // Their login is gone (deleted, or moved workspace). The lead is still real and still
+            // needs answering, so it goes to the manager rather than nowhere — but never to peers.
             logger.LogWarning(
                 "Lead alert: lead {Lead} is owned by user {Owner}, who no longer exists in tenant {Tenant}. "
-                + "Nobody was alerted — reassign the lead.", lead.Id, ownerId, tenantId);
-            return new Audience([], []);
+                + "Alerting the CRM manager instead.", lead.Id, ownerId, tenantId);
         }
 
-        var broadcast = await ResolveTenantWideAsync(tenantId, ct);
-
-        // 2. No owner id, but a name — routing named someone it could not resolve to a login.
-        //    Somebody is nominally responsible, so this is NOT an unowned lead, and emailing the
-        //    team would be emailing someone else. Bell only: the work stays visible and an admin
-        //    can see it needs assigning, but no colleague is told the lead is theirs.
-        if (!string.IsNullOrWhiteSpace(lead.AssignedTo))
-        {
+        var managers = await ResolveCrmManagersAsync(tenantId, ct);
+        if (managers.Count == 0)
             logger.LogWarning(
-                "Lead alert: lead {Lead} names assignee '{Assignee}' but carries no user id, so no email or "
-                + "push was sent. Map that name to a user in the integration's routing config.",
-                lead.Id, lead.AssignedTo);
-            return new Audience(broadcast, []);
-        }
+                "Lead alert: lead {Lead} has no resolvable owner and tenant {Tenant} has nobody in a "
+                + "'CRM Manager' role, so nobody was alerted. Assign the lead, or give someone that role.",
+                lead.Id, tenantId);
 
-        // 3. Genuinely unassigned — nobody's inbox is being borrowed, so the whole-team alert is
-        //    right: it is what stops a new enquiry sitting unseen while routing is being set up.
-        return new Audience(broadcast, broadcast);
+        return managers;
     }
 
     /// <summary>
-    /// Role-derived holders of tenant-wide lead access. Cross-schema read: "identity" is a reserved
-    /// SQL Server keyword and MUST be bracketed. Per-user grants/denies are not applied (same scope
-    /// as Real Estate's CC list).
+    /// Holders of the tenant's own "CRM Manager" role — the role
+    /// <c>TenantRoleProvisioner</c> creates for every CRM-enabled tenant, granting the untiered
+    /// (tenant-wide) CRM keys.
+    ///
+    /// <para>Matched by role NAME, which is how the provisioner itself identifies these roles when
+    /// topping up their permissions. The consequence to know: a tenant that renames the role loses
+    /// this fallback, which is why finding nobody is logged as a warning rather than passing
+    /// quietly. Deliberately NOT widened to "anyone holding crm.leads.view" — that is the tenant-wide
+    /// fan-out this exists to replace, and it would also sweep in every Administrator.</para>
+    ///
+    /// <para>Cross-schema read: "identity" is a reserved SQL Server keyword and MUST be bracketed.</para>
     /// </summary>
-    private async Task<IReadOnlyList<Recipient>> ResolveTenantWideAsync(Guid tenantId, CancellationToken ct)
+    private async Task<IReadOnlyList<Recipient>> ResolveCrmManagersAsync(Guid tenantId, CancellationToken ct)
     {
         var rows = await db.Database.SqlQuery<RecipientRow>($@"
             SELECT DISTINCT u.Id AS UserId, u.[email] AS Email, u.FirstName, u.LastName
             FROM [identity].[users] u
-            JOIN [identity].[user_roles] ur       ON ur.UserId = u.Id
-            JOIN [identity].[role_permissions] rp ON rp.RoleId = ur.RoleId
-            JOIN [identity].[permissions] p       ON p.Id = rp.PermissionId
+            JOIN [identity].[user_roles] ur ON ur.UserId = u.Id
+            JOIN [identity].[roles] r       ON r.Id = ur.RoleId
             WHERE u.IsDeleted = 0
+              AND r.IsDeleted = 0
               AND u.TenantId = {tenantId}
-              AND p.ModuleId = 'crm.leads'").ToListAsync(ct);
+              AND r.TenantId = {tenantId}
+              AND r.Name = {CrmManagerRole}").ToListAsync(ct);
 
         return rows
             .GroupBy(r => r.UserId).Select(g => g.First())
-            .Take(MaxFallbackRecipients)
+            .Take(MaxManagerRecipients)
             .Select(r => new Recipient(r.UserId, r.Email, NameOf(r.FirstName, r.LastName, r.Email)))
             .ToList();
     }
