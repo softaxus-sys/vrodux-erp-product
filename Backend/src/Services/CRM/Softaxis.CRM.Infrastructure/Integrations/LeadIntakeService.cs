@@ -96,9 +96,22 @@ public sealed class LeadIntakeService(
 
         // ── Routing / assignment ──────────────────────────────────────────────
         // Precedence: an owner the caller resolved (the import knows exactly who) → the source
-        // system's own owner (resolved above) → routing config, which can only ever name someone
-        // and leaves AssignedToUserId/TeamId null.
-        var assignedTo = owner?.UserName ?? ResolveAssignee(integration);
+        // system's own owner (resolved above) → routing config.
+        //
+        // Routing config names a person as free text. Until this looked that name up, such a lead
+        // carried a display name with AssignedToUserId NULL — so the card read "assigned to X"
+        // while the alert handler, seeing no owner, fell through to its whole-team fan-out and
+        // emailed the lead to every colleague holding crm.leads. Resolving the name here makes
+        // routing produce a real owner like every other path, which also gives the lead a TeamId
+        // (a team-less lead is invisible to team leads — Module 31).
+        //
+        // ResolveAssignee is called EXACTLY ONCE and cached: in round_robin it advances a persisted
+        // cursor, so calling it twice would silently skip an agent in the rota.
+        var routedName = owner is null ? Clean(ResolveAssignee(integration)) : null;
+        if (routedName is not null)
+            owner = await FindUserByNameAsync(routedName, tenantId, ct);
+
+        var assignedTo = owner?.UserName ?? routedName ?? "";
 
         var source = !string.IsNullOrWhiteSpace(integration?.ProviderKey) ? integration!.ProviderKey
                    : !string.IsNullOrWhiteSpace(lead.UtmSource) ? lead.UtmSource!
@@ -682,19 +695,49 @@ public sealed class LeadIntakeService(
         var wanted = NormalizeName(fullName);
         if (wanted.Length < 4) return null;   // too short to identify anyone
 
+        // A routing pool and a portal directory both tend to tag a name with a branch or team —
+        // "Maria Noreen (TI)". That is a label, not part of anybody's name, so an exact match alone
+        // would never resolve her and the lead would stay ownerless. Tried only as a SECOND pass,
+        // so a genuine exact match always wins.
+        var stripped = NormalizeName(StripTrailingTag(fullName));
+
         var candidates = await db.Set<IdentityUserView>().AsNoTracking()
             .Where(u => u.TenantId == tenantId && !u.IsDeleted)
-            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+            .Select(u => new NameCandidate(u.Id, u.FirstName, u.LastName, u.Username))
             .ToListAsync(ct);
 
-        var matches = candidates
-            .Where(u => NormalizeName($"{u.FirstName} {u.LastName}") == wanted)
-            .Take(2).ToList();
-        if (matches.Count != 1) return null;
+        var hit = UniqueByName(candidates, wanted);
+        if (hit is null && stripped.Length >= 4 && stripped != wanted)
+            hit = UniqueByName(candidates, stripped);
+        if (hit is null) return null;
 
-        var hit  = matches[0];
         var name = $"{hit.FirstName} {hit.LastName}".Trim();
         return new LeadOwner(hit.Id, name.Length > 0 ? name : hit.Username, await SoleTeamAsync(hit.Id, tenantId, ct));
+    }
+
+    private sealed record NameCandidate(Guid Id, string FirstName, string LastName, string Username);
+
+    /// <summary>
+    /// The one user whose name is <paramref name="target"/>, or null.
+    ///
+    /// <para>Ambiguity is never resolved by guessing: two people sharing a name means nobody is
+    /// matched, because picking one would hand a colleague's leads to the wrong person silently.</para>
+    /// </summary>
+    private static NameCandidate? UniqueByName(IReadOnlyList<NameCandidate> candidates, string target)
+    {
+        var found = candidates
+            .Where(u => NormalizeName($"{u.FirstName} {u.LastName}") == target
+                     || NormalizeName(u.Username) == target)
+            .Take(2).ToList();
+        return found.Count == 1 ? found[0] : null;
+    }
+
+    /// <summary>Drops a trailing "(...)" tag — a branch or team label appended to a display name.</summary>
+    private static string StripTrailingTag(string s)
+    {
+        var t = s.Trim();
+        var open = t.LastIndexOf('(');
+        return open > 0 && t.EndsWith(')') ? t[..open].Trim() : t;
     }
 
     /// <summary>Lower-cased letters and digits only, single-spaced — so "Al-Mansoori" matches "Al Mansoori".</summary>
