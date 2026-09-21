@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Can } from "@/components/auth/can";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { useDeleteListing } from "@/hooks/real-estate/use-re";
+import { useDeleteListing, useSetPropertyWebsiteListing, useListing } from "@/hooks/real-estate/use-re";
 import { reApi, type ListingDto } from "@/lib/real-estate/re.api";
 
 interface Props {
@@ -25,13 +25,18 @@ interface Props {
 export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }: Props) {
   const currency = useCurrency();
   const del = useDeleteListing();
+  const setListing = useSetPropertyWebsiteListing();
+  // Hooks must run before the early return below, so this is keyed off the prop directly.
+  const { data: fresh } = useListing(open && listing ? listing.id : undefined);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
 
   // Reset on close, or reopening another listing would show the confirmation still armed.
   React.useEffect(() => { if (!open) setConfirmDelete(false); }, [open]);
 
   if (!listing) return null;
-  const l = listing;
+  // The row handed in is a snapshot from the list. Anything changed while the drawer is open —
+  // publishing, an edit — would otherwise keep showing the value it had when it was clicked.
+  const l = fresh ?? listing;
 
   const price = l.purpose === "sale" ? l.salePrice : l.rentPerYear;
   const priceHeading = l.purpose === "sale" ? "Asking price" : "Annual rent";
@@ -124,8 +129,35 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
                 <Row label="Location" value={l.city} />
                 <Row label="Emirate" value={l.emirate} />
                 <Row label="Address" value={l.address} />
-                <Row label="On website" value={l.listOnWebsite ? "Published" : "Not published"} />
               </Group>
+
+              {/* Publishing is a building-level switch, but the stock list is now the only way in,
+                  so it has to be operable from here rather than two screens deep. */}
+              <Can permission="real-estate.properties.edit">
+                <div className="rounded-lg border border-border p-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">Public website</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {l.listOnWebsite
+                        ? "Published — this building is on your public site."
+                        : l.imageCount === 0
+                          // Said up front rather than after a failed save: the server refuses an
+                          // empty listing, and "add a photo first" is only useful before the click.
+                          ? "Add a photo to the building before it can be published."
+                          : "Not published."}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={l.listOnWebsite ? "outline" : "default"}
+                    className="shrink-0"
+                    disabled={setListing.isPending || (!l.listOnWebsite && l.imageCount === 0)}
+                    onClick={() => setListing.mutate({ propertyId: l.propertyId, listOnWebsite: !l.listOnWebsite })}
+                  >
+                    {l.listOnWebsite ? "Withdraw" : "Publish"}
+                  </Button>
+                </div>
+              </Can>
 
               <Group title="Listing">
                 <Row label="Date listed" value={l.listedOn ? formatDate(l.listedOn) : null} />

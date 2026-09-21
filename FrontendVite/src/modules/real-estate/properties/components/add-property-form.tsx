@@ -12,31 +12,16 @@ import {
 } from "@/hooks/real-estate/use-re";
 import { PropertyPhotos, type StagedImage } from "./property-photos";
 import type { PropertyDto } from "@/lib/real-estate/re.api";
+import { PropertyTypePicker } from "@/modules/real-estate/listings/components/property-type-picker";
 
-const PROPERTY_TYPES = ["Residential Tower", "Commercial Building", "Mixed-Use", "Villa Complex", "Retail Mall", "Warehouse", "Land / Plot", "Hotel Apartment"];
-const EMIRATES       = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah"];
-const AREAS          = ["Downtown Dubai", "Dubai Marina", "JLT", "Business Bay", "DIFC", "Jumeirah", "Al Barsha", "Deira", "Al Nahda", "Al Reem Island", "Saadiyat Island", "Other"];
+const EMIRATES = ["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah"];
+const AREAS    = ["Downtown Dubai", "Dubai Marina", "JLT", "Business Bay", "DIFC", "Jumeirah", "Al Barsha", "Deira", "Al Nahda", "Al Reem Island", "Saadiyat Island", "Other"];
 
-// Map the friendly type list to the backend category code used by summaries.
-function typeToCode(t: string): string {
-  if (t === "Mixed-Use") return "mixed";
-  if (/Commercial|Retail|Warehouse|Mall|Hotel|Office/i.test(t)) return "commercial";
-  return "residential";
-}
-
-/**
- * Inverse of typeToCode, for prefilling the edit form.
- *
- * Lossy by nature: the backend stores only three codes, so eight display types collapse into them
- * and a "Warehouse" reopens as "Commercial Building". That is a limitation of the stored model,
- * not of this mapping — but it is better than the previous behaviour, which reset every edited
- * property to "Residential Tower" regardless of what it was.
- */
-function codeToType(code: string): string {
-  if (code === "mixed") return "Mixed-Use";
-  if (code === "commercial") return "Commercial Building";
-  return "Residential Tower";
-}
+// The type/code mapping that used to live here is gone. It squeezed eight display types into
+// three stored codes, so a "Warehouse" reopened as "Commercial Building" — and once the type
+// column became free text it was actively destructive, rewriting a real "Apartment" back to
+// "residential" on every save. The type is now stored as written, and the broad bucket the
+// summary counts by is its own field.
 
 interface AddPropertyFormProps {
   open: boolean;
@@ -46,7 +31,8 @@ interface AddPropertyFormProps {
 
 export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps) {
   const [name, setName]               = React.useState("");
-  const [propertyType, setPropertyType] = React.useState("Residential Tower");
+  const [propertyType, setPropertyType] = React.useState("Apartment");
+  const [category, setCategory]         = React.useState("residential");
   const [emirate, setEmirate]         = React.useState("Dubai");
   const [area, setArea]               = React.useState("");
   const [address, setAddress]         = React.useState("");
@@ -72,7 +58,7 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
   const isValid = name.trim() && propertyType && emirate;
 
   const reset = () => {
-    setName(""); setPropertyType("Residential Tower"); setEmirate("Dubai"); setArea("");
+    setName(""); setPropertyType("Apartment"); setCategory("residential"); setEmirate("Dubai"); setArea("");
     setAddress(""); setPlotNo(""); setTitleDeedNo(""); setTotalUnits(""); setTotalArea("");
     setBuiltYear(""); setPurchasePrice(""); setCurrentValue(""); setPropertyManager(""); setNotes("");
     setStaged([]); setListOnWebsite(false);
@@ -87,7 +73,8 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
       // total area, description and the type were all missing, so editing a property silently
       // wiped them.
       setName(editing.name ?? "");
-      setPropertyType(codeToType(editing.propertyType));
+      setPropertyType(editing.propertyType || "Apartment");
+      setCategory(editing.category || "residential");
       setEmirate(editing.location?.emirate || "Dubai");
       setArea(editing.location?.city ?? "");
       setAddress(editing.location?.address ?? "");
@@ -105,7 +92,8 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
     if (!isValid) return;
     const payload = {
       name: name.trim(),
-      propertyType: typeToCode(propertyType),
+      propertyType: propertyType.trim(),
+      category,
       address, city: area, emirate,
       totalArea: Number(totalArea) || 0,
       totalUnits: Number(totalUnits) || 0,
@@ -177,14 +165,16 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
               {/* Type */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Property Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {PROPERTY_TYPES.map(t => (
-                    <button key={t} onClick={() => setPropertyType(t)}
-                      className={`py-2 rounded-lg border-2 text-xs font-medium text-left px-3 transition-all ${
-                        propertyType === t ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
-                      }`}>{t}</button>
-                  ))}
-                </div>
+                {/* The same creatable picker the listing form uses. A fixed grid of eight buttons
+                    could not express a type the workspace had added elsewhere. */}
+                <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block pt-2">Category</label>
+                <select value={category} onChange={e => setCategory(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <option value="residential">Residential</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="mixed">Mixed use</option>
+                </select>
               </div>
 
               {/* Basic */}

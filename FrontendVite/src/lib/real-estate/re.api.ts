@@ -587,7 +587,10 @@ export interface ReContractSummaryDto {
 
 export interface UpsertPropertyInput {
   name: string;
+  /** Free text — what the property IS ("Apartment", "Villa", "Warehouse"). */
   propertyType: string;
+  /** residential / commercial / mixed. Omit to leave the stored one alone. */
+  category?: string;
   address?: string;
   city?: string;
   emirate: string;

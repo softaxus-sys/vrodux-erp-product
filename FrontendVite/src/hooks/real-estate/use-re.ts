@@ -122,6 +122,10 @@ export function useSetPropertyWebsiteListing() {
     onSuccess: (_d, v) => {
       invalidate();
       qc.invalidateQueries({ queryKey: [QK, "website-integration"] });
+      // The stock list carries listOnWebsite per row, so without this the toggle flips back to
+      // its old value on the next render and reads as "publishing did nothing".
+      qc.invalidateQueries({ queryKey: [QK, "listings"] });
+      qc.invalidateQueries({ queryKey: [QK, "listing"] });
       toast.success(v.listOnWebsite ? "Listed on the website." : "Removed from the website.");
     },
     onError: (e: Error) => toast.error(e.message),

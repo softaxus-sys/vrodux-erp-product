@@ -8,13 +8,14 @@ import { useCurrency } from "@/hooks/use-currency";
 import {
   useProperties,
   useProperty,
-  usePropertyTypes,
+
   useCreateListing,
   useUpdateListing,
   useAddPropertyImages,
 } from "@/hooks/real-estate/use-re";
 import { PropertyPhotos, type StagedImage } from "@/modules/real-estate/properties/components/property-photos";
 import type { ListingDto } from "@/lib/real-estate/re.api";
+import { PropertyTypePicker } from "./property-type-picker";
 
 /** Dynamic — a hardcoded date stops being today the moment it is written. */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -34,8 +35,6 @@ const STATUSES = [
 ];
 const VIEWS = ["Sea View", "City View", "Marina View", "Garden View", "Pool View", "Golf View", "Street View", "Internal"];
 
-/** The option that turns the type picker into a free-text box. */
-const ADD_NEW = "__add_new__";
 
 interface Props {
   open: boolean;
@@ -60,7 +59,6 @@ export function ListingForm({ open, onClose, editing }: Props) {
   const [propertyName, setPropertyName] = React.useState("");
   const [buildingOpen, setBuildingOpen] = React.useState(false);
   const [propertyType, setPropertyType] = React.useState("Apartment");
-  const [newType, setNewType]           = React.useState<string | null>(null);
   const [category, setCategory]         = React.useState("residential");
   const [emirate, setEmirate]           = React.useState("Dubai");
   const [city, setCity]                 = React.useState("");
@@ -96,7 +94,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
 
   const [staged, setStaged] = React.useState<StagedImage[]>([]);
 
-  const { data: typeOptions } = usePropertyTypes();
+
   const { data: buildingPage } = useProperties({ pageSize: 200 });
   const buildings = buildingPage?.items ?? [];
 
@@ -111,7 +109,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
 
   const reset = React.useCallback(() => {
     setPropertyId(null); setPropertyName(""); setBuildingOpen(false);
-    setPropertyType("Apartment"); setNewType(null); setCategory("residential");
+    setPropertyType("Apartment"); setCategory("residential");
     setEmirate("Dubai"); setCity(""); setAddress("");
     setUnitNumber(""); setFloor(""); setBedsLabel(""); setBedrooms(""); setBathrooms("");
     setParking(""); setAreaLabel(""); setArea(""); setFurnishing(""); setView("");
@@ -134,7 +132,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
     setPropertyId(editing.propertyId);
     setPropertyName(editing.propertyName);
     setPropertyType(editing.propertyType || "Apartment");
-    setNewType(null);
+   
     setCategory(editing.category || "residential");
     setEmirate(editing.emirate || "Dubai");
     setCity(editing.city ?? "");
@@ -189,7 +187,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
     setBuildingOpen(false);
   };
 
-  const effectiveType = (newType ?? propertyType).trim();
+  const effectiveType = propertyType.trim();
   const isValid = propertyName.trim() && effectiveType;
 
   const handleSave = async () => {
@@ -365,33 +363,9 @@ export function ListingForm({ open, onClose, editing }: Props) {
                   </p>
                 </div>
 
-                {/* Creatable type picker */}
                 <div className="space-y-1.5">
                   <Label>Property type *</Label>
-                  {newType === null ? (
-                    <select
-                      value={propertyType}
-                      onChange={e => {
-                        if (e.target.value === ADD_NEW) { setNewType(""); return; }
-                        setPropertyType(e.target.value);
-                      }}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
-                      {/* The stored value first, so an edit never silently changes the type just
-                          because the list has not loaded yet. */}
-                      {!(typeOptions ?? []).some(t => t.toLowerCase() === propertyType.toLowerCase()) && propertyType && (
-                        <option value={propertyType}>{propertyType}</option>
-                      )}
-                      {(typeOptions ?? []).map(t => <option key={t} value={t}>{t}</option>)}
-                      <option value={ADD_NEW}>+ Add a new type…</option>
-                    </select>
-                  ) : (
-                    <div className="flex gap-1.5">
-                      <Input autoFocus value={newType} onChange={e => setNewType(e.target.value)}
-                        placeholder="e.g. Labour Camp" className="h-9 text-sm" />
-                      <Button variant="outline" size="sm" className="h-9 shrink-0"
-                        onClick={() => setNewType(null)}>Cancel</Button>
-                    </div>
-                  )}
+                  <PropertyTypePicker value={propertyType} onChange={setPropertyType} />
                 </div>
 
                 <div className="space-y-1.5">
