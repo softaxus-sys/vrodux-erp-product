@@ -6894,3 +6894,92 @@ outright instead.
 - **Pending (republish + restart):** press Import history again — instead of a 500 it reports either
   "the portal rejected the API key" (re-key it) or the portal's own status text, and the attempt
   appears in Sync History either way.
+
+### Module 61e — 🔴 The notifications hub never connected for an admin (414 URI Too Long)
+
+Reported from the network tab: `GET /hubs/notifications?id=…&access_token=…` → **414 URI Too Long**.
+
+**A browser cannot set an `Authorization` header on a WebSocket upgrade**, so SignalR puts the JWT
+in the query string. An Administrator's token carries **every seeded permission as its own claim** —
+**336 keys, ~8.5 KB of JSON, ~12 KB once base64'd** — so the request line overruns Kestrel's **8 KB**
+default `MaxRequestLineSize` and is rejected before any handler runs.
+
+**It fails in the worst possible way.** The *negotiate* POST uses a real header and succeeds, so the
+client reports a healthy connection; only the upgrade that follows is refused. So the socket appears
+up, nothing is ever delivered, and the bell fills in on its 120 s poll — which reads as "realtime is
+just slow". Exactly the same signature as Module 61c, and the second time this feature has failed
+silently rather than loudly.
+
+**Fix — both layers, so neither can be the one that quietly refuses:**
+- `ApiGateway/Program.cs` — `builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestLineSize = 64 * 1024)`.
+  There was **no Kestrel configuration at all** in the gateway, so the framework default applied.
+  It relaxes only the URL length Kestrel will parse; it grants no access, and
+  `MaxRequestHeadersTotalSize` (32 KB) is untouched.
+- `nginx/nginx.conf` — `large_client_header_buffers 4 16k` → `4 32k`. nginx requires the **whole
+  request line to fit in one** of these buffers, so 16 KB was already close to the edge; production
+  passed today and would have started failing on its own as the permission set grew.
+
+### ⚠️ Root cause flagged, deliberately NOT fixed — the token is ~12 KB on every request
+Raising the limits removes the symptom. The underlying cost remains: that ~12 KB rides in the
+`Authorization` header of **every** API call, which is pure overhead on every request from every
+client including mobile.
+
+Shrinking it is a real refactor, not a tidy-up: Module 5h made the JWT the deliberate single
+chokepoint, and the claim set is read by backend `[RequirePermission]`, frontend `hasRawPermission`
+/ `hasModuleAccess`, and the mobile client, which decodes it directly. Options would be a
+server-side permission lookup keyed by a small token, or collapsing keys to a compact bitmap. Either
+touches authentication across three clients and should be its own scoped pass.
+
+**The number to watch:** 336 seeded keys today, and it has grown with almost every module. At the
+raised limits there is room, but this is a growth curve, not a fixed cost.
+
+- **Gateway:** 0 compile errors ✅ · No migration, no frontend change.
+- **Pending (restart):** reload as an admin — the hub upgrade returns 101, not 414, and an assignment
+  raises a toast without a refresh. Prod also needs the nginx reload the deploy pipeline already runs.
+
+### Module 61f — 🔴 A transient database connection failure crashed the whole gateway at startup
+
+Production log: `Error Number:11002, State:0, Class:20`, `ClientConnectionId:00000000-0000-0000-0000-000000000000`,
+thrown from `WaitForPendingOpen()` → `SqlServerDatabaseCreator.ExistsAsync` → `Migrator.MigrateAsync` →
+`MigrateNotificationsAsync` → `Program.Main`.
+
+**Not a notifications or SignalR fault, despite the last frame.** An all-zero `ClientConnectionId`
+means the handshake never happened and nothing was executed; `WaitForPendingOpen` means it died
+waiting on the connection pool; class 20 is fatal transport. And `MigrateNotificationsAsync` is
+**line 353 — the last of 18 migration steps**, so the 17 before it had already succeeded. The
+database stopped answering partway through startup and notifications was simply what was running.
+
+**The app had no transient-fault handling of any kind — 0 of 30 `UseSqlServer` registrations use
+`EnableRetryOnFailure`.** So a single blip was fatal, the exception escaped `Main`, and the process
+died; it only recovered because Docker restarted the container.
+
+**Why that is worse than a crash.** The deploy watches a health window and rolls back on failure, so
+a startup crash does not merely delay the release — it reverts it. Symptom observed in production:
+`/api/crm/leads` → 401 (fine) while `/api/notifications` and `/hubs/notifications/negotiate` → **404**,
+i.e. the running image predated the notifications feature entirely, with `/health` reporting green
+throughout.
+
+**Fix** — `MigrationRunner` retries a connection failure at 2s / 4s / 8s / 16s / 30s. The minute is
+bounded across the whole startup, not per service: the sequence is awaited in order, so the first
+step to hit an unreachable database spends it and then throws. Retrying is safe — `MigrateAsync`
+re-reads `__EFMigrationsHistory` and applies only what is still pending, so a retry continues rather
+than repeats.
+
+It retries **only** when the connection never opened (`ClientConnectionId == Guid.Empty`) or the
+provider reports the fault transient (`DbException.IsTransient`). A genuine error inside a migration
+is not retried and still fails loudly — the point is to survive an absent database, not to paper
+over a bad migration.
+
+### Flagged, deliberately NOT done — `EnableRetryOnFailure` across all 30 registrations
+That would protect **runtime** queries too, not just startup. It was not added, because it installs
+an execution strategy that **throws on user-initiated transactions**, and 2 files in the solution
+open explicit transactions — a blanket change would break them at runtime, which is worse than what
+it fixes. It needs its own pass with those call sites wrapped in `CreateExecutionStrategy().Execute(...)`.
+
+### Root cause of the outage itself is upstream, not in this code
+Module 60 recorded `vrodux-sqlserver` running **"Up (unhealthy)"** after the env drift, and that an
+ordinary deploy never recreates it. A database container that is unhealthy or restarting under load
+produces exactly this. The retry stops it taking the gateway down; it does not fix the database.
+Check `docker logs --tail 100 vrodux-sqlserver` and its restart count.
+
+- **Gateway:** 0 compile errors ✅ · No migration, no frontend change.
