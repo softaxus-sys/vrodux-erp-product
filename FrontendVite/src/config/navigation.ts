@@ -502,8 +502,9 @@ export const navigationConfig: NavGroup[] = [
         module: "real-estate",
         children: [
           { id: "re-sales", label: "Sales Pipeline", href: "/real-estate/sales", icon: "Handshake" },
-          { id: "properties", label: "Properties", href: "/real-estate/properties", icon: "Home" },
-          { id: "units", label: "Units", href: "/real-estate/units", icon: "DoorOpen" },
+          // One screen, not two: a listing is a unit and the building it sits in, and splitting
+          // them meant creating a property before a unit could exist at all.
+          { id: "properties", label: "Properties & Units", href: "/real-estate/properties", icon: "Home" },
           { id: "tenants", label: "Tenants", href: "/real-estate/tenants", icon: "Users" },
           { id: "contracts", label: "Contracts", href: "/real-estate/contracts", icon: "FileSignature" },
           { id: "brokers", label: "Brokers", href: "/real-estate/brokers", icon: "Handshake" },

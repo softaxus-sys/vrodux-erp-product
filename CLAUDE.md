@@ -6678,3 +6678,107 @@ title-cased the raw key. `PortalLabel` now normalises `_` → `-`.
   frontend change.
 - **Not exercised in a browser** — the proof is a new assignment producing a toast for the team lead
   without a refresh.
+
+---
+
+## Module 62 — Real Estate: one listing = property + unit (Properties and Units merged)
+
+Requested: no separate Properties and Units pages — "1 property and 1 unit at a time", a property
+type that can be created while creating a property, and every column of the agency's two stock
+sheets (rental + sale) held in the module.
+
+### The shape the data actually has
+These sheets are a **marketing list, not a property register**: every row is one apartment in one
+tower, and the same tower appears once per available unit. The old model forced a building to exist
+before a unit could be created, on a different page — so adding one apartment meant two screens,
+and half the columns on the sheet had nowhere to go at all.
+
+**A listing is now the unit**, with its building carried alongside. `ListingDto.Id` is the unit id;
+edit and delete act on it.
+
+### Backend — new `Listings` CQRS feature
+- `CreateListingCommand` creates the building and the unit in one call. `PropertyId` reuses one
+  already on file; naming one in `PropertyName` creates it — **and reuses a same-named building
+  rather than duplicating it**, because two "Cayan Tower" rows would split its photographs, its
+  occupancy and its website listing across copies with nothing downstream reporting either
+  correctly. A blank unit number generates `LISTING-{n}`, matching the importer so the two paths
+  do not produce two conventions in one building.
+- `UpdateListingCommand` writes **both halves**. The form shows them as one record, so sending only
+  the unit would leave a corrected building name silently doing nothing. Renaming the building
+  renames it for every unit in it — intended, and the reason the building fields are nullable:
+  a caller that does not know them leaves them null and the building is untouched.
+- `GetListingsHandler.Build` is shared with the summary handler, so the tiles can never count a
+  different set of rows than the table beneath them. `!IsDeleted` is applied **manually on both
+  sides** of the join — the tenant filter replaces any entity-level soft-delete filter (the
+  recurring CRM/Visa/Restaurant gotcha), and a unit in a deleted building is not a listing.
+- `ListingsController` at `api/real-estate/listings`, gated on `real-estate.units.*` — a listing is
+  a unit. Create also creates buildings, the same arrangement the rental-stock import has always
+  had under one key rather than demanding two for one action.
+
+### `PropertyType` is free text now; `Category` took over the bucket
+`PropertyType` used to hold `residential`/`commercial`/`mixed`, so the form's eight display types
+collapsed into three codes and a "Warehouse" reopened as "Commercial Building". New
+`Property.Category` holds the bucket the portfolio tiles count by, which frees the type column to
+say what the property IS. The picker is defaults ∪ every type in use, with an inline "+ Add a new
+type…" — the same no-new-table approach as HR job designations (Module 41).
+
+`GetPropertiesSummaryHandler` counts by `Category`; counting `PropertyType` would now report zero
+of each. Migration `AddListingColumns` **backfills Category from the old codes before rewriting
+them**, so no existing property lands in the default bucket.
+
+### The sheet's columns, on `PropertyUnit`
+`Purpose`, `ListedOn` (yyyy-MM-dd string — a calendar date has no timezone, cf. Module 43),
+`BedsLabel`, `PriceLabel`, `AreaLabel`, `HasMedia`, `IsListed`, `ListedBy`, `AgentName`,
+`OwnerName`, `OwnerPhone`, `OwnerPhoneAlt`.
+
+**The raw cells are kept beside the parsed figures, not instead of them.** `700k(rented till 29 feb
+2026 in 55k)` and `4bhk+terrace closed as extra 1 room` are real cells: the number is what sorts
+and filters, the words are what the agent quotes, and neither substitutes for the other. Where a
+figure cannot be read the UI shows the words rather than a confident `0`.
+
+### 🔴 Importer was dropping half the file, and mis-filing the other half
+- **Every sale row's price went into `RentPerYear`** — a 7M asking price read as a
+  7M-per-year tenancy in the rent roll. `ParseRent(raw, annualise)` now routes by purpose, and
+  skips the monthly ×12 rule for sales.
+- `NormaliseType` forced everything to Apartment/Villa/Townhouse/Penthouse, **silently relabelling
+  every plot, warehouse and building in the file**. Unknown words are now title-cased and kept.
+- Occupancy is read from the **price cell** when there is no column for it (`1.15M(vacant)`,
+  `700k(rented till…)`) — which is where these sheets actually write it.
+- Owner/agent stop being glued into `Notes` as a sentence now that they have fields.
+- New `ParsePurpose`, `ParseCategory`, `ParseYesNo`, `ParseListedOn`. The date parser tries
+  **day-first before month-first** (en-GB, not invariant — the invariant culture reads `3/6/26` as
+  6 March) and returns null rather than guessing: `-------` is a real cell in the file, and a row
+  is better dateless than dated wrongly.
+
+### Frontend
+- `modules/real-estate/listings/` — `listings-view` (the merged page), `listing-form` (the combined
+  create/edit drawer), `listing-drawer`, `listing-import-fields`.
+- `/real-estate/units` **redirects** to `/real-estate/properties` rather than 404ing; the nav item
+  is gone and the page + `modules/real-estate/units/` were deleted. `PropertiesDrawer`'s
+  "View all units" now links to `?propertyId=`, which the listings page reads and shows as a
+  clearable banner.
+- **Building-level work stays reachable**, via "Open building" in the listing drawer →
+  `PropertiesDrawer` + `AddPropertyForm`. Website publishing, the photo gallery, the unit schedule
+  and the printable profile all live on the building; folding the pages together must not lose
+  them, and there is no second nav item for them.
+- Added `reApi.getProperty(id)` / `useProperty(id)` — the listing DTO carries a cover image id and
+  a count, not the photographs, so the edit form fetches the building to manage its gallery.
+- Rent and asking-price totals are **separate tiles**. Added together they describe nothing.
+
+### Import auto-mapping — verified against the real files
+15 of the 18 columns auto-map from both sheets with **no clashes** (checked by replaying the
+modal's `norm()` + `autoDetect()` over the actual headers). `Sr NO` is a row number and is
+correctly ignored. **The Category and second-phone columns have literally blank headers in both
+files**, so those two must be picked by hand in the mapping step — inherent to the file, not a
+gap in the synonyms.
+
+### Build / Verification Status
+- **RealEstate.API + full ApiGateway:** 0 errors ✅ · **Frontend `tsc -p tsconfig.app.json`:**
+  0 errors ✅ · **`vite build`:** ✅
+- Migration `AddListingColumns` created (auto-applies on startup).
+- **Not exercised in a browser** — that needs a running gateway and a signed-in session. Verified
+  by build, and by replaying the auto-mapper over the real CSV headers.
+- **Pending (republish + restart):** import both sheets and confirm a sale row lands in the asking
+  price rather than the rent; create a listing naming a building already on file and confirm it
+  joins that building instead of duplicating it; add a property type from the form and confirm it
+  is offered next time; open a listing → "Open building" → photos and website publishing still work.

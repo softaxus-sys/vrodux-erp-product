@@ -630,6 +630,8 @@ export const reApi = {
     return rawApiClient.get(`${BASE}/properties?${qs}`);
   },
   getPropertySummary:  (): Promise<RePropertySummaryDto>   => rawApiClient.get(`${BASE}/properties/summary`),
+  /** One building in full, including its gallery metadata — the list does not carry it. */
+  getProperty:         (id: string): Promise<PropertyDto>  => rawApiClient.get(`${BASE}/properties/${id}`),
   createProperty:      (data: UpsertPropertyInput): Promise<PropertyDto> => rawApiClient.post(`${BASE}/properties`, data),
   /** Bulk import. Rows the server could not take come back described, not silently dropped. */
   importProperties:    (rows: Record<string, string>[]): Promise<ImportOutcome> =>
@@ -676,6 +678,36 @@ export const reApi = {
 
   setPropertyWebsiteListing: (propertyId: string, listOnWebsite: boolean) =>
     rawApiClient.patch(`${BASE}/properties/${propertyId}/website-listing`, { listOnWebsite }),
+
+  // ── Listings ──────────────────────────────────────────────────────────────
+  // The merged stock list: one row per unit, with its building. Supersedes calling
+  // getProperties and getUnits separately and stitching them together in the browser.
+
+  getListings: (p: ListingParams = {}): Promise<PagedResult<ListingDto>> => {
+    const q = new URLSearchParams();
+    q.set("page", String(p.page ?? 1));
+    q.set("pageSize", String(p.pageSize ?? 30));
+    if (p.search?.trim()) q.set("search", p.search.trim());
+    // "all" is the UI's word for no filter, so it must not reach the server as a value.
+    if (p.purpose      && p.purpose      !== "all") q.set("purpose", p.purpose);
+    if (p.status       && p.status       !== "all") q.set("status", p.status);
+    if (p.propertyType && p.propertyType !== "all") q.set("propertyType", p.propertyType);
+    if (p.category     && p.category     !== "all") q.set("category", p.category);
+    if (p.propertyId) q.set("propertyId", p.propertyId);
+    if (p.advertised !== undefined) q.set("advertised", String(p.advertised));
+    return rawApiClient.get(`${BASE}/listings?${q}`);
+  },
+  getListing:         (id: string): Promise<ListingDto> => rawApiClient.get(`${BASE}/listings/${id}`),
+  getListingsSummary: (): Promise<ListingsSummaryDto>   => rawApiClient.get(`${BASE}/listings/summary`),
+
+  /** The built-in types plus every one this workspace already uses. Feeds the creatable picker. */
+  getPropertyTypes:   (): Promise<string[]> => rawApiClient.get(`${BASE}/listings/property-types`),
+
+  createListing: (data: CreateListingInput): Promise<ListingDto> =>
+    rawApiClient.post(`${BASE}/listings`, data),
+  updateListing: (id: string, data: UpdateListingInput): Promise<ListingDto> =>
+    rawApiClient.put(`${BASE}/listings/${id}`, data),
+  deleteListing: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/listings/${id}`),
 
   getUnits: (p: RePageParams & { propertyId?: string } = {}): Promise<PagedResult<UnitDto>> => {
     const qs = new URLSearchParams();

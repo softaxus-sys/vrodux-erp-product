@@ -83,7 +83,6 @@ const UomPage              = lazyWithRetry(() => import("@/pages/inventory/maste
 
 // ── Real Estate ───────────────────────────────────────────────────────────────
 const PropertiesPage       = lazyWithRetry(() => import("@/pages/real-estate/properties"));
-const UnitsPage            = lazyWithRetry(() => import("@/pages/real-estate/units"));
 const TenantsPage          = lazyWithRetry(() => import("@/pages/real-estate/tenants"));
 const ContractsPage        = lazyWithRetry(() => import("@/pages/real-estate/contracts"));
 const RentAlertsPage       = lazyWithRetry(() => import("@/pages/real-estate/rent-alerts"));
@@ -424,7 +423,9 @@ export function App() {
           <Route element={<ModuleGuard module="real-estate" />}>
             <Route path="/real-estate/sales"      element={<RePipelinePage />} />
             <Route path="/real-estate/properties" element={<PropertiesPage />} />
-            <Route path="/real-estate/units"      element={<UnitsPage />} />
+            {/* Properties and Units are one screen now. Kept as a redirect rather than removed,
+                so an existing bookmark still lands somewhere useful. */}
+            <Route path="/real-estate/units"      element={<Navigate to="/real-estate/properties" replace />} />
             <Route path="/real-estate/tenants"    element={<TenantsPage />} />
             <Route path="/real-estate/contracts"  element={<ContractsPage />} />
             <Route path="/real-estate/rent-alerts" element={<RentAlertsPage />} />

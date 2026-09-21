@@ -10,6 +10,9 @@ import {
   type ContractStatus,
   type RentAlertSettingsDto,
   type RePageParams,
+  type ListingParams,
+  type CreateListingInput,
+  type UpdateListingInput,
 } from "@/lib/real-estate/re.api";
 
 const QK = "real-estate";
@@ -24,6 +27,16 @@ export function useProperties(params: RePageParams & { propertyType?: string } =
   });
 }
 export function usePropertySummary() { return useQuery({ queryKey: [QK, "property-summary"],  queryFn: reApi.getPropertySummary,  staleTime: 60_000 }); }
+
+/** One building in full. Used where the gallery is needed, which the list DTO does not carry. */
+export function useProperty(id?: string) {
+  return useQuery({
+    queryKey: [QK, "property", id],
+    queryFn:  () => reApi.getProperty(id!),
+    enabled:  !!id,
+    staleTime: 60_000,
+  });
+}
 
 // ── Property mutations ──────────────────────────────────────────────────────
 function useInvalidateProperties() {
@@ -115,6 +128,82 @@ export function useSetPropertyWebsiteListing() {
   });
 }
 
+// ── Listings ────────────────────────────────────────────────────────────────
+// The merged stock list. A listing is a unit plus its building, so anything that writes one
+// invalidates the property queries too: unit counts, occupancy and the building's own status
+// are all recomputed server-side on every save.
+
+function useInvalidateListings() {
+  const qc = useQueryClient();
+  const invalidateProperties = useInvalidateProperties();
+  return () => {
+    qc.invalidateQueries({ queryKey: [QK, "listings"] });
+    qc.invalidateQueries({ queryKey: [QK, "listings-summary"] });
+    // The type picker is fed by the types in use, so a listing that introduces a new one has to
+    // make it available immediately — otherwise it vanishes from the dropdown until a reload.
+    qc.invalidateQueries({ queryKey: [QK, "property-types"] });
+    qc.invalidateQueries({ queryKey: [QK, "units"] });
+    qc.invalidateQueries({ queryKey: [QK, "unit-summary"] });
+    invalidateProperties();
+  };
+}
+
+export function useListings(params: ListingParams = {}) {
+  return useQuery({
+    queryKey: [QK, "listings", params],
+    queryFn:  () => reApi.getListings(params),
+    // Keeps the current page on screen while the next one loads, so paging never blanks the list.
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
+
+export function useListing(id?: string) {
+  return useQuery({
+    queryKey: [QK, "listing", id],
+    queryFn:  () => reApi.getListing(id!),
+    enabled:  !!id,
+    staleTime: 60_000,
+  });
+}
+
+export function useListingsSummary() {
+  return useQuery({ queryKey: [QK, "listings-summary"], queryFn: reApi.getListingsSummary, staleTime: 60_000 });
+}
+
+/** Defaults plus every type in use. Cached longer — it changes only when a new type is typed. */
+export function usePropertyTypes() {
+  return useQuery({ queryKey: [QK, "property-types"], queryFn: reApi.getPropertyTypes, staleTime: 300_000 });
+}
+
+export function useCreateListing() {
+  const invalidate = useInvalidateListings();
+  return useMutation({
+    mutationFn: (d: CreateListingInput) => reApi.createListing(d),
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateListing() {
+  const invalidate = useInvalidateListings();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; data: UpdateListingInput }) => reApi.updateListing(v.id, v.data),
+    onSuccess: (_r, v) => { invalidate(); qc.invalidateQueries({ queryKey: [QK, "listing", v.id] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteListing() {
+  const invalidate = useInvalidateListings();
+  return useMutation({
+    mutationFn: (id: string) => reApi.deleteListing(id),
+    onSuccess: () => { invalidate(); toast.success("Listing removed."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useUnits(params: RePageParams & { propertyId?: string } = {}) {
   return useQuery({
     queryKey: [QK, "units", params],
@@ -146,17 +235,12 @@ export function useImportUnits() {
   });
 }
 
-/** Creates both buildings and units, so both lists and their summaries go stale. */
+/** Creates both buildings and units, so every list and summary goes stale. */
 export function useImportRentalStock() {
-  const qc = useQueryClient();
-  const invalidateProperties = useInvalidateProperties();
+  const invalidate = useInvalidateListings();
   return useMutation({
     mutationFn: (rows: Record<string, string>[]) => reApi.importRentalStock(rows),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [QK, "units"] });
-      qc.invalidateQueries({ queryKey: [QK, "unit-summary"] });
-      invalidateProperties();
-    },
+    onSuccess: invalidate,
     onError: (e: Error) => toast.error(e.message),
   });
 }

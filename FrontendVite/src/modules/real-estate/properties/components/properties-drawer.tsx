@@ -138,7 +138,8 @@ export function PropertiesDrawer({ open, onClose, property, onEdit }: Props) {
   const viewAllUnits = () => {
     if (!property) return;
     onClose();
-    navigate(`/real-estate/units?propertyId=${property.id}`);
+    // The Units page folded into the stock list; the filter is what carries the intent over.
+    navigate(`/real-estate/properties?propertyId=${property.id}`);
   };
 
   return (

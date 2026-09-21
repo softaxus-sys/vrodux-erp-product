@@ -1,2 +1,2 @@
-﻿import { PropertiesView } from "@/modules/real-estate/properties/components/properties-view";
-export default function Page() { return <PropertiesView />; }
+import { ListingsView } from "@/modules/real-estate/listings/components/listings-view";
+export default function Page() { return <ListingsView />; }
