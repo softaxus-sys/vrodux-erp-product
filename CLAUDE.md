@@ -6782,3 +6782,115 @@ gap in the synonyms.
   price rather than the rent; create a listing naming a building already on file and confirm it
   joins that building instead of duplicating it; add a property type from the form and confirm it
   is offered next time; open a listing → "Open building" → photos and website publishing still work.
+
+### Module 62b — 🔴 A failing Bayut/Dubizzle pull reported itself as healthy (+ integration outage alerts)
+
+Reported as "getting disconnectivity from Bayut". The disconnection was real; what made it hard to
+see is that **nothing anywhere said so**.
+
+**Two paths returned an empty list where they should have failed**, and the poller reads an empty
+list as the normal answer — it records `success`, writes "Nothing new since the last poll" into Sync
+History and sets `Health = healthy`:
+- `BayutPullSync` — no stored Pull API key, or ciphertext it could not decrypt → `return []`. An
+  integration in that state delivers nothing for ever while reporting perfect health.
+- `BayutPullApiClient.GetAsync` — every non-2xx except 401/403 (500s, 429s, gateway errors) and every
+  non-JSON body → `return []`, logged as a warning and otherwise swallowed. A portal-wide outage was
+  indistinguishable from a quiet week.
+
+Both now throw (`PortalPullException` / `PortalPullConfigurationException`), so the failure is
+recorded on the integration, in Sync History and in the Error Log — all three of which the settings
+screen already renders and which were simply being fed nothing. Errors now carry **HTTP status +
+reason + a bounded 200-char body snippet**, and transport failures (DNS, TLS, timeout) are named
+instead of escaping as a bare "An error occurred while sending the request".
+
+**A partial failure is deliberately still not fatal** — the slices that returned are real leads, and
+`timestamp` is not a cursor, so whatever the failed slices held comes round on the next sweep. Only
+a sweep where *every* request failed is a failed sweep.
+
+### Outage alerts — `IIntegrationHealthAlerter`
+Email + bell (via the Module 61 dispatcher) when a lead source stops working, and again when it
+recovers. Recipients: the tenant's role-derived `settings.integrations` holders — the same permission
+that gates the screen the alert links to, so nobody is sent somewhere they cannot open — plus any
+operator addresses in `Integrations:AlertEmails` (`INTEGRATION_ALERT_EMAILS` in prod; the person who
+can re-key a portal is usually not one of the tenant's users). Never throws: a dead SMTP server must
+not turn a recoverable poll failure into a crashed background service.
+
+**Sent twice per outage, not per cycle** (`ShouldAnnounceFailure`): on the first failure, and again
+when it crosses into `down` at the third. The backoff stretches to a day, so alerting every cycle
+would mail for a week — and a channel that repeats itself is one people filter, precisely when it
+next matters. The all-clear goes only to someone who was told it broke.
+
+**A misconfiguration says so.** `PortalPullConfigurationException` (no key / key rejected) tells the
+reader retries cannot fix it, rather than promising an automatic recovery that will never come and
+leaving them waiting.
+
+### Auto-reconnect — already existed, unchanged
+Module `63a8f062` already made the poller include errored integrations with exponential backoff, so a
+transient outage heals itself within the hour without anyone touching it. What was missing was never
+the retry — it was that a Bayut failure never *became* an error in the first place (above), and that
+nobody was told when one did. A revoked API key still cannot self-heal, by nature; the alert says so.
+
+- **CRM.API:** 0 errors ✅ · **Full ApiGateway:** 0 `error CS` ✅ (the MSB3027 copy failures are file
+  locks from the running gateway + Visual Studio, not compile errors). No migration; no frontend
+  change — `lastError`, Sync History and the Error Log already render, they were just empty.
+- **Not runtime-verified** — no access to the live database or the Bayut account from here, so which
+  of the two silent paths is actually hitting this tenant is not yet confirmed. After deploy the
+  integration itself will say.
+- **Pending (republish + restart):** set `INTEGRATION_ALERT_EMAILS` in `/opt/vrodux/shared/.env` and
+  recreate `vrodux-api` **with `--env-file /opt/vrodux/shared/.env`** (Module 60). Then: the Bayut
+  integration flips to `error` with a real message within ~30 min, an email lands, and either it
+  recovers on its own (second email) or the message names the key that needs re-entering.
+
+### Module 62c — 🔴 Bayut history import answered every failure with an opaque 500
+
+Reported: `POST /api/crm/integrations/{id}/backfill` → `500 "An unexpected error occurred."` when
+importing the last 2 days of Bayut history.
+
+**`await provider.FetchSinceAsync(...)` was the only unguarded await in
+`BackfillIntegrationLeadsHandler`.** Everything else — each lead's ingest, the tenant check, the
+provider lookup — was handled. So anything the portal threw (a rejected key, an unreachable host, a
+timeout) escaped the handler and surfaced as a generic 500. The reason was always known at the point
+of failure; it was simply never passed to the person who could act on it. A failed import also wrote
+**nothing** anywhere, so Sync History showed it had never been attempted.
+
+Now: the fetch is wrapped, the exception is translated by `DescribeFetchFailure`, and an
+`IntegrationSyncLog` row (trigger `manual`) records the attempt either way — so a failed import is
+visible in the same Sync History and Error Log tabs as a failed poll.
+
+The distinction the mapping draws is **can this recover on its own?**
+- A missing or rejected key → `Integration.Conflict` (409) — it cannot, so the message says to
+  re-enter the key rather than implying a retry will help.
+- Portal unreachable / timed out / all slices refused → `Integration.Unavailable` (503) with the HTTP
+  status and body snippet, because retrying is genuinely the right advice.
+
+**Health is deliberately not changed.** A backfill is a one-off button press; letting it flip the
+integration into `Error` would also start its retry backoff and fire an outage alert (62b) off a
+single manual action. The scheduled poll decides whether the integration is broken.
+
+### Two error codes that had no status mapping
+`CrmControllerBase` mapped only `.NotFound` / `.Duplicate` / `.Conflict` / `Validation.Failed`;
+everything else fell through to **500**. So the pre-existing `Integration.NotSupported` ("this
+provider cannot import history" — a plain client mistake) also read as a server fault. Added
+`.NotSupported` → **400** and `.Unavailable` → **503**. Both are additive: a grep confirmed
+`Integration.NotSupported` was the only code in the solution using either suffix.
+
+### Probable cause of this specific 500 (not confirmed against the server log)
+`https://www.bayut.com/api-v7/stats/website-client-leads` is **alive** — probed directly with an
+invalid key: DNS 0.15 s, response 0.8 s, **`401 {"message":"Unauthenticated"}`**. That rules out DNS,
+TLS and timeout, and leaves the 401 path, which throws `BayutPullAuthException` → escaped → 500.
+
+It also reconciles with the poll history (Module 61d: `success`, `Fetched 0`, last run 2026-09-20
+16:16). On the deployed build a **missing** key returns `[]` without any HTTP call, which the poller
+records as a healthy "nothing new" — so a poll reporting 0 means no key was resolved, while a
+backfill 500 means a key now exists and the portal is rejecting it. The consistent reading is that
+the Pull API key was entered after that last poll and is not accepted by Bayut.
+
+Confirm from the server log by the traceId in the response
+(`docker logs vrodux-api 2>&1 | grep -A20 '0HNOLGO8SQLA3'`); after this change the API says it
+outright instead.
+
+- **CRM.API:** 0 errors ✅ · No migration, no frontend change — the drawer already surfaces the API
+  message and already renders Sync History.
+- **Pending (republish + restart):** press Import history again — instead of a 500 it reports either
+  "the portal rejected the API key" (re-key it) or the portal's own status text, and the attempt
+  appears in Sync History either way.

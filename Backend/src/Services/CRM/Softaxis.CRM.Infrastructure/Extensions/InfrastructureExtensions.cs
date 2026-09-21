@@ -73,6 +73,11 @@ public static class InfrastructureExtensions
         // very rules the live intake path uses, rather than a second copy that could drift.
         services.AddScoped<IPortalOwnerResolver>(sp => sp.GetRequiredService<LeadIntakeService>());
         services.AddScoped<Softaxis.CRM.Application.Abstractions.ICrmEmailService, Services.SmtpCrmEmailService>();
+        // Tells the tenant's integration admins (and any configured operator address) when a lead
+        // source stops working, and when it comes back. Without it an outage is completely silent:
+        // the error was recorded on the integration, but nobody was ever sent to look at it.
+        services.AddScoped<Integrations.Services.IIntegrationHealthAlerter,
+                           Integrations.Services.IntegrationHealthAlerter>();
 
         // ── Providers ─────────────────────────────────────────────────────────
         // No-credential inbound providers (one generic implementation, several catalog cards).

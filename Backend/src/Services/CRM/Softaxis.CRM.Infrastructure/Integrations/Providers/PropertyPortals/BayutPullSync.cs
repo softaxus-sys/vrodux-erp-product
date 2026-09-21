@@ -51,7 +51,13 @@ internal static class BayutPullSync
         string baseUrl, string platformKey, string platformLabel, DateTime since, CancellationToken ct)
     {
         var apiKey = ResolveApiKey(protector, integration);
-        if (string.IsNullOrWhiteSpace(apiKey)) return [];
+        if (string.IsNullOrWhiteSpace(apiKey))
+            // Thrown, not returned empty. An integration with no readable key delivers nothing for
+            // ever, and returning [] made the poller record that as a healthy "nothing new" sweep —
+            // the single most misleading state this service can be in.
+            throw new PortalPullConfigurationException(
+                $"No {platformLabel} Pull API key is stored on this integration (or the stored one could not be " +
+                "decrypted). Re-enter the key on the integration's settings — polling cannot recover on its own.");
 
         // Clamped rather than refused: a user asking for "everything" should get the six months
         // that exist, not an error telling them a limit they had no way to know.
@@ -63,9 +69,21 @@ internal static class BayutPullSync
         var byId = new Dictionary<string, CanonicalLead>(StringComparer.OrdinalIgnoreCase);
         var unkeyed = new List<CanonicalLead>();
 
-        void Collect(IEnumerable<JsonElement> items, string typeLabel)
+        // Every slice's outcome, so "the portal refused all of them" can be told apart from
+        // "there was genuinely nothing new" — the two produced an identical empty result before.
+        var attempted = 0;
+        var failures  = new List<string>();
+
+        void Collect(BayutPullSlice slice, string typeLabel)
         {
-            foreach (var el in items)
+            attempted++;
+            if (slice.Error is { Length: > 0 } error)
+            {
+                failures.Add($"{typeLabel}: {error}");
+                return;
+            }
+
+            foreach (var el in slice.Items)
             {
                 var lead = PropertyPortalLeadMapper.Map(el, el.GetRawText(), platformKey, platformLabel, typeLabel);
                 if (lead is null) continue;   // a views row, or an enquiry with no contact detail
@@ -79,6 +97,15 @@ internal static class BayutPullSync
 
         Collect(await api.GetCallLogsAsync(baseUrl, apiKey!, since, ct), "Phone call");
         Collect(await api.GetStoryLeadsAsync(baseUrl, apiKey!, since, ct), "WhatsApp lead");
+
+        // Every slice refused: the portal is unreachable or the account is no longer served, so this
+        // is a failed sweep and must be recorded as one. A partial failure is deliberately NOT fatal
+        // — the leads that did come back are real, and `timestamp` is not a cursor, so whatever the
+        // failed slices held comes round again on the next sweep.
+        if (failures.Count == attempted && attempted > 0)
+            throw new PortalPullException(
+                $"{platformLabel} returned no data on any of the {attempted} requests in this sweep. " +
+                string.Join(" | ", failures.Distinct().Take(4)));
 
         return [.. byId.Values, .. unkeyed];
     }

@@ -94,6 +94,7 @@ public sealed class LeadPollSyncService(
         var db       = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         var registry = scope.ServiceProvider.GetRequiredService<ILeadProviderRegistry>();
         var intake   = scope.ServiceProvider.GetRequiredService<ILeadIntakeService>();
+        var alerts   = scope.ServiceProvider.GetRequiredService<IIntegrationHealthAlerter>();
 
         // No ambient tenant here, so this sees every tenant's integrations — the tenant is then
         // set per integration before anything is written.
@@ -130,6 +131,14 @@ public sealed class LeadPollSyncService(
                 continue;
             }
 
+            // Captured before the sweep: RecordSyncSuccess/Failure overwrite both, and the
+            // difference between them is what decides whether this is a transition worth telling
+            // anyone about — as opposed to the 48th consecutive failure of an outage they were
+            // already emailed about yesterday.
+            var wasFailing      = integration.Status == IntegrationStatus.Error;
+            var failuresBefore  = integration.RetryCount;
+            var lastSuccessAt   = integration.LastSuccessAt;
+
             IntegrationSyncLog? log = null;
             try
             {
@@ -149,6 +158,7 @@ public sealed class LeadPollSyncService(
                     log.Complete(0, 0, 0, 0, "Nothing new since the last poll.");
                     integration.RecordSyncSuccess();
                     await db.SaveChangesAsync(ct);
+                    await AnnounceRecoveryAsync(alerts, integration, tenantId.Value, wasFailing, lastSuccessAt, ct);
                     continue;
                 }
 
@@ -179,6 +189,7 @@ public sealed class LeadPollSyncService(
                 log.Complete(leads.Count, created, duplicates, failed);
                 integration.RecordSyncSuccess();
                 await db.SaveChangesAsync(ct);
+                await AnnounceRecoveryAsync(alerts, integration, tenantId.Value, wasFailing, lastSuccessAt, ct);
 
                 // Only worth a log line when the poll actually caught something the webhook missed.
                 if (created > 0)
@@ -194,7 +205,43 @@ public sealed class LeadPollSyncService(
                 await db.SaveChangesAsync(ct);
                 logger.LogError(ex, "LeadPollSyncService: {Provider} poll failed for tenant {Tenant}.",
                     integration.ProviderKey, tenantId);
+
+                if (ShouldAnnounceFailure(wasFailing, failuresBefore, integration.RetryCount))
+                    await alerts.AlertFailureAsync(integration, tenantId.Value, ex.Message, ex, ct);
             }
         }
+    }
+
+    /// <summary>
+    /// Whether this failure is worth an email.
+    /// </summary>
+    /// <remarks>
+    /// <para>Twice, and only twice, per outage: on the <b>first</b> failure — so somebody hears
+    /// about it within the half hour rather than when the pipeline looks thin — and again when it
+    /// crosses into <see cref="IntegrationHealth.Down"/> at the third, which is the point it stops
+    /// looking like a blip.</para>
+    ///
+    /// <para>Everything in between is silent on purpose. The backoff stretches to a day, so an
+    /// outage that lasts a week would otherwise send a mail per cycle, and an alert channel that
+    /// repeats itself is one people learn to filter — precisely when it next matters.</para>
+    /// </remarks>
+    private static bool ShouldAnnounceFailure(bool wasFailing, int failuresBefore, int failuresNow) =>
+        !wasFailing || failuresBefore < 3 && failuresNow >= 3;
+
+    /// <summary>
+    /// The all-clear, sent only to someone who was told it broke. A "recovered" mail for an outage
+    /// nobody heard about reads as noise, or worse, as news that something had been wrong.
+    /// </summary>
+    private async Task AnnounceRecoveryAsync(
+        IIntegrationHealthAlerter alerts, Integration integration, Guid tenantId,
+        bool wasFailing, DateTime? lastSuccessAt, CancellationToken ct)
+    {
+        if (!wasFailing) return;
+
+        var outage = lastSuccessAt is { } last ? DateTime.UtcNow - last : (TimeSpan?)null;
+        logger.LogInformation(
+            "LeadPollSyncService: {Provider} recovered for tenant {Tenant} after {Outage}.",
+            integration.ProviderKey, tenantId, outage);
+        await alerts.AlertRecoveryAsync(integration, tenantId, outage, ct);
     }
 }

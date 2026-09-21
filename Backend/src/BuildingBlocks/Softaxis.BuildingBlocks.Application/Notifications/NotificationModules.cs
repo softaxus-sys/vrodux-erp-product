@@ -55,4 +55,9 @@ public static class NotificationEvents
     public const string PurchaseApprovalDecided = "purchase-approval.decided";
 
     public const string IssueAssigned           = "issue.assigned";
+
+    // Integration health. Separate keys for the two directions so "it broke" can be kept while
+    // "it came back" is muted — the recovery notice is reassurance, the failure is a call to act.
+    public const string IntegrationFailing      = "integration.failing";
+    public const string IntegrationRecovered    = "integration.recovered";
 }

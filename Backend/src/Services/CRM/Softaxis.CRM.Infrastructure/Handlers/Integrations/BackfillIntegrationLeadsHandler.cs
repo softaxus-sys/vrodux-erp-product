@@ -3,10 +3,13 @@ using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.CRM.Application.Integrations.Commands;
 using Softaxis.CRM.Application.Integrations.Dtos;
 using Softaxis.CRM.Application.LeadIntake.Abstractions;
 using Softaxis.CRM.Application.LeadIntake.Dtos;
+using Softaxis.CRM.Domain.Entities.Integrations;
+using Softaxis.CRM.Infrastructure.Integrations.Providers.PropertyPortals;
 using Softaxis.CRM.Infrastructure.Persistence;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Integrations;
@@ -56,7 +59,37 @@ internal sealed class BackfillIntegrationLeadsHandler(
             note = $"The provider serves at most {max.TotalDays:0} days of history, so the import starts at {since:yyyy-MM-dd}.";
         }
 
-        var leads = await provider.FetchSinceAsync(integration, since, ct);
+        // Every import is recorded, successful or not. Until now a failed backfill wrote nothing
+        // anywhere, so the only trace of it was a 500 in the caller's browser and a stack trace in
+        // the server log — Sync History showed the import had never been attempted.
+        var log = new IntegrationSyncLog(integration.Id, trigger: "manual");
+        db.Entry(log).Property(TenantIsolation.Column).CurrentValue = tenantId;
+        db.IntegrationSyncLogs.Add(log);
+
+        IReadOnlyList<CanonicalLead> leads;
+        try
+        {
+            leads = await provider.FetchSinceAsync(integration, since, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The fetch was the ONLY unguarded await in this handler, so anything the portal threw —
+            // a rejected key, an unreachable host, a timeout — escaped as an opaque
+            // "An unexpected error occurred." 500. The reason was always known; it was simply
+            // never passed on to the person who could act on it.
+            var (code, message) = DescribeFetchFailure(ex, integration.ProviderKey);
+            log.Fail(message);
+            await db.SaveChangesAsync(ct);
+
+            logger.LogError(ex, "Backfill: {Provider} history import failed for tenant {Tenant}.",
+                integration.ProviderKey, tenantId);
+
+            // Health is deliberately NOT changed. This is a one-off action someone took by hand;
+            // the scheduled poll decides whether the integration is broken, and flipping it into
+            // Error here would also start its retry backoff and fire an outage alert off a single
+            // button press.
+            return Result.Failure<LeadBackfillResultDto>(Error.Custom(code, message));
+        }
 
         var created = 0; var duplicates = 0; var failed = 0;
         foreach (var lead in leads)
@@ -81,6 +114,10 @@ internal sealed class BackfillIntegrationLeadsHandler(
             }
         }
 
+        log.Complete(leads.Count, created, duplicates, failed,
+            leads.Count == 0 ? $"No {integration.ProviderKey} leads in the requested window." : null);
+        await db.SaveChangesAsync(ct);
+
         // Deliberately NOT RecordSyncSuccess: that moves the poll's watermark forward, and a
         // backfill reaching into the past says nothing about what has arrived since.
         logger.LogInformation(
@@ -89,4 +126,35 @@ internal sealed class BackfillIntegrationLeadsHandler(
 
         return Result.Success(new LeadBackfillResultDto(leads.Count, created, duplicates, failed, since, note));
     }
+
+    /// <summary>
+    /// Turns a provider exception into an error code the API can map to a real status, and a
+    /// message that names what the caller has to do about it.
+    /// </summary>
+    /// <remarks>
+    /// The distinction that matters is <b>can this recover on its own?</b> A rejected or missing
+    /// key cannot — someone has to re-enter it — so saying "try again later" would leave them
+    /// waiting on something that will never happen. Everything else is the portal having a bad
+    /// moment, and retrying is exactly the right advice.
+    /// </remarks>
+    private static (string Code, string Message) DescribeFetchFailure(Exception ex, string providerKey) =>
+        ex switch
+        {
+            PortalPullConfigurationException c =>
+                ("Integration.Conflict", c.Message),
+
+            PortalPullException p =>
+                ("Integration.Unavailable", p.Message),
+
+            TaskCanceledException =>
+                ("Integration.Unavailable",
+                 $"{providerKey} did not respond in time. Import a shorter window, or try again shortly."),
+
+            HttpRequestException h =>
+                ("Integration.Unavailable",
+                 $"Could not reach {providerKey}: {(h.InnerException ?? h).Message}"),
+
+            _ => ("Integration.Unavailable",
+                  $"The {providerKey} import failed: {ex.Message}"),
+        };
 }

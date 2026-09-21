@@ -38,6 +38,13 @@ public abstract class CrmControllerBase : ControllerBase
             var c when c.EndsWith(".NotFound")  => NotFound(body),
             var c when c.EndsWith(".Duplicate") => Conflict(body),
             var c when c.EndsWith(".Conflict")  => Conflict(body),
+            // The caller asked for something this resource genuinely cannot do — a client mistake,
+            // not a server fault, so it must not read as one.
+            var c when c.EndsWith(".NotSupported") => BadRequest(body),
+            // An upstream service (a lead portal, a payment gateway) refused or could not be
+            // reached. 503 tells the caller the failure is outside this system and worth retrying,
+            // which a blanket 500 actively hides.
+            var c when c.EndsWith(".Unavailable")  => StatusCode(StatusCodes.Status503ServiceUnavailable, body),
             "Validation.Failed"                 => UnprocessableEntity(body),
             _                                    => StatusCode(StatusCodes.Status500InternalServerError, body),
         };

@@ -169,6 +169,10 @@ services:
       # ── Integration Platform (lead sources) ──────────────────────────────
       Integrations__PublicBaseUrl: "https://${DOMAIN}"
       Integrations__FrontendBaseUrl: "https://${DOMAIN}"
+      # Who is emailed when a lead source (Bayut, Property Finder, Meta...) stops working and when
+      # it recovers. The tenant's own settings.integrations holders are always mailed; this is the
+      # operator address on top, because the person who can re-key a portal is usually not one of them.
+      Integrations__AlertEmails: "${INTEGRATION_ALERT_EMAILS:-}"
       Meta__AppId: "${META_APP_ID:-}"
       Meta__AppSecret: "${META_APP_SECRET:-}"
       Meta__VerifyToken: "${META_VERIFY_TOKEN:-vrodux-meta-verify}"
