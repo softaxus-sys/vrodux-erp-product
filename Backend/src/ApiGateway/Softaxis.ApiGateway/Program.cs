@@ -42,6 +42,20 @@ try
     // ── Windows Service support (no-op when run as console) ──────────────────
     builder.Host.UseWindowsService();
 
+    // ── Kestrel request-line limit ────────────────────────────────────────────
+    // A browser cannot set an Authorization header on a WebSocket upgrade, so SignalR
+    // puts the JWT in the query string: GET /hubs/notifications?id=...&access_token=<jwt>.
+    // An Administrator's token carries every seeded permission as its own claim (336 keys,
+    // ~12 KB once base64'd), which overruns Kestrel's 8 KB default MaxRequestLineSize and
+    // is rejected with 414 URI Too Long — so the notifications hub never connects for an
+    // admin. The negotiate POST succeeds (it uses a real header), which is why this fails
+    // silently rather than loudly: the client reports a healthy start and delivers nothing.
+    //
+    // 64 KB leaves room for the permission set to keep growing — it has grown with almost
+    // every module — without this resurfacing. It only relaxes the URL length Kestrel will
+    // parse; it grants no additional access, and MaxRequestHeadersTotalSize is untouched.
+    builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestLineSize = 64 * 1024);
+
     // ── Serilog ───────────────────────────────────────────────────────────────
     // Single-file publish strips assembly metadata — tell Serilog where to find sinks explicitly
     var serilogAssemblies = new[]
