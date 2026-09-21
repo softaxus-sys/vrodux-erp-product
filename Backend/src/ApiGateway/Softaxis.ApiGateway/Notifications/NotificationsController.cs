@@ -43,17 +43,24 @@ public sealed class NotificationsController(
         if (unreadOnly) mine = mine.Where(n => n.ReadAt == null);
         if (!string.IsNullOrWhiteSpace(module)) mine = mine.Where(n => n.Module == module);
 
-        var items = await mine
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(Math.Clamp(take, 1, 100))
-            .Select(n => new NotificationDto(n.Id, n.Module, n.Event, n.Type, n.Title, n.Message,
-                n.Link, n.RelatedToType, n.RelatedToId, n.ReadAt != null, n.CreatedAt))
-            .ToListAsync(ct);
+        try
+        {
+            var items = await mine
+                .OrderByDescending(n => n.CreatedAt)
+                .Take(Math.Clamp(take, 1, 100))
+                .Select(n => new NotificationDto(n.Id, n.Module, n.Event, n.Type, n.Title, n.Message,
+                    n.Link, n.RelatedToType, n.RelatedToId, n.ReadAt != null, n.CreatedAt))
+                .ToListAsync(ct);
 
-        // Counted over the unfiltered visible set: the badge means "unread anywhere", so it must not
-        // drop just because the panel happens to be filtered to one module.
-        var unread = await Visible(me).CountAsync(n => n.ReadAt == null, ct);
-        return Ok(new FeedDto(items, unread));
+            // Counted over the unfiltered visible set: the badge means "unread anywhere", so it must
+            // not drop just because the panel happens to be filtered to one module.
+            var unread = await Visible(me).CountAsync(n => n.ReadAt == null, ct);
+            return Ok(new FeedDto(items, unread));
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return ClientGone();
+        }
     }
 
     /// <summary>Per-module unread tallies, for the panel's filter chips.</summary>
@@ -62,13 +69,20 @@ public sealed class NotificationsController(
     {
         if (CurrentUserId() is not { } me) return Ok(Array.Empty<object>());
 
-        var rows = await Visible(me)
-            .Where(n => n.ReadAt == null)
-            .GroupBy(n => n.Module)
-            .Select(g => new { Module = g.Key, Count = g.Count() })
-            .ToListAsync(ct);
+        try
+        {
+            var rows = await Visible(me)
+                .Where(n => n.ReadAt == null)
+                .GroupBy(n => n.Module)
+                .Select(g => new { Module = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
 
-        return Ok(rows);
+            return Ok(rows);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return ClientGone();
+        }
     }
 
     [HttpPost("{id:guid}/read")]
@@ -111,6 +125,23 @@ public sealed class NotificationsController(
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The caller hung up before the answer was ready.
+    /// </summary>
+    /// <remarks>
+    /// <para>This is a polled endpoint, so it happens routinely and harmlessly: reload the page
+    /// while a poll is in flight and the socket closes, <c>HttpContext.RequestAborted</c> fires,
+    /// and EF throws <c>TaskCanceledException</c> at the first thing that observes the token —
+    /// usually opening the connection. Nothing was written and nothing was lost; the next poll
+    /// returns the same feed.</para>
+    ///
+    /// <para>Caught only when the REQUEST token is the one that fired. A genuine database timeout
+    /// surfaces as SqlException, not as a cancellation, so this cannot swallow a real fault. 499
+    /// is the conventional "client closed request" — nobody is listening for it, but it keeps an
+    /// abandoned request out of the error logs and out of the debugger's exception breaks.</para>
+    /// </remarks>
+    private IActionResult ClientGone() => StatusCode(499);
 
     /// <summary>The caller's own rows, minus any module they can no longer open.</summary>
     private IQueryable<Softaxis.BuildingBlocks.Domain.Notifications.Notification> Visible(Guid me)

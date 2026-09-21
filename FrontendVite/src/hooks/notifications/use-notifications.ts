@@ -34,7 +34,11 @@ export function useNotificationFeed() {
     queryFn:  () => notificationsApi.getMine({ take: 50 }),
     enabled:  isAuthenticated,
     refetchInterval: POLL_MS,
-    refetchIntervalInBackground: true,
+    // Deliberately NOT refetching in the background. A hidden tab has a socket that will push
+    // whatever arrives, and React Query refetches on focus anyway — so polling it as well bought
+    // nothing and kept requests in flight against tabs nobody was looking at, which is where most
+    // of the abandoned-request noise came from.
+    refetchIntervalInBackground: false,
     staleTime: 30_000,
     retry: false,
   });
