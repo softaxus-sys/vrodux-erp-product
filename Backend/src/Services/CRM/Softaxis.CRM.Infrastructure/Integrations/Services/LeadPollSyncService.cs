@@ -41,6 +41,35 @@ public sealed class LeadPollSyncService(
     /// </summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromMinutes(3);
 
+    /// <summary>
+    /// Whether a failing integration has waited long enough to be tried again.
+    /// </summary>
+    /// <remarks>
+    /// <para>Exponential on the consecutive-failure count, from one cycle up to a day: the first
+    /// couple of failures retry at the normal rate — which is what makes a transient outage heal
+    /// itself within the hour — and only a persistently broken one backs off far enough to stop
+    /// costing quota.</para>
+    ///
+    /// <para>A missing <c>LastFailureAt</c> means retry now. It cannot be used to justify skipping,
+    /// or an integration with no recorded failure time would be frozen out permanently — the same
+    /// class of trap as the deadlock this method exists to break.</para>
+    /// </remarks>
+    private static bool DueForRetry(Integration integration)
+    {
+        if (integration.LastFailureAt is not { } lastFailure) return true;
+
+        // Clamped before shifting: RetryCount climbs without bound while an integration is down,
+        // and 1 << 40 is undefined-shift territory, not a long wait.
+        var steps  = Math.Clamp(integration.RetryCount - 1, 0, 6);
+        var delay  = TimeSpan.FromTicks(Interval.Ticks * (1L << steps));
+        if (delay > MaxRetryDelay) delay = MaxRetryDelay;
+
+        return DateTime.UtcNow - lastFailure >= delay;
+    }
+
+    /// <summary>Ceiling on the backoff. A day means a fixed outage is picked up without anyone asking.</summary>
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromHours(24);
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try { await Task.Delay(StartupDelay, stoppingToken); } catch (OperationCanceledException) { return; }
@@ -68,15 +97,29 @@ public sealed class LeadPollSyncService(
 
         // No ambient tenant here, so this sees every tenant's integrations — the tenant is then
         // set per integration before anything is written.
+        //
+        // Errored integrations are included, NOT skipped. RecordSyncFailure sets Status = Error and
+        // RecordSyncSuccess clears it again — but success can only come from a poll, so selecting
+        // Connected alone was a deadlock: one transient failure stopped an integration being polled
+        // for ever, and the only way back was for someone to reconnect it by hand. A DNS blip took
+        // Property Finder offline for six days exactly this way, with nothing to show for it but
+        // the leads quietly stopping.
         var integrations = await db.Integrations
             .Include(i => i.FieldMappings)
             .Include(i => i.Resources)
-            .Where(i => !i.IsDeleted && i.Status == IntegrationStatus.Connected)
+            .Where(i => !i.IsDeleted
+                        && (i.Status == IntegrationStatus.Connected || i.Status == IntegrationStatus.Error))
             .ToListAsync(ct);
 
         foreach (var integration in integrations)
         {
             ct.ThrowIfCancellationRequested();
+
+            // Backoff, so a genuinely dead integration — revoked credentials, a decommissioned
+            // account — is retried occasionally rather than every cycle for ever. A healthy one is
+            // never delayed: this only applies once it is already failing.
+            if (integration.Status == IntegrationStatus.Error && !DueForRetry(integration))
+                continue;
 
             if (registry.Find(integration.ProviderKey) is not IPollSyncLeadProvider provider) continue;
 
