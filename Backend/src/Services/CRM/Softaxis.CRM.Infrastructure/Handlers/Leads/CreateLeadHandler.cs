@@ -1,17 +1,22 @@
 using System.Text.Json;
 using Softaxis.BuildingBlocks.Application.AiEvents;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Application.Leads.Dtos;
 using Softaxis.CRM.Domain.Entities;
+using Softaxis.CRM.Infrastructure.Handlers.Notifications;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser, ILeadAccessGuard access, ILeadStatusRecorder statusRecorder) : ICommandHandler<CreateLeadCommand, LeadDto>
+internal sealed class CreateLeadHandler(
+    CrmDbContext db, IAiEventBus aiEvents, ICurrentUser currentUser, ILeadAccessGuard access,
+    ILeadStatusRecorder statusRecorder, ICrmAssignmentNotifier notifications)
+    : ICommandHandler<CreateLeadCommand, LeadDto>
 {
     public async Task<Result<LeadDto>> Handle(CreateLeadCommand cmd, CancellationToken ct)
     {
@@ -62,6 +67,13 @@ internal sealed class CreateLeadHandler(CrmDbContext db, IAiEventBus aiEvents, I
         await aiEvents.PublishAsync(new AiTriggerEvent(
             AiEventKeys.CrmLeadCreated, l.Id, $"New lead: {title}",
             JsonSerializer.Serialize(new { l.Id, l.FirstName, l.LastName, l.Company, l.Email, l.Phone, l.Source })), ct);
+
+        // Created straight onto someone else — they are told. Creating one for yourself raises nothing
+        // (ForAssignment drops a recipient who is also the actor).
+        await notifications.NotifyAssignmentAsync(new CrmAssignment(
+            ownerId, ownerName, null, l.TeamId, currentUser.Id, currentUser.Username,
+            NotificationEvents.LeadAssigned, NotificationEvents.LeadAssignedToMember,
+            "Lead", l.FullName, $"/crm/leads?lead={l.Id}", "lead", l.Id), ct: ct);
 
         return Result.Success(LeadMappings.ToDto(l));
     }

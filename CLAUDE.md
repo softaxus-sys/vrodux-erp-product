@@ -6403,3 +6403,278 @@ someone to run, on the server: `cd /opt/vrodux/current && docker compose -f dock
 `--env-file /opt/vrodux/shared/.env` — the two `.env` files are allowed to drift apart (only `shared/.env` is
 authoritative) and Compose silently prefers whatever `.env` sits in the working directory when the flag is
 omitted.
+
+---
+
+## Module 61 — Platform-wide notifications: SignalR push + durable feed across every module
+
+Requested: real-time alerts over SignalR, stored in the database so they survive being offline,
+opt-in browser notifications, a sound, mark-as-read, and a design worth looking at — for **every
+module the user has access to**, with CRM lead assignment as the named case.
+
+### What already existed (and what was actually missing)
+CRM had a module-scoped `CrmNotification` table, `/api/crm/notifications` (get / read / read-all)
+and a bell panel — so the durable half and mark-as-read were done, polling every 30 s. SignalR was
+already an established pattern (`SupportHub`, `RestaurantHub`, `@microsoft/signalr` installed).
+
+Genuinely missing: any notification hub; a feed spanning more than CRM; **and an alert on lead
+assignment at all** — `AssignLeadHandler` wrote the handover row and returned. Only *inbound portal*
+leads ever notified anyone, so the reported case produced nothing.
+
+### Architecture — shared BuildingBlocks, one schema, one hub
+`INotificationDispatcher` (BuildingBlocks.Application) is the single way any of the 16 services
+raises an alert. A standalone Notifications service was considered and rejected: every module still
+needs to WRITE, so it would have needed this abstraction anyway plus a cross-service call on a path
+that must never fail the work that triggered it.
+
+- **Named `INotificationDispatcher`, not `…Publisher`** — MediatR already owns
+  `INotificationPublisher`, and the two are ambiguous in any handler using both, which is most.
+- `Notification` entity + `NotificationsDbContext` (schema `notifications`), tenant-isolated the
+  usual way. Migration `InitialNotifications`.
+- `NotificationsHub` + `NotificationsController` live in the **gateway**: the feed spans every
+  module, and the gateway is the only place that already sees every module's licence state.
+- **The hub joins each connection to its own group in `OnConnectedAsync`, from the JWT** — unlike
+  Support/Restaurant, where the client asks to join a *shared* room. The only room a connection may
+  occupy is its own, so taking identity from the token removes any chance of asking for someone
+  else's *and* survives reconnects for free (Support's client must re-join by hand; forgetting that
+  is a silent bug). The group key includes the tenant, so one user id in two workspaces cannot cross.
+- Because the room is one person, the push carries the **full payload** rather than Support's
+  signal-only "go re-fetch" — the toast appears with no round trip, and the worst a wrong membership
+  could do is show someone their own alert.
+- **Store first, push second, never throw.** Pushing first means a crash in between shows a toast
+  for an alert the bell will never list. The dispatcher swallows everything: a missed alert is
+  recoverable, a rolled-back lead assignment is not.
+- Self-alerts are dropped **in the dispatcher** (`RecipientUserId == ActorUserId`), not at each call
+  site, so a new trigger cannot forget.
+
+### Module gating — alerts outlive entitlement
+`NotificationModuleAccess` filters the feed by the same licence codes the gateway enforces on
+routes, so a dropped module cannot leave a bell full of links that 403. Rows are **hidden, not
+deleted** — entitlement comes back and history should come with it. Two mappings are deliberate and
+not one-for-one: Purchase's licence code is `purchasing`, and Restaurant rides POS. Anything
+unmapped stays visible, so a new module's alerts cannot vanish because this table was not updated.
+
+### Triggers wired
+| Module | Event | Recipient |
+|---|---|---|
+| CRM | lead assigned (assign / edit / create) | new owner |
+| CRM | opportunity, account assigned | new owner / account manager |
+| CRM | inbound portal lead (**repointed** from the old CRM table) | lead owner, else lead-access holders |
+| HR | leave requested | `hr.leaves.approve` holders |
+| HR | leave approved / declined | the employee, via `Employee.UserId` |
+| HR | payroll processed then awaiting Finance | `finance.payroll.approve` holders |
+| HR | payroll approved by Finance | `hr.payroll.approve` holders |
+| Purchase | requisition raised | `purchase.approvals.approve` holders |
+| Projects | issue assigned | assignee |
+
+Queue recipients resolve through `INotificationRecipients` — one cross-schema read of Identity,
+written once rather than four times.
+
+### Bug found and fixed in passing
+The recipient query joins `[identity].[permissions]`, whose column is **`ModuleId`, not `Module`**.
+The **pre-existing** `LeadIngestedAlertHandler` fallback used `p.Module` inside a `try/catch`, so the
+"nobody owns this lead" fan-out has been silently resolving **zero** recipients. Fixed in both.
+Verified against the live DB: the corrected join returns 11 to 12 recipients per approval permission.
+
+### Frontend
+- `useNotificationStream` owns one socket, mounted once by the panel. **Polling dropped from 30 s to
+  120 s** — it is now the safety net for a blocked websocket, not the mechanism.
+- Redesigned bell: module-coloured accent rail and icon chip, per-module filter chips with unread
+  counts, skeletons, empty states, hover-revealed mark-read/dismiss (keyboard reachable), optimistic
+  mutations. Unread is shown as an **edge as well as a dot** — colour alone is not a signal everyone
+  can read.
+- Custom sonner toast (10 s, not the app-wide 4 s — this is the only chance to act without opening
+  the panel) carrying module identity, because across fourteen modules "which part of the system is
+  this" is the first thing a reader needs.
+- **Chime synthesised with the Web Audio API** — no asset, no dependency (same call as `lib/pdf.ts`).
+  Two sine notes a fifth apart, about 0.35 s, peak gain 0.12, exponential fades so there is no click.
+  An alert that startles gets muted permanently, which is worse than no sound.
+- **Preferences are per-device in `localStorage`, deliberately not a server row**: sound belongs to a
+  machine with speakers, desktop alerts to a browser that granted permission. Syncing would mute the
+  office desktop because the laptop was muted. Read state stays on the server, where it is shared.
+- Desktop permission is requested **inside the toggle's click** — a prompt raised outside a user
+  gesture is ignored or auto-denied, and a denial is sticky, so asking at the wrong moment costs the
+  feature permanently. Suppressed while the tab is focused; the toast is already there.
+- Muting silences the **interruption only** — the alert is still stored and still listed, and the
+  panel says so.
+- The top-bar badge now reads the same React Query cache the panel writes to. The old
+  `notifications.store.ts` (a second copy of the same truth), `use-crm-notifications.ts` and
+  `lib/crm/notifications.api.ts` are **deleted**.
+
+### Verified (actually run, not asserted)
+- Full backend solution **0 errors** (20 pre-existing warnings). Frontend `tsc` **0 errors**,
+  `vite build` passes.
+- Migration **applied to `SHAHBAZ-QFINITY`**; columns and both indexes confirmed in `sys.indexes`.
+- **Gateway started and served**: `/api/notifications` and `/hubs/notifications/negotiate` both
+  return **401, not 404** (mapped and auth-gated), CORS preflight 204 for the hub.
+- **Backfill ran live**: "copied 29 CRM alerts into the shared store" — 29 rows, **0 NULL-tenant**,
+  and a second run copies 0 (idempotent by reusing the original row id, proven in a rolled-back
+  transaction).
+- **`[notifications].[notifications]` has a filtered index, so manual DML needs
+  `SET QUOTED_IDENTIFIER ON`** (same gotcha as `identity.users`). SqlClient sets it by default, so
+  EF is unaffected — this bites only hand-run `sqlcmd`.
+
+### Not done — flagged, not silently skipped
+- ~~**CRM activity assignment raises nothing.**~~ **Built in Module 61b below.** `Activity.AssignedTo` was a display *name* with no user
+  id, and the form has no assignee picker at all — it always self-assigns to the current user. An
+  alert could never fire, and matching a person by name is exactly the guess that misroutes an
+  alert. Needs `Activity.AssignedToUserId` **and** an assignee picker — a CRM feature, not
+  notification wiring. Project Management issues (the other half of "task assignment") ARE wired.
+- **Purchase approve/reject cannot notify the requester back**, for the same reason:
+  `PurchaseApproval.RequestedBy` is a name. Only the pending alert is raised.
+- `ApprovalsController` still injects `PurchaseDbContext` (pre-existing CQRS debt). Only the
+  dispatcher call was added; migrating the feature is its own task.
+- **Not exercised as a signed-in user** — that needs credentials. The hub, feed, toast, chime and
+  desktop path are unverified end to end in a browser.
+
+### Module 61b — CRM activity assignee picker, and a pre-existing startup crash
+
+**Activity assignment, completed.** Module 61 flagged this as unbuildable: `Activity.AssignedTo` was a
+display *name* with no user id, and the quick-add form had no picker — it always self-assigned to the
+current user, so an alert could never fire.
+
+- `Activity.AssignedToUserId` (nullable) + indexed; migration `AddActivityAssignee` (one additive
+  column, **applied** to SHAHBAZ-QFINITY). Nullable on purpose: legacy rows and imports carry a name
+  only, and routing an alert by matching a display name is how a task lands on the wrong person.
+- Threaded through `Create`/`UpdateActivityCommand`, `ActivityDto`, `UpdateActivityRequest` and the
+  handlers. **Every read path already went through `ActivityMappings.ToDto`**, so no stale projection
+  was left behind (the silent-null class of bug from Modules 41/43).
+- `UpdateActivityHandler` alerts **only when the assignee actually changed** — editing a subject or
+  due date on someone else's task must not re-notify them on every save. `ActivityAlertText` holds
+  the wording and deep link so create and update cannot drift; the link opens the **record** the
+  activity hangs off, not an activity screen, because that is where it can be acted on.
+- **Frontend picker** reuses the existing `useAssignableByTeam()` rather than building another list:
+  team-grouped `<optgroup>`, server-scoped to the caller's tier, `bg-card` (a transparent select
+  renders an OS-native white popup in dark mode). Options are keyed **team + user** — the same person
+  appears under every team they belong to, so a user id alone is not unique. Preselects the record's
+  owner and re-syncs if the owner changes while the drawer is open, so the picker cannot quietly file
+  the next task to the previous owner. `assignedToUserId` now flows from the lead and deal drawers.
+- en/ar strings added; key parity verified (only the intended Arabic plural forms differ).
+
+### 🔴 Pre-existing startup crash — `SupportDb` was never in appsettings
+`The ConnectionString property has not been initialized` at `MigrateAndSeedSupportAsync`.
+**Not caused by Module 61** — that change only shifted Support from Program.cs line 328 to 338, which
+made the line number look new. `SupportDb`, `AiAssistantDb` and `NotificationsDb` were absent from
+**every** appsettings file. AiAssistant and Notifications fall back to `IdentityDb`; **Support did
+not**, so it was the one that took the whole gateway down. Deployed environments supply
+`ConnectionStrings__SupportDb` as an env var, which is why this only bites a local run.
+
+Fixed both ways: the three keys added to `appsettings.json`, **and** Support given the same
+`?? GetConnectionString("IdentityDb")` fallback the other two have, so a missing key can never again
+be fatal at startup.
+
+### Module 61c — 🔴 The hub never joined anyone to a group (scoped `ITenantContext` in a SignalR hub)
+
+Reported: assigning a lead from admin to an agent produced **no realtime notification**.
+
+**The row was always being written.** Confirmed against the live database — three `lead.assigned`
+rows created within a minute of the report, each correctly tenant-stamped, each addressed to a
+different recipient. Trigger, dispatcher, tenant stamping and storage were all correct. **Only
+delivery failed.**
+
+**Cause — my own bug from Module 61.** `NotificationsHub` injected `ITenantContext` to build its
+group key. That service is **scoped, and populated by `TenantContextMiddleware` during an HTTP
+request**. SignalR invokes hub methods — `OnConnectedAsync` included — in a scope created from the
+**root provider**, not the request scope, so the hub received a fresh instance on which `Resolve()`
+had never been called. `TenantId` was null, the `if` never ran, **every connection joined no group
+at all**, and every push went to a room with no members.
+
+The failure mode is the nasty kind: the socket connects, the client reports healthy, rows keep
+saving, and the bell fills up on its next poll — so it looks like "realtime is just slow" rather
+than "realtime is delivering nothing".
+
+**Fix.** The hub now reads **both** `tenant_id` and the user id from `Context.User` claims, which
+ride on the connection itself and are the only identity source valid in a hub. It also logs a
+warning when a connection ends up in no group — the original bug was invisible precisely because
+nothing said so.
+
+**Rule:** a SignalR hub must never depend on a scoped service that HTTP middleware fills in.
+Claims, or a service resolved from the connection, only.
+
+**Checked and NOT a problem** (recorded so it is not re-investigated): the WebSocket query-string
+token hook. A browser cannot set an `Authorization` header on a WS upgrade, so SignalR passes
+`?access_token=`; a first grep of `Program.cs` suggested it was missing, but it is configured in
+`Identity.Infrastructure`'s `AddJwtBearer` (`OnMessageReceived`, scoped to `/hubs` paths). WS auth
+was fine all along.
+
+- **Gateway:** 0 errors ✅, rebuilt and restarted; `/hubs/notifications/negotiate` 401s
+  unauthenticated as expected.
+- **Not confirmed with a signed-in browser session** — no credentials. The proof it works is a new
+  assignment producing a toast without a refresh; the three rows already stored will appear in the
+  recipients' bells regardless.
+
+### Module 61d — Supervisors are told when work lands on their team member
+
+Requested: when a lead is assigned to a user, their team lead / manager should be told too — "assigned
+to your team member {name}" — and every inbound source (Property Finder, Bayut) must raise both the
+SignalR push and the stored row.
+
+**Who counts as a supervisor.** This codebase's hierarchy is admin → team lead → team member
+(`Team.TeamLeadUserId`). There is no rung between team lead and admin and no parent-team link, so
+"manager" resolves to the same person. **Admins are deliberately not notified per assignment** — every
+tenant-wide-access holder would receive every alert in the workspace, which is how a bell stops being
+read at all.
+
+Supervisors are resolved from the **owner's team memberships**, not from the record's filing alone:
+filing can legitimately be null for a multi-team owner (see `ILeadAccessGuard`), and a supervisor who
+hears nothing because of a filing gap is exactly the silence this removes. Someone leading two of the
+owner's teams is deduped to one alert.
+
+**⚠️ The link is attached only when the supervisor can open the record.** A team lead sees a record
+only when it is filed to a team they lead (Module 31), so an unfiled record would otherwise produce a
+notification whose link 404s. They are still told — awareness is the point — but with no link rather
+than a broken one. The bell and toast already guard `n.link`, so no frontend change was needed.
+
+### `ICrmAssignmentNotifier` — one call per assignment
+`CrmAssignmentAlerts` (a static builder for the owner alert only) is **replaced** by an injectable
+`ICrmAssignmentNotifier`. The old helper existed so six handlers could not drift on "did the owner
+change / is the actor the recipient"; adding a second recipient class to six call sites would have
+reintroduced exactly that drift. Each site is now one `NotifyAssignmentAsync(new CrmAssignment(…))`
+covering both alert kinds: `Assign`/`Create`/`Update` for leads, opportunities and accounts.
+
+Owner and supervisor alerts carry **separate event keys**
+(`lead.assigned-to-member`, `deal.assigned-to-member`, `account.assigned-to-member`,
+`lead.received-by-member`) rather than a flag on the originals, so a team lead can mute "what my team
+was handed" without muting their own work. Supervisor alerts are `Type: "info"`, not `"mention"` —
+awareness of someone else's work, not a request to act.
+
+A team lead assigning to their own member raises **no** supervisor alert: the dispatcher drops a
+recipient who is also the actor. They did it; they know.
+
+**Tenant scoping is applied by hand** in the supervisor query. The Identity team views carry Identity's
+own `TenantId` and sit outside the CRM namespace filter, so without it a lookup would cross workspaces;
+an unresolved tenant returns nobody rather than everybody. The tenant is passed explicitly on the
+intake path, which is an anonymous webhook with no ambient tenant.
+
+### Inbound portal leads (Property Finder / Bayut / Dubizzle / Meta)
+`LeadIngestedAlertHandler` now also raises a supervisor alert when the lead has an owner — **bell +
+realtime only**. The email and push stay the assigned agent's channel: they exist to get the enquiry
+answered inside the portal's response-time window, and copying a team lead into every one would bury
+the alerts that need acting on. An unowned lead raises none — the existing fan-out already reaches
+everyone with tenant-wide lead access.
+
+**Cosmetic bug fixed in passing:** every Property Finder alert read "New **Property_finder** lead".
+The key arrives in two spellings — the provider key is dashed (`property-finder`) but `Lead.Platform`,
+which is preferred, is underscored (`property_finder`) — so the switch missed and the fallback
+title-cased the raw key. `PortalLabel` now normalises `_` → `-`.
+
+### Verified against the live database (SHAHBAZ-QFINITY), not asserted
+- **Property Finder already raises both halves**: 6,075 PF leads, and `[notifications].[notifications]`
+  holds the matching `lead.received` rows (most recent 2026-09-15). The stored row and the SignalR push
+  are the *same* `PublishManyAsync` call, so a stored row is proof the push was attempted.
+- **Bayut is wired and healthy but idle** — the integration is `connected` and polls every ~30 min
+  (last 2026-09-20 16:16), every run `success` with `Fetched 0`: "Nothing new since the last poll." It
+  runs the identical `IngestAsync` path as PF, so it is covered by construction, **not by observation**.
+- **Owner coverage**: 6,074 of 6,075 PF leads have an owner and 3,715 are filed to a team — so
+  supervisor alerts fire for essentially all of them, with a link for the filed ones.
+- **Supervisor resolution run against real rows**: recent PF leads owned by Team 2 agents resolve to
+  that team's lead, with the link attached. Two users lead two teams each (Warsan + Team C; Team D +
+  Team E) — the dedupe case — and "Business Bay Team" has no lead, which the `TeamLeadUserId != null`
+  filter skips.
+- **PF integration status is `error`** (last sync 2026-09-15) — pre-existing, unrelated to this change,
+  flagged not fixed.
+
+- **CRM.Infrastructure:** 0 errors ✅ (4 pre-existing warnings in untouched files). No migration, no
+  frontend change.
+- **Not exercised in a browser** — the proof is a new assignment producing a toast for the team lead
+  without a refresh.

@@ -61,7 +61,7 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
     [RequireAnyPermission("crm.leads.edit", "crm.leads-team.edit", "crm.leads-assigned.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateActivityRequest req, CancellationToken ct)
     {
-        var result = await sender.Send(new UpdateActivityCommand(id, req.Type, req.Subject, req.Description, req.DueDate, req.AssignedTo), ct);
+        var result = await sender.Send(new UpdateActivityCommand(id, req.Type, req.Subject, req.Description, req.DueDate, req.AssignedTo, req.AssignedToUserId), ct);
         return NoContentOrError(result);
     }
 
@@ -89,5 +89,6 @@ public sealed class ActivitiesController(ISender sender) : CrmControllerBase
         return NoContentOrError(result);
     }
 
-    public sealed record UpdateActivityRequest(string Type, string Subject, string? Description, string? DueDate, string AssignedTo);
+    public sealed record UpdateActivityRequest(string Type, string Subject, string? Description, string? DueDate,
+        string AssignedTo, Guid? AssignedToUserId = null);
 }

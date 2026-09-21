@@ -190,6 +190,8 @@ internal sealed class ActivityConfiguration : IEntityTypeConfiguration<Activity>
         builder.Property(x => x.RelatedToName).HasMaxLength(200);
         builder.Property(x => x.DueDate).HasMaxLength(20);
         builder.Property(x => x.AssignedTo).HasMaxLength(200);
+        // "my tasks" is the access path an assignee-scoped list will want.
+        builder.HasIndex(x => x.AssignedToUserId);
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         builder.HasIndex(x => new { x.RelatedToType, x.RelatedToId });
         builder.HasIndex(x => new { x.Completed, x.DueDate });

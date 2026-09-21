@@ -6,7 +6,8 @@ namespace Softaxis.CRM.Application.Activities.Commands;
 
 public sealed record CreateActivityCommand(
     string Type, string Subject, string? Description, string RelatedToType, Guid RelatedToId,
-    string? RelatedToName, string? DueDate, string AssignedTo) : ICommand<ActivityDto>;
+    string? RelatedToName, string? DueDate, string AssignedTo,
+    Guid? AssignedToUserId = null) : ICommand<ActivityDto>;
 
 public sealed class CreateActivityValidator : AbstractValidator<CreateActivityCommand>
 {
@@ -20,7 +21,8 @@ public sealed class CreateActivityValidator : AbstractValidator<CreateActivityCo
 }
 
 public sealed record UpdateActivityCommand(
-    Guid Id, string Type, string Subject, string? Description, string? DueDate, string AssignedTo) : ICommand;
+    Guid Id, string Type, string Subject, string? Description, string? DueDate, string AssignedTo,
+    Guid? AssignedToUserId = null) : ICommand;
 
 public sealed record CompleteActivityCommand(Guid Id) : ICommand;
 

@@ -449,7 +449,9 @@
         "completed": "مكتملة",
         "all": "الكل"
       }
-    }
+    },
+    "assignTo": "إسناد إلى",
+    "unassigned": "غير مُسند"
   },
   "contacts": {
     "heading": "جهات الاتصال ({{count}})",

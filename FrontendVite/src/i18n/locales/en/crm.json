@@ -449,7 +449,9 @@
         "completed": "Completed",
         "all": "All"
       }
-    }
+    },
+    "assignTo": "Assign to",
+    "unassigned": "Unassigned"
   },
   "contacts": {
     "heading": "Contacts ({{count}})",

@@ -11,7 +11,7 @@ public sealed class Activity
 
     public Activity(string type, string subject, string? description,
         string relatedToType, Guid relatedToId, string? relatedToName,
-        string? dueDate, string assignedTo)
+        string? dueDate, string assignedTo, Guid? assignedToUserId = null)
     {
         Id            = Guid.NewGuid();
         Type          = type;            // task | call | meeting | email | note
@@ -22,6 +22,7 @@ public sealed class Activity
         RelatedToName = relatedToName?.Trim();
         DueDate       = dueDate;
         AssignedTo    = assignedTo.Trim();
+        AssignedToUserId = assignedToUserId;
         Completed     = type is "note" or "email";   // log entries are inherently "done"
         if (Completed) CompletedAt = DateTime.UtcNow;
         CreatedAt     = DateTime.UtcNow;
@@ -38,14 +39,23 @@ public sealed class Activity
     public bool      Completed     { get; private set; }
     public DateTime? CompletedAt   { get; private set; }
     public string    AssignedTo    { get; private set; } = string.Empty;
+    /// <summary>
+    /// The assignee's login. Nullable: plenty of activities are logged against a name only (legacy
+    /// rows, and imports), and an alert must never be routed by matching a display name — that is how
+    /// a task ends up on the wrong person's list.
+    /// </summary>
+    public Guid?     AssignedToUserId { get; private set; }
     public bool      IsDeleted     { get; private set; }
     public DateTime  CreatedAt     { get; private set; }
     public DateTime? UpdatedAt     { get; private set; }
 
-    public void Update(string type, string subject, string? description, string? dueDate, string assignedTo)
+    public void Update(string type, string subject, string? description, string? dueDate,
+        string assignedTo, Guid? assignedToUserId = null)
     {
         Type = type; Subject = subject.Trim(); Description = description?.Trim();
-        DueDate = dueDate; AssignedTo = assignedTo.Trim(); UpdatedAt = DateTime.UtcNow;
+        DueDate = dueDate; AssignedTo = assignedTo.Trim();
+        AssignedToUserId = assignedToUserId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Complete()   { Completed = true;  CompletedAt = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow; }

@@ -514,6 +514,8 @@ export interface ActivityDto {
   completed: boolean;
   completedAt?: string | null;
   assignedTo: string;
+  /** The assignee's login. Null on legacy rows logged against a name only. */
+  assignedToUserId?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }
@@ -526,6 +528,8 @@ export interface CreateActivityRequest {
   relatedToName?: string | null;
   dueDate?: string | null;
   assignedTo: string;
+  /** Identity user id of the assignee — what routes the notification. */
+  assignedToUserId?: string | null;
 }
 export interface ActivitiesSummaryDto { openTasks: number; overdue: number; dueToday: number; upcoming: number; }
 
@@ -746,7 +750,7 @@ export const crmApi = {
   getActivitiesSummary: (): Promise<ActivitiesSummaryDto> => rawApiClient.get(`${BASE}/activities/summary`),
   getCustomerTimeline:  (customerId: string): Promise<ActivityDto[]> => rawApiClient.get(`${BASE}/customers/${customerId}/timeline`),
   createActivity:  (a: CreateActivityRequest): Promise<ActivityDto> => rawApiClient.post(`${BASE}/activities`, a),
-  updateActivity:  (id: string, a: { type: string; subject: string; description?: string | null; dueDate?: string | null; assignedTo: string }): Promise<void> => rawApiClient.put(`${BASE}/activities/${id}`, a),
+  updateActivity:  (id: string, a: { type: string; subject: string; description?: string | null; dueDate?: string | null; assignedTo: string; assignedToUserId?: string | null }): Promise<void> => rawApiClient.put(`${BASE}/activities/${id}`, a),
   completeActivity:(id: string): Promise<void> => rawApiClient.post(`${BASE}/activities/${id}/complete`),
   reopenActivity:  (id: string): Promise<void> => rawApiClient.post(`${BASE}/activities/${id}/reopen`),
   deleteActivity:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/activities/${id}`),

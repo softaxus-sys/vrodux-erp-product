@@ -8,6 +8,7 @@ import {
   useActivities, useCreateActivity, useCompleteActivity, useReopenActivity, useDeleteActivity,
 } from "@/hooks/crm/use-crm";
 import { useAuthStore } from "@/store/auth.store";
+import { useAssignableByTeam, decodeAssignee, encodeAssignee } from "@/hooks/identity/use-assignable-by-team";
 import type { ActivityType } from "@/lib/crm/crm.api";
 
 const TYPES: { value: ActivityType; icon: typeof Phone }[] = [
@@ -24,9 +25,13 @@ interface Props {
   relatedToId: string;
   relatedToName: string;
   assignedTo?: string;
+  /** The record owner's login, used to preselect the assignee. */
+  assignedToUserId?: string | null;
 }
 
-export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, assignedTo = "" }: Props) {
+export function ActivityTimeline({
+  relatedToType, relatedToId, relatedToName, assignedTo = "", assignedToUserId = null,
+}: Props) {
   const { t } = useTranslation("crm");
   const { data: activities = [] } = useActivities({ relatedToType, relatedToId });
   const create = useCreateActivity();
@@ -35,6 +40,22 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
   const del = useDeleteActivity();
 
   const currentUserName = useAuthStore(s => s.user?.name) ?? "";
+  const currentUserId = useAuthStore(s => s.user?.id) ?? "";
+
+  // The people this caller may hand CRM work to, grouped by team (server-scoped to their tier).
+  const { groups } = useAssignableByTeam();
+
+  // Preselect the record's owner so the common case — a task for whoever owns this lead — is one
+  // click. Falls back to the signed-in user on an unassigned record.
+  const [assignee, setAssignee] = React.useState<string>(() =>
+    encodeAssignee(assignedToUserId || currentUserId, null));
+
+  // The record's owner can change while the drawer is open (a reassign in another tab), and a picker
+  // still pointing at the previous owner would quietly file the next task to the wrong person.
+  React.useEffect(() => {
+    setAssignee(encodeAssignee(assignedToUserId || currentUserId, null));
+  }, [assignedToUserId, currentUserId]);
+
 
   const [type, setType] = React.useState<ActivityType>("note");
   const [subject, setSubject] = React.useState("");
@@ -44,13 +65,20 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
 
   const add = () => {
     if (!subject.trim()) return;
-    // Backend requires AssignedTo — use the lead/deal's assignee, else fall back to the
-    // current user so logging an activity on an unassigned record never 422s.
-    const owner = (assignedTo?.trim() || currentUserName || "Unassigned");
+
+    // The picker is the source of truth for WHO. The name is still sent because the backend keeps
+    // AssignedTo for display and legacy rows; the id is what routes the notification, and matching
+    // a person by name is exactly the guess that puts a task on the wrong list.
+    const { userId } = decodeAssignee(assignee);
+    const picked = groups.flatMap(g => g.members).find(m => m.id === userId);
+    const ownerName = picked?.fullName || assignedTo?.trim() || currentUserName || "Unassigned";
+
     create.mutate({
       type, subject: subject.trim(), description: null,
       relatedToType, relatedToId, relatedToName,
-      dueDate: needsDue && dueDate ? dueDate : null, assignedTo: owner,
+      dueDate: needsDue && dueDate ? dueDate : null,
+      assignedTo: ownerName,
+      assignedToUserId: userId || null,
     }, { onSuccess: () => { setSubject(""); setDueDate(""); } });
   };
 
@@ -79,6 +107,29 @@ export function ActivityTimeline({ relatedToType, relatedToId, relatedToName, as
           <Button size="sm" className="h-8 gap-1" disabled={!subject.trim() || create.isPending} onClick={add}>
             <Plus className="h-3.5 w-3.5" />{t("activity.add")}
           </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* bg-card, not bg-transparent — a transparent select renders an OS-native white popup in
+              dark mode (the project-wide rule). */}
+          <select
+            value={assignee}
+            onChange={e => setAssignee(e.target.value)}
+            aria-label={t("activity.assignTo", { defaultValue: "Assign to" })}
+            className="h-8 flex-1 rounded-md border border-border bg-card px-2 text-xs text-foreground"
+          >
+            <option value="">{t("activity.unassigned", { defaultValue: "Unassigned" })}</option>
+            {groups.map(g => (
+              <optgroup key={g.team} label={g.team}>
+                {g.members.map(m => (
+                  // Keyed by team + user: the same person appears under every team they belong to,
+                  // so a user id alone is not unique here.
+                  <option key={`${g.team}-${m.id}`} value={encodeAssignee(m.id, null)}>
+                    {m.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
       </div>
 

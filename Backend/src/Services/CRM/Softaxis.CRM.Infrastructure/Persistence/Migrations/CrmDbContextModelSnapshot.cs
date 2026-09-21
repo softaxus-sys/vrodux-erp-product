@@ -33,6 +33,9 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<Guid?>("AssignedToUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("Completed")
                         .HasColumnType("bit");
 
@@ -84,6 +87,8 @@ namespace Softaxis.CRM.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
 
                     b.HasIndex("TenantId");
 

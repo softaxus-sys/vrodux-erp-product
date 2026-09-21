@@ -1,15 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Domain.Entities;
+using Softaxis.CRM.Infrastructure.Handlers.Notifications;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class UpdateLeadHandler(CrmDbContext db, ILeadAccessGuard access, ICurrentUser currentUser) : ICommandHandler<UpdateLeadCommand>
+internal sealed class UpdateLeadHandler(
+    CrmDbContext db, ILeadAccessGuard access, ICurrentUser currentUser, ICrmAssignmentNotifier notifications)
+    : ICommandHandler<UpdateLeadCommand>
 {
     public async Task<Result> Handle(UpdateLeadCommand cmd, CancellationToken ct)
     {
@@ -44,6 +48,13 @@ internal sealed class UpdateLeadHandler(CrmDbContext db, ILeadAccessGuard access
                 currentUser.Id, currentUser.Username, "Reassigned via edit"));
 
         await db.SaveChangesAsync(ct);
+
+        // An edit that hands the lead to someone else is an assignment too — the alert must not depend
+        // on which screen the change was made from.
+        await notifications.NotifyAssignmentAsync(new CrmAssignment(
+            cmd.AssignedToUserId, cmd.AssignedTo, prevUserId, l.TeamId, currentUser.Id, currentUser.Username,
+            NotificationEvents.LeadAssigned, NotificationEvents.LeadAssignedToMember,
+            "Lead", l.FullName, $"/crm/leads?lead={l.Id}", "lead", l.Id), ct: ct);
 
         return Result.Success();
     }

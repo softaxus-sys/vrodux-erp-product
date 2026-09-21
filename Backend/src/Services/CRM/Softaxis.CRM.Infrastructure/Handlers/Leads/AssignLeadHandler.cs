@@ -1,14 +1,17 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Leads.Commands;
 using Softaxis.CRM.Domain.Entities;
+using Softaxis.CRM.Infrastructure.Handlers.Notifications;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Leads;
 
-internal sealed class AssignLeadHandler(CrmDbContext db, ILeadAccessGuard access, ICurrentUser currentUser)
+internal sealed class AssignLeadHandler(
+    CrmDbContext db, ILeadAccessGuard access, ICurrentUser currentUser, ICrmAssignmentNotifier notifications)
     : ICommandHandler<AssignLeadCommand>
 {
     public async Task<Result> Handle(AssignLeadCommand cmd, CancellationToken ct)
@@ -28,6 +31,15 @@ internal sealed class AssignLeadHandler(CrmDbContext db, ILeadAccessGuard access
             cmd.ToUserId, cmd.ToUserName, currentUser.Id, currentUser.Username, cmd.Note));
 
         await db.SaveChangesAsync(ct);
+
+        // After the save, so an alert can never describe a handover that failed to commit. The
+        // publisher never throws, so the assignment stands regardless of what happens here.
+        // Notifies the new owner AND the team leads above them — see ICrmAssignmentNotifier.
+        await notifications.NotifyAssignmentAsync(new CrmAssignment(
+            cmd.ToUserId, cmd.ToUserName, prevUserId, l.TeamId, currentUser.Id, currentUser.Username,
+            NotificationEvents.LeadAssigned, NotificationEvents.LeadAssignedToMember,
+            "Lead", l.FullName, $"/crm/leads?lead={l.Id}", "lead", l.Id), ct: ct);
+
         return Result.Success();
     }
 }

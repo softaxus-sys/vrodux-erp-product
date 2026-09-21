@@ -1,3 +1,5 @@
+using Softaxis.BuildingBlocks.Application.Notifications;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,10 @@ namespace Softaxis.Purchase.API.Controllers;
 [ApiController]
 [Route("api/purchase/approvals")]
 [Authorize]
-public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
+public sealed class ApprovalsController(
+    PurchaseDbContext db,
+    INotificationDispatcher notifications,
+    INotificationRecipients recipients) : ControllerBase
 {
     public record ItemDto(Guid Id, string Description, decimal Quantity, decimal EstimatedUnitPrice, decimal Total);
     public record ApprovalDto(Guid Id, string RequestNumber, string Title, string RequestedBy, string Department,
@@ -63,6 +68,30 @@ public sealed class ApprovalsController(PurchaseDbContext db) : ControllerBase
         a.RecalcTotal();
         db.PurchaseApprovals.Add(a);
         await db.SaveChangesAsync(ct);
+
+        // Tell whoever can action it. NOTE: this controller still injects the DbContext directly
+        // (pre-existing tech debt, see the CQRS rule) — only the notification call is added here
+        // rather than migrating the whole feature, which is its own task.
+        //
+        // Only the PENDING alert is raised. Approve/reject cannot notify the requester back, because
+        // PurchaseApproval.RequestedBy is a display NAME with no user id — matching a person by name
+        // is the kind of guess that quietly sends an approval to the wrong account. That needs a
+        // RequestedByUserId column first.
+        if (TenantAmbient.TenantId is { } tenantId)
+        {
+            var approvers = await recipients.WithPermissionAsync(tenantId, "purchase.approvals.approve", ct);
+            await notifications.PublishManyAsync(approvers.Select(uid => new NotificationRequest(
+                RecipientUserId: uid,
+                Module:          NotificationModules.Purchase,
+                Event:           NotificationEvents.PurchaseApprovalPending,
+                Title:           "Purchase request awaiting approval",
+                Message:         $"{a.RequestNumber} — {a.Title} ({a.Currency} {a.TotalAmount:N2}) from {a.RequestedBy}.",
+                Link:            "/purchase/approvals",
+                Type:            "info",
+                RelatedToType:   "purchase-approval",
+                RelatedToId:     a.Id)), ct);
+        }
+
         return CreatedAtAction(nameof(GetById), new { id = a.Id }, ToDto(a));
     }
 

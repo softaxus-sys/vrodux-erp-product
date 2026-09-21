@@ -1,12 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.HR.Application.Payroll.Commands;
+using Softaxis.HR.Infrastructure.Handlers.Notifications;
 using Softaxis.HR.Infrastructure.Persistence;
 
 namespace Softaxis.HR.Infrastructure.Handlers.Payroll;
 
-internal sealed class FinanceApprovePayrollRunHandler(HrDbContext db)
+internal sealed class FinanceApprovePayrollRunHandler(
+    HrDbContext db, INotificationDispatcher notifications, INotificationRecipients recipients)
     : ICommandHandler<FinanceApprovePayrollRunCommand>
 {
     public async Task<Result> Handle(FinanceApprovePayrollRunCommand cmd, CancellationToken ct)
@@ -25,6 +28,22 @@ internal sealed class FinanceApprovePayrollRunHandler(HrDbContext db)
 
         run.MarkFinanceApproved(cmd.ApprovedByName);
         await db.SaveChangesAsync(ct);
+
+        // Back to HR: they are the ones who can now disburse, and nothing else tells them the gate
+        // has opened.
+        await HrAlerts.NotifyQueueAsync(notifications, recipients,
+            permissionKey: "hr.payroll.approve",
+            module:        NotificationModules.Hr,
+            eventKey:      NotificationEvents.PayrollApproved,
+            type:          "success",
+            title:         "Payroll approved by Finance",
+            message:       $"Payroll for {run.Period} was approved{(string.IsNullOrWhiteSpace(cmd.ApprovedByName) ? "" : $" by {cmd.ApprovedByName}")} and can now be paid.",
+            link:          "/hr/payroll",
+            relatedToType: "payroll-run",
+            relatedToId:   run.Id,
+            actorUserId:   null,
+            ct:            ct);
+
         return Result.Success();
     }
 }

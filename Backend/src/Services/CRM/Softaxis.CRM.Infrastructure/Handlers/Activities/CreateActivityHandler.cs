@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
+using Softaxis.CRM.Application.Abstractions;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Activities.Commands;
 using Softaxis.CRM.Application.Activities.Dtos;
@@ -9,7 +11,9 @@ using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Activities;
 
-internal sealed class CreateActivityHandler(CrmDbContext db, ILeadAccessGuard access) : ICommandHandler<CreateActivityCommand, ActivityDto>
+internal sealed class CreateActivityHandler(
+    CrmDbContext db, ILeadAccessGuard access, ICurrentUser currentUser, INotificationDispatcher notifications)
+    : ICommandHandler<CreateActivityCommand, ActivityDto>
 {
     public async Task<Result<ActivityDto>> Handle(CreateActivityCommand cmd, CancellationToken ct)
     {
@@ -18,7 +22,8 @@ internal sealed class CreateActivityHandler(CrmDbContext db, ILeadAccessGuard ac
             return Result.Failure<ActivityDto>(Error.NotFoundById("Lead", cmd.RelatedToId));
 
         var a = new Activity(cmd.Type, cmd.Subject, cmd.Description,
-            cmd.RelatedToType, cmd.RelatedToId, cmd.RelatedToName, cmd.DueDate, cmd.AssignedTo);
+            cmd.RelatedToType, cmd.RelatedToId, cmd.RelatedToName, cmd.DueDate, cmd.AssignedTo,
+            cmd.AssignedToUserId);
 
         db.Activities.Add(a);
 
@@ -35,6 +40,23 @@ internal sealed class CreateActivityHandler(CrmDbContext db, ILeadAccessGuard ac
         }
 
         await db.SaveChangesAsync(ct);
+
+        // Assigning a task to someone else is exactly the case a notification exists for. Assigning to
+        // yourself raises nothing — the dispatcher drops a recipient who is also the actor.
+        if (a.AssignedToUserId is not null)
+            await notifications.PublishAsync(new NotificationRequest(
+                RecipientUserId: a.AssignedToUserId.Value,
+                Module:          NotificationModules.Crm,
+                Event:           NotificationEvents.ActivityAssigned,
+                Title:           $"{ActivityAlertText.Label(a.Type)} assigned to you",
+                Message:         string.IsNullOrWhiteSpace(a.RelatedToName)
+                                     ? a.Subject
+                                     : $"{a.Subject} — {a.RelatedToName}",
+                Link:            ActivityAlertText.LinkFor(a.RelatedToType, a.RelatedToId),
+                Type:            "mention",
+                RelatedToType:   "activity",
+                RelatedToId:     a.Id,
+                ActorUserId:     currentUser.Id), ct);
 
         return Result.Success(ActivityMappings.ToDto(a));
     }

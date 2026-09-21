@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Application.PushNotifications;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.CRM.Application.Abstractions;
@@ -37,6 +38,8 @@ internal sealed class LeadIngestedAlertHandler(
     ICrmEmailService email,
     IPushNotificationSender push,
     IConfiguration configuration,
+    INotificationDispatcher notifications,
+    ICrmAssignmentNotifier supervisors,
     ILogger<LeadIngestedAlertHandler> logger) : INotificationHandler<LeadIngestedNotification>
 {
     /// <summary>Upper bound for the "nobody owns it" fan-out, so a large team is never spammed per lead.</summary>
@@ -65,17 +68,39 @@ internal sealed class LeadIngestedAlertHandler(
             var summary = string.Join(" · ", new[] { lead.InterestedIn, lead.Phone ?? lead.WhatsApp }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
 
-            foreach (var r in recipients)
-            {
-                var n = new CrmNotification(r.UserId, "mention", title,
-                    string.IsNullOrWhiteSpace(summary) ? "Open the lead to respond." : summary,
-                    link, "lead", lead.Id);
-                db.Notifications.Add(n);
-                // Webhook contexts have no ambient tenant, so SaveChanges would leave this NULL —
-                // and a NULL-tenant row is invisible to the very user it is for.
-                db.Entry(n).Property(TenantIsolation.Column).CurrentValue = evt.TenantId;
-            }
-            await db.SaveChangesAsync(ct);
+            // Raised through the shared publisher so an inbound lead lands in the SAME bell as every
+            // other module's alerts, and gets the instant push. TenantId is passed explicitly: intake
+            // can be an anonymous webhook with no ambient tenant, and a NULL-tenant row would be
+            // invisible to the very user it was raised for.
+            var body = string.IsNullOrWhiteSpace(summary) ? "Open the lead to respond." : summary;
+            await notifications.PublishManyAsync(recipients.Select(r => new NotificationRequest(
+                RecipientUserId: r.UserId,
+                Module:          NotificationModules.Crm,
+                Event:           NotificationEvents.LeadReceived,
+                Title:           title,
+                Message:         body,
+                Link:            link,
+                Type:            "mention",
+                RelatedToType:   "lead",
+                RelatedToId:     lead.Id,
+                TenantId:        evt.TenantId)), ct);
+
+            // The agent's supervisor is told too, so a portal enquiry landing on one person is
+            // visible one rung up without the team lead watching the list. Only when the lead has an
+            // owner: the unowned fan-out above already reaches everyone with tenant-wide lead access.
+            // Bell + realtime only — the email and push stay the assigned agent's channel, because
+            // they exist to get the enquiry answered inside the portal's response-time window.
+            if (lead.AssignedToUserId is { } ownerId)
+                await supervisors.NotifySupervisorsAsync(new CrmSupervisorAlert(
+                    OwnerId:       ownerId,
+                    OwnerName:     lead.AssignedTo,
+                    TeamId:        lead.TeamId,
+                    EventKey:      NotificationEvents.LeadReceivedByMember,
+                    Title:         $"New {portal} lead for {(string.IsNullOrWhiteSpace(lead.AssignedTo) ? "your team" : lead.AssignedTo)}",
+                    Message:       string.IsNullOrWhiteSpace(summary) ? name : $"{name} — {summary}",
+                    Link:          link,
+                    RelatedToType: "lead",
+                    RelatedToId:   lead.Id), evt.TenantId, ct);
 
             await SendPushAsync(recipients.Select(r => r.UserId).ToList(), title,
                 string.IsNullOrWhiteSpace(summary) ? "Open the lead to respond." : summary,
@@ -170,7 +195,7 @@ internal sealed class LeadIngestedAlertHandler(
             JOIN [identity].[permissions] p       ON p.Id = rp.PermissionId
             WHERE u.IsDeleted = 0
               AND u.TenantId = {tenantId}
-              AND p.Module = 'crm.leads'").ToListAsync(ct);
+              AND p.ModuleId = 'crm.leads'").ToListAsync(ct);
 
         return rows
             .GroupBy(r => r.UserId).Select(g => g.First())
@@ -185,7 +210,13 @@ internal sealed class LeadIngestedAlertHandler(
         return n.Length > 0 ? n : fallback ?? "there";
     }
 
-    private static string PortalLabel(string? key) => (key ?? "").ToLowerInvariant() switch
+    /// <summary>
+    /// A portal's display name. The key arrives in two spellings — the provider key is dashed
+    /// (<c>property-finder</c>) but <c>Lead.Platform</c>, which is preferred, is underscored
+    /// (<c>property_finder</c>). Without normalising, every Property Finder alert read
+    /// "New Property_finder lead" — the switch missed and the fallback title-cased the raw key.
+    /// </summary>
+    private static string PortalLabel(string? key) => (key ?? "").ToLowerInvariant().Replace('_', '-') switch
     {
         "bayut"           => "Bayut",
         "dubizzle"        => "Dubizzle",

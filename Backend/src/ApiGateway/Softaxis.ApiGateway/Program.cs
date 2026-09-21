@@ -28,6 +28,7 @@ using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
+using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
 Log.Logger = new LoggerConfiguration()
@@ -167,6 +168,15 @@ try
         Softaxis.Restaurant.Application.Abstractions.IRestaurantRealtimeNotifier,
         Softaxis.Restaurant.API.Realtime.SignalRRestaurantNotifier>();
     builder.Services.AddSignalR();
+
+    // ── Platform-wide notifications ──────────────────────────────────────────
+    // The shared store + publisher every module raises alerts through (BuildingBlocks), plus the
+    // SignalR channel that delivers them. The realtime notifier is registered HERE rather than in
+    // BuildingBlocks so BuildingBlocks keeps no SignalR reference and every service can depend on it.
+    builder.Services.AddNotifications(builder.Configuration);
+    builder.Services.AddScoped<
+        Softaxis.BuildingBlocks.Application.Notifications.INotificationRealtimeNotifier,
+        Softaxis.ApiGateway.Notifications.SignalRNotificationNotifier>();
 
     // Support.Application.Abstractions.ICurrentUser  →  Support CurrentUserService (cross-tenant
     // ticket access — the one ICurrentUser in this codebase that also surfaces the caller's OWN
@@ -326,6 +336,7 @@ try
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
         await app.Services.MigrateAndSeedVisaServicesAsync();       // Visa Services
         await app.Services.MigrateAndSeedSupportAsync();            // Support
+        await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────
@@ -371,6 +382,7 @@ try
     app.MapControllers();
     app.MapHub<Softaxis.Restaurant.API.Realtime.RestaurantHub>("/hubs/restaurant");
     app.MapHub<Softaxis.Support.API.Realtime.SupportHub>("/hubs/support");
+    app.MapHub<Softaxis.ApiGateway.Notifications.NotificationsHub>("/hubs/notifications");
 
     app.MapGet("/health", () => Results.Ok(new
     {

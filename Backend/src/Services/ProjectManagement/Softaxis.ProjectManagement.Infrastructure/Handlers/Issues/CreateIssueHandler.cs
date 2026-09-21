@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
+using Softaxis.ProjectManagement.Application.Abstractions;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.ProjectManagement.Application.Issues.Commands;
 using Softaxis.ProjectManagement.Application.Issues.Dtos;
@@ -8,7 +10,8 @@ using Softaxis.ProjectManagement.Infrastructure.Persistence;
 
 namespace Softaxis.ProjectManagement.Infrastructure.Handlers.Issues;
 
-internal sealed class CreateIssueHandler(ProjectManagementDbContext db)
+internal sealed class CreateIssueHandler(
+    ProjectManagementDbContext db, ICurrentUser currentUser, INotificationDispatcher notifications)
     : ICommandHandler<CreateIssueCommand, IssueDto>
 {
     public async Task<Result<IssueDto>> Handle(CreateIssueCommand cmd, CancellationToken ct)
@@ -61,6 +64,21 @@ internal sealed class CreateIssueHandler(ProjectManagementDbContext db)
 
         await db.SaveChangesAsync(ct);
 
+
+        // Someone told to pick this up needs to know without watching the board. Assigning to
+        // yourself raises nothing.
+        if (entity.AssigneeId is { } assignee && assignee != currentUser.Id)
+            await notifications.PublishAsync(new NotificationRequest(
+                RecipientUserId: assignee,
+                Module:          NotificationModules.ProjectManagement,
+                Event:           NotificationEvents.IssueAssigned,
+                Title:           "Issue assigned to you",
+                Message:         $"{entity.IssueKey} — {entity.Title}",
+                Link:            $"/project-management/issues?issue={entity.Id}",
+                Type:            "mention",
+                RelatedToType:   "issue",
+                RelatedToId:     entity.Id,
+                ActorUserId:     currentUser.Id), ct);
         var dto = await IssueMappings.LoadDtoAsync(db, entity.Id, ct);
         return Result.Success(dto!);
     }

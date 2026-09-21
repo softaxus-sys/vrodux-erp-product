@@ -21,7 +21,12 @@ public static class InfrastructureExtensions
     {
         services.AddDbContext<SupportDbContext>(opts =>
             opts.UseSqlServer(
-                configuration.GetConnectionString("SupportDb"),
+                // Falls back to IdentityDb when SupportDb is unset — every service points at the same
+                // physical database with its own schema, and a missing key here used to take the WHOLE
+                // gateway down at startup with "The ConnectionString property has not been initialized."
+                // AiAssistant and Notifications already fall back the same way.
+                configuration.GetConnectionString("SupportDb")
+                    ?? configuration.GetConnectionString("IdentityDb"),
                 sql => sql.MigrationsAssembly(typeof(SupportDbContext).Assembly.FullName)));
 
         services.Configure<SupportOptions>(configuration.GetSection(SupportOptions.SectionName));

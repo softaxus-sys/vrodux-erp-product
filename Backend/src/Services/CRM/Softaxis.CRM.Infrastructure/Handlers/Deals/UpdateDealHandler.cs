@@ -1,12 +1,18 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Deals.Commands;
+using Softaxis.CRM.Infrastructure.Handlers.Notifications;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Deals;
 
-internal sealed class UpdateDealHandler(CrmDbContext db, ILeadAccessGuard access, IDealStageRecorder stageRecorder) : ICommandHandler<UpdateDealCommand>
+internal sealed class UpdateDealHandler(
+    CrmDbContext db, ILeadAccessGuard access, IDealStageRecorder stageRecorder,
+    ICurrentUser currentUser, ICrmAssignmentNotifier notifications)
+    : ICommandHandler<UpdateDealCommand>
 {
     public async Task<Result> Handle(UpdateDealCommand cmd, CancellationToken ct)
     {
@@ -27,6 +33,7 @@ internal sealed class UpdateDealHandler(CrmDbContext db, ILeadAccessGuard access
         }
 
         var previousStage = d.Stage;
+        var previousOwner = d.AssignedToUserId;
         d.Update(cmd.Title, company, cmd.Value, cmd.Stage, cmd.Priority, cmd.Probability,
             cmd.ExpectedCloseDate, cmd.AssignedTo, cmd.Source, cmd.Industry, cmd.Description,
             cmd.NextAction, cmd.NextActionDate, cmd.Tags, cmd.ForecastCategory, cmd.CustomerId, cmd.AssignedToUserId);
@@ -42,6 +49,11 @@ internal sealed class UpdateDealHandler(CrmDbContext db, ILeadAccessGuard access
         // The edit form can change stage too — record it so history is not blind to that path.
         await stageRecorder.RecordMoveAsync(d, previousStage, ct);
         await db.SaveChangesAsync(ct);
+
+        await notifications.NotifyAssignmentAsync(new CrmAssignment(
+            cmd.AssignedToUserId, cmd.AssignedTo, previousOwner, d.TeamId, currentUser.Id, currentUser.Username,
+            NotificationEvents.DealAssigned, NotificationEvents.DealAssignedToMember,
+            "Opportunity", d.Title, $"/crm/pipeline?deal={d.Id}", "deal", d.Id), ct: ct);
 
         return Result.Success();
     }

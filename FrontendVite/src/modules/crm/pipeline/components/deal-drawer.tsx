@@ -227,7 +227,7 @@ export function DealDrawer({ deal, open, onClose, onEdit }: Props) {
               {/* Activities Tab */}
               {tab === "activities" && (
                 <div className="p-6">
-                  <ActivityTimeline relatedToType="deal" relatedToId={deal.id} relatedToName={deal.title} assignedTo={deal.assignedTo} />
+                  <ActivityTimeline relatedToType="deal" relatedToId={deal.id} relatedToName={deal.title} assignedTo={deal.assignedTo} assignedToUserId={deal.assignedToUserId} />
                 </div>
               )}
 

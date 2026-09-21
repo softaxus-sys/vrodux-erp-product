@@ -570,7 +570,7 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
               {tab === "journey" && <LeadJourney leadId={leadId} />}
 
               {tab === "activity" && (
-                <ActivityTimeline relatedToType="lead" relatedToId={leadId} relatedToName={lead.fullName} assignedTo={lead.assignedTo} />
+                <ActivityTimeline relatedToType="lead" relatedToId={leadId} relatedToName={lead.fullName} assignedTo={lead.assignedTo} assignedToUserId={lead.assignedToUserId} />
               )}
 
               {tab === "documents" && (

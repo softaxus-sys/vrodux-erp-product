@@ -48,6 +48,9 @@ public static class InfrastructureExtensions
 
         // ── Role-based lead access scoping (full vs assigned-only) ───────────
         services.AddScoped<Services.ILeadAccessGuard, Services.LeadAccessGuard>();
+        // Owner + supervisor alerts for every CRM assignment, in one place.
+        services.AddScoped<Handlers.Notifications.ICrmAssignmentNotifier,
+                           Handlers.Notifications.CrmAssignmentNotifier>();
         services.AddScoped<Services.IDealStageRecorder, Services.DealStageRecorder>();
         services.AddScoped<Services.ILeadStatusRecorder, Services.LeadStatusRecorder>();
 

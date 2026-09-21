@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useUiStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
-import { useNotificationsStore } from "@/store/notifications.store";
+import { useNotificationFeed } from "@/hooks/notifications/use-notifications";
 import { useThemeStore } from "@/store/theme.store";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,7 +58,9 @@ function ThemeToggle() {
 }
 
 function NotificationsButton() {
-  const { unreadCount } = useNotificationsStore();
+  // Reads the same React Query cache the panel writes to, so the badge and the list can never
+  // disagree — the old zustand store was a second copy of the same truth.
+  const unreadCount = useNotificationFeed().data?.unreadCount ?? 0;
   const { setNotificationPanelOpen, notificationPanelOpen } = useUiStore();
   return (
     <button

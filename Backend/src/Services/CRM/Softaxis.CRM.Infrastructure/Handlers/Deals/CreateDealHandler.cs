@@ -1,15 +1,20 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Notifications;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Deals.Commands;
 using Softaxis.CRM.Application.Deals.Dtos;
 using Softaxis.CRM.Domain.Entities;
+using Softaxis.CRM.Infrastructure.Handlers.Notifications;
 using Softaxis.CRM.Infrastructure.Persistence;
 using Softaxis.CRM.Infrastructure.Services;
 
 namespace Softaxis.CRM.Infrastructure.Handlers.Deals;
 
-internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stageRecorder, ICurrentUser currentUser, ILeadAccessGuard access) : ICommandHandler<CreateDealCommand, DealDto>
+internal sealed class CreateDealHandler(
+    CrmDbContext db, IDealStageRecorder stageRecorder, ICurrentUser currentUser, ILeadAccessGuard access,
+    ICrmAssignmentNotifier notifications)
+    : ICommandHandler<CreateDealCommand, DealDto>
 {
     public async Task<Result<DealDto>> Handle(CreateDealCommand cmd, CancellationToken ct)
     {
@@ -42,6 +47,11 @@ internal sealed class CreateDealHandler(CrmDbContext db, IDealStageRecorder stag
         db.Deals.Add(d);
         stageRecorder.RecordCreated(d);   // opens the stage-history trail the velocity reports read
         await db.SaveChangesAsync(ct);
+
+        await notifications.NotifyAssignmentAsync(new CrmAssignment(
+            ownerId, ownerName, null, d.TeamId, currentUser.Id, currentUser.Username,
+            NotificationEvents.DealAssigned, NotificationEvents.DealAssignedToMember,
+            "Opportunity", d.Title, $"/crm/pipeline?deal={d.Id}", "deal", d.Id), ct: ct);
 
         return Result.Success(DealMappings.ToDto(d));
     }
