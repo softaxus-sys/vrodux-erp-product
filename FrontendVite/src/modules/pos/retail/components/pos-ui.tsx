@@ -366,29 +366,43 @@ export function CartLine({
   name: string; price: number; quantity: number; total: number; emoji?: string; currency: string;
   onInc: () => void; onDec: () => void; onRemove: () => void;
 }) {
-  const qtyBtn = "h-11 w-11 rounded-xl border-2 border-border bg-card flex items-center justify-center hover:border-primary hover:text-primary active:scale-95 transition";
+  // One row instead of two. The previous stacked layout ran ~110px per line, so a sale of any real
+  // size showed two or three items in the panel and everything else was a scroll away. This lands
+  // around 60px — near double the items visible — while keeping 36px touch targets, and reads as a
+  // card in the same language as ProductTile (rounded-2xl, border-2, bg-card, tabular figures).
+  const qtyBtn = "h-9 w-9 rounded-lg border-2 border-border bg-background flex items-center justify-center hover:border-primary hover:text-primary active:scale-95 transition shrink-0";
   return (
     <motion.div layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-      className="py-3 border-b-2 border-border/60 last:border-0">
-      <div className="flex items-start gap-3">
-        {emoji && <span className="text-2xl leading-none mt-0.5">{emoji}</span>}
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-bold text-foreground leading-snug line-clamp-2">{name}</p>
-          <p className="text-sm font-semibold text-muted-foreground tabular-nums">{formatCurrency(price, currency)} each</p>
-        </div>
-        <button onClick={onRemove} aria-label={`Remove ${name}`}
-          className="h-9 w-9 -mt-1 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex items-center justify-center shrink-0">
-          <X className="h-5 w-5" />
+      className="group flex items-center gap-2.5 rounded-2xl border-2 border-border bg-card px-3 py-2.5 hover:border-primary/50 transition-colors">
+
+      {emoji && <span className="text-2xl leading-none shrink-0">{emoji}</span>}
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-foreground leading-tight truncate" title={name}>{name}</p>
+        <p className="text-xs font-semibold text-muted-foreground tabular-nums mt-0.5">
+          {formatCurrency(price, currency)} each
+        </p>
+      </div>
+
+      <div className="flex items-center gap-1.5 shrink-0">
+        <button onClick={onDec} className={qtyBtn} aria-label={`Decrease quantity of ${name}`}>
+          <Minus className="h-4 w-4" strokeWidth={3} />
+        </button>
+        <span className="text-lg font-black w-7 text-center tabular-nums">{quantity}</span>
+        <button onClick={onInc} className={qtyBtn} aria-label={`Increase quantity of ${name}`}>
+          <Plus className="h-4 w-4" strokeWidth={3} />
         </button>
       </div>
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex items-center gap-2">
-          <button onClick={onDec} className={qtyBtn} aria-label="Decrease quantity"><Minus className="h-5 w-5" strokeWidth={3} /></button>
-          <span className="text-xl font-black w-10 text-center tabular-nums">{quantity}</span>
-          <button onClick={onInc} className={qtyBtn} aria-label="Increase quantity"><Plus className="h-5 w-5" strokeWidth={3} /></button>
-        </div>
-        <p className="text-lg font-black tabular-nums">{formatCurrency(total, currency)}</p>
-      </div>
+
+      <p className="text-base font-black tabular-nums text-end w-24 shrink-0">
+        {formatCurrency(total, currency)}
+      </p>
+
+      {/* Always reachable by keyboard; only tinted on hover so it does not compete with the figures. */}
+      <button onClick={onRemove} aria-label={`Remove ${name}`}
+        className="h-8 w-8 rounded-lg text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive flex items-center justify-center shrink-0 transition-colors">
+        <X className="h-4 w-4" strokeWidth={2.5} />
+      </button>
     </motion.div>
   );
 }

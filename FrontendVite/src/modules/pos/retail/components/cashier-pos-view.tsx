@@ -381,7 +381,7 @@ export function CashierPOSView() {
           </AnimatePresence>
 
           {/* Cart items */}
-          <div className="flex-1 min-h-[120px] overflow-y-auto px-5">
+          <div className="flex-1 min-h-[120px] overflow-y-auto px-4 py-2 space-y-2">
             {cart.length === 0 ? (
               <EmptyCart />
             ) : (
