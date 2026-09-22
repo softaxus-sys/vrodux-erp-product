@@ -8,7 +8,9 @@ import { useAuthStore } from "@/store/auth.store";
 import { getDeviceLabel } from "@/lib/device-id";
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000";
+  process.env.EXPO_PUBLIC_API_URL ??
+  // A release build that loses its env must not quietly point at the phone itself.
+  (__DEV__ ? "http://localhost:5000" : "https://erp.vrodux.com");
 
 // ── Backend envelope types ────────────────────────────────────────────────────
 

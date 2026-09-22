@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
@@ -142,8 +143,9 @@ internal sealed class SmtpQuotationEmailSender(
         var port     = int.TryParse(section["SmtpPort"], out var p) ? p : 587;
         var username = section["SmtpUsername"];
         var password = section["SmtpPassword"];
-        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
-        var fromName = section["FromName"]    ?? companyName;
+        var fromAddr = EmailSender.Address(section["FromAddress"]);
+        var fromName = !string.IsNullOrWhiteSpace(section["FromName"]) ? section["FromName"]!.Trim()
+                     : EmailSender.Name(companyName);
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username))
         {

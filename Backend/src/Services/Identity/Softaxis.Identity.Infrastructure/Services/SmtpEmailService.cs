@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -20,8 +21,8 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var port     = int.Parse(section["SmtpPort"] ?? "587");
         var username = section["SmtpUsername"];
         var password = section["SmtpPassword"];
-        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
-        var fromName = section["FromName"]    ?? "Softaxis ERP";
+        var fromAddr = EmailSender.Address(section["FromAddress"]);
+        var fromName = EmailSender.Name(section["FromName"]);
 
         // Dev fallback: log to console when SMTP is not configured
         if (!SmtpConfiguration.IsConfigured(section))
@@ -80,8 +81,8 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var port     = int.Parse(section["SmtpPort"] ?? "587");
         var username = section["SmtpUsername"];
         var password = section["SmtpPassword"];
-        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
-        var fromName = section["FromName"]    ?? "Softaxis ERP";
+        var fromAddr = EmailSender.Address(section["FromAddress"]);
+        var fromName = EmailSender.Name(section["FromName"]);
 
         // Dev fallback: log to console when SMTP is not configured so the link is still usable.
         if (!SmtpConfiguration.IsConfigured(section))
@@ -138,8 +139,8 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var port     = int.Parse(section["SmtpPort"] ?? "587");
         var username = section["SmtpUsername"];
         var password = section["SmtpPassword"];
-        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
-        var fromName = section["FromName"]    ?? "Softaxis ERP";
+        var fromAddr = EmailSender.Address(section["FromAddress"]);
+        var fromName = EmailSender.Name(section["FromName"]);
 
         // Dev fallback: log to console when SMTP is not configured so the link is still usable.
         if (!SmtpConfiguration.IsConfigured(section))
@@ -277,8 +278,8 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var port     = int.Parse(section["SmtpPort"] ?? "587");
         var username = section["SmtpUsername"];
         var password = section["SmtpPassword"];
-        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
-        var fromName = section["FromName"]    ?? "Softaxis ERP";
+        var fromAddr = EmailSender.Address(section["FromAddress"]);
+        var fromName = EmailSender.Name(section["FromName"]);
 
         if (!SmtpConfiguration.IsConfigured(section))
         {
