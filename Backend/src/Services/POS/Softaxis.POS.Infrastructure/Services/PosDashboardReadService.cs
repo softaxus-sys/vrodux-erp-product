@@ -36,19 +36,43 @@ public sealed class PosDashboardReadService(POSDbContext db) : IPosDashboardRead
             .Select(g => new { Method = g.Key, Amount = g.Sum(p => p.Amount), Count = g.Count() })
             .ToListAsync(ct);
 
-        var topProducts = await sales
+        // Grouped by (id, name), not by id alone: EF cannot translate an aggregate over a STRING
+        // inside a grouped projection (g.Max(li => li.ProductName)), and the whole overview query
+        // threw InvalidOperationException because of it — the dashboard 500'd on every call.
+        // The name is denormalized onto the line item, so a product renamed between sales yields
+        // one row per spelling; they are merged back together in memory below.
+        var productRows = await sales
             .SelectMany(t => t.LineItems)
-            .GroupBy(li => li.ProductId)
-            .Select(g => new PosTopProductDto(
-                g.Key, g.Max(li => li.ProductName), g.Sum(li => li.Quantity), g.Sum(li => li.LineTotal)))
-            .OrderByDescending(p => p.Revenue)
-            .Take(TopN)
+            .GroupBy(li => new { li.ProductId, li.ProductName })
+            .Select(g => new
+            {
+                g.Key.ProductId,
+                g.Key.ProductName,
+                Quantity = g.Sum(li => li.Quantity),
+                Revenue  = g.Sum(li => li.LineTotal),
+            })
             .ToListAsync(ct);
 
+        var topProducts = productRows
+            .GroupBy(r => r.ProductId)
+            .Select(g => new PosTopProductDto(
+                g.Key,
+                // Most recently-used spelling is not knowable here; the highest-earning one is the
+                // most representative, and is stable across runs.
+                g.OrderByDescending(r => r.Revenue).First().ProductName ?? "—",
+                g.Sum(r => r.Quantity),
+                g.Sum(r => r.Revenue)))
+            .OrderByDescending(p => p.Revenue)
+            .Take(TopN)
+            .ToList();
+
         var cashiers = await sales
+            // Projected to an anonymous type, then ordered, then mapped. Ordering by a member of a
+            // constructed DTO (OrderByDescending(c => c.Sales) straight off the Select) is not
+            // translatable and threw, taking the whole overview down with it.
             .GroupBy(t => t.CashierId)
-            .Select(g => new PosCashierDto(g.Key, g.Count(), g.Sum(t => t.TotalAmount)))
-            .OrderByDescending(c => c.Sales)
+            .Select(g => new { CashierId = g.Key, Count = g.Count(), Sales = g.Sum(t => t.TotalAmount) })
+            .OrderByDescending(x => x.Sales)
             .Take(TopN)
             .ToListAsync(ct);
 
@@ -79,7 +103,9 @@ public sealed class PosDashboardReadService(POSDbContext db) : IPosDashboardRead
             hourly, current, previous, trend,
             payments.OrderByDescending(p => p.Amount)
                     .Select(p => new PosPaymentMixDto(p.Method.ToString(), p.Amount, p.Count)).ToList(),
-            topProducts, cashiers, openShifts, offlineEnabled, tills);
+            topProducts,
+            cashiers.Select(c => new PosCashierDto(c.CashierId, c.Count, c.Sales)).ToList(),
+            openShifts, offlineEnabled, tills);
     }
 
     // ── Definitions (see PosKpisDto) ──────────────────────────────────────────

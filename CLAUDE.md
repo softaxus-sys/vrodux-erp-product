@@ -7073,7 +7073,7 @@ Payment buttons — the only POS actions the server now refuses that the UI stil
   sync) and is blocked from all **12** it must not (refund, product CRUD, stock adjust, Z-reports,
   dashboard, tax rates, wallet, gateway config); Supervisor reaches refund/void/Z-reports/close-any;
   Manager reaches all 91. **ALL CHECKS PASSED.**
-- **Not runtime-verified** — needs republish + restart. Then spot-check: as a Cashier, a sale, a
+- **Runtime-verified against a live gateway — see Module 63d.** Original spot-check plan: as a Cashier, a sale, a
   hold/recall and closing your own shift all still work, while refund returns **403
   Permission.Denied**; as a Supervisor, refund and voiding a cashier's sale both succeed; void a
   sale of an **inventory-schema** product and confirm the stock actually returns (this is the
@@ -7105,6 +7105,56 @@ have the same exposure from Module 5k's `inventory.stock.*` gating — pre-exist
 one-line-per-entry fix with the mechanism in place.
 
 - **Frontend `tsc`:** 0 errors ✅ · **`vite build`:** ✅ · Frontend only — no backend change, no migration.
+
+### Module 63c — 🔴 The POS dashboard 500'd on every call (found by actually running it)
+
+Module 63's verification was static + simulated. Running it against a live gateway immediately
+found something neither pass could see: **`GET /api/pos-dashboard/overview` threw on every
+request**, so the POS dashboard (Module 59) has never worked. 59 shipped explicitly
+"not runtime-tested", and nothing exercised it since.
+
+Two untranslatable LINQ queries in `PosDashboardReadService`, each taking the whole overview down:
+- `topProducts` — `g.Max(li => li.ProductName)`: **EF cannot aggregate over a string inside a
+  grouped projection.** Now groups by `(ProductId, ProductName)` and merges the rows in memory, so
+  a product renamed between sales still reports one combined total.
+- `cashiers` — `.OrderByDescending(c => c.Sales)` applied directly to a projected **record DTO**.
+  Not translatable either. Now projects to an anonymous type, orders, takes, and maps to the DTO
+  afterwards — the same shape `payments` already used, which is why `payments` never failed.
+
+`?? "—"` on the product name also clears the pre-existing CS8604 nullable warning in that file.
+
+**Verified live, not asserted:** the endpoint returns **200** with real figures
+(`grossSales: 599.94`) where it previously returned 500.
+
+### Module 63d — Live verification of the POS hardening
+
+Ran the real thing rather than reasoning about it: local gateway on :5199 against the dev database,
+JWTs minted per seeded role tier (test-only `Jwt__Secret` supplied by env var — no secret committed,
+no real credentials used), asserting the actual status code from the actual endpoints.
+
+**14 actions × 4 tiers + an anonymous probe — ALL PASSED:**
+- **No POS permissions at all** (the HR self-service / CRM agent case that could previously refund):
+  403 on every POS action including refund, void and cash-out; only the open reference reads return 200.
+- **Cashier:** sells, opens a shift, reads products, looks up a customer, reads payment methods —
+  and is refused refund, product create/delete, the dashboard, reports, tax rates and wallet top-up.
+- **Supervisor:** refund, void, dashboard, reports, tax rates all allowed; product **delete** refused.
+- **Manager:** reaches everything, delete included.
+- Unauthenticated refund → **401**.
+
+**The void/stock fix proven end to end.** Sold an inventory-schema product (one that exists only in
+`inventory.products`, never in `pos.products`) through the real sale endpoint and voided it, reading
+`StockQuantity` from SQL at each step: **498 → 496 on sale → 498 on void.** Before the fix the stock
+would never have come back. Test shift closed and the product left untouched afterwards.
+
+**Two things the static pass could not have caught**, both worth remembering:
+1. The dashboard 500 above — a static map says which permission guards an endpoint, never whether
+   the endpoint works.
+2. A first run failed `look up a customer` for **every** tier including Manager. Not a permission
+   bug: `ModuleEnforcementMiddleware` maps `/api/customers` → `crm.basic` and `/api/tax-rates`,
+   `/api/currencies`, `/api/payment-terms` → `finance`. My test token's `modules` claim was too
+   narrow. Worth knowing in its own right: **a POS-only tenant cannot use the till's customer picker
+   or read tax rates** — those POS endpoints require the CRM and Finance modules. Pre-existing and
+   arguably wrong for a POS-schema customer master, but a licensing decision, so flagged not changed.
 
 ### Cleared during the audit — not issues
 - The 22 hardcoded `"AED"` hits are the **seeded currency reference table** (a "UAE Dirham" row
