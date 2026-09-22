@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.Vendors.Commands.CreateVendor;
 using Softaxis.POS.Application.Vendors.Commands.DeleteVendor;
 using Softaxis.POS.Application.Vendors.Commands.UpdateVendor;
@@ -15,6 +16,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class VendorsController(ISender sender) : BaseApiController(sender)
 {
     // ── GET /api/vendors ──────────────────────────────────────────────────────
+    [RequirePermission("pos.products.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search   = null,
@@ -27,11 +29,13 @@ public sealed class VendorsController(ISender sender) : BaseApiController(sender
             new GetVendorsQuery(search, status, category, page, pageSize), ct));
 
     // ── GET /api/vendors/{id} ─────────────────────────────────────────────────
+    [RequirePermission("pos.products.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new GetVendorByIdQuery(id), ct));
 
     // ── POST /api/vendors ─────────────────────────────────────────────────────
+    [RequirePermission("pos.products.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] UpsertVendorRequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new CreateVendorCommand(
@@ -40,6 +44,7 @@ public sealed class VendorsController(ISender sender) : BaseApiController(sender
             req.PaymentTerms, req.Currency, req.Notes), ct), successCode: 201);
 
     // ── PUT /api/vendors/{id} ─────────────────────────────────────────────────
+    [RequirePermission("pos.products.edit")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpsertVendorRequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new UpdateVendorCommand(
@@ -49,6 +54,7 @@ public sealed class VendorsController(ISender sender) : BaseApiController(sender
             req.Status, req.Rating), ct));
 
     // ── DELETE /api/vendors/{id} ──────────────────────────────────────────────
+    [RequirePermission("pos.products.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new DeleteVendorCommand(id), ct));

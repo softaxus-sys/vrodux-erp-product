@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.Dashboard;
 
 namespace Softaxis.POS.API.Controllers;
@@ -10,6 +11,7 @@ namespace Softaxis.POS.API.Controllers;
 [Route("api/pos-dashboard")]
 public sealed class PosDashboardController(ISender sender) : BaseApiController(sender)
 {
+    [RequirePermission("pos.reports.view")]
     [HttpGet("overview")]
     public async Task<IActionResult> GetOverview(
         [FromQuery] string? from = null,

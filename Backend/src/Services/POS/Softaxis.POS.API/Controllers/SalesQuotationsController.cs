@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.SalesQuotations.Commands.ConvertQuotationToOrder;
 using Softaxis.POS.Application.SalesQuotations.Commands.CreateSalesQuotation;
 using Softaxis.POS.Application.SalesQuotations.Commands.DeleteSalesQuotation;
@@ -16,6 +17,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class SalesQuotationsController(ISender sender) : BaseApiController(sender)
 {
     // ── GET /api/sales-quotations ─────────────────────────────────────────────
+    [RequirePermission("pos.transactions.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status     = null,
@@ -30,11 +32,13 @@ public sealed class SalesQuotationsController(ISender sender) : BaseApiControlle
             new GetSalesQuotationsQuery(status, customerId, from, to, search, page, pageSize), ct));
 
     // ── GET /api/sales-quotations/{id} ────────────────────────────────────────
+    [RequirePermission("pos.transactions.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new GetSalesQuotationByIdQuery(id), ct));
 
     // ── POST /api/sales-quotations ────────────────────────────────────────────
+    [RequirePermission("pos.transactions.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateSQRequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new CreateSalesQuotationCommand(
@@ -44,6 +48,7 @@ public sealed class SalesQuotationsController(ISender sender) : BaseApiControlle
                 i.UnitPrice, i.DiscountPercent, i.TaxRate)).ToList()), ct), successCode: 201);
 
     // ── PUT /api/sales-quotations/{id} ────────────────────────────────────────
+    [RequirePermission("pos.transactions.create")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSQRequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new UpdateSalesQuotationCommand(
@@ -53,11 +58,13 @@ public sealed class SalesQuotationsController(ISender sender) : BaseApiControlle
                 i.UnitPrice, i.DiscountPercent, i.TaxRate)).ToList()), ct));
 
     // ── POST /api/sales-quotations/{id}/convert ───────────────────────────────
+    [RequirePermission("pos.transactions.create")]
     [HttpPost("{id:guid}/convert")]
     public async Task<IActionResult> ConvertToOrder(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new ConvertQuotationToOrderCommand(id), ct));
 
     // ── DELETE /api/sales-quotations/{id} ─────────────────────────────────────
+    [RequirePermission("pos.transactions.void")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new DeleteSalesQuotationCommand(id), ct));

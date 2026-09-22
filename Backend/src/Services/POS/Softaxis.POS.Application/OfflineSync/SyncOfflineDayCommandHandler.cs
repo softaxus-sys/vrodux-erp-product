@@ -43,6 +43,34 @@ public sealed class SyncOfflineDayCommandHandler(
         // hold unsynced records, and when an administrator forces it anyway the affected till is locked
         // on a "sync first" screen — refusing its upload here would strand real sales forever.
 
+        // Pre-flight the elevated event kinds. Replayed events run through the normal handlers with
+        // the SYNCING user's permissions, so a queue holding refunds, voids or discounted sales
+        // would otherwise be accepted, replay, and have those records rejected one by one at the
+        // very end of the day. Failing up front — before anything is written — tells the operator
+        // to fetch a supervisor while the shift is still open and recoverable.
+        var events = cmd.Sessions.SelectMany(s => s.Events).ToList();
+
+        static string Need(string what, int n) =>
+            $"This till's queue holds {n} {what}. A user with permission to {what.TrimEnd('s')} must sync it.";
+
+        var refunds = events.Count(e => e.Kind == "refund");
+        if (refunds > 0 && !currentUser.HasPermission("pos.transactions.refund"))
+            return Result.Failure<OfflineSyncResultDto>(
+                Error.Custom("OfflineSync.Forbidden", Need("refunds", refunds)));
+
+        var voids = events.Count(e => e.Kind == "void");
+        if (voids > 0 && !currentUser.HasPermission("pos.transactions.void"))
+            return Result.Failure<OfflineSyncResultDto>(
+                Error.Custom("OfflineSync.Forbidden", Need("voids", voids)));
+
+        var discounted = events.Count(e =>
+            e.Kind == "sale" &&
+            ((e.LineItems?.Any(i => i.DiscountPercent > 0 || i.DiscountAmount > 0 || i.UnitPriceOverride.HasValue) ?? false)
+             || e.OrderDiscount?.Type is "percentage" or "fixed"));
+        if (discounted > 0 && !currentUser.HasPermission("pos.transactions.discount"))
+            return Result.Failure<OfflineSyncResultDto>(Error.Custom("OfflineSync.Forbidden",
+                $"This till's queue holds {discounted} discounted sale(s). A user with permission to apply discounts must sync it."));
+
         var sessionResults = new List<OfflineSessionResultDto>();
         var eventResults   = new List<OfflineEventResultDto>();
         var soldProducts   = new HashSet<Guid>();

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.StockMovements.Queries.GetStockMovements;
 
 namespace Softaxis.POS.API.Controllers;
@@ -10,6 +11,7 @@ namespace Softaxis.POS.API.Controllers;
 [Tags("StockMovements")]
 public sealed class StockMovementsController(ISender sender) : BaseApiController(sender)
 {
+    [RequirePermission("pos.products.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] Guid?   productId = null,

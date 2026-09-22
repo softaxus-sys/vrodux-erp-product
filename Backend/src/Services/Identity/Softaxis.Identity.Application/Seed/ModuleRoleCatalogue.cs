@@ -92,10 +92,20 @@ public static class ModuleRoleCatalogue
                     "Full POS operations — open/close shifts, void transactions, apply discounts, manage refunds.",
                     (m, a) => InModule(m, "pos") && a != "delete"),
 
+                // Deliberately no void / refund / discount / approve — those are the Supervisor's.
+                // Sessions include "create": a cashier opens and closes their OWN till, which is
+                // the whole point of the role. (Handlers still refuse someone else's shift.)
+                // Customers are readable so a sale can be attached to one at the till.
                 new("Cashier",
-                    "Process sales at the POS terminal. View products and print receipts.",
-                    (m, a) => m is "pos.sessions" or "pos.products" ? a == "view"
-                            : m == "pos.transactions" && a is "view" or "create" or "print"),
+                    "Process sales at the POS terminal. Open and close their own shift, view products, print receipts.",
+                    (m, a) => m switch
+                    {
+                        "pos.sessions"     => a is "view" or "create",
+                        "pos.products"     => a == "view",
+                        "pos.customers"    => a == "view",
+                        "pos.transactions" => a is "view" or "create" or "print",
+                        _                  => false,
+                    }),
             ];
 
         // ── HR: manager + staff, plus the self-service tier ─────────────────

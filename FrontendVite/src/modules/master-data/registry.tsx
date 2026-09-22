@@ -68,6 +68,14 @@ export interface MasterDef {
   category:     string;
   /** Frontend ModuleKey gating visibility — only shown if the tenant has this module. */
   module:       string;
+  /**
+   * Permission keys gating this master. The tenant module above says whether the FEATURE exists;
+   * these say whether THIS user may use it. Backends enforce these regardless — without them the
+   * screen renders and every save returns 403, which reads as a broken page rather than a denial.
+   * Any one of the keys is enough (mirrors RequireAnyPermission). Omit to leave ungated.
+   */
+  viewPermission?:  string[];
+  writePermission?: string[];
   /** Tailwind color stem: "blue" | "emerald" | "violet" | "rose" | "orange" | "amber" */
   color:        string;
   columns:      ColDef[];
@@ -315,6 +323,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "isDefault",    label: "Set as Default", type: "toggle", defaultValue: false },
       { key: "isActive",     label: "Active",         type: "toggle", defaultValue: true  },
     ],
+    writePermission: ["pos.sessions.approve"],
     ...currencyOps,
   },
 
@@ -355,6 +364,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "isDefault",   label: "Set as Default", type: "toggle", defaultValue: false },
       { key: "isActive",    label: "Active",          type: "toggle", defaultValue: true  },
     ],
+    writePermission: ["pos.sessions.approve"],
     ...taxOps,
   },
 
@@ -387,6 +397,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "description",    label: "Description",    type: "textarea",span: "full" },
       { key: "isDefault",      label: "Set as Default", type: "toggle",  defaultValue: false },
     ],
+    writePermission: ["pos.sessions.approve"],
     ...termsOps,
   },
 
@@ -426,6 +437,7 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "isDefault",       label: "Set as Default",   type: "toggle",  defaultValue: false },
       { key: "isActive",        label: "Active",           type: "toggle",  defaultValue: true  },
     ],
+    writePermission: ["pos.sessions.approve"],
     ...custGroupOps,
   },
 
@@ -453,6 +465,8 @@ export const MASTER_REGISTRY: MasterDef[] = [
       { key: "address", label: "Address",      type: "textarea", span: "full" },
       { key: "notes",   label: "Notes",        type: "textarea", span: "full" },
     ],
+    viewPermission:  ["pos.customers.view", "pos.transactions.create"],
+    writePermission: ["pos.customers.edit"],
     fetchAll: () => customersApi.getAll({ pageSize: 500 }).then(r => r.items as unknown as Record<string, unknown>[]),
     create:   d  => customersApi.create(d as any),
     update:   (id, d) => customersApi.update(id, d as any),
@@ -499,6 +513,8 @@ export const MASTER_REGISTRY: MasterDef[] = [
         ],
       },
     ],
+    viewPermission:  ["pos.products.view"],
+    writePermission: ["pos.products.create", "pos.products.edit"],
     fetchAll: () => vendorsApi.getAll({ pageSize: 500 }).then(r => r.items as unknown as Record<string, unknown>[]),
     create:   d  => vendorsApi.create(d as any),
     update:   (id, d) => vendorsApi.update(id, d as any),

@@ -1,3 +1,4 @@
+using Softaxis.POS.API.Authorization;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,7 @@ public sealed class PrintController(IOptions<PrinterSettings> opts) : Controller
         || (string.IsNullOrWhiteSpace(_cfg.Mode) && OperatingSystem.IsWindows());
 
     // ── POST /api/pos/print/raw ───────────────────────────────────────────────
+    [RequirePermission("pos.transactions.print")]
     [HttpPost("raw")]
     public async Task<IActionResult> PrintRaw([FromBody] PrintRawRequest req, CancellationToken ct)
     {
@@ -76,6 +78,7 @@ public sealed class PrintController(IOptions<PrinterSettings> opts) : Controller
     }
 
     // ── GET /api/pos/print/status ─────────────────────────────────────────────
+    [RequirePermission("pos.transactions.print")]
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus(CancellationToken ct)
     {

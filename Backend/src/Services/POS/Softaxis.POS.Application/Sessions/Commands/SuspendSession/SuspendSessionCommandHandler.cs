@@ -17,8 +17,11 @@ public sealed class SuspendSessionCommandHandler(
         if (session is null)
             return Result.Failure(Error.NotFoundById("Session", cmd.SessionId));
 
-        if (session.CashierId != currentUser.Id && !currentUser.HasPermission("pos.session.manage"))
-            return Result.Failure(Error.Custom("Session.Forbidden", "Insufficient permissions."));
+        // Was "pos.session.manage" — not a seeded key, so it could never be granted.
+        // pos.sessions.approve is the seeded supervisor key.
+        if (session.CashierId != currentUser.Id && !currentUser.HasPermission("pos.sessions.approve"))
+            return Result.Failure(Error.Custom("Session.Forbidden",
+                "You can only suspend your own session."));
 
         var result = session.Suspend(cmd.Notes);
         if (result.IsFailure)

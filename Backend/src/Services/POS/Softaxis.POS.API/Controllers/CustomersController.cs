@@ -16,6 +16,10 @@ namespace Softaxis.POS.API.Controllers;
 [Authorize]
 public sealed class CustomersController(ISender sender) : BaseApiController(sender)
 {
+    // A till operator must be able to find a customer to attach to a sale (loyalty, house account,
+    // wallet), and the Cashier tier deliberately holds no pos.customers key — so the sale
+    // permission also opens the lookup. The wallet / credit-limit endpoints below stay strict.
+    [RequireAnyPermission("pos.customers.view", "pos.transactions.create")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -24,14 +28,18 @@ public sealed class CustomersController(ISender sender) : BaseApiController(send
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetCustomersQuery(page, pageSize, search), ct));
 
+    [RequireAnyPermission("pos.customers.view", "pos.transactions.create")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetCustomerByIdQuery(id), ct));
 
+    // Registering a walk-in customer at the till is ordinary cashier work.
+    [RequireAnyPermission("pos.customers.edit", "pos.transactions.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCustomerCommand cmd, CancellationToken ct = default)
         => HandleResult(await Sender.Send(cmd, ct), successCode: 201);
 
+    [RequirePermission("pos.customers.edit")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCustomerCommand cmd, CancellationToken ct = default)
     {

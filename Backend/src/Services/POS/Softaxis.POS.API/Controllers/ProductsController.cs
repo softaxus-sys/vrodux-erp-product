@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.Products.Commands.AdjustStock;
 using Softaxis.POS.Application.Products.Commands.CreateProduct;
 using Softaxis.POS.Application.Products.Commands.DeleteProduct;
@@ -15,6 +16,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class ProductsController(ISender sender) : BaseApiController(sender)
 {
     /// <summary>Get paginated product list.</summary>
+    [RequirePermission("pos.products.view")]
     [HttpGet]
     public async Task<IActionResult> GetProducts(
         [FromQuery] int page = 1,
@@ -30,21 +32,25 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
             new GetProductsQuery(page, pageSize, search, categoryId, isActive, lowStock, sortBy, sortDesc), ct));
 
     /// <summary>Get product by ID.</summary>
+    [RequirePermission("pos.products.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetProductByIdQuery(id), ct));
 
     /// <summary>Look up product by barcode (used at POS terminal).</summary>
+    [RequirePermission("pos.products.view")]
     [HttpGet("barcode/{barcode}")]
     public async Task<IActionResult> GetByBarcode(string barcode, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetProductByBarcodeQuery(barcode), ct));
 
     /// <summary>Create a new product.</summary>
+    [RequirePermission("pos.products.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateProductCommand cmd, CancellationToken ct = default)
         => HandleResult(await Sender.Send(cmd, ct), successCode: 201);
 
     /// <summary>Update an existing product.</summary>
+    [RequirePermission("pos.products.edit")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProductCommand cmd, CancellationToken ct = default)
     {
@@ -53,11 +59,13 @@ public sealed class ProductsController(ISender sender) : BaseApiController(sende
     }
 
     /// <summary>Delete a product (soft delete).</summary>
+    [RequirePermission("pos.products.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new DeleteProductCommand(id), ct));
 
     /// <summary>Manually adjust stock (purchase receipt, damage write-off, stock-take).</summary>
+    [RequirePermission("pos.products.edit")]
     [HttpPost("{id:guid}/stock-adjustment")]
     public async Task<IActionResult> AdjustStock(Guid id, [FromBody] AdjustStockRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(

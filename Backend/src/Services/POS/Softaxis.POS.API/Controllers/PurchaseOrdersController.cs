@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.PurchaseOrders.Commands.CreatePurchaseOrder;
 using Softaxis.POS.Application.PurchaseOrders.Commands.DeletePurchaseOrder;
 using Softaxis.POS.Application.PurchaseOrders.Commands.UpdatePurchaseOrder;
@@ -16,6 +17,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class PurchaseOrdersController(ISender sender) : BaseApiController(sender)
 {
     // ── GET /api/purchase-orders ──────────────────────────────────────────────
+    [RequirePermission("pos.products.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status   = null,
@@ -30,11 +32,13 @@ public sealed class PurchaseOrdersController(ISender sender) : BaseApiController
             new GetPurchaseOrdersQuery(status, vendorId, from, to, search, page, pageSize), ct));
 
     // ── GET /api/purchase-orders/{id} ─────────────────────────────────────────
+    [RequirePermission("pos.products.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new GetPurchaseOrderByIdQuery(id), ct));
 
     // ── POST /api/purchase-orders ─────────────────────────────────────────────
+    [RequirePermission("pos.products.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePORequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new CreatePurchaseOrderCommand(
@@ -43,6 +47,7 @@ public sealed class PurchaseOrdersController(ISender sender) : BaseApiController
                 i.ProductId, i.Description, i.Quantity, i.UnitCost, i.TaxRate)).ToList()), ct), successCode: 201);
 
     // ── PUT /api/purchase-orders/{id} ─────────────────────────────────────────
+    [RequirePermission("pos.products.edit")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePORequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new UpdatePurchaseOrderCommand(
@@ -51,11 +56,13 @@ public sealed class PurchaseOrdersController(ISender sender) : BaseApiController
                 i.ProductId, i.Description, i.Quantity, i.UnitCost, i.TaxRate)).ToList()), ct));
 
     // ── PATCH /api/purchase-orders/{id}/status ────────────────────────────────
+    [RequirePermission("pos.products.edit")]
     [HttpPatch("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] string status, CancellationToken ct) =>
         HandleResult(await Sender.Send(new UpdatePurchaseOrderStatusCommand(id, status), ct));
 
     // ── DELETE /api/purchase-orders/{id} ──────────────────────────────────────
+    [RequirePermission("pos.products.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new DeletePurchaseOrderCommand(id), ct));

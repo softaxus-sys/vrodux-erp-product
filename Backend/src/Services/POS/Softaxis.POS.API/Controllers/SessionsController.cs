@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.Sessions.Commands.CloseSession;
 using Softaxis.POS.Application.Sessions.Commands.OpenSession;
 using Softaxis.POS.Application.Sessions.Commands.RecordCashMovement;
@@ -16,31 +17,37 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class SessionsController(ISender sender) : BaseApiController(sender)
 {
     /// <summary>List all currently active (open) sessions.</summary>
+    [RequirePermission("pos.sessions.view")]
     [HttpGet("active")]
     public async Task<IActionResult> GetActive(CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetActiveSessionsQuery(), ct));
 
     /// <summary>Get a specific session by ID.</summary>
+    [RequirePermission("pos.sessions.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetSessionByIdQuery(id), ct));
 
     /// <summary>Open a new POS session (start of shift).</summary>
+    [RequireAnyPermission("pos.sessions.create", "pos.transactions.create")]
     [HttpPost("open")]
     public async Task<IActionResult> Open([FromBody] OpenSessionCommand cmd, CancellationToken ct = default)
         => HandleResult(await Sender.Send(cmd, ct), successCode: 201);
 
     /// <summary>Close a POS session (end of shift).</summary>
+    [RequireAnyPermission("pos.sessions.create", "pos.transactions.create", "pos.sessions.approve")]
     [HttpPost("{id:guid}/close")]
     public async Task<IActionResult> Close(Guid id, [FromBody] CloseSessionRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new CloseSessionCommand(id, req.ClosingCash, req.Notes), ct));
 
     /// <summary>Suspend a session temporarily.</summary>
+    [RequireAnyPermission("pos.sessions.create", "pos.transactions.create", "pos.sessions.approve")]
     [HttpPost("{id:guid}/suspend")]
     public async Task<IActionResult> Suspend(Guid id, [FromBody] SuspendSessionRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new SuspendSessionCommand(id, req.Notes), ct));
 
     /// <summary>Get all transactions in a session.</summary>
+    [RequirePermission("pos.sessions.view")]
     [HttpGet("{id:guid}/transactions")]
     public async Task<IActionResult> GetTransactions(
         Guid id,
@@ -51,6 +58,7 @@ public sealed class SessionsController(ISender sender) : BaseApiController(sende
             new GetTransactionsQuery(page, pageSize, SessionId: id), ct));
 
     /// <summary>Record a manual cash drawer movement (pay-in / pay-out).</summary>
+    [RequireAnyPermission("pos.transactions.create", "pos.sessions.approve")]
     [HttpPost("{id:guid}/cash-movement")]
     public async Task<IActionResult> RecordCashMovement(
         Guid id, [FromBody] CashMovementRequest req, CancellationToken ct = default)
@@ -58,6 +66,7 @@ public sealed class SessionsController(ISender sender) : BaseApiController(sende
             new RecordCashMovementCommand(id, req.Type, req.Amount, req.Reason), ct), successCode: 201);
 
     /// <summary>List the cash movements (pay-in / pay-out) recorded in a session.</summary>
+    [RequirePermission("pos.sessions.view")]
     [HttpGet("{id:guid}/cash-movements")]
     public async Task<IActionResult> GetCashMovements(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetCashMovementsQuery(id), ct));

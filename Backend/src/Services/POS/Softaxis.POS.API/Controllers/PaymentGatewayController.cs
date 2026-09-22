@@ -12,6 +12,7 @@ public sealed class PaymentGatewayController(ISender sender) : BaseApiController
 {
     /// <summary>GET /api/paymentgateway/catalog — the static provider catalog (manual + coming-soon list).</summary>
     [HttpGet("catalog")]
+    [RequirePermission("pos.payment-gateway.view")]
     public async Task<IActionResult> GetCatalog(CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetPaymentGatewayCatalogQuery(), ct));
 

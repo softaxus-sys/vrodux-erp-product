@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Application.Transactions.Commands.CreateSale;
 using Softaxis.POS.Application.Transactions.Commands.HoldTransaction;
@@ -17,6 +18,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class TransactionsController(ISender sender) : BaseApiController(sender)
 {
     /// <summary>Get paginated transaction list with filters.</summary>
+    [RequirePermission("pos.transactions.view")]
     [HttpGet]
     public async Task<IActionResult> GetTransactions(
         [FromQuery] int page = 1,
@@ -35,6 +37,7 @@ public sealed class TransactionsController(ISender sender) : BaseApiController(s
 
     /// <summary>Today's takings by hour and the payment-method split, aggregated in SQL for the
     /// dashboard charts.</summary>
+    [RequirePermission("pos.reports.view")]
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard(
         [FromQuery] string? date = null,
@@ -43,11 +46,13 @@ public sealed class TransactionsController(ISender sender) : BaseApiController(s
         => HandleResult(await Sender.Send(new GetPosDashboardQuery(date, utcOffsetMinutes), ct));
 
     /// <summary>Get full transaction detail (with line items and payments).</summary>
+    [RequirePermission("pos.transactions.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetTransactionByIdQuery(id), ct));
 
     /// <summary>Create and complete a sale transaction.</summary>
+    [RequirePermission("pos.transactions.create")]
     [HttpPost("sale")]
     public async Task<IActionResult> CreateSale([FromBody] CreateSaleCommand cmd, CancellationToken ct = default)
         // Strip any client-supplied offline context: it relaxes stock checks and is reserved for
@@ -55,11 +60,13 @@ public sealed class TransactionsController(ISender sender) : BaseApiController(s
         => HandleResult(await Sender.Send(cmd with { Offline = null }, ct), successCode: 201);
 
     /// <summary>Void a completed transaction.</summary>
+    [RequireAnyPermission("pos.transactions.void", "pos.transactions.create")]
     [HttpPost("{id:guid}/void")]
     public async Task<IActionResult> Void(Guid id, [FromBody] VoidRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new VoidTransactionCommand(id, req.Reason), ct));
 
     /// <summary>Refund (partial or full) a completed transaction.</summary>
+    [RequirePermission("pos.transactions.refund")]
     [HttpPost("{id:guid}/refund")]
     public async Task<IActionResult> Refund(Guid id, [FromBody] RefundBody body, CancellationToken ct = default)
         => HandleResult(await Sender.Send(
@@ -67,11 +74,13 @@ public sealed class TransactionsController(ISender sender) : BaseApiController(s
                ct), successCode: 201);
 
     /// <summary>Hold (park) a transaction for later recall.</summary>
+    [RequirePermission("pos.transactions.create")]
     [HttpPost("hold")]
     public async Task<IActionResult> Hold([FromBody] HoldTransactionCommand cmd, CancellationToken ct = default)
         => HandleResult(await Sender.Send(cmd, ct), successCode: 201);
 
     /// <summary>Recall a previously held transaction.</summary>
+    [RequirePermission("pos.transactions.create")]
     [HttpPost("held/{id:guid}/recall")]
     public async Task<IActionResult> Recall(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new RecallTransactionCommand(id), ct));

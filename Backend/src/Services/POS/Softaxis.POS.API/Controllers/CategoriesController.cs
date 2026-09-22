@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.Categories.Commands.CreateCategory;
 using Softaxis.POS.Application.Categories.Commands.DeleteCategory;
 using Softaxis.POS.Application.Categories.Commands.UpdateCategory;
@@ -11,6 +12,7 @@ namespace Softaxis.POS.API.Controllers;
 [Authorize]
 public sealed class CategoriesController(ISender sender) : BaseApiController(sender)
 {
+    [RequirePermission("pos.products.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] int page = 1,
@@ -20,10 +22,12 @@ public sealed class CategoriesController(ISender sender) : BaseApiController(sen
         CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetCategoriesQuery(page, pageSize, search, isActive), ct));
 
+    [RequirePermission("pos.products.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCategoryCommand cmd, CancellationToken ct = default)
         => HandleResult(await Sender.Send(cmd, ct), successCode: 201);
 
+    [RequirePermission("pos.products.edit")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCategoryCommand cmd, CancellationToken ct = default)
     {
@@ -31,6 +35,7 @@ public sealed class CategoriesController(ISender sender) : BaseApiController(sen
         return HandleResult(await Sender.Send(cmd, ct));
     }
 
+    [RequirePermission("pos.products.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new DeleteCategoryCommand(id), ct));

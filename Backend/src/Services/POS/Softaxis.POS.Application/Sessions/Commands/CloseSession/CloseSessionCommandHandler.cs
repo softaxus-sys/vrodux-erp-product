@@ -23,8 +23,11 @@ public sealed class CloseSessionCommandHandler(
         if (!currentUser.IsAuthenticated || !currentUser.Id.HasValue)
             return Result.Failure<POSSessionDto>(Error.Custom("Session.Unauthorized", "Cannot verify user identity."));
 
-        // Only the owning cashier or a user with close_any permission can close
-        if (session.CashierId != currentUser.Id.Value && !currentUser.HasPermission("pos.session.close_any"))
+        // Only the owning cashier, or a supervisor, can close a shift.
+        // NB: this used to check "pos.session.close_any", which is not a seeded permission key —
+        // so it could never be granted and nobody could close a departed cashier's till.
+        // pos.sessions.approve is the seeded supervisor key (held by POS Manager + Supervisor).
+        if (session.CashierId != currentUser.Id.Value && !currentUser.HasPermission("pos.sessions.approve"))
             return Result.Failure<POSSessionDto>(Error.Custom("Session.Forbidden", "You can only close your own sessions."));
 
         var result = session.Close(cmd.ClosingCash, cmd.Notes);

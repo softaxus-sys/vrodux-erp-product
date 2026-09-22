@@ -9,11 +9,10 @@ using Softaxis.POS.Domain.Repositories;
 namespace Softaxis.POS.Application.Transactions.Commands.VoidTransaction;
 
 public sealed class VoidTransactionCommandHandler(
-    IPOSTransactionRepository txnRepo,
-    IProductRepository        productRepo,
-    IStockMovementRepository  stockRepo,
-    ICurrentUser              currentUser,
-    IUnitOfWork               uow)
+    IPOSTransactionRepository  txnRepo,
+    ICrossSchemaProductService productLookup,
+    ICurrentUser               currentUser,
+    IUnitOfWork                uow)
     : ICommandHandler<VoidTransactionCommand, POSTransactionDto>
 {
     public async Task<Result<POSTransactionDto>> Handle(VoidTransactionCommand cmd, CancellationToken ct)
@@ -22,7 +21,10 @@ public sealed class VoidTransactionCommandHandler(
         if (transaction is null)
             return Result.Failure<POSTransactionDto>(Error.NotFoundById("Transaction", cmd.TransactionId));
 
-        if (!currentUser.HasPermission("pos.transaction.void") &&
+        // Was "pos.transaction.void" — singular, and not a seeded key, so granting the real
+        // permission (pos.transactions.void) did nothing and a supervisor could not void a
+        // cashier's sale. A cashier may still void their own.
+        if (!currentUser.HasPermission("pos.transactions.void") &&
             transaction.CashierId != currentUser.Id)
             return Result.Failure<POSTransactionDto>(Error.Custom("Txn.Forbidden", "Insufficient permissions to void transactions."));
 
@@ -30,19 +32,19 @@ public sealed class VoidTransactionCommandHandler(
         if (voidResult.IsFailure)
             return Result.Failure<POSTransactionDto>(voidResult.Error);
 
-        // Restore stock for voided transactions
+        // Restore stock for voided transactions.
+        // Must go through the cross-schema service, exactly as the sale deducted it: a POS sale can
+        // be of a product living in EITHER pos.products or inventory.products. This previously used
+        // the pos-schema repository only, so voiding a sale of an inventory-schema product silently
+        // never put the stock back. Refund already did this correctly; void did not.
         foreach (var lineItem in transaction.LineItems)
         {
-            var product = await productRepo.GetByIdAsync(lineItem.ProductId, ct);
+            var product = await productLookup.GetByIdForSaleAsync(lineItem.ProductId, ct);
             if (product is null || !product.TrackInventory) continue;
 
-            product.AdjustStock(lineItem.Quantity, StockAdjustmentType.Return, $"VOID:{transaction.TransactionNumber}");
-            var movement = StockMovement.Create(
-                product.Id, StockAdjustmentType.Return, lineItem.Quantity,
-                product.StockQuantity, currentUser.Id ?? Guid.Empty,
-                $"VOID:{transaction.TransactionNumber}", transaction.Id);
-            stockRepo.Add(movement);
-            productRepo.Update(product);
+            await productLookup.RestoreStockAsync(
+                product, lineItem.Quantity, $"VOID:{transaction.TransactionNumber}",
+                currentUser.Id ?? Guid.Empty, transaction.Id, ct);
         }
 
         txnRepo.Update(transaction);

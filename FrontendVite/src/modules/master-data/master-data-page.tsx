@@ -811,18 +811,35 @@ export function MasterDataPage() {
   const [params, setParams]  = useSearchParams();
   const queryClient           = useQueryClient();
   const hasModuleAccess       = useAuthStore(s => s.hasModuleAccess);
+  const hasRawPermission      = useAuthStore(s => s.hasRawPermission);
 
-  // Only show master tables whose module the tenant can access.
+  // The module says whether the tenant HAS the feature; the permission says whether THIS user may
+  // use it. Any one key is enough, mirroring RequireAnyPermission on the controllers.
+  const holdsAny = React.useCallback(
+    (keys?: string[]) => !keys?.length || keys.some(k => hasRawPermission(k)),
+    [hasRawPermission],
+  );
+
+  // Only show master tables whose module the tenant can access AND this user may read.
   const visibleMasters = React.useMemo(
-    () => MASTER_REGISTRY.filter(m => hasModuleAccess(m.module as ModuleKey)),
-    [hasModuleAccess],
+    () => MASTER_REGISTRY.filter(m => hasModuleAccess(m.module as ModuleKey) && holdsAny(m.viewPermission)),
+    [hasModuleAccess, holdsAny],
   );
   const visibleIds = React.useMemo(() => new Set(visibleMasters.map(m => m.id)), [visibleMasters]);
 
   const activeMasterId        = params.get("type") ?? "";
   const activeMasterRaw       = getMasterById(activeMasterId);
   // Block deep-links to masters the tenant isn't entitled to.
-  const activeMaster          = activeMasterRaw && visibleIds.has(activeMasterRaw.id) ? activeMasterRaw : undefined;
+  const activeMasterVisible   = activeMasterRaw && visibleIds.has(activeMasterRaw.id) ? activeMasterRaw : undefined;
+  // Drop the write ops when the user may only read. The whole UI keys off create/update/remove
+  // being defined, so stripping them here hides every add / edit / delete affordance at once —
+  // no per-button gate to forget. The server enforces the same keys regardless.
+  const activeMaster = React.useMemo(() => {
+    if (!activeMasterVisible) return undefined;
+    if (holdsAny(activeMasterVisible.writePermission)) return activeMasterVisible;
+    const { create: _c, update: _u, remove: _r, ...readOnly } = activeMasterVisible;
+    return readOnly as typeof activeMasterVisible;
+  }, [activeMasterVisible, holdsAny]);
 
   // Pre-fetch counts for all API-backed masters (best-effort)
   const { data: allCounts = {} } = useQuery({

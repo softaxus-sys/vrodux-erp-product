@@ -58,6 +58,26 @@ public sealed class CreateSaleCommandHandler(
                 return Result.Failure<POSTransactionDto>(Error.NotFoundById("Customer", cmd.CustomerId.Value));
         }
 
+        // ── Discretionary price reductions need the discount permission ───────
+        // The till hides these controls without it, but that is presentation only — nothing on the
+        // server checked, so the sale endpoint accepted any discount from any operator. Enforced
+        // here (not just on the controller) because the offline day-end sync replays sales through
+        // this handler via ISender.
+        //
+        // A voucher or loyalty redemption is deliberately NOT included: those are customer
+        // entitlements, validated server-side in ResolveOrderDiscount, and taking one at the till
+        // is ordinary cashier work. Only operator-chosen reductions are gated:
+        //   - a per-line discount,
+        //   - a manual percentage/fixed order discount,
+        //   - a unit-price override, which is an unbounded discount by another name.
+        var hasManualDiscount =
+            cmd.LineItems.Any(i => i.DiscountPercent > 0 || i.DiscountAmount > 0 || i.UnitPriceOverride.HasValue)
+            || cmd.OrderDiscount?.Type is "percentage" or "fixed";
+
+        if (hasManualDiscount && !currentUser.HasPermission("pos.transactions.discount"))
+            return Result.Failure<POSTransactionDto>(Error.Custom("Sale.DiscountForbidden",
+                "Insufficient permissions to apply a discount or override a price."));
+
         // ── Pass 1: resolve products, compute per-line base subtotals ─────────
         var drafts = new List<LineDraft>();
         foreach (var req in cmd.LineItems)

@@ -25,6 +25,14 @@ public sealed class RecordCashMovementCommandHandler(
             return Result.Failure<CashMovementDto>(Error.Custom("Session.NotOpen",
                 "Cash movements can only be recorded in an open session."));
 
+        // Taking cash out of (or putting it into) a drawer that is not yours is a supervisor
+        // action. An operator may move cash in their own open shift, which is where petty-cash
+        // drops and pay-outs legitimately happen. Enforced here as well as on the controller
+        // because the offline day-end sync replays cash movements through this handler.
+        if (session.CashierId != currentUser.Id && !currentUser.HasPermission("pos.sessions.approve"))
+            return Result.Failure<CashMovementDto>(Error.Custom("Session.Forbidden",
+                "You can only record cash movements in your own session."));
+
         var cashierId = currentUser.Id ?? session.CashierId;
         var isPayIn   = cmd.Type == "payin";
         var type      = isPayIn ? CashMovementType.PayIn : CashMovementType.PayOut;

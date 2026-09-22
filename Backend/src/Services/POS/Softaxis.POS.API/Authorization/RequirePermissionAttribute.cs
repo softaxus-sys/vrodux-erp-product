@@ -9,9 +9,7 @@ namespace Softaxis.POS.API.Authorization;
 /// Requires the current user to hold the given permission key (e.g. "pos.customers.edit") as a
 /// "permission" claim, or to be a super admin. Returns 403 with the same
 /// <c>{ Code, Description }</c> error shape used elsewhere in the API. Copy of the shared pattern
-/// already used in Finance/HR/Restaurant/CRM/etc — POS itself has no per-permission enforcement
-/// anywhere yet (only `[Authorize]`); this attribute is applied only to the new wallet/house-account
-/// endpoints, not retrofitted onto the rest of POS.
+/// already used in Finance/HR/Restaurant/CRM/etc, and now applied across every POS controller.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = false)]
 public sealed class RequirePermissionAttribute(string permission) : Attribute, IAuthorizationFilter

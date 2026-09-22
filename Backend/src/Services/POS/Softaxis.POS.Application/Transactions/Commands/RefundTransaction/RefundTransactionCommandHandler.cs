@@ -19,6 +19,14 @@ public sealed class RefundTransactionCommandHandler(
 {
     public async Task<Result<POSTransactionDto>> Handle(RefundTransactionCommand cmd, CancellationToken ct)
     {
+        // A refund takes money out of the drawer, so it always needs the refund permission —
+        // there is deliberately no "it was my own sale" fallback the way voiding has.
+        // Enforced here as well as on the controller because the offline day-end sync replays
+        // refunds through this handler via ISender, bypassing the controller entirely.
+        if (!currentUser.HasPermission("pos.transactions.refund"))
+            return Result.Failure<POSTransactionDto>(Error.Custom("Refund.Forbidden",
+                "Insufficient permissions to refund transactions."));
+
         var originalTxn = await txnRepo.GetByIdAsync(cmd.OriginalTransactionId, ct);
         if (originalTxn is null)
             return Result.Failure<POSTransactionDto>(Error.NotFoundById("Transaction", cmd.OriginalTransactionId));

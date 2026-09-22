@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.DTOs;
 using Softaxis.POS.Application.Reports.Queries.GetDailySummary;
@@ -11,6 +12,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class ReportsController(ISender sender, IReportService reportService) : BaseApiController(sender)
 {
     /// <summary>Get the daily sales summary for a given date (used by cashier dashboard).</summary>
+    [RequirePermission("pos.reports.view")]
     [HttpGet("daily-summary")]
     public async Task<IActionResult> GetDailySummary(
         [FromQuery] DateTime? date = null,
@@ -20,6 +22,7 @@ public sealed class ReportsController(ISender sender, IReportService reportServi
             new GetDailySummaryQuery(date?.Date ?? DateTime.UtcNow.Date, cashierId), ct));
 
     /// <summary>Run any named POS report with filters.</summary>
+    [RequirePermission("pos.reports.view")]
     [HttpGet("{reportId}")]
     public async Task<IActionResult> RunReport(
         string reportId,

@@ -8,6 +8,7 @@ import {
   useCustomers, useCustomer, useTopUpWallet, useSetCreditLimit, useRecordHouseAccountPayment, useWalletTransactions,
 } from "@/hooks/pos/use-customers";
 import type { CustomerSummaryDto, WalletTransactionType } from "@/lib/pos/types";
+import { Can } from "@/components/auth/can";
 
 const TXN_LABELS: Record<WalletTransactionType, string> = {
   topup: "Wallet Top-Up",
@@ -118,7 +119,9 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
             <div className="border border-border rounded-xl p-4 space-y-3 min-w-0">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold flex items-center gap-1.5"><Wallet className="w-4 h-4 text-primary" /> Wallet</p>
-                <Button size="sm" variant="outline" onClick={() => setShowTopUp(true)}><Plus className="w-3.5 h-3.5 mr-1" /> Top Up</Button>
+                <Can permission="pos.customers.edit">
+                  <Button size="sm" variant="outline" onClick={() => setShowTopUp(true)}><Plus className="w-3.5 h-3.5 mr-1" /> Top Up</Button>
+                </Can>
               </div>
               <p className={cn("font-bold text-foreground truncate", fitTextClass(formatCurrency(c.walletBalance, currency), "2xl"))}
                  title={formatCurrency(c.walletBalance, currency)}>
@@ -130,10 +133,12 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
             <div className="border border-border rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold flex items-center gap-1.5"><CreditCard className="w-4 h-4 text-primary" /> House Account</p>
-                <div className="flex gap-1.5">
-                  <Button size="sm" variant="outline" onClick={() => setShowCreditLimit(true)}>Set Limit</Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowPayment(true)} disabled={c.creditBalance <= 0}>Record Payment</Button>
-                </div>
+                <Can permission="pos.customers.edit">
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="outline" onClick={() => setShowCreditLimit(true)}>Set Limit</Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowPayment(true)} disabled={c.creditBalance <= 0}>Record Payment</Button>
+                  </div>
+                </Can>
               </div>
               <div className="grid grid-cols-3 gap-2 text-sm">
                 <div><p className="text-xs text-muted-foreground">Limit</p><p className="font-medium">{formatCurrency(c.creditLimit, currency)}</p></div>

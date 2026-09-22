@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Softaxis.POS.API.Authorization;
 using Softaxis.POS.Application.SalesOrders.Commands.CreateSalesOrder;
 using Softaxis.POS.Application.SalesOrders.Commands.DeleteSalesOrder;
 using Softaxis.POS.Application.SalesOrders.Commands.UpdateSalesOrder;
@@ -15,6 +16,7 @@ namespace Softaxis.POS.API.Controllers;
 public sealed class SalesOrdersController(ISender sender) : BaseApiController(sender)
 {
     // ── GET /api/sales-orders ─────────────────────────────────────────────────
+    [RequirePermission("pos.transactions.view")]
     [HttpGet]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status     = null,
@@ -29,11 +31,13 @@ public sealed class SalesOrdersController(ISender sender) : BaseApiController(se
             new GetSalesOrdersQuery(status, customerId, from, to, search, page, pageSize), ct));
 
     // ── GET /api/sales-orders/{id} ────────────────────────────────────────────
+    [RequirePermission("pos.transactions.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new GetSalesOrderByIdQuery(id), ct));
 
     // ── POST /api/sales-orders ────────────────────────────────────────────────
+    [RequirePermission("pos.transactions.create")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateSORequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new CreateSalesOrderCommand(
@@ -43,6 +47,7 @@ public sealed class SalesOrdersController(ISender sender) : BaseApiController(se
                 i.UnitPrice, i.DiscountPercent, i.TaxRate)).ToList()), ct), successCode: 201);
 
     // ── PUT /api/sales-orders/{id} ────────────────────────────────────────────
+    [RequirePermission("pos.transactions.create")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSORequest req, CancellationToken ct) =>
         HandleResult(await Sender.Send(new UpdateSalesOrderCommand(
@@ -52,6 +57,7 @@ public sealed class SalesOrdersController(ISender sender) : BaseApiController(se
                 i.UnitPrice, i.DiscountPercent, i.TaxRate)).ToList()), ct));
 
     // ── DELETE /api/sales-orders/{id} ─────────────────────────────────────────
+    [RequirePermission("pos.transactions.void")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         HandleResult(await Sender.Send(new DeleteSalesOrderCommand(id), ct));

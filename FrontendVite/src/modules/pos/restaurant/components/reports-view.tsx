@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Loader2 } from "lucide-react";
+import { BarChart3, Loader2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/ui/export-menu";
@@ -14,6 +14,7 @@ import {
   useKitchenPrepTimesReport, useTableTurnoverReport, useTaxSummaryReport, useXReport, useZReport,
 } from "@/hooks/restaurant/use-restaurant-reports";
 import { useShift } from "@/modules/pos/retail/components/shift-gate";
+import { Can } from "@/components/auth/can";
 
 function todayIso() { return new Date().toISOString().split("T")[0]; }
 function daysAgoIso(days: number) {
@@ -56,7 +57,29 @@ function ReportTable({ columns, rows }: { columns: string[]; rows: (string | num
   );
 }
 
+// The report endpoints are gated server-side on restaurant.reports.view, so without it every tab
+// would load and then fail. Gate the page instead of showing eight broken reports.
 export function ReportsView() {
+  const { t } = useTranslation("restaurant");
+  return (
+    <Can
+      permission="restaurant.reports.view"
+      fallback={
+        <div className="p-10 text-center space-y-2">
+          <AlertTriangle className="h-8 w-8 mx-auto text-muted-foreground" />
+          <p className="font-semibold">{t("reports.denied.title", { defaultValue: "You don't have access to reports." })}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("reports.denied.hint", { defaultValue: "Ask an administrator to grant the reports permission." })}
+          </p>
+        </div>
+      }
+    >
+      <ReportsContent />
+    </Can>
+  );
+}
+
+function ReportsContent() {
   const { t } = useTranslation("restaurant");
   const [tab, setTab] = React.useState<TabId>("sales-daily");
   const [from, setFrom] = React.useState(daysAgoIso(30));

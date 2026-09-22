@@ -6983,3 +6983,131 @@ produces exactly this. The retry stops it taking the gateway down; it does not f
 Check `docker logs --tail 100 vrodux-sqlserver` and its restart count.
 
 - **Gateway:** 0 compile errors ✅ · No migration, no frontend change.
+
+---
+
+## Module 63 — 🔴 POS: authorization hardening (money controls were frontend-only)
+
+**POS was the one module the audit program never covered** (Finance 5i, HR 5j, Inventory 5k,
+CRM 5m/5n, Sales 5o, Purchase 5p, Restaurant 19 — POS was skipped). Audited against the same four
+dimensions. Architecture, tenant isolation, offline mode and the dashboard were all sound; **the
+permission model was not enforced anywhere it mattered.**
+
+### The gap — the till hid buttons the server never guarded
+`retail-pos-view.tsx` gated correctly on `pos.transactions.void` / `.refund` / `.discount`, but
+**20 of 22 controllers carried no `[RequirePermission]` at all** (only Customers' wallet endpoints
+and PaymentGateway). The backend either checked a **key that does not exist** or checked nothing:
+
+| Action | Till gate | Backend before |
+|---|---|---|
+| **Refund** | `pos.transactions.refund` | **nothing** |
+| **Cash movement** (drawer out) | — | **nothing** |
+| **Discount / price override** | `pos.transactions.discount` | **nothing** |
+| **Void** | `pos.transactions.void` | `pos.transaction.**void**` — *singular, unseeded* |
+| Close another's shift | — | `pos.session.close_any` — **unseeded** |
+| Suspend another's shift | — | `pos.session.manage` — **unseeded** |
+
+Two live consequences: **any authenticated user of a POS tenant could refund a transaction or take
+cash out of a drawer** (an HR self-service employee, a CRM agent — `[Authorize]` is not a POS
+permission); and because the three keys are unseeded, **granting the real permission did nothing** —
+a supervisor got 403 voiding a cashier's sale, and nobody could close a departed cashier's till.
+
+### Fix — enforce the model that was already correctly seeded
+The seeded tiers were right all along (Cashier deliberately holds no void/refund/discount/approve),
+so **no migration**: the dead keys were repointed at real ones rather than seeding typos.
+`pos.session.close_any` / `pos.session.manage` → **`pos.sessions.approve`** (the seeded supervisor
+key, held by POS Manager + Supervisor); `pos.transaction.void` → **`pos.transactions.void`**.
+
+- **`[RequirePermission]` across all 22 controllers — 86 endpoints gated, 5 deliberately open.**
+  Nearest-seeded-key rule where POS has none: Vendors/PurchaseOrders → `pos.products.*` (stock
+  supply), SalesOrders/Quotations → `pos.transactions.*`, configuration writes →
+  `pos.sessions.approve` (Module 58 precedent).
+- **New `RequireAnyPermissionAttribute`.** Needed because a till action is legitimately reachable
+  from two tiers: a Cashier holds `pos.transactions.create` but **not** `pos.sessions.create`, so
+  gating shift open/close on a single key would have locked the primary operator out of their own
+  till. The attribute is the coarse "may this user operate a till"; the handler still decides
+  whether *this* session is theirs.
+- **Handler-level checks too, not just attributes** — the offline day-end sync replays sales,
+  refunds, voids and cash movements through these same handlers via `ISender`, bypassing the
+  controller entirely. Attributes alone would have left the offline path wide open.
+- **Discount now covers price override.** `UnitPriceOverride` is an unbounded discount by another
+  name and was ungated; vouchers and loyalty are deliberately **excluded** (customer entitlements
+  validated server-side — taking one is ordinary cashier work).
+- **Offline sync pre-flight.** Replayed events run with the *syncing* user's permissions, so a queue
+  holding refunds/voids/discounted sales would have been accepted, replayed, and rejected record by
+  record at the end of the day. It now fails up front with a count and what permission is needed —
+  while the shift is still open and recoverable.
+
+### 🔴 Second bug fixed — voiding never restored inventory-schema stock
+`VoidTransactionCommandHandler` restored stock through the **pos-schema repository only**, while a
+sale deducts through `ICrossSchemaProductService` (pos.products **or** inventory.products). So
+voiding a sale of an inventory-schema product silently never put the goods back. Refund already did
+this correctly; void did not. Now uses `RestoreStockAsync`, exactly as the sale deducted.
+(Flagged in Module 58, unfixed until now.)
+
+### Regression guarded deliberately
+Enforcement must not break the till. Verified the Cashier tier still reaches every surface it needs:
+**customer lookup and walk-in registration** gate on `RequireAnyPermission("pos.customers.*",
+"pos.transactions.create")` — a sale cannot be attached to a customer the operator may not read, and
+the Cashier tier holds no `pos.customers` key. Wallet top-up / credit limit / house-account payment
+stay strict on `pos.customers.edit`. Reference reads that feed the sale screen (payment methods, tax
+rates, currencies, customer groups, payment terms) are **left open**, same call as Inventory 5k —
+gating them would break the till for an operator holding no configuration key.
+
+`ModuleRoleCatalogue`'s **Cashier tier also fixed** (`pos.sessions.create` + `pos.customers.view`
+added) — it could not open its own shift, which is the point of the role. Forward-looking only:
+existing tenants' Cashier roles are unchanged, and the `RequireAnyPermission` gating means nothing
+breaks for them either.
+
+### Frontend
+`<Can permission="pos.customers.edit">` on the wallet Top Up and house-account Set Limit / Record
+Payment buttons — the only POS actions the server now refuses that the UI still offered.
+
+### Build / Verification Status
+- **Full backend solution:** 0 errors ✅ (1 pre-existing SmtpEmailService warning) ·
+  **Frontend `tsc -p tsconfig.app.json`:** 0 errors ✅ · **`vite build`:** ✅ · **No migration.**
+- **Verified by simulation, not assertion** — a script scrapes the real attributes from the
+  controller sources, re-encodes the three seeded role predicates, and asserts the outcome:
+  every referenced key is seeded (0 dead keys); the Cashier reaches all **19** surfaces it needs
+  (open/close own till, sell, hold/recall, scan, print, customer lookup, walk-in, vouchers, offline
+  sync) and is blocked from all **12** it must not (refund, product CRUD, stock adjust, Z-reports,
+  dashboard, tax rates, wallet, gateway config); Supervisor reaches refund/void/Z-reports/close-any;
+  Manager reaches all 91. **ALL CHECKS PASSED.**
+- **Not runtime-verified** — needs republish + restart. Then spot-check: as a Cashier, a sale, a
+  hold/recall and closing your own shift all still work, while refund returns **403
+  Permission.Denied**; as a Supervisor, refund and voiding a cashier's sale both succeed; void a
+  sale of an **inventory-schema** product and confirm the stock actually returns (this is the
+  bug-fix, worth specifically re-checking).
+
+### Module 63b — Two screens that would 403 after the hardening
+
+Follow-up to 63, and a gap 63 created: gating the backend without gating the screens that call it
+turns a denial into what reads as a broken page.
+
+- **POS Reports** (`/pos/reports` renders `modules/pos/restaurant/components/reports-view.tsx`) had
+  no gate at all, so a user without the permission saw eight tabs that each failed. Now wrapped in
+  `<Can>` with an explanatory fallback. **Gated on `restaurant.reports.view`, not `pos.reports.view`** —
+  the page is POS-routed but its hooks call `/api/restaurant/reports/*`, which is class-level gated
+  on the restaurant key. Gating it on the POS key would have denied the wrong people.
+- **Master Data** (`modules/master-data/`) had **no permission concept whatsoever** — the registry
+  gated only on the tenant's module. It surfaces currencies, tax rates, payment terms, customer
+  groups, POS customers and vendors, all newly gated in 63, so every save would have 403'd.
+  `MasterDef` gained optional `viewPermission` / `writePermission` (**any one key is enough**,
+  mirroring `RequireAnyPermission`), set on the six POS-backed masters.
+
+The write gate is applied by **stripping `create`/`update`/`remove` from the master object** when the
+user may only read, rather than by adding a check to each button. The whole UI already keys off those
+being defined, so one place hides every add/edit/delete affordance at once and a new button cannot
+forget to gate itself.
+
+**Flagged, not fixed:** the Inventory-backed masters (brands, UoM, warehouses, product categories)
+have the same exposure from Module 5k's `inventory.stock.*` gating — pre-existing, and now a
+one-line-per-entry fix with the mechanism in place.
+
+- **Frontend `tsc`:** 0 errors ✅ · **`vite build`:** ✅ · Frontend only — no backend change, no migration.
+
+### Cleared during the audit — not issues
+- The 22 hardcoded `"AED"` hits are the **seeded currency reference table** (a "UAE Dirham" row
+  among others) and EF migration snapshots — correct data, not hardcoding.
+- POS frontend is clean: no dead `onClick`, no `window.confirm`/`alert`, one benign TODO.
+- Tenant isolation is correct (raw SQL guarded per Modules 6b/6c); CQRS layering is clean.
