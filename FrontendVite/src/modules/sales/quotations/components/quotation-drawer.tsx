@@ -703,7 +703,7 @@ function PanelActions({ onCancel, onConfirm, pending, confirmLabel, danger }: {
   return (
     <div className="flex justify-end gap-2 pt-1">
       <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onCancel} disabled={pending}>
-        {t("common.cancel", { defaultValue: "Cancel" })}
+        {t("common:action.cancel", { defaultValue: "Cancel" })}
       </Button>
       <Button size="sm" className="h-8 text-xs gap-1.5" onClick={onConfirm} disabled={pending}
               variant={danger ? "destructive" : "default"}>

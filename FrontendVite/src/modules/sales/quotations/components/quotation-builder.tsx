@@ -162,7 +162,11 @@ export function QuotationBuilder({ open, onClose, editing }: Props) {
   };
 
   // ── Totals — mirrors the server exactly (optional lines excluded, tax on the discounted base)
-  const billable   = lines.filter(l => !l.isOptional);
+  // A line with no description is dropped on submit (the server rejects it: "Item description is
+  // required"), so it must not be counted here either. It previously was, which is how a quotation
+  // could show a subtotal of thousands while the footer insisted there were no line items at all.
+  const described  = (l: Line) => l.description.trim().length > 0;
+  const billable   = lines.filter(l => !l.isOptional && described(l));
   const lineTotal  = (l: Line) => l.qty * l.unitPrice * (1 - l.discount / 100);
   const subTotal   = billable.reduce((s, l) => s + lineTotal(l), 0);
   const discAmount = Math.round(subTotal * (discountPct / 100) * 100) / 100;
@@ -170,10 +174,13 @@ export function QuotationBuilder({ open, onClose, editing }: Props) {
   const factor     = subTotal > 0 ? netSub / subTotal : 0;
   const taxAmount  = Math.round(billable.reduce((s, l) => s + lineTotal(l) * factor * (l.taxRate / 100), 0) * 100) / 100;
   const total      = netSub + taxAmount;
-  const optionalTotal = lines.filter(l => l.isOptional)
+  const optionalTotal = lines.filter(l => l.isOptional && described(l))
     .reduce((s, l) => s + lineTotal(l) + lineTotal(l) * (l.taxRate / 100), 0);
 
-  const validLines = lines.filter(l => l.description.trim());
+  const validLines = lines.filter(described);
+  // Lines the user has clearly started — priced, but with no description yet. These are the ones
+  // silently dropped on submit, so they get named in the footer instead of being ignored.
+  const unnamedLines = lines.filter(l => !described(l) && (l.qty > 0 && l.unitPrice > 0));
   const isValid = customerName.trim().length > 0 && validLines.length > 0;
 
   // ── Line/section editing ──
@@ -398,14 +405,23 @@ export function QuotationBuilder({ open, onClose, editing }: Props) {
                 <p className="text-xs text-muted-foreground">
                   {!customerName.trim()
                     ? t("quotations.builder.needCustomer", { defaultValue: "Add a customer to continue." })
-                    : validLines.length === 0
-                      ? t("quotations.builder.needItems", { defaultValue: "Add at least one line item." })
-                      : t("quotations.builder.lineCount", {
-                          defaultValue: "{{count}} line item(s)", count: validLines.length })}
+                    : validLines.length === 0 && unnamedLines.length > 0
+                      // "Add a line item" would be a lie — they added several; each needs a name.
+                      ? t("quotations.builder.needDescriptions", {
+                          defaultValue: "Every line item needs a description — {{count}} still blank. Open the Items tab.",
+                          count: unnamedLines.length })
+                      : validLines.length === 0
+                        ? t("quotations.builder.needItems", { defaultValue: "Add at least one line item." })
+                        : unnamedLines.length > 0
+                          ? t("quotations.builder.someBlank", {
+                              defaultValue: "{{count}} line item(s) have no description and will not be saved.",
+                              count: unnamedLines.length })
+                          : t("quotations.builder.lineCount", {
+                              defaultValue: "{{count}} line item(s)", count: validLines.length })}
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={onClose} disabled={isPending}>
-                    {t("common.cancel", { defaultValue: "Cancel" })}
+                    {t("common:action.cancel", { defaultValue: "Cancel" })}
                   </Button>
                   <Button onClick={handleSubmit} disabled={!isValid || isPending} className="gap-2 min-w-36">
                     {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -597,10 +613,17 @@ function LineTable(p: any) {
             <React.Fragment key={l.key}>
               <tr className={cn(l.isOptional && "bg-violet-50/50 dark:bg-violet-900/10")}>
                 <td className="px-2 py-1.5">
+                  {/* A priced line with no description is dropped on submit, so flag it here
+                      rather than letting the user discover it from a disabled button. */}
                   <Input value={l.description}
                          onChange={(e: any) => p.setLine(l.key, "description", e.target.value)}
                          placeholder={t("quotations.builder.col.descPh", { defaultValue: "What are you quoting?" })}
-                         className="h-8 text-xs border-0 bg-transparent px-2 focus-visible:ring-1" />
+                         aria-invalid={!l.description.trim() && l.unitPrice > 0}
+                         className={cn(
+                           "h-8 text-xs border-0 bg-transparent px-2 focus-visible:ring-1",
+                           !l.description.trim() && l.unitPrice > 0 &&
+                             "ring-1 ring-destructive/60 placeholder:text-destructive/70",
+                         )} />
                 </td>
                 <td className="px-1 py-1.5">
                   <Input type="number" min={0} step={0.01} value={l.qty}

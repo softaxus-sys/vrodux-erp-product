@@ -38,7 +38,8 @@
     "deleting": "Deleting…",
     "sending": "Sending…",
     "creating": "Creating…",
-    "updating": "Updating…"
+    "updating": "Updating…",
+    "select": "Select…"
   },
   "status": {
     "active": "Active",
@@ -70,7 +71,11 @@
     "type": "Type",
     "category": "Category",
     "all": "All",
-    "none": "None"
+    "none": "None",
+    "item": "Item",
+    "ordered": "Ordered",
+    "received": "Received",
+    "totalValue": "Total Value"
   },
   "message": {
     "loading": "Loading…",
@@ -117,5 +122,8 @@
     "showing": "Showing {{shown}} of {{total}}",
     "prev": "Previous",
     "next": "Next"
+  },
+  "placeholder": {
+    "notes": "Add notes…"
   }
 }

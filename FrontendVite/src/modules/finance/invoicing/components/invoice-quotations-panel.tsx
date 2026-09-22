@@ -164,7 +164,7 @@ function QuotationPicker({ invoiceId, invoiceNumber, search, setSearch, onDone, 
           />
         </div>
         <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={onDone}>
-          {t("common.cancel", { defaultValue: "Cancel" })}
+          {t("common:action.cancel", { defaultValue: "Cancel" })}
         </Button>
       </div>
 

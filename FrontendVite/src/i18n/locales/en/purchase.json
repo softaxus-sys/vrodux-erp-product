@@ -81,7 +81,9 @@
         "addItem": "Add Item",
         "cancel": "Cancel",
         "confirm": "Create PO"
-      }
+      },
+      "subtitle": "Create a purchase order for a vendor",
+      "lineTotal": "Line Total"
     },
     "picker": {
       "search": "Search products…",
@@ -199,7 +201,9 @@
     "status": {
       "draft": "Draft",
       "approved": "Approved",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "paid": "Paid",
+      "partiallyPaid": "Partially Paid"
     },
     "table": {
       "billNumber": "Bill Number",
@@ -259,6 +263,12 @@
       "cancel": "Cancel",
       "saving": "Saving…",
       "submit": "Create Invoice"
+    },
+    "stats": {
+      "due": "Due",
+      "outstanding": "Outstanding",
+      "totalAmount": "Total Amount",
+      "totalInvoices": "Total Invoices"
     }
   },
   "vendors": {
@@ -333,7 +343,12 @@
       "active": "Active",
       "inactive": "Inactive",
       "blocked": "Blocked"
-    }
+    },
+    "stats": {
+      "totalPOs": "Total POs",
+      "totalVendors": "Total Vendors"
+    },
+    "description": "Manage your suppliers and their purchase history"
   },
   "approvals": {
     "title": "Purchase Approvals",
@@ -396,6 +411,11 @@
       "medium": "Medium",
       "high": "High",
       "urgent": "Urgent"
+    },
+    "stats": {
+      "totalRequests": "Total Requests",
+      "pendingReview": "Pending Review",
+      "budgetRequested": "Budget Requested"
     }
   }
 }

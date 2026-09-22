@@ -16,16 +16,16 @@ import { AddVendorForm } from "./add-vendor-form";
 import { Can } from "@/components/auth/can";
 
 const getStatusConfig = (t: any): Record<string, { label: string; color: string; bg: string; dot: string }> => ({
-  active:   { label: t("common.active"),     color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
-  inactive: { label: t("common.inactive"),   color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
-  blocked:  { label: t("common.blocked"),    color: "text-destructive",      bg: "bg-destructive/10", dot: "bg-destructive" },
+  active:   { label: t("vendors.status.active"),     color: "text-success",          bg: "bg-success/10",     dot: "bg-success" },
+  inactive: { label: t("vendors.status.inactive"),   color: "text-muted-foreground", bg: "bg-muted",          dot: "bg-muted-foreground" },
+  blocked:  { label: t("vendors.status.blocked"),    color: "text-destructive",      bg: "bg-destructive/10", dot: "bg-destructive" },
 });
 
 const getStatusFilters = (t: any) => [
-  { key: "",         label: t("common.all") },
-  { key: "active",   label: t("common.active") },
-  { key: "inactive", label: t("common.inactive") },
-  { key: "blocked",  label: t("common.blocked") },
+  { key: "",         label: t("common:field.all") },
+  { key: "active",   label: t("vendors.status.active") },
+  { key: "inactive", label: t("vendors.status.inactive") },
+  { key: "blocked",  label: t("vendors.status.blocked") },
 ];
 
 function StarRating({ rating }: { rating: number }) {
@@ -67,10 +67,10 @@ export function VendorsView() {
   }), [data?.totalCount, items]);
 
   const STAT_CARDS = [
-    { label: t("common.totalVendors"), value: stats.total,    icon: Building2,    color: "text-slate-600",        bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: t("common.active"),       value: stats.active,   icon: CheckCircle2, color: "text-success",          bg: "bg-success/10" },
-    { label: t("common.inactive"),     value: stats.inactive, icon: AlertCircle,  color: "text-muted-foreground", bg: "bg-muted" },
-    { label: t("common.totalPOs"),     value: stats.orders,   icon: TrendingDown, color: "text-primary",          bg: "bg-primary/10" },
+    { label: t("vendors.stats.totalVendors"), value: stats.total,    icon: Building2,    color: "text-slate-600",        bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("vendors.status.active"),       value: stats.active,   icon: CheckCircle2, color: "text-success",          bg: "bg-success/10" },
+    { label: t("vendors.status.inactive"),     value: stats.inactive, icon: AlertCircle,  color: "text-muted-foreground", bg: "bg-muted" },
+    { label: t("vendors.stats.totalPOs"),     value: stats.orders,   icon: TrendingDown, color: "text-primary",          bg: "bg-primary/10" },
   ];
 
   return (

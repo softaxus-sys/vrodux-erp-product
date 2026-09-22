@@ -81,7 +81,9 @@
         "addItem": "إضافة بند",
         "cancel": "إلغاء",
         "confirm": "إنشاء الطلب"
-      }
+      },
+      "subtitle": "إنشاء أمر شراء لمورد",
+      "lineTotal": "إجمالي السطر"
     },
     "picker": {
       "search": "البحث عن منتجات…",
@@ -199,7 +201,9 @@
     "status": {
       "draft": "مسودة",
       "approved": "معتمد",
-      "cancelled": "ملغى"
+      "cancelled": "ملغى",
+      "paid": "مدفوعة",
+      "partiallyPaid": "مدفوعة جزئياً"
     },
     "table": {
       "billNumber": "رقم الفاتورة",
@@ -259,6 +263,12 @@
       "cancel": "إلغاء",
       "saving": "جاري الحفظ…",
       "submit": "إنشاء الفاتورة"
+    },
+    "stats": {
+      "due": "مستحق",
+      "outstanding": "غير مسدد",
+      "totalAmount": "المبلغ الإجمالي",
+      "totalInvoices": "إجمالي الفواتير"
     }
   },
   "vendors": {
@@ -333,7 +343,12 @@
       "active": "نشط",
       "inactive": "غير نشط",
       "blocked": "محظور"
-    }
+    },
+    "stats": {
+      "totalPOs": "إجمالي أوامر الشراء",
+      "totalVendors": "إجمالي الموردين"
+    },
+    "description": "إدارة الموردين وسجل مشترياتهم"
   },
   "approvals": {
     "title": "موافقات الشراء",
@@ -396,6 +411,11 @@
       "medium": "متوسطة",
       "high": "عالية",
       "urgent": "عاجلة"
+    },
+    "stats": {
+      "totalRequests": "إجمالي الطلبات",
+      "pendingReview": "قيد المراجعة",
+      "budgetRequested": "الميزانية المطلوبة"
     }
   }
 }

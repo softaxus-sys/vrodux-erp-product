@@ -85,7 +85,7 @@ export function PurchaseOrderDrawer({ order, open, onClose }: Props) {
             {/* Content */}
             {isLoading ? (
               <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("common.loading")}</span>
+                <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("common:message.loading")}</span>
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-6 space-y-5">

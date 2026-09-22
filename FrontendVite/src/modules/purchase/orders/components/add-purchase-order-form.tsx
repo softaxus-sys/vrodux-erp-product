@@ -108,7 +108,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
                 <h2 className="text-base font-bold text-foreground">{t("orders.form.title")}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">{t("orders.form.description")}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t("orders.form.subtitle")}</p>
               </div>
               <button onClick={handleClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
                 <X className="w-4 h-4" />
@@ -126,7 +126,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                     onChange={e => setVendorId(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
-                    <option value="">{vendorsLoading ? t("common.loading") : t("common.select")}</option>
+                    <option value="">{vendorsLoading ? t("common:message.loading") : t("common:action.select")}</option>
                     {vendors.map(v => (
                       <option key={v.id} value={v.id}>{v.name}{v.code ? ` (${v.code})` : ""}</option>
                     ))}
@@ -150,7 +150,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.lineItems")}</p>
                   <Button type="button" variant="outline" size="sm" onClick={() => setLines(p => [...p, newLine(taxRate)])} className="h-7 text-xs gap-1">
-                    <Plus className="w-3 h-3" /> {t("common.add")}
+                    <Plus className="w-3 h-3" /> {t("common:action.add")}
                   </Button>
                 </div>
                 <div className="border border-border rounded-xl overflow-hidden">
@@ -160,7 +160,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
                         <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("orders.form.description")}</th>
                         <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-16">{t("orders.form.qty")}</th>
                         <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("orders.form.unitPrice")}</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("orders.form.subtotal")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("orders.form.lineTotal")}</th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -224,7 +224,7 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("orders.form.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder={t("common.placeholder.notes")} rows={3}
+                  placeholder={t("common:placeholder.notes")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -232,9 +232,9 @@ export function AddPurchaseOrderForm({ open, onClose }: AddPurchaseOrderFormProp
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("common.cancel")}</Button>
+              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common.saving")}</> : t("orders.form.button.confirm")}
+                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common:action.saving")}</> : t("orders.form.button.confirm")}
               </Button>
             </div>
           </motion.div>

@@ -47,21 +47,21 @@ export function PurchaseBillsView() {
   const STATUS_CONFIG = getStatusConfig(t);
 
   const STATUS_FILTERS = [
-    { key: "",               label: t("common.all") },
+    { key: "",               label: t("common:field.all") },
     { key: "draft",          label: t("bills.status.draft") },
     { key: "approved",       label: t("bills.status.approved") },
-    { key: "partially_paid", label: t("common.partiallyPaid") },
+    { key: "partially_paid", label: t("bills.status.partiallyPaid") },
     { key: "paid",           label: t("bills.status.paid") },
     { key: "cancelled",      label: t("bills.status.cancelled") },
   ];
 
   const STAT_CARDS = [
-    { label: t("common.totalInvoices"), value: summary?.totalBills ?? 0,                           icon: Receipt,      color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
+    { label: t("bills.stats.totalInvoices"), value: summary?.totalBills ?? 0,                           icon: Receipt,      color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-800/50" },
     { label: t("bills.status.draft"),          value: summary?.draftCount ?? 0,                           icon: FileText,     color: "text-slate-500", bg: "bg-slate-100 dark:bg-slate-800/50" },
-    { label: t("common.outstanding"),    value: summary?.outstandingCount ?? 0,                     icon: Clock,        color: "text-primary",   bg: "bg-primary/10" },
-    { label: t("common.totalAmount"),   value: formatCurrency(summary?.totalAmount ?? 0, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
-    { label: t("common.paid"),           value: formatCurrency(summary?.totalPaid ?? 0, currency),     icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
-    { label: t("common.due"),            value: formatCurrency(summary?.totalOutstanding ?? 0, currency), icon: Ban,       color: "text-destructive", bg: "bg-destructive/10" },
+    { label: t("bills.stats.outstanding"),    value: summary?.outstandingCount ?? 0,                     icon: Clock,        color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("bills.stats.totalAmount"),   value: formatCurrency(summary?.totalAmount ?? 0, currency),   icon: DollarSign,   color: "text-primary",   bg: "bg-primary/10" },
+    { label: t("bills.status.paid"),           value: formatCurrency(summary?.totalPaid ?? 0, currency),     icon: CheckCircle2, color: "text-success",   bg: "bg-success/10" },
+    { label: t("bills.stats.due"),            value: formatCurrency(summary?.totalOutstanding ?? 0, currency), icon: Ban,       color: "text-destructive", bg: "bg-destructive/10" },
   ];
 
   return (

@@ -353,17 +353,17 @@ function TemplateForm({ template, onDone }: { template: QuotationTemplateDto | n
                 </span>
                 <Button variant="destructive" size="sm" className="h-8 text-xs" disabled={remove.isPending}
                         onClick={async () => { await remove.mutateAsync(template.id); onDone(); }}>
-                  {remove.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : t("common.confirm", { defaultValue: "Confirm" })}
+                  {remove.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : t("common:action.confirm", { defaultValue: "Confirm" })}
                 </Button>
                 <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setConfirmDelete(false)}>
-                  {t("common.cancel", { defaultValue: "Cancel" })}
+                  {t("common:action.cancel", { defaultValue: "Cancel" })}
                 </Button>
               </div>
             ) : (
               <Button variant="ghost" size="sm"
                       className="h-9 gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setConfirmDelete(true)}>
-                <Trash2 className="h-3.5 w-3.5" />{t("common.delete", { defaultValue: "Delete" })}
+                <Trash2 className="h-3.5 w-3.5" />{t("common:action.delete", { defaultValue: "Delete" })}
               </Button>
             )}
           </Can>
@@ -371,11 +371,11 @@ function TemplateForm({ template, onDone }: { template: QuotationTemplateDto | n
 
         <div className="flex gap-2">
           <Button variant="outline" onClick={onDone} disabled={pending}>
-            {t("common.cancel", { defaultValue: "Cancel" })}
+            {t("common:action.cancel", { defaultValue: "Cancel" })}
           </Button>
           <Button onClick={save} disabled={!name.trim() || pending} className="gap-2 min-w-28">
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("common.save", { defaultValue: "Save" })}
+            {t("common:action.save", { defaultValue: "Save" })}
           </Button>
         </div>
       </div>

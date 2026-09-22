@@ -38,7 +38,8 @@
     "deleting": "جارٍ الحذف…",
     "sending": "جارٍ الإرسال…",
     "creating": "جارٍ الإنشاء…",
-    "updating": "جارٍ التحديث…"
+    "updating": "جارٍ التحديث…",
+    "select": "اختر…"
   },
   "status": {
     "active": "نشط",
@@ -70,7 +71,11 @@
     "type": "النوع",
     "category": "الفئة",
     "all": "الكل",
-    "none": "لا شيء"
+    "none": "لا شيء",
+    "item": "الصنف",
+    "ordered": "المطلوب",
+    "received": "المستلم",
+    "totalValue": "القيمة الإجمالية"
   },
   "message": {
     "loading": "جارٍ التحميل…",
@@ -117,5 +122,8 @@
     "showing": "عرض {{shown}} من {{total}}",
     "prev": "السابق",
     "next": "التالي"
+  },
+  "placeholder": {
+    "notes": "أضف ملاحظات…"
   }
 }

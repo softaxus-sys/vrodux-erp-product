@@ -135,10 +135,10 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
                   <table className="w-full text-sm">
                     <thead className="bg-muted/30 border-b border-border">
                       <tr>
-                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("common.item")}</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-20">{t("common.ordered")}</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-24">{t("common.received")}</th>
-                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("common.total")}</th>
+                        <th className="text-left px-3 py-2 text-xs font-semibold text-muted-foreground">{t("common:field.item")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-20">{t("common:field.ordered")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-24">{t("common:field.received")}</th>
+                        <th className="text-right px-3 py-2 text-xs font-semibold text-muted-foreground w-28">{t("common:field.total")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -159,7 +159,7 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
                     </tbody>
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
-                        <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">{t("common.totalValue")}</td>
+                        <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">{t("common:field.totalValue")}</td>
                         <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                       </tr>
                     </tfoot>
@@ -169,7 +169,7 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("common.notes")}</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("common:field.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
                   placeholder={t("grn.form.description")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
@@ -179,9 +179,9 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
 
             {/* Footer */}
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
-              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("common.cancel")}</Button>
+              <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common.saving")}</> : t("grn.form.confirm")}
+                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common:action.saving")}</> : t("grn.form.confirm")}
               </Button>
             </div>
           </motion.div>

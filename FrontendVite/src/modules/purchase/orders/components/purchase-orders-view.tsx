@@ -230,8 +230,8 @@ export function PurchaseOrdersView() {
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground text-xs">{t("orders.pagination", { page: data.page, total: data.totalPages, count: data.totalCount })}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>{t("common.prev")}</Button>
-            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>{t("common.next")}</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasPrev} onClick={() => setPage(p => p - 1)}>{t("common:pagination.prev")}</Button>
+            <Button variant="outline" size="sm" className="h-8" disabled={!data.hasNext} onClick={() => setPage(p => p + 1)}>{t("common:pagination.next")}</Button>
           </div>
         </div>
       )}
