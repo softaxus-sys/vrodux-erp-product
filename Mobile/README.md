@@ -24,6 +24,47 @@ physical device.
   (Android emulator specifically: `http://10.0.2.2:5000`)
 - Physical device on the same Wi-Fi: `http://<your-lan-ip>:5000`
 
+## Builds (EAS)
+
+Profiles live in `eas.json`. App versions are managed remotely by EAS (`appVersionSource: remote`),
+so build numbers never need editing by hand.
+
+| Profile | What it produces | API it talks to |
+|---|---|---|
+| `development` | Dev client (APK / device IPA) — install once, then `npm start` as with Expo Go | `.env.local` (`EXPO_PUBLIC_API_URL`) |
+| `development-simulator` | Same, for the iOS Simulator | `.env.local` |
+| `preview` | Installable Android APK for internal testers | `https://erp.vrodux.com` |
+| `production` | Store builds (Android App Bundle + iOS), build number auto-incremented | `https://erp.vrodux.com` |
+
+```bash
+npm i -g eas-cli          # or use npx eas-cli
+eas login
+eas init                  # ONE-TIME: links the app to the Expo account, writes extra.eas.projectId to app.json
+npm run build:preview     # Android APK to share with testers
+npm run build:dev         # dev client for both platforms
+npm run build:prod        # store builds
+npm run submit:prod       # upload the latest production builds (Play: internal track, draft)
+```
+
+**Why the dev client, not Expo Go:** Expo Go on Android cannot receive remote pushes (SDK 53+),
+and native config (camera permission text, notification icon, splash) only takes effect in a real
+build. The `development` profile is the day-to-day replacement for Expo Go.
+
+**Release builds never fall back to localhost.** `api-client.ts` uses `http://localhost:5000` only
+when `__DEV__`; a release build that somehow lost `EXPO_PUBLIC_API_URL` points at production
+instead of the phone itself.
+
+### One-time account setup (outside this repo)
+- **Push — Android:** create a Firebase project for `com.softaxis.vroduxerp`, then upload the FCM v1
+  service-account key: `eas credentials` → Android → production → Google Service Account (FCM V1).
+  Without it the build works but Android devices never receive a push.
+- **Push — iOS:** `eas build` offers to create the APNs key the first time; say yes.
+- **iOS signing:** needs an Apple Developer account ($99/yr); EAS creates and stores certificates.
+- **Play Store submit:** create the app once in Play Console (first AAB can be uploaded manually),
+  then add a Google Play service-account JSON for `eas submit`.
+- `ITSAppUsesNonExemptEncryption: false` is set, so App Store Connect won't ask the export-compliance
+  question on every upload (the app only uses standard HTTPS).
+
 ## Structure
 
 ```
@@ -1047,7 +1088,7 @@ gates behind `hasModuleAccess`/`hasRawPermission`. Queued next:
 1. General Ledger + Financial Statements (deferred from Finance — needs a card/drill-down redesign
    rather than a literal port of the web's wide tables)
 
-Also still queued from before: EAS build config. (Barcode scanning for Inventory, dashboard KPIs,
+EAS build config is done — see "Builds (EAS)". (Barcode scanning for Inventory, dashboard KPIs,
 push notifications — Phase 1: device registration + one real trigger, see its own section above —
 and per-device refresh tokens / "my devices" session management, see Settings above — are done.)
 
