@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Infrastructure.Email;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using Microsoft.Extensions.Configuration;
@@ -23,8 +24,8 @@ internal sealed class SmtpSupportEmailService(
         var port     = int.Parse(section["SmtpPort"] ?? "587");
         var username = section["SmtpUsername"];
         var password = section["SmtpPassword"] ?? string.Empty;
-        var fromAddr = section["FromAddress"] ?? "noreply@softaxis.io";
-        var fromName = section["FromName"] ?? "Softaxis ERP";
+        var fromAddr = EmailSender.Address(section["FromAddress"]);
+        var fromName = EmailSender.Name(section["FromName"]);
 
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(toEmail))
         {
