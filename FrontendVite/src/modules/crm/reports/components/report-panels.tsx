@@ -583,7 +583,10 @@ export function ActivityPanel({ filter, register, subtitle }: PanelProps) {
         <StatTile index={1} label={t("reports.common.completed")} value={d.completed} tone="success" />
         <StatTile index={2} label={t("reports.common.open")} value={d.open} />
         <StatTile index={3} label={t("reports.common.overdue")} value={d.overdue} tone={d.overdue > 0 ? "danger" : "default"} />
-        <StatTile index={4} label={t("reports.activities.completionRate")} value={pct(d.completionRate)} tone="primary" />
+        {/* Measured over tasks, calls and meetings only — notes and logged emails are created
+            already complete, so including them would report follow-through nobody demonstrated. */}
+        <StatTile index={4} label={t("reports.activities.completionRate")} value={pct(d.completionRate)} tone="primary"
+          hint={t("reports.activities.completionBasis", { done: d.actionableCompleted, total: d.actionable })} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
@@ -618,7 +621,11 @@ export function ActivityPanel({ filter, register, subtitle }: PanelProps) {
                 ? <span className="text-destructive font-medium">{o.overdue}</span>
                 : <span className="text-muted-foreground">0</span> },
             { key: "rate", header: t("reports.activities.completion"), align: "right",
-              render: o => pct(o.completionRate) },
+              render: o => (
+                <span title={t("reports.activities.completionBasis", { done: o.actionableCompleted, total: o.actionable })}>
+                  {pct(o.completionRate)}
+                </span>
+              ) },
           ]}
         />
       </ReportCard>

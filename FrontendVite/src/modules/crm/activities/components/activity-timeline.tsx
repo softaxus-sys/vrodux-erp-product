@@ -1,15 +1,15 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Phone, Mail, Calendar, CheckSquare, StickyNote, Plus, Check, RotateCcw, Trash2, Clock } from "lucide-react";
+import { Phone, Mail, Calendar, CheckSquare, StickyNote, Plus, Check, RotateCcw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  useActivities, useCreateActivity, useCompleteActivity, useReopenActivity, useDeleteActivity,
+  useActivities, useCreateActivity, useCompleteActivity, useReopenActivity,
 } from "@/hooks/crm/use-crm";
 import { useAuthStore } from "@/store/auth.store";
 import { useAssignableByTeam, decodeAssignee, encodeAssignee } from "@/hooks/identity/use-assignable-by-team";
-import type { ActivityType } from "@/lib/crm/crm.api";
+import { isActivityLog, type ActivityType } from "@/lib/crm/crm.api";
 
 const TYPES: { value: ActivityType; icon: typeof Phone }[] = [
   { value: "task", icon: CheckSquare },
@@ -37,7 +37,6 @@ export function ActivityTimeline({
   const create = useCreateActivity();
   const complete = useCompleteActivity();
   const reopen = useReopenActivity();
-  const del = useDeleteActivity();
 
   const currentUserName = useAuthStore(s => s.user?.name) ?? "";
   const currentUserId = useAuthStore(s => s.user?.id) ?? "";
@@ -149,7 +148,7 @@ export function ActivityTimeline({
                   <Icon className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-medium leading-tight", a.completed && "line-through text-muted-foreground")}>{a.subject}</p>
+                  <p className="text-sm font-medium leading-tight">{a.subject}</p>
                   <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
                     <span>{t(`activityType.${a.type}`)}</span>
                     {a.dueDate && (
@@ -161,12 +160,11 @@ export function ActivityTimeline({
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {a.type !== "note" && a.type !== "email" && (
+                  {!isActivityLog(a.type) && (
                     a.completed
                       ? <button title={t("activity.reopen")} onClick={() => reopen.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-foreground"><RotateCcw className="h-3.5 w-3.5" /></button>
                       : <button title={t("activity.complete")} onClick={() => complete.mutate(a.id)} className="p-1 rounded text-success hover:bg-success/10"><Check className="h-3.5 w-3.5" /></button>
                   )}
-                  <button title={t("activity.delete")} onClick={() => del.mutate(a.id)} className="p-1 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </div>
             );

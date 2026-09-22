@@ -216,7 +216,6 @@ export function useCustomerTimeline(customerId: string | null, enabled = true) {
 export function useCreateActivity()   { return useCrmMutation((a: CreateActivityRequest) => crmApi.createActivity(a), { msg: "Activity logged." }); }
 export function useCompleteActivity() { return useCrmMutation((id: string) => crmApi.completeActivity(id)); }
 export function useReopenActivity()   { return useCrmMutation((id: string) => crmApi.reopenActivity(id)); }
-export function useDeleteActivity()   { return useCrmMutation((id: string) => crmApi.deleteActivity(id), { msg: "Activity deleted." }); }
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 

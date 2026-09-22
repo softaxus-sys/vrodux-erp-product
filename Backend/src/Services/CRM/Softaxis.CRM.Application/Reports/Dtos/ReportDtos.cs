@@ -156,8 +156,11 @@ public sealed record VelocityReportDto(
 
 public sealed record ActivityTypeRowDto(string Type, int Total, int Completed, int Open, int Overdue);
 
+// Actionable = tasks, calls and meetings. Notes and logged emails are created already complete,
+// so they count toward Total but are excluded from CompletionRate (see GetActivityReportHandler).
 public sealed record ActivityOwnerRowDto(
-    string Owner, int Total, int Completed, int Open, int Overdue, double CompletionRate);
+    string Owner, int Total, int Completed, int Open, int Overdue, double CompletionRate,
+    int Actionable = 0, int ActionableCompleted = 0);
 
 public sealed record ActivityReportDto(
     IReadOnlyList<ActivityTypeRowDto>  ByType,
@@ -166,7 +169,9 @@ public sealed record ActivityReportDto(
     int    Completed,
     int    Open,
     int    Overdue,
-    double CompletionRate);
+    double CompletionRate,
+    int    Actionable = 0,
+    int    ActionableCompleted = 0);
 
 // ── 8. Account revenue ───────────────────────────────────────────────────────
 

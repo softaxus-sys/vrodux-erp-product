@@ -13,6 +13,14 @@ export type DealPriority = "low" | "medium" | "high";
 export type ForecastCategory = "pipeline" | "best_case" | "commit" | "closed" | "omitted";
 export type ActivityType = "call" | "email" | "meeting" | "note" | "task";
 
+/**
+ * Notes and logged emails are records of something that already happened, so the backend
+ * creates them with `Completed = true` (Activity.cs). They are not to-dos: they carry no
+ * complete/reopen control, and their subject must not be struck through — strikethrough
+ * reads as cancelled everywhere else in the app.
+ */
+export const isActivityLog = (type: ActivityType) => type === "note" || type === "email";
+
 export type LeadStatus   = "new" | "contacted" | "qualified" | "unqualified" | "converted" | "lost";
 export type LeadSource   =
   // Manually-entered sources.
@@ -750,10 +758,8 @@ export const crmApi = {
   getActivitiesSummary: (): Promise<ActivitiesSummaryDto> => rawApiClient.get(`${BASE}/activities/summary`),
   getCustomerTimeline:  (customerId: string): Promise<ActivityDto[]> => rawApiClient.get(`${BASE}/customers/${customerId}/timeline`),
   createActivity:  (a: CreateActivityRequest): Promise<ActivityDto> => rawApiClient.post(`${BASE}/activities`, a),
-  updateActivity:  (id: string, a: { type: string; subject: string; description?: string | null; dueDate?: string | null; assignedTo: string; assignedToUserId?: string | null }): Promise<void> => rawApiClient.put(`${BASE}/activities/${id}`, a),
   completeActivity:(id: string): Promise<void> => rawApiClient.post(`${BASE}/activities/${id}/complete`),
   reopenActivity:  (id: string): Promise<void> => rawApiClient.post(`${BASE}/activities/${id}/reopen`),
-  deleteActivity:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/activities/${id}`),
 
   // Dashboard
   getDashboard: (): Promise<CrmDashboardDto> => rawApiClient.get(`${BASE}/dashboard`),

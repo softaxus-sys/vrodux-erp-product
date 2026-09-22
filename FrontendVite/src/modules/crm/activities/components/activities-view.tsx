@@ -1,12 +1,13 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { CheckSquare, Phone, Mail, Calendar, StickyNote, ListTodo, AlertTriangle, CalendarClock, Check, Trash2 } from "lucide-react";
+import { CheckSquare, Phone, Mail, Calendar, StickyNote, ListTodo, AlertTriangle, CalendarClock, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  useActivitiesPaged, useActivitiesSummary, useCompleteActivity, useReopenActivity, useDeleteActivity,
+  useActivitiesPaged, useActivitiesSummary, useCompleteActivity, useReopenActivity,
 } from "@/hooks/crm/use-crm";
 import { Button } from "@/components/ui/button";
+import { isActivityLog } from "@/lib/crm/crm.api";
 
 const ICON: Record<string, typeof Phone> = { task: CheckSquare, call: Phone, meeting: Calendar, email: Mail, note: StickyNote };
 const ORIGIN_KEYS = new Set(["customer", "deal", "lead"]);
@@ -19,7 +20,6 @@ export function ActivitiesView() {
   const { data: summary } = useActivitiesSummary();
   const complete = useCompleteActivity();
   const reopen = useReopenActivity();
-  const del = useDeleteActivity();
 
   const today = new Date().toISOString().slice(0, 10);
   const [page, setPage] = React.useState(1);
@@ -100,7 +100,7 @@ export function ActivitiesView() {
                 <Icon className="h-4 w-4" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-medium leading-tight truncate", a.completed && "line-through text-muted-foreground")}>{a.subject}</p>
+                <p className="text-sm font-medium leading-tight truncate">{a.subject}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   <span>{t(`activityType.${a.type}`)}</span>
                   {a.relatedToName && <> · {a.relatedToName} <span className="opacity-70">({t(`activity.origin.${ORIGIN_KEYS.has(a.relatedToType) ? a.relatedToType : "customer"}`)})</span></>}
@@ -109,12 +109,11 @@ export function ActivitiesView() {
                 </p>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {a.type !== "note" && a.type !== "email" && (
+                {!isActivityLog(a.type) && (
                   a.completed
                     ? <button onClick={() => reopen.mutate(a.id)} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1">{t("activity.view.reopen")}</button>
                     : <button onClick={() => complete.mutate(a.id)} className="inline-flex items-center gap-1 text-xs text-success hover:bg-success/10 rounded px-2 py-1"><Check className="h-3.5 w-3.5" />{t("activity.view.done")}</button>
                 )}
-                <button onClick={() => del.mutate(a.id)} className="p-1.5 rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
             </div>
           );

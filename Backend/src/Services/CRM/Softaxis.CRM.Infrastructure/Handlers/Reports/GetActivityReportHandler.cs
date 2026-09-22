@@ -16,6 +16,13 @@ namespace Softaxis.CRM.Infrastructure.Handlers.Reports;
 /// Overdue compares the stored <c>yyyy-MM-dd</c> due date as an ordinal string, matching how the CRM
 /// dashboard and list screens already do it, so the counts agree across screens.
 /// </para>
+/// <para>
+/// The completion rate is measured over ACTIONABLE activities only — tasks, calls and meetings.
+/// Notes and logged emails are created already complete (Activity.cs: they record something that
+/// already happened and carry no complete/reopen control), so counting them would report follow-through
+/// a rep never demonstrated: ten notes and no finished tasks would read as 100%. They still count
+/// toward volume, which is real work; they just cannot be passed or failed.
+/// </para>
 /// </summary>
 internal sealed class GetActivityReportHandler(CrmDbContext db, ILeadAccessGuard access)
     : IQueryHandler<GetActivityReportQuery, ActivityReportDto>
@@ -34,6 +41,11 @@ internal sealed class GetActivityReportHandler(CrmDbContext db, ILeadAccessGuard
         bool IsOverdue(bool completed, string? due) =>
             !completed && due != null && string.CompareOrdinal(due, today) < 0;
 
+        // Mirrors isActivityLog() on the frontend — keep the two in step.
+        static bool IsActionable(string? type) =>
+            !string.Equals(type, "note", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(type, "email", StringComparison.OrdinalIgnoreCase);
+
         var byType = rows
             .GroupBy(a => Fallback(a.Type, "task"))
             .Select(g => new ActivityTypeRowDto(
@@ -46,18 +58,24 @@ internal sealed class GetActivityReportHandler(CrmDbContext db, ILeadAccessGuard
             .GroupBy(a => Fallback(a.AssignedTo, "Unassigned"))
             .Select(g =>
             {
-                var completed = g.Count(a => a.Completed);
+                var completed  = g.Count(a => a.Completed);
+                var actionable = g.Count(a => IsActionable(a.Type));
+                var actionableDone = g.Count(a => IsActionable(a.Type) && a.Completed);
                 return new ActivityOwnerRowDto(
                     g.Key, g.Count(), completed, g.Count(a => !a.Completed),
-                    g.Count(a => IsOverdue(a.Completed, a.DueDate)), Rate(completed, g.Count()));
+                    g.Count(a => IsOverdue(a.Completed, a.DueDate)),
+                    Rate(actionableDone, actionable), actionable, actionableDone);
             })
             .OrderByDescending(x => x.Total)
             .ToList();
 
-        var totalCompleted = rows.Count(a => a.Completed);
+        var totalCompleted   = rows.Count(a => a.Completed);
+        var actionable       = rows.Count(a => IsActionable(a.Type));
+        var actionableDone   = rows.Count(a => IsActionable(a.Type) && a.Completed);
 
         return Result.Success(new ActivityReportDto(
             byType, byOwner, rows.Count, totalCompleted, rows.Count - totalCompleted,
-            rows.Count(a => IsOverdue(a.Completed, a.DueDate)), Rate(totalCompleted, rows.Count)));
+            rows.Count(a => IsOverdue(a.Completed, a.DueDate)),
+            Rate(actionableDone, actionable), actionable, actionableDone));
     }
 }

@@ -965,6 +965,7 @@
     "activities": {
       "activities": "Activities",
       "completionRate": "Completion rate",
+      "completionBasis": "{{done}} of {{total}} tasks, calls and meetings",
       "byType": "By type",
       "byOwner": "By owner",
       "overdueByOwner": "Overdue load by owner",

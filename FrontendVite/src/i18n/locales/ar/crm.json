@@ -969,6 +969,7 @@
     "activities": {
       "activities": "الأنشطة",
       "completionRate": "معدل الإنجاز",
+      "completionBasis": "{{done}} من {{total}} مهمة ومكالمة واجتماع",
       "byType": "حسب النوع",
       "byOwner": "حسب المسؤول",
       "overdueByOwner": "المتأخرات حسب المسؤول",

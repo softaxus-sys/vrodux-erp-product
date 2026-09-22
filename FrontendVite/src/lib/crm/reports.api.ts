@@ -110,10 +110,14 @@ export interface ActivityTypeRow {
 }
 export interface ActivityOwnerRow {
   owner: string; total: number; completed: number; open: number; overdue: number; completionRate: number;
+  /** Tasks, calls and meetings — the denominator of completionRate. Notes and logged emails are
+   *  created already complete, so they count toward `total` but are excluded from the rate. */
+  actionable: number; actionableCompleted: number;
 }
 export interface ActivityReport {
   byType: ActivityTypeRow[]; byOwner: ActivityOwnerRow[];
   total: number; completed: number; open: number; overdue: number; completionRate: number;
+  actionable: number; actionableCompleted: number;
 }
 
 export interface AccountRevenueRow {
