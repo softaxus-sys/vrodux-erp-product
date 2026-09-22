@@ -5,8 +5,7 @@ import { PosOfflineProvider } from "@/contexts/pos-offline-context";
 import { usePosFocusMode }  from "@/hooks/pos/use-pos-focus-mode";
 
 export default function Page() {
-  // A till operator gets the whole screen for the sell view; their sidebar preference is put back
-  // when they navigate away.
+  // The sell screen takes the full width; the sidebar preference is restored on the way out.
   usePosFocusMode();
 
   return (

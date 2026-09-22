@@ -4,7 +4,7 @@ import { ShiftGate }         from "@/modules/pos/retail/components/shift-gate";
 import { usePosFocusMode }   from "@/hooks/pos/use-pos-focus-mode";
 
 export default function Page() {
-  // Same as retail: a till operator gets the full width while taking orders.
+  // Same as retail: the order screen takes the full width.
   usePosFocusMode();
 
   return (
