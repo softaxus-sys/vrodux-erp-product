@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "282051112389",
+    "project_id": "vrodux-erp",
+    "storage_bucket": "vrodux-erp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:282051112389:android:abcac3d865421e80906fac",
+        "android_client_info": {
+          "package_name": "com.softaxis.vroduxerp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBv7QYuuDvtoL060uHlYeZqsv4S3cq57XU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
