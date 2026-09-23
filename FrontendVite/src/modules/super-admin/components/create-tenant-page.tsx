@@ -13,17 +13,19 @@ import {
   type PlanType,
   type DeploymentType,
 } from "@/lib/admin/tenants.api";
-import { ModuleSelector, PLAN_DEFAULTS, moduleSetsEqual } from "./module-selector";
+import { ModuleSelector, INDUSTRY_MODULE_DEFAULTS, industryModuleDefaults, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
 import { COUNTRIES } from "@/lib/onboarding/geo-data";
 
 // Public tiers and list prices — mirrors vrodux.com/pricing and the backend PlanDefinitions.
-// Annual rates shown in the description are the discounted per-month equivalents.
+// Annual rates shown in the description are the discounted per-month equivalents. Tier only sets
+// seats/warehouses/branches/feature-flags here — which modules a tenant gets is chosen independently
+// below (Industry Pack + Module Access), and is not capped by the tier for a tenant created this way.
 const PLANS: { value: PlanType; label: string; desc: string; color: string }[] = [
   { value: "Micro",        label: "Micro",        color: "text-gray-600",   desc: "3 users · $159/mo · $129/mo billed annually"  },
   { value: "Starter",      label: "Starter",      color: "text-sky-600",    desc: "10 users · $299/mo · $249/mo billed annually" },
-  { value: "Professional", label: "Professional", color: "text-blue-600",   desc: "50 users · $849/mo · $699/mo billed annually · POS, Restaurant, Hospitality" },
-  { value: "Enterprise",   label: "Enterprise",   color: "text-violet-600", desc: "Unlimited users & modules · custom pricing"   },
+  { value: "Professional", label: "Professional", color: "text-blue-600",   desc: "50 users · $849/mo · $699/mo billed annually" },
+  { value: "Enterprise",   label: "Enterprise",   color: "text-violet-600", desc: "Unlimited users · custom pricing"   },
 ];
 
 const DEPLOYMENTS: { value: DeploymentType; label: string; desc: string; icon: React.ElementType }[] = [
@@ -83,7 +85,7 @@ export function CreateTenantPage() {
   const [adminPassword, setAdminPassword] = React.useState("");
   const [showAdminPassword, setShowAdminPassword] = React.useState(false);
 
-  const [selectedModules, setSelectedModules] = React.useState<string[]>(() => PLAN_DEFAULTS["Starter"]);
+  const [selectedModules, setSelectedModules] = React.useState<string[]>(() => industryModuleDefaults(""));
 
   const [saving, setSaving] = React.useState(false);
   const [error,  setError]  = React.useState<string | null>(null);
@@ -92,14 +94,19 @@ export function CreateTenantPage() {
     if (!slugManual) setSlug(slugify(name));
   }, [name, slugManual]);
 
+  // Module Access follows the Industry Pack now, not the plan — plan only sets seats/limits below.
+  // Re-picking the industry re-seeds the picker UNLESS the super admin already customised it away
+  // from whatever the previous industry suggested (same "don't clobber a deliberate override" rule
+  // the old plan-keyed effect used).
   React.useEffect(() => {
     setSelectedModules(prev => {
-      const isCustom = !Object.values(PLAN_DEFAULTS).some(d => moduleSetsEqual(prev, d));
-      return isCustom ? prev : PLAN_DEFAULTS[plan];
+      const isDefault = Object.values(INDUSTRY_MODULE_DEFAULTS).some(d => moduleSetsEqual(prev, d));
+      return isDefault ? industryModuleDefaults(industry) : prev;
     });
-  }, [plan]);
+  }, [industry]);
 
-  const isCustom    = !moduleSetsEqual(selectedModules, PLAN_DEFAULTS[plan] ?? []);
+  const industryDefaults = industryModuleDefaults(industry);
+  const isCustom    = !moduleSetsEqual(selectedModules, industryDefaults);
   const industryLbl = INDUSTRY_OPTIONS.find(o => o.value === industry)?.label;
   const wantAdmin   = !!(adminEmail.trim() || adminUsername.trim() || adminPassword);
   const canSubmit   = !!name.trim() && !!slug.trim() && !saving;
@@ -123,7 +130,11 @@ export function CreateTenantPage() {
       setSaving(true);
       setError(null);
 
-      let tenant = await tenantsAdminApi.create({
+      // Modules always ride along in the create call now — a super admin's picks here are a manual
+      // grant (see TenantDto.modulesManuallyGranted), never capped by the plan's own module ceiling.
+      // One call, not the old create-then-setModules pair, so role provisioning at creation sees the
+      // real final module set instead of the plan's default bundle.
+      const tenant = await tenantsAdminApi.create({
         name:           name.trim(),
         slug:           slug.trim(),
         plan,
@@ -133,15 +144,11 @@ export function CreateTenantPage() {
         country:        country.trim() || undefined,
         industry:       industry || undefined,
         startTrial,
+        modules:        selectedModules,
         adminEmail:     adminEmail.trim() || undefined,
         adminUsername:  adminUsername.trim() || undefined,
         adminPassword:  adminPassword || undefined,
       });
-
-      const isDefault = moduleSetsEqual(selectedModules, PLAN_DEFAULTS[plan] ?? []);
-      if (!isDefault) {
-        tenant = await tenantsAdminApi.setModules(tenant.id, { modules: selectedModules });
-      }
 
       toast.success(`Tenant "${tenant.name}" created${wantAdmin ? " with admin user" : ""}.`);
       navigate("/super-admin");
@@ -266,25 +273,27 @@ export function CreateTenantPage() {
               </div>
             </Section>
 
-            <Section step={3} icon={Factory} title="Industry Pack" desc="Activates industry screens on top of the core CRM.">
+            <Section step={3} icon={Factory} title="Industry Pack" desc="Sets the Module Access starting point below — pick a vertical or go fully custom.">
               <select value={industry} onChange={e => setIndustry(e.target.value)}
                 className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                 {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
               <p className="text-[11px] text-muted-foreground">
-                {industry
-                  ? `Activates the ${industryLbl} pack — adds industry entities, dashboards and menu on top of CRM.`
-                  : "Generic tenant — core CRM only, no industry pack."}
+                {industry === "custom"
+                  ? "Module Access below starts empty — pick exactly what this tenant gets."
+                  : industry
+                    ? `Activates the ${industryLbl} pack — adds industry entities, dashboards and menu on top of CRM.`
+                    : "Generic tenant — core CRM only, no industry pack."}
               </p>
             </Section>
 
-            <Section step={4} icon={Layers} title="Module Access" desc="Defaults match the plan. Click a chip to toggle.">
+            <Section step={4} icon={Layers} title="Module Access" desc="Pre-filled from the Industry Pack above. Click a chip to add or remove anything — not limited by the plan.">
               {isCustom && (
                 <span className="inline-block text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
                   Custom override active
                 </span>
               )}
-              <ModuleSelector selected={selectedModules} onChange={setSelectedModules} planDefaults={PLAN_DEFAULTS[plan]} />
+              <ModuleSelector selected={selectedModules} onChange={setSelectedModules} defaults={industryDefaults} />
             </Section>
 
             <Section step={5} icon={UserCog} title="Tenant Admin User" desc="Optional. First login account for this tenant (Administrator role).">
@@ -357,7 +366,7 @@ export function CreateTenantPage() {
                   <Row label="Plan"     value={plan} />
                   <Row label="Deploy"   value={deployment} />
                   <Row label="Industry" value={industry ? (industryLbl ?? industry) : "Generic (CRM only)"} />
-                  <Row label="Modules"  value={`${selectedModules.length}${isCustom ? " (custom)" : " (plan default)"}`} />
+                  <Row label="Modules"  value={`${selectedModules.length}${isCustom ? " (customized)" : ` (${industry === "" ? "Generic" : industryLbl} defaults)`}`} />
                   <Row label="Admin"    value={wantAdmin ? (adminEmail || "set") : "None"} />
                 </div>
 
@@ -366,7 +375,7 @@ export function CreateTenantPage() {
                   <span className="text-sm text-foreground">Start 30-day free trial</span>
                 </label>
 
-                {industry && (
+                {industry && industry !== "custom" && (
                   <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/20 p-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <p className="text-[11px] text-muted-foreground">
@@ -374,6 +383,14 @@ export function CreateTenantPage() {
                     </p>
                   </div>
                 )}
+
+                <div className="flex items-start gap-2 rounded-lg bg-muted/40 border border-border p-2.5">
+                  <Layers className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-muted-foreground">
+                    Module Access is a manual grant, not capped by the {plan} plan's usual module set —
+                    the plan here only sets seats, warehouses and branches.
+                  </p>
+                </div>
 
                 {error && (
                   <p className="text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">{error}</p>

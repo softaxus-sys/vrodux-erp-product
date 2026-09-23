@@ -20,6 +20,9 @@ public sealed record TenantDto(
     int                     MaxUsers,
     int                     MaxWarehouses,
     IReadOnlyList<string>   ResolvedModules,
+    // True once a super admin has explicitly granted this tenant's modules — from that point on,
+    // ResolvedModules is no longer capped by the plan's own module ceiling. See Tenant.ResolvedModules.
+    bool                    ModulesManuallyGranted,
     DateTime                CreatedAt,
     // Only ever set for tenants read out of the recycle bin — every other query filters
     // soft-deleted rows out, so this is null on a live tenant.
@@ -38,6 +41,9 @@ public sealed record CreateTenantRequest(
     string? Industry = null,
     string? Currency = null,
     bool    StartTrial = true,
+    // Super-admin-only manual module grant — bypasses the plan's module ceiling entirely when set.
+    // Null means "don't touch modules at creation", which leaves the tenant plan-ceiling-bound.
+    IReadOnlyList<string>? Modules = null,
     // Optional: provision the tenant's first admin login user in the same call.
     string? AdminEmail     = null,
     string? AdminUsername  = null,

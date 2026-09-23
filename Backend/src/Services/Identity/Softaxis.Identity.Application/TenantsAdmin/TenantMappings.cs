@@ -25,6 +25,7 @@ internal static class TenantMappings
         MaxUsers:         t.Limits.MaxUsers,
         MaxWarehouses:    t.Limits.MaxWarehouses,
         ResolvedModules:  t.ResolvedModules,
+        ModulesManuallyGranted: t.ModulesManuallyGranted,
         CreatedAt:        t.CreatedAt,
         DeletedAt:        t.DeletedAt,
         IsMirror:         t.IsMirror);

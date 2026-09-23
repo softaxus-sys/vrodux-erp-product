@@ -44,8 +44,15 @@ export interface TenantDto {
   trialEndsAt: string | null;
   maxUsers: number;
   maxWarehouses: number;
-  /** Resolved module list: custom override if set, else plan defaults. */
+  /** Resolved module list: manual grant if set, else plan defaults. */
   resolvedModules: string[];
+  /**
+   * True once a super admin has explicitly granted this tenant's modules — from that point on,
+   * `resolvedModules` is no longer capped by the plan's own module ceiling (see the backend
+   * `Tenant.ResolvedModules` design note). False for every tenant not yet touched this way, which
+   * still behaves exactly as before: the plan is the ceiling.
+   */
+  modulesManuallyGranted: boolean;
   createdAt: string;
   /** Only populated for tenants listed from the recycle bin; null on a live tenant. */
   deletedAt?: string | null;
@@ -74,6 +81,12 @@ export interface CreateTenantRequest {
   /** Industry vertical — activates the matching Industry Pack (empty = generic CRM). */
   industry?: string;
   startTrial?: boolean;
+  /**
+   * Super-admin manual module grant — bypasses the plan's module ceiling entirely (see
+   * `TenantDto.modulesManuallyGranted`). Omit/undefined to leave the tenant plan-ceiling-bound
+   * instead (not used by the Create Tenant page, which always sends the picker's full selection).
+   */
+  modules?: string[] | null;
   /** Optional: provision the tenant's first admin login user in the same call. */
   adminEmail?: string;
   adminUsername?: string;
