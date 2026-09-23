@@ -32,7 +32,7 @@ Tenant GUID          : ______________________________   (from the cloud console)
 Tenant slug          : ______________________________
 License key          : ______________________________   (long base64 string — paste, never retype)
 License expires      : ______________________________
-Modules              : pos,inventory,finance            (whatever they bought)
+Modules              : pos,inventory,finance            (set on the tenant; the key carries them)
 Plan                 : ______________________________
 
 First admin email    : ______________________________
@@ -65,8 +65,16 @@ Super Admin → Tenants → Create:
 > See `docs/on-premises-cloud-mirror.md` §3.1.
 
 ### 1.2 Generate the license key
-Super Admin → that tenant → **Generate license**: validity days (e.g. 365) and the module list.
-Copy the key and the tenant GUID onto the site sheet.
+Set the tenant's modules **first** (Super Admin → that tenant → Modules), then → **Generate
+license** and choose validity days (e.g. 365). The module list is taken from the tenant itself —
+there is nothing to type, and nothing to get wrong. Copy the key and the tenant GUID onto the site
+sheet.
+
+> **The key is the entitlement.** The installation reads its modules and plan out of the signed
+> payload, not out of `appsettings.json`. So **changing what a site runs means re-issuing the key**:
+> change the modules in the cloud console, generate a new key, paste it into the box's
+> `OnPremises:LicenseKey` and restart the service. The new plan and module list are picked up on
+> that start. `OnPremises:Modules` is only a fallback for an old key issued without a module list.
 
 ### 1.3 Generate a JWT secret for this site
 Every installation must have its **own** secret. The shipped `appsettings.json` contains the

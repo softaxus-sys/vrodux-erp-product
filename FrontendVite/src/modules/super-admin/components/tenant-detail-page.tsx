@@ -33,11 +33,12 @@ function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
     try {
       setGenerating(true);
       setError(null);
+      // The modules this tenant actually has. An on-premises box takes its entitlement from the
+      // signed key, so a hardcoded list here would either withhold a module they bought or grant
+      // one they did not — and the signature would be attesting to neither.
       const resp = await tenantsAdminApi.generateLicense(tenant.id, {
         validityDays,
-        features: planLimits(tenant.plan).maxUsers < 0
-          ? ["pos", "inventory", "reports", "hr", "crm", "finance", "api"]
-          : ["pos", "inventory", "reports"],
+        features: tenant.resolvedModules,
       });
       setLicenseKey(resp.licenseKey);
       const updated = await tenantsAdminApi.getById(tenant.id);

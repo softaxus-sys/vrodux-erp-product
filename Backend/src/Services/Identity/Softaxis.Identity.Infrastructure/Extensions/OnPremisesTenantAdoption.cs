@@ -71,8 +71,10 @@ internal static class OnPremisesTenantAdoption
     }
 
     /// <summary>
-    /// Re-asserts the three facts that must hold on an on-premises box, and nothing else. Name,
-    /// modules and users are the installation's own business once it exists.
+    /// Re-asserts the facts the licence owns, and nothing else. The name and the users are the
+    /// installation's own business once it exists; the plan and the module list are not - they are
+    /// what was sold, they are signed into the key, and a re-issued key is how a site is upgraded,
+    /// downgraded or renewed.
     /// </summary>
     private static async Task EnsureOnPremisesAsync(
         IdentityDbContext db, Tenant tenant, string licence, LicensePayload payload, ILogger logger)
@@ -94,11 +96,34 @@ internal static class OnPremisesTenantAdoption
             logger.LogWarning("OnPremises: workspace {TenantId} was flagged as a cloud mirror; cleared.", tenant.Id);
         }
 
+        // A new key means the commercial terms changed - a renewal, an upgrade, a module added or
+        // dropped. Re-assert both from the signed payload, or the box would keep running on the
+        // entitlement it was first installed with and a sold module would never appear.
         if (!string.Equals(tenant.LicenseKey, licence, StringComparison.Ordinal))
         {
             tenant.SetLicenseKey(licence, payload.ExpiresAt);
             changed = true;
             logger.LogInformation("OnPremises: license key updated for workspace {TenantId}.", tenant.Id);
+
+            if (Enum.TryParse<PlanType>(payload.Plan, ignoreCase: true, out var newPlan) &&
+                tenant.Plan != newPlan)
+            {
+                // The plan is the ceiling ResolvedModules is intersected against, so leaving it
+                // stale would silently cap a module the new licence actually grants.
+                logger.LogInformation(
+                    "OnPremises: plan for workspace {TenantId} moved {Old} -> {New} by the new license.",
+                    tenant.Id, tenant.Plan, newPlan);
+                tenant.ChangePlan(newPlan);
+            }
+
+            var licensed = LicensedModules(payload);
+            if (licensed.Count > 0)
+            {
+                logger.LogInformation(
+                    "OnPremises: modules for workspace {TenantId} re-asserted from the license: {Modules}.",
+                    tenant.Id, string.Join(", ", licensed));
+                tenant.SetEnabledModules(licensed);
+            }
         }
 
         if (changed) await db.SaveChangesAsync();
@@ -127,7 +152,20 @@ internal static class OnPremisesTenantAdoption
         tenant.SetLicenseKey(licence, payload.ExpiresAt);
         tenant.Activate();
 
-        var modules = SplitModules(cfg["OnPremises:Modules"]);
+        // The signed licence decides what this site may run. OnPremises:Modules is only a fallback
+        // for a key issued without a module list - it lives in a text file on the customer's own
+        // server, so treating it as the source of entitlement would make the signature pointless.
+        var modules = LicensedModules(payload);
+        if (modules.Count == 0)
+        {
+            modules = SplitModules(cfg["OnPremises:Modules"]);
+            if (modules.Count > 0)
+                logger.LogWarning(
+                    "OnPremises: the license key carries no module list; falling back to " +
+                    "OnPremises:Modules ({Modules}). Re-issue the key with its modules set.",
+                    string.Join(", ", modules));
+        }
+
         if (modules.Count > 0) tenant.SetEnabledModules(modules);
 
         db.Tenants.Add(tenant);
@@ -248,6 +286,17 @@ internal static class OnPremisesTenantAdoption
                 "set it on the Cloud Sync screen instead.");
         }
     }
+
+    /// <summary>
+    /// The module list signed into the licence key. Empty for a key issued before modules were
+    /// carried in the payload, which is the only case the configuration fallback exists for.
+    /// </summary>
+    private static List<string> LicensedModules(LicensePayload payload) =>
+        (payload.Features ?? [])
+            .Where(f => !string.IsNullOrWhiteSpace(f))
+            .Select(f => f.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToList();
 
     private static List<string> SplitModules(string? csv) =>
         string.IsNullOrWhiteSpace(csv)
