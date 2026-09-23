@@ -32,6 +32,13 @@ public sealed class CreateTenantCommandHandler(
         var tenant = Tenant.Create(cmd.Name, cmd.Slug, plan, deployment, cmd.ContactEmail, cmd.Country, cmd.Industry);
         tenant.SetCurrency(cmd.Currency);   // manual on the admin path (defaults to USD when null)
 
+        // Apply the super admin's module grant BEFORE role provisioning below, so the "{Module}
+        // Manager" roles are created against the tenant's real, final module set rather than the
+        // plan's default ceiling — the previous two-call sequence (create, then a separate setModules
+        // call) provisioned roles off the wrong list because the second call never re-ran it.
+        if (cmd.Modules is not null)
+            tenant.GrantModulesManually(cmd.Modules);
+
         if (cmd.StartTrial)
             tenant.StartTrial(30);
         else

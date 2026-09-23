@@ -151,6 +151,10 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
 export const INDUSTRY_OPTIONS = [
   { value: "", label: "Generic (CRM only — no industry pack)" },
   ...INDUSTRY_PACKS.map(p => ({ value: p.industry, label: p.label })),
+  // Not a real Industry Pack (no moduleKey, no PackModuleFor mapping on the backend) — picking this
+  // just starts the super admin's Module Access picker empty instead of pre-checking a bundle, for a
+  // tenant that doesn't fit any named vertical. Super-admin tooling only (see CreateTenantPage).
+  { value: "custom", label: "Custom (pick modules manually)" },
 ];
 
 export const getPackByIndustry = (industry?: string | null): IndustryPack | undefined =>

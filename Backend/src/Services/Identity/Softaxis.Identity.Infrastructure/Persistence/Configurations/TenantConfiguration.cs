@@ -49,6 +49,7 @@ public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.LicenseKey).HasColumnType("nvarchar(max)");
         builder.Property(t => t.ConnectionStrings).HasColumnType("nvarchar(max)");
         builder.Property(t => t.EnabledModules).HasColumnType("nvarchar(max)");
+        builder.Property(t => t.ModulesManuallyGranted).HasDefaultValue(false);
 
         builder.Property(t => t.CreatedBy).HasMaxLength(100).HasDefaultValue("system");
         builder.Property(t => t.UpdatedBy).HasMaxLength(100);

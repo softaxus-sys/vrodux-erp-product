@@ -62,6 +62,33 @@ export const PLAN_DEFAULTS: Record<PlanType, string[]> = {
   Business:     [...CORE_MODULE_CODES, "pos", "restaurant", "recipe", "hospitality"],
 };
 
+/**
+ * Industry → default module bundle for the super-admin Create/Edit Tenant tools. Plan tiers are
+ * seats/limits only there (see `PLAN_DEFAULTS`'s remaining use — the plan-downgrade warning on
+ * legacy, non-manually-granted tenants); module *access* is chosen here instead. Every named
+ * industry gets the same core ERP bundle plus its own vertical module (mirrors the backend
+ * `Tenant.PackModuleFor` mapping); "" (Generic) is the core bundle with no vertical; "custom"
+ * starts empty so a super admin builds the set from nothing.
+ *
+ * Keys must match `Tenant.Industry` values (`config/industry-packs.ts`'s `INDUSTRY_OPTIONS`).
+ */
+export const INDUSTRY_MODULE_DEFAULTS: Record<string, string[]> = {
+  "":               CORE_MODULE_CODES,
+  real_estate:      [...CORE_MODULE_CODES, "real-estate"],
+  construction:     [...CORE_MODULE_CODES, "construction"],
+  healthcare:       [...CORE_MODULE_CODES, "healthcare"],
+  education:        [...CORE_MODULE_CODES, "education"],
+  insurance:        [...CORE_MODULE_CODES, "insurance"],
+  b2b_services:     [...CORE_MODULE_CODES, "b2b"],
+  visa_services:    [...CORE_MODULE_CODES, "visa"],
+  custom:           [],
+};
+
+/** Safe lookup — an unrecognised industry value starts the picker from the Generic bundle. */
+export function industryModuleDefaults(industry: string | null | undefined): string[] {
+  return INDUSTRY_MODULE_DEFAULTS[industry ?? ""] ?? CORE_MODULE_CODES;
+}
+
 function ALL_MODULES_CODES(): string[] {
   return [
     "pos", "restaurant", "recipe", "inventory", "purchase", "sales", "crm", "finance", "hr",
@@ -111,18 +138,18 @@ function chipStyle(code: string) {
 interface ModuleSelectorProps {
   selected: string[];
   onChange: (modules: string[]) => void;
-  /** Shown as hint + used by the "Reset" button. */
-  planDefaults?: string[];
+  /** The baseline to compare against + reset to — plan defaults or industry defaults, per caller. */
+  defaults?: string[];
   /** When true, chips are visual-only (no click). */
   readOnly?: boolean;
-  /** Show the "Reset to plan defaults" button (default true when planDefaults provided). */
+  /** Show the "Reset to defaults" button (default true when defaults provided). */
   showReset?: boolean;
 }
 
 export function ModuleSelector({
   selected,
   onChange,
-  planDefaults = [],
+  defaults = [],
   readOnly = false,
   showReset = true,
 }: ModuleSelectorProps) {
@@ -134,8 +161,8 @@ export function ModuleSelector({
   };
 
   const isDefault = React.useMemo(
-    () => planDefaults.length > 0 && moduleSetsEqual(selected, planDefaults),
-    [selected, planDefaults],
+    () => defaults.length > 0 && moduleSetsEqual(selected, defaults),
+    [selected, defaults],
   );
 
   return (
@@ -166,11 +193,11 @@ export function ModuleSelector({
         })}
       </div>
 
-      {!readOnly && showReset && planDefaults.length > 0 && (
+      {!readOnly && showReset && defaults.length > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-[10px] text-muted-foreground">
             {isDefault
-              ? "Showing plan defaults. Toggle chips to customise."
+              ? "Showing defaults. Toggle chips to customise."
               : `${selected.length} module${selected.length !== 1 ? "s" : ""} selected (custom override active).`}
           </p>
           {!isDefault && (
@@ -179,7 +206,7 @@ export function ModuleSelector({
               size="sm"
               variant="ghost"
               className="h-6 text-[10px] px-2 text-muted-foreground"
-              onClick={() => onChange(planDefaults)}
+              onClick={() => onChange(defaults)}
             >
               <RotateCcw className="h-2.5 w-2.5 mr-1" />
               Reset to defaults

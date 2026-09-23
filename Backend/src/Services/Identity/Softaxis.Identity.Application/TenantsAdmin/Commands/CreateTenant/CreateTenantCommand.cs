@@ -14,6 +14,7 @@ public sealed record CreateTenantCommand(
     string? Industry,
     string? Currency,
     bool    StartTrial,
+    IReadOnlyList<string>? Modules,
     string? AdminEmail,
     string? AdminUsername,
     string? AdminFirstName,

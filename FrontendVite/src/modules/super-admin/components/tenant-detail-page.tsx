@@ -17,7 +17,7 @@ import {
   planLimits,
   ASSIGNABLE_PLANS,
 } from "@/lib/admin/tenants.api";
-import { ModuleSelector, PLAN_DEFAULTS, moduleSetsEqual } from "./module-selector";
+import { ModuleSelector, PLAN_DEFAULTS, industryModuleDefaults, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
 
 // ── License Panel ─────────────────────────────────────────────────────────────
@@ -268,40 +268,32 @@ function ConnectionStringsPanel({ tenant, onUpdated }: { tenant: TenantDto; onUp
 // ── Modules Panel ─────────────────────────────────────────────────────────────
 
 function ModulesPanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t: TenantDto) => void }) {
-  const planDefaults = PLAN_DEFAULTS[tenant.plan] ?? [];
-  const currentModules: string[] = tenant.resolvedModules ?? planDefaults;
+  // Once a super admin edits modules here, the save always becomes a manual grant (see
+  // tenantsAdminApi.setModules / the backend Tenant.GrantModulesManually) — no longer capped by the
+  // plan. Until then, a tenant still shows its ordinary plan-ceiling-bound resolved modules.
+  const industryDefaults = industryModuleDefaults(tenant.industry);
+  const currentModules: string[] = tenant.resolvedModules ?? industryDefaults;
 
   const [editing,         setEditing]         = React.useState(false);
   const [selectedModules, setSelectedModules] = React.useState<string[]>(currentModules);
   const [saving,          setSaving]          = React.useState(false);
-  const [resetting,       setResetting]       = React.useState(false);
   const [error,           setError]           = React.useState<string | null>(null);
   const [saved,           setSaved]           = React.useState(false);
 
   React.useEffect(() => {
-    setSelectedModules(tenant.resolvedModules ?? PLAN_DEFAULTS[tenant.plan] ?? []);
-  }, [tenant.id, tenant.plan, tenant.resolvedModules]);
+    setSelectedModules(tenant.resolvedModules ?? industryModuleDefaults(tenant.industry));
+  }, [tenant.id, tenant.industry, tenant.resolvedModules]);
 
-  const isUsingPlanDefaults = moduleSetsEqual(currentModules, planDefaults);
+  const matchesIndustryDefaults = moduleSetsEqual(currentModules, industryDefaults);
   const hasChanges = !moduleSetsEqual(selectedModules, currentModules);
 
   const save = async () => {
     try {
       setSaving(true); setError(null);
-      const modules = moduleSetsEqual(selectedModules, planDefaults) ? null : selectedModules;
-      const updated = await tenantsAdminApi.setModules(tenant.id, { modules });
+      const updated = await tenantsAdminApi.setModules(tenant.id, { modules: selectedModules });
       onUpdated(updated); setEditing(false); setSaved(true); setTimeout(() => setSaved(false), 2500);
     } catch (err: any) { setError(err?.message ?? "Failed to save modules."); }
     finally { setSaving(false); }
-  };
-
-  const resetToDefaults = async () => {
-    try {
-      setResetting(true); setError(null);
-      const updated = await tenantsAdminApi.setModules(tenant.id, { modules: null });
-      onUpdated(updated); setEditing(false);
-    } catch (err: any) { setError(err?.message ?? "Reset failed."); }
-    finally { setResetting(false); }
   };
 
   return (
@@ -311,13 +303,15 @@ function ModulesPanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold text-foreground">Module Access</span>
-            {!isUsingPlanDefaults
-              ? <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Custom override</span>
-              : <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Plan defaults</span>}
+            {tenant.modulesManuallyGranted
+              ? <span className="text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">Manually granted</span>
+              : <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Plan default</span>}
           </div>
           <p className="text-[11px] text-muted-foreground pl-6">
             {currentModules.length} module{currentModules.length !== 1 ? "s" : ""} enabled
-            {isUsingPlanDefaults ? ` (${tenant.plan} plan defaults)` : " (custom override)"}
+            {tenant.modulesManuallyGranted
+              ? (matchesIndustryDefaults ? " (matches industry defaults)" : " (customized)")
+              : ` (${tenant.plan} plan defaults)`}
           </p>
         </div>
         {!editing && (
@@ -331,13 +325,11 @@ function ModulesPanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
         <div className="space-y-3">
           <ModuleSelector selected={currentModules} onChange={() => {}} readOnly />
           {saved && <p className="text-xs text-emerald-600 flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> Module access updated.</p>}
-          {!isUsingPlanDefaults && (
-            <div className="pt-2 border-t border-border">
-              <Button size="sm" variant="outline" className="h-7 text-xs text-muted-foreground" disabled={resetting} onClick={resetToDefaults}>
-                {resetting ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" /> : <RotateCcw className="h-3 w-3 mr-1.5" />}
-                Reset to {tenant.plan} plan defaults
-              </Button>
-            </div>
+          {!tenant.modulesManuallyGranted && (
+            <p className="text-[11px] text-muted-foreground">
+              This tenant is still plan-ceiling-bound — saving an edit here grants exactly the
+              selected modules instead, independent of plan.
+            </p>
           )}
         </div>
       )}
@@ -345,7 +337,7 @@ function ModulesPanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
       {editing && (
         <div className="space-y-3">
           <div className="rounded-xl border border-border p-3 bg-muted/20">
-            <ModuleSelector selected={selectedModules} onChange={setSelectedModules} planDefaults={planDefaults} />
+            <ModuleSelector selected={selectedModules} onChange={setSelectedModules} defaults={industryDefaults} />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex items-center justify-between gap-2">
@@ -353,6 +345,9 @@ function ModulesPanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
               {hasChanges ? `${selectedModules.length} module${selectedModules.length !== 1 ? "s" : ""} selected — unsaved changes` : "No changes."}
             </p>
             <div className="flex gap-2 shrink-0">
+              <Button size="sm" variant="ghost" className="h-8 text-xs text-muted-foreground" onClick={() => setSelectedModules(industryDefaults)}>
+                <RotateCcw className="h-3 w-3 mr-1.5" /> Reset to industry defaults
+              </Button>
               <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => { setEditing(false); setError(null); }}>Cancel</Button>
               <Button size="sm" className="h-8 text-xs" disabled={saving || !hasChanges} onClick={save}>
                 {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />} Save
@@ -669,9 +664,16 @@ export function TenantDetailPage() {
                           {" → "}
                           {planLimits(pendingPlan).maxUsers < 0 ? "Unlimited" : planLimits(pendingPlan).maxUsers}
                         </p>
-                        {/* A downgrade silently drops modules — the backend intersects the tenant's
-                            modules with the plan's, so say so BEFORE the change, not after. */}
-                        {(() => {
+                        {/* A downgrade silently drops modules ONLY for a tenant still plan-ceiling-
+                            bound — the backend intersects its modules with the new plan's. A manually
+                            granted tenant's modules are untouched by a plan change (see
+                            Tenant.ResolvedModules), so the warning would be actively wrong for them. */}
+                        {tenant.modulesManuallyGranted ? (
+                          <p className="text-[11px] text-muted-foreground">
+                            This tenant's modules are manually granted — changing plan only affects
+                            seats, warehouses and branches; module access is unaffected.
+                          </p>
+                        ) : (() => {
                           const allowed = PLAN_DEFAULTS[pendingPlan] ?? [];
                           const losing  = (tenant.resolvedModules ?? []).filter(m => !allowed.includes(m));
                           return losing.length > 0 ? (
@@ -708,9 +710,11 @@ export function TenantDetailPage() {
                     {INDUSTRY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
                   <p className="text-[11px] text-muted-foreground">
-                    {tenant.industry
-                      ? `Activates the ${industryLabel} pack (+ core CRM) for this tenant.`
-                      : "Generic tenant — core CRM only, no industry pack."}
+                    {tenant.industry === "custom"
+                      ? "Custom — module access is managed entirely by hand below."
+                      : tenant.industry
+                        ? `Activates the ${industryLabel} pack (+ core CRM) for this tenant.`
+                        : "Generic tenant — core CRM only, no industry pack."}
                   </p>
                 </div>
 

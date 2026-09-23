@@ -65,6 +65,15 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// </summary>
     public string?   EnabledModules     { get; private set; }
 
+    /// <summary>
+    /// True when <see cref="EnabledModules"/> was set through <see cref="GrantModulesManually"/> —
+    /// a super admin's explicit, bespoke module grant — rather than <see cref="SetEnabledModules"/>
+    /// (self-serve onboarding, still plan-bound). Governs whether <see cref="ResolvedModules"/>
+    /// treats the plan as a ceiling. Defaults false, so every tenant provisioned before this existed
+    /// keeps behaving exactly as it does today until a super admin next edits its modules.
+    /// </summary>
+    public bool      ModulesManuallyGranted { get; private set; }
+
     // ── Signup attribution + trial dunning ────────────────────────────────────
 
     /// <summary><c>utm_source</c> captured from the pricing-page link that produced this signup.</summary>
@@ -153,12 +162,18 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// <see cref="EnabledModules"/> (the modules picked during onboarding) narrows the set, but the
     /// <b>plan is the ceiling</b>: the selection is intersected with <see cref="PlanLimits.Modules"/>,
     /// so a Micro tenant cannot hold POS just because it was ticked at signup. Changing tier is the
-    /// only way to widen entitlement.
+    /// only way to widen entitlement — <b>except</b> when <see cref="ModulesManuallyGranted"/> is
+    /// true, in which case the super admin's explicit list is authoritative and the ceiling is
+    /// skipped entirely. That's the one lever that lets a super admin sell a bespoke module set (e.g.
+    /// POS on a Micro-priced deal) without the tenant buying into a whole higher tier for it. Only a
+    /// super admin can set that flag (<see cref="GrantModulesManually"/>) — self-serve onboarding
+    /// always goes through <see cref="SetEnabledModules"/>, which stays plan-bound.
     /// </para>
     /// <para>
     /// The active Industry-Pack module (and <c>crm</c>, which packs build on) are folded in afterwards
-    /// on <b>every</b> tier — packs are sold by industry, not by tier, and stripping one would break a
-    /// live vertical tenant.
+    /// on every plan-bound tier — packs are sold by industry, not by tier, and stripping one would
+    /// break a live vertical tenant. A manual grant is exempt from this fold-in too: the super admin's
+    /// explicit picks are the whole truth, including the choice to drop the industry's own module.
     /// </para>
     /// </summary>
     /// <summary>Modules every tenant always has, regardless of plan or onboarding choices.</summary>
@@ -169,27 +184,31 @@ public sealed class Tenant : AuditableEntity<Guid>
         get
         {
             var entitled = Limits.Modules;
+            var manual   = ModulesManuallyGranted && EnabledModules is not null;
 
             var list = EnabledModules is not null
                 ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(EnabledModules)!
                     .Select(CanonicalModuleCode)
-                    .Where(m => m is not null && entitled.Contains(m, StringComparer.OrdinalIgnoreCase))
+                    .Where(m => m is not null && (manual || entitled.Contains(m, StringComparer.OrdinalIgnoreCase)))
                     .Select(m => m!)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList()
                 : entitled.ToList();
 
-            var pack = PackModuleFor(Industry);
-            if (pack is not null)
+            if (!manual)
             {
-                if (!list.Contains("crm"))  list.Add("crm");
-                if (!list.Contains(pack))   list.Add(pack);
+                var pack = PackModuleFor(Industry);
+                if (pack is not null)
+                {
+                    if (!list.Contains("crm"))  list.Add("crm");
+                    if (!list.Contains(pack))   list.Add(pack);
+                }
             }
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
-            // manage billing. Locking them behind a plan or an onboarding checkbox would leave an
-            // admin unable to add a single user, so they are on for every tenant on every plan and
-            // cannot be switched off.
+            // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual
+            // grant would leave an admin unable to add a single user, so they are on for every
+            // tenant regardless and cannot be switched off.
             foreach (var m in AlwaysOnModules)
                 if (!list.Contains(m, StringComparer.OrdinalIgnoreCase)) list.Add(m);
 
@@ -325,7 +344,8 @@ public sealed class Tenant : AuditableEntity<Guid>
     }
 
     /// <summary>
-    /// Override the module list for this tenant.
+    /// Override the module list for this tenant. Stays subject to the plan ceiling in
+    /// <see cref="ResolvedModules"/> — used by self-serve onboarding, never by the super-admin tool.
     /// Pass <see langword="null"/> to reset to plan defaults.
     /// </summary>
     public void SetEnabledModules(IReadOnlyList<string>? modules)
@@ -333,6 +353,20 @@ public sealed class Tenant : AuditableEntity<Guid>
         EnabledModules = modules is null
             ? null
             : System.Text.Json.JsonSerializer.Serialize(modules);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Super-admin-only: grant exactly this module list, bypassing the plan's ceiling entirely (see
+    /// the design note on <see cref="ResolvedModules"/>). Pass <see langword="null"/> to release the
+    /// grant and fall back to ordinary plan-ceiling behaviour.
+    /// </summary>
+    public void GrantModulesManually(IReadOnlyList<string>? modules)
+    {
+        EnabledModules = modules is null
+            ? null
+            : System.Text.Json.JsonSerializer.Serialize(modules);
+        ModulesManuallyGranted = modules is not null;
         UpdatedAt = DateTime.UtcNow;
     }
 
