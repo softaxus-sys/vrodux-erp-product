@@ -31,6 +31,7 @@ public sealed class CreateTenantCommandHandler(
 
         var tenant = Tenant.Create(cmd.Name, cmd.Slug, plan, deployment, cmd.ContactEmail, cmd.Country, cmd.Industry);
         tenant.SetCurrency(cmd.Currency);   // manual on the admin path (defaults to USD when null)
+        if (cmd.IsMirror) tenant.SetMirror(true);
 
         if (cmd.StartTrial)
             tenant.StartTrial(30);

@@ -26,5 +26,6 @@ internal static class TenantMappings
         MaxWarehouses:    t.Limits.MaxWarehouses,
         ResolvedModules:  t.ResolvedModules,
         CreatedAt:        t.CreatedAt,
-        DeletedAt:        t.DeletedAt);
+        DeletedAt:        t.DeletedAt,
+        IsMirror:         t.IsMirror);
 }

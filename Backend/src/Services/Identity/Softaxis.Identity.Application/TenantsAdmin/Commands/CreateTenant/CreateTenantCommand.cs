@@ -18,7 +18,12 @@ public sealed record CreateTenantCommand(
     string? AdminUsername,
     string? AdminFirstName,
     string? AdminLastName,
-    string? AdminPassword) : ICommand<TenantDto>;
+    string? AdminPassword,
+    // Creates this workspace as the READ-ONLY cloud mirror of an on-premises installation: it
+    // accepts no writes and runs no tenant-scoped background jobs, because the shop does both.
+    // The on-premises box then adopts this tenant's id via its license key.
+    // docs/on-premises-cloud-mirror.md
+    bool    IsMirror = false) : ICommand<TenantDto>;
 
 public sealed class CreateTenantValidator : AbstractValidator<CreateTenantCommand>
 {

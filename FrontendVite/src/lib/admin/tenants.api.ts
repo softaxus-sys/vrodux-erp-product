@@ -37,6 +37,8 @@ export interface TenantDto {
   primaryColor: string | null;
   industry: string | null;
   hasLicenseKey: boolean;
+  /** True when this workspace is the read-only cloud reflection of an on-premises installation. */
+  isMirror?: boolean;
   licenseExpiresAt: string | null;
   lastHeartbeatAt: string | null;
   trialEndsAt: string | null;
@@ -78,6 +80,14 @@ export interface CreateTenantRequest {
   adminFirstName?: string;
   adminLastName?: string;
   adminPassword?: string;
+  /**
+   * Creates this workspace as the READ-ONLY cloud mirror of an on-premises installation: it accepts
+   * no writes and runs no tenant-scoped background jobs, because the shop does both. Only ever set
+   * together with deploymentType "OnPremises" — the licence generator refuses a Cloud tenant, and
+   * the on-premises box adopts this tenant's id via its licence key.
+   * docs/on-premises-cloud-mirror.md
+   */
+  isMirror?: boolean;
 }
 
 export interface UpdateTenantRequest {

@@ -23,6 +23,8 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     public DbSet<TeamMember>     TeamMembers     => Set<TeamMember>();
     public DbSet<AppSetting>     AppSettings     => Set<AppSetting>();
     public DbSet<Tenant>         Tenants         => Set<Tenant>();
+    /// <summary>On-premises only: nightly cloud-mirror push configuration. See docs/on-premises-cloud-mirror.md.</summary>
+    public DbSet<TenantSyncSettings> TenantSyncSettings => Set<TenantSyncSettings>();
 
     // ── Billing ───────────────────────────────────────────────────────────────
     public DbSet<Subscription>        Subscriptions        => Set<Subscription>();

@@ -678,6 +678,8 @@ export const navigationConfig: NavGroup[] = [
           { id: "security", label: "Security (2FA)", href: "/settings/security", icon: "ShieldCheck" },
           { id: "branches", label: "Branches", href: "/settings/branches", icon: "GitBranch", requiresPermission: "settings.branches.view" },
           { id: "integrations", label: "Integrations", href: "/settings/integrations", icon: "Plug", requiresPermission: "settings.integrations.view" },
+          // on-premises only — the screen itself says so on a cloud deployment
+          { id: "cloud-sync", label: "Cloud Sync", href: "/settings/cloud-sync", icon: "CloudUpload", requiresPermission: "settings.integrations.edit" },
           { id: "audit-logs", label: "Audit Logs", href: "/settings/audit", icon: "ScrollText", requiresPermission: "settings.audit.view" },
         ],
       },

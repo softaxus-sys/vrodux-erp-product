@@ -23,7 +23,10 @@ public sealed record TenantDto(
     DateTime                CreatedAt,
     // Only ever set for tenants read out of the recycle bin — every other query filters
     // soft-deleted rows out, so this is null on a live tenant.
-    DateTime?               DeletedAt = null);
+    DateTime?               DeletedAt = null,
+    // True when this workspace is the read-only cloud reflection of an on-premises installation.
+    // docs/on-premises-cloud-mirror.md
+    bool                    IsMirror  = false);
 
 public sealed record CreateTenantRequest(
     string  Name,
@@ -40,7 +43,9 @@ public sealed record CreateTenantRequest(
     string? AdminUsername  = null,
     string? AdminFirstName = null,
     string? AdminLastName  = null,
-    string? AdminPassword  = null);
+    string? AdminPassword  = null,
+    // Create as the read-only cloud mirror of an on-premises installation.
+    bool    IsMirror       = false);
 
 public sealed record SetIndustryRequest(string? Industry);
 

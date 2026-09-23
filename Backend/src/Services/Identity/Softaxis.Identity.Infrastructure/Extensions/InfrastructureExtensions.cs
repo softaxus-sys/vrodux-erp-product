@@ -145,6 +145,12 @@ public static class InfrastructureExtensions
         await SeedAdminAsync(db);
         await SeedSuperAdminAsync(db, passwordHasher, configuration);   // config-driven — no-op unless SuperAdmin creds are set
 
+        // On-premises only: adopt the cloud tenant id carried by the configured license key, so both
+        // copies of a mirrored workspace share one GUID. Config-driven — no-op without
+        // OnPremises:LicenseKey. Runs before role provisioning below so the adopted tenant is
+        // included by it. docs/on-premises-cloud-mirror.md §3.4
+        await OnPremisesTenantAdoption.AdoptAsync(scope.ServiceProvider, db);
+
         // NOTE: the old SeedPOSRolesAsync seeded GLOBAL (tenant-less) operational roles
         // (Cashier / Supervisor / Store Manager / Inventory Manager / POS Admin) + demo users.
         // Those globals duplicated the per-tenant roles that TenantRoleProvisioner now creates, so

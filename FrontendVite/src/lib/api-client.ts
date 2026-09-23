@@ -156,6 +156,11 @@ const SUBSCRIPTION_CODES = new Set([
   "TRIAL_EXPIRED",
   // "Buy Now" signup that hasn't paid yet — gated to billing, same as the others.
   "PAYMENT_REQUIRED",
+
+  // NOTE: MIRROR_READ_ONLY is deliberately NOT here. A refused write on a cloud mirror is not a
+  // billing problem and there is nothing to pay — redirecting away from the page the user is
+  // standing on would lose their context and tell them the wrong thing. It falls through to the
+  // normal error path, so the mutation hook reports it where the user is.
 ]);
 
 /**

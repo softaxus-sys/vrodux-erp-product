@@ -88,6 +88,19 @@ public sealed class Tenant : AuditableEntity<Guid>
     public DateTime? LastHeartbeatAt    { get; private set; }
     public DateTime? TrialEndsAt        { get; private set; }
 
+    /// <summary>
+    /// True when this row is the CLOUD-side read-only reflection of an on-premises installation
+    /// that pushes its data up nightly. The on-premises box is the system of record; a mirror
+    /// workspace accepts no writes except the sync push itself.
+    /// <para>
+    /// Enforced by <c>SubscriptionEnforcementMiddleware</c> (every mutating request is refused with
+    /// <c>MIRROR_READ_ONLY</c>) and honoured by <c>ITenantWorkFilter</c> so background jobs do not
+    /// run twice over the same tenant - once here and once in the shop. See
+    /// <c>docs/on-premises-cloud-mirror.md</c>.
+    /// </para>
+    /// </summary>
+    public bool      IsMirror           { get; private set; }
+
     // ── Derived ───────────────────────────────────────────────────────────────
 
     public PlanLimits Limits => PlanDefinitions.Get(Plan);
@@ -290,6 +303,26 @@ public sealed class Tenant : AuditableEntity<Guid>
     public void Suspend()
     {
         Status    = TenantStatus.Suspended;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Moves an existing workspace between cloud and on-premises licensing. Used when an
+    /// installation adopts a tenant created in the cloud - see OnPremisesTenantAdoption.
+    /// </summary>
+    public void SetDeploymentType(DeploymentType deploymentType)
+    {
+        DeploymentType = deploymentType;
+        UpdatedAt      = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Marks this cloud tenant as the read-only mirror of an on-premises installation (or clears it).
+    /// Never set on the on-premises copy - that side is the system of record and must stay writable.
+    /// </summary>
+    public void SetMirror(bool isMirror)
+    {
+        IsMirror  = isMirror;
         UpdatedAt = DateTime.UtcNow;
     }
 

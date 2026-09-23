@@ -151,6 +151,7 @@ const RolesPage            = lazyWithRetry(() => import("@/pages/settings/roles"
 const TeamsPage            = lazyWithRetry(() => import("@/pages/settings/teams"));
 const BranchesPage         = lazyWithRetry(() => import("@/pages/settings/branches"));
 const IntegrationsPage     = lazyWithRetry(() => import("@/pages/settings/integrations"));
+const CloudSyncPage        = lazyWithRetry(() => import("@/pages/settings/cloud-sync"));
 const PropertyFinderPage   = lazyWithRetry(() => import("@/pages/settings/property-finder"));
 const AuditPage            = lazyWithRetry(() => import("@/pages/settings/audit"));
 const AppearancePage       = lazyWithRetry(() => import("@/pages/settings/appearance"));
@@ -551,6 +552,8 @@ export function App() {
           </Route>
           <Route element={<SettingsGuard permission="settings.integrations.view" />}>
             <Route path="/settings/integrations"        element={<IntegrationsPage />} />
+            {/* no settings.sync key — connecting this installation to the cloud is an integration */}
+            <Route path="/settings/cloud-sync"          element={<CloudSyncPage />} />
           </Route>
           {/* Importing creates logins in bulk and pulls an outside system's data into this CRM —
               a workspace-owner action, so it has its own permission rather than riding on "edit". */}

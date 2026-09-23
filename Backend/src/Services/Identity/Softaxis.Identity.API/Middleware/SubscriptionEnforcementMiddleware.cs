@@ -20,6 +20,13 @@ namespace Softaxis.Identity.API.Middleware;
 ///
 /// Results are cached 60 seconds per tenant to avoid a DB round-trip on every request.
 ///
+/// Cloud mirror (read-only):
+///   A tenant with IsMirror = true is the cloud-side reflection of an on-premises installation that
+///   pushes its data up nightly. The shop is the system of record, so every mutating request here is
+///   refused with MIRROR_READ_ONLY. Without this the two copies diverge silently: an edit made in
+///   the cloud is either overwritten by the next push or never reconciled at all, and nobody finds
+///   out until an accountant does. See docs/on-premises-cloud-mirror.md.
+///
 /// Anti-crack properties:
 ///   • RSA-2048 signature: forging a license key requires the Softaxis private key.
 ///   • Payload contains TenantId + TenantSlug: licenses cannot be reused across tenants.
@@ -42,7 +49,18 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
         // untouched; only the rest of the API is gated until a subscription is paid.
         "/api/billing/",
         "/api/tenant-settings/",
+
+        // The nightly mirror push. It authenticates with the installation's signed license key
+        // rather than a user JWT, so no tenant resolves here anyway - listed explicitly so the
+        // exemption is deliberate rather than incidental.
+        "/api/sync/",
     ];
+
+    /// <summary>
+    /// Methods that only read. Everything else mutates and is refused on a mirror workspace.
+    /// </summary>
+    private static bool IsReadOnlyMethod(string method) =>
+        HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method);
 
     public async Task InvokeAsync(
         HttpContext       ctx,
@@ -94,6 +112,17 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
             return;
         }
 
+        // A mirror workspace reads; it never writes. Its own error code, deliberately NOT one of the
+        // subscription codes - the frontend redirects those to /subscription-expired, which would be
+        // nonsense here. A refused edit should report itself where the user is standing.
+        if (result.IsMirror && !IsReadOnlyMethod(ctx.Request.Method))
+        {
+            await WriteBlock(ctx, SubscriptionResult.Block(
+                "MIRROR_READ_ONLY",
+                "This workspace mirrors your in-store system and cannot be edited here. Make the change in the shop; it will appear after the next sync."));
+            return;
+        }
+
         await next(ctx);
     }
 
@@ -130,7 +159,7 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
                 "LICENSE_EXPIRED",
                 "Your software license has expired or is invalid. Contact Softaxis support to renew your subscription.");
 
-        return SubscriptionResult.Allow(payload.ExpiresAt);
+        return SubscriptionResult.Allow(payload.ExpiresAt, tenant.IsMirror);
     }
 
     /// <summary>
@@ -175,7 +204,7 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
                 "Your subscription has expired. Please renew your plan to continue.");
         }
 
-        return SubscriptionResult.Allow(tenant.LicenseExpiresAt);
+        return SubscriptionResult.Allow(tenant.LicenseExpiresAt, tenant.IsMirror);
     }
 
     // ── Response ───────────────────────────────────────────────────────────────
@@ -199,10 +228,11 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
         bool      IsValid,
         string?   Code,
         string?   Message,
-        DateTime? ExpiresAt)
+        DateTime? ExpiresAt,
+        bool      IsMirror = false)
     {
-        public static SubscriptionResult Allow(DateTime? expiresAt) =>
-            new(true, null, null, expiresAt);
+        public static SubscriptionResult Allow(DateTime? expiresAt, bool isMirror = false) =>
+            new(true, null, null, expiresAt, isMirror);
 
         public static SubscriptionResult Block(string code, string message) =>
             new(false, code, message, null);

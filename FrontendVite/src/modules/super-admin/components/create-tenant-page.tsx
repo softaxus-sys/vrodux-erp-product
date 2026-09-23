@@ -69,6 +69,10 @@ export function CreateTenantPage() {
   const [slugManual,   setSlugManual]   = React.useState(false);
   const [plan,         setPlan]         = React.useState<PlanType>("Starter");
   const [deployment,   setDeployment]   = React.useState<DeploymentType>("Cloud");
+  // Only meaningful for an on-premises installation: this cloud workspace becomes the read-only
+  // mirror the shop pushes into nightly. Reset whenever deployment flips back to Cloud, so a
+  // cloud tenant can never be created read-only by a stale tick.
+  const [isMirror,     setIsMirror]     = React.useState(false);
   const [contactEmail, setContactEmail] = React.useState("");
   const [country,      setCountry]      = React.useState("");
   const [industry,     setIndustry]     = React.useState("");
@@ -124,6 +128,7 @@ export function CreateTenantPage() {
         slug:           slug.trim(),
         plan,
         deploymentType: deployment,
+        isMirror:       deployment === "OnPremises" ? isMirror : undefined,
         contactEmail:   contactEmail.trim() || undefined,
         country:        country.trim() || undefined,
         industry:       industry || undefined,
@@ -225,7 +230,7 @@ export function CreateTenantPage() {
                       deployment === d.value ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:border-border/80"
                     )}>
                       <div className="flex items-center gap-2">
-                        <input type="radio" name="deployment" value={d.value} checked={deployment === d.value} onChange={() => setDeployment(d.value)} className="accent-primary" />
+                        <input type="radio" name="deployment" value={d.value} checked={deployment === d.value} onChange={() => { setDeployment(d.value); if (d.value !== "OnPremises") setIsMirror(false); }} className="accent-primary" />
                         <d.icon className="h-4 w-4 text-muted-foreground" />
                         <span className="text-sm font-medium text-foreground">{d.label}</span>
                       </div>
@@ -233,6 +238,31 @@ export function CreateTenantPage() {
                     </label>
                   ))}
                 </div>
+
+                {deployment === "OnPremises" && (
+                  <label className={cn(
+                    "flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors",
+                    isMirror ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:border-border/80"
+                  )}>
+                    <input
+                      type="checkbox"
+                      checked={isMirror}
+                      onChange={e => setIsMirror(e.target.checked)}
+                      className="mt-0.5 accent-primary"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-foreground">
+                        Cloud mirror of the customer's server
+                      </span>
+                      <span className="block text-[11px] text-muted-foreground mt-0.5">
+                        The shop's own installation is the system of record and pushes its data here each
+                        night. This workspace becomes <strong>read-only</strong> — it accepts no edits and
+                        runs no background jobs, so nothing is generated twice. Generate a licence key
+                        afterwards; the installation adopts this tenant's id from it.
+                      </span>
+                    </span>
+                  </label>
+                )}
               </div>
             </Section>
 

@@ -1,3 +1,6 @@
+using Softaxis.BuildingBlocks.Application.Multitenancy;
+using Softaxis.BuildingBlocks.Infrastructure.Multitenancy;
+using Softaxis.BuildingBlocks.Infrastructure.Sync;
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.DataProtection;
@@ -128,6 +131,17 @@ try
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
 
+    // ── Background-job tenant filter ─────────────────────────────────────────
+    //    Registered AFTER every Add*Infrastructure above, so this replaces the
+    //    permissive fallback each service registers for its own standalone host.
+    //    Keeps hosted services from running twice over a workspace that exists
+    //    both on-premises and as a cloud mirror. docs/on-premises-cloud-mirror.md
+    builder.Services.AddSingleton<ITenantWorkFilter, MirrorAwareTenantWorkFilter>();
+
+    // The real cloud-sync alerter, replacing BuildingBlocks' silent default. Registered here
+    // because it needs email and the notification store. Scoped: it resolves per-request services.
+    builder.Services.AddScoped<Softaxis.BuildingBlocks.Application.Sync.ISyncAlerter, Softaxis.ApiGateway.Sync.SyncAlerter>();
+
     // ── Data Protection — encrypts integration secrets (OAuth tokens, API keys, ──
     //    webhook signing secrets). Keys are persisted so encrypted values survive
     //    restarts; a fixed application name keeps the ring stable across hosts.
@@ -188,6 +202,11 @@ try
     // SignalR channel that delivers them. The realtime notifier is registered HERE rather than in
     // BuildingBlocks so BuildingBlocks keeps no SignalR reference and every service can depend on it.
     builder.Services.AddNotifications(builder.Configuration);
+
+    // ── On-premises → cloud mirror: change capture ───────────────────────────
+    //    Registration only; nothing touches the database until the startup step
+    //    below, which no-ops unless this installation is configured to mirror.
+    builder.Services.AddCloudMirrorCapture(builder.Configuration);
     builder.Services.AddScoped<
         Softaxis.BuildingBlocks.Application.Notifications.INotificationRealtimeNotifier,
         Softaxis.ApiGateway.Notifications.SignalRNotificationNotifier>();
@@ -330,8 +349,23 @@ try
     }
     // ─────────────────────────────────────────────────────────────────────────
 
-    // ── Auto-migrate all 5 DbContexts on startup (dev / Docker) ──────────────
-    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
+    // ── Auto-migrate every DbContext on startup ──────────────────────────────
+    //
+    // Dev and Docker have always done this. An ON-PREMISES installation must too, and did not:
+    // the published Windows service sets no ASPNETCORE_ENVIRONMENT, so it runs as Production and
+    // skipped migrations entirely - leaving a freshly installed shop pointed at an empty database
+    // with no tables and no clear reason why. There is no deploy pipeline on a customer's server
+    // to apply them separately, so the service has to do it itself.
+    //
+    // Presence of a licence key is the signal: it is what makes an installation on-premises.
+    // Database:MigrateOnStartup forces it on for anything else that needs it.
+    var migrateOnStartup =
+        app.Environment.IsDevelopment()
+        || app.Environment.IsEnvironment("Docker")
+        || app.Configuration.GetValue("Database:MigrateOnStartup", false)
+        || !string.IsNullOrWhiteSpace(app.Configuration["OnPremises:LicenseKey"]);
+
+    if (migrateOnStartup)
     {
         await app.Services.MigrateAndSeedAsync();          // Identity (+ seeds admin)
         await app.Services.MigrateAndSeedPOSAsync();       // POS
@@ -351,6 +385,11 @@ try
         await app.Services.MigrateAndSeedVisaServicesAsync();       // Visa Services
         await app.Services.MigrateAndSeedSupportAsync();            // Support
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
+
+        // Runs last, and only on an installation that mirrors to the cloud: enables SQL Server
+        // change tracking for the tables in scope and creates the watermark table. Never throws -
+        // the shop trades whether or not capture is ready. docs/on-premises-cloud-mirror.md §5
+        await app.Services.PrepareChangeCaptureAsync();
     }
 
     // ── Middleware pipeline ───────────────────────────────────────────────────

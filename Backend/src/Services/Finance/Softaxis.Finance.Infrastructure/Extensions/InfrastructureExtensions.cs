@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using FluentValidation;
 using MediatR;
@@ -58,6 +59,12 @@ public static class InfrastructureExtensions
                            Services.SmtpFinanceEmailService>();
 
         // ── Background jobs ───────────────────────────────────────────────────
+        // Permissive fallback for a standalone Finance host; the gateway registers the
+        // mirror-aware implementation after this and that one wins. Without it, the hosted
+        // service below cannot be constructed outside the gateway.
+        services.TryAddSingleton<BuildingBlocks.Application.Multitenancy.ITenantWorkFilter,
+                                 BuildingBlocks.Application.Multitenancy.AllowAllTenantWorkFilter>();
+
         services.AddHostedService<Services.RecurringInvoiceHostedService>();
         services.AddHostedService<Services.ExchangeRateRefreshService>();
 

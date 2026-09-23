@@ -49,7 +49,8 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     {
         var result = await Sender.Send(new CreateTenantCommand(
             req.Name, req.Slug, req.Plan, req.DeploymentType, req.ContactEmail, req.Country, req.Industry, req.Currency,
-            req.StartTrial, req.AdminEmail, req.AdminUsername, req.AdminFirstName, req.AdminLastName, req.AdminPassword), ct);
+            req.StartTrial, req.AdminEmail, req.AdminUsername, req.AdminFirstName, req.AdminLastName, req.AdminPassword,
+            req.IsMirror), ct);
         return HandleResult(result, successCode: 201);
     }
 

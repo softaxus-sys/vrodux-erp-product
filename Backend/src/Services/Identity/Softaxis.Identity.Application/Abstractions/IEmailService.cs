@@ -39,4 +39,13 @@ public interface IEmailService
     /// </summary>
     /// <returns>True when the message was actually dispatched; false when SMTP is not configured.</returns>
     Task<bool> SendEmailChangedNoticeAsync(string oldEmail, string toName, string newEmail, string workspaceName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Tells an operator that the nightly cloud-mirror push has stopped working, or started again.
+    /// Returns false when SMTP is unconfigured, so the caller can record an honest "not sent"
+    /// rather than assuming an alert reached anybody.
+    /// </summary>
+    Task<bool> SendSyncAlertAsync(
+        string toEmail, string workspaceName, bool recovered, int consecutiveFailures, string? error,
+        CancellationToken ct = default);
 }

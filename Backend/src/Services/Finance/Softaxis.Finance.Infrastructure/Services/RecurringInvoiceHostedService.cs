@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Softaxis.BuildingBlocks.Application.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.Finance.Application.Abstractions;
 using Softaxis.Finance.Infrastructure.Persistence;
@@ -15,6 +16,7 @@ namespace Softaxis.Finance.Infrastructure.Services;
 /// </summary>
 public sealed class RecurringInvoiceHostedService(
     IServiceScopeFactory scopeFactory,
+    ITenantWorkFilter workFilter,
     ILogger<RecurringInvoiceHostedService> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromHours(24);
@@ -104,6 +106,12 @@ public sealed class RecurringInvoiceHostedService(
         foreach (var tenantId in tenantIds)
         {
             if (ct.IsCancellationRequested) return;
+
+            // A read-only cloud mirror must not generate invoices: the on-premises shop already
+            // does, and running here too produces duplicates with clashing document numbers that
+            // the next sync push then overwrites. See docs/on-premises-cloud-mirror.md §8.2.
+            if (!await workFilter.ShouldProcessAsync(tenantId, ct))
+                continue;
 
             // A fresh scope per workspace: the DbContext is scoped, and reusing one across tenants
             // would carry the previous tenant's tracked entities into the next one's queries.

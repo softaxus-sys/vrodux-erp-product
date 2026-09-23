@@ -376,4 +376,52 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
             $"Email-change notice for {oldEmail} (new address {newEmail})", ct);
         return true;
     }
+
+    public async Task<bool> SendSyncAlertAsync(
+        string toEmail, string workspaceName, bool recovered, int consecutiveFailures, string? error,
+        CancellationToken ct = default)
+    {
+        var section = configuration.GetSection("Email");
+        if (string.IsNullOrWhiteSpace(section["SmtpHost"]) || string.IsNullOrWhiteSpace(section["SmtpUsername"]))
+        {
+            logger.LogWarning(
+                "SMTP not configured. Cloud-sync alert for {Workspace} not sent ({State}).",
+                workspaceName, recovered ? "recovered" : "failing");
+            return false;
+        }
+
+        var subject = recovered
+            ? $"Cloud sync is working again - {workspaceName}"
+            : $"Cloud sync has failed - {workspaceName}";
+
+        // The message says what it means for the business, not just that a job failed: the shop is
+        // trading normally and nothing is lost, but the cloud copy is going stale. Without that, the
+        // natural reading of "sync failed" is that something is broken in the shop.
+        var body = recovered
+            ? $"""
+               <html><body style="font-family:sans-serif;color:#1e293b">
+                 <h2 style="color:#15803d">Cloud sync is working again</h2>
+                 <p>The nightly push for <strong>{workspaceName}</strong> has completed successfully
+                    after {consecutiveFailures} failed attempt(s).</p>
+                 <p>The cloud copy is up to date. Nothing was lost - each run resumes from the last
+                    confirmed batch.</p>
+               </body></html>
+               """
+            : $"""
+               <html><body style="font-family:sans-serif;color:#1e293b">
+                 <h2 style="color:#b91c1c">Cloud sync has failed</h2>
+                 <p>The nightly push for <strong>{workspaceName}</strong> has now failed
+                    {consecutiveFailures} time(s) in a row.</p>
+                 <p><strong>The shop is trading normally and no data has been lost</strong> - the
+                    installation is the system of record. What is affected is the cloud copy, which
+                    is no longer being updated and will keep going stale until this is fixed.</p>
+                 <p style="background:#fef2f2;padding:10px;border-radius:6px;font-family:monospace;font-size:12px">
+                    {System.Net.WebUtility.HtmlEncode(error ?? "No detail recorded.")}</p>
+                 <p>Check the Cloud Sync screen on the installation for the full history.</p>
+               </body></html>
+               """;
+
+        await SendAsync(toEmail, "Operator", subject, body, $"Cloud-sync alert for {workspaceName}", ct);
+        return true;
+    }
 }
