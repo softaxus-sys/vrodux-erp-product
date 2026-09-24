@@ -11,6 +11,7 @@ using Softaxis.Identity.Application.Users.Commands.DeleteUser;
 using Softaxis.Identity.Application.Users.Commands.GrantSelfService;
 using Softaxis.Identity.Application.Users.Commands.RemoveRole;
 using Softaxis.Identity.Application.Users.Commands.UpdateUser;
+using Softaxis.Identity.Application.Users.Commands.VerifyUserEmail;
 using Softaxis.Identity.Application.Users.Commands.UpdateUserPermissions;
 using Softaxis.Identity.Application.Users.Queries.GetUserById;
 using Softaxis.Identity.Application.Users.Queries.GetUsers;
@@ -117,6 +118,15 @@ public sealed class UsersController(ISender sender) : BaseApiController(sender)
     [HttpPost("{id:guid}/reset-password")]
     public async Task<IActionResult> AdminResetPassword(Guid id, [FromBody] AdminResetPasswordRequest request, CancellationToken ct)
         => HandleResult(await Sender.Send(new AdminResetPasswordCommand(id, request.NewPassword), ct));
+
+    /// <summary>
+    /// Admin: confirm a user's email on their behalf so the account can sign in without the
+    /// verification link. For a site with no SMTP, or staff with no mailbox, this is the only way
+    /// an admin-created account ever becomes usable.
+    /// </summary>
+    [HttpPost("{id:guid}/verify-email")]
+    public async Task<IActionResult> VerifyEmail(Guid id, CancellationToken ct)
+        => HandleResult(await Sender.Send(new VerifyUserEmailCommand(id), ct));
 }
 
 // ── Request models ────────────────────────────────────────────────────────────
