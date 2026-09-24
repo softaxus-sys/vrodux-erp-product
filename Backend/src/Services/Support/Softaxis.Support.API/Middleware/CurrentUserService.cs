@@ -24,8 +24,10 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
         }
     }
 
-    public string? Username => Principal?.FindFirstValue(ClaimTypes.Name)
-                            ?? Principal?.FindFirstValue("preferred_username");
+    // JwtTokenService emits the username under a plain "username" claim — never ClaimTypes.Name
+    // or "preferred_username" (neither is ever set), so those always resolved null and every
+    // ticket's requester/message author fell back to "Unknown user".
+    public string? Username => Principal?.FindFirstValue("username");
 
     public string? Email => Principal?.FindFirstValue(ClaimTypes.Email)
                          ?? Principal?.FindFirstValue("email");

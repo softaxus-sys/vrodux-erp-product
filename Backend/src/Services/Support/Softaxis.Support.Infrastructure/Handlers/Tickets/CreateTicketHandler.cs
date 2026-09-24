@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Support.Application.Abstractions;
@@ -15,7 +16,8 @@ namespace Softaxis.Support.Infrastructure.Handlers.Tickets;
 /// at the controller) — the same posture as changing your own password.
 /// </summary>
 internal sealed class CreateTicketHandler(
-    SupportDbContext db, ICurrentUser currentUser, ISupportEmailService email, ISupportRealtimeNotifier realtime)
+    SupportDbContext db, ICurrentUser currentUser, ISupportEmailService email, ISupportRealtimeNotifier realtime,
+    IConfiguration configuration)
     : ICommandHandler<CreateTicketCommand, Application.Tickets.Dtos.TicketDetailDto>
 {
     public async Task<Result<Application.Tickets.Dtos.TicketDetailDto>> Handle(CreateTicketCommand cmd, CancellationToken ct)
@@ -47,6 +49,21 @@ internal sealed class CreateTicketHandler(
             var (subject, html) = SupportEmailTemplates.TicketCreated(ticket);
             if (!string.IsNullOrWhiteSpace(ticket.RequestingUserEmail))
                 await email.SendAsync(ticket.RequestingUserEmail, ticket.RequestingUserName, subject, html, ct);
+        }
+        catch { /* logged inside the email service; never blocks the response */ }
+
+        // Operator-side alert — so a new ticket gets a prompt response instead of waiting for
+        // someone to notice it in the queue. Same best-effort posture as the customer email above.
+        try
+        {
+            var alertRecipients = SupportAlertRecipients.Get(configuration);
+            if (alertRecipients.Count > 0)
+            {
+                var frontendUrl = (configuration["FrontendUrl"] ?? "http://localhost:5173").TrimEnd('/');
+                var (subject, html) = SupportEmailTemplates.NewTicketAlert(ticket, $"{frontendUrl}/support/queue");
+                foreach (var address in alertRecipients)
+                    await email.SendAsync(address, "Vrodux Support", subject, html, ct);
+            }
         }
         catch { /* logged inside the email service; never blocks the response */ }
 

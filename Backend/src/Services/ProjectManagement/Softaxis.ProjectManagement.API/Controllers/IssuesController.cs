@@ -34,7 +34,10 @@ public sealed class IssuesController(ISender sender) : ProjectManagementControll
     [RequirePermission("project-management.issues.create")]
     public async Task<IActionResult> Create([FromBody] CreateIssueRequest req, CancellationToken ct)
     {
-        var reporterName = User.FindFirstValue(ClaimTypes.Name)
+        // "username" is what JwtTokenService actually emits — ClaimTypes.Name is never set, so
+        // this used to always fall through to the email address.
+        var reporterName = User.FindFirstValue("username")
+            ?? User.FindFirstValue(ClaimTypes.Name)
             ?? User.FindFirstValue(ClaimTypes.Email)
             ?? "Unknown";
 

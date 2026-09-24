@@ -17,8 +17,9 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
         }
     }
 
-    public string? Username => Principal?.FindFirstValue(ClaimTypes.Name)
-                            ?? Principal?.FindFirstValue("preferred_username");
+    // JwtTokenService emits the username under a plain "username" claim — never ClaimTypes.Name
+    // or "preferred_username" (neither is ever set), so those always resolved null.
+    public string? Username => Principal?.FindFirstValue("username");
 
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated == true;
 

@@ -24,8 +24,10 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
         }
     }
 
+    // JwtTokenService emits the username under a plain "username" claim — never ClaimTypes.Name
+    // or "preferred_username" (neither is ever set), so those always resolved null.
     public string? Username => AiImpersonation.Current?.Username
-        ?? Principal?.FindFirstValue(ClaimTypes.Name) ?? Principal?.FindFirstValue("preferred_username");
+        ?? Principal?.FindFirstValue("username");
 
     public string? Email => AiImpersonation.Current?.Email
         ?? Principal?.FindFirstValue(ClaimTypes.Email) ?? Principal?.FindFirstValue("email");

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Softaxis.Support.Application.Tickets;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
@@ -17,7 +18,7 @@ namespace Softaxis.Support.Infrastructure.Handlers.Tickets;
 /// </summary>
 internal sealed class AddTicketMessageHandler(
     SupportDbContext db, ICurrentUser currentUser, ISupportAccessGuard guard, ISupportEmailService email,
-    ISupportRealtimeNotifier realtime)
+    ISupportRealtimeNotifier realtime, IConfiguration configuration)
     : ICommandHandler<AddTicketMessageCommand, TicketMessageDto>
 {
     public async Task<Result<TicketMessageDto>> Handle(AddTicketMessageCommand cmd, CancellationToken ct)
@@ -41,15 +42,30 @@ internal sealed class AddTicketMessageHandler(
         ticket.Touch();
         await db.SaveChangesAsync(ct);
 
-        // Only the customer-facing direction is emailed in this pass (an agent already watches
-        // the queue) — see the module's own follow-up note on agent-side notifications.
         if (isFromAgent)
         {
+            // Agent replied — email the customer.
             try
             {
                 var (subject, html) = SupportEmailTemplates.NewReply(ticket, message, toCustomer: true);
                 if (!string.IsNullOrWhiteSpace(ticket.RequestingUserEmail))
                     await email.SendAsync(ticket.RequestingUserEmail, ticket.RequestingUserName, subject, html, ct);
+            }
+            catch { /* logged inside the email service; never blocks the response */ }
+        }
+        else
+        {
+            // Customer replied — alert the operator team, same as a brand-new ticket. Previously
+            // unbuilt: an agent had to notice the queue update on their own.
+            try
+            {
+                var alertRecipients = SupportAlertRecipients.Get(configuration);
+                if (alertRecipients.Count > 0)
+                {
+                    var (subject, html) = SupportEmailTemplates.NewReply(ticket, message, toCustomer: false);
+                    foreach (var address in alertRecipients)
+                        await email.SendAsync(address, "Vrodux Support", subject, html, ct);
+                }
             }
             catch { /* logged inside the email service; never blocks the response */ }
         }

@@ -46,8 +46,11 @@ public sealed class PayrollController(ISender sender) : HrControllerBase
 
     private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+    // "username" is what JwtTokenService actually emits — ClaimTypes.Name/"name" are never set,
+    // so this used to always fall through to the email address.
     private string? CurrentUserName =>
-        User.FindFirstValue(ClaimTypes.Name)
+        User.FindFirstValue("username")
+        ?? User.FindFirstValue(ClaimTypes.Name)
         ?? User.FindFirstValue("name")
         ?? User.FindFirstValue(ClaimTypes.Email);
 
