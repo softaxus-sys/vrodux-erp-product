@@ -16,3 +16,26 @@ public sealed record LicenseValidationDto(
     string[]? Features   = null,
     DateTime? IssuedAt   = null,
     DateTime? ExpiresAt  = null);
+
+public sealed record LicenseActivationDto(
+    bool                  Activated,
+    /// <summary>True when the key was already the one installed — re-pasting it is not an error.</summary>
+    bool                  AlreadyInUse,
+    string                TenantName,
+    string                Plan,
+    int                   MaxUsers,
+    IReadOnlyList<string> Modules,
+    DateTime              ExpiresAt,
+    int                   DaysLeft);
+
+/// <summary>
+/// What the activation screen shows before a key is pasted. Deliberately thin: it is served
+/// anonymously to anyone who can reach the server, so it carries no workspace name, no user
+/// counts and no key — only whether this installation is licensed and until when.
+/// </summary>
+public sealed record LicenseStatusDto(
+    bool      IsOnPremises,
+    bool      Licensed,
+    DateTime? ExpiresAt,
+    int?      DaysLeft,
+    bool      Expired);

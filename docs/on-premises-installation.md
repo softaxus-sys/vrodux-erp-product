@@ -397,6 +397,43 @@ it next matters.
 ### What it is not
 **The mirror is not a backup.** It is read-only and holds only what was pushed. §10 still applies.
 
+## 9b. Trials, renewals and upgrades — the licence is the subscription
+
+An on-premises installation has no subscription. It is gated entirely by the **RSA-signed licence
+key**, re-checked on every request, fully offline. The expiry is inside the signed payload, so it
+cannot be extended by editing the database or `appsettings.json` on site.
+
+### Selling a 30-day trial
+Generate the key with **validity 30 days**. That is the whole mechanism — no separate trial flag.
+On day 31 every request is refused with `LICENSE_EXPIRED` and the shop stops trading.
+
+> **Tell the customer the date.** The app shows a countdown banner from 30 days out, turning red
+> inside the last week, but do not rely on someone noticing it. A till that stops mid-morning is a
+> phone call you do not want.
+
+### When they pay — issuing the new key
+1. Super Admin → the tenant → set its **modules** to what they bought.
+2. **Generate license** with the real validity (e.g. 365 days).
+3. Send them the key.
+
+**The key carries the plan and the module list**, so this is also how you add or remove a module
+after go-live. Changing modules in the cloud console alone does nothing to their server.
+
+### Installing it on their server — no visit, no restart
+The customer pastes the key themselves:
+
+- **If the licence has already lapsed**, the blocked screen shows an **Activate a licence key**
+  box. `/api/license/` is exempt from the enforcement middleware for exactly this reason, so it
+  works when everything else is refused.
+- **Before it lapses**, the same thing is reachable at `/subscription-expired`.
+
+It takes effect immediately — the plan, the module list and the expiry are all re-asserted from the
+signed payload, the service is **not** restarted, and nothing else on the installation is touched.
+Have them sign out and back in afterwards so their token picks up any new modules.
+
+> Editing `OnPremises:LicenseKey` in `appsettings.json` and restarting the service still works and
+> is equivalent. Use it only when nobody can reach the UI at all.
+
 ## 10. Backups — do not skip this
 
 The mirror, when it exists, is **not a backup**: it is read-only and holds only what was pushed.

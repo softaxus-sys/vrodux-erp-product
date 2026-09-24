@@ -8,6 +8,7 @@ import { NotificationPanel } from "@/components/layout/notification-panel";
 import { AiAssistantPanel } from "@/components/layout/ai-assistant-panel";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { TrialBanner } from "@/components/billing/trial-banner";
+import { LicenseBanner } from "@/components/license/license-banner";
 import { SidebarLeftLayout }  from "./sidebar-left-layout";
 import { SidebarRightLayout } from "./sidebar-right-layout";
 import { TopNavLayout }       from "./top-nav-layout";
@@ -31,6 +32,7 @@ function PageContent() {
       <ImpersonationBanner />
       {/* Trial countdown — self-hides outside the final 15 days and for non-trial tenants. */}
       <TrialBanner />
+      <LicenseBanner />
       <Topbar />
       {isPOS ? (
         <main className="flex-1 overflow-hidden flex flex-col min-h-0">

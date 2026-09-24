@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Clock, CreditCard, Mail, PhoneCall, RefreshCw, ShieldOff } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
+import { LicenseActivation } from "@/components/license/license-activation";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,6 +69,12 @@ export default function SubscriptionExpiredPage() {
     }
   }, []);
 
+  // A licence problem and a subscription problem need opposite offers: one is fixed with a key,
+  // the other with a card. Showing both would send an on-premises customer to a billing page that
+  // has nothing to sell them.
+  const isLicenceIssue =
+    error?.code === "LICENSE_EXPIRED" || error?.code === "LICENSE_NOT_ISSUED";
+
   const meta =
     error?.code && CODE_META[error.code]
       ? CODE_META[error.code]
@@ -114,8 +121,19 @@ export default function SubscriptionExpiredPage() {
             </div>
           )}
 
+          {/* On-premises is licensed, not subscribed, so "choose a plan" is the wrong offer —
+              there is no billing page to send them to and their payment is already made. What
+              they have is a key. /api/license/ is exempt from enforcement for exactly this
+              reason, so activation works while everything else is blocked. */}
+          {isLicenceIssue && (
+            <div className="mb-4 text-left">
+              <LicenseActivation />
+            </div>
+          )}
+
           {/* Self-serve reactivation — the whole point of blocking rather than deleting.
               /settings/billing is exempt from subscription enforcement, so this always loads. */}
+          {!isLicenceIssue && (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-4 text-left">
             <p className="text-sm font-semibold text-gray-800 mb-1">Reactivate in a minute</p>
             <p className="text-xs text-gray-600 mb-3">
@@ -130,6 +148,7 @@ export default function SubscriptionExpiredPage() {
               Choose a plan
             </button>
           </div>
+          )}
 
           {/* Contact info */}
           <div className={`rounded-xl border p-4 mb-6 text-left space-y-2 ${meta.accent}`}>

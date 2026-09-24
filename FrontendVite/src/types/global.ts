@@ -85,6 +85,9 @@ export interface Tenant {
   subscriptionState?: string;
   /** JWT `trial_days_left` claim; null when the tenant isn't on a trial. */
   trialDaysLeft?: number | null;
+  /** JWT `license_days_left` claim; only present on an on-premises installation, which is
+   *  licensed by a signed key rather than a subscription. */
+  licenseDaysLeft?: number | null;
   enabledModules: ModuleKey[];
   branding: TenantBranding;
   settings: TenantSettings;

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Domain.Entities;
+using Softaxis.Identity.Domain.Enums;
 
 namespace Softaxis.Identity.Infrastructure.Services;
 
@@ -105,6 +106,18 @@ public sealed class JwtTokenService(IOptions<JwtSettings> options, IConfiguratio
             // Only meaningful while Status == Trial.
             if (tenant.TrialDaysRemaining is { } daysLeft)
                 claims.Add(new Claim("trial_days_left", daysLeft.ToString()));
+
+            // On-premises runs on a signed licence, not a subscription, so TrialDaysRemaining is
+            // always null there and the trial banner never appeared. The licence simply stopped
+            // working one morning with no warning at all - for a shop mid-trading, that is the
+            // worst possible way to learn the renewal was due.
+            if (tenant.DeploymentType == DeploymentType.OnPremises &&
+                !tenant.IsMirror &&
+                tenant.LicenseExpiresAt is { } licenceExpiry)
+            {
+                var licenceDaysLeft = (int)Math.Ceiling((licenceExpiry - DateTime.UtcNow).TotalDays);
+                claims.Add(new Claim("license_days_left", Math.Max(0, licenceDaysLeft).ToString()));
+            }
 
             // Lets the frontend tell "an operator-tenant Support agent" apart from any other
             // tenant's Administrator — every tenant's Administrator role auto-holds
