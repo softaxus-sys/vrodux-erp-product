@@ -367,22 +367,39 @@ try
 
     if (migrateOnStartup)
     {
+        // On an on-premises box, install only what the licence covers. Null means "everything",
+        // which is every cloud environment and every developer machine - see LicensedModules.
+        var licensed = Softaxis.ApiGateway.Licensing.LicensedModules.Resolve(
+            app.Services, app.Configuration, app.Logger);
+
+        // Identity is unconditional: it holds the tenant and the users, and the licence itself is
+        // adopted inside it.
         await app.Services.MigrateAndSeedAsync();          // Identity (+ seeds admin)
-        await app.Services.MigrateAndSeedPOSAsync();       // POS
-        await app.Services.MigrateAndSeedInventoryAsync(); // Inventory
-        await app.Services.MigrateAndSeedSalesAsync();     // Sales
-        await app.Services.MigrateAndSeedPurchaseAsync();  // Purchase
-        await app.Services.MigrateAndSeedHrAsync();        // HR
-        await app.Services.MigrateAndSeedFinanceAsync();       // Finance
-        await app.Services.MigrateAndSeedCrmAsync();            // CRM
-        await app.Services.MigrateAndSeedConstructionAsync();   // Construction
-        await app.Services.MigrateAndSeedRealEstateAsync();     // Real Estate
-        await app.Services.MigrateAndSeedHospitalityAsync();    // Hospitality
-        await app.Services.MigrateAndSeedRestaurantAsync();     // Restaurant POS
-        await app.Services.MigrateAndSeedRecipeAsync();         // Recipe
-        await app.Services.MigrateAndSeedProjectManagementAsync(); // Project Management
+
+        async Task ForModule(string code, Func<Task> migrate)
+        {
+            if (licensed is not null && !licensed.Contains(code)) return;
+            await migrate();
+        }
+
+        await ForModule("pos",                app.Services.MigrateAndSeedPOSAsync);
+        await ForModule("inventory",          app.Services.MigrateAndSeedInventoryAsync);
+        await ForModule("sales",              app.Services.MigrateAndSeedSalesAsync);
+        await ForModule("purchase",           app.Services.MigrateAndSeedPurchaseAsync);
+        await ForModule("hr",                 app.Services.MigrateAndSeedHrAsync);
+        await ForModule("finance",            app.Services.MigrateAndSeedFinanceAsync);
+        await ForModule("crm",                app.Services.MigrateAndSeedCrmAsync);
+        await ForModule("construction",       app.Services.MigrateAndSeedConstructionAsync);
+        await ForModule("real-estate",        app.Services.MigrateAndSeedRealEstateAsync);
+        await ForModule("hospitality",        app.Services.MigrateAndSeedHospitalityAsync);
+        await ForModule("restaurant",         app.Services.MigrateAndSeedRestaurantAsync);
+        await ForModule("recipe",             app.Services.MigrateAndSeedRecipeAsync);
+        await ForModule("project-management", app.Services.MigrateAndSeedProjectManagementAsync);
+        await ForModule("visa",               app.Services.MigrateAndSeedVisaServicesAsync);
+
+        // Cross-cutting, licensed to nobody in particular. The notifications backfill checks for
+        // the CRM tables before reading them, so it is safe on a box with no CRM schema.
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
-        await app.Services.MigrateAndSeedVisaServicesAsync();       // Visa Services
         await app.Services.MigrateAndSeedSupportAsync();            // Support
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
 
