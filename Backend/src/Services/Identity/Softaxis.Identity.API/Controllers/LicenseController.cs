@@ -1,7 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Softaxis.Identity.Application.License.Commands.ActivateLicense;
 using Softaxis.Identity.Application.License.Commands.Heartbeat;
+using Softaxis.Identity.Application.License.Queries.LicenseStatus;
 using Softaxis.Identity.Application.License.Queries.ValidateLicenseKey;
 
 namespace Softaxis.Identity.API.Controllers;
@@ -30,6 +33,38 @@ public sealed class LicenseController(ISender sender) : BaseApiController(sender
     }
 
     /// <summary>
+    /// POST /api/license/activate
+    /// Installs a renewed or upgraded license key into this installation. No restart.
+    ///
+    /// <para>
+    /// Anonymous by necessity: an installation whose license has lapsed blocks every request, so
+    /// there is nobody left who can sign in to authorise this. The RSA-signed key is the
+    /// authorisation - it can only have come from us, and it names the workspace it is for.
+    /// </para>
+    ///
+    /// <para>
+    /// Rate limited. It is anonymous and it tells you whether a key is valid, so without a limit
+    /// it is an oracle someone could sit and grind against. Signature forgery is not the risk;
+    /// the limit just stops the endpoint being useful to poke at.
+    /// </para>
+    /// </summary>
+    [HttpPost("activate")]
+    [AllowAnonymous]
+    [EnableRateLimiting("license_activation")]
+    public async Task<IActionResult> Activate([FromBody] ActivateLicenseRequest req, CancellationToken ct)
+        => HandleResult(await Sender.Send(new ActivateLicenseCommand(req.LicenseKey), ct));
+
+    /// <summary>
+    /// GET /api/license/status
+    /// Whether this installation is licensed and until when, so the activation screen can explain
+    /// itself to someone who cannot sign in. Carries no workspace name and no key.
+    /// </summary>
+    [HttpGet("status")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Status(CancellationToken ct)
+        => HandleResult(await Sender.Send(new LicenseStatusQuery(), ct));
+
+    /// <summary>
     /// POST /api/license/validate
     /// Super-admin: validate any license key string.
     /// </summary>
@@ -45,3 +80,5 @@ public sealed class LicenseController(ISender sender) : BaseApiController(sender
 public sealed record HeartbeatRequest(Guid TenantId, string LicenseKey);
 
 public sealed record ValidateLicenseRequest(string LicenseKey);
+
+public sealed record ActivateLicenseRequest(string LicenseKey);

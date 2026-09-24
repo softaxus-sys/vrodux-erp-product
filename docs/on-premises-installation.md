@@ -87,15 +87,32 @@ anyone with the source can mint a valid token for that customer.
 ```
 
 ### 1.4 Build the two artefacts
-```bat
-REM Server — produces Deploy\server\output\
-Deploy\server\publish.bat
+
+Both from **PowerShell**, at the repo root. Absolute paths on purpose - see the warnings below.
+
+```powershell
+# 1. Server - produces <repo>\Deploy\server\output\  (162 MB, self-contained)
+& "D:\Shahbaz\Softaxis\ERP\Deploy\server\publish.bat"
 ```
-```bash
-# Desktop client — produces FrontendVite/release/VroduxERP-Setup-<version>.exe
-cd FrontendVite
+```powershell
+# 2. Desktop client - produces FrontendVite\release\VroduxERP-Setup-<version>.exe  (91 MB)
+Set-Location "D:\Shahbaz\Softaxis\ERP\FrontendVite"
 npm run electron:build-win
 ```
+
+> **Build both from the same commit.** The Activate-licence screen in the client calls an endpoint
+> that only exists in the matching server build. Ship a new client against an old server and the
+> button 404s - at exactly the moment a customer is trying to renew.
+
+> **PowerShell will not run a script by bare relative path.** `Deploy\server\publish.bat` is read
+> as a *module* named `Deploy`, and the error says so: "The module 'Deploy' could not be loaded".
+> Use `&` with the full path, or prefix `.\`. And `REM` is a `.bat` comment, not PowerShell -
+> pasting it at a PS prompt is an error on its own line.
+
+> **`publish.bat` writes into the repo**, at `<repo>\Deploy\server\output\`. It does NOT update a
+> deployed copy such as `C:\Deploy` - copy the result across yourself (§5), and back up the
+> deployed `appsettings.json` first: a publish ships the repo's own version, with developer
+> connection strings, a placeholder JWT secret and a blank `OnPremises` block.
 
 ---
 
@@ -128,10 +145,35 @@ change means every PC stops working at once.
    first start, because an installation carrying an `OnPremises:LicenseKey` applies its migrations
    automatically. (A box with no licence key configured will **not** create tables — another reason
    §4.3 is not optional.)
-3. Decide how the service authenticates:
-   - **Windows auth (simplest):** the service runs as `LocalSystem`, so grant
-     `NT AUTHORITY\SYSTEM` the `db_owner` role on `SoftaxisErpDb`.
-   - **SQL login:** create one, grant it `db_owner`, and use it in the connection string.
+3. **Grant the service account access to the database. This is not optional.**
+
+   `install-service.bat` runs the service as `LocalSystem`, and the connection strings use
+   `Integrated Security=true` — so the database is opened as `NT AUTHORITY\SYSTEM`, not as you.
+   That account has a login on the instance by default but **no user in your database**, so
+   without this the service cannot read a single table.
+
+   Run it, substituting your instance and database name:
+
+   ```powershell
+   sqlcmd -S "<SERVER>\SQLEXPRESS" -E -C -d <DATABASE> -Q "CREATE USER [NT AUTHORITY\SYSTEM] FOR LOGIN [NT AUTHORITY\SYSTEM]; ALTER ROLE db_owner ADD MEMBER [NT AUTHORITY\SYSTEM];"
+   ```
+
+   `db_owner` is required, not generous: the service creates and alters tables on every upgrade,
+   which `db_datareader`/`db_datawriter` cannot do.
+
+   Verify — this must return **1**:
+   ```powershell
+   sqlcmd -S "<SERVER>\SQLEXPRESS" -E -C -d <DATABASE> -Q "SELECT COUNT(*) FROM sys.database_principals WHERE name='NT AUTHORITY\SYSTEM'"
+   ```
+
+   > **This is the classic 1053.** Skip it and the exe runs perfectly from a console — because a
+   > console runs as *you*, and you own the database — while the service dies instantly with
+   > "The service did not respond to the start or control request in a timely fashion" and
+   > `WIN32_EXIT_CODE : 0`. Same binary, same config, different account.
+
+   **Using a SQL login instead?** Create one, grant it `db_owner`, put it in the connection
+   strings, and skip the grant above — the service then authenticates as that login rather than
+   as the machine account.
 4. Confirm you can connect with whichever account you chose before going further. Every later
    failure looks the same from the outside; proving the database now saves an hour.
 
@@ -241,6 +283,37 @@ warning is expected on such a site, not a fault.
 
 ## 5. Install and start the service
 
+### ⚠️ Build the schema from a console FIRST — before installing the service
+
+The first start creates several hundred tables and seeds roles and permissions. That takes
+minutes, and **the Service Control Manager only waits 30 seconds** — it kills the process and
+reports 1053, then EF rolls the partial migration back, so the database stays empty however many
+times you retry.
+
+Run it once in a console, where nothing is timing it:
+
+```powershell
+C:\Vrodux\server\output\Softaxis.ApiGateway.exe
+```
+
+Wait for these two lines:
+
+```
+Licensing: installing schemas for N module(s) - ...
+OnPremises: adopted workspace ... from the license key.
+```
+
+Confirm the schema exists — expect a few hundred, not 0:
+
+```powershell
+sqlcmd -S "<SERVER>\SQLEXPRESS" -E -C -d <DATABASE> -Q "SELECT COUNT(*) FROM sys.tables"
+```
+
+Then `Ctrl+C` and install the service. That start has nothing left to migrate and comes up in
+seconds.
+
+### Now install the service
+
 Right-click → **Run as administrator**:
 
 ```
@@ -249,9 +322,6 @@ C:\Vrodux\server\install-service.bat
 
 It creates the `VroduxERP` service (auto-start, `LocalSystem`), sets it to restart on failure
 (5 s / 10 s / 30 s), and starts it.
-
-**First start takes a few minutes** — it creates every table and seeds roles and permissions. Do not
-interrupt it.
 
 ### Confirm it is actually up
 ```powershell
@@ -397,6 +467,43 @@ it next matters.
 ### What it is not
 **The mirror is not a backup.** It is read-only and holds only what was pushed. §10 still applies.
 
+## 9b. Trials, renewals and upgrades — the licence is the subscription
+
+An on-premises installation has no subscription. It is gated entirely by the **RSA-signed licence
+key**, re-checked on every request, fully offline. The expiry is inside the signed payload, so it
+cannot be extended by editing the database or `appsettings.json` on site.
+
+### Selling a 30-day trial
+Generate the key with **validity 30 days**. That is the whole mechanism — no separate trial flag.
+On day 31 every request is refused with `LICENSE_EXPIRED` and the shop stops trading.
+
+> **Tell the customer the date.** The app shows a countdown banner from 30 days out, turning red
+> inside the last week, but do not rely on someone noticing it. A till that stops mid-morning is a
+> phone call you do not want.
+
+### When they pay — issuing the new key
+1. Super Admin → the tenant → set its **modules** to what they bought.
+2. **Generate license** with the real validity (e.g. 365 days).
+3. Send them the key.
+
+**The key carries the plan and the module list**, so this is also how you add or remove a module
+after go-live. Changing modules in the cloud console alone does nothing to their server.
+
+### Installing it on their server — no visit, no restart
+The customer pastes the key themselves:
+
+- **If the licence has already lapsed**, the blocked screen shows an **Activate a licence key**
+  box. `/api/license/` is exempt from the enforcement middleware for exactly this reason, so it
+  works when everything else is refused.
+- **Before it lapses**, the same thing is reachable at `/subscription-expired`.
+
+It takes effect immediately — the plan, the module list and the expiry are all re-asserted from the
+signed payload, the service is **not** restarted, and nothing else on the installation is touched.
+Have them sign out and back in afterwards so their token picks up any new modules.
+
+> Editing `OnPremises:LicenseKey` in `appsettings.json` and restarting the service still works and
+> is equivalent. Use it only when nobody can reach the UI at all.
+
 ## 10. Backups — do not skip this
 
 The mirror, when it exists, is **not a backup**: it is read-only and holds only what was pushed.
@@ -445,8 +552,12 @@ Sync run time   : ____________________   (confirmed working on site: yes / no)
 
 | Symptom | Likely cause | Check |
 |---|---|---|
+| **`StartService FAILED 1053`** | `NT AUTHORITY\SYSTEM` has no user in the database — the most common cause by far | §3.3 — run the grant. The exe works from a console (that runs as *you*) while the service dies: same binary, different account |
+| **1053 on a brand-new database** | The first migration outran the SCM's 30-second limit | §5 — run the exe from a console once to build the schema, then install the service |
 | Service starts then stops | Bad connection string, or no `db_owner` | Event Viewer → Application |
 | Service runs but the database has no tables | No `OnPremises:LicenseKey`, so migrations were skipped | §4.3 — set the key and restart, or set `Database:MigrateOnStartup: true` |
+| A licensed module is missing from the sidebar | The licence was issued before that module was added to the tenant | Add it in the cloud console, regenerate the key, paste and restart — the signed key decides, not `OnPremises:Modules` |
+| A module the customer never bought is visible | Old build | Fixed — the schema is no longer even created for unlicensed modules |
 | `/health` works locally, not from a PC | Firewall, or Public network profile | `open-firewall.bat`; check the profile |
 | "No license key has been issued" on every request | `OnPremises:LicenseKey` blank or wrong | The key must be pasted whole |
 | "Your software license has expired" | Key past its expiry | Generate a new one in the cloud console |

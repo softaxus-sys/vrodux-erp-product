@@ -17,6 +17,7 @@ import { authApi } from "@/lib/identity/auth.api";
 import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { isDesktop } from "@/lib/desktop";
 
 // ─── Palettes (dark + light) ──────────────────────────────────────────────────
 
@@ -729,17 +730,23 @@ export default function LoginPage() {
               {t("form.securityNote2")}
             </p>
 
-            {/* Trial CTA */}
-            <p className="text-center text-[12px] mt-3" style={{ color: D.muted }}>
-              {t("form.noAccount")}{" "}
-              <Link
-                to="/trial"
-                className="font-semibold hover:underline"
-                style={{ color: D.accent }}
-              >
-                {t("form.startTrial")}
-              </Link>
-            </p>
+            {/* Trial CTA — cloud only.
+                The desktop client is how an on-premises installation is used, and it talks to the
+                customer's own server. Signing up there would not start a trial with us; it would
+                create a second workspace inside their installation. Their accounts are issued by
+                their own administrator, so there is nothing here for them to sign up to. */}
+            {!isDesktop && (
+              <p className="text-center text-[12px] mt-3" style={{ color: D.muted }}>
+                {t("form.noAccount")}{" "}
+                <Link
+                  to="/trial"
+                  className="font-semibold hover:underline"
+                  style={{ color: D.accent }}
+                >
+                  {t("form.startTrial")}
+                </Link>
+              </p>
+            )}
             </>
             )}
             </div>

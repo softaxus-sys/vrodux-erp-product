@@ -113,4 +113,11 @@ export const usersApi = {
   /** Admin: forcibly reset a user's password without requiring their current password. */
   adminResetPassword: (userId: string, newPassword: string): Promise<void> =>
     apiClient.post<void>(`${BASE}/${userId}/reset-password`, { newPassword }),
+
+  /**
+   * Admin confirms a user's email on their behalf, so the account can sign in without the
+   * verification link. The only route to a usable account on a site with no SMTP.
+   */
+  verifyEmail: (userId: string): Promise<UserDto> =>
+    apiClient.post(`${BASE}/${userId}/verify-email`, {}),
 };

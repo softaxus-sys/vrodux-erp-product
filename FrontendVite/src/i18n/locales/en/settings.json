@@ -839,7 +839,8 @@
     "status": {
       "active": "Active",
       "inactive": "Inactive",
-      "invited": "Invited"
+      "invited": "Invited",
+      "pending": "Pending verification"
     },
     "colUser": "User",
     "colRoles": "Roles",
@@ -901,7 +902,11 @@
       "allAssigned": "All roles assigned",
       "add": "Add",
       "hint": "Changes apply immediately. To switch a user's role, add the new one and remove the old."
-    }
+    },
+    "notVerifiedTitle": "This account cannot sign in yet",
+    "notVerifiedHint": "It is waiting for the user to confirm their email address. If the verification email cannot reach them — no mail server configured, or no mailbox at all — confirm it for them here.",
+    "activateNow": "Activate this user",
+    "activating": "Activating…"
   },
   "permMatrix": {
     "action": {

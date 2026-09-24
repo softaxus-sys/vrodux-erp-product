@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
   Search, Plus, Users, UserCheck, UserX, Mail, Shield,
-  X, Edit, Trash2, Eye, Clock, Layers, Loader2, RefreshCw, AlertTriangle,
+  X, Edit, Trash2, Eye, Clock, Layers, Loader2, RefreshCw, AlertTriangle, ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatDate, getInitials } from "@/lib/utils";
 import {
   useUsers, useUser, useCreateUser, useUpdateUser, useDeleteUser,
-  useAssignRole, useRemoveRole,
+  useAssignRole, useRemoveRole, useVerifyUserEmail,
 } from "@/hooks/identity/use-users";
 import { useRoles } from "@/hooks/identity/use-roles";
 import type { UserSummaryDto, UserDto } from "@/lib/identity/types";
@@ -47,6 +47,9 @@ const STATUS_CONFIG: Record<string, { labelKey: string; color: string; bg: strin
   active:   { labelKey: "users.status.active",   color: "text-success",          bg: "bg-success/10", dot: "bg-success" },
   inactive: { labelKey: "users.status.inactive", color: "text-muted-foreground", bg: "bg-muted",      dot: "bg-muted-foreground" },
   invited:  { labelKey: "users.status.invited",  color: "text-warning",          bg: "bg-warning/10", dot: "bg-warning" },
+  // Without this the backend's PendingVerification fell through to "Inactive", so an admin saw a
+  // user they thought they had disabled — when in fact the verification email never arrived.
+  pendingverification: { labelKey: "users.status.pending", color: "text-warning", bg: "bg-warning/10", dot: "bg-warning" },
 };
 
 const AVATAR_COLORS = [
@@ -151,6 +154,7 @@ function UserDrawer({
   const { t } = useTranslation("settings");
   const { data: user, isLoading } = useUser(userId);
   const [tab, setTab] = React.useState<"profile" | "permissions">("profile");
+  const verifyEmail = useVerifyUserEmail();
 
   return (
     <>
@@ -223,6 +227,29 @@ function UserDrawer({
                   </div>
                 </div>
               </div>
+
+              {/* An unverified account cannot sign in at all, and on a site with no SMTP the
+                  verification email can never arrive — so without this the account is simply
+                  unusable and nothing on screen explains why. */}
+              {!user.emailVerified && (
+                <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+                  <p className="text-sm font-semibold text-foreground">{t("users.notVerifiedTitle")}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    {t("users.notVerifiedHint")}
+                  </p>
+                  <Can permission="settings.users.edit">
+                    <Button
+                      size="sm"
+                      className="mt-3"
+                      disabled={verifyEmail.isPending}
+                      onClick={() => verifyEmail.mutate(user.id)}
+                    >
+                      <ShieldCheck className="h-4 w-4 mr-1.5" />
+                      {verifyEmail.isPending ? t("users.activating") : t("users.activateNow")}
+                    </Button>
+                  </Can>
+                </div>
+              )}
 
               {/* Info grid */}
               <div className="grid grid-cols-2 gap-4 bg-muted/30 rounded-xl p-4">

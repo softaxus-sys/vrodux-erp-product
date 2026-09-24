@@ -28,6 +28,10 @@ public static class AuthRateLimitPolicies
     /// REQUESTS cannot use up the budget someone else needs to COMPLETE their reset.</summary>
     public const string ResetPassword = "reset_password";
 
+    /// <summary>Installing a license key into an on-premises installation. Anonymous by
+    /// necessity — a lapsed box has nobody who can sign in — so it needs a ceiling.</summary>
+    public const string LicenseActivation = "license_activation";
+
     public static IServiceCollection AddAuthRateLimiting(this IServiceCollection services) =>
         services.AddRateLimiter(rl =>
         {
@@ -45,6 +49,12 @@ public static class AuthRateLimitPolicies
             // The token is 64 random bytes, so this is not guarding against guessing; it caps the
             // damage a script can do hammering the endpoint.
             Add(rl, ResetPassword,  permitLimit: 20, seconds: 300, segments: 5);
+
+            // Generous on purpose. This is the endpoint a shop uses to get itself trading again
+            // after a licence lapse, usually while someone is on the phone re-pasting a key that
+            // wrapped in an email. Locking them out of the fix would be worse than the abuse it
+            // prevents — and the key is RSA-signed, so the limit is not what stops forgery.
+            Add(rl, LicenseActivation, permitLimit: 15, seconds: 300, segments: 5);
         });
 
     private static void Add(RateLimiterOptions rl, string name, int permitLimit, int seconds, int segments) =>

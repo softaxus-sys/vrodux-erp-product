@@ -296,6 +296,9 @@ function buildTenantFromClaims(claims: Record<string, unknown>): Tenant {
     trialDaysLeft:     claims["trial_days_left"] !== undefined && claims["trial_days_left"] !== null
                          ? Number(claims["trial_days_left"])
                          : null,
+    licenseDaysLeft:   claims["license_days_left"] !== undefined && claims["license_days_left"] !== null
+                         ? Number(claims["license_days_left"])
+                         : null,
     enabledModules,
     branding: {
       primaryColor: "#2563eb",

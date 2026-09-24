@@ -122,7 +122,7 @@ internal static class OnPremisesTenantAdoption
                 logger.LogInformation(
                     "OnPremises: modules for workspace {TenantId} re-asserted from the license: {Modules}.",
                     tenant.Id, string.Join(", ", licensed));
-                tenant.SetEnabledModules(licensed);
+                tenant.GrantModulesManually(licensed);   // see CreateAsync - the key bypasses the plan ceiling
             }
         }
 
@@ -152,6 +152,14 @@ internal static class OnPremisesTenantAdoption
         tenant.SetLicenseKey(licence, payload.ExpiresAt);
         tenant.Activate();
 
+        // Without this the tenant is created with no currency at all, so the JWT carries none and
+        // every amount in the product falls back to the default - a Pakistani shop priced in USD
+        // until somebody happened to open Settings -> General and press Save, which is what
+        // persisted it. Explicit config wins; otherwise it follows the country.
+        tenant.SetCurrency(cfg["OnPremises:Currency"]?.Trim() is { Length: > 0 } configured
+            ? configured
+            : CurrencyForCountry(cfg["OnPremises:Country"]));
+
         // The signed licence decides what this site may run. OnPremises:Modules is only a fallback
         // for a key issued without a module list - it lives in a text file on the customer's own
         // server, so treating it as the source of entitlement would make the signature pointless.
@@ -166,7 +174,13 @@ internal static class OnPremisesTenantAdoption
                     string.Join(", ", modules));
         }
 
-        if (modules.Count > 0) tenant.SetEnabledModules(modules);
+        // GrantModulesManually, not SetEnabledModules. The signed key IS a manual grant - we
+        // decided what this site may run when we issued it - so it must not then be re-filtered by
+        // the plan's own module ceiling. SetEnabledModules leaves ModulesManuallyGranted false,
+        // which silently dropped every licensed module the plan did not also include: a Starter
+        // site licensed for POS lost POS entirely, because "pos" is only in the Professional
+        // ceiling. The cloud tenant it was cloned from had manual = true, so the two disagreed.
+        if (modules.Count > 0) tenant.GrantModulesManually(modules);
 
         db.Tenants.Add(tenant);
         await db.SaveChangesAsync();
@@ -297,6 +311,32 @@ internal static class OnPremisesTenantAdoption
             .Select(f => f.Trim().ToLowerInvariant())
             .Distinct()
             .ToList();
+
+    /// <summary>
+    /// Operating currency for a country name, for installations that do not state one.
+    ///
+    /// <para>
+    /// Deliberately small - the markets this product is sold in. An unrecognised country returns
+    /// null, which leaves the currency unset rather than guessing wrong: a tenant with no currency
+    /// falls back to the product default, while a tenant with the WRONG one silently misprices
+    /// every invoice it issues.
+    /// </para>
+    /// </summary>
+    private static string? CurrencyForCountry(string? country) =>
+        country?.Trim().ToLowerInvariant() switch
+        {
+            "pakistan"                                   => "PKR",
+            "united arab emirates" or "uae"              => "AED",
+            "saudi arabia" or "ksa"                      => "SAR",
+            "oman"                                       => "OMR",
+            "qatar"                                      => "QAR",
+            "kuwait"                                     => "KWD",
+            "bahrain"                                    => "BHD",
+            "india"                                      => "INR",
+            "united kingdom" or "uk"                     => "GBP",
+            "united states" or "usa" or "united states of america" => "USD",
+            _                                            => null,
+        };
 
     private static List<string> SplitModules(string? csv) =>
         string.IsNullOrWhiteSpace(csv)

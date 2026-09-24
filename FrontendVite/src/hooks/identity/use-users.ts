@@ -167,6 +167,22 @@ export function useChangePassword(userId: string) {
   });
 }
 
+/**
+ * Admin confirms a user's email for them. Invalidates the list and the user so the
+ * "Pending verification" badge disappears without a manual refresh.
+ */
+export function useVerifyUserEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => usersApi.verifyEmail(userId),
+    onSuccess: (user) => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast.success(`${user.fullName} can now sign in.`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useAdminResetPassword(userId: string) {
   return useMutation({
     mutationFn: (newPassword: string) => usersApi.adminResetPassword(userId, newPassword),

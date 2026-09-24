@@ -15,7 +15,40 @@ import { toast } from "sonner";
 import { appSettingsApi } from "@/lib/identity/app-settings.api";
 import { tenantSettingsApi } from "@/lib/identity/tenant-settings.api";
 import { refreshSession } from "@/lib/identity/refresh-session";
-import { findCountry } from "@/lib/onboarding/geo-data";
+import { findCountry, COUNTRIES } from "@/lib/onboarding/geo-data";
+
+/**
+ * Timezone choices, derived from the countries the product actually supports rather than a
+ * hand-kept list that has to be remembered twice.
+ *
+ * The previous hardcoded five had no Asia/Karachi, so a Pakistani tenant was given it by the
+ * country default, the <select> found no matching <option>, and the browser fell back to showing
+ * the first entry — the screen read "Asia/Dubai" while the saved value was Karachi. Deriving it
+ * means adding a country can never leave its zone unselectable.
+ *
+ * The offset is computed from the zone itself, so it stays right across DST instead of being a
+ * label somebody typed once.
+ */
+const TIMEZONE_OPTIONS = (() => {
+  const zones = [...new Set(COUNTRIES.map(c => c.timezone).filter(Boolean))];
+
+  const offsetLabel = (zone: string) => {
+    try {
+      // Intl gives "GMT+5:30" / "GMT+4" for the zone as of now, DST included.
+      const parts = new Intl.DateTimeFormat("en-GB", { timeZone: zone, timeZoneName: "shortOffset" })
+        .formatToParts(new Date());
+      const name = parts.find(p => p.type === "timeZoneName")?.value ?? "";
+      return name.replace("GMT", "UTC") || "UTC";
+    } catch {
+      // An unknown zone must not take the whole settings page down.
+      return "";
+    }
+  };
+
+  return zones
+    .map(z => ({ value: z, label: offsetLabel(z) ? `${z} (${offsetLabel(z)})` : z }))
+    .sort((a, b) => a.value.localeCompare(b.value));
+})();
 import type { ModuleKey } from "@/types/global";
 
 // Keep for potential future use — avoids dead-import warnings
@@ -1121,13 +1154,11 @@ export function GeneralSettingsView() {
             <SelectField
               value={regional.timezone}
               onChange={v => updateRegional("timezone", v)}
-              options={[
-                { value: "Asia/Dubai",      label: "Asia/Dubai (UTC+4)" },
-                { value: "Asia/Riyadh",     label: "Asia/Riyadh (UTC+3)" },
-                { value: "Europe/London",   label: "Europe/London (UTC+1)" },
-                { value: "America/New_York",label: "America/New_York (UTC-5)" },
-                { value: "Asia/Kolkata",    label: "Asia/Kolkata (UTC+5:30)" },
-              ]}
+              // Derived from the supported countries, not a hand-kept list. The hardcoded five
+              // omitted Asia/Karachi, so a Pakistani tenant was assigned it by the country
+              // default, found no matching <option>, and the browser displayed the first entry
+              // instead - the screen said Asia/Dubai while the stored value said Karachi.
+              options={TIMEZONE_OPTIONS}
             />
           </FormField>
           <FormField label={t("general.regional.dateFormat")}>
