@@ -149,6 +149,12 @@ public static class PermissionSeedData
         // Visa Services (UAE visa consultancy — cases, applicants, documents)
         ["visa.cases"] = ["view","create","edit","delete"],
 
+        // SEO AI Agent — "sites" (connect/manage a site, super-admin-grant only for now) and
+        // "fixes" (review/approve the AI's proposed changes) are separate: approving a fix should
+        // not require the same permission as connecting a whole new site.
+        ["seo.sites"] = ["view","create","edit","delete"],
+        ["seo.fixes"] = ["view","edit"],
+
         // Support (Softaxis's own operator-tenant ticket queue). Only "view"/"edit" — both
         // standard actions already in ACTION_ORDER on the frontend, so no matrix-column change
         // is needed there. Raising a ticket / reading your own tenant's tickets needs no

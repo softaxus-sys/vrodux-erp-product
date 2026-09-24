@@ -19,6 +19,7 @@ public static class NotificationModules
     public const string Support           = "support";
     public const string Pos               = "pos";
     public const string Restaurant        = "restaurant";
+    public const string Seo               = "seo";
     /// <summary>Account-level alerts (billing, security) — never module-gated, everyone sees their own.</summary>
     public const string System            = "system";
 }
@@ -60,4 +61,6 @@ public static class NotificationEvents
     // "it came back" is muted — the recovery notice is reassurance, the failure is a call to act.
     public const string IntegrationFailing      = "integration.failing";
     public const string IntegrationRecovered    = "integration.recovered";
+
+    public const string SeoFixesReady           = "seo.fixes-ready";
 }

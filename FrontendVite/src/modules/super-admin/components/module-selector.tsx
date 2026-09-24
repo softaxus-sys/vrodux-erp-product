@@ -38,6 +38,7 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "insurance",           label: "Insurance",            desc: "Policies, renewals, claims"                             },
   { code: "b2b",                 label: "B2B",                   desc: "Proposals, contracts, support tickets"                  },
   { code: "visa",                label: "Visa Services",         desc: "Visa case management, document checklists"              },
+  { code: "seo",                 label: "SEO AI Agent",         desc: "Autopilot site audits, AI-proposed SEO fixes (add-on)"  },
   { code: "settings",            label: "Settings",              desc: "App config, branches, tax rates, payment methods"       },
   { code: "users",               label: "Users",                 desc: "User & role management"                                 },
 ];
@@ -125,6 +126,7 @@ const CHIP_STYLE: Record<string, string> = {
   "insurance":          "bg-blue-100    border-blue-400    text-blue-800    dark:bg-blue-900/40    dark:border-blue-600    dark:text-blue-300",
   "b2b":                "bg-slate-100   border-slate-400   text-slate-700   dark:bg-slate-900/40   dark:border-slate-500   dark:text-slate-300",
   "visa":               "bg-green-100   border-green-400   text-green-800   dark:bg-green-900/40   dark:border-green-600   dark:text-green-300",
+  "seo":                "bg-stone-100   border-stone-400   text-stone-800   dark:bg-stone-900/40   dark:border-stone-500   dark:text-stone-300",
   "settings":           "bg-gray-100    border-gray-400    text-gray-700    dark:bg-gray-900/40    dark:border-gray-500    dark:text-gray-300",
   "users":              "bg-gray-100    border-gray-400    text-gray-700    dark:bg-gray-900/40    dark:border-gray-500    dark:text-gray-300",
 };

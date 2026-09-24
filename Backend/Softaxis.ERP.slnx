@@ -93,6 +93,12 @@
     <Project Path="src/Services/VisaServices/Softaxis.VisaServices.Domain/Softaxis.VisaServices.Domain.csproj" />
     <Project Path="src/Services/VisaServices/Softaxis.VisaServices.Infrastructure/Softaxis.VisaServices.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Seo/">
+    <Project Path="src/Services/Seo/Softaxis.Seo.API/Softaxis.Seo.API.csproj" />
+    <Project Path="src/Services/Seo/Softaxis.Seo.Application/Softaxis.Seo.Application.csproj" />
+    <Project Path="src/Services/Seo/Softaxis.Seo.Domain/Softaxis.Seo.Domain.csproj" />
+    <Project Path="src/Services/Seo/Softaxis.Seo.Infrastructure/Softaxis.Seo.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Support/">
     <Project Path="src/Services/Support/Softaxis.Support.API/Softaxis.Support.API.csproj" />
     <Project Path="src/Services/Support/Softaxis.Support.Application/Softaxis.Support.Application.csproj" />

@@ -2289,6 +2289,48 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("65584a54-e95e-4f76-0fab-38daed09bd06"),
+                            Action = "view",
+                            Description = "View seo sites",
+                            ModuleId = "seo.sites"
+                        },
+                        new
+                        {
+                            Id = new Guid("1133f32b-0599-2e43-8705-f2ba0e82c1a6"),
+                            Action = "create",
+                            Description = "Create seo sites",
+                            ModuleId = "seo.sites"
+                        },
+                        new
+                        {
+                            Id = new Guid("3a6dc96d-9c1f-d1c4-1594-d1ba372f7726"),
+                            Action = "edit",
+                            Description = "Edit seo sites",
+                            ModuleId = "seo.sites"
+                        },
+                        new
+                        {
+                            Id = new Guid("a0e48fdc-50ae-66c5-1e13-f5c00b116e46"),
+                            Action = "delete",
+                            Description = "Delete seo sites",
+                            ModuleId = "seo.sites"
+                        },
+                        new
+                        {
+                            Id = new Guid("6e4d81f0-5923-23a9-3d56-bae39dc6f307"),
+                            Action = "view",
+                            Description = "View seo fixes",
+                            ModuleId = "seo.fixes"
+                        },
+                        new
+                        {
+                            Id = new Guid("224e4500-c960-6513-bbb4-52dbd1b77777"),
+                            Action = "edit",
+                            Description = "Edit seo fixes",
+                            ModuleId = "seo.fixes"
+                        },
+                        new
+                        {
                             Id = new Guid("1557a519-eb0f-727f-b32f-0876fb620c3e"),
                             Action = "view",
                             Description = "View support tickets",

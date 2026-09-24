@@ -89,6 +89,22 @@ export const navigationConfig: NavGroup[] = [
     ],
   },
   {
+    id: "seo-group",
+    label: "SEO AI Agent",
+    items: [
+      {
+        id: "seo",
+        label: "SEO AI Agent",
+        labelAr: "وكيل الذكاء الاصطناعي لتحسين محركات البحث",
+        icon: "Rocket",
+        module: "seo",
+        children: [
+          { id: "seo-sites",  label: "Sites",   labelAr: "المواقع",   href: "/seo/sites",  icon: "Search" },
+        ],
+      },
+    ],
+  },
+  {
     id: "finance",
     label: "Finance",
     items: [

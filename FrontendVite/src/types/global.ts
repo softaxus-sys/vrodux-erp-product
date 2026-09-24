@@ -142,7 +142,8 @@ export type ModuleKey =
   | "b2b"
   | "project-management"
   | "visa"
-  | "support";
+  | "support"
+  | "seo";
 
 export type Industry =
   | "real-estate"
