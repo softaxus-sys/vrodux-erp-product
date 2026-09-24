@@ -229,6 +229,14 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   // whose visibility is governed by their parent).
   // Groups with no visible items are hidden entirely.
   const visibleConfig = React.useMemo((): NavGroup[] => {
+    // Does the TENANT own this module? Deliberately not hasModuleAccess, which also fails when the
+    // tenant owns it but this particular user may not open it — the exact case the rescue exists
+    // for. Items with no module (settings children, self-service) are never blocked here.
+    const tenantHasModule = (mod?: string) =>
+      !mod || mod === "dashboard" || mod === "notifications" ||
+      mod === "ai-assistant" || mod === "support" ||
+      Boolean(tenant?.enabledModules?.includes(mod as ModuleKey));
+
     const itemVisible = (mod?: string, permission?: string) => {
       if (superAdminMode) return mod === "super-admin";
       if (mod && !hasModuleAccess(mod as ModuleKey)) return false;
@@ -257,9 +265,20 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
           // The "own gate" test is essential. Most children are ungated — their visibility comes
           // from the parent — so "any surviving child" is always true and would show every module
           // in the sidebar to everyone.
+          //
+          // tenantHasModule is the other half, and without it the rescue leaked whole modules the
+          // customer never bought. Those child gates are permission-only, and a tenant
+          // Administrator automatically holds EVERY seeded key — so "My HR" (hr.self.view) and
+          // Real Estate's "Website" (real-estate.website.view) both passed on a site licensed for
+          // neither, and their parent groups appeared in the sidebar.
+          //
+          // The rescue is about a USER who lacks a module their TENANT owns, never about a tenant
+          // that does not own it at all. hasModuleAccess conflates the two — it fails for the
+          // employee case as well — so entitlement is checked separately here.
           .filter((item) =>
             itemVisible(item.module, item.requiresPermission)
-            || (item.children ?? []).some((child) => child.module || child.requiresPermission)),
+            || (tenantHasModule(item.module)
+                && (item.children ?? []).some((child) => child.module || child.requiresPermission))),
       }))
       .filter((group) => group.items.length > 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps

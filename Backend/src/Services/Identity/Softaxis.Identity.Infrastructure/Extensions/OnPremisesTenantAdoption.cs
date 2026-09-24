@@ -122,7 +122,7 @@ internal static class OnPremisesTenantAdoption
                 logger.LogInformation(
                     "OnPremises: modules for workspace {TenantId} re-asserted from the license: {Modules}.",
                     tenant.Id, string.Join(", ", licensed));
-                tenant.SetEnabledModules(licensed);
+                tenant.GrantModulesManually(licensed);   // see CreateAsync - the key bypasses the plan ceiling
             }
         }
 
@@ -166,7 +166,13 @@ internal static class OnPremisesTenantAdoption
                     string.Join(", ", modules));
         }
 
-        if (modules.Count > 0) tenant.SetEnabledModules(modules);
+        // GrantModulesManually, not SetEnabledModules. The signed key IS a manual grant - we
+        // decided what this site may run when we issued it - so it must not then be re-filtered by
+        // the plan's own module ceiling. SetEnabledModules leaves ModulesManuallyGranted false,
+        // which silently dropped every licensed module the plan did not also include: a Starter
+        // site licensed for POS lost POS entirely, because "pos" is only in the Professional
+        // ceiling. The cloud tenant it was cloned from had manual = true, so the two disagreed.
+        if (modules.Count > 0) tenant.GrantModulesManually(modules);
 
         db.Tenants.Add(tenant);
         await db.SaveChangesAsync();
