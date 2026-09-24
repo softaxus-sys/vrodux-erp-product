@@ -30,6 +30,7 @@ using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
+using Softaxis.Seo.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 
@@ -127,6 +128,7 @@ try
     builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
     builder.Services.AddVisaServicesInfrastructure(builder.Configuration);
     builder.Services.AddSupportInfrastructure(builder.Configuration);
+    builder.Services.AddSeoInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -224,6 +226,11 @@ try
         Softaxis.Support.Application.Abstractions.ISupportRealtimeNotifier,
         Softaxis.Support.API.Realtime.SignalRSupportNotifier>();
 
+    // Seo.Application.Abstractions.ICurrentUser  →  Seo CurrentUserService
+    builder.Services.AddScoped<
+        Softaxis.Seo.Application.Abstractions.ICurrentUser,
+        Softaxis.Seo.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -243,6 +250,7 @@ try
         .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
         .AddJsonOptions(o =>
         {
             // Emit every DateTime as an explicit UTC instant ("…Z").
@@ -401,6 +409,7 @@ try
         // the CRM tables before reading them, so it is safe on a box with no CRM schema.
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
         await app.Services.MigrateAndSeedSupportAsync();            // Support
+        await app.Services.MigrateAndSeedSeoAsync();                // SEO AI Agent
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
 
         // Runs last, and only on an installation that mirrors to the cloud: enables SQL Server
@@ -459,7 +468,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Support" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Support", "Seo" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);

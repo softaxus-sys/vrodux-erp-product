@@ -167,7 +167,7 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
   "settings": true, "users": true, "ai-assistant": true, "notifications": true,
   "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
   "insurance": true, "b2b": true, "project-management": true, "visa": true,
-  "support": true,
+  "support": true, "seo": true,
 };
 
 /** Legacy stored code → canonical ModuleKey. Mirrors `Tenant.LegacyModuleAliases` (backend). */

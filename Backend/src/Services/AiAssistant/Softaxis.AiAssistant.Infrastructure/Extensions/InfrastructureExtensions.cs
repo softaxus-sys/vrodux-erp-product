@@ -114,6 +114,9 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiToolRegistry, AiToolRegistry>();
 
         services.AddScoped<IAiOrchestrator, AiOrchestrator>();
+        // Straight-line completion (no tools/conversation) for other modules' batch AI work —
+        // e.g. the SEO module's bulk issue analysis — reusing the tenant's configured provider/key.
+        services.AddScoped<IAiCompletionService, Orchestration.AiCompletionService>();
 
         // Autonomous rules (M4): per-rule runner + the background scheduler that fires due rules.
         services.AddScoped<IAiAutomationRunner, Automation.AiAutomationRunner>();

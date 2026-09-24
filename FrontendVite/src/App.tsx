@@ -134,6 +134,7 @@ const VisaCasesPage         = lazyWithRetry(() => import("@/pages/visa/cases"));
 const VisaRenewalsPage      = lazyWithRetry(() => import("@/pages/visa/renewals"));
 const VisaTypesPage         = lazyWithRetry(() => import("@/pages/visa/types"));
 const VisaChannelsPage      = lazyWithRetry(() => import("@/pages/visa/channels"));
+const SeoSitesPage          = lazyWithRetry(() => import("@/pages/seo/sites"));
 
 // ── Hospitality ───────────────────────────────────────────────────────────────
 const BookingsPage         = lazyWithRetry(() => import("@/pages/hospitality/bookings"));
@@ -503,6 +504,11 @@ export function App() {
             <Route path="/visa/renewals" element={<VisaRenewalsPage />} />
             <Route path="/visa/types" element={<VisaTypesPage />} />
             <Route path="/visa/channels" element={<VisaChannelsPage />} />
+          </Route>
+
+          {/* ── SEO AI Agent ────────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="seo" />}>
+            <Route path="/seo/sites" element={<SeoSitesPage />} />
           </Route>
 
           {/* ── Hospitality ─────────────────────────────────────────────────── */}

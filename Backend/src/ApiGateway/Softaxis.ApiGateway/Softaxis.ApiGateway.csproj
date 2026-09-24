@@ -52,6 +52,8 @@
     <ProjectReference Include="..\..\Services\VisaServices\Softaxis.VisaServices.Infrastructure\Softaxis.VisaServices.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Support\Softaxis.Support.API\Softaxis.Support.API.csproj" />
     <ProjectReference Include="..\..\Services\Support\Softaxis.Support.Infrastructure\Softaxis.Support.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Seo\Softaxis.Seo.API\Softaxis.Seo.API.csproj" />
+    <ProjectReference Include="..\..\Services\Seo\Softaxis.Seo.Infrastructure\Softaxis.Seo.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

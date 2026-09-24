@@ -50,6 +50,10 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
             ["/api/projectmanagement/"] = ModuleCodes.ProjectManagement,
             ["/api/hospitality/"]       = ModuleCodes.Hospitality,
             ["/api/visa/"]              = ModuleCodes.Visa,
+            // Includes the public snippet.js / ping / rules endpoints — harmless, since those are
+            // anonymous and line 94's "not authenticated" check already lets them pass through
+            // before this map is even consulted.
+            ["/api/seo/"]               = ModuleCodes.Seo,
 
             // ── Industry packs (tenant.Industry → pack code, folded into modules) ──
             ["/api/real-estate/"]  = ModuleCodes.RealEstate,

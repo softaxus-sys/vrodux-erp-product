@@ -42,6 +42,7 @@ public static class ModuleRoleCatalogue
             ["healthcare"]         = "Healthcare",
             ["insurance"]          = "Insurance",
             ["visa"]               = "Visa",
+            ["seo"]                = "SEO",
             ["restaurant"]         = "Restaurant",
             ["real-estate"]        = "Real Estate",
         };

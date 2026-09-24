@@ -50,6 +50,9 @@ public static class ModuleCodes
     // ── Visa Services ────────────────────────────────────────────────────────
     public const string Visa = "visa";
 
+    // ── SEO AI Agent ─────────────────────────────────────────────────────────
+    public const string Seo = "seo";
+
     // ── Industry Packs (activated by tenant.Industry) ─────────────────────────
     public const string RealEstate   = "real-estate";
     public const string Construction = "construction";
