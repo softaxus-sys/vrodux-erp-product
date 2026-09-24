@@ -156,6 +156,10 @@ const COMPLIANCE_TAGS = [
   "compliance.auditTrail",
   "compliance.multiCurrency",
   "compliance.uaeVat",
+  // Pakistan calls this sales tax / GST, administered by the FBR - not VAT. Using the local
+  // term is the point of saying it at all; "Pakistan VAT" reads as written by someone who has
+  // never filed there. Matches the regime label in Settings, "Pakistan (FBR . GST 17%)".
+  "compliance.pkGst",
 ];
 
 // ─── Greeting ─────────────────────────────────────────────────────────────────
