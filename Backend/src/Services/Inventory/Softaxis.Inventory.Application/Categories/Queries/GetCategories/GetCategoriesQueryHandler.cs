@@ -10,6 +10,10 @@ public sealed class GetCategoriesQueryHandler(ICategoryRepository categoryRepo)
 {
     public async Task<Result<IReadOnlyList<ProductCategoryDto>>> Handle(GetCategoriesQuery query, CancellationToken ct)
     {
+        // Lazy per-tenant seed: a new workspace starts with a usable starter set rather than an
+        // empty list that blocks the product form until someone invents an entry by hand.
+        await categoryRepo.EnsureDefaultsAsync(ct);
+
         var items = await categoryRepo.GetAllAsync(query.Search, query.IsActive, ct);
 
         var dtos = items.Select(c => new ProductCategoryDto(
