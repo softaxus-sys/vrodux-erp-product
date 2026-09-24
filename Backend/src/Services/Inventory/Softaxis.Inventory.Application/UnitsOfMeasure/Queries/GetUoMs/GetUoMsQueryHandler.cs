@@ -10,6 +10,10 @@ public sealed class GetUoMsQueryHandler(IUnitOfMeasureRepository uomRepo)
 {
     public async Task<Result<IReadOnlyList<UnitOfMeasureDto>>> Handle(GetUoMsQuery query, CancellationToken ct)
     {
+        // Lazy per-tenant seed: a new workspace starts with a usable starter set rather than an
+        // empty list that blocks the product form until someone invents an entry by hand.
+        await uomRepo.EnsureDefaultsAsync(ct);
+
         var uoms = await uomRepo.GetAllAsync(query.Search, query.IsActive, ct);
         var dtos = uoms.Select(u => new UnitOfMeasureDto(
             u.Id, u.Name, u.Symbol, u.Description,

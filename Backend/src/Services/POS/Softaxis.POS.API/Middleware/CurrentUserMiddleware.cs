@@ -23,6 +23,8 @@ public sealed class CurrentUserService(IHttpContextAccessor accessor) : ICurrent
 
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated == true;
 
+    public string? Country => Principal?.FindFirstValue("country");
+
     public bool HasPermission(string permissionKey) =>
         Principal?.FindAll("permission").Any(c => c.Value == permissionKey) == true;
 }

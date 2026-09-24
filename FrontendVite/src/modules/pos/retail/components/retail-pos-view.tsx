@@ -16,6 +16,7 @@ import { useShift } from "./shift-gate";
 import { usePaymentMethods } from "@/hooks/pos/use-payment-methods";
 import { useTransactions, useCreateSale } from "@/hooks/pos/use-transactions";
 import { useAuthStore } from "@/store/auth.store";
+import { useHeldOrders } from "@/hooks/pos/use-held-orders";
 import { CashierPOSView } from "./cashier-pos-view";
 import { PosReceipt } from "./pos-receipt";
 import { VoidConfirmDialog, RefundDialog } from "./void-refund-dialogs";
@@ -135,7 +136,9 @@ export function RetailPOSView() {
   const [scanItemName, setScanItemName]   = React.useState("");
 
   // Hold & recall
-  const [heldTransactions, setHeldTransactions] = React.useState<HeldItem[]>([]);
+  // Persisted, not component state: this used to be React.useState, so navigating to another
+  // module and back unmounted the view and silently discarded every parked sale.
+  const [heldTransactions, setHeldTransactions] = useHeldOrders<HeldItem>("retail");
   const [showHeldPanel, setShowHeldPanel] = React.useState(false);
 
   // Add product form

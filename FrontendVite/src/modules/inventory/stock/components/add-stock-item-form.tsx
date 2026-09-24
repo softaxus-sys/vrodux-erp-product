@@ -16,6 +16,8 @@ import { uomKeys } from "@/hooks/inventory/use-uom";
 import { inventoryProductKeys, useInventoryProduct } from "@/hooks/inventory/use-inventory-products";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useBarcodeAutofill, AUTOFILL_SOURCE_LABELS } from "@/hooks/use-barcode-autofill";
+import { taxForCountry } from "@/lib/onboarding/geo-data";
+import { useAuthStore } from "@/store/auth.store";
 
 interface AddStockItemFormProps {
   open: boolean;
@@ -41,6 +43,13 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
   const [reorderPoint, setReorderPoint]     = React.useState("");
   const [unitCost, setUnitCost]             = React.useState("");
   const [sellingPrice, setSellingPrice]     = React.useState("");
+
+  // Same country-driven regime as the POS product form. This form used to send taxRate: 0
+  // unconditionally, so an item added here was zero-rated at the till while the identical
+  // product added from POS carried a rate - a silent under-charge on every sale.
+  const country = useAuthStore(st => st.tenant?.country);
+  const tax     = React.useMemo(() => taxForCountry(country), [country]);
+  const [taxRate, setTaxRate]               = React.useState(tax.standard);
   const [barcode, setBarcode]               = React.useState("");
   const [description, setDescription]       = React.useState("");
   const [trackInventory, setTrackInventory] = React.useState(true);
@@ -134,7 +143,7 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
         unitOfMeasureId: unitOfMeasureId || null,
         salePrice:       parseFloat(sellingPrice) || 0,
         costPrice:       parseFloat(unitCost) || 0,
-        taxRate:         0,
+        taxRate:         parseFloat(taxRate) || 0,
         unit,
         reorderLevel:    parseFloat(reorderPoint) || 0,
         trackInventory,
@@ -339,6 +348,21 @@ export function AddStockItemForm({ open, onClose, editingId }: AddStockItemFormP
               <section>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("stockForm.pricing")}</p>
                 <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {tax.label} (%)
+                    </label>
+                    <div className="flex gap-1.5">
+                      {tax.rates.map(r => (
+                        <button key={r} type="button" onClick={() => setTaxRate(r)}
+                          className={`flex-1 h-9 rounded-lg border-2 text-xs font-medium transition-all ${
+                            taxRate === r
+                              ? "border-primary bg-primary/5 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/30"
+                          }`}>{r}%</button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("stockForm.costPrice")}</label>
                     <Input type="number" min={0} step={0.01} value={unitCost} onChange={e => setUnitCost(e.target.value)} placeholder="0.00" className="h-9 text-sm text-right" />
