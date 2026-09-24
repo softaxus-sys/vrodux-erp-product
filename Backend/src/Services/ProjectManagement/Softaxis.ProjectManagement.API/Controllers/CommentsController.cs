@@ -25,7 +25,10 @@ public sealed class CommentsController(ISender sender) : ProjectManagementContro
     [RequirePermission("project-management.issues.create")]
     public async Task<IActionResult> Create(Guid issueId, [FromBody] CreateCommentRequest req, CancellationToken ct)
     {
-        var authorName = User.FindFirstValue(ClaimTypes.Name)
+        // "username" is what JwtTokenService actually emits — ClaimTypes.Name is never set, so
+        // this used to always fall through to the email address.
+        var authorName = User.FindFirstValue("username")
+            ?? User.FindFirstValue(ClaimTypes.Name)
             ?? User.FindFirstValue(ClaimTypes.Email)
             ?? "Unknown";
 

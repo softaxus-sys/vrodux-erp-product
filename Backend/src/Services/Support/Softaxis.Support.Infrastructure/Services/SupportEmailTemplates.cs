@@ -30,6 +30,24 @@ internal static class SupportEmailTemplates
                to this ticket any time from your workspace under <strong>Help &amp; Support</strong>.</p>
             """));
 
+    /// <summary>Operator-side alert on a brand-new ticket — distinct from <see cref="TicketCreated"/>,
+    /// which is the customer's own "we got it" confirmation. <paramref name="queueUrl"/> links
+    /// straight to the queue (not the specific ticket — there is no per-ticket deep link today);
+    /// the ticket number in the subject and body is how an agent finds it from there.</summary>
+    public static (string Subject, string Html) NewTicketAlert(SupportTicket t, string queueUrl) => (
+        $"New ticket {E(t.TicketNumber)} — {E(t.RequestingTenantName)} ({E(t.Priority)})",
+        Wrap("New Support Ticket", $"""
+            <p><strong>{E(t.RequestingTenantName)}</strong> ({E(t.RequestingUserName)}, {E(t.RequestingUserEmail)})
+               opened ticket <strong>{E(t.TicketNumber)}</strong>:</p>
+            <table style="width:100%;border-collapse:collapse;margin:8px 0 16px;">
+              <tr><td style="padding:2px 8px 2px 0;color:#64748b;">Category</td><td>{E(t.Category)}</td></tr>
+              <tr><td style="padding:2px 8px 2px 0;color:#64748b;">Priority</td><td>{E(t.Priority)}</td></tr>
+            </table>
+            <p style="background:#f8fafc;border-radius:6px;padding:12px 16px;">{E(t.Subject)}</p>
+            <p><a href="{E(queueUrl)}" style="display:inline-block;background:#0f172a;color:#fff;
+               text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px;">Open the queue</a></p>
+            """));
+
     public static (string Subject, string Html) NewReply(SupportTicket t, TicketMessage m, bool toCustomer) => (
         $"New reply on {E(t.TicketNumber)} — {E(t.Subject)}",
         Wrap("VroduxERP Support", $"""
