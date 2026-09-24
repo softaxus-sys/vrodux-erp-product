@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useNavigation } from "@/hooks/use-navigation";
+import { useVisibleNavigation } from "@/hooks/use-visible-navigation";
 import type { NavItem, NavGroup, ModuleKey } from "@/types";
 import { useAuthStore } from "@/store/auth.store";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -214,9 +214,8 @@ function SidebarNavItem({ item, collapsed, depth = 0 }: SidebarNavItemProps) {
 // ─── Sidebar nav ──────────────────────────────────────────────────────────────
 
 export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
-  const { hasModuleAccess, hasRawPermission, canOpenSettingsPage, user, tenant } = useAuthStore();
+  const { user } = useAuthStore();
   const impersonation = useAuthStore((s) => s.impersonation);
-  const navigationConfig = useNavigation();
 
   // A platform super-admin who is NOT impersonating a tenant sees ONLY the super-admin
   // console (Tenant Management) — never operational modules with pooled cross-tenant data.
@@ -224,65 +223,8 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   // role to tenant_admin so normal per-tenant module access applies.
   const superAdminMode = user?.role === "super_admin" && !impersonation;
 
-  // Filter navigation based on the current user's module access.
-  // Items with no `module` field are always shown (they are child items
-  // whose visibility is governed by their parent).
-  // Groups with no visible items are hidden entirely.
-  const visibleConfig = React.useMemo((): NavGroup[] => {
-    // Does the TENANT own this module? Deliberately not hasModuleAccess, which also fails when the
-    // tenant owns it but this particular user may not open it — the exact case the rescue exists
-    // for. Items with no module (settings children, self-service) are never blocked here.
-    const tenantHasModule = (mod?: string) =>
-      !mod || mod === "dashboard" || mod === "notifications" ||
-      mod === "ai-assistant" || mod === "support" ||
-      Boolean(tenant?.enabledModules?.includes(mod as ModuleKey));
-
-    const itemVisible = (mod?: string, permission?: string) => {
-      if (superAdminMode) return mod === "super-admin";
-      if (mod && !hasModuleAccess(mod as ModuleKey)) return false;
-      // A page the user cannot open should not be offered: a self-service employee holds the HR
-      // module but only hr.self.*, so Employees/Payroll would be a list of guaranteed 403s.
-      if (!permission) return true;
-      // Settings pages use canOpenSettingsPage so the legacy admin tiers keep the blanket
-      // Settings access the route guard has always given them; everyone else needs the key.
-      return permission.startsWith("settings.")
-        ? canOpenSettingsPage(permission)
-        : hasRawPermission(permission);
-    };
-    return navigationConfig
-      .map((group) => ({
-        ...group,
-        items: group.items
-          .map((item) => ({
-            ...item,
-            // filter children that carry their own module or permission requirement
-            children: item.children?.filter((child) => itemVisible(child.module, child.requiresPermission)),
-          }))
-          // A parent is shown when the user may open it, OR when a child that carries its OWN
-          // module/permission survived the filter above. "My HR" needs that second case: an
-          // ordinary employee holds hr.self.* and deliberately does NOT have the HR module.
-          //
-          // The "own gate" test is essential. Most children are ungated — their visibility comes
-          // from the parent — so "any surviving child" is always true and would show every module
-          // in the sidebar to everyone.
-          //
-          // tenantHasModule is the other half, and without it the rescue leaked whole modules the
-          // customer never bought. Those child gates are permission-only, and a tenant
-          // Administrator automatically holds EVERY seeded key — so "My HR" (hr.self.view) and
-          // Real Estate's "Website" (real-estate.website.view) both passed on a site licensed for
-          // neither, and their parent groups appeared in the sidebar.
-          //
-          // The rescue is about a USER who lacks a module their TENANT owns, never about a tenant
-          // that does not own it at all. hasModuleAccess conflates the two — it fails for the
-          // employee case as well — so entitlement is checked separately here.
-          .filter((item) =>
-            itemVisible(item.module, item.requiresPermission)
-            || (tenantHasModule(item.module)
-                && (item.children ?? []).some((child) => child.module || child.requiresPermission))),
-      }))
-      .filter((group) => group.items.length > 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, tenant, impersonation, navigationConfig]);
+  // Shared with the command palette — see useVisibleNavigation for why.
+  const visibleConfig = useVisibleNavigation();
 
   return (
     <TooltipProvider delayDuration={0}>

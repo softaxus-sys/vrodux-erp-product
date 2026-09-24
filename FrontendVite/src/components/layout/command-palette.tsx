@@ -11,13 +11,19 @@ import {
 } from "@/components/ui/command";
 import { useUiStore } from "@/store/ui.store";
 import { useTranslation } from "react-i18next";
-import { useNavigation } from "@/hooks/use-navigation";
+import { useVisibleNavigation } from "@/hooks/use-visible-navigation";
+import { useAuthStore } from "@/store/auth.store";
+import type { ModuleKey } from "@/types/global";
 
 export function CommandPalette() {
   const { commandPaletteOpen, setCommandPaletteOpen } = useUiStore();
   const navigate = useNavigate();
   const { t } = useTranslation("common");
-  const navigationConfig = useNavigation();
+  const hasModuleAccess = useAuthStore(s => s.hasModuleAccess);
+  // The SAME filtered list the sidebar renders. This used to walk the raw config, so global
+  // search offered HR, CRM and Finance to a shop licensed for none of them — and every result
+  // navigated to a route ModuleGuard then bounced.
+  const navigationConfig = useVisibleNavigation();
 
   const allNavItems = React.useMemo(() => {
     const items: Array<{ label: string; href: string; group: string }> = [];
@@ -32,16 +38,21 @@ export function CommandPalette() {
     return items;
   }, [navigationConfig]);
 
-  const quickActions = React.useMemo(() => [
+  const quickActions = React.useMemo(() => {
     // These point at the LIST page, not a "/new" route. No /new route has ever existed for any of
     // them — creation happens in a drawer on the list page — so every one of these previously fell
     // through to the catch-all and silently redirected to the dashboard.
-    { label: t("command.createInvoice"),    href: "/finance/invoicing" },
-    { label: t("command.addEmployee"),      href: "/hr/employees" },
-    { label: t("command.newPurchaseOrder"), href: "/purchase/orders" },
-    { label: t("command.addCustomer"),      href: "/crm/customers" },
-    { label: t("command.newQuotation"),     href: "/sales/quotations" },
-  ], [t]);
+    const all = [
+      { label: t("command.createInvoice"),    href: "/finance/invoicing", module: "finance"  },
+      { label: t("command.addEmployee"),      href: "/hr/employees",      module: "hr"       },
+      { label: t("command.newPurchaseOrder"), href: "/purchase/orders",   module: "purchase" },
+      { label: t("command.addCustomer"),      href: "/crm/customers",     module: "crm"      },
+      { label: t("command.newQuotation"),     href: "/sales/quotations",  module: "sales"    },
+    ];
+    // Gated too: offering "Create Invoice" to a shop without Finance is the same broken promise
+    // as listing the module itself.
+    return all.filter(a => hasModuleAccess(a.module as ModuleKey));
+  }, [t, hasModuleAccess]);
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
