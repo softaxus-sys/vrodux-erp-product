@@ -8,8 +8,8 @@ import { useInventoryCategories, useCreateInventoryCategory } from "@/hooks/inve
 import { useCreatePOSProduct } from "@/hooks/pos/use-products";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useBarcodeAutofill, AUTOFILL_SOURCE_LABELS } from "@/hooks/use-barcode-autofill";
-
-const TAX_RATES = ["0", "5", "10", "15"];
+import { taxForCountry } from "@/lib/onboarding/geo-data";
+import { useAuthStore } from "@/store/auth.store";
 
 interface AddPOSProductFormProps {
   open: boolean;
@@ -24,7 +24,13 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
   const [description, setDescription]       = React.useState("");
   const [price, setPrice]                   = React.useState("");
   const [costPrice, setCostPrice]           = React.useState("");
-  const [taxRate, setTaxRate]               = React.useState("5");
+  // The offered rates follow the tenant's country. They used to be a hardcoded
+  // ["0","5","10","15"] with 5% preselected - UAE's regime - so a Pakistani shop was offered 15%
+  // and never 17%, the rate its receipts legally have to carry.
+  const country = useAuthStore(s => s.tenant?.country);
+  const tax     = React.useMemo(() => taxForCountry(country), [country]);
+
+  const [taxRate, setTaxRate]               = React.useState(tax.standard);
   const [stock, setStock]                   = React.useState("0");
   const [minStock, setMinStock]             = React.useState("5");
   const [unit, setUnit]                     = React.useState("pcs");
@@ -266,9 +272,11 @@ export function AddPOSProductForm({ open, onClose }: AddPOSProductFormProps) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Pricing</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tax Rate (%)</label>
+                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {tax.label} (%)
+                    </label>
                     <div className="flex gap-1.5">
-                      {TAX_RATES.map(r => (
+                      {tax.rates.map(r => (
                         <button key={r} onClick={() => setTaxRate(r)}
                           className={`flex-1 h-9 rounded-lg border-2 text-xs font-medium transition-all ${
                             taxRate === r

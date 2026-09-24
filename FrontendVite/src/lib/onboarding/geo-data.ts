@@ -292,3 +292,59 @@ export function findCountry(nameOrCode: string): CountryMeta | undefined {
   if (!q) return undefined;
   return COUNTRIES.find(c => c.name.toLowerCase() === q || c.code.toLowerCase() === q);
 }
+
+/**
+ * Selectable sales-tax / VAT / GST rates per country, and which is the standard one.
+ *
+ * Lives here beside currency and timezone because it is the same kind of fact about a country,
+ * and because the alternative is what we had: a rate map buried in the General Settings
+ * onChange, and a separate hardcoded ["0","5","10","15"] in the POS product form. The second
+ * list was UAE-shaped, so a Pakistani shop was offered 15% and never 17% - the rate its
+ * receipts legally have to carry.
+ *
+ * `rates` are the buttons offered; `standard` is preselected. 0 is always available: exempt and
+ * zero-rated goods exist in every regime.
+ */
+export interface CountryTax {
+  /** What the regime is called locally, for labels: "VAT", "GST", "Sales Tax". */
+  label: string;
+  rates: string[];
+  standard: string;
+}
+
+export const COUNTRY_TAX: Record<string, CountryTax> = {
+  AE: { label: "VAT", rates: ["0", "5"],                          standard: "5"  },
+  SA: { label: "VAT", rates: ["0", "15"],                         standard: "15" },
+  // Pakistan: 17% standard GST, 5% reduced for essential goods - matching the seeded POS rates.
+  PK: { label: "GST", rates: ["0", "5", "17"],                    standard: "17" },
+  US: { label: "Sales Tax", rates: ["0"],                         standard: "0"  },
+  GB: { label: "VAT", rates: ["0", "5", "20"],                    standard: "20" },
+  IN: { label: "GST", rates: ["0", "5", "12", "18", "28"],        standard: "18" },
+  CA: { label: "GST/HST", rates: ["0", "5", "13", "15"],          standard: "5"  },
+  AU: { label: "GST", rates: ["0", "10"],                         standard: "10" },
+  DE: { label: "VAT", rates: ["0", "7", "19"],                    standard: "19" },
+  FR: { label: "VAT", rates: ["0", "5.5", "10", "20"],            standard: "20" },
+  QA: { label: "Tax", rates: ["0"],                               standard: "0"  },
+  KW: { label: "Tax", rates: ["0"],                               standard: "0"  },
+  BH: { label: "VAT", rates: ["0", "10"],                         standard: "10" },
+  OM: { label: "VAT", rates: ["0", "5"],                          standard: "5"  },
+  JO: { label: "GST", rates: ["0", "4", "10", "16"],              standard: "16" },
+  EG: { label: "VAT", rates: ["0", "5", "14"],                    standard: "14" },
+  SG: { label: "GST", rates: ["0", "9"],                          standard: "9"  },
+  MY: { label: "SST", rates: ["0", "6", "10"],                    standard: "10" },
+  TR: { label: "VAT", rates: ["0", "1", "10", "20"],              standard: "20" },
+  NG: { label: "VAT", rates: ["0", "7.5"],                        standard: "7.5"},
+};
+
+/** Fallback for a country we have no regime for - never guess a rate onto someone's receipt. */
+export const DEFAULT_TAX: CountryTax = { label: "Tax", rates: ["0"], standard: "0" };
+
+/**
+ * Tax regime for a country name or 2-letter code, falling back to zero-only.
+ * Accepts what the tenant actually stores, which is the country NAME.
+ */
+export function taxForCountry(country?: string | null): CountryTax {
+  if (!country) return DEFAULT_TAX;
+  const meta = findCountry(country);
+  return (meta && COUNTRY_TAX[meta.code]) || COUNTRY_TAX[country.trim().toUpperCase()] || DEFAULT_TAX;
+}
