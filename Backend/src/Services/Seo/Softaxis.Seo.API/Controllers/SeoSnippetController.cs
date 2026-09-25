@@ -28,7 +28,14 @@ public sealed class SeoSnippetController(ISender sender) : SeoControllerBase
         (function () {
           var BASE = "{{origin}}/api/seo/snippet/{{snippetKey}}";
 
-          fetch(BASE + "/ping", { method: "POST" }).catch(function () {});
+          fetch(BASE + "/ping", { method: "POST" })
+            .then(function (r) {
+              if (!r.ok) console.warn("[Vrodux SEO] ping responded " + r.status + " — check the snippet key.");
+            })
+            .catch(function (e) {
+              console.warn("[Vrodux SEO] could not reach " + BASE + "/ping — this site's Content-Security-Policy " +
+                "(connect-src) may be blocking it, or it's a network/DNS issue. Error: " + e);
+            });
 
           fetch(BASE + "/rules?path=" + encodeURIComponent(location.pathname))
             .then(function (r) { return r.ok ? r.json() : []; })
@@ -37,7 +44,7 @@ public sealed class SeoSnippetController(ISender sender) : SeoControllerBase
                 try { applyRule(rule); } catch (e) { /* one bad rule must not break the page */ }
               });
             })
-            .catch(function () {});
+            .catch(function (e) { console.warn("[Vrodux SEO] could not fetch rules: " + e); });
 
           function applyRule(rule) {
             var value = JSON.parse(rule.proposedValueJson).value;
