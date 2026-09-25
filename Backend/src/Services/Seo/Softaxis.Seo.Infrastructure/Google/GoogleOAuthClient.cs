@@ -74,6 +74,51 @@ public sealed class GoogleOAuthClient(IHttpClientFactory httpFactory, IOptions<G
             .ToList();
     }
 
+    public sealed record SearchQueryRow(string Query, double Clicks, double Impressions, double Position);
+
+    /// <summary>Real Search Analytics data for the connected property — actual queries this site
+    /// already gets impressions/clicks for, over the last 90 days. This is the one genuine "what does
+    /// Google already associate with this site" signal available (see this class's own scope note on
+    /// what the public API does and does not expose) — used by ContentResearch as a content-gap
+    /// signal: a query with meaningful impressions but a weak position/CTR is a real opportunity, not
+    /// a guess.</summary>
+    public async Task<IReadOnlyList<SearchQueryRow>> GetSearchAnalyticsAsync(string accessToken, string siteUrl, CancellationToken ct)
+    {
+        var client = httpFactory.CreateClient("google");
+        var url = $"https://www.googleapis.com/webmasters/v3/sites/{Uri.EscapeDataString(siteUrl)}/searchAnalytics/query";
+        var body = JsonSerializer.Serialize(new
+        {
+            startDate  = DateTime.UtcNow.AddDays(-90).ToString("yyyy-MM-dd"),
+            endDate    = DateTime.UtcNow.AddDays(-3).ToString("yyyy-MM-dd"), // GSC data lags a few days
+            dimensions = new[] { "query" },
+            rowLimit   = 100,
+        });
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        using var resp = await client.SendAsync(request, ct);
+        var respBody = await resp.Content.ReadAsStringAsync(ct);
+        if (!resp.IsSuccessStatusCode)
+        {
+            logger.LogWarning("Google Search Analytics error {Status}: {Body}", (int)resp.StatusCode, respBody);
+            return []; // a research signal being unavailable must not fail article generation
+        }
+
+        var root = JsonDocument.Parse(respBody).RootElement;
+        if (!root.TryGetProperty("rows", out var rows)) return [];
+        return rows.EnumerateArray()
+            .Select(r =>
+            {
+                var keys = r.GetProperty("keys");
+                return new SearchQueryRow(
+                    keys[0].GetString() ?? "",
+                    r.TryGetProperty("clicks", out var c) ? c.GetDouble() : 0,
+                    r.TryGetProperty("impressions", out var i) ? i.GetDouble() : 0,
+                    r.TryGetProperty("position", out var p) ? p.GetDouble() : 0);
+            })
+            .Where(q => !string.IsNullOrEmpty(q.Query))
+            .ToList();
+    }
+
     public sealed record Ga4Property(string PropertyId, string DisplayName);
 
     public async Task<IReadOnlyList<Ga4Property>> GetAnalyticsPropertiesAsync(string accessToken, CancellationToken ct)

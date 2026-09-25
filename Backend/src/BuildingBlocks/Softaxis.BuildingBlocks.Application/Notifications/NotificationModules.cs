@@ -63,4 +63,5 @@ public static class NotificationEvents
     public const string IntegrationRecovered    = "integration.recovered";
 
     public const string SeoFixesReady           = "seo.fixes-ready";
+    public const string SeoArticlesReady        = "seo.articles-ready";
 }

@@ -8,11 +8,13 @@ using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.Seo.Application;
 using Softaxis.Seo.Application.Abstractions;
 using Softaxis.Seo.Infrastructure.Ai;
+using Softaxis.Seo.Infrastructure.Content;
 using Softaxis.Seo.Infrastructure.Crawl;
 using Softaxis.Seo.Infrastructure.Google;
 using Softaxis.Seo.Infrastructure.Persistence;
 using Softaxis.Seo.Infrastructure.Scanning;
 using Softaxis.Seo.Infrastructure.Security;
+using Softaxis.Seo.Infrastructure.WordPress;
 
 namespace Softaxis.Seo.Infrastructure.Extensions;
 
@@ -50,6 +52,17 @@ public static class InfrastructureExtensions
         services.AddScoped<ISiteScanRunner, SiteScanRunner>();
 
         services.AddHostedService<SeoScanBackgroundService>();
+
+        // Content generation (Phase 2) — scheduled AI-written SEO articles, drafts for review, with
+        // an optional WordPress push. Reuses the same Google connection + crawler Phase 1 already set up.
+        services.AddScoped<GoogleAccessTokenResolver>();
+        services.AddScoped<ContentResearch>();
+        services.AddScoped<IArticleWriter, ArticleWriter>();
+        services.AddScoped<IArticleGenerationRunner, ArticleGenerationRunner>();
+        services.AddHostedService<SeoContentBackgroundService>();
+
+        services.AddHttpClient("wordpress");
+        services.AddScoped<WordPressClient>();
 
         return services;
     }

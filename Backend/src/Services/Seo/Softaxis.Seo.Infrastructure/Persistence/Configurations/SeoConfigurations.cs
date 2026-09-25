@@ -101,3 +101,52 @@ internal sealed class SeoFixConfiguration : IEntityTypeConfiguration<SeoFix>
         builder.Property(x => x.ReviewedByName).HasMaxLength(200);
     }
 }
+
+internal sealed class SeoArticleConfiguration : IEntityTypeConfiguration<SeoArticle>
+{
+    public void Configure(EntityTypeBuilder<SeoArticle> builder)
+    {
+        builder.ToTable("seo_articles");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.HasIndex(x => x.SiteId);
+        builder.HasIndex(x => new { x.SiteId, x.Status });
+        builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
+        builder.Property(x => x.Slug).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.MetaDescription).IsRequired().HasMaxLength(320);
+        builder.Property(x => x.TargetKeyword).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.BodyMarkdown).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.SourceSignalsJson).IsRequired().HasColumnType("nvarchar(max)").HasDefaultValue("[]");
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("pending_review");
+        builder.Property(x => x.ReviewedByName).HasMaxLength(200);
+    }
+}
+
+internal sealed class SeoContentSettingsConfiguration : IEntityTypeConfiguration<SeoContentSettings>
+{
+    public void Configure(EntityTypeBuilder<SeoContentSettings> builder)
+    {
+        builder.ToTable("seo_content_settings");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.HasIndex(x => x.SiteId).IsUnique();
+        builder.Property(x => x.Frequency).IsRequired().HasMaxLength(20).HasDefaultValue("weekly");
+        builder.Property(x => x.NicheHint).HasMaxLength(1000);
+        builder.Property(x => x.CompetitorDomainsCsv).HasMaxLength(1000);
+    }
+}
+
+internal sealed class SeoWordPressConnectionConfiguration : IEntityTypeConfiguration<SeoWordPressConnection>
+{
+    public void Configure(EntityTypeBuilder<SeoWordPressConnection> builder)
+    {
+        builder.ToTable("seo_wordpress_connections");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.HasIndex(x => x.SiteId).IsUnique();
+        builder.Property(x => x.SiteUrl).IsRequired().HasMaxLength(500);
+        builder.Property(x => x.Username).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.AppPassword).IsRequired().HasColumnType("nvarchar(max)");
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue("connected");
+        builder.Property(x => x.LastError).HasMaxLength(500);
+        builder.Property(x => x.IsDeleted).HasDefaultValue(false);
+        builder.HasQueryFilter(x => !x.IsDeleted);
+    }
+}
