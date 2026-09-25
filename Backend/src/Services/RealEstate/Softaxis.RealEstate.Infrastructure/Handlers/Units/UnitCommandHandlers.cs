@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.RealEstate.Application.Units.Commands;
@@ -37,7 +38,7 @@ internal static class PropertyCounts
     }
 }
 
-internal sealed class CreateUnitHandler(RealEstateDbContext db)
+internal sealed class CreateUnitHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<CreateUnitCommand, UnitDto>
 {
     public async Task<Result<UnitDto>> Handle(CreateUnitCommand cmd, CancellationToken ct)
@@ -62,6 +63,9 @@ internal sealed class CreateUnitHandler(RealEstateDbContext db)
 
         unit.SetDetails(cmd.Furnishing, cmd.View, cmd.Bedrooms, cmd.Bathrooms,
             cmd.Parking, cmd.ServiceCharge, cmd.Notes);
+
+        // Same default as Listings: the creator owns the unit and owner details.
+        unit.AssignAgent(user.Id);
 
         db.PropertyUnits.Add(unit);
         await db.SaveChangesAsync(ct);

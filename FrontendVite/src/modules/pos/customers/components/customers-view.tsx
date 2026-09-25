@@ -1,13 +1,13 @@
 import * as React from "react";
-import { Users, Search, Wallet, CreditCard, Star, X, Loader2, Plus } from "lucide-react";
+import { Users, Search, Wallet, CreditCard, Star, X, Loader2, Plus, Pencil, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import {
-  useCustomers, useCustomer, useTopUpWallet, useSetCreditLimit, useRecordHouseAccountPayment, useWalletTransactions,
+  useCustomers, useCustomer, useTopUpWallet, useCreateCustomer, useUpdateCustomer, useAdjustLoyalty, useSetCreditLimit, useRecordHouseAccountPayment, useWalletTransactions,
 } from "@/hooks/pos/use-customers";
-import type { CustomerSummaryDto, WalletTransactionType } from "@/lib/pos/types";
+import type { CustomerDto, CustomerSummaryDto, WalletTransactionType } from "@/lib/pos/types";
 import { Can } from "@/components/auth/can";
 
 const TXN_LABELS: Record<WalletTransactionType, string> = {
@@ -20,17 +20,25 @@ const TXN_LABELS: Record<WalletTransactionType, string> = {
 export function CustomersView() {
   const [search, setSearch] = React.useState("");
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [showCreate, setShowCreate] = React.useState(false);
   const { data, isLoading } = useCustomers({ search: search || undefined, pageSize: 50 });
   const customers = data?.items ?? [];
   const currency = useCurrency();
 
   return (
     <div className="p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Users className="w-5 h-5 text-primary" /> Customers
-        </h1>
-        <p className="text-sm text-muted-foreground">Wallet (store credit) and house-account balances.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary" /> Customers
+          </h1>
+          <p className="text-sm text-muted-foreground">Customer details, loyalty points, wallet and house-account balances.</p>
+        </div>
+        <Can permission="pos.customers.edit">
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <UserPlus className="w-4 h-4 mr-1.5" /> Add Customer
+          </Button>
+        </Can>
       </div>
 
       <div className="relative max-w-sm">
@@ -63,6 +71,10 @@ export function CustomersView() {
         )}
       </div>
 
+      {showCreate && (
+        <CustomerFormModal onClose={() => setShowCreate(false)}
+          onSaved={c => { setShowCreate(false); setSelectedId(c.id); }} />
+      )}
       {selectedId && <CustomerDetailDrawer customerId={selectedId} onClose={() => setSelectedId(null)} />}
     </div>
   );
@@ -94,14 +106,30 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
   const [showTopUp, setShowTopUp] = React.useState(false);
   const [showCreditLimit, setShowCreditLimit] = React.useState(false);
   const [showPayment, setShowPayment] = React.useState(false);
+  const [showEdit, setShowEdit] = React.useState(false);
+  const [showLoyalty, setShowLoyalty] = React.useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-card border-l border-border w-full max-w-md h-full overflow-y-auto p-5 space-y-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold">{c?.name ?? "Customer"}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-base font-bold truncate">{c?.name ?? "Customer"}</h2>
+            {c && !c.isActive && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">Inactive</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {c && (
+              <Can permission="pos.customers.edit">
+                <Button size="sm" variant="outline" onClick={() => setShowEdit(true)}>
+                  <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                </Button>
+              </Can>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground"><X className="w-4 h-4" /></button>
+          </div>
         </div>
 
         {isLoading || !c ? (
@@ -111,7 +139,15 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="bg-muted/30 rounded-lg p-3"><p className="text-xs text-muted-foreground">Phone</p><p className="font-medium">{c.phone ?? "—"}</p></div>
               <div className="bg-muted/30 rounded-lg p-3"><p className="text-xs text-muted-foreground">Email</p><p className="font-medium truncate">{c.email ?? "—"}</p></div>
-              <div className="bg-muted/30 rounded-lg p-3"><p className="text-xs text-muted-foreground">Loyalty Points</p><p className="font-medium">{c.loyaltyPoints}</p></div>
+              <div className="bg-muted/30 rounded-lg p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Loyalty Points</p>
+                  <Can permission="pos.customers.edit">
+                    <button onClick={() => setShowLoyalty(true)} className="text-[11px] font-medium text-primary hover:underline">Adjust</button>
+                  </Can>
+                </div>
+                <p className="font-medium flex items-center gap-1"><Star className="w-3.5 h-3.5 text-amber-500" /> {c.loyaltyPoints}</p>
+              </div>
               <div className="bg-muted/30 rounded-lg p-3"><p className="text-xs text-muted-foreground">Total Purchases</p><p className="font-medium">{formatCurrency(c.totalPurchases, currency)}</p></div>
             </div>
 
@@ -187,6 +223,12 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
         )}
       </div>
 
+      {showEdit && c && (
+        <CustomerFormModal customer={c} onClose={() => setShowEdit(false)} onSaved={() => setShowEdit(false)} />
+      )}
+      {showLoyalty && c && (
+        <LoyaltyModal customer={c} onClose={() => setShowLoyalty(false)} />
+      )}
       {showTopUp && (
         <AmountModal title="Top Up Wallet" confirmLabel="Top Up" busy={topUp.isPending}
           onClose={() => setShowTopUp(false)}
@@ -226,6 +268,116 @@ function AmountModal({ title, confirmLabel, busy, initial, onClose, onConfirm }:
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CustomerFormModal({ customer, onClose, onSaved }: {
+  customer?: CustomerDto; onClose: () => void; onSaved: (c: CustomerDto) => void;
+}) {
+  const create = useCreateCustomer();
+  const update = useUpdateCustomer(customer?.id ?? "");
+  const [form, setForm] = React.useState({
+    name:     customer?.name ?? "",
+    phone:    customer?.phone ?? "",
+    email:    customer?.email ?? "",
+    address:  customer?.address ?? "",
+    notes:    customer?.notes ?? "",
+    isActive: customer?.isActive ?? true,
+  });
+  const busy = create.isPending || update.isPending;
+  const set = (k: "name" | "phone" | "email" | "address" | "notes") =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const submit = async () => {
+    const payload = {
+      name:    form.name.trim(),
+      phone:   form.phone.trim() || null,
+      email:   form.email.trim() || null,
+      address: form.address.trim() || null,
+      notes:   form.notes.trim() || null,
+    };
+    try {
+      const saved = customer
+        ? await update.mutateAsync({ ...payload, isActive: form.isActive })
+        : await create.mutateAsync(payload);
+      onSaved(saved);
+    } catch { /* the hook shows the error; keep the form open */ }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 w-full max-w-md mx-4 space-y-3" onClick={e => e.stopPropagation()}>
+        <p className="text-sm font-semibold">{customer ? "Edit Customer" : "Add Customer"}</p>
+        <Field label="Name *"><Input autoFocus value={form.name} onChange={set("name")} className="h-9 text-sm" /></Field>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Phone"><Input value={form.phone} onChange={set("phone")} className="h-9 text-sm" /></Field>
+          <Field label="Email"><Input type="email" value={form.email} onChange={set("email")} className="h-9 text-sm" /></Field>
+        </div>
+        <Field label="Address"><Input value={form.address} onChange={set("address")} className="h-9 text-sm" /></Field>
+        <Field label="Notes">
+          <textarea value={form.notes} onChange={set("notes")} rows={2}
+            className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
+        </Field>
+        {customer && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.isActive} onChange={e => setForm(f => ({ ...f, isActive: e.target.checked }))} />
+            Active
+          </label>
+        )}
+        <div className="flex gap-2 justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={!form.name.trim() || busy}>
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : customer ? "Save" : "Add Customer"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoyaltyModal({ customer, onClose }: { customer: CustomerDto; onClose: () => void }) {
+  const adjust = useAdjustLoyalty(customer.id);
+  const [mode, setMode] = React.useState<"add" | "remove">("add");
+  const [points, setPoints] = React.useState("");
+  const [reason, setReason] = React.useState("");
+  const n = Number(points);
+  const tooMany = mode === "remove" && n > customer.loyaltyPoints;
+  const valid = points.trim() !== "" && !Number.isNaN(n) && n > 0 && !tooMany;
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 space-y-3" onClick={e => e.stopPropagation()}>
+        <p className="text-sm font-semibold">Adjust Loyalty Points</p>
+        <p className="text-xs text-muted-foreground">Current balance: <span className="font-semibold text-foreground">{customer.loyaltyPoints}</span></p>
+        <div className="grid grid-cols-2 gap-1 p-1 bg-muted/40 rounded-lg">
+          {(["add", "remove"] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)}
+              className={cn("text-xs font-medium py-1.5 rounded-md", mode === m ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
+              {m === "add" ? "Add points" : "Remove points"}
+            </button>
+          ))}
+        </div>
+        <Input type="number" min={0} autoFocus value={points} onChange={e => setPoints(e.target.value)} placeholder="Points" className="h-9 text-sm" />
+        {tooMany && <p className="text-xs text-destructive">Can't remove more than the current balance.</p>}
+        <Input value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason (optional)" className="h-9 text-sm" />
+        <div className="flex gap-2 justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={adjust.isPending}>Cancel</Button>
+          <Button size="sm" disabled={!valid || adjust.isPending}
+            onClick={() => adjust.mutate({ points: mode === "add" ? n : -n, reason: reason.trim() || null }, { onSuccess: onClose })}>
+            {adjust.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      {children}
     </div>
   );
 }

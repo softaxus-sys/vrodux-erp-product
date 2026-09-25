@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.POS.API.Authorization;
+using Softaxis.POS.Application.Customers.Commands.AdjustLoyaltyPoints;
 using Softaxis.POS.Application.Customers.Commands.CreateCustomer;
 using Softaxis.POS.Application.Customers.Commands.RecordHouseAccountPayment;
 using Softaxis.POS.Application.Customers.Commands.SetCreditLimit;
@@ -75,6 +76,13 @@ public sealed class CustomersController(ISender sender) : BaseApiController(send
     public async Task<IActionResult> RecordHouseAccountPayment(Guid id, [FromBody] RecordHouseAccountPaymentRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(new RecordHouseAccountPaymentCommand(id, req.Amount, req.Notes), ct));
 
+    /// <summary>POST /api/customers/{id}/loyalty/adjust — signed manual correction.</summary>
+    [HttpPost("{id:guid}/loyalty/adjust")]
+    [RequirePermission("pos.customers.edit")]
+    public async Task<IActionResult> AdjustLoyalty(Guid id, [FromBody] AdjustLoyaltyRequest req, CancellationToken ct = default)
+        => HandleResult(await Sender.Send(new AdjustLoyaltyPointsCommand(id, req.Points, req.Reason), ct));
+
+    public sealed record AdjustLoyaltyRequest(decimal Points, string? Reason);
     public sealed record TopUpWalletRequest(decimal Amount, string? Notes);
     public sealed record SetCreditLimitRequest(decimal CreditLimit);
     public sealed record RecordHouseAccountPaymentRequest(decimal Amount, string? Notes);

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.RealEstate.Application.Properties.Commands;
@@ -19,7 +20,7 @@ namespace Softaxis.RealEstate.Infrastructure.Handlers.Units;
 /// lease, a tenant and a rent reminder all refer to the unit, so two "101"s in one building makes
 /// every one of those ambiguous. That is also what makes re-running a corrected file safe.</para>
 /// </summary>
-internal sealed class ImportUnitsHandler(RealEstateDbContext db)
+internal sealed class ImportUnitsHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<ImportUnitsCommand, ImportResult>
 {
     private const int MaxReportedProblems = 100;
@@ -117,6 +118,10 @@ internal sealed class ImportUnitsHandler(RealEstateDbContext db)
                     ImportNumber.NullableInt(row.Bedrooms), ImportNumber.NullableInt(row.Bathrooms),
                     ImportNumber.Int(row.Parking), ImportNumber.Decimal(row.ServiceCharge),
                     row.Notes?.Trim());
+
+                // The importer owns what they imported: only they (and admins) see the unit
+                // number and owner details until they hand the listing to another agent.
+                unit.AssignAgent(user.Id);
 
                 db.PropertyUnits.Add(unit);
                 touched.Add(propertyId);

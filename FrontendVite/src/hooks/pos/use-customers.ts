@@ -65,6 +65,7 @@ export function useUpdateCustomer(customerId: string) {
       email?: string | null;
       address?: string | null;
       notes?: string | null;
+      isActive: boolean;
     }) => customersApi.update(customerId, payload),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: customerKeys.lists() });
@@ -114,6 +115,16 @@ export function useTopUpWallet(customerId: string) {
     mutationFn: ({ amount, notes }: { amount: number; notes?: string | null }) =>
       customersApi.topUpWallet(customerId, amount, notes),
     onSuccess: (data) => { onDone(data); toast.success("Wallet topped up."); },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function useAdjustLoyalty(customerId: string) {
+  const onDone = useCustomerMutationInvalidation(customerId);
+  return useMutation({
+    mutationFn: ({ points, reason }: { points: number; reason?: string | null }) =>
+      customersApi.adjustLoyalty(customerId, points, reason),
+    onSuccess: (data) => { onDone(data); toast.success("Loyalty points updated."); },
     onError: (err: Error) => toast.error(err.message),
   });
 }

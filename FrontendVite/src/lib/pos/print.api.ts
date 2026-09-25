@@ -1,4 +1,8 @@
-﻿import { apiClient } from "@/lib/api-client";
+import { rawApiClient } from "@/lib/api-client";
+
+// PrintController answers with plain objects ({ success, message } / { reachable, … }), not the
+// { success, data } envelope — apiClient would return body.data (undefined) and read every
+// status as a failure, so these calls use the raw client.
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/pos/print`;
 
@@ -9,11 +13,11 @@ export const printApi = {
    * (Windows spooler or network TCP, per backend PrinterSettings).
    */
   printRaw: (data: Uint8Array): Promise<{ success: boolean; message: string }> =>
-    apiClient.post(`${BASE}/raw`, {
+    rawApiClient.post(`${BASE}/raw`, {
       data: btoa(String.fromCharCode(...data)),
     }),
 
   /** Check whether the configured printer is reachable. */
   getStatus: (): Promise<{ reachable: boolean; mode?: string; printer?: string; ip: string; port: number; message?: string }> =>
-    apiClient.get(`${BASE}/status`),
+    rawApiClient.get(`${BASE}/status`),
 };

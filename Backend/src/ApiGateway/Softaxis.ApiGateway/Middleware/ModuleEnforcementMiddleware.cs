@@ -73,6 +73,20 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
             ["/api/payment-terms"]   = ModuleCodes.Finance,
         };
 
+    // These master-data endpoints are served by the POS service (customer picker, walk-in
+    // registration, tax rates on the till). A POS-only tenant must be able to use them without
+    // also licensing CRM / Finance / Purchasing, so POS satisfies them as well.
+    private static readonly Dictionary<string, string[]> AlsoAllowedBy =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["/api/customers"]       = [ModuleCodes.Pos],
+            ["/api/customer-groups"] = [ModuleCodes.Pos],
+            ["/api/vendors"]         = [ModuleCodes.Pos],
+            ["/api/currencies"]      = [ModuleCodes.Pos],
+            ["/api/tax-rates"]       = [ModuleCodes.Pos],
+            ["/api/payment-terms"]   = [ModuleCodes.Pos],
+        };
+
     // Paths that always bypass enforcement
     private static readonly string[] BypassPrefixes =
     [
@@ -115,11 +129,13 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
 
         // Find the first matching route prefix in the map
         string? requiredModule = null;
+        string? matchedPrefix  = null;
         foreach (var (prefix, module) in RouteModuleMap)
         {
             if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
                 requiredModule = module;
+                matchedPrefix  = prefix;
                 break;
             }
         }
@@ -132,7 +148,10 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
         }
 
         // Check tenant modules
-        if (ModuleCodes.HasAccess(tenantCtx.Modules, requiredModule))
+        if (ModuleCodes.HasAccess(tenantCtx.Modules, requiredModule)
+            || (matchedPrefix is not null
+                && AlsoAllowedBy.TryGetValue(matchedPrefix, out var alternates)
+                && alternates.Any(m => ModuleCodes.HasAccess(tenantCtx.Modules, m))))
         {
             await next(context);
             return;
