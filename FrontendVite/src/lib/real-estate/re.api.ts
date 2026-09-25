@@ -101,7 +101,11 @@ export interface ListingDto {
   imageCount: number;
 
   // the unit
-  unitNumber: string;
+  /**
+   * Confidential — `null` when `hasConfidentialAccess` is false. Masked server-side, never sent to
+   * a caller who is not permitted to see it.
+   */
+  unitNumber: string | null;
   unitType: string;
   area: number;
   floor: number;
@@ -131,6 +135,33 @@ export interface ListingDto {
   isListed: boolean;
   listedBy: string | null;
   agentName: string | null;
+
+  // ── confidentiality ──
+  /** The account allowed to see this listing's confidential columns. Null = unclaimed — visible
+   *  only to the tenant admin / a role holding real-estate.units.view-confidential until assigned. */
+  agentUserId: string | null;
+  /**
+   * Whether THIS caller can see `unitNumber` and the three owner fields below. When false, all
+   * four come back `null` — show a "Restricted" indicator, not a blank, so it never reads as
+   * "there is no owner on file" when the real reason is access control.
+   */
+  hasConfidentialAccess: boolean;
+  /**
+   * This listing's own "Restrict to owner/agent only" setting — always accurate, never masked
+   * (knowing whether a listing is locked down reveals nothing about the owner). True by default
+   * for every new listing; drives the checkbox on the create/edit form.
+   */
+  restrictConfidentialDetails: boolean;
+  /**
+   * Whether THIS caller may CHANGE the confidential fields, reassign the agent, or flip the
+   * restriction checkbox. Narrower than `hasConfidentialAccess`: an unrestricted listing sets that
+   * to true for every staff member (anyone may view it), but this stays false for anyone who isn't
+   * the tenant admin or the listing's own agent. The Owner section and its checkbox are only
+   * editable when this is true — everything else on the form can still be edited normally.
+   */
+  canManageConfidential: boolean;
+
+  // ── confidential (null unless hasConfidentialAccess) ──
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneAlt: string | null;
@@ -194,6 +225,17 @@ export interface CreateListingInput {
   isListed: boolean;
   listedBy?: string | null;
   agentName?: string | null;
+  /**
+   * Who may see this listing's confidential columns. Left unset on create, the server defaults it
+   * to whoever is creating the listing (they just supplied the owner data themselves).
+   */
+  agentUserId?: string | null;
+  /**
+   * The "Restrict to owner/agent only" checkbox. True (checked, the default) hides Unit Number and
+   * Owner Details from everyone but the agent above and tenant admins; unchecked opens both to
+   * every staff member who can see the listing.
+   */
+  restrictConfidentialDetails: boolean;
   ownerName?: string | null;
   ownerPhone?: string | null;
   ownerPhoneAlt?: string | null;

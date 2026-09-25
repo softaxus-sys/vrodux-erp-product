@@ -42,10 +42,13 @@ public sealed class LeadsController(ISender sender) : CrmControllerBase
         [FromQuery] string? assignee = null,
         [FromQuery] string? sortBy = null,
         [FromQuery] bool sortDesc = true,
+        [FromQuery] string? dateFrom = null,
+        [FromQuery] string? dateTo = null,
         CancellationToken ct = default)
     {
         var result = await sender.Send(
-            new GetLeadsPagedQuery(page, pageSize, search, status, source, assignee, sortBy, sortDesc), ct);
+            new GetLeadsPagedQuery(page, pageSize, search, status, source, assignee, sortBy, sortDesc,
+                dateFrom, dateTo), ct);
         return OkOrError(result);
     }
 

@@ -88,6 +88,27 @@ public sealed class PropertyUnit
     /// </summary>
     public string? OwnerPhoneAlt { get; private set; }
 
+    /// <summary>
+    /// The system account allowed to see this listing's Unit Number and Owner Details, for
+    /// confidentiality/compliance — staff going around the agency to deal with an owner directly,
+    /// or leaking a door number to someone shopping between agents, is exactly what those hide.
+    /// Null means nobody but the tenant admin / a role holding the confidential-view permission can
+    /// see them — the safe default for a listing nobody has claimed yet (e.g. a bulk import).
+    /// Defaults to whoever creates the listing; kept separate from the free-text
+    /// <see cref="AgentName"/> ("contact with" on the sheet), which is not itself confidential.
+    /// </summary>
+    public Guid? AgentUserId { get; private set; }
+
+    /// <summary>
+    /// Whether the confidentiality lock above is actually in force for this listing. True (the
+    /// default for every new listing) means Unit Number and Owner Details are hidden per
+    /// <see cref="AgentUserId"/>; false is an explicit per-listing opt-out — set from the "Restrict
+    /// to owner/agent only" checkbox on the listing form — that makes those columns visible to every
+    /// staff member who can already see the listing, e.g. because the owner does not mind the number
+    /// being shared. Restricted by default so opting OUT is always a deliberate action, never silence.
+    /// </summary>
+    public bool RestrictConfidentialDetails { get; private set; } = true;
+
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
@@ -131,6 +152,29 @@ public sealed class PropertyUnit
         HasMedia = hasMedia; IsListed = isListed;
         ListedBy = Trim(listedBy); AgentName = Trim(agentName);
         OwnerName = Trim(ownerName); OwnerPhone = Trim(ownerPhone); OwnerPhoneAlt = Trim(ownerPhoneAlt);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Who may see this listing's confidential columns. A second setter rather than folding it into
+    /// SetListing, since reassigning who can see owner/unit data is its own decision — one that a
+    /// caller without confidential access must never be able to make.
+    /// </summary>
+    public void AssignAgent(Guid? agentUserId)
+    {
+        AgentUserId = agentUserId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Turns the confidentiality lock on this listing on or off. A separate setter from
+    /// <see cref="AssignAgent"/> for the same reason both are only ever called together from a
+    /// caller who can already see the current state — flipping this off is itself the confidential
+    /// action being guarded, not a side effect of picking an agent.
+    /// </summary>
+    public void SetConfidentialRestriction(bool restricted)
+    {
+        RestrictConfidentialDetails = restricted;
         UpdatedAt = DateTime.UtcNow;
     }
 

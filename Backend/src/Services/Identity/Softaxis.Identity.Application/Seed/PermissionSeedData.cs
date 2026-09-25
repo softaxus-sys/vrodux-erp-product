@@ -186,7 +186,12 @@ public static class PermissionSeedData
         // The module previously had NO permission keys at all and no enforcement anywhere -
         // every endpoint was [Authorize]-only, so any signed-in user could read and write it.
         ["real-estate.properties"] = ["view","create","edit","delete"],
-        ["real-estate.units"]      = ["view","create","edit","delete"],
+        // "view-confidential" unlocks a listing's Unit Number and Owner Details columns for roles
+        // that hold it, tenant-wide. Without it, those two columns are hidden by default for
+        // everyone except the tenant admin and the listing's own assigned agent (see
+        // ListingConfidentiality on the RealEstate service) — a compliance control so staff cannot
+        // go around the agency to deal with an owner directly.
+        ["real-estate.units"]      = ["view","create","edit","delete","view-confidential"],
         ["real-estate.tenants"]    = ["view","create","edit","delete"],
         ["real-estate.contracts"]  = ["view","create","edit","delete"],
         ["real-estate.brokers"]    = ["view","create","edit","delete"],

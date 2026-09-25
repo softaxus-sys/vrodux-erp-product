@@ -927,7 +927,8 @@
       "payslip": "View own payslips",
       "record": "Record rent payment",
       "remind": "Send rent reminder",
-      "import": "Import external data"
+      "import": "Import external data",
+      "view-confidential": "View confidential listing details"
     },
     "actionShort": {
       "view": "VIE",
@@ -947,7 +948,8 @@
       "payslip": "PAY",
       "record": "REC",
       "remind": "REM",
-      "import": "IMP"
+      "import": "IMP",
+      "view-confidential": "CONF"
     },
     "group": {
       "inventory": "Inventory",

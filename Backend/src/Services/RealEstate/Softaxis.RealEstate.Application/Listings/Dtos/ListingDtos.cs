@@ -27,7 +27,11 @@ public sealed record ListingDto(
     int ImageCount,
 
     // ── the unit ──
-    string UnitNumber,
+    /// <summary>
+    /// Confidential — null when <see cref="HasConfidentialAccess"/> is false. Never sent to a
+    /// caller who is not permitted to see it, masked server-side before the DTO leaves the handler.
+    /// </summary>
+    string? UnitNumber,
     string UnitType,
     decimal Area,
     int Floor,
@@ -54,6 +58,33 @@ public sealed record ListingDto(
     bool IsListed,
     string? ListedBy,
     string? AgentName,
+
+    // ── confidentiality ──
+    /// <summary>The account allowed to see this listing's confidential columns. Null = nobody has
+    /// claimed it yet — only the tenant admin / a permission holder can see it until assigned.</summary>
+    Guid? AgentUserId,
+    /// <summary>
+    /// Whether THIS caller can see <see cref="UnitNumber"/> and the owner fields below. Carried on
+    /// the DTO so the UI can show a "Restricted" indicator rather than a value that merely looks
+    /// empty — a hidden-because-restricted cell should never read the same as an unrecorded one.
+    /// </summary>
+    bool HasConfidentialAccess,
+    /// <summary>
+    /// The listing's own "Restrict to owner/agent only" setting — always sent as-is, never masked,
+    /// since knowing WHETHER a listing is locked down reveals nothing about the owner themselves.
+    /// Drives the checkbox on the edit form; true by default for every new listing.
+    /// </summary>
+    bool RestrictConfidentialDetails,
+    /// <summary>
+    /// Whether THIS caller may CHANGE the confidential fields, reassign the agent, or flip the
+    /// restriction checkbox — narrower than <see cref="HasConfidentialAccess"/> on purpose. An
+    /// unrestricted listing sets that to true for everyone (anyone may VIEW it), but this stays
+    /// false for anyone who is not the tenant admin or the listing's own agent — unchecking the
+    /// restriction must open viewing, never editing the owner's phone number, to the rest of staff.
+    /// </summary>
+    bool CanManageConfidential,
+
+    // ── confidential (null unless HasConfidentialAccess) ──
     string? OwnerName,
     string? OwnerPhone,
     string? OwnerPhoneAlt);

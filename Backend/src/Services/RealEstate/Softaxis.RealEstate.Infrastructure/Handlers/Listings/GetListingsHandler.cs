@@ -2,14 +2,16 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Listings.Dtos;
 using Softaxis.RealEstate.Application.Listings.Queries;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Services;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Listings;
 
-internal sealed class GetListingsHandler(RealEstateDbContext db)
+internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser user)
     : IQueryHandler<GetListingsQuery, PagedResult<ListingDto>>
 {
     /// <summary>Capped so a hand-edited pageSize cannot ask for the whole set back.</summary>
@@ -20,7 +22,8 @@ internal sealed class GetListingsHandler(RealEstateDbContext db)
         var page     = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
-        var q = Build(db, query);
+        var canViewAllConfidential = ListingConfidentiality.CanViewAll(user);
+        var q = Build(db, query, canViewAllConfidential);
 
         // Counted before paging so the caller knows how many pages exist.
         var total = await q.CountAsync(ct);
@@ -41,8 +44,15 @@ internal sealed class GetListingsHandler(RealEstateDbContext db)
             db, rows.Select(r => r.Property.Id).Distinct().ToList(), ct);
 
         var items = rows
-            .Select(r => ListingMappings.ToDto(
-                r.Unit, r.Property, galleries.GetValueOrDefault(r.Property.Id, default)))
+            .Select(r =>
+            {
+                var dto = ListingMappings.ToDto(
+                    r.Unit, r.Property, galleries.GetValueOrDefault(r.Property.Id, default));
+                return ListingMappings.ApplyConfidentiality(
+                    dto,
+                    ListingConfidentiality.CanView(user, r.Unit.AgentUserId, r.Unit.RestrictConfidentialDetails),
+                    ListingConfidentiality.CanManage(user, r.Unit.AgentUserId));
+            })
             .ToList();
 
         return Result.Success(PagedResult<ListingDto>.Create(items, total, page, pageSize));
@@ -52,7 +62,13 @@ internal sealed class GetListingsHandler(RealEstateDbContext db)
     /// The filtered unit-to-building join, shared with the summary so the tiles can never describe
     /// a different set of rows than the table beneath them.
     /// </summary>
-    internal static IQueryable<UnitWithProperty> Build(RealEstateDbContext db, GetListingsQuery query)
+    /// <param name="canViewAllConfidential">
+    /// Whether the search box may match on the owner's name. Left false by default (the summary
+    /// never searches, so it never matters there) — widening a search to a field the caller cannot
+    /// then see would itself be a leak: a hit vs. no hit already tells them the owner exists.
+    /// </param>
+    internal static IQueryable<UnitWithProperty> Build(
+        RealEstateDbContext db, GetListingsQuery query, bool canViewAllConfidential = false)
     {
         // The tenant filter replaces any entity-level soft-delete filter, so !IsDeleted is manual
         // on BOTH sides — a unit in a deleted building is not a listing.
@@ -83,13 +99,17 @@ internal sealed class GetListingsHandler(RealEstateDbContext db)
         {
             var s = query.Search.Trim();
             // Covers what someone actually searches a stock list by: the tower, where it is, the
-            // door number, and the owner or agent whose listing they are trying to find again.
+            // door number, and the agent whose listing they are trying to find again. The owner's
+            // name is only matched for a row the searcher could see anyway — either they hold the
+            // tenant-wide permission, or this particular listing opted out of the restriction
+            // (see the param doc above).
             q = q.Where(x => x.Property.Name.Contains(s)
                           || x.Property.City.Contains(s)
                           || x.Property.Address.Contains(s)
                           || x.Property.PropertyNumber.Contains(s)
                           || x.Unit.UnitNumber.Contains(s)
-                          || (x.Unit.OwnerName != null && x.Unit.OwnerName.Contains(s))
+                          || ((canViewAllConfidential || !x.Unit.RestrictConfidentialDetails)
+                              && x.Unit.OwnerName != null && x.Unit.OwnerName.Contains(s))
                           || (x.Unit.AgentName != null && x.Unit.AgentName.Contains(s))
                           || (x.Unit.BedsLabel != null && x.Unit.BedsLabel.Contains(s)));
         }

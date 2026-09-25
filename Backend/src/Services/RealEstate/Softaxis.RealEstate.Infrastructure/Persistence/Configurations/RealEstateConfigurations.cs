@@ -82,6 +82,14 @@ public sealed class RealEstateConfigurations :
         // Listings are read by purpose far more than by anything else — the page opens on one.
         b.HasIndex(x => x.Purpose);
         b.HasIndex(x => x.PropertyId);
+        // Scalar reference to an Identity user, no FK constraint — the codebase's convention for
+        // every cross-service reference (CRM's Deal.CustomerId, TeamId, etc). Indexed since the
+        // confidentiality guard checks it on every read.
+        b.HasIndex(x => x.AgentUserId);
+        // Defaulted at the database too, in case a raw insert path ever bypasses the entity's own
+        // default — same defensive pattern as Property.Category above. Existing rows predate the
+        // column and must come back restricted, not silently opened up.
+        b.Property(x => x.RestrictConfidentialDetails).HasDefaultValue(true);
 
         b.HasQueryFilter(x => !x.IsDeleted);
     }

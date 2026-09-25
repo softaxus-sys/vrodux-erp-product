@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Units.Commands;
 using Softaxis.RealEstate.Domain.Entities;
@@ -16,7 +17,7 @@ namespace Softaxis.RealEstate.Infrastructure.Handlers.RentalStock;
 /// once per available apartment. Buildings are therefore created on first sight and reused for every
 /// later row, so 318 listings across 198 towers produce 198 properties, not 318.</para>
 /// </summary>
-internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
+internal sealed class ImportRentalStockHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<ImportRentalStockCommand, RentalStockImportResult>
 {
     private const int MaxReportedProblems = 100;
@@ -172,6 +173,11 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db)
                     ownerName:  row.OwnerName?.Trim(),
                     ownerPhone: row.OwnerPhone?.Trim(),
                     ownerPhoneAlt: row.OwnerPhoneAlt?.Trim());
+
+                // Whoever runs the import is the one with the sheet and its owner data in front of
+                // them, so they become the listing's first agent — same default as a manually
+                // created listing. Reassignable afterward via Edit by an admin or the agent.
+                unit.AssignAgent(user.Id);
 
                 // Occupancy where it is stated, and failing that from the price cell — these sheets
                 // write it there far more often than in a column of its own: "1.15M(vacant)",

@@ -19,6 +19,10 @@ export const ACTION_ORDER = [
   // Real-estate rent collection: recording money and sending a reminder are separate decisions
   // from editing a lease, so they are their own actions rather than folded into edit.
   "record", "remind",
+  // Real-estate listing confidentiality: a Unit Number / Owner Details column unlock, separate
+  // from plain "view" — granting it widens who can see those two columns tenant-wide, on top of
+  // the listing's own assigned agent (who always sees them regardless of this permission).
+  "view-confidential",
 ] as const;
 
 export type Action = typeof ACTION_ORDER[number];

@@ -1,12 +1,13 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Pencil, Trash2, Phone, Camera, Megaphone, Building2 } from "lucide-react";
+import { X, Pencil, Trash2, Phone, Camera, Megaphone, Building2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/components/auth/can";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useDeleteListing, useSetPropertyWebsiteListing, useListing } from "@/hooks/real-estate/use-re";
 import { reApi, type ListingDto } from "@/lib/real-estate/re.api";
+import { RestrictedBadge } from "./confidential-field";
 
 interface Props {
   open: boolean;
@@ -65,9 +66,11 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
             <div className="flex items-start justify-between px-6 py-4 border-b border-border shrink-0">
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-foreground truncate">{l.propertyName}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Unit {l.unitNumber} · {l.propertyType}
-                  {l.city ? ` · ${l.city}` : ""}
+                <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1 flex-wrap">
+                  {l.hasConfidentialAccess
+                    ? <span>Unit {l.unitNumber}</span>
+                    : <RestrictedBadge />}
+                  <span>· {l.propertyType}{l.city ? ` · ${l.city}` : ""}</span>
                 </p>
               </div>
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground shrink-0">
@@ -166,9 +169,20 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
               </Group>
 
               <Group title="Owner">
-                <Row label="Name" value={l.ownerName} />
-                <PhoneRow label="Contact" value={l.ownerPhone} />
-                <PhoneRow label="Second number" value={l.ownerPhoneAlt} />
+                {l.hasConfidentialAccess ? (
+                  <>
+                    <Row label="Name" value={l.ownerName} />
+                    <PhoneRow label="Contact" value={l.ownerPhone} />
+                    <PhoneRow label="Second number" value={l.ownerPhoneAlt} />
+                  </>
+                ) : (
+                  <div className="flex items-start gap-2 px-3 py-2.5 text-xs text-muted-foreground">
+                    <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      Restricted — visible only to this listing's assigned agent and tenant admins.
+                    </span>
+                  </div>
+                )}
               </Group>
 
               {l.notes && (
@@ -215,8 +229,8 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
                   <div className="bg-card border border-border rounded-xl p-5 w-full max-w-sm shadow-xl">
                     <h3 className="font-semibold text-foreground">Delete this listing?</h3>
                     <p className="text-sm text-muted-foreground mt-1.5">
-                      {l.propertyName} unit {l.unitNumber} will be removed. The building stays, along
-                      with any other units in it.
+                      {l.propertyName}{l.hasConfidentialAccess ? ` unit ${l.unitNumber}` : ""} will be
+                      removed. The building stays, along with any other units in it.
                     </p>
                     <div className="flex gap-2 justify-end mt-4">
                       <Button variant="outline" size="sm" onClick={() => setConfirmDelete(false)}>Cancel</Button>

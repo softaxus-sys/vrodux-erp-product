@@ -244,6 +244,10 @@ export interface LeadsPageParams {
   assignee?: string;
   sortBy?: "date" | "score" | "value";
   sortDesc?: boolean;
+  /** yyyy-MM-dd — inclusive start of the Lead Date window. Same column the list sorts/displays by. */
+  dateFrom?: string;
+  /** yyyy-MM-dd — inclusive end of the window (the whole day, not just its midnight). */
+  dateTo?: string;
 }
 
 export interface PagedLeads {
@@ -688,6 +692,8 @@ export const crmApi = {
     if (p.assignee && p.assignee !== "all") qs.set("assignee", p.assignee);
     if (p.sortBy)   qs.set("sortBy",   p.sortBy);
     if (p.sortDesc !== undefined) qs.set("sortDesc", String(p.sortDesc));
+    if (p.dateFrom) qs.set("dateFrom", p.dateFrom);
+    if (p.dateTo)   qs.set("dateTo",   p.dateTo);
     return rawApiClient.get(`${BASE}/leads/paged?${qs}`);
   },
 

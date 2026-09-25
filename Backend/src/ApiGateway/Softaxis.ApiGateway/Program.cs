@@ -193,6 +193,12 @@ try
         Softaxis.Restaurant.Application.Abstractions.ICurrentUser,
         Softaxis.Restaurant.API.Middleware.CurrentUserService>();
 
+    // RealEstate.Application.Abstractions.ICurrentUser  →  RealEstate CurrentUserService (listing
+    // confidentiality — Unit Number / Owner Details visible only to the assigned agent + admins)
+    builder.Services.AddScoped<
+        Softaxis.RealEstate.Application.Abstractions.ICurrentUser,
+        Softaxis.RealEstate.API.Middleware.CurrentUserService>();
+
     // Restaurant.Application.Abstractions.IRestaurantRealtimeNotifier  →  SignalR push (KDS/table board)
     builder.Services.AddScoped<
         Softaxis.Restaurant.Application.Abstractions.IRestaurantRealtimeNotifier,

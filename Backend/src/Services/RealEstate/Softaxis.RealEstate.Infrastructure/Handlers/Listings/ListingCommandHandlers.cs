@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Listings.Commands;
 using Softaxis.RealEstate.Application.Listings.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Handlers.Units;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Services;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Listings;
 
@@ -35,7 +37,7 @@ internal static class ListingNumbering
     }
 }
 
-internal sealed class CreateListingHandler(RealEstateDbContext db)
+internal sealed class CreateListingHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<CreateListingCommand, ListingDto>
 {
     public async Task<Result<ListingDto>> Handle(CreateListingCommand cmd, CancellationToken ct)
@@ -110,6 +112,11 @@ internal sealed class CreateListingHandler(RealEstateDbContext db)
             cmd.HasMedia, cmd.IsListed, cmd.ListedBy, cmd.AgentName,
             cmd.OwnerName, cmd.OwnerPhone, cmd.OwnerPhoneAlt);
 
+        // Defaults to whoever is creating the listing — they just supplied the owner data, so they
+        // are the natural first agent. An explicit AgentUserId hands it straight to someone else.
+        unit.AssignAgent(cmd.AgentUserId ?? user.Id);
+        unit.SetConfidentialRestriction(cmd.RestrictConfidentialDetails);
+
         if (!string.IsNullOrWhiteSpace(cmd.Status)) unit.SetOccupancy(cmd.Status.Trim());
 
         db.PropertyUnits.Add(unit);
@@ -121,14 +128,17 @@ internal sealed class CreateListingHandler(RealEstateDbContext db)
         await db.SaveChangesAsync(ct);
 
         var galleries = await ListingMappings.LoadGalleriesAsync(db, [property.Id], ct);
-        return Result.Success(ListingMappings.ToDto(
-            unit, property, galleries.GetValueOrDefault(property.Id, default)));
+        var dto = ListingMappings.ToDto(unit, property, galleries.GetValueOrDefault(property.Id, default));
+
+        // Unmasked regardless of the final agent: the caller just typed this data in themselves, so
+        // showing it back to them masked would be confusing, not confidential — they already know it.
+        return Result.Success(dto);
     }
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }
 
-internal sealed class UpdateListingHandler(RealEstateDbContext db)
+internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<UpdateListingCommand, ListingDto>
 {
     public async Task<Result<ListingDto>> Handle(UpdateListingCommand cmd, CancellationToken ct)
@@ -141,13 +151,32 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db)
         if (property is null)
             return Result.Failure<ListingDto>(Error.NotFoundById("Property", unit.PropertyId));
 
-        var number = cmd.UnitNumber.Trim();
-        var duplicate = await db.PropertyUnits.AsNoTracking()
-            .AnyAsync(u => !u.IsDeleted && u.PropertyId == unit.PropertyId
-                        && u.UnitNumber == number && u.Id != cmd.Id, ct);
-        if (duplicate)
-            return Result.Failure<ListingDto>(Error.Custom("Unit.Duplicate",
-                $"Another unit in this building is already numbered {number}."));
+        // Managing the confidential fields — unit number, owner details, who the agent is, and
+        // whether the restriction is even switched on — is a narrower authority than merely
+        // VIEWING them (see ListingConfidentiality.CanManage): an unrestricted listing is visible
+        // to every staff member, but that must not also let any of them edit the owner's phone
+        // number or quietly re-lock the listing. Decided against the CURRENT agent, before anything
+        // below changes it.
+        var canManageConfidential = ListingConfidentiality.CanManage(user, unit.AgentUserId);
+
+        string number;
+        if (canManageConfidential)
+        {
+            number = cmd.UnitNumber.Trim();
+            var duplicate = await db.PropertyUnits.AsNoTracking()
+                .AnyAsync(u => !u.IsDeleted && u.PropertyId == unit.PropertyId
+                            && u.UnitNumber == number && u.Id != cmd.Id, ct);
+            if (duplicate)
+                return Result.Failure<ListingDto>(Error.Custom("Unit.Duplicate",
+                    $"Another unit in this building is already numbered {number}."));
+        }
+        else
+        {
+            // Confidential fields are not this caller's to change. The form never showed them a
+            // real value to begin with, so whatever it sent is discarded rather than trusted —
+            // the existing value is kept exactly as it was.
+            number = unit.UnitNumber;
+        }
 
         // ── the building ──
         // Only when the form sent a name. Property.Update is a full replace, so writing it from a
@@ -176,9 +205,25 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db)
         unit.SetDetails(cmd.Furnishing, cmd.View, cmd.Bedrooms, cmd.Bathrooms,
             cmd.Parking, cmd.ServiceCharge, cmd.Notes);
 
+        // Same "not this caller's to manage" rule for the owner fields — everything else in
+        // SetListing (purpose, price label, marketing flags, the free-text agent name) is not
+        // confidential and is written from the form as normal either way.
+        var ownerName     = canManageConfidential ? cmd.OwnerName     : unit.OwnerName;
+        var ownerPhone    = canManageConfidential ? cmd.OwnerPhone    : unit.OwnerPhone;
+        var ownerPhoneAlt = canManageConfidential ? cmd.OwnerPhoneAlt : unit.OwnerPhoneAlt;
+
         unit.SetListing(cmd.Purpose, cmd.ListedOn, cmd.BedsLabel, cmd.PriceLabel, cmd.AreaLabel,
             cmd.HasMedia, cmd.IsListed, cmd.ListedBy, cmd.AgentName,
-            cmd.OwnerName, cmd.OwnerPhone, cmd.OwnerPhoneAlt);
+            ownerName, ownerPhone, ownerPhoneAlt);
+
+        // Reassigning the agent, or flipping the restriction switch itself, is a management action.
+        // Both are skipped entirely (not even attempted) for a caller who could not already manage
+        // this listing's confidential fields.
+        if (canManageConfidential)
+        {
+            unit.AssignAgent(cmd.AgentUserId);
+            unit.SetConfidentialRestriction(cmd.RestrictConfidentialDetails);
+        }
 
         // Occupancy drives the building's own status, so the counts are refreshed below rather
         // than left describing the unit's previous state.
@@ -190,8 +235,15 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db)
         await db.SaveChangesAsync(ct);
 
         var galleries = await ListingMappings.LoadGalleriesAsync(db, [property.Id], ct);
-        return Result.Success(ListingMappings.ToDto(
-            unit, property, galleries.GetValueOrDefault(property.Id, default)));
+        var dto = ListingMappings.ToDto(unit, property, galleries.GetValueOrDefault(property.Id, default));
+
+        // Reflects the listing's ACTUAL, post-edit state — an unrestricted listing is open to VIEW
+        // for this caller too, even though they may have had no authority to MANAGE it a moment ago
+        // (and still don't, if this edit didn't reassign them as the agent).
+        var canViewFinal   = ListingConfidentiality.CanView(user, unit.AgentUserId, unit.RestrictConfidentialDetails);
+        var canManageFinal = ListingConfidentiality.CanManage(user, unit.AgentUserId);
+
+        return Result.Success(ListingMappings.ApplyConfidentiality(dto, canViewFinal, canManageFinal));
     }
 
     private static string? Clean(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();

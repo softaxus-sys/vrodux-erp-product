@@ -1,10 +1,11 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Loader2, Check, Plus, Building2 } from "lucide-react";
+import { X, Loader2, Check, Plus, Building2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCurrency } from "@/hooks/use-currency";
+import { useAssignableByTeam } from "@/hooks/identity/use-assignable-by-team";
 import {
   useProperties,
   useProperty,
@@ -91,12 +92,28 @@ export function ListingForm({ open, onClose, editing }: Props) {
   const [ownerName, setOwnerName]     = React.useState("");
   const [ownerPhone, setOwnerPhone]   = React.useState("");
   const [ownerPhoneAlt, setOwnerPhoneAlt] = React.useState("");
+  // The system account allowed to see this listing's confidential columns — distinct from the
+  // free-text `agentName` above, which is just the sheet's "contact with" wording.
+  const [agentUserId, setAgentUserId] = React.useState<string | null>(null);
+  // The "Restrict to owner/agent only" checkbox. Checked by default for every new listing — opting
+  // OUT (unchecking) is always a deliberate per-listing action, never the silent starting state.
+  const [restrictConfidential, setRestrictConfidential] = React.useState(true);
 
   const [staged, setStaged] = React.useState<StagedImage[]>([]);
 
+  // Confidentiality — a brand-new listing has no restriction yet (the person filling this form is
+  // about to become its agent), so only an EDIT of a listing this caller may not MANAGE hides the
+  // Unit Number / Owner fields and the restriction checkbox. Deliberately `canManageConfidential`,
+  // not `hasConfidentialAccess`: an unrestricted listing is visible to every staff member, but
+  // that must not also let any of them edit the owner's phone number or re-lock the listing.
+  const canSeeConfidential = !isEdit || (editing?.canManageConfidential ?? true);
 
   const { data: buildingPage } = useProperties({ pageSize: 200 });
   const buildings = buildingPage?.items ?? [];
+
+  // Who this listing can be handed to — scoped to real-estate so nobody without any access to the
+  // module is offered as an agent.
+  const { options: agentOptions } = useAssignableByTeam(open, "real-estate");
 
   // Only on edit, and only for the gallery: the listing DTO carries a cover image id and a count,
   // not the photographs themselves, so the form fetches the building to show and manage them.
@@ -116,7 +133,8 @@ export function ListingForm({ open, onClose, editing }: Props) {
     setStatus("vacant"); setServiceCharge(""); setNotes("");
     setPurpose("rent"); setListedOn(today()); setPriceLabel(""); setPrice("");
     setHasMedia(false); setIsListed(false); setListedBy(""); setAgentName("");
-    setOwnerName(""); setOwnerPhone(""); setOwnerPhoneAlt("");
+    setOwnerName(""); setOwnerPhone(""); setOwnerPhoneAlt(""); setAgentUserId(null);
+    setRestrictConfidential(true);
     setStaged([]);
   }, []);
 
@@ -164,6 +182,11 @@ export function ListingForm({ open, onClose, editing }: Props) {
     setOwnerName(editing.ownerName ?? "");
     setOwnerPhone(editing.ownerPhone ?? "");
     setOwnerPhoneAlt(editing.ownerPhoneAlt ?? "");
+    // Only meaningful when it can actually be managed — an edit with no management rights never
+    // learns the real agent id, so the picker stays on "unassigned" rather than silently clearing
+    // it on save (the server discards both fields entirely for a caller who cannot manage them).
+    setAgentUserId(editing.canManageConfidential ? (editing.agentUserId ?? null) : null);
+    setRestrictConfidential(editing.canManageConfidential ? editing.restrictConfidentialDetails : true);
     setStaged([]);
   }, [open, editing, reset]);
 
@@ -231,6 +254,11 @@ export function ListingForm({ open, onClose, editing }: Props) {
       isListed,
       listedBy: listedBy.trim() || null,
       agentName: agentName.trim() || null,
+      // Both sent regardless of `canSeeConfidential` — the server silently ignores them for a
+      // caller who cannot already manage this listing's confidential fields, so there is nothing
+      // to gain by withholding either here.
+      agentUserId: agentUserId || null,
+      restrictConfidentialDetails: restrictConfidential,
       ownerName: ownerName.trim() || null,
       ownerPhone: ownerPhone.trim() || null,
       ownerPhoneAlt: ownerPhoneAlt.trim() || null,
@@ -240,7 +268,13 @@ export function ListingForm({ open, onClose, editing }: Props) {
       if (editing) {
         await updateMut.mutateAsync({
           id: editing.id,
-          data: { ...payload, unitNumber: unitNumber.trim() || editing.unitNumber },
+          data: {
+            ...payload,
+            // A restricted edit never learned the real unit number, so there is nothing correct to
+            // send back — this placeholder only satisfies "required, non-empty" validation; the
+            // server discards it entirely and keeps the listing's existing number unchanged.
+            unitNumber: unitNumber.trim() || editing.unitNumber || "restricted",
+          },
         });
         toast.success("Listing updated");
       } else {
@@ -403,12 +437,18 @@ export function ListingForm({ open, onClose, editing }: Props) {
               <Section title="Unit">
                 <div className="space-y-1.5">
                   <Label>Unit number</Label>
-                  <Input value={unitNumber} onChange={e => setUnitNumber(e.target.value)}
-                    placeholder="1206" className="h-9 text-sm" />
-                  {!isEdit && !unitNumber.trim() && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Left blank, a placeholder is generated so the listing is not lost.
-                    </p>
+                  {canSeeConfidential ? (
+                    <>
+                      <Input value={unitNumber} onChange={e => setUnitNumber(e.target.value)}
+                        placeholder="1206" className="h-9 text-sm" />
+                      {!isEdit && !unitNumber.trim() && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Left blank, a placeholder is generated so the listing is not lost.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <RestrictedInput />
                   )}
                 </div>
                 <div className="space-y-1.5">
@@ -534,21 +574,62 @@ export function ListingForm({ open, onClose, editing }: Props) {
 
               {/* ── Owner ── */}
               <Section title="Owner">
-                <div className="col-span-2 space-y-1.5">
-                  <Label>Owner name</Label>
-                  <Input value={ownerName} onChange={e => setOwnerName(e.target.value)}
-                    placeholder="Majid" className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Contact number</Label>
-                  <Input value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)}
-                    placeholder="0545556075" className="h-9 text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Second number</Label>
-                  <Input value={ownerPhoneAlt} onChange={e => setOwnerPhoneAlt(e.target.value)}
-                    placeholder="0509040075" className="h-9 text-sm" />
-                </div>
+                {canSeeConfidential ? (
+                  <>
+                    <label className="col-span-2 flex items-start gap-2.5 rounded-lg border border-border p-2.5 cursor-pointer hover:bg-muted/40">
+                      <input type="checkbox" checked={restrictConfidential}
+                        onChange={e => setRestrictConfidential(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-border accent-primary" />
+                      <span className="text-xs">
+                        <span className="font-medium text-foreground">
+                          Restrict to owner/agent only
+                        </span>
+                        <p className="text-muted-foreground mt-0.5">
+                          {restrictConfidential
+                            ? "Unit Number and Owner Details below are hidden from other staff — only the assigned agent and tenant admins can see them."
+                            : "Unit Number and Owner Details will be visible to every staff member who can see this listing — uncheck only if the owner does not mind their number being shared."}
+                        </p>
+                      </span>
+                    </label>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label>Owner name</Label>
+                      <Input value={ownerName} onChange={e => setOwnerName(e.target.value)}
+                        placeholder="Majid" className="h-9 text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Contact number</Label>
+                      <Input value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)}
+                        placeholder="0545556075" className="h-9 text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Second number</Label>
+                      <Input value={ownerPhoneAlt} onChange={e => setOwnerPhoneAlt(e.target.value)}
+                        placeholder="0509040075" className="h-9 text-sm" />
+                    </div>
+                    <div className="col-span-2 space-y-1.5">
+                      <Label>Assigned agent (sees these details)</Label>
+                      <select value={agentUserId ?? ""} onChange={e => setAgentUserId(e.target.value || null)}
+                        className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        <option value="">Unassigned — admins only</option>
+                        {agentOptions.map(o => <option key={o.id} value={o.id}>{o.fullName}</option>)}
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">
+                        {restrictConfidential
+                          ? "Only this person and tenant admins can see the Unit Number and Owner Details above — everyone else on the team sees the rest of the listing as normal. Grant \"View confidential listing details\" to a role to widen that."
+                          : "The restriction above is off, so this only matters if it's switched back on later — set it now to avoid leaving the listing admin-only when someone re-enables it."}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="col-span-2 flex items-start gap-2 rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
+                    <Lock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <span>
+                      You don't have access to view or change this listing's owner details, unit
+                      number, or its confidentiality setting — only its assigned agent and tenant
+                      admins can. Everything else on this form can still be edited normally.
+                    </span>
+                  </div>
+                )}
               </Section>
 
               <div className="space-y-1.5">
@@ -587,6 +668,14 @@ function Label({ children }: { children: React.ReactNode }) {
     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
       {children}
     </label>
+  );
+}
+
+function RestrictedInput() {
+  return (
+    <div className="h-9 flex items-center gap-1.5 px-3 rounded-lg border border-dashed border-border text-sm text-muted-foreground/70">
+      <Lock className="h-3.5 w-3.5 shrink-0" /> Restricted
+    </div>
   );
 }
 

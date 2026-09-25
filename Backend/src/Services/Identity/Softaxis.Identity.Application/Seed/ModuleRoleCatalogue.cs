@@ -23,7 +23,14 @@ public static class ModuleRoleCatalogue
 {
     /// <summary>Actions reserved for a manager — destructive, financial or approval authority.</summary>
     private static readonly HashSet<string> PrivilegedActions =
-        new(StringComparer.OrdinalIgnoreCase) { "delete", "approve", "void", "refund", "discount", "create-login", "import", "remind" };
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "delete", "approve", "void", "refund", "discount", "create-login", "import", "remind",
+            // Confidentiality: a day-to-day "Staff" role must not see a listing's Unit Number /
+            // Owner Details by default (that is the whole point of the control) — only the module
+            // Manager, the listing's own assigned agent, and whoever is explicitly granted this key.
+            "view-confidential",
+        };
 
     /// <summary>Display label per module prefix. A module absent here gets no default roles.</summary>
     public static readonly IReadOnlyDictionary<string, string> ModuleLabels =

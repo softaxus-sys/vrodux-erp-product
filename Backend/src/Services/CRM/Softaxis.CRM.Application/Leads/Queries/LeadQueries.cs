@@ -24,6 +24,16 @@ public sealed record GetLeadAssignmentsQuery(Guid LeadId) : IQuery<IReadOnlyList
 /// <param name="Status">A lead status, or "open" for everything still being worked.</param>
 /// <param name="Assignee">An owner user id, or "unassigned".</param>
 /// <param name="SortBy">date | score | value.</param>
+/// <param name="DateFrom">
+/// Inclusive start of a Lead Date window, "yyyy-MM-dd". Filters the SAME column the Lead Date
+/// column shows and the "date" sort orders by — so filtering to a day and sorting by date can
+/// never disagree about what that day means.
+/// </param>
+/// <param name="DateTo">
+/// Inclusive end of the window, "yyyy-MM-dd". Widened to the end of that calendar day, so passing
+/// the same value as <paramref name="DateFrom"/> returns everything from that one day rather than
+/// nothing (a bare "&lt;= 2026-03-05" would exclude every lead with a time-of-day component).
+/// </param>
 public sealed record GetLeadsPagedQuery(
     int     Page     = 1,
     int     PageSize = 25,
@@ -32,5 +42,7 @@ public sealed record GetLeadsPagedQuery(
     string? Source   = null,
     string? Assignee = null,
     string? SortBy   = null,
-    bool    SortDesc = true
+    bool    SortDesc = true,
+    string? DateFrom = null,
+    string? DateTo   = null
 ) : IQuery<PagedResult<LeadDto>>;

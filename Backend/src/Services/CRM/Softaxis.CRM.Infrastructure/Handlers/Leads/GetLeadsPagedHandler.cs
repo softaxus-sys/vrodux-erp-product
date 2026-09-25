@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Pagination;
@@ -48,6 +49,15 @@ internal sealed class GetLeadsPagedHandler(CrmDbContext db, ILeadAccessGuard acc
                 // Legacy leads carry only a name, so a name is still a usable selector for them.
                 q = q.Where(x => x.AssignedTo == query.Assignee);
         }
+
+        // A calendar-day filter on the same LeadDate column the list displays and sorts by — so
+        // filtering to "5 Mar" and the Lead Date column can never disagree about what that day means.
+        if (TryParseDate(query.DateFrom, out var from))
+            q = q.Where(x => x.LeadDate >= from);
+        if (TryParseDate(query.DateTo, out var to))
+            // Widened to the end of that day: a bare "<= 2026-03-05" (midnight) would exclude
+            // every lead that has a time-of-day component, which is all of them.
+            q = q.Where(x => x.LeadDate < to.AddDays(1));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -105,4 +115,14 @@ internal sealed class GetLeadsPagedHandler(CrmDbContext db, ILeadAccessGuard acc
 
         return Result.Success(PagedResult<LeadDto>.Create(dtos, total, page, pageSize));
     }
+
+    /// <summary>
+    /// A plain calendar date, "yyyy-MM-dd" — same convention as every other date-only field in this
+    /// codebase (RentInstallment.DueDate, attendance dates, …). Returns false rather than throwing on
+    /// a malformed value, since a filter that cannot be read is better left unapplied than 400ing the
+    /// whole list.
+    /// </summary>
+    private static bool TryParseDate(string? raw, out DateTime date) =>
+        DateTime.TryParseExact(raw, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+            DateTimeStyles.None, out date);
 }

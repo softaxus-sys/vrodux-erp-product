@@ -57,6 +57,21 @@ public sealed record CreateListingCommand(
     bool IsListed,
     string? ListedBy,
     string? AgentName,
+
+    /// <summary>
+    /// The system account allowed to see this listing's confidential columns. Optional — when
+    /// null, the handler defaults it to whoever is creating the listing (they just supplied the
+    /// owner data, so they are the natural first agent); pass an explicit id to hand the listing
+    /// straight to someone else instead.
+    /// </summary>
+    Guid? AgentUserId,
+    /// <summary>
+    /// True (the normal, compliant default) hides Unit Number and Owner Details from everyone but
+    /// the agent above and the tenant admin. False is an explicit opt-out — the "Restrict to
+    /// owner/agent only" checkbox on the form, unchecked — that opens those two columns to every
+    /// staff member who can already see the listing.
+    /// </summary>
+    bool RestrictConfidentialDetails,
     string? OwnerName,
     string? OwnerPhone,
     string? OwnerPhoneAlt) : ICommand<ListingDto>;
@@ -136,6 +151,21 @@ public sealed record UpdateListingCommand(
     bool IsListed,
     string? ListedBy,
     string? AgentName,
+
+    /// <summary>
+    /// Reassigns who may see this listing's confidential columns. Only ever applied when the
+    /// caller can already see them — a caller who cannot never gets to change who can, and their
+    /// value here is silently ignored rather than trusted. Null explicitly unassigns (falls back
+    /// to admin-only visibility); the field the form actually sends never omits it, since it is
+    /// always prefilled from the listing's current agent.
+    /// </summary>
+    Guid? AgentUserId,
+    /// <summary>
+    /// Reassigns whether this listing's confidentiality lock is on. Same rule as
+    /// <see cref="AgentUserId"/> above — silently ignored unless the caller can already see the
+    /// current state, never trusted from a caller who could not.
+    /// </summary>
+    bool RestrictConfidentialDetails,
     string? OwnerName,
     string? OwnerPhone,
     string? OwnerPhoneAlt) : ICommand<ListingDto>;

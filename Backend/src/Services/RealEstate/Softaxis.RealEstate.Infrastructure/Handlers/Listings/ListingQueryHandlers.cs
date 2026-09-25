@@ -1,13 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Listings.Dtos;
 using Softaxis.RealEstate.Application.Listings.Queries;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Services;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Listings;
 
-internal sealed class GetListingByIdHandler(RealEstateDbContext db)
+internal sealed class GetListingByIdHandler(RealEstateDbContext db, ICurrentUser user)
     : IQueryHandler<GetListingByIdQuery, ListingDto>
 {
     public async Task<Result<ListingDto>> Handle(GetListingByIdQuery query, CancellationToken ct)
@@ -22,8 +24,13 @@ internal sealed class GetListingByIdHandler(RealEstateDbContext db)
 
         var galleries = await ListingMappings.LoadGalleriesAsync(db, [row.Property.Id], ct);
 
-        return Result.Success(ListingMappings.ToDto(
-            row.Unit, row.Property, galleries.GetValueOrDefault(row.Property.Id, default)));
+        var dto = ListingMappings.ToDto(
+            row.Unit, row.Property, galleries.GetValueOrDefault(row.Property.Id, default));
+
+        return Result.Success(ListingMappings.ApplyConfidentiality(
+            dto,
+            ListingConfidentiality.CanView(user, row.Unit.AgentUserId, row.Unit.RestrictConfidentialDetails),
+            ListingConfidentiality.CanManage(user, row.Unit.AgentUserId)));
     }
 }
 

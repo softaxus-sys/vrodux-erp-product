@@ -76,6 +76,7 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
             req.Parking, req.ServiceCharge, req.Notes,
             req.Purpose, req.ListedOn, req.BedsLabel, req.PriceLabel, req.AreaLabel,
             req.HasMedia, req.IsListed, req.ListedBy, req.AgentName,
+            req.AgentUserId, req.RestrictConfidentialDetails,
             req.OwnerName, req.OwnerPhone, req.OwnerPhoneAlt), ct));
 
     /// <summary>
@@ -101,5 +102,6 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
         int Parking, decimal ServiceCharge, string? Notes,
         string? Purpose, string? ListedOn, string? BedsLabel, string? PriceLabel, string? AreaLabel,
         bool HasMedia, bool IsListed, string? ListedBy, string? AgentName,
+        Guid? AgentUserId, bool RestrictConfidentialDetails,
         string? OwnerName, string? OwnerPhone, string? OwnerPhoneAlt);
 }

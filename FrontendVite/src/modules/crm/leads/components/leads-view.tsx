@@ -6,7 +6,7 @@ import {
   Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
   Building2, Calendar, Globe, ArrowRight, UploadCloud, Phone, Clock, Wallet, Tag,
-  ArrowUp, ArrowDown, Loader2
+  ArrowUp, ArrowDown, Loader2, X
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -433,6 +433,10 @@ export function LeadsView() {
   // Newest-first by default — the freshest lead is the one worth calling now.
   const [sortBy, setSortBy] = React.useState<SortKey>("date");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+  // Lead Date window — yyyy-MM-dd, same column the "date" sort and the Lead Date column use. Both
+  // set to the same day filters to that one particular date; either can be left open-ended.
+  const [dateFrom, setDateFrom] = React.useState("");
+  const [dateTo, setDateTo]     = React.useState("");
   const [selectedLead, setSelectedLead] = React.useState<Lead | null>(null);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [showAddForm, setShowAddForm] = React.useState(false);
@@ -452,6 +456,8 @@ export function LeadsView() {
     assignee: effectiveAssignee,
     sortBy,
     sortDesc: sortDir === "desc",
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   };
 
   const { data: pageData, isLoading: listLoading, isFetching, isError, error, refetch } =
@@ -464,7 +470,7 @@ export function LeadsView() {
   // Any filter change re-shapes the result, so staying on page 7 would land on an empty page.
   React.useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, sourceFilter, effectiveAssignee, sortBy, sortDir]);
+  }, [debouncedSearch, statusFilter, sourceFilter, effectiveAssignee, sortBy, sortDir, dateFrom, dateTo]);
 
   const isLoading = viewMode === "kanban" ? allLoading : listLoading;
 
@@ -609,14 +615,16 @@ export function LeadsView() {
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2 flex-wrap flex-1">
-          <div className="relative w-full sm:w-72">
+        {/* nowrap + horizontal scroll rather than wrapping to a second line — a filter row that
+            grows downward pushes the table further from the top every time one more filter is added. */}
+        <div className="flex items-center gap-2 flex-nowrap overflow-x-auto flex-1 pb-1 -mb-1">
+          <div className="relative w-56 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input placeholder={t("leads.searchPlaceholder")} value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm" />
           </div>
           {/* Status filter */}
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            className="h-9 shrink-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="open">{t("leads.openStatuses", { defaultValue: "Open leads" })}</option>
             <option value="all">{t("leads.allStatuses")}</option>
             {(["new","contacted","qualified","converted","unqualified","lost"] as LeadStatus[]).map(s => (
@@ -625,14 +633,14 @@ export function LeadsView() {
           </select>
           {/* Source filter */}
           <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            className="h-9 shrink-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="all">{t("leads.allSources")}</option>
             {uniqueSources.map(s => <option key={s} value={s}>{sourceLabel(s)}</option>)}
           </select>
           {/* Assignee filter */}
           <select value={assigneeFilter} onChange={e => setAssigneeFilter(e.target.value)}
             aria-label={t("leads.allAssignees")}
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            className="h-9 shrink-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             <option value="all">{t("leads.allAssignees")}</option>
             <option value={UNASSIGNED}>{t("leads.unassigned")}</option>
             {assigneeGroups.map(g => (
@@ -649,7 +657,7 @@ export function LeadsView() {
           {/* Sort field + direction */}
           <select value={sortBy} onChange={e => setSortBy(e.target.value as SortKey)}
             aria-label="Sort leads by"
-            className="h-9 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
+            className="h-9 shrink-0 rounded-md border border-input bg-card px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring">
             {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
               <option key={k} value={k}>Sort: {SORT_LABELS[k]}</option>
             ))}
@@ -670,6 +678,54 @@ export function LeadsView() {
                 : (sortDir === "desc" ? "Highest" : "Lowest")}
             </span>
           </Button>
+          {/* Lead date filter — a particular date, or a range, so a source can be checked against
+              a specific day rather than only sorted relative to everything else. */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <Input
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={e => setDateFrom(e.target.value)}
+              aria-label="Lead date from"
+              title="Lead date from"
+              className="h-9 w-[138px] text-sm"
+            />
+            <span className="text-xs text-muted-foreground">–</span>
+            <Input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={e => setDateTo(e.target.value)}
+              aria-label="Lead date to"
+              title="Lead date to"
+              className="h-9 w-[138px] text-sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs shrink-0"
+              title="Filter to today's leads"
+              onClick={() => {
+                const t = new Date().toISOString().slice(0, 10);
+                setDateFrom(t); setDateTo(t);
+              }}
+            >
+              Today
+            </Button>
+            {(dateFrom || dateTo) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0 shrink-0 text-muted-foreground"
+                aria-label="Clear date filter"
+                title="Clear date filter"
+                onClick={() => { setDateFrom(""); setDateTo(""); }}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* View toggle */}

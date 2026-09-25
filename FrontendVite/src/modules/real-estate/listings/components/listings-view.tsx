@@ -17,6 +17,7 @@ import type { ListingDto, PropertyDto, UnitStatus } from "@/lib/real-estate/re.a
 import { LISTING_IMPORT_FIELDS } from "./listing-import-fields";
 import { ListingForm } from "./listing-form";
 import { ListingDrawer } from "./listing-drawer";
+import { RestrictedBadge } from "./confidential-field";
 // The building behind a listing keeps its own screen: gallery, website publishing, unit schedule
 // and printable profile are building-level, and folding the pages together must not lose them.
 import { PropertiesDrawer } from "@/modules/real-estate/properties/components/properties-drawer";
@@ -265,7 +266,11 @@ export function ListingsView() {
                         {l.hasMedia && <Camera className="h-3 w-3 text-muted-foreground shrink-0" aria-label="Photos on file" />}
                         {l.isListed && <Megaphone className="h-3 w-3 text-primary shrink-0" aria-label="Advertised" />}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">Unit {l.unitNumber}</p>
+                      {l.hasConfidentialAccess ? (
+                        <p className="text-[11px] text-muted-foreground">Unit {l.unitNumber}</p>
+                      ) : (
+                        <RestrictedBadge className="mt-0.5" />
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{l.city || l.emirate || "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -286,8 +291,14 @@ export function ListingsView() {
                       {l.furnishing ? l.furnishing.replace(/_/g, " ") : "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="truncate">{l.ownerName || "—"}</span>
-                      {l.ownerPhone && <p className="text-[11px] text-muted-foreground">{l.ownerPhone}</p>}
+                      {l.hasConfidentialAccess ? (
+                        <>
+                          <span className="truncate">{l.ownerName || "—"}</span>
+                          {l.ownerPhone && <p className="text-[11px] text-muted-foreground">{l.ownerPhone}</p>}
+                        </>
+                      ) : (
+                        <RestrictedBadge />
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{l.agentName || "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
