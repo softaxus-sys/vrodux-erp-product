@@ -47,7 +47,16 @@ public sealed class GenerateTenantLicenseCommandHandler(
             ExpiresAt:  expiresAt,
             MachineId:  machineId);
 
-        var key = licenseService.GenerateLicenseKey(payload);
+        string key;
+        try
+        {
+            key = licenseService.GenerateLicenseKey(payload);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Signing key not configured on this server — say so instead of a bare 500.
+            return Result.Failure<GenerateLicenseResponse>(Error.Custom("License.SigningNotConfigured", ex.Message));
+        }
         tenant.SetLicenseKey(key, expiresAt);
         tenantRepo.Update(tenant);
         await uow.SaveChangesAsync(ct);

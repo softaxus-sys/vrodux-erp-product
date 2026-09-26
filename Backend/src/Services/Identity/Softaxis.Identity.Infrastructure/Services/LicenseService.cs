@@ -29,14 +29,15 @@ public sealed class LicenseService : ILicenseService
     // env License__RsaPrivateKeyPem), which exists only on the cloud server that issues keys.
 
     private const string EmbeddedPublicKeyPem =
-        "-----BEGIN RSA PUBLIC KEY-----\n" +
-        "MIIBCgKCAQEA03GkXqQbS4KdL0T10MRqLa1iVlTLlDxG2od2fFfOBe4/CtfP5fJr\n" +
-        "CrlzMfsvFM4BJm0v9/KLNlJnExsTj+pYfckv2GZtGOqZk9jR0d8lfgSNO6OQy3Qm\n" +
-        "DNe5YO38xJwWn0Ca5oJCfzFsDRkJi8P/6P9b7d4ZpFQuh1SKmFcOnnSrULP0mx9Y\n" +
-        "B5A8hB6Iq2wct6+iQqm4sxMESlH02ZEAiY2Ry+GfgtsGEYPhPHYl7wlXyP2btEWJ\n" +
-        "nU/VMbCElaisxgpHAgTKX/6eN+abzreHoALmxR2I5EIMl2ze+WYzePIvMMHkrWfP\n" +
-        "NBuqKGA2cSR2hhV3MYTvnVJy8wFz4BVF9QIDAQAB\n" +
-        "-----END RSA PUBLIC KEY-----";
+        "-----BEGIN PUBLIC KEY-----\n" +
+        "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApl1op+vfBBu64pXzFfpM\n" +
+        "alyKp7AcqvbdPErfFDWacYlPPWSgstC2MgG6cSLGwRUNpKvbCbo8pWxpDOgDHeXb\n" +
+        "nHGnQ0SgQesZcWT7O5O6hmM1tZG/euV298vLc+AaPyK9lgMMTIjiEJJcU5aGe54C\n" +
+        "DAmOPPDnrunrcSun4oFj+iaSKI0MoAz0QEhXArxkxdLUWPQhaEvPpg0IIaSSzxZr\n" +
+        "dPdRveuQeyb0p/Z+xyzVewLYw1quiqkwnlWsCkHo0wk53GE473ftS8S+oWKIeUG7\n" +
+        "tUiMhKatd99rsp0s+ZVj1NT6D7a7Jf4bziznixLpZMohStyn8YuM3+oMknqo25zP\n" +
+        "qwIDAQAB\n" +
+        "-----END PUBLIC KEY-----";
 
     private readonly string? _privateKeyPem;
 

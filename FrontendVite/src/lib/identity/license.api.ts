@@ -47,11 +47,18 @@ async function readError(res: Response): Promise<string> {
   }
 }
 
+// The Identity API wraps every answer as { success, data, … }. Read `data`; fall back to the body
+// itself so a bare response still works.
+async function unwrap<T>(res: Response): Promise<T> {
+  const body = await res.json();
+  return (body && typeof body === "object" && "data" in body ? body.data : body) as T;
+}
+
 export const licenseApi = {
   status: async (): Promise<LicenseStatus> => {
     const res = await fetch(`${base()}/status`, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(await readError(res));
-    return res.json();
+    return unwrap(res);
   },
 
   activate: async (licenseKey: string): Promise<LicenseActivation> => {
@@ -61,6 +68,6 @@ export const licenseApi = {
       body: JSON.stringify({ licenseKey }),
     });
     if (!res.ok) throw new Error(await readError(res));
-    return res.json();
+    return unwrap(res);
   },
 };
