@@ -1,4 +1,4 @@
-﻿import { apiClient, type PagedResult } from "@/lib/api-client";
+import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { CustomerDto, CustomerSummaryDto, WalletTransactionsPage } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/customers`;
@@ -35,8 +35,12 @@ export const customersApi = {
       email?: string | null;
       address?: string | null;
       notes?: string | null;
+      isActive: boolean;
     }
-  ): Promise<CustomerDto> => apiClient.put<CustomerDto>(`${BASE}/${id}`, payload),
+  ): Promise<CustomerDto> =>
+    // The command carries its own Id (checked against the route) and a required IsActive —
+    // omitting it would bind false and silently deactivate the customer on every edit.
+    apiClient.put<CustomerDto>(`${BASE}/${id}`, { id, ...payload }),
 
   delete: (id: string): Promise<void> =>
     apiClient.delete<void>(`${BASE}/${id}`),
@@ -49,6 +53,9 @@ export const customersApi = {
 
   setCreditLimit: (id: string, creditLimit: number): Promise<CustomerDto> =>
     apiClient.put<CustomerDto>(`${BASE}/${id}/credit-limit`, { creditLimit }),
+
+  adjustLoyalty: (id: string, points: number, reason?: string | null): Promise<CustomerDto> =>
+    apiClient.post<CustomerDto>(`${BASE}/${id}/loyalty/adjust`, { points, reason }),
 
   recordHouseAccountPayment: (id: string, amount: number, notes?: string | null): Promise<CustomerDto> =>
     apiClient.post<CustomerDto>(`${BASE}/${id}/house-account/payment`, { amount, notes }),

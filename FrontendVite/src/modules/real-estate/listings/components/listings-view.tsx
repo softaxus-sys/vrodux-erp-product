@@ -103,6 +103,9 @@ export function ListingsView() {
     purpose, status, propertyId, page, pageSize: PAGE_SIZE,
   });
   const listings   = paged?.items ?? [];
+  // Unit number + owner details belong to the listing's agent and admins. A user who can see
+  // none of them gets no Owner column at all rather than a column of "Restricted" badges.
+  const showOwner = listings.some(l => l.hasConfidentialAccess);
   const totalCount = paged?.totalCount ?? 0;
   const totalPages = paged?.totalPages ?? 1;
 
@@ -234,7 +237,7 @@ export function ListingsView() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/30">
               <tr>
-                {["Building / unit", "Location", "Type", "Beds", "Area", "Price", "Furnishing", "Owner", "Agent", "Status"].map(h => (
+                {["Building / unit", "Location", "Type", "Beds", "Area", "Price", "Furnishing", ...(showOwner ? ["Owner"] : []), "Agent", "Status"].map(h => (
                   <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     {h}
                   </th>
@@ -244,7 +247,7 @@ export function ListingsView() {
             <tbody className="divide-y divide-border">
               {listings.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={showOwner ? 10 : 9} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {debounced || purpose !== "all" || status !== "all"
                       ? "No listings match these filters."
                       : "No listings yet. Add one, or import your stock sheet."}
@@ -268,9 +271,9 @@ export function ListingsView() {
                       </div>
                       {l.hasConfidentialAccess ? (
                         <p className="text-[11px] text-muted-foreground">Unit {l.unitNumber}</p>
-                      ) : (
+                      ) : showOwner ? (
                         <RestrictedBadge className="mt-0.5" />
-                      )}
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{l.city || l.emirate || "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -290,7 +293,7 @@ export function ListingsView() {
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground capitalize">
                       {l.furnishing ? l.furnishing.replace(/_/g, " ") : "—"}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    {showOwner && <td className="px-4 py-3 whitespace-nowrap">
                       {l.hasConfidentialAccess ? (
                         <>
                           <span className="truncate">{l.ownerName || "—"}</span>
@@ -299,7 +302,7 @@ export function ListingsView() {
                       ) : (
                         <RestrictedBadge />
                       )}
-                    </td>
+                    </td>}
                     <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">{l.agentName || "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full", statusOf(l.status).className)}>
