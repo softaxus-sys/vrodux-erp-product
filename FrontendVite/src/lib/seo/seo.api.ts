@@ -152,6 +152,9 @@ export const seoApi = {
   updateSite: (id: string, body: UpdateSiteRequest): Promise<SiteDto> => rawApiClient.put(`${BASE}/sites/${id}`, body),
   deleteSite: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/sites/${id}`),
   rotateSnippetKey: (id: string): Promise<SiteDto> => rawApiClient.post(`${BASE}/sites/${id}/rotate-snippet-key`, {}),
+  /** Server-side verification — our own gateway fetches the tenant's page and checks the tag is
+   * present in the raw HTML, so a customer's CSP/ad-blocker can never block verification itself. */
+  verifyNow: (id: string): Promise<SiteDto> => rawApiClient.post(`${BASE}/sites/${id}/verify-now`, {}),
 
   startGoogleOAuth: (siteId: string): Promise<{ url: string }> =>
     rawApiClient.post(`${BASE}/google/${siteId}/oauth/start`, {}),

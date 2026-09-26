@@ -2,13 +2,13 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Loader2, Check, XCircle, PlayCircle, RefreshCw, ExternalLink,
-  AlertTriangle, Clock, Globe, Settings2,
+  AlertTriangle, Clock, Globe, Settings2, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import {
   useSeoSite, useSeoAudits, useSeoFixes, useRunScanNow,
-  useApproveFix, useRejectFix, useRotateSnippetKey,
+  useApproveFix, useRejectFix, useRotateSnippetKey, useVerifySiteNow,
 } from "@/hooks/seo/use-seo";
 import {
   proposedValue, SEVERITY_META, FIX_STATUS_META, CHANGE_TYPE_LABELS,
@@ -80,24 +80,99 @@ export function SiteDetailDrawer({ siteId, onClose }: { siteId: string | null; o
 
 function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>["data"]> }) {
   const rotate = useRotateSnippetKey();
+  const verifyNow = useVerifySiteNow();
+  const [lastCheckedAt, setLastCheckedAt] = React.useState<Date | null>(null);
+  const [showTag, setShowTag] = React.useState(false);
+
+  // Self-updates while unverified — leaving this open is enough, no click required. Actively
+  // re-checks (our server fetches the page itself) rather than just re-reading cached status, so
+  // this converges on its own instead of only reporting whatever the last check happened to find.
+  // This is the recheck surface that exists everywhere ELSE the site is viewed from — there was
+  // previously no way to recheck outside the wizard at all.
+  React.useEffect(() => {
+    if (site.verificationStatus === "verified") return;
+    const id = setInterval(() => verifyNow.mutate(site.id, { onSuccess: () => setLastCheckedAt(new Date()) }), 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [site.id, site.verificationStatus]);
+
+  const handleRecheck = () => {
+    verifyNow.mutate(site.id, { onSuccess: () => setLastCheckedAt(new Date()) });
+  };
+  const isFetching = verifyNow.isPending;
+
+  const snippetOrigin = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}`;
+  const snippetTag = `<script src="${snippetOrigin}/api/seo/snippet/${site.snippetKey}/tag.js" async></script>`;
+
   return (
-    <div className="flex items-center gap-4 px-6 py-3 border-b border-border bg-muted/20 text-xs shrink-0 flex-wrap">
-      <span className={cn("inline-flex items-center gap-1.5 font-medium",
-        site.verificationStatus === "verified" ? "text-success" : "text-amber-600")}>
-        <Globe className="h-3.5 w-3.5" />
-        {site.verificationStatus === "verified" ? "Snippet verified" : "Snippet not yet verified"}
-      </span>
-      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-        <Settings2 className="h-3.5 w-3.5" />
-        {site.googleConnected ? "Google connected" : "Google not connected"}
-      </span>
-      {site.lastScanAt && (
-        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-          <Clock className="h-3.5 w-3.5" />Last scan {formatDate(site.lastScanAt)}
+    <div className="border-b border-border bg-muted/20 shrink-0">
+      <div className="flex items-center gap-4 px-6 py-3 text-xs flex-wrap">
+        <span className={cn("inline-flex items-center gap-1.5 font-medium",
+          site.verificationStatus === "verified" ? "text-success" : "text-amber-600")}>
+          <Globe className="h-3.5 w-3.5" />
+          {site.verificationStatus === "verified" ? "Snippet verified" : "Snippet not yet verified"}
         </span>
+        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+          <Settings2 className="h-3.5 w-3.5" />
+          {site.googleConnected ? "Google connected" : "Google not connected"}
+        </span>
+        {site.lastScanAt && (
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />Last scan {formatDate(site.lastScanAt)}
+          </span>
+        )}
+
+        <div className="ms-auto flex items-center gap-3">
+          {site.verificationStatus !== "verified" && (
+            <button onClick={handleRecheck} disabled={isFetching}
+              className="text-primary hover:text-primary/80 inline-flex items-center gap-1.5 font-medium disabled:opacity-60">
+              {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              Recheck now
+            </button>
+          )}
+          <button onClick={() => setShowTag(v => !v)} className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+            Show snippet
+          </button>
+          <button onClick={() => rotate.mutate(site.id)}
+            title="Generates a new key — the tag already on your site will stop working until you replace it"
+            className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1">
+            <RefreshCw className="h-3 w-3" />Rotate key
+          </button>
+        </div>
+      </div>
+
+      {site.verificationStatus !== "verified" && (
+        <div className="px-6 pb-3 -mt-1 text-[11px] text-muted-foreground">
+          {isFetching ? "Checking…" : lastCheckedAt ? `Still not verified — checked ${lastCheckedAt.toLocaleTimeString()}. ` : "Auto-checking every few seconds. "}
+          {!isFetching && (
+            <>We check by fetching your page ourselves and looking for the tag, so a Content-Security-Policy or
+            ad-blocker on your site can't block this. If it stays unverified, confirm the tag is saved on the
+            live page (not a draft) and that nothing is caching an old version of it.</>
+          )}
+        </div>
       )}
-      <button onClick={() => rotate.mutate(site.id)} className="ml-auto text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-        <RefreshCw className="h-3 w-3" />Rotate snippet key
+
+      {showTag && (
+        <div className="px-6 pb-3">
+          <SnippetPreview code={snippetTag} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SnippetPreview({ code }: { code: string }) {
+  const [copied, setCopied] = React.useState(false);
+  return (
+    <div className="relative group">
+      <pre className="bg-muted rounded-lg p-2.5 pr-10 text-[11px] overflow-x-auto font-mono" dir="ltr">
+        <code>{code}</code>
+      </pre>
+      <button
+        onClick={() => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+        className="absolute top-1.5 right-1.5 p-1 rounded-md bg-background/80 border border-border hover:bg-background"
+        title="Copy">
+        {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
       </button>
     </div>
   );

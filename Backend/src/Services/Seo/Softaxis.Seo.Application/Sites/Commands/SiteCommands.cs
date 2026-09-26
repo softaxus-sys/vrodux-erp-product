@@ -18,3 +18,8 @@ public sealed class CreateSiteValidator : AbstractValidator<CreateSiteCommand>
 public sealed record UpdateSiteCommand(Guid Id, string DisplayName, string ScanFrequency) : ICommand<SiteDto>;
 public sealed record DeleteSiteCommand(Guid Id) : ICommand;
 public sealed record RotateSnippetKeyCommand(Guid Id) : ICommand<SiteDto>;
+
+/// <summary>Server-side verification — fetches the tenant's own page and checks the tag is present
+/// in the raw HTML, so a customer's Content-Security-Policy (or an ad-blocker, or JS being off) can
+/// never block verification itself. See SeoSite.RecordVerifiedBySourceCheck's own remarks.</summary>
+public sealed record VerifySiteNowCommand(Guid Id) : ICommand<SiteDto>;
