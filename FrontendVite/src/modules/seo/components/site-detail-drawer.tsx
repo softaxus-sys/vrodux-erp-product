@@ -14,13 +14,17 @@ import {
   proposedValue, SEVERITY_META, FIX_STATUS_META, CHANGE_TYPE_LABELS,
   type FixDto,
 } from "@/lib/seo/seo.api";
+import { ContentTab } from "./content-tab";
+import { useAuthStore } from "@/store/auth.store";
 
-type Tab = "fixes" | "history";
+type Tab = "fixes" | "history" | "content";
 
 export function SiteDetailDrawer({ siteId, onClose }: { siteId: string | null; onClose: () => void }) {
   const [tab, setTab] = React.useState<Tab>("fixes");
   const { data: site } = useSeoSite(siteId);
   const runScan = useRunScanNow();
+  const { hasRawPermission } = useAuthStore();
+  const canSeeContent = hasRawPermission("seo.content.view");
 
   React.useEffect(() => { if (siteId) setTab("fixes"); }, [siteId]);
 
@@ -53,17 +57,19 @@ export function SiteDetailDrawer({ siteId, onClose }: { siteId: string | null; o
             <StatusStrip site={site} />
 
             <div className="flex items-center gap-1 px-6 pt-3 border-b border-border shrink-0">
-              {(["fixes", "history"] as Tab[]).map(tKey => (
+              {(["fixes", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
                 <button key={tKey} onClick={() => setTab(tKey)}
                   className={cn("px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                     tab === tKey ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                  {tKey === "fixes" ? "Fixes to review" : "Audit history"}
+                  {tKey === "fixes" ? "Fixes to review" : tKey === "content" ? "Content" : "Audit history"}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {tab === "fixes" ? <FixesReviewList siteId={site.id} /> : <AuditHistoryList siteId={site.id} />}
+              {tab === "fixes" && <FixesReviewList siteId={site.id} />}
+              {tab === "content" && <ContentTab siteId={site.id} domain={site.domain} />}
+              {tab === "history" && <AuditHistoryList siteId={site.id} />}
             </div>
           </motion.div>
         </>

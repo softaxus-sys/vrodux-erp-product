@@ -154,6 +154,10 @@ public static class PermissionSeedData
         // not require the same permission as connecting a whole new site.
         ["seo.sites"] = ["view","create","edit","delete"],
         ["seo.fixes"] = ["view","edit"],
+        // Scheduled AI content (Phase 2) — its own review surface, separate from the technical
+        // fixes above: writing/reviewing articles is a different decision from approving a
+        // meta-tag change, and a role might reasonably get one without the other.
+        ["seo.content"] = ["view","edit"],
 
         // Support (Softaxis's own operator-tenant ticket queue). Only "view"/"edit" — both
         // standard actions already in ACTION_ORDER on the frontend, so no matrix-column change

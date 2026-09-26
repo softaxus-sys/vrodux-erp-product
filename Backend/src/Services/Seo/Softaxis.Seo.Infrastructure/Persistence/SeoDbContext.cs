@@ -13,6 +13,9 @@ public sealed class SeoDbContext(DbContextOptions<SeoDbContext> options)
     public DbSet<SeoAudit>             Audits             => Set<SeoAudit>();
     public DbSet<SeoIssue>             Issues             => Set<SeoIssue>();
     public DbSet<SeoFix>               Fixes              => Set<SeoFix>();
+    public DbSet<SeoArticle>             Articles             => Set<SeoArticle>();
+    public DbSet<SeoContentSettings>     ContentSettings       => Set<SeoContentSettings>();
+    public DbSet<SeoWordPressConnection> WordPressConnections  => Set<SeoWordPressConnection>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

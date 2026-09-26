@@ -13,7 +13,10 @@ internal static class SeoNotificationRecipients
 {
     private sealed class Row { public Guid UserId { get; set; } }
 
-    public static async Task<IReadOnlyList<Guid>> GetAsync(SeoDbContext db, Guid tenantId, CancellationToken ct)
+    public static Task<IReadOnlyList<Guid>> GetAsync(SeoDbContext db, Guid tenantId, CancellationToken ct) =>
+        GetAsync(db, tenantId, "seo.fixes", "view", ct);
+
+    public static async Task<IReadOnlyList<Guid>> GetAsync(SeoDbContext db, Guid tenantId, string moduleId, string action, CancellationToken ct)
     {
         try
         {
@@ -26,7 +29,7 @@ internal static class SeoNotificationRecipients
                 JOIN [identity].[permissions] p       ON p.Id = rp.PermissionId
                 WHERE u.IsDeleted = 0 AND r.IsDeleted = 0
                   AND u.TenantId = {tenantId} AND r.TenantId = {tenantId}
-                  AND p.ModuleId = 'seo.fixes' AND p.Action = 'view'
+                  AND p.ModuleId = {moduleId} AND p.Action = {action}
                 """).ToListAsync(ct);
             return rows.Select(r => r.UserId).ToList();
         }
