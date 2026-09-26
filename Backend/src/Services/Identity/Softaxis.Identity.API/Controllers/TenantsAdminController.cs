@@ -88,7 +88,7 @@ public sealed class TenantsAdminController(ISender sender) : BaseApiController(s
     // POST /api/admin/tenants/{id}/license
     [HttpPost("{id:guid}/license")]
     public async Task<IActionResult> GenerateLicense(Guid id, [FromBody] GenerateLicenseRequest req, CancellationToken ct)
-        => HandleResult(await Sender.Send(new GenerateTenantLicenseCommand(id, req.ValidityDays, req.Features), ct));
+        => HandleResult(await Sender.Send(new GenerateTenantLicenseCommand(id, req.ValidityDays, req.Features, req.MachineCode), ct));
 
     // PATCH /api/admin/tenants/{id}/subscription  — cloud tenants: set expiry + activate
     [HttpPatch("{id:guid}/subscription")]

@@ -30,6 +30,7 @@ One folder (USB stick or zip). Nothing in it should need to be typed twice on si
 Customer name        : ______________________________
 Tenant GUID          : ______________________________   (from the cloud console)
 Tenant slug          : ______________________________
+Device ID            : ____-____-____-____              (read ON SITE from the server — §1.2b)
 License key          : ______________________________   (long base64 string — paste, never retype)
 License expires      : ______________________________
 Modules              : pos,inventory,finance            (set on the tenant; the key carries them)
@@ -49,6 +50,11 @@ SMTP host / user / pass (optional, for invites + password resets):
 seat limit and expiry, so the installation adopts the *existing* cloud tenant rather than creating a
 new workspace with a different id. Without it the box still runs, but it can never mirror to the
 cloud, because the two sides would not share a tenant id.
+
+**The key should also be bound to the customer's server** (its Device ID — §1.2b). An unbound key
+runs on any computer it is copied to; a bound key runs only on the one machine it was issued for,
+checked entirely offline. That means the key is normally generated **during** the visit, not before
+it — the engineer reads the Device ID on site and sends it to the office.
 
 ---
 
@@ -75,6 +81,46 @@ sheet.
 > change the modules in the cloud console, generate a new key, paste it into the box's
 > `OnPremises:LicenseKey` and restart the service. The new plan and module list are picked up on
 > that start. `OnPremises:Modules` is only a fallback for an old key issued without a module list.
+
+### 1.2b Machine-bound keys — one key, one server (recommended)
+
+A licence key can carry the **Device ID** of the server it is issued for. The installation compares
+it with its own ID on every start and every request — **offline, no internet needed** — and refuses
+to run anywhere else:
+
+> "This license key is registered to a different computer. This computer's code is
+> 1A2B-3C4D-5E6F-7A8B — send it to Softaxis support for a key for this machine."
+
+Leave the machine code blank and the key runs on any computer (every key issued before this feature
+is unbound and keeps working). Bind every new site.
+
+**The Device ID** is derived from the Windows installation id of the server (the PC that runs the
+Vrodux service — not each till; every till shows the same ID because they all talk to one server).
+It survives reboots, reinstalling Vrodux, and IP or computer-name changes. It changes only if
+**Windows is reinstalled or the server is replaced** — then the customer needs a new key.
+
+**Reading it on site** — any one of these; the first needs nothing at all:
+
+| Where | Needs |
+|---|---|
+| `Softaxis.ApiGateway.exe --device-id` in a command prompt, in `C:\Deploy\server\output\` | Nothing — no config, no database, no licence. Prints `Device ID: 1A2B-3C4D-5E6F-7A8B` and exits |
+| The **login page** — under the sign-in form, with a Copy button | Service running with the `OnPremises` section filled in (licence not needed) |
+| `http://localhost:5000/api/license/status` → `machineCode` | Same as above |
+| **Settings → Security** → *Licence & Device* card | Licensed, signed in as admin/manager |
+| Service startup log: `OnPremises: this computer's machine code is …` | Service started with `OnPremises` filled in |
+
+The ID is **never shown on the cloud** (`erp.vrodux.com`): the server only publishes it when its own
+`appsettings.json` has `OnPremises:TenantName` or `OnPremises:LicenseKey` set, which the cloud never does.
+
+**The workflow on the day:**
+1. Engineer copies the server build (§4) and runs `Softaxis.ApiGateway.exe --device-id`.
+2. Sends the Device ID to the office (WhatsApp / phone) and writes it on the site sheet.
+3. Office: Super Admin → the tenant → **License Key** → paste it into **Machine code (optional)** →
+   **Generate**. Send the key back.
+4. Engineer pastes the key into `OnPremises:LicenseKey` (§4.3) and continues the install as normal.
+
+> **Record the Device ID in the site record (§13).** It is not stored on the cloud tenant, so every
+> renewal must be generated with the same machine code again — otherwise the renewal key is unbound.
 
 ### 1.3 Generate a JWT secret for this site
 Every installation must have its **own** secret. The shipped `appsettings.json` contains the
@@ -232,7 +278,10 @@ key carries**, provisions its roles, and creates the first administrator, pre-ve
 sign in immediately (there is no mailbox on a shop counter).
 
 - Leave `LicenseKey` blank and nothing is adopted — you get an unlicensed box that blocks every
-  request. Do not skip it.
+  request. Do not skip it. (Read the Device ID with `--device-id` **before** the first start, so the
+  bound key is already in hand when you get here — §1.2b.)
+- A key bound to a different machine is refused at this step with the machine's own code in the
+  log — generate a new key for that code.
 - If the key is invalid or expired the log says so and **no tenant is created** — it never invents
   one from an unverified key.
 - Re-running is safe: it only re-asserts deployment type, license and mirror flag.
@@ -483,7 +532,9 @@ On day 31 every request is refused with `LICENSE_EXPIRED` and the shop stops tra
 
 ### When they pay — issuing the new key
 1. Super Admin → the tenant → set its **modules** to what they bought.
-2. **Generate license** with the real validity (e.g. 365 days).
+2. **Generate license** with the real validity (e.g. 365 days) and the **same machine code** as
+   before (from the site record — or ask the customer: it is on their login page and in
+   Settings → Security). Leaving it blank issues an unbound key.
 3. Send them the key.
 
 **The key carries the plan and the module list**, so this is also how you add or remove a module
@@ -561,6 +612,9 @@ Sync run time   : ____________________   (confirmed working on site: yes / no)
 | `/health` works locally, not from a PC | Firewall, or Public network profile | `open-firewall.bat`; check the profile |
 | "No license key has been issued" on every request | `OnPremises:LicenseKey` blank or wrong | The key must be pasted whole |
 | "Your software license has expired" | Key past its expiry | Generate a new one in the cloud console |
+| "This license key is registered to a different computer" (`LICENSE_WRONG_MACHINE`) | Key was bound to another server, or Windows was reinstalled / the server replaced | The message shows this machine's Device ID — generate a new key with it |
+| Device ID shows `UNKNOWN` / is missing | Windows installation id could not be read (very rare) | Issue an unbound key for this site and investigate |
+| Licence generation in Super Admin fails: "License signing is not configured" | Cloud server has no signing key | Set `LICENSE_RSA_PRIVATE_KEY_PEM` in `/opt/vrodux/shared/.env` and recreate the api container (§14) |
 | Login says the workspace is unavailable | Tenant adopted with the wrong id, or deleted in the cloud | Compare the tenant GUID against the console |
 | One module 500s, the rest work | A connection string still points at the office machine | Search `appsettings.json` for the old server name |
 | Password-reset emails go nowhere | No SMTP, or `FrontendUrl` unreachable | §4.4 and §4.5 — use admin reset instead |
@@ -579,8 +633,28 @@ Sync run time   : ____________________   (confirmed working on site: yes / no)
 ## 13. What the office keeps, per site
 
 One record per customer, treated as credentials — not a shared spreadsheet:
-tenant GUID, slug, license key + expiry, JWT secret, server name/IP, SQL instance, install date,
+tenant GUID, slug, **Device ID**, license key + expiry, JWT secret, server name/IP, SQL instance, install date,
 build version, backup arrangement, and (when it ships) the sync time and cloud URL.
 
 You will need the tenant GUID and license key again for every upgrade, every license renewal, and
 the first time cloud sync is switched on.
+
+---
+
+## 14. Licence signing — cloud only
+
+Licence keys are RSA-signed. **Only the public key ships** in the on-premises build — enough to
+verify a key, useless for making one. The private key lives only on the cloud server, in
+`/opt/vrodux/shared/.env`:
+
+```
+LICENSE_RSA_PRIVATE_KEY_PEM=-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----
+```
+
+(one line, literal `\n` for the line breaks; mapped into the container as
+`License__RsaPrivateKeyPem`). Without it the cloud still validates keys, but **Generate license is
+refused**. Never put it in a customer's `appsettings.json`.
+
+> ⚠️ Builds before this change embedded the private key in the exe, and it remains in git history.
+> Treat that key pair as exposed: plan a rotation (new pair → new public key in `LicenseService.cs`
+> → re-issue every site's key, bound to its Device ID).

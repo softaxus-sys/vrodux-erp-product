@@ -1,3 +1,4 @@
+import { DeviceIdBadge } from "@/components/license/device-id-badge";
 import * as React from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -729,6 +730,9 @@ export default function LoginPage() {
               <br />
               {t("form.securityNote2")}
             </p>
+
+            {/* On-premises only: the ID a licence key is issued for. Needed before any user exists. */}
+            <DeviceIdBadge color={D.white} muted={D.muted} />
 
             {/* Trial CTA — cloud only.
                 The desktop client is how an on-premises installation is used, and it talks to the

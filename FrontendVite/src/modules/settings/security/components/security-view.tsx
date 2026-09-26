@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { TwoFactorCard } from "./two-factor-card";
+import { LicenceCard } from "./licence-card";
 
 export function SecurityView() {
   const { t } = useTranslation("settings");
@@ -11,7 +12,8 @@ export function SecurityView() {
           {t("security.description")}
         </p>
       </div>
-      <div className="max-w-2xl">
+      <div className="max-w-2xl space-y-6">
+        <LicenceCard />
         <TwoFactorCard />
       </div>
     </div>

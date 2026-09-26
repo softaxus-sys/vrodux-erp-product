@@ -66,7 +66,8 @@ public sealed record ChangePlanRequest(string Plan);
 
 public sealed record GenerateLicenseRequest(
     int      ValidityDays,
-    string[] Features);
+    string[] Features,
+    string?  MachineCode = null);
 
 public sealed record GenerateLicenseResponse(
     string   LicenseKey,

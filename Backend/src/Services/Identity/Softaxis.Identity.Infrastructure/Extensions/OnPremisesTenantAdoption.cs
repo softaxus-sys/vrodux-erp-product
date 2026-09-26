@@ -43,11 +43,26 @@ internal static class OnPremisesTenantAdoption
         var logger  = sp.GetRequiredService<ILoggerFactory>().CreateLogger("OnPremisesTenantAdoption");
         var licence = cfg["OnPremises:LicenseKey"]?.Trim();
 
+        // Printed on every on-prem start (it is harmless — a salted hash) so an offline site can
+        // read the code Softaxis needs for a machine-bound key straight off the console / log.
+        if (cfg["OnPremises:TenantName"] is not null || !string.IsNullOrWhiteSpace(licence))
+            logger.LogInformation("OnPremises: this computer's machine code is {MachineCode}",
+                Softaxis.Identity.Infrastructure.Services.MachineFingerprint.Current);
+
         // Nothing configured — this is a cloud deployment, or an on-prem box not yet licensed.
         if (string.IsNullOrWhiteSpace(licence))
             return;
 
-        var payload = sp.GetRequiredService<ILicenseService>().ValidateLicenseKey(licence);
+        var licenses = sp.GetRequiredService<ILicenseService>();
+        var payload  = licenses.ValidateForThisMachine(licence);
+        if (payload is null && licenses.IsBoundToAnotherMachine(licence))
+        {
+            logger.LogError(
+                "OnPremises: the license key is issued for a different machine. This machine's code " +
+                "is {MachineCode} — request a key for this code. No tenant was adopted.",
+                licenses.ThisMachineCode);
+            return;
+        }
         if (payload is null)
         {
             // Never fabricate a tenant from an unverified key. A bad or expired license is an

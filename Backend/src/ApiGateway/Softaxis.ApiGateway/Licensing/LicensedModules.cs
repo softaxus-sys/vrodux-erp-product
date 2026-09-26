@@ -77,7 +77,7 @@ public static class LicensedModules
             return null;
 
         using var scope = services.CreateScope();
-        var payload = scope.ServiceProvider.GetRequiredService<ILicenseService>().ValidateLicenseKey(licence);
+        var payload = scope.ServiceProvider.GetRequiredService<ILicenseService>().ValidateForThisMachine(licence);
 
         // An unreadable or expired key is not a reason to install a partial database. The tenant is
         // blocked by SubscriptionEnforcementMiddleware either way, and installing everything leaves

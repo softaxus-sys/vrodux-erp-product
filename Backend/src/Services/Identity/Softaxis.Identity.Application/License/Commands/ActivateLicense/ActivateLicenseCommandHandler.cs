@@ -23,7 +23,12 @@ public sealed class ActivateLicenseCommandHandler(
 
         // Verifies the RSA signature and the expiry. A key that is already expired is refused here
         // rather than installed and found dead on the next request.
-        var payload = licenseService.ValidateLicenseKey(cmd.LicenseKey.Trim());
+        if (licenseService.IsBoundToAnotherMachine(cmd.LicenseKey.Trim()))
+            return Fail("License.WrongMachine",
+                $"That key was issued for a different computer. This computer's code is " +
+                $"{licenseService.ThisMachineCode} — send it to Softaxis for a key for this machine.");
+
+        var payload = licenseService.ValidateForThisMachine(cmd.LicenseKey.Trim());
         if (payload is null)
             return Fail("License.Invalid",
                 "That key is not valid for this product, or it has already expired. Check it was " +

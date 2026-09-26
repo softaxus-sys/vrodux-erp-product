@@ -114,6 +114,8 @@ export interface UpdateTenantRequest {
 export interface GenerateLicenseRequest {
   validityDays: number;
   features: string[];
+  /** Optional: bind the key to one computer (code from its activation screen). */
+  machineCode?: string;
 }
 
 export interface GenerateLicenseResponse {
