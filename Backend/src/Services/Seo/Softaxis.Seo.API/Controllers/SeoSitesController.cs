@@ -46,4 +46,11 @@ public sealed class SeoSitesController(ISender sender) : SeoControllerBase
     [RequirePermission("seo.sites.edit")]
     public async Task<IActionResult> RotateSnippetKey(Guid id, CancellationToken ct) =>
         OkOrError(await sender.Send(new RotateSnippetKeyCommand(id), ct));
+
+    /// <summary>Server-side verification — see VerifySiteNowCommand's own remarks. Works regardless
+    /// of the tenant's own site CSP/ad-blockers, unlike waiting for a live browser ping.</summary>
+    [HttpPost("{id:guid}/verify-now")]
+    [RequirePermission("seo.sites.edit")]
+    public async Task<IActionResult> VerifyNow(Guid id, CancellationToken ct) =>
+        OkOrError(await sender.Send(new VerifySiteNowCommand(id), ct));
 }

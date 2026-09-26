@@ -33,6 +33,18 @@ export function useRotateSnippetKey() {
   return useSeoMutation((id: string) => seoApi.rotateSnippetKey(id), "Snippet key rotated — update the tag on your site.");
 }
 
+/** No success toast — the caller reads the returned SiteDto.verificationStatus directly and shows
+ * its own "still not verified" vs "verified" state, since a false result here is a normal, expected
+ * outcome (not an error) and shouldn't read as one. */
+export function useVerifySiteNow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => seoApi.verifyNow(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [QK] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useStartGoogleOAuth() {
   const qc = useQueryClient();
   return useMutation({

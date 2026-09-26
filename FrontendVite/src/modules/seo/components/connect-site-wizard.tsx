@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   useSeoSite, useCreateSeoSite, useUpdateSeoSite,
   useStartGoogleOAuth, useGoogleProperties, useSelectGoogleProperties,
-  useRunScanNow,
+  useRunScanNow, useVerifySiteNow,
 } from "@/hooks/seo/use-seo";
 import type { ScanFrequency } from "@/lib/seo/seo.api";
 
@@ -40,7 +40,8 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
   const [gscPropertyId, setGscPropertyId] = React.useState("");
   const [ga4PropertyId, setGa4PropertyId] = React.useState("");
 
-  const { data: site, refetch: refetchSite, isFetching: checkingVerification } = useSeoSite(activeSiteId);
+  const { data: site } = useSeoSite(activeSiteId);
+  const verifyNow = useVerifySiteNow();
   const [lastCheckedAt, setLastCheckedAt] = React.useState<Date | null>(null);
   const create = useCreateSeoSite();
   const update = useUpdateSeoSite();
@@ -56,12 +57,15 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
     else { setActiveSiteId(null); setStep(1); setDomain(""); setDisplayName(""); setFrequency("weekly"); setScanTriggered(false); }
   }, [open, resumeSiteId, initialStep]);
 
-  // Poll while waiting for the snippet's first ping — every 4s while step 2 is open and unverified.
+  // Actively re-checks (server fetches the page itself — see useVerifySiteNow) every 5s while step 2
+  // is open and unverified. Deliberately not a passive refetch of cached status: this is what makes
+  // "leave the tab open" actually converge instead of only reporting whatever the last check found.
   React.useEffect(() => {
     if (step !== 2 || !activeSiteId || site?.verificationStatus === "verified") return;
-    const id = setInterval(() => refetchSite(), 4000);
+    const id = setInterval(() => verifyNow.mutate(activeSiteId, { onSuccess: () => setLastCheckedAt(new Date()) }), 5000);
     return () => clearInterval(id);
-  }, [step, activeSiteId, site?.verificationStatus, refetchSite]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, activeSiteId, site?.verificationStatus]);
 
   const domainValid = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i.test(domain.trim());
 
@@ -187,8 +191,19 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
                   </div>
                   <PlatformInstructions platform={platform} />
 
-                  <VerificationStatus verified={site.verificationStatus === "verified"} checking={checkingVerification}
-                    lastCheckedAt={lastCheckedAt} onRefresh={async () => { await refetchSite(); setLastCheckedAt(new Date()); }} />
+                  <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">
+                    <strong className="text-foreground">If your site sets a Content-Security-Policy header</strong> (common on
+                    Next.js/enterprise sites, rare on WordPress/static/Wix/Squarespace), add{" "}
+                    <code className="text-[11px] bg-muted px-1 py-0.5 rounded">{snippetOrigin}</code>{" "}
+                    to both <code className="text-[11px] bg-muted px-1 py-0.5 rounded">script-src</code> and{" "}
+                    <code className="text-[11px] bg-muted px-1 py-0.5 rounded">connect-src</code>. This is only needed so
+                    approved fixes can actually apply on your live site — it does not block verification below, which we
+                    check server-side.
+                  </p>
+
+                  <VerificationStatus verified={site.verificationStatus === "verified"} checking={verifyNow.isPending}
+                    lastCheckedAt={lastCheckedAt}
+                    onRefresh={() => verifyNow.mutate(site.id, { onSuccess: () => setLastCheckedAt(new Date()) })} />
                 </>
               )}
 
@@ -359,10 +374,11 @@ function VerificationStatus({ verified, checking, lastCheckedAt, onRefresh }: {
       </div>
       <p className="text-xs text-muted-foreground">
         {lastCheckedAt && !checking && `Still not verified — last checked ${lastCheckedAt.toLocaleTimeString()}. `}
-        This also auto-checks every few seconds while this step is open. If it stays unverified, open your
-        site's browser console (F12) — a warning will name the likely cause (a Content-Security-Policy blocking
-        the request is the most common one). You can leave this wizard and come back any time from the site's
-        detail panel, which has the same "Recheck" button.
+        We check by fetching your page ourselves and looking for the tag — this works even if your site
+        has a strict Content-Security-Policy, an ad-blocker is active, or the page just hasn't loaded in a
+        browser yet. If it stays unverified after a minute, double-check the tag is actually saved and
+        published on the live page (not a draft, and not cached by a CDN). You can close this wizard and
+        come back any time from the site's detail panel, which has the same "Recheck" button.
       </p>
     </div>
   );

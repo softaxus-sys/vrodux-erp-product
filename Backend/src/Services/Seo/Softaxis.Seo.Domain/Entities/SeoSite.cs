@@ -55,6 +55,26 @@ public sealed class SeoSite
         Touch();
     }
 
+    /// <summary>
+    /// A second, independent way to verify — our own server fetches the tenant's page and checks the
+    /// tag is present in the raw HTML. Deliberately does NOT touch LastSeenAt: that column specifically
+    /// means "the script actually ran in a real visitor's browser," which this never proves — a site's
+    /// Content-Security-Policy (or an ad-blocker, or JS simply being off) can block the script from
+    /// ever executing while the tag is still correctly installed on the page. Verification exists to
+    /// answer "did you install this," not "does your CSP allow third-party scripts" — those are
+    /// separate questions, and only the fix-application step (which needs the script to actually run)
+    /// depends on the second one.
+    /// </summary>
+    public void RecordVerifiedBySourceCheck()
+    {
+        if (VerificationStatus != "verified")
+        {
+            VerificationStatus = "verified";
+            VerifiedAt = DateTime.UtcNow;
+        }
+        Touch();
+    }
+
     public void ScheduleNextScan(DateTime nextRunAt)         { NextScanAt = nextRunAt; Touch(); }
     public void RecordScanCompleted(DateTime completedAt)    { LastScanAt = completedAt; Touch(); }
 

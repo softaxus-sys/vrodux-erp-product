@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import {
   useSeoSite, useSeoAudits, useSeoFixes, useRunScanNow,
-  useApproveFix, useRejectFix, useRotateSnippetKey,
+  useApproveFix, useRejectFix, useRotateSnippetKey, useVerifySiteNow,
 } from "@/hooks/seo/use-seo";
 import {
   proposedValue, SEVERITY_META, FIX_STATUS_META, CHANGE_TYPE_LABELS,
@@ -80,23 +80,26 @@ export function SiteDetailDrawer({ siteId, onClose }: { siteId: string | null; o
 
 function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>["data"]> }) {
   const rotate = useRotateSnippetKey();
-  const { refetch, isFetching } = useSeoSite(site.id);
+  const verifyNow = useVerifySiteNow();
   const [lastCheckedAt, setLastCheckedAt] = React.useState<Date | null>(null);
   const [showTag, setShowTag] = React.useState(false);
 
-  // Self-updates while unverified — leaving this open is enough, no click required. Mirrors the
-  // wizard's own step-2 polling; this is the recheck surface that exists everywhere ELSE the site
-  // is viewed from (there was previously no way to recheck outside the wizard at all).
+  // Self-updates while unverified — leaving this open is enough, no click required. Actively
+  // re-checks (our server fetches the page itself) rather than just re-reading cached status, so
+  // this converges on its own instead of only reporting whatever the last check happened to find.
+  // This is the recheck surface that exists everywhere ELSE the site is viewed from — there was
+  // previously no way to recheck outside the wizard at all.
   React.useEffect(() => {
     if (site.verificationStatus === "verified") return;
-    const id = setInterval(() => refetch(), 5000);
+    const id = setInterval(() => verifyNow.mutate(site.id, { onSuccess: () => setLastCheckedAt(new Date()) }), 5000);
     return () => clearInterval(id);
-  }, [site.verificationStatus, refetch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [site.id, site.verificationStatus]);
 
-  const handleRecheck = async () => {
-    await refetch();
-    setLastCheckedAt(new Date());
+  const handleRecheck = () => {
+    verifyNow.mutate(site.id, { onSuccess: () => setLastCheckedAt(new Date()) });
   };
+  const isFetching = verifyNow.isPending;
 
   const snippetOrigin = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}`;
   const snippetTag = `<script src="${snippetOrigin}/api/seo/snippet/${site.snippetKey}/tag.js" async></script>`;
@@ -142,7 +145,9 @@ function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>
         <div className="px-6 pb-3 -mt-1 text-[11px] text-muted-foreground">
           {isFetching ? "Checking…" : lastCheckedAt ? `Still not verified — checked ${lastCheckedAt.toLocaleTimeString()}. ` : "Auto-checking every few seconds. "}
           {!isFetching && (
-            <>If it stays like this, open your site's browser console — a warning there will name the likely cause (a Content-Security-Policy blocking the request is the most common one).</>
+            <>We check by fetching your page ourselves and looking for the tag, so a Content-Security-Policy or
+            ad-blocker on your site can't block this. If it stays unverified, confirm the tag is saved on the
+            live page (not a draft) and that nothing is caching an old version of it.</>
           )}
         </div>
       )}
