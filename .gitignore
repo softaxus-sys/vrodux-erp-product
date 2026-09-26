@@ -42,3 +42,6 @@ Thumbs.db
 # disk for anyone who ran it before. Its own .gitignore went with it, so without this a
 # `git add -A` silently re-commits ~148 build-cache files. The live app is FrontendVite/.
 Frontend/
+
+# TypeScript incremental build cache — regenerated on every build
+*.tsbuildinfo
