@@ -24,6 +24,7 @@ import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
 
 function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t: TenantDto) => void }) {
   const [validityDays, setValidityDays] = React.useState(365);
+  const [machineCode,  setMachineCode]  = React.useState("");
   const [generating,   setGenerating]   = React.useState(false);
   const [licenseKey,   setLicenseKey]   = React.useState<string | null>(null);
   const [error,        setError]        = React.useState<string | null>(null);
@@ -39,6 +40,7 @@ function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
       const resp = await tenantsAdminApi.generateLicense(tenant.id, {
         validityDays,
         features: tenant.resolvedModules,
+        machineCode: machineCode.trim() || undefined,
       });
       setLicenseKey(resp.licenseKey);
       const updated = await tenantsAdminApi.getById(tenant.id);
@@ -83,11 +85,21 @@ function LicensePanel({ tenant, onUpdated }: { tenant: TenantDto; onUpdated: (t:
           <Input type="number" min={30} max={3650} value={validityDays}
             onChange={e => setValidityDays(parseInt(e.target.value) || 365)} className="h-8 text-sm w-28" />
         </div>
+        <div className="space-y-1 flex-1">
+          <label className="text-[11px] text-muted-foreground">Machine code (optional)</label>
+          <Input value={machineCode} onChange={e => setMachineCode(e.target.value.toUpperCase())}
+            placeholder="1A2B-3C4D-5E6F-7A8B" className="h-8 text-sm font-mono w-48" />
+        </div>
         <Button size="sm" onClick={generate} disabled={generating} className="h-8">
           {generating ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Key className="h-3.5 w-3.5 mr-1.5" />}
           {tenant.hasLicenseKey ? "Renew" : "Generate"}
         </Button>
       </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        With a machine code, the key only works on that computer (checked offline — no internet needed).
+        The customer's code is shown on their licence activation screen. Leave blank to allow any computer.
+      </p>
 
       {licenseKey && (
         <div className="bg-muted rounded-lg p-3 space-y-2">

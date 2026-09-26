@@ -38,4 +38,7 @@ public sealed record LicenseStatusDto(
     bool      Licensed,
     DateTime? ExpiresAt,
     int?      DaysLeft,
-    bool      Expired);
+    bool      Expired,
+    // This machine's code, so an offline site can read it off the activation screen and send it
+    // to Softaxis for a machine-bound key. A salted hash — reveals nothing about the machine.
+    string?   MachineCode = null);

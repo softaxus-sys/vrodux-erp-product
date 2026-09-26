@@ -17,6 +17,22 @@ export function LicenseActivation({ onActivated }: { onActivated?: () => void })
   const [busy,    setBusy]    = React.useState(false);
   const [error,   setError]   = React.useState<string | null>(null);
   const [result,  setResult]  = React.useState<LicenseActivation | null>(null);
+  const [machine, setMachine] = React.useState<string | null>(null);
+  const [copied,  setCopied]  = React.useState(false);
+
+  // The code Softaxis needs to issue a key for THIS computer. Works offline: it is read from the
+  // local server, and the customer can read it out over the phone.
+  React.useEffect(() => {
+    licenseApi.status().then(s => setMachine(s.machineCode ?? null)).catch(() => {});
+  }, []);
+
+  const copyMachine = () => {
+    if (!machine) return;
+    navigator.clipboard?.writeText(machine).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +98,19 @@ export function LicenseActivation({ onActivated }: { onActivated?: () => void })
         Paste the key Softaxis sent you. It takes effect immediately — the server does not need to
         be restarted, and nothing on this installation is changed apart from the licence.
       </p>
+
+      {machine && machine !== "UNKNOWN" && (
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+          <div className="min-w-0">
+            <p className="text-[11px] text-slate-500">This computer's code — send it to Softaxis with your request</p>
+            <p className="font-mono text-sm font-semibold tracking-wider text-slate-900">{machine}</p>
+          </div>
+          <button type="button" onClick={copyMachine}
+            className="shrink-0 text-xs font-medium text-blue-600 hover:underline">
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+      )}
 
       <textarea
         value={key}

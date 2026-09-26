@@ -162,6 +162,9 @@ services:
       # is set (see ISupportAccessGuard). Set once Softaxis's own tenant has been created.
       Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
       Jwt__Secret: "${JWT_SECRET}"
+      # Private key that SIGNS on-premises licence keys. Cloud only — never ship it in an
+      # on-prem build. Blank = licence generation refused (validation still works everywhere).
+      License__RsaPrivateKeyPem: "${LICENSE_RSA_PRIVATE_KEY_PEM:-}"
       Jwt__Issuer: "Softaxis.Identity.API"
       Jwt__Audience: "Softaxis.ERP.Clients"
       Jwt__AccessTokenMinutes: "60"

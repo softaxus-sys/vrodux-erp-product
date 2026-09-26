@@ -35,6 +35,15 @@ using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
+// `Softaxis.ApiGateway.exe --device-id` prints this computer's Device ID and exits — no config,
+// no database, no licence needed. It is what an on-site engineer sends to Softaxis to be issued a
+// machine-bound licence key for a brand-new install.
+if (args.Any(a => a.Equals("--device-id", StringComparison.OrdinalIgnoreCase)))
+{
+    Console.WriteLine($"Device ID: {MachineFingerprint.Current}");
+    return;
+}
+
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();

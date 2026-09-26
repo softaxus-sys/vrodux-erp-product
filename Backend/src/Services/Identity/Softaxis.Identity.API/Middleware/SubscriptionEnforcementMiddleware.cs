@@ -153,7 +153,13 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
 
         // ValidateLicenseKey verifies RSA signature AND checks ExpiresAt > UtcNow
         // Returns null if signature is invalid, tampered, or expired
-        var payload = svc.ValidateLicenseKey(tenant.LicenseKey);
+        if (svc.IsBoundToAnotherMachine(tenant.LicenseKey))
+            return SubscriptionResult.Block(
+                "LICENSE_WRONG_MACHINE",
+                $"This license key is registered to a different computer. This computer's code is " +
+                $"{svc.ThisMachineCode} — send it to Softaxis support for a key for this machine.");
+
+        var payload = svc.ValidateForThisMachine(tenant.LicenseKey);
         if (payload is null)
             return SubscriptionResult.Block(
                 "LICENSE_EXPIRED",

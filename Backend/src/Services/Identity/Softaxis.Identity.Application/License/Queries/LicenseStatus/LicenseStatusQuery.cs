@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.License.Dtos;
 using Softaxis.Identity.Domain.Enums;
 using Softaxis.Identity.Domain.Repositories;
@@ -13,7 +14,7 @@ namespace Softaxis.Identity.Application.License.Queries.LicenseStatus;
 /// </summary>
 public sealed record LicenseStatusQuery : IQuery<LicenseStatusDto>;
 
-public sealed class LicenseStatusQueryHandler(ITenantRepository tenantRepo)
+public sealed class LicenseStatusQueryHandler(ITenantRepository tenantRepo, ILicenseService licenseService)
     : IQueryHandler<LicenseStatusQuery, LicenseStatusDto>
 {
     public async Task<Result<LicenseStatusDto>> Handle(LicenseStatusQuery _, CancellationToken ct)
@@ -27,7 +28,10 @@ public sealed class LicenseStatusQueryHandler(ITenantRepository tenantRepo)
 
         if (tenant is null)
             return Result.Success(new LicenseStatusDto(
-                IsOnPremises: false, Licensed: false, ExpiresAt: null, DaysLeft: null, Expired: false));
+                IsOnPremises: false, Licensed: false, ExpiresAt: null, DaysLeft: null, Expired: false,
+                // A fresh on-prem box has no tenant yet but still needs its code to get a key;
+                // the cloud keeps its own code to itself.
+                MachineCode: licenseService.IsOnPremisesInstall ? licenseService.ThisMachineCode : null));
 
         var expiry   = tenant.LicenseExpiresAt;
         var licensed = !string.IsNullOrWhiteSpace(tenant.LicenseKey) && expiry.HasValue;
@@ -38,6 +42,10 @@ public sealed class LicenseStatusQueryHandler(ITenantRepository tenantRepo)
             Licensed:     licensed,
             ExpiresAt:    expiry,
             DaysLeft:     expiry is { } e ? (int)Math.Max(0, Math.Ceiling((e - DateTime.UtcNow).TotalDays)) : null,
-            Expired:      expired));
+            Expired:      expired,
+            // Only an on-premises server publishes its code. A cloud database can still hold an
+            // OnPremises tenant row (issued for a customer's box), which must not make the cloud
+            // server reveal its own ID.
+            MachineCode:  licenseService.IsOnPremisesInstall ? licenseService.ThisMachineCode : null));
     }
 }

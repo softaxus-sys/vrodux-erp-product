@@ -19,6 +19,8 @@ export interface LicenseStatus {
   expiresAt: string | null;
   daysLeft: number | null;
   expired: boolean;
+  /** This computer's code — sent to Softaxis to get a key bound to this machine. */
+  machineCode?: string | null;
 }
 
 export interface LicenseActivation {
