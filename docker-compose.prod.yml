@@ -191,6 +191,12 @@ services:
       Meta__AppSecret: "${META_APP_SECRET:-}"
       Meta__VerifyToken: "${META_VERIFY_TOKEN:-vrodux-meta-verify}"
       Meta__GraphVersion: "${META_GRAPH_VERSION:-v21.0}"
+      # ── SEO AI Agent — Google Search Console + Analytics OAuth ──────────
+      # One app, one consent screen covering both scopes (see GoogleOptions.Scopes). Without
+      # these, GoogleOAuthClient.BuildLoginUrl sends an empty client_id and Google rejects the
+      # connect attempt outright for both Search Console and Analytics.
+      Google__ClientId: "${GOOGLE_CLIENT_ID:-}"
+      Google__ClientSecret: "${GOOGLE_CLIENT_SECRET:-}"
 
       # ── Billing / Subscriptions (Vrodux's OWN Stripe + PayPal accounts) ──────
       # Platform credentials, not per-tenant. Set them in /opt/vrodux/shared/.env;
