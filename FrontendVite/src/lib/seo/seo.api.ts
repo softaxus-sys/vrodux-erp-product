@@ -22,6 +22,8 @@ export interface SiteDto {
   status: SiteStatus;
   googleConnected: boolean;
   createdAt: string;
+  selectedGscProperty: string | null;
+  selectedGa4Property: string | null;
 }
 
 export interface CreateSiteRequest {

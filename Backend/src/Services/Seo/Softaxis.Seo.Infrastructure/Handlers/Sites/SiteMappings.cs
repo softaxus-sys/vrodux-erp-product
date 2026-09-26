@@ -5,7 +5,7 @@ namespace Softaxis.Seo.Infrastructure.Handlers.Sites;
 
 internal static class SiteMappings
 {
-    public static SiteDto ToDto(SeoSite s, bool googleConnected) => new(
+    public static SiteDto ToDto(SeoSite s, bool googleConnected, string? selectedGscProperty = null, string? selectedGa4Property = null) => new(
         Id:                 s.Id,
         Domain:             s.Domain,
         DisplayName:        s.DisplayName,
@@ -18,5 +18,7 @@ internal static class SiteMappings
         NextScanAt:         s.NextScanAt,
         Status:             s.Status,
         GoogleConnected:    googleConnected,
-        CreatedAt:          s.CreatedAt);
+        CreatedAt:          s.CreatedAt,
+        SelectedGscProperty: selectedGscProperty,
+        SelectedGa4Property: selectedGa4Property);
 }

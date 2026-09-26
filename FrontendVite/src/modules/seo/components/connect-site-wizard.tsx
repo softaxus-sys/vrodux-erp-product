@@ -85,6 +85,9 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
 
   const handleConnectGoogle = async () => {
     if (!activeSiteId) return;
+    // Tells the page-level OAuth-return handler to resume this wizard (not the drawer) once
+    // Google redirects back — see seo-sites-view.tsx.
+    sessionStorage.setItem("seo:oauthReturnTo", "wizard");
     const { url } = await startOAuth.mutateAsync(activeSiteId);
     window.location.href = url;
   };

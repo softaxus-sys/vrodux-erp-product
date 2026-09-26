@@ -9,6 +9,7 @@ import { cn, formatDate } from "@/lib/utils";
 import {
   useSeoSite, useSeoAudits, useSeoFixes, useRunScanNow,
   useApproveFix, useRejectFix, useRotateSnippetKey, useVerifySiteNow,
+  useStartGoogleOAuth, useGoogleProperties, useSelectGoogleProperties,
 } from "@/hooks/seo/use-seo";
 import {
   proposedValue, SEVERITY_META, FIX_STATUS_META, CHANGE_TYPE_LABELS,
@@ -17,16 +18,16 @@ import {
 import { ContentTab } from "./content-tab";
 import { useAuthStore } from "@/store/auth.store";
 
-type Tab = "fixes" | "history" | "content";
+type Tab = "fixes" | "google" | "history" | "content";
 
-export function SiteDetailDrawer({ siteId, onClose }: { siteId: string | null; onClose: () => void }) {
-  const [tab, setTab] = React.useState<Tab>("fixes");
+export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: string | null; onClose: () => void; initialTab?: Tab }) {
+  const [tab, setTab] = React.useState<Tab>(initialTab ?? "fixes");
   const { data: site } = useSeoSite(siteId);
   const runScan = useRunScanNow();
   const { hasRawPermission } = useAuthStore();
   const canSeeContent = hasRawPermission("seo.content.view");
 
-  React.useEffect(() => { if (siteId) setTab("fixes"); }, [siteId]);
+  React.useEffect(() => { if (siteId) setTab(initialTab ?? "fixes"); }, [siteId, initialTab]);
 
   return (
     <AnimatePresence>
@@ -57,17 +58,18 @@ export function SiteDetailDrawer({ siteId, onClose }: { siteId: string | null; o
             <StatusStrip site={site} />
 
             <div className="flex items-center gap-1 px-6 pt-3 border-b border-border shrink-0">
-              {(["fixes", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
+              {(["fixes", "google", ...(canSeeContent ? ["content"] as Tab[] : []), "history"] as Tab[]).map(tKey => (
                 <button key={tKey} onClick={() => setTab(tKey)}
                   className={cn("px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors",
                     tab === tKey ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                  {tKey === "fixes" ? "Fixes to review" : tKey === "content" ? "Content" : "Audit history"}
+                  {tKey === "fixes" ? "Fixes to review" : tKey === "google" ? "Google" : tKey === "content" ? "Content" : "Audit history"}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
               {tab === "fixes" && <FixesReviewList siteId={site.id} />}
+              {tab === "google" && <GooglePanel site={site} />}
               {tab === "content" && <ContentTab siteId={site.id} domain={site.domain} />}
               {tab === "history" && <AuditHistoryList siteId={site.id} />}
             </div>
@@ -174,6 +176,128 @@ function SnippetPreview({ code }: { code: string }) {
         title="Copy">
         {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
       </button>
+    </div>
+  );
+}
+
+/** Standalone Google connect/manage panel — reachable any time from the drawer, not just during
+ * initial site setup (the wizard's step 3 only ever ran once, so there was previously no way back
+ * in to connect Google, or to change the selected GSC/GA4 property, after closing the wizard). */
+function GooglePanel({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>["data"]> }) {
+  const { hasRawPermission } = useAuthStore();
+  const canEdit = hasRawPermission("seo.sites.edit");
+  const startOAuth = useStartGoogleOAuth();
+  const { data: properties, isLoading: loadingProps } = useGoogleProperties(site.id, site.googleConnected);
+  const selectProperties = useSelectGoogleProperties();
+
+  const [gscPropertyId, setGscPropertyId] = React.useState("");
+  const [ga4PropertyId, setGa4PropertyId] = React.useState("");
+
+  // Pre-select whatever's already saved once the live property list loads, so re-opening this
+  // panel shows the current connection rather than a blank picker every time.
+  React.useEffect(() => {
+    if (!properties) return;
+    if (site.selectedGscProperty) {
+      const match = properties.gscProperties.find(p => p.name === site.selectedGscProperty);
+      if (match) setGscPropertyId(match.externalId);
+    }
+    if (site.selectedGa4Property) {
+      const match = properties.ga4Properties.find(p => p.name === site.selectedGa4Property);
+      if (match) setGa4PropertyId(match.externalId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [properties]);
+
+  const handleConnect = async () => {
+    // Tells the page-level OAuth-return handler to reopen this drawer (not the setup wizard) once
+    // Google redirects back — see seo-sites-view.tsx.
+    sessionStorage.setItem("seo:oauthReturnTo", "drawer");
+    const { url } = await startOAuth.mutateAsync(site.id);
+    window.location.href = url;
+  };
+
+  const handleSave = () => {
+    const gsc = properties?.gscProperties.find(p => p.externalId === gscPropertyId);
+    const ga4 = properties?.ga4Properties.find(p => p.externalId === ga4PropertyId);
+    selectProperties.mutate({ siteId: site.id, body: {
+      gscPropertyId: gsc?.externalId ?? null, gscPropertyName: gsc?.name ?? null,
+      ga4PropertyId: ga4?.externalId ?? null, ga4PropertyName: ga4?.name ?? null,
+    } });
+  };
+
+  if (!site.googleConnected) {
+    return (
+      <div className="rounded-xl border border-border p-6 flex flex-col items-center gap-3 text-center">
+        <Settings2 className="h-8 w-8 text-muted-foreground" />
+        <div>
+          <p className="text-sm font-medium text-foreground">Google not connected</p>
+          <p className="text-xs text-muted-foreground mt-0.5 max-w-sm">
+            Connect Search Console and Analytics so the agent can see which pages Google actually
+            indexes and how they perform. One click covers both.
+          </p>
+        </div>
+        {canEdit ? (
+          <Button onClick={handleConnect} disabled={startOAuth.isPending} className="gap-1.5">
+            {startOAuth.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+            Connect Google
+          </Button>
+        ) : (
+          <p className="text-xs text-muted-foreground">You don't have permission to connect Google for this site.</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm text-success">
+          <Check className="h-4 w-4" /> Google account connected
+        </div>
+        {canEdit && (
+          <button onClick={handleConnect} disabled={startOAuth.isPending}
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-60">
+            {startOAuth.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Reconnect
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Search Console property</label>
+        <select value={gscPropertyId} onChange={e => setGscPropertyId(e.target.value)} disabled={!canEdit}
+          className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60">
+          <option value="">{loadingProps ? "Loading…" : "Select a property…"}</option>
+          {properties?.gscProperties.map(p => <option key={p.externalId} value={p.externalId}>{p.name}</option>)}
+        </select>
+        {site.selectedGscProperty && !gscPropertyId && (
+          <p className="text-xs text-muted-foreground">Currently connected: {site.selectedGscProperty}</p>
+        )}
+        {properties && properties.gscProperties.length === 0 && (
+          <p className="text-xs text-muted-foreground">No Search Console properties found on this Google account.</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Analytics (GA4) property</label>
+        <select value={ga4PropertyId} onChange={e => setGa4PropertyId(e.target.value)} disabled={!canEdit}
+          className="w-full h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-60">
+          <option value="">{loadingProps ? "Loading…" : "Select a property…"}</option>
+          {properties?.ga4Properties.map(p => <option key={p.externalId} value={p.externalId}>{p.name}</option>)}
+        </select>
+        {site.selectedGa4Property && !ga4PropertyId && (
+          <p className="text-xs text-muted-foreground">Currently connected: {site.selectedGa4Property}</p>
+        )}
+        {properties && properties.ga4Properties.length === 0 && (
+          <p className="text-xs text-muted-foreground">No Analytics properties found on this Google account.</p>
+        )}
+      </div>
+
+      {canEdit && (
+        <Button size="sm" className="gap-1.5" disabled={selectProperties.isPending} onClick={handleSave}>
+          {selectProperties.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Save properties
+        </Button>
+      )}
     </div>
   );
 }

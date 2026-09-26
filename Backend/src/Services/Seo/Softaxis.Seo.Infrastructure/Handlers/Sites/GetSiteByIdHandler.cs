@@ -3,6 +3,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Seo.Application.Sites.Dtos;
 using Softaxis.Seo.Application.Sites.Queries;
+using Softaxis.Seo.Domain.Entities;
 using Softaxis.Seo.Infrastructure.Persistence;
 
 namespace Softaxis.Seo.Infrastructure.Handlers.Sites;
@@ -14,9 +15,18 @@ internal sealed class GetSiteByIdHandler(SeoDbContext db) : IQueryHandler<GetSit
         var site = await db.Sites.AsNoTracking().FirstOrDefaultAsync(s => s.Id == query.Id, ct);
         if (site is null) return Result.Failure<SiteDto>(Error.NotFoundById("SeoSite", query.Id));
 
-        var connected = await db.GoogleIntegrations.AsNoTracking()
-            .AnyAsync(g => g.SiteId == site.Id && g.Status == "connected", ct);
+        var integration = await db.GoogleIntegrations.AsNoTracking()
+            .FirstOrDefaultAsync(g => g.SiteId == site.Id && g.Status == "connected", ct);
 
-        return Result.Success(SiteMappings.ToDto(site, connected));
+        string? gsc = null, ga4 = null;
+        if (integration is not null)
+        {
+            var resources = await db.GoogleResources.AsNoTracking()
+                .Where(r => r.IntegrationId == integration.Id).ToListAsync(ct);
+            gsc = resources.FirstOrDefault(r => r.ResourceType == SeoGoogleResourceTypes.GscProperty)?.Name;
+            ga4 = resources.FirstOrDefault(r => r.ResourceType == SeoGoogleResourceTypes.Ga4Property)?.Name;
+        }
+
+        return Result.Success(SiteMappings.ToDto(site, integration is not null, gsc, ga4));
     }
 }

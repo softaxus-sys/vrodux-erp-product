@@ -20,17 +20,27 @@ export function SeoSitesView() {
   const [wizardOpen, setWizardOpen] = React.useState(false);
   const [resumeSiteId, setResumeSiteId] = React.useState<string | null>(null);
   const [detailSiteId, setDetailSiteId] = React.useState<string | null>(null);
+  const [detailInitialTab, setDetailInitialTab] = React.useState<"fixes" | "google" | undefined>(undefined);
   const [pendingDelete, setPendingDelete] = React.useState<SiteDto | null>(null);
 
-  // Google OAuth returns here as a full-page redirect (?provider=google&status=&site=) —
-  // resume the wizard at step 3 so the property pickers show right away.
+  // Google OAuth returns here as a full-page redirect (?provider=google&status=&site=). Where it
+  // reopens depends on where the user started the connect flow — the setup wizard (first-time
+  // onboarding, still has steps left after this) or the site's detail drawer (connecting/managing
+  // Google any time after the site already exists — see GooglePanel in site-detail-drawer.tsx).
   React.useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("provider") !== "google") return;
     const status = p.get("status");
     const site = p.get("site");
-    if (status === "connected" && site) { toast.success("Google connected."); setResumeSiteId(site); setWizardOpen(true); }
-    else if (status === "error") toast.error("Google connection failed — please try again.");
+    const returnTo = sessionStorage.getItem("seo:oauthReturnTo") ?? "wizard";
+    sessionStorage.removeItem("seo:oauthReturnTo");
+    if (status === "connected" && site) {
+      toast.success("Google connected.");
+      if (returnTo === "drawer") { setDetailInitialTab("google"); setDetailSiteId(site); }
+      else { setResumeSiteId(site); setWizardOpen(true); }
+    } else if (status === "error") {
+      toast.error("Google connection failed — please try again.");
+    }
     window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
@@ -86,14 +96,14 @@ export function SeoSitesView() {
         <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
           {sites.map(site => (
             <SiteRow key={site.id} site={site} canDelete={canDelete}
-              onOpen={() => setDetailSiteId(site.id)}
+              onOpen={() => { setDetailInitialTab(undefined); setDetailSiteId(site.id); }}
               onDelete={() => setPendingDelete(site)} />
           ))}
         </div>
       )}
 
       <ConnectSiteWizard open={wizardOpen} onClose={closeWizard} siteId={resumeSiteId} initialStep={resumeSiteId ? 3 : 1} />
-      <SiteDetailDrawer siteId={detailSiteId} onClose={() => setDetailSiteId(null)} />
+      <SiteDetailDrawer siteId={detailSiteId} onClose={() => { setDetailSiteId(null); setDetailInitialTab(undefined); }} initialTab={detailInitialTab} />
 
       {pendingDelete && (
         <ConfirmDeleteModal
