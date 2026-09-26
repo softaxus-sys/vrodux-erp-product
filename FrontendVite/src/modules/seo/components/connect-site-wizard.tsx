@@ -40,7 +40,8 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
   const [gscPropertyId, setGscPropertyId] = React.useState("");
   const [ga4PropertyId, setGa4PropertyId] = React.useState("");
 
-  const { data: site, refetch: refetchSite } = useSeoSite(activeSiteId);
+  const { data: site, refetch: refetchSite, isFetching: checkingVerification } = useSeoSite(activeSiteId);
+  const [lastCheckedAt, setLastCheckedAt] = React.useState<Date | null>(null);
   const create = useCreateSeoSite();
   const update = useUpdateSeoSite();
   const startOAuth = useStartGoogleOAuth();
@@ -186,7 +187,8 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
                   </div>
                   <PlatformInstructions platform={platform} />
 
-                  <VerificationStatus verified={site.verificationStatus === "verified"} onRefresh={() => refetchSite()} />
+                  <VerificationStatus verified={site.verificationStatus === "verified"} checking={checkingVerification}
+                    lastCheckedAt={lastCheckedAt} onRefresh={async () => { await refetchSite(); setLastCheckedAt(new Date()); }} />
                 </>
               )}
 
@@ -333,7 +335,9 @@ function PlatformInstructions({ platform }: { platform: Platform }) {
   return <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3">{text[platform]}</p>;
 }
 
-function VerificationStatus({ verified, onRefresh }: { verified: boolean; onRefresh: () => void }) {
+function VerificationStatus({ verified, checking, lastCheckedAt, onRefresh }: {
+  verified: boolean; checking: boolean; lastCheckedAt: Date | null; onRefresh: () => void;
+}) {
   if (verified) {
     return (
       <div className="flex items-center gap-2 text-sm text-success rounded-lg border border-success/30 bg-success/5 px-3 py-2.5">
@@ -342,9 +346,24 @@ function VerificationStatus({ verified, onRefresh }: { verified: boolean; onRefr
     );
   }
   return (
-    <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground rounded-lg border border-border bg-muted/20 px-3 py-2.5">
-      <span className="flex items-center gap-2"><Loader2 className="h-3.5 w-3.5 animate-spin" />Waiting for the snippet to load on your site…</span>
-      <button onClick={onRefresh} className="p-1 rounded hover:bg-muted/50" title="Check now"><RefreshCw className="h-3.5 w-3.5" /></button>
+    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 space-y-1.5">
+      <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+        <span className="flex items-center gap-2">
+          {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          {checking ? "Checking…" : "Not verified yet"}
+        </span>
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" disabled={checking} onClick={onRefresh}>
+          {checking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Check now
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {lastCheckedAt && !checking && `Still not verified — last checked ${lastCheckedAt.toLocaleTimeString()}. `}
+        This also auto-checks every few seconds while this step is open. If it stays unverified, open your
+        site's browser console (F12) — a warning will name the likely cause (a Content-Security-Policy blocking
+        the request is the most common one). You can leave this wizard and come back any time from the site's
+        detail panel, which has the same "Recheck" button.
+      </p>
     </div>
   );
 }
