@@ -23,12 +23,15 @@ public sealed class SeoAudit
     public int       FixesProposed { get; private set; }
     public string?   Error         { get; private set; }
 
-    public void Complete(int issuesFound, int fixesProposed)
+    /// <param name="note">Non-fatal — e.g. "AI not configured, fixes were not proposed." The scan
+    /// still completed and its issues still stand; this is NOT a failure (see <see cref="Fail"/>).</param>
+    public void Complete(int issuesFound, int fixesProposed, string? note = null)
     {
         Status = "completed";
         CompletedAt = DateTime.UtcNow;
         IssuesFound = issuesFound;
         FixesProposed = fixesProposed;
+        Error = note is { Length: > 1000 } ? note[..1000] : note;
     }
 
     public void Fail(string error)

@@ -49,9 +49,9 @@ public sealed class SiteScanRunner(SeoDbContext db, SiteCrawler crawler, ISeoAiA
                 return new IssueForAnalysis(i.Id, i.Category, i.Title, i.Description, i.PageUrl, page?.Title, page?.MetaDescription);
             }).ToList();
 
-            var proposals = await analyzer.ProposeFixesAsync(analysisInput, ct);
+            var analysis = await analyzer.ProposeFixesAsync(analysisInput, ct);
             var fixes = new List<SeoFix>();
-            foreach (var p in proposals)
+            foreach (var p in analysis.Fixes)
             {
                 var issue = issues.FirstOrDefault(i => i.Id == p.IssueId);
                 if (issue is null) continue; // AI referenced an id we never sent it — ignore, don't trust
@@ -60,9 +60,13 @@ public sealed class SiteScanRunner(SeoDbContext db, SiteCrawler crawler, ISeoAiA
             }
             db.Fixes.AddRange(fixes);
 
+            if (analysis.SkippedReason is not null)
+                logger.LogWarning("SEO scan for site {Site} found {Count} issues but AI fix analysis did not run: {Reason}",
+                    site.Id, issues.Count, analysis.SkippedReason);
+
             site.RecordScanCompleted(DateTime.UtcNow);
             site.ScheduleNextScan(ScanFrequencies.NextRun(site.ScanFrequency, DateTime.UtcNow));
-            audit.Complete(issues.Count, fixes.Count);
+            audit.Complete(issues.Count, fixes.Count, analysis.SkippedReason);
             await db.SaveChangesAsync(ct);
 
             return new ScanResult(audit.Id, issues.Count, fixes.Count);

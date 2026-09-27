@@ -34,9 +34,9 @@ public sealed class SeoAiAnalyzer(IAiCompletionService completion) : ISeoAiAnaly
         business (address, hours, offerings) that were not given to you.
         """;
 
-    public async Task<IReadOnlyList<ProposedFix>> ProposeFixesAsync(IReadOnlyList<IssueForAnalysis> issues, CancellationToken ct)
+    public async Task<AiAnalysisResult> ProposeFixesAsync(IReadOnlyList<IssueForAnalysis> issues, CancellationToken ct)
     {
-        if (issues.Count == 0) return [];
+        if (issues.Count == 0) return new AiAnalysisResult([], null);
 
         var userPrompt = JsonSerializer.Serialize(issues.Select(i => new
         {
@@ -51,9 +51,15 @@ public sealed class SeoAiAnalyzer(IAiCompletionService completion) : ISeoAiAnaly
 
         string raw;
         try { raw = await completion.CompleteAsync(SystemPrompt, userPrompt, ct); }
-        catch { return []; } // AI not configured, or the call failed — the scan still recorded the issues themselves
+        catch (Exception ex)
+        {
+            // AI not configured, or the call failed — the scan still recorded the issues themselves,
+            // but this reason (e.g. "The AI assistant is not enabled for this workspace...") must
+            // reach the audit, or "0 fixes proposed" reads identically to "AI found nothing to fix".
+            return new AiAnalysisResult([], ex.Message);
+        }
 
-        return Parse(raw);
+        return new AiAnalysisResult(Parse(raw), null);
     }
 
     private static List<ProposedFix> Parse(string raw)

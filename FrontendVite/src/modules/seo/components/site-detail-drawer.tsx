@@ -85,6 +85,7 @@ function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>
   const verifyNow = useVerifySiteNow();
   const [lastCheckedAt, setLastCheckedAt] = React.useState<Date | null>(null);
   const [showTag, setShowTag] = React.useState(false);
+  const [confirmRotate, setConfirmRotate] = React.useState(false);
 
   // Self-updates while unverified — leaving this open is enough, no click required. Actively
   // re-checks (our server fetches the page itself) rather than just re-reading cached status, so
@@ -135,7 +136,7 @@ function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>
           <button onClick={() => setShowTag(v => !v)} className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
             Show snippet
           </button>
-          <button onClick={() => rotate.mutate(site.id)}
+          <button onClick={() => setConfirmRotate(true)}
             title="Generates a new key — the tag already on your site will stop working until you replace it"
             className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1">
             <RefreshCw className="h-3 w-3" />Rotate key
@@ -157,6 +158,25 @@ function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>
       {showTag && (
         <div className="px-6 pb-3">
           <SnippetPreview code={snippetTag} />
+        </div>
+      )}
+
+      {confirmRotate && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl max-w-sm w-full p-6 space-y-4">
+            <h3 className="text-base font-bold text-foreground">Rotate the snippet key?</h3>
+            <p className="text-sm text-muted-foreground">
+              The tag currently installed on <strong className="text-foreground">{site.domain}</strong> will
+              stop working immediately — the site will go unverified until you replace it with the new tag.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmRotate(false)} disabled={rotate.isPending}>Cancel</Button>
+              <Button variant="destructive" disabled={rotate.isPending} className="gap-1.5"
+                onClick={() => rotate.mutate(site.id, { onSuccess: () => setConfirmRotate(false) })}>
+                {rotate.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}Rotate key
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -412,7 +432,14 @@ function AuditHistoryList({ siteId }: { siteId: string }) {
         <div key={a.id} className="flex items-center justify-between rounded-lg border border-border px-3.5 py-2.5 text-sm">
           <div>
             <p className="font-medium text-foreground">{formatDate(a.startedAt)}</p>
-            {a.error && <p className="text-xs text-destructive mt-0.5">{a.error}</p>}
+            {/* A "completed" audit can still carry a note (e.g. AI not configured, so no fixes were
+                proposed even though issues were found) — that's informational, not a failure, so it
+                gets amber, not the destructive red reserved for a genuinely failed scan. */}
+            {a.error && (
+              <p className={cn("text-xs mt-0.5", a.status === "failed" ? "text-destructive" : "text-amber-600")}>
+                {a.error}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span>{a.issuesFound} issue{a.issuesFound === 1 ? "" : "s"}</span>
