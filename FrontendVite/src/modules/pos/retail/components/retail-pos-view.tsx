@@ -1,4 +1,5 @@
 import * as React from "react";
+import { usePosSettings } from "@/hooks/pos/use-pos-settings";
 import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
@@ -86,7 +87,9 @@ export function RetailPOSView() {
   const { sessionId, shiftDuration, canCloseShift, openClosePanel } = useShift();
   // Offline mode: stock isn't live, so zero-stock items stay sellable (flagged at sync).
   const offline = usePosOffline();
-  const allowOversell = !!offline;
+  // Offline sales can't be refused for stock; online, the store's POS setting decides.
+  const posSettings   = usePosSettings();
+  const allowOversell = !!offline || !!posSettings.data?.allowOutOfStockSales;
 
   // ── POS permission flags ──────────────────────────────────────────────────────
   const canAddProduct   = hasRawPermission("pos.products.create");
@@ -689,7 +692,9 @@ export function RetailPOSView() {
             tendered={parseFloat(tenderedAmount) || 0}
             txnNumber={completedTxnNumber}
             sessionId={sessionId ?? undefined}
-            onClose={() => setShowReceipt(false)}
+            // Closing the receipt in ANY way (X, Esc, outside click) finishes the sale: the paid
+            // items must leave the cart - they are already saved and listed in History.
+            onClose={handleNewSale}
             onNewSale={handleNewSale}
           />
         )}

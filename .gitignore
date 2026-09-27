@@ -45,3 +45,7 @@ Frontend/
 
 # TypeScript incremental build cache — regenerated on every build
 *.tsbuildinfo
+
+# On-prem installer build artefacts
+Deploy/installer/Output/
+Deploy/installer/payload/

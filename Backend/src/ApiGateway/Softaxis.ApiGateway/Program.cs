@@ -50,7 +50,18 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
-    var builder = WebApplication.CreateBuilder(args);
+    // A Windows service starts in C:\Windows\System32. WebApplication.CreateBuilder reads
+    // appsettings.json from the content root *immediately*, so UseWindowsService() below is too
+    // late to fix it — the service would run with none of the site's settings (no connection
+    // strings, no licence) and fail at the first migration. Point the content root at the exe's
+    // own folder up front when running as a service; a console run keeps the default.
+    var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+    {
+        Args            = args,
+        ContentRootPath = Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService()
+                              ? AppContext.BaseDirectory
+                              : null,
+    });
 
     // ── Windows Service support (no-op when run as console) ──────────────────
     builder.Host.UseWindowsService();

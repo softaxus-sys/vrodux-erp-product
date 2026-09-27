@@ -7,6 +7,7 @@
  */
 
 import * as React from "react";
+import { usePosSettings } from "@/hooks/pos/use-pos-settings";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import { History, ArrowLeft, LogOut, Receipt, Loader2, ShoppingCart } from "lucide-react";
@@ -103,7 +104,9 @@ export function CashierPOSView() {
   const { data: categoriesData } = useInventoryCategories({ isActive: true });
   // Offline: the category API is unreachable, so take categories from the local catalogue.
   const offline = usePosOffline();
-  const allowOversell = !!offline;
+  // Offline sales can't be refused for stock; online, the store's POS setting decides.
+  const posSettings   = usePosSettings();
+  const allowOversell = !!offline || !!posSettings.data?.allowOutOfStockSales;
   const { data: offlineCategories } = useOfflineCategories();
   const categoryList = React.useMemo(
     () => offline

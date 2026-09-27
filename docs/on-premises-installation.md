@@ -643,18 +643,49 @@ the first time cloud sync is switched on.
 
 ## 14. Licence signing — cloud only
 
-Licence keys are RSA-signed. **Only the public key ships** in the on-premises build — enough to
-verify a key, useless for making one. The private key lives only on the cloud server, in
-`/opt/vrodux/shared/.env`:
+Licence keys are RSA-signed with a key pair:
 
-```
-LICENSE_RSA_PRIVATE_KEY_PEM=-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----END RSA PRIVATE KEY-----
-```
+| | Private key | Public key |
+|---|---|---|
+| Does | **Creates** licence keys | **Verifies** licence keys |
+| Lives | **Only on the cloud server**, `/opt/vrodux/shared/.env` → `LICENSE_RSA_PRIVATE_KEY_PEM` | Compiled into the software (`LicenseService.cs` → `EmbeddedPublicKeyPem`) — every install has it |
+| Set up | Once, ever | Ships with every build |
 
-(one line, literal `\n` for the line breaks; mapped into the container as
-`License__RsaPrivateKeyPem`). Without it the cloud still validates keys, but **Generate license is
-refused**. Never put it in a customer's `appsettings.json`.
+**Never put the private key on a customer's server.** Anyone holding it can mint a licence for any
+customer, any expiry, any modules. Customers only ever receive licence keys.
 
-> ⚠️ Builds before this change embedded the private key in the exe, and it remains in git history.
-> Treat that key pair as exposed: plan a rotation (new pair → new public key in `LicenseService.cs`
-> → re-issue every site's key, bound to its Device ID).
+### The key pair in use
+The original pair was embedded in the exe (private half included) and is in git history, so it was
+replaced. The current pair was generated on a development machine with OpenSSL (RSA-2048); the
+private half was uploaded to the server and the public half compiled in. **Every licence signed
+with the old pair is rejected by builds carrying the new public key** — each site needs the new
+build **and** a new key, installed together.
+
+### Setting it up / rotating it again
+1. Generate (PowerShell — OpenSSL ships with Git for Windows):
+   ```
+   & "C:\Program Files\Git\usr\bin\openssl.exe" genrsa -out license-private.pem 2048
+   & "C:\Program Files\Git\usr\bin\openssl.exe" rsa -in license-private.pem -pubout -out license-public.pem
+   ```
+2. **Back up `license-private.pem` offline** (password manager / encrypted USB). Lose it and no
+   licence can be issued or renewed until you rotate and re-key every site.
+3. Upload and register it on the server:
+   ```
+   scp license-private.pem root@<server>:/opt/vrodux/shared/
+   chmod 600 /opt/vrodux/shared/license-private.pem
+   echo "LICENSE_RSA_PRIVATE_KEY_PEM=$(awk 'NF {printf "%s\\n", $0}' /opt/vrodux/shared/license-private.pem | sed 's/\\n$//')" >> /opt/vrodux/shared/.env
+   ```
+4. Put `license-public.pem` into `EmbeddedPublicKeyPem` in `LicenseService.cs` — copied exactly;
+   base64 must contain **no spaces** (editors like to turn a `+` into ` + `).
+5. Deploy, then load the env into the API (a plain `docker restart` does **not** re-read `.env`):
+   ```
+   cd /opt/vrodux/current && docker compose -f docker-compose.prod.yml --env-file /opt/vrodux/shared/.env up -d --no-deps --force-recreate vrodux-api
+   ```
+6. Verify without printing the secret:
+   ```
+   docker exec vrodux-api sh -c 'v="$License__RsaPrivateKeyPem"; [ -n "$v" ] && echo "set, length ${#v}" || echo MISSING'
+   ```
+   Then Super Admin → Generate license. "License signing is not configured on this server" means
+   the variable did not reach the container.
+7. Delete the local copy of the private key.
+8. Re-issue every site's key (bound to its Device ID) and install it with the new build.

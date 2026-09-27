@@ -7,7 +7,18 @@ using Softaxis.POS.Domain.Repositories;
 
 namespace Softaxis.POS.Application.Settings;
 
-public sealed record PosSettingsDto(bool OfflineModeEnabled);
+public sealed record PosSettingsDto(
+    bool    OfflineModeEnabled,
+    bool    AllowOutOfStockSales = false,
+    string? PrinterMode = null,
+    string? PrinterName = null,
+    string? PrinterIp   = null,
+    int?    PrinterPort = null)
+{
+    public static PosSettingsDto From(PosSettings? s) => s is null
+        ? new PosSettingsDto(false)
+        : new PosSettingsDto(s.OfflineModeEnabled, s.AllowOutOfStockSales, s.PrinterMode, s.PrinterName, s.PrinterIp, s.PrinterPort);
+}
 
 public sealed record OpenShiftBlockerDto(Guid SessionId, string RegisterId, Guid CashierId, DateTime OpenedAt);
 
@@ -35,6 +46,30 @@ public sealed record GetSwitchReadinessQuery : IQuery<SwitchReadinessDto>;
 /// lost or broken and will never sync. Never bypasses open shifts (those can always be closed).
 /// </param>
 public sealed record UpdatePosSettingsCommand(bool OfflineModeEnabled, bool Force = false) : ICommand<PosSettingsDto>;
+
+/// <summary>
+/// Sell tracked items with no recorded stock (stock goes negative). Separate from the offline
+/// switch on purpose: that one is guarded by "everything must be synced" rules this has no need for.
+/// </summary>
+public sealed record SetAllowOutOfStockSalesCommand(bool Allowed) : ICommand<PosSettingsDto>;
+
+/// <summary>Receipt printer chosen in Settings -> Receipt Printer.</summary>
+public sealed record SetPrinterSettingsCommand(string Mode, string? PrinterName, string? PrinterIp, int? PrinterPort)
+    : ICommand<PosSettingsDto>;
+
+public sealed class SetPrinterSettingsValidator : AbstractValidator<SetPrinterSettingsCommand>
+{
+    public SetPrinterSettingsValidator()
+    {
+        RuleFor(x => x.Mode).Must(m => m is "windows" or "network")
+            .WithMessage("Choose USB / installed printer or network printer.");
+        RuleFor(x => x.PrinterName).NotEmpty().When(x => x.Mode == "windows")
+            .WithMessage("Choose the printer.");
+        RuleFor(x => x.PrinterIp).NotEmpty().When(x => x.Mode == "network")
+            .WithMessage("Enter the printer's IP address.");
+        RuleFor(x => x.PrinterPort).InclusiveBetween(1, 65535).When(x => x.PrinterPort.HasValue);
+    }
+}
 
 /// <summary>Sent by an offline-mode till whenever its local queue changes and it has a connection.</summary>
 public sealed record ReportTillStatusCommand(
@@ -80,7 +115,7 @@ public sealed class GetPosSettingsQueryHandler(IPosSettingsRepository repo)
         // No row yet means the tenant never opted in — report the default rather than creating
         // one on a read (a GET must not write, and there is nothing to store until they change it).
         var settings = await repo.GetAsync(ct);
-        return Result.Success(new PosSettingsDto(settings?.OfflineModeEnabled ?? false));
+        return Result.Success(PosSettingsDto.From(settings));
     }
 }
 
@@ -113,7 +148,7 @@ public sealed class UpdatePosSettingsCommandHandler(
         var settings = await repo.GetAsync(ct);
         var current  = settings?.OfflineModeEnabled ?? false;
         if (current == cmd.OfflineModeEnabled)
-            return Result.Success(new PosSettingsDto(current));
+            return Result.Success(PosSettingsDto.From(settings));
 
         // ── Everything must be synced before the switch ───────────────────────
         var r = await SwitchReadiness.ComputeAsync(repo, ct);
@@ -149,7 +184,37 @@ public sealed class UpdatePosSettingsCommandHandler(
         settings.UpdatedBy = currentUser.Username;
         await uow.SaveChangesAsync(ct);
 
-        return Result.Success(new PosSettingsDto(settings.OfflineModeEnabled));
+        return Result.Success(PosSettingsDto.From(settings));
+    }
+}
+
+public sealed class SetAllowOutOfStockSalesCommandHandler(
+    IPosSettingsRepository repo,
+    ICurrentUser           currentUser,
+    IUnitOfWork            uow)
+    : ICommandHandler<SetAllowOutOfStockSalesCommand, PosSettingsDto>
+{
+    public async Task<Result<PosSettingsDto>> Handle(SetAllowOutOfStockSalesCommand cmd, CancellationToken ct)
+    {
+        if (!currentUser.HasPermission(UpdatePosSettingsCommandHandler.RequiredPermission))
+            return Result.Failure<PosSettingsDto>(Error.Custom("PosSettings.Forbidden",
+                "Only a POS supervisor or administrator can change POS settings."));
+
+        var settings = await repo.GetAsync(ct);
+        if (settings is null)
+        {
+            settings = PosSettings.CreateDefault();
+            settings.CreatedAt = DateTime.UtcNow;
+            settings.CreatedBy = currentUser.Username ?? "system";
+            repo.Add(settings);
+        }
+
+        settings.SetAllowOutOfStockSales(cmd.Allowed);
+        settings.UpdatedAt = DateTime.UtcNow;
+        settings.UpdatedBy = currentUser.Username;
+        await uow.SaveChangesAsync(ct);
+
+        return Result.Success(PosSettingsDto.From(settings));
     }
 }
 
@@ -179,5 +244,37 @@ public sealed class ReportTillStatusCommandHandler(
 
         return Result.Success(new TillBlockerDto(
             till.DeviceId, till.RegisterId, till.UserName, till.PendingRecords, till.UnsyncedShifts, till.ReportedAt));
+    }
+}
+
+public sealed class SetPrinterSettingsCommandHandler(
+    IPosSettingsRepository repo,
+    ICurrentUser           currentUser,
+    IUnitOfWork            uow)
+    : ICommandHandler<SetPrinterSettingsCommand, PosSettingsDto>
+{
+    public async Task<Result<PosSettingsDto>> Handle(SetPrinterSettingsCommand cmd, CancellationToken ct)
+    {
+        if (!currentUser.HasPermission(UpdatePosSettingsCommandHandler.RequiredPermission))
+            return Result.Failure<PosSettingsDto>(Error.Custom("PosSettings.Forbidden",
+                "Only a POS supervisor or administrator can change the receipt printer."));
+
+        var settings = await repo.GetAsync(ct);
+        if (settings is null)
+        {
+            settings = PosSettings.CreateDefault();
+            settings.CreatedAt = DateTime.UtcNow;
+            settings.CreatedBy = currentUser.Username ?? "system";
+            repo.Add(settings);
+        }
+
+        settings.SetPrinter(cmd.Mode, cmd.Mode == "windows" ? cmd.PrinterName : null,
+            cmd.Mode == "network" ? cmd.PrinterIp : null,
+            cmd.Mode == "network" ? (cmd.PrinterPort ?? 9100) : null);
+        settings.UpdatedAt = DateTime.UtcNow;
+        settings.UpdatedBy = currentUser.Username;
+        await uow.SaveChangesAsync(ct);
+
+        return Result.Success(PosSettingsDto.From(settings));
     }
 }

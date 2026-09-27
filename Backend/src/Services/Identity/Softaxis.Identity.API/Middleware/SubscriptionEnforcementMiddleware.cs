@@ -151,8 +151,19 @@ public sealed class SubscriptionEnforcementMiddleware(RequestDelegate next, IMem
                 "LICENSE_NOT_ISSUED",
                 "No license key has been issued for this installation. Contact Softaxis support to activate your subscription.");
 
-        // ValidateLicenseKey verifies RSA signature AND checks ExpiresAt > UtcNow
-        // Returns null if signature is invalid, tampered, or expired
+        // The machine binding only means something ON the licensed box. This same code also runs on
+        // the cloud for a store's mirror tenant, where the key's machine is by definition not this
+        // one — checking it there would lock the mirror out. The cloud checks signature + expiry only.
+        if (!svc.IsOnPremisesInstall)
+        {
+            var cloudView = svc.ValidateLicenseKey(tenant.LicenseKey);
+            return cloudView is null
+                ? SubscriptionResult.Block(
+                    "LICENSE_EXPIRED",
+                    "This installation's license has expired or is invalid. Generate a new license key for it.")
+                : SubscriptionResult.Allow(cloudView.ExpiresAt, tenant.IsMirror);
+        }
+
         if (svc.IsBoundToAnotherMachine(tenant.LicenseKey))
             return SubscriptionResult.Block(
                 "LICENSE_WRONG_MACHINE",

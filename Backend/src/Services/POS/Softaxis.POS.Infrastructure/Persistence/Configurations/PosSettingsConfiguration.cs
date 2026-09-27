@@ -12,6 +12,10 @@ public sealed class PosSettingsConfiguration : IEntityTypeConfiguration<PosSetti
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Id).ValueGeneratedNever();
         builder.Property(s => s.OfflineModeEnabled).HasDefaultValue(false);
+        builder.Property(s => s.AllowOutOfStockSales).HasDefaultValue(false);
+        builder.Property(s => s.PrinterMode).HasMaxLength(20);
+        builder.Property(s => s.PrinterName).HasMaxLength(256);
+        builder.Property(s => s.PrinterIp).HasMaxLength(100);
     }
 }
 

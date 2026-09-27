@@ -30,6 +30,20 @@ export function useSwitchReadiness() {
   });
 }
 
+export function useSetAllowOutOfStockSales() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (allowed: boolean) => posSettingsApi.setAllowOutOfStockSales(allowed),
+    onSuccess: (data) => {
+      qc.setQueryData(posSettingsKeys.all, data);
+      toast.success(data.allowOutOfStockSales
+        ? "Out-of-stock items can now be sold. Stock goes negative instead of blocking the sale."
+        : "Out-of-stock items are blocked at the till again.");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useUpdatePosSettings() {
   const qc = useQueryClient();
   return useMutation({

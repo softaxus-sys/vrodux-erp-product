@@ -5,6 +5,8 @@ const BASE = `${API}/pos-settings`;
 
 export interface PosSettingsDto {
   offlineModeEnabled: boolean;
+  /** Sell tracked items with no recorded stock - stock goes negative instead of blocking the sale. */
+  allowOutOfStockSales?: boolean;
 }
 
 export interface OpenShiftBlockerDto {
@@ -37,6 +39,8 @@ export const posSettingsApi = {
   getReadiness: (): Promise<SwitchReadinessDto> => apiClient.get<SwitchReadinessDto>(`${BASE}/switch-readiness`),
   update: (payload: { offlineModeEnabled: boolean; force?: boolean }): Promise<PosSettingsDto> =>
     apiClient.put<PosSettingsDto>(BASE, payload),
+  setAllowOutOfStockSales: (allowed: boolean): Promise<PosSettingsDto> =>
+    apiClient.put<PosSettingsDto>(`${BASE}/out-of-stock-sales`, { allowed }),
 
   reportTillStatus: (payload: {
     deviceId: string; registerId: string | null; pendingRecords: number; unsyncedShifts: number;

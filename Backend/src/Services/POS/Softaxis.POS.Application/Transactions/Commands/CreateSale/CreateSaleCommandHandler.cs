@@ -15,6 +15,7 @@ public sealed class CreateSaleCommandHandler(
     ICrossSchemaProductService productLookup,
     ICustomerRepository        customerRepo,
     IVoucherRepository         voucherRepo,
+    IPosSettingsRepository     settingsRepo,
     ICurrentUser               currentUser,
     IOptions<DiscountSettings> discountOpts,
     IUnitOfWork                uow)
@@ -80,6 +81,7 @@ public sealed class CreateSaleCommandHandler(
 
         // ── Pass 1: resolve products, compute per-line base subtotals ─────────
         var drafts = new List<LineDraft>();
+        bool? allowOutOfStock = null;   // POS setting: sell with no recorded stock
         foreach (var req in cmd.LineItems)
         {
             var product = await productLookup.GetByIdForSaleAsync(req.ProductId, ct);
@@ -90,12 +92,14 @@ public sealed class CreateSaleCommandHandler(
             // Refusing it now for a product deactivated since, or stock that ran out, would lose
             // real revenue from the books without undoing the sale. The sync reports the stock instead.
             var isOffline = cmd.Offline is not null;
+            // Read once per sale, not per line.
+            allowOutOfStock ??= (await settingsRepo.GetAsync(ct))?.AllowOutOfStockSales ?? false;
 
             if (!product.IsActive && !isOffline)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Product.Inactive",
                     $"Product '{product.Name}' is not available for sale."));
 
-            if (!isOffline && product.TrackInventory && product.StockQuantity < req.Quantity)
+            if (!isOffline && allowOutOfStock != true && product.TrackInventory && product.StockQuantity < req.Quantity)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Product.InsufficientStock",
                     $"Insufficient stock for '{product.Name}'. Available: {product.StockQuantity}."));
 

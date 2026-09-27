@@ -84,7 +84,21 @@ export function ProductImportDialog({ open, onClose }: { open: boolean; onClose:
       const r = rows[i];
       try {
         if (!r.Name?.trim()) { failed.push({ row: i + 2, reason: t("bulkTools.missingName") }); continue; }
-        const categoryId = catBy.get((r.Category ?? "").toLowerCase());
+        // A category named in the file but not yet in the tenant is created on the spot (once),
+        // so importing a whole catalogue doesn't require setting up every category by hand first.
+        const catName = (r.Category ?? "").trim();
+        let categoryId = catBy.get(catName.toLowerCase());
+        if (!categoryId && catName) {
+          try {
+            const created = await inventoryCategoriesApi.create({ name: catName });
+            categoryId = created.id;
+          } catch {
+            // Raced with another row or already exists under a different case — re-read once.
+            const again = await inventoryCategoriesApi.getAll({ search: catName });
+            categoryId = again.find(c => c.name.toLowerCase() === catName.toLowerCase())?.id;
+          }
+          if (categoryId) catBy.set(catName.toLowerCase(), categoryId);
+        }
         if (!categoryId) { failed.push({ row: i + 2, reason: t("bulkTools.unknownCategory", { category: r.Category }) }); continue; }
 
         await inventoryProductsApi.create({

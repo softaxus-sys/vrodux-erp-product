@@ -57,6 +57,30 @@ internal static class ChartOfAccountsProvisioner
             typeIdByCode[def.Code] = type.Id;
         }
 
+        // The tenant's own operating currency. Accounts otherwise default to TenantCurrency.Resolve(),
+        // which during startup seeding has no ambient tenant and falls back to AED - so a Pakistani
+        // shop's whole chart of accounts came out labelled AED. Finance and Identity share one
+        // physical database; `identity` is a reserved keyword and must stay bracketed.
+        var tenantCurrency = (await db.Database
+            .SqlQueryRaw<string>("SELECT [Currency] AS [Value] FROM [identity].[tenants] WHERE [Id] = {0}", tenantId)
+            .ToListAsync(ct))
+            .FirstOrDefault()?.Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(tenantCurrency)) tenantCurrency = null;
+
+        // One-time repair of accounts this provisioner already created in the wrong currency.
+        // Limited to the standard catalogue numbers so an account a user deliberately opened in a
+        // foreign currency is never touched.
+        if (tenantCurrency is not null)
+        {
+            var catalogueNumbers = ChartOfAccountsCatalogue.Accounts.Select(a => a.Number).ToList();
+            var mislabelled = await db.Accounts.IgnoreQueryFilters()
+                .Where(x => EF.Property<Guid?>(x, TenantIsolation.Column) == tenantId
+                         && catalogueNumbers.Contains(x.AccountNumber)
+                         && x.CurrencyCode != tenantCurrency)
+                .ToListAsync(ct);
+            foreach (var a in mislabelled) a.SetCurrencyCode(tenantCurrency);
+        }
+
         var existingNumbers = await db.Accounts.IgnoreQueryFilters()
             .Where(x => EF.Property<Guid?>(x, TenantIsolation.Column) == tenantId)
             .Select(x => x.AccountNumber)
@@ -73,6 +97,8 @@ internal static class ChartOfAccountsProvisioner
             var account = new Account(def.Number, def.Name, def.TypeCode, null, null);
             if (typeIdByCode.TryGetValue(def.TypeCode, out var typeId))
                 account.SetAccountTypeId(typeId);
+            if (tenantCurrency is not null)
+                account.SetCurrencyCode(tenantCurrency);
 
             db.Accounts.Add(account);
             Stamp(db, account, tenantId);

@@ -34,6 +34,38 @@ echo  Installing %DISPLAY_NAME%...
 echo  Executable: %EXE_PATH%
 echo.
 
+REM ── 1. Service start timeout ────────────────────────────────────────────────
+REM Vrodux runs every module's migrations before it tells Windows it has started. That can
+REM take longer than Windows' default 30 seconds (fresh database, slower PC), and Windows then
+REM kills the start with error 1053 although nothing is wrong. Allow 3 minutes.
+REM The new value only applies after a reboot.
+set NEED_REBOOT=0
+set CUR_TIMEOUT=
+for /f "tokens=3" %%A in ('reg query HKLM\SYSTEM\CurrentControlSet\Control /v ServicesPipeTimeout 2^>nul ^| find "ServicesPipeTimeout"') do set CUR_TIMEOUT=%%A
+if /i not "%CUR_TIMEOUT%"=="0x2bf20" (
+    echo  Setting Windows service start timeout to 3 minutes...
+    reg add HKLM\SYSTEM\CurrentControlSet\Control /v ServicesPipeTimeout /t REG_DWORD /d 180000 /f >nul
+    set NEED_REBOOT=1
+) else (
+    echo  Service start timeout already 3 minutes.
+)
+echo.
+
+REM ── 2. Database access for the service account ──────────────────────────────
+REM The service runs as LocalSystem. For Windows-authentication connection strings this creates
+REM each database if missing and makes NT AUTHORITY\SYSTEM db_owner (see prepare-database.ps1).
+echo  Preparing SQL Server database(s) from appsettings.json...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0prepare-database.ps1" -AppSettings "%~dp0output\appsettings.json"
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo  [ERROR] Database preparation failed - see the message above.
+    echo  Fix appsettings.json / SQL Server, then run this script again.
+    echo.
+    pause
+    exit /b 1
+)
+echo.
+
 REM Stop and remove existing service if present
 sc query %SERVICE_NAME% >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
@@ -71,9 +103,15 @@ sc start %SERVICE_NAME%
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
-    echo  [WARNING] Service created but failed to start.
-    echo  Check Windows Event Viewer for details.
-    echo  Common issue: appsettings.json connection string needs updating.
+    if "%NEED_REBOOT%"=="1" (
+        echo  [WARNING] Service created but did not start in time.
+        echo  The 3-minute start timeout was just set and needs a RESTART of this computer.
+        echo  After restarting, the service starts on its own - check with:  sc query %SERVICE_NAME%
+    ) else (
+        echo  [WARNING] Service created but failed to start.
+        echo  Check Windows Event Viewer - Windows Logs - Application for the error.
+        echo  Or run output\Softaxis.ApiGateway.exe from a console to see it directly.
+    )
     echo.
     pause
     exit /b 1
@@ -88,9 +126,14 @@ echo   Status:        Running
 echo   Startup type:  Automatic
 echo   API URL:       http://localhost:5000
 echo.
+if "%NEED_REBOOT%"=="1" (
+echo   NOTE: restart this computer once so the new
+echo         3-minute service start timeout applies.
+echo.
+)
 echo   Next steps:
-echo   1. Update appsettings.json with the correct
-echo      SQL Server connection string
+echo   1. Check appsettings.json connection strings
+echo      point at this site's SQL Server
 echo   2. Set FrontendUrl in appsettings.json to the
 echo      address staff open in their browser. Password
 echo      reset and invite emails link to it - the

@@ -12,7 +12,9 @@ namespace Softaxis.POS.API.Controllers;
 [Route("api/pos-settings")]
 public sealed class PosSettingsController(ISender sender) : BaseApiController(sender)
 {
-    [RequirePermission("pos.sessions.view")]
+    // The till reads this too (offline mode, out-of-stock sales), and a Cashier holds no
+    // pos.sessions.view - so the ordinary till permission is enough to read it.
+    [RequireAnyPermission("pos.sessions.view", "pos.transactions.create")]
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct = default)
         => HandleResult(await Sender.Send(new GetPosSettingsQuery(), ct));
@@ -26,6 +28,12 @@ public sealed class PosSettingsController(ISender sender) : BaseApiController(se
     [RequirePermission("pos.sessions.approve")]
     [HttpPut]
     public async Task<IActionResult> Update([FromBody] UpdatePosSettingsCommand cmd, CancellationToken ct = default)
+        => HandleResult(await Sender.Send(cmd, ct));
+
+    /// <summary>PUT /api/pos-settings/out-of-stock-sales — allow selling items with no recorded stock.</summary>
+    [RequirePermission("pos.sessions.approve")]
+    [HttpPut("out-of-stock-sales")]
+    public async Task<IActionResult> SetOutOfStockSales([FromBody] SetAllowOutOfStockSalesCommand cmd, CancellationToken ct = default)
         => HandleResult(await Sender.Send(cmd, ct));
 }
 
