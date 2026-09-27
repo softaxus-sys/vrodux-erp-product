@@ -379,8 +379,10 @@ begin
   RunStep('Preparing the database...', 'powershell.exe',
     PS('-File ' + Q(Tools + '\prepare-database.ps1') + ' -AppSettings ' + Q(Srv + '\appsettings.json') + ' -LogFile ' + Q(LogPath)));
 
-  RunStep('Opening firewall port {#ServerPort}...', ExpandConstant('{sys}\netsh.exe'),
-    'advfirewall firewall delete rule name="Vrodux ERP Server"');
+  { Remove any rule from a previous install first. Not a RunStep: on a first install there is no
+    rule, netsh answers "No rules match" with exit code 1, and that is not a problem. }
+  Exec(ExpandConstant('{sys}\netsh.exe'), 'advfirewall firewall delete rule name="Vrodux ERP Server"',
+       '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
   RunStep('Opening firewall port {#ServerPort}...', ExpandConstant('{sys}\netsh.exe'),
     'advfirewall firewall add rule name="Vrodux ERP Server" dir=in action=allow protocol=TCP localport={#ServerPort}');
 
