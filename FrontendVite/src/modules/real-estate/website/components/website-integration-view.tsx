@@ -100,15 +100,6 @@ function QasroSection() {
 }
 
 function QasroConnectCard({ canEdit }: { canEdit: boolean }) {
-  const startOAuth = useStartQasroOAuth();
-
-  const connect = async () => {
-    try {
-      const { url } = await startOAuth.mutateAsync();
-      window.location.href = url;
-    } catch { /* hook toasts */ }
-  };
-
   return (
     <div className="rounded-lg border bg-card p-5 space-y-3 max-w-2xl">
       <h3 className="font-semibold">Not connected</h3>
@@ -118,10 +109,7 @@ function QasroConnectCard({ canEdit }: { canEdit: boolean }) {
         "List on Qasro" checkbox appears on your properties, so you choose exactly what gets published.
       </p>
       {canEdit ? (
-        <Button disabled={startOAuth.isPending} onClick={connect} className="gap-1.5">
-          {startOAuth.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-          {startOAuth.isPending ? "Redirecting…" : "Connect Qasro"}
-        </Button>
+        <ConnectQasroButton label="Connect Qasro" />
       ) : (
         <p className="text-xs text-muted-foreground">Ask a workspace admin to connect Qasro.</p>
       )}
@@ -132,6 +120,7 @@ function QasroConnectCard({ canEdit }: { canEdit: boolean }) {
 function QasroConnectedPanel({ integration: q, canEdit }: { integration: QasroIntegrationDto; canEdit: boolean }) {
   const disconnect = useDisconnectQasro();
   const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
+  const isConnected = q.status === "connected";
 
   const statusMeta: Record<QasroIntegrationDto["status"], { label: string; tone: string }> = {
     connected:    { label: "Connected",    tone: "bg-emerald-500/10 text-emerald-600" },
@@ -146,7 +135,7 @@ function QasroConnectedPanel({ integration: q, canEdit }: { integration: QasroIn
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", meta.tone)}>
-            <span className={cn("h-2 w-2 rounded-full", q.status === "connected" ? "bg-emerald-500" : "bg-current")} />
+            <span className={cn("h-2 w-2 rounded-full", isConnected ? "bg-emerald-500" : "bg-current")} />
             {meta.label}
           </span>
           <span className="text-sm text-muted-foreground">
@@ -154,17 +143,27 @@ function QasroConnectedPanel({ integration: q, canEdit }: { integration: QasroIn
           </span>
         </div>
         {canEdit && (
-          <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmDisconnect(true)}>
-            <Power className="h-4 w-4" /> Disconnect
-          </Button>
+          isConnected ? (
+            <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmDisconnect(true)}>
+              <Power className="h-4 w-4" /> Disconnect
+            </Button>
+          ) : (
+            <ConnectQasroButton label={q.status === "connecting" ? "Connect again" : "Connect Qasro"} />
+          )
         )}
       </div>
+
+      {q.status === "connecting" && (
+        <p className="text-sm text-muted-foreground">
+          Waiting for you to finish on Qasro. If you closed that tab, or Qasro rejected the request, this
+          can sit here indefinitely — use "Connect again" above to restart.
+        </p>
+      )}
 
       {q.status === "error" && q.lastError && (
         <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           {q.lastError}
-          {canEdit && <RetryConnect />}
         </div>
       )}
 
@@ -190,17 +189,19 @@ function QasroConnectedPanel({ integration: q, canEdit }: { integration: QasroIn
   );
 }
 
-/** Retrying after a failure just restarts the same OAuth redirect — the row is reused, not
- * duplicated (see StartQasroOAuthHandler). Common case: they signed up on Qasro but the agency
- * wasn't approved yet — reconnecting once it is just works, no separate "retry" endpoint needed. */
-function RetryConnect() {
+/** Shared by the initial connect and every reconnect path (disconnected / error / a stuck
+ * "connecting"). StartQasroOAuthHandler reuses the same integration row regardless of its current
+ * status, so calling this again is always safe — it never creates a duplicate row or needs a
+ * separate "retry" endpoint. */
+function ConnectQasroButton({ label }: { label: string }) {
   const startOAuth = useStartQasroOAuth();
-  const retry = async () => {
+  const connect = async () => {
     try { const { url } = await startOAuth.mutateAsync(); window.location.href = url; } catch { /* hook toasts */ }
   };
   return (
-    <Button variant="outline" size="sm" className="ms-2 h-6 px-2 text-xs" disabled={startOAuth.isPending} onClick={retry}>
-      {startOAuth.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Retry"}
+    <Button disabled={startOAuth.isPending} onClick={connect} className="gap-1.5">
+      {startOAuth.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+      {startOAuth.isPending ? "Redirecting…" : label}
     </Button>
   );
 }
