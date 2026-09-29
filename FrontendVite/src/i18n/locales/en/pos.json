@@ -1,0 +1,20 @@
+{
+  "catalogue": {
+    "title": "Import products from catalogue",
+    "subtitle": "Start with real products and barcodes for your country and store type. Prices come in as 0 — set your own after importing.",
+    "pack": "Country & store type",
+    "categories": "Categories",
+    "all": "All",
+    "none2": "None",
+    "tax": "Default tax rate (%)",
+    "taxHint": "Applied to every imported product; edit individual products later.",
+    "source": "Data: {{source}}. Built {{date}}.",
+    "import": "Import {{n}} products",
+    "done": "{{n}} products imported",
+    "existing": "{{n}} skipped — barcode already in your products",
+    "invalid": "{{n}} skipped — invalid data",
+    "cats": "{{n}} new categories created",
+    "close": "Done",
+    "none": "No catalogue packs are bundled with this version."
+  }
+}

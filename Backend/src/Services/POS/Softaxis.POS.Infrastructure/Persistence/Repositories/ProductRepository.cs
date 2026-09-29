@@ -39,6 +39,15 @@ public sealed class ProductRepository(POSDbContext db) : IProductRepository
             (excludeId == null || p.Id != excludeId), ct);
     }
 
+    public async Task<HashSet<string>> GetAllBarcodesAsync(CancellationToken ct = default)
+    {
+        var all = await db.Products.AsNoTracking()
+            .Where(p => p.Barcode != null)
+            .Select(p => p.Barcode!)
+            .ToListAsync(ct);
+        return new HashSet<string>(all.Select(b => b.Value), StringComparer.OrdinalIgnoreCase);
+    }
+
     public Task<bool> SkuExistsAsync(string sku, Guid? excludeId = null, CancellationToken ct = default) =>
         db.Products.AnyAsync(p =>
             p.SKU == sku && (excludeId == null || p.Id != excludeId), ct);

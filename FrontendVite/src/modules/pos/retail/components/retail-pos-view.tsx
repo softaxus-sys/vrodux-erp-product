@@ -4,7 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
 import {
-  ShoppingCart, Plus, Receipt, LogOut, Loader2, RefreshCw,
+  PackageSearch, ShoppingCart, Plus, Receipt, LogOut, Loader2, RefreshCw,
   SplitSquareHorizontal, Wallet, Printer,
 } from "lucide-react";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
@@ -12,6 +12,7 @@ import { useHardware }       from "@/contexts/hardware-context";
 import { HardwareStatusBar } from "@/components/pos/hardware-status-bar";
 import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
 import { AddPOSProductForm } from "./add-pos-product-form";
+import { CatalogueImportDialog } from "./catalogue-import-dialog";
 import { useAllPOSProducts } from "@/hooks/pos/use-products";
 import { useShift } from "./shift-gate";
 import { usePaymentMethods } from "@/hooks/pos/use-payment-methods";
@@ -146,6 +147,7 @@ export function RetailPOSView() {
 
   // Add product form
   const [showAddForm, setShowAddForm]     = React.useState(false);
+  const [showCatalogue, setShowCatalogue]   = React.useState(false);
 
   // Void / Refund dialog targets
   const [voidTarget,   setVoidTarget]   = React.useState<POSTransactionSummaryDto | null>(null);
@@ -435,6 +437,9 @@ export function RetailPOSView() {
           {canAddProduct && (
             <TopBarButton icon={Plus} label="Product" onClick={() => setShowAddForm(true)} title="Add product" />
           )}
+          {canAddProduct && (
+            <TopBarButton icon={PackageSearch} label="Catalogue" onClick={() => setShowCatalogue(true)} title="Import products from catalogue" />
+          )}
           {sessionId && (
             <TopBarButton icon={Wallet} label="Cash In/Out" onClick={() => setCashMove(true)} />
           )}
@@ -701,6 +706,7 @@ export function RetailPOSView() {
       </AnimatePresence>
 
       <AddPOSProductForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <CatalogueImportDialog open={showCatalogue} onClose={() => setShowCatalogue(false)} />
 
       {/* ── Void / Refund Dialogs ─────────────────────────────────────────── */}
       <VoidConfirmDialog

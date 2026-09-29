@@ -2,7 +2,7 @@
 import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import {
-  Package, AlertTriangle, XCircle, DollarSign, Search, Plus,
+  PackageSearch, Package, AlertTriangle, XCircle, DollarSign, Search, Plus,
   RefreshCw, ShoppingCart, Loader2, Upload, Download, Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useInventoryProducts } from "@/hooks/inventory/use-inventory-products";
 import type { ProductSummaryDto } from "@/lib/inventory/types";
 import { StockDrawer } from "./stock-drawer";
 import { AddStockItemForm } from "./add-stock-item-form";
+import { CatalogueImportDialog } from "@/modules/pos/retail/components/catalogue-import-dialog";
 import { Can } from "@/components/auth/can";
 import { AddAdjustmentForm } from "../../movements/components/add-adjustment-form";
 import { ProductImportDialog, downloadProductsCsv, printProductLabels } from "./bulk-tools";
@@ -41,6 +42,7 @@ const STATUS_FILTERS: (StockStatus | "all")[] = ["all", "in_stock", "low_stock",
 
 export function StockView() {
   const { t } = useTranslation("inventory");
+  const [showCatalogue, setShowCatalogue] = React.useState(false);
   const currency = useCurrency();
   const [search, setSearch]           = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<StockStatus | "all">("all");
@@ -110,6 +112,11 @@ export function StockView() {
           <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => printProductLabels(items, currency)} disabled={items.length === 0}>
             <Printer className="h-4 w-4" />{t("stock.labels")}
           </Button>
+          <Can permission="pos.products.create">
+            <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={() => setShowCatalogue(true)}>
+              <PackageSearch className="h-4 w-4" />{t("stock.catalogue", { defaultValue: "Catalogue" })}
+            </Button>
+          </Can>
           <Can permission="inventory.stock.create">
             <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}>
               <Plus className="h-4 w-4" />{t("stock.addProduct")}
@@ -250,6 +257,7 @@ export function StockView() {
 
       <StockDrawer item={selectedProduct} open={drawerOpen} onClose={() => setDrawerOpen(false)}
         onEdit={openEdit} onAdjust={openAdjust} />
+      <CatalogueImportDialog open={showCatalogue} onClose={() => setShowCatalogue(false)} />
       <AddStockItemForm open={showAddForm} onClose={closeForm} editingId={editingId} />
       <AddAdjustmentForm open={!!adjustItemId} onClose={() => setAdjustItemId(null)}
         preselectedItemId={adjustItemId ?? undefined} />

@@ -33,6 +33,7 @@ import enVisa      from "./locales/en/visa.json";
 import enRestaurant from "./locales/en/restaurant.json";
 import enSettings  from "./locales/en/settings.json";
 import enOnboarding from "./locales/en/onboarding.json";
+import enPos       from "./locales/en/pos.json";
 
 // ── Arabic ───────────────────────────────────────────────────────────────────
 import arCommon    from "./locales/ar/common.json";
@@ -50,12 +51,13 @@ import arVisa      from "./locales/ar/visa.json";
 import arRestaurant from "./locales/ar/restaurant.json";
 import arSettings  from "./locales/ar/settings.json";
 import arOnboarding from "./locales/ar/onboarding.json";
+import arPos       from "./locales/ar/pos.json";
 
-export const NAMESPACES = ["common", "nav", "auth", "topbar", "dashboard", "finance", "crm", "hr", "inventory", "sales", "purchase", "visa", "restaurant", "settings", "onboarding"] as const;
+export const NAMESPACES = ["common", "nav", "auth", "topbar", "dashboard", "finance", "crm", "hr", "inventory", "sales", "purchase", "visa", "restaurant", "settings", "onboarding", "pos"] as const;
 
 const resources = {
-  en: { common: enCommon, nav: enNav, auth: enAuth, topbar: enTopbar, dashboard: enDashboard, finance: enFinance, crm: enCrm, hr: enHr, inventory: enInventory, sales: enSales, purchase: enPurchase, visa: enVisa, restaurant: enRestaurant, settings: enSettings, onboarding: enOnboarding },
-  ar: { common: arCommon, nav: arNav, auth: arAuth, topbar: arTopbar, dashboard: arDashboard, finance: arFinance, crm: arCrm, hr: arHr, inventory: arInventory, sales: arSales, purchase: arPurchase, visa: arVisa, restaurant: arRestaurant, settings: arSettings, onboarding: arOnboarding },
+  en: { common: enCommon, nav: enNav, auth: enAuth, topbar: enTopbar, dashboard: enDashboard, finance: enFinance, crm: enCrm, hr: enHr, inventory: enInventory, sales: enSales, purchase: enPurchase, visa: enVisa, restaurant: enRestaurant, settings: enSettings, onboarding: enOnboarding, pos: enPos },
+  ar: { common: arCommon, nav: arNav, auth: arAuth, topbar: arTopbar, dashboard: arDashboard, finance: arFinance, crm: arCrm, hr: arHr, inventory: arInventory, sales: arSales, purchase: arPurchase, visa: arVisa, restaurant: arRestaurant, settings: arSettings, onboarding: arOnboarding, pos: arPos },
 } as const;
 
 /** localStorage key holding the user's chosen UI language. */

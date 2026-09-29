@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Catalogue\Packs\*.json.gz" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
     <ProjectReference Include="..\Softaxis.POS.Application\Softaxis.POS.Application.csproj" />
   </ItemGroup>

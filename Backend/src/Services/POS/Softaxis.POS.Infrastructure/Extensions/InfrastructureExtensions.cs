@@ -27,6 +27,7 @@ public static class InfrastructureExtensions
 
         // Repositories
         services.AddScoped<IProductRepository,         ProductRepository>();
+        services.AddSingleton<Softaxis.POS.Application.Catalogue.ICatalogueProvider, Softaxis.POS.Infrastructure.Catalogue.EmbeddedCatalogueProvider>();
         services.AddScoped<IProductCategoryRepository, ProductCategoryRepository>();
         services.AddScoped<ICustomerRepository,        CustomerRepository>();
         services.AddScoped<ICustomerWalletTransactionRepository, CustomerWalletTransactionRepository>();

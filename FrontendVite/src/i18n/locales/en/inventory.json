@@ -12,6 +12,7 @@
     "import": "Import",
     "labels": "Labels",
     "addProduct": "Add Product",
+    "catalogue": "Catalogue",
     "stats": {
       "totalSkus": "Total SKUs",
       "lowStock": "Low Stock",

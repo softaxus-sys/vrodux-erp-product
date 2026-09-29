@@ -12,6 +12,7 @@
     "import": "استيراد",
     "labels": "الملصقات",
     "addProduct": "إضافة منتج",
+    "catalogue": "الكتالوج",
     "stats": {
       "totalSkus": "إجمالي الأصناف",
       "lowStock": "مخزون منخفض",
