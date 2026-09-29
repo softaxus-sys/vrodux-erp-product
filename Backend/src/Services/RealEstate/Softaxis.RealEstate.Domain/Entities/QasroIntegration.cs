@@ -6,11 +6,11 @@ namespace Softaxis.RealEstate.Domain.Entities;
 /// <summary>
 /// A workspace's connection to Qasro (qasro.com) — Softaxis's sister property portal.
 ///
-/// Deliberately simpler than <see cref="WebsiteIntegration"/>: there is no address to type in and
-/// no key to copy-paste. Both products are owned by Softaxis, so the one-click "Activate Qasro"
-/// flow generates the key here and hands it to Qasro server-to-server (see IQasroClient) — the
-/// tenant never sees or manages it, the same way they never see an API key for their own website
-/// integration's underlying mechanism, just without even the address/name form around it.
+/// Established via real OAuth against Qasro's own login/signup, gated by Qasro's own
+/// agency-approval status — not a blind server-to-server push. See IQasroClient's remarks for the
+/// full handshake. The tenant never sees or manages a key: it is generated here only after Qasro
+/// confirms approval, and handed to Qasro server-to-server for its own pull — there is nowhere for
+/// a tenant to paste it, unlike the "own website" integration's key.
 ///
 /// One per workspace (tenant-unique index, same as WebsiteIntegration). The key itself is never
 /// stored — only its SHA-256 hash — so a database leak cannot be used to impersonate Qasro's pull.
@@ -19,25 +19,26 @@ public sealed class QasroIntegration
 {
     public const string KeyPrefix = "vrx_qasro_";
 
-    /// <summary>The one fixed origin every Qasro-sourced request must present. Not user-configurable
-    /// — unlike WebsiteIntegration, which connects to whatever address the tenant types in.</summary>
+    /// <summary>Fixed value for WebsiteClientDto.WebsiteOrigin when a Qasro-presented key resolves
+    /// — display-only, unrelated to QasroOptions.SiteUrl (which drives the actual OAuth redirect).</summary>
     public const string Origin = "https://qasro.com";
 
     public Guid Id { get; private set; } = Guid.NewGuid();
 
-    /// <summary>Qasro's own id for the agency record created/linked at connect time. Used to
-    /// address Qasro when withdrawing everything on disconnect, and lets Qasro's own systems
-    /// resolve which agency an inbound lead or listing update belongs to.</summary>
+    /// <summary>Qasro's own id for the agency record, known once the OAuth handshake confirms
+    /// approval. Used to address Qasro when registering the pull key and on disconnect.</summary>
     public string? QasroAgencyId { get; private set; }
 
-    public string KeyHash { get; private set; } = "";
+    /// <summary>Null until the OAuth handshake actually confirms approval — see the class remarks
+    /// and RotateKey. A "connecting" row genuinely has no key yet, not an empty placeholder one.</summary>
+    public string? KeyHash { get; private set; }
 
     /// <summary>Never shown to the tenant (there is nothing for them to paste it into) — kept only
     /// so a support engineer can confirm which key a failed sync attempt used.</summary>
-    public string KeyHint { get; private set; } = "";
+    public string? KeyHint { get; private set; }
 
     /// <summary>connecting | connected | error | disconnected. "Connecting" is the state between
-    /// generating the key locally and Qasro's link-agency call confirming it — see ConnectQasroHandler.</summary>
+    /// starting the OAuth redirect and Qasro's callback confirming (or refusing) approval.</summary>
     public string Status { get; private set; } = "connecting";
 
     public string? LastError { get; private set; }
@@ -49,15 +50,12 @@ public sealed class QasroIntegration
 
     private QasroIntegration() { }
 
-    /// <summary>Creates the integration in "connecting" state and returns the plaintext key, which
-    /// the caller sends to Qasro directly — never to the browser.</summary>
-    public static (QasroIntegration Integration, string ApiKey) Create()
-    {
-        var integration = new QasroIntegration();
-        var key = integration.RotateKey();
-        return (integration, key);
-    }
+    /// <summary>Starts a fresh handshake — no key, no agency id yet. Those only exist once Qasro's
+    /// OAuth callback confirms the agency is approved (see QasroOAuthCallbackHandler).</summary>
+    public static QasroIntegration CreateConnecting() => new();
 
+    /// <summary>Generates (or replaces) the local pull key. Only called once approval is confirmed
+    /// — see the class remarks on why "connecting" genuinely has no key.</summary>
     public string RotateKey()
     {
         var raw = KeyPrefix + Base64Url(RandomNumberGenerator.GetBytes(32));

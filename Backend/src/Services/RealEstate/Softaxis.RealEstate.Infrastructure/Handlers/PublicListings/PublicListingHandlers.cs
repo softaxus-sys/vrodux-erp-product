@@ -225,7 +225,7 @@ internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db)
         // table means the other is irrelevant, never ambiguous.
         var integration = await db.WebsiteIntegrations.IgnoreQueryFilters().AsNoTracking()
             .Where(w => w.Id == query.IntegrationId && w.IsActive)
-            .Select(w => new { w.KeyHash, TenantId = EF.Property<Guid?>(w, RealEstateDbContext.OwnerTenant), IsQasro = false })
+            .Select(w => new { KeyHash = (string?)w.KeyHash, TenantId = EF.Property<Guid?>(w, RealEstateDbContext.OwnerTenant), IsQasro = false })
             .FirstOrDefaultAsync(ct)
             ?? await db.QasroIntegrations.IgnoreQueryFilters().AsNoTracking()
                 .Where(q => q.Id == query.IntegrationId && q.Status == "connected")
@@ -235,8 +235,10 @@ internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db)
         if (integration?.TenantId is null)
             return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);
 
+        // Never actually null here: a website row always has a key, and a Qasro row only reaches
+        // Status == "connected" after RotateKey() has run — see QasroIntegration's own remarks.
         var expected = PublicListingScope.Sign(
-            integration.KeyHash, query.IntegrationId, query.PropertyId, query.ImageId, query.Expires);
+            integration.KeyHash!, query.IntegrationId, query.PropertyId, query.ImageId, query.Expires);
 
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.ASCII.GetBytes(expected), Encoding.ASCII.GetBytes(query.Signature ?? "")))

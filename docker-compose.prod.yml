@@ -199,11 +199,14 @@ services:
       Google__ClientSecret: "${GOOGLE_CLIENT_SECRET:-}"
 
       # ── Qasro (qasro.com) — Real Estate listing syndication ─────────────
-      # Service-to-service only, no OAuth: both products are Softaxis's own. Without these,
-      # ConnectQasroHandler's link-agency call throws immediately and "Activate Qasro" fails
-      # for every tenant.
-      Qasro__BaseUrl: "${QASRO_BASE_URL:-}"
-      Qasro__ServiceSecret: "${QASRO_SERVICE_SECRET:-}"
+      # Real OAuth against Qasro's own login/signup — the tenant admin is redirected to Qasro to
+      # authenticate and approve the connection from their agency dashboard there; Vrodux never
+      # pushes credentials blindly. Without these, StartQasroOAuthHandler cannot build an
+      # authorize URL and "Connect Qasro" fails for every tenant.
+      Qasro__SiteUrl: "${QASRO_SITE_URL:-https://qasro.com}"
+      Qasro__ApiBaseUrl: "${QASRO_API_BASE_URL:-}"
+      Qasro__ClientId: "${QASRO_CLIENT_ID:-vrodux}"
+      Qasro__ClientSecret: "${QASRO_CLIENT_SECRET:-}"
 
       # ── Billing / Subscriptions (Vrodux's OWN Stripe + PayPal accounts) ──────
       # Platform credentials, not per-tenant. Set them in /opt/vrodux/shared/.env;

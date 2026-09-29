@@ -562,13 +562,11 @@ function useInvalidateQasro() {
   };
 }
 
-/** No success toast on connect — the card shows the connecting/connected status itself, and a
- * generic "Connected!" would land before the async link call to Qasro has even resolved. */
-export function useConnectQasro() {
-  const invalidate = useInvalidateQasro();
+/** No success toast — the caller redirects the browser to the returned URL, and success/error is
+ * reported after Qasro redirects back (see the ?provider=qasro&status= handler on the page). */
+export function useStartQasroOAuth() {
   return useMutation({
-    mutationFn: reApi.connectQasro,
-    onSuccess: invalidate,
+    mutationFn: reApi.startQasroOAuth,
     onError: (e: Error) => toast.error(e.message),
   });
 }

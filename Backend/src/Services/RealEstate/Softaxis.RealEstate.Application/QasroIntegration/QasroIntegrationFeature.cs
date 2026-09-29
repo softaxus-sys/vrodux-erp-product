@@ -19,6 +19,8 @@ public sealed record QasroIntegrationDto(
 public sealed record QasroPublishedPropertyDto(
     Guid Id, string PropertyNumber, string Name, string City, DateTime? PublishedAt, int ImageCount);
 
+public sealed record QasroOAuthUrlDto(string Url);
+
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 /// <summary>Null when the workspace has never connected Qasro.</summary>
@@ -28,9 +30,16 @@ public sealed record GetQasroPublishedPropertiesQuery : IQuery<IReadOnlyList<Qas
 
 // ── Commands ─────────────────────────────────────────────────────────────────
 
-/// <summary>One-click activate — no form, no manual key entry. See ConnectQasroHandler for the
-/// service-to-service flow this triggers.</summary>
-public sealed record ConnectQasroCommand : ICommand<QasroIntegrationDto>;
+/// <summary>Starts the real OAuth handshake — the tenant admin is redirected to Qasro to log in or
+/// sign up, and Qasro gates the connection on the agency being approved/active. See
+/// StartQasroOAuthHandler and IQasroClient's own remarks for why this replaced a one-click,
+/// no-login "activate" flow.</summary>
+public sealed record StartQasroOAuthCommand(string RedirectUri) : ICommand<QasroOAuthUrlDto>;
+
+/// <summary>Runs anonymously — Qasro redirects the tenant admin's browser back here with no JWT.
+/// The tenant is resolved from the signed OAuth state, exactly like the Meta and Google OAuth
+/// callbacks elsewhere in this codebase.</summary>
+public sealed record QasroOAuthCallbackCommand(string Code, string State, string RedirectUri) : ICommand;
 
 public sealed record DisconnectQasroCommand : ICommand;
 

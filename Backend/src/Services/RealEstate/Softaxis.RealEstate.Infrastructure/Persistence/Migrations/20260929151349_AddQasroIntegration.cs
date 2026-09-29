@@ -33,8 +33,8 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     QasroAgencyId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    KeyHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
-                    KeyHint = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    KeyHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                    KeyHint = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
                     Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
                     LastError = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -53,7 +53,8 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                 schema: "real_estate",
                 table: "qasro_integrations",
                 column: "KeyHash",
-                unique: true);
+                unique: true,
+                filter: "[KeyHash] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_qasro_integrations_OwnerTenantId",

@@ -78,11 +78,15 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             b.ToTable("qasro_integrations");
             b.HasKey(x => x.Id);
             b.Property(x => x.QasroAgencyId).HasMaxLength(100);
-            b.Property(x => x.KeyHash).HasMaxLength(64).IsRequired();
-            b.Property(x => x.KeyHint).HasMaxLength(20).IsRequired();
+            // Nullable: a "connecting" row genuinely has no key yet — it's only generated once
+            // Qasro's OAuth callback confirms approval (see QasroIntegration's own remarks). The
+            // unique index is filtered to match, or two tenants both mid-handshake would collide
+            // on two NULLs under a plain unique constraint.
+            b.Property(x => x.KeyHash).HasMaxLength(64);
+            b.Property(x => x.KeyHint).HasMaxLength(20);
             b.Property(x => x.Status).HasMaxLength(20).IsRequired();
             b.Property(x => x.LastError).HasMaxLength(500);
-            b.HasIndex(x => x.KeyHash).IsUnique();
+            b.HasIndex(x => x.KeyHash).IsUnique().HasFilter("[KeyHash] IS NOT NULL");
         });
 
         // Owned by Identity: mapped for reading only, and excluded from migrations so this

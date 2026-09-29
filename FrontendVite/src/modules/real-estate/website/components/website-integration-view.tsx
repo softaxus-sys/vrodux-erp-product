@@ -1,7 +1,8 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import {
-  AlertTriangle, Check, Copy, ExternalLink, Globe, ImageOff, KeyRound, Loader2, Power,
+  AlertTriangle, Check, Copy, ExternalLink, Globe, ImageOff, KeyRound, Loader2, LogIn, Power,
   RefreshCw, Save, ShieldCheck, Sparkles, Trash2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
   useCreateWebsiteIntegration, useRegenerateWebsiteKey, useSetPropertyWebsiteListing,
   useSetWebsiteIntegrationActive, useUpdateWebsiteIntegration, useWebsiteIntegration,
   useWebsitePublished, useWithdrawAllWebsiteListings,
-  useConnectQasro, useDisconnectQasro, useQasroIntegration, useQasroPublished,
+  useStartQasroOAuth, useDisconnectQasro, useQasroIntegration, useQasroPublished,
   useSetPropertyQasroListing, useWithdrawAllQasroListings,
 } from "@/hooks/real-estate/use-re";
 
@@ -25,6 +26,17 @@ export function WebsiteIntegrationView() {
   const { data: integration, isLoading } = useWebsiteIntegration();
   const canEdit = useCan("real-estate.website.edit");
   const [revealedKey, setRevealedKey] = React.useState<string | null>(null);
+
+  // Qasro's OAuth callback redirects the browser back here as a full-page navigation
+  // (?provider=qasro&status=connected|error) — same pattern as the SEO module's Google connect.
+  React.useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("provider") !== "qasro") return;
+    const status = p.get("status");
+    if (status === "connected") toast.success("Qasro connected.");
+    else if (status === "error") toast.error("Could not connect Qasro — check your agency's approval status on Qasro and try again.");
+    window.history.replaceState({}, "", window.location.pathname);
+  }, []);
 
   if (isLoading) {
     return <div className="p-10 text-center text-sm text-muted-foreground">Loading website settings…</div>;
@@ -58,8 +70,9 @@ export function WebsiteIntegrationView() {
 
 // ── Qasro ────────────────────────────────────────────────────────────────────
 //
-// Deliberately not a form like the website connection above — both products are Softaxis's own,
-// so there is no address to type and no key to copy. One click either connects or disconnects.
+// Real OAuth against Qasro's own login/signup — clicking Connect redirects there, not a blind
+// server-to-server push. Qasro gates the connection on the agency being approved/active on its
+// own side; this app only ever sees the outcome once Qasro redirects back.
 
 function QasroSection() {
   const { data: integration, isLoading } = useQasroIntegration();
@@ -87,18 +100,27 @@ function QasroSection() {
 }
 
 function QasroConnectCard({ canEdit }: { canEdit: boolean }) {
-  const connect = useConnectQasro();
+  const startOAuth = useStartQasroOAuth();
+
+  const connect = async () => {
+    try {
+      const { url } = await startOAuth.mutateAsync();
+      window.location.href = url;
+    } catch { /* hook toasts */ }
+  };
+
   return (
     <div className="rounded-lg border bg-card p-5 space-y-3 max-w-2xl">
       <h3 className="font-semibold">Not connected</h3>
       <p className="text-sm text-muted-foreground">
-        Connecting takes a second — no forms, nothing to configure. Once connected, a "List on Qasro" checkbox
-        appears on your properties, so you choose exactly what gets published.
+        You'll be sent to Qasro to log in or create an account, and to approve the connection from your
+        agency dashboard there — your agency needs to be approved and active on Qasro. Once connected, a
+        "List on Qasro" checkbox appears on your properties, so you choose exactly what gets published.
       </p>
       {canEdit ? (
-        <Button disabled={connect.isPending} onClick={() => connect.mutate()}>
-          {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {connect.isPending ? "Connecting…" : "Activate Qasro"}
+        <Button disabled={startOAuth.isPending} onClick={connect} className="gap-1.5">
+          {startOAuth.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+          {startOAuth.isPending ? "Redirecting…" : "Connect Qasro"}
         </Button>
       ) : (
         <p className="text-xs text-muted-foreground">Ask a workspace admin to connect Qasro.</p>
@@ -168,13 +190,17 @@ function QasroConnectedPanel({ integration: q, canEdit }: { integration: QasroIn
   );
 }
 
-/** Connecting again after a failure reuses the same "Connect" call — it rotates the key and
- * retries the link, rather than needing a separate "retry" endpoint. */
+/** Retrying after a failure just restarts the same OAuth redirect — the row is reused, not
+ * duplicated (see StartQasroOAuthHandler). Common case: they signed up on Qasro but the agency
+ * wasn't approved yet — reconnecting once it is just works, no separate "retry" endpoint needed. */
 function RetryConnect() {
-  const connect = useConnectQasro();
+  const startOAuth = useStartQasroOAuth();
+  const retry = async () => {
+    try { const { url } = await startOAuth.mutateAsync(); window.location.href = url; } catch { /* hook toasts */ }
+  };
   return (
-    <Button variant="outline" size="sm" className="ms-2 h-6 px-2 text-xs" disabled={connect.isPending} onClick={() => connect.mutate()}>
-      {connect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Retry"}
+    <Button variant="outline" size="sm" className="ms-2 h-6 px-2 text-xs" disabled={startOAuth.isPending} onClick={retry}>
+      {startOAuth.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Retry"}
     </Button>
   );
 }

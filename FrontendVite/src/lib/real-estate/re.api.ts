@@ -761,14 +761,15 @@ export const reApi = {
     rawApiClient.patch(`${BASE}/properties/${propertyId}/website-listing`, { listOnWebsite }),
 
   // ── Qasro integration ───────────────────────────────────────────────────────
-  // One-click, no form — see QasroIntegrationDto's own remarks on why there is no key to manage.
+  // Real OAuth against Qasro's own login/signup + agency-approval gate — same shape as the
+  // Meta and Google integrations elsewhere in this app, not a blind server-to-server push.
 
   getQasroIntegration: (): Promise<QasroIntegrationDto | undefined> =>
     rawApiClient.get(`${BASE}/qasro-integration`),
   getQasroPublished: (): Promise<QasroPublishedPropertyDto[]> =>
     rawApiClient.get(`${BASE}/qasro-integration/published`),
-  connectQasro: (): Promise<QasroIntegrationDto> =>
-    rawApiClient.post(`${BASE}/qasro-integration/connect`, {}),
+  startQasroOAuth: (): Promise<{ url: string }> =>
+    rawApiClient.post(`${BASE}/qasro-integration/oauth/start`, {}),
   disconnectQasro: (): Promise<void> =>
     rawApiClient.post(`${BASE}/qasro-integration/disconnect`, {}),
   withdrawAllQasroListings: (): Promise<number> =>

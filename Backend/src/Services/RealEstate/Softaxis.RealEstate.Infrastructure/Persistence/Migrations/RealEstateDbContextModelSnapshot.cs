@@ -605,12 +605,10 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("KeyHash")
-                        .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
                     b.Property<string>("KeyHint")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
@@ -639,7 +637,8 @@ namespace Softaxis.RealEstate.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("KeyHash")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[KeyHash] IS NOT NULL");
 
                     b.HasIndex("OwnerTenantId")
                         .IsUnique()

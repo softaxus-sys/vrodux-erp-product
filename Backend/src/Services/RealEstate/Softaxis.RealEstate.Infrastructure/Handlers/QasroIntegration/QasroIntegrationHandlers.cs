@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.QasroIntegrations;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Persistence;
@@ -69,65 +70,95 @@ internal sealed class GetQasroPublishedPropertiesHandler(RealEstateDbContext db)
 }
 
 /// <summary>
-/// One click, no form. Generates a key locally, then hands it to Qasro server-to-server — the
-/// tenant never sees or manages it. The row is created in "connecting" state first and only
-/// committed once, so a failed link call leaves nothing half-configured to clean up; a retry
-/// (calling Connect again) reuses the same row and rotates the key rather than creating a second
-/// one, which the tenant-unique index would reject anyway.
+/// Starts the handshake. Creates (or reuses) the integration row in "connecting" state — no key
+/// yet, that's only generated once Qasro confirms approval in the callback below — and builds the
+/// URL to redirect the tenant admin's browser to. Re-clicking "Connect" after a failed/abandoned
+/// attempt just reuses the same row rather than creating a second one, which the tenant-unique
+/// index would reject anyway.
 /// </summary>
-internal sealed class ConnectQasroHandler(RealEstateDbContext db, IQasroClient qasro)
-    : ICommandHandler<ConnectQasroCommand, QasroIntegrationDto>
+internal sealed class StartQasroOAuthHandler(RealEstateDbContext db, IQasroClient qasro, ISecretProtector protector)
+    : ICommandHandler<StartQasroOAuthCommand, QasroOAuthUrlDto>
 {
-    public async Task<Result<QasroIntegrationDto>> Handle(ConnectQasroCommand cmd, CancellationToken ct)
+    public async Task<Result<QasroOAuthUrlDto>> Handle(StartQasroOAuthCommand cmd, CancellationToken ct)
     {
         if (QasroIntegrationScope.CurrentTenant() is not { } tenantId)
-            return Result.Failure<QasroIntegrationDto>(QasroIntegrationScope.NoTenant);
+            return Result.Failure<QasroOAuthUrlDto>(QasroIntegrationScope.NoTenant);
 
         var tenant = await db.TenantLookups.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tenantId, ct);
         if (tenant is null)
-            return Result.Failure<QasroIntegrationDto>(Error.Custom("QasroIntegration.TenantNotFound", "Workspace not found."));
+            return Result.Failure<QasroOAuthUrlDto>(Error.Custom("QasroIntegration.TenantNotFound", "Workspace not found."));
 
-        var existing = await QasroIntegrationScope.For(db, tenantId).FirstOrDefaultAsync(ct);
-
-        string apiKey;
-        QasroIntegration integration;
-        if (existing is null)
+        var integration = await QasroIntegrationScope.For(db, tenantId).FirstOrDefaultAsync(ct);
+        if (integration is null)
         {
-            (integration, apiKey) = QasroIntegration.Create();
+            integration = QasroIntegration.CreateConnecting();
             db.QasroIntegrations.Add(integration);
             db.Entry(integration).Property(RealEstateDbContext.OwnerTenant).CurrentValue = tenantId;
-        }
-        else
-        {
-            integration = existing;
-            apiKey = integration.RotateKey(); // re-activating (or retrying a failed connect) rotates, never reuses
+            await db.SaveChangesAsync(ct);
         }
 
-        await db.SaveChangesAsync(ct);
+        var state = Uri.EscapeDataString(protector.Protect(integration.Id.ToString())!);
+        var url = qasro.BuildAuthorizeUrl(cmd.RedirectUri, state, tenant.Name);
+        return Result.Success(new QasroOAuthUrlDto(url));
+    }
+}
 
+/// <summary>
+/// Runs anonymously, before any tenant is known — hence IgnoreQueryFilters and the explicit
+/// tenant read off the row, exactly like MetaOAuthCallbackHandler and the SEO module's
+/// GoogleOAuthCallbackHandler. Only reaches here after Qasro's OWN login/signup and
+/// approval-gate screens — this handler's job is just to turn a successful redirect into a
+/// working local pull key, not to authenticate or approve anything itself.
+/// </summary>
+internal sealed class QasroOAuthCallbackHandler(RealEstateDbContext db, IQasroClient qasro, ISecretProtector protector)
+    : ICommandHandler<QasroOAuthCallbackCommand>
+{
+    public async Task<Result> Handle(QasroOAuthCallbackCommand cmd, CancellationToken ct)
+    {
+        if (!Guid.TryParse(protector.Unprotect(cmd.State), out var integrationId))
+            return Result.Failure(Error.Custom("QasroIntegration.InvalidState", "Invalid OAuth state."));
+
+        var integration = await db.QasroIntegrations.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(q => q.Id == integrationId, ct);
+        if (integration is null)
+            return Result.Failure(Error.NotFoundById("QasroIntegration", integrationId));
+
+        string agencyId;
         try
         {
-            var agencyId = await qasro.LinkAgencyAsync(new QasroLinkRequest(
-                TenantId: tenantId,
-                CompanyName: tenant.Name,
-                ContactEmail: null,  // TODO: pre-fill from General Settings company profile once wired
-                ContactPhone: null,
-                LogoUrl: null,
-                ApiKey: apiKey,
-                ListingsApiBaseUrl: "/api/real-estate/website"), ct);
-
-            integration.MarkConnected(agencyId);
+            agencyId = await qasro.ExchangeCodeAsync(cmd.Code, cmd.RedirectUri, ct);
+        }
+        catch (QasroNotApprovedException ex)
+        {
+            integration.MarkError(ex.Message);
+            await db.SaveChangesAsync(ct);
+            return Result.Failure(Error.Custom("QasroIntegration.NotApproved", ex.Message));
         }
         catch (Exception ex)
         {
             integration.MarkError(ex.Message);
             await db.SaveChangesAsync(ct);
-            return Result.Failure<QasroIntegrationDto>(Error.Custom(
-                "QasroIntegration.ConnectFailed", "Could not connect to Qasro. Try again in a moment."));
+            return Result.Failure(Error.Custom("QasroIntegration.ConnectFailed", "Could not complete the Qasro connection."));
         }
 
+        // Only generated now — approval is confirmed, so this is the first moment a key is worth
+        // having. Registering it is the one thing this side still pushes to Qasro, and only because
+        // the handshake above already succeeded.
+        var apiKey = integration.RotateKey();
+        try
+        {
+            await qasro.RegisterPullKeyAsync(agencyId, apiKey, "/api/real-estate/website", ct);
+        }
+        catch (Exception ex)
+        {
+            integration.MarkError(ex.Message);
+            await db.SaveChangesAsync(ct);
+            return Result.Failure(Error.Custom("QasroIntegration.ConnectFailed", "Qasro approved the connection but the listings key could not be registered."));
+        }
+
+        integration.MarkConnected(agencyId);
         await db.SaveChangesAsync(ct);
-        return Result.Success(await QasroIntegrationScope.ToDtoAsync(db, integration, tenantId, ct));
+        return Result.Success();
     }
 }
 
