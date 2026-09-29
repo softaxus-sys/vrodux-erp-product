@@ -85,6 +85,7 @@ export function CashierPOSView() {
   const [cashInput, setCashInput]     = React.useState("");
   const [showReceipt, setShowReceipt] = React.useState(false);
   const [completedTxn, setCompletedTxn] = React.useState("");
+  const [completedFbr, setCompletedFbr] = React.useState<{ status: string | null; number: string | null } | null>(null);
 
   // Hold
   const [held, setHeld]               = React.useState<HeldItem[]>([]);
@@ -107,6 +108,9 @@ export function CashierPOSView() {
   // Offline sales can't be refused for stock; online, the store's POS setting decides.
   const posSettings   = usePosSettings();
   const allowOversell = !!offline || !!posSettings.data?.allowOutOfStockSales;
+  // FBR (Pakistan): the POS service fee is charged on every sale reported to FBR. An offline
+  // till can't report live, so the server records offline sales without the fee - match it.
+  const fbrFee = !offline && posSettings.data?.fbrEnabled ? (posSettings.data.fbrServiceFee ?? 0) : 0;
   const { data: offlineCategories } = useOfflineCategories();
   const categoryList = React.useMemo(
     () => offline
@@ -214,7 +218,8 @@ export function CashierPOSView() {
   // ── Totals ────────────────────────────────────────────────────────────────
   const subtotal  = cart.reduce((s, i) => s + i.total, 0);
   const taxAmount = cart.reduce((s, i) => s + i.total * (i.taxRate / 100), 0);
-  const total     = subtotal + taxAmount;
+  const serviceFee = cart.length > 0 ? fbrFee : 0;
+  const total     = subtotal + taxAmount + serviceFee;
   const tendered  = parseFloat(cashInput) || 0;
 
   // ── Checkout ──────────────────────────────────────────────────────────────
@@ -227,6 +232,7 @@ export function CashierPOSView() {
         payments:  [{ method: paymentMethod, amount: total, reference: null }],
       });
       setCompletedTxn(txn.transactionNumber);
+      setCompletedFbr(txn.fbrStatus ? { status: txn.fbrStatus, number: txn.fbrInvoiceNumber ?? null } : null);
       setShowReceipt(true);
       refetchProducts();
 
@@ -251,6 +257,9 @@ export function CashierPOSView() {
           paymentMethod,
           tendered:       parseFloat(cashInput) || 0,
           openDrawer:     paymentMethod.toLowerCase() === "cash",
+          serviceFee:       txn.fbrServiceFee ?? 0,
+          fbrStatus:        txn.fbrStatus ?? null,
+          fbrInvoiceNumber: txn.fbrInvoiceNumber ?? null,
         });
         printRaw(escData).catch(() => {});
       }
@@ -258,7 +267,7 @@ export function CashierPOSView() {
   };
 
   const handleNewSale = () => {
-    setCart([]); setCashInput(""); setShowReceipt(false); setCompletedTxn("");
+    setCart([]); setCashInput(""); setShowReceipt(false); setCompletedTxn(""); setCompletedFbr(null);
   };
 
   // ── Hold ──────────────────────────────────────────────────────────────────
@@ -411,7 +420,7 @@ export function CashierPOSView() {
           {cart.length > 0 && (
             <>
               <div className="border-t-2 border-border px-5 pt-4 pb-3 space-y-3 overflow-y-auto shrink min-h-0">
-                <TotalsBlock itemCount={totalItems} subtotal={subtotal} taxAmount={taxAmount} total={total} currency={currency} />
+                <TotalsBlock itemCount={totalItems} subtotal={subtotal} taxAmount={taxAmount} total={total} currency={currency} serviceFee={serviceFee} />
                 <PaymentMethodGrid
                   methods={paymentMethods}
                   value={paymentMethod}
@@ -553,6 +562,9 @@ export function CashierPOSView() {
             paymentMethod={paymentMethod}
             tendered={tendered}
             txnNumber={completedTxn}
+            serviceFee={serviceFee}
+            fbrStatus={completedFbr?.status ?? null}
+            fbrInvoiceNumber={completedFbr?.number ?? null}
             sessionId={sessionId ?? undefined}
             onClose={handleNewSale}
             onNewSale={handleNewSale}

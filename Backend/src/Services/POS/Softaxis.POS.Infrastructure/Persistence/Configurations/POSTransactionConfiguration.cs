@@ -40,6 +40,12 @@ public sealed class POSTransactionConfiguration : IEntityTypeConfiguration<POSTr
 
         builder.Property(t => t.ClientRef).HasMaxLength(64);
         builder.Property(t => t.OfflineReceiptNumber).HasMaxLength(40);
+        builder.Property(t => t.FbrStatus).HasMaxLength(20);
+        builder.Property(t => t.FbrInvoiceNumber).HasMaxLength(100);
+        builder.Property(t => t.FbrLastError).HasMaxLength(1000);
+        builder.Property(t => t.FbrServiceFee).HasPrecision(18, 2);
+        // The retry job looks up "pending, due now" - keep that cheap.
+        builder.HasIndex(t => new { t.FbrStatus, t.FbrNextAttemptAt });
 
         // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
         builder.HasIndex(t => t.SessionId);

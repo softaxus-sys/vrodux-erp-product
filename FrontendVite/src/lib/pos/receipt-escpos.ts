@@ -25,6 +25,12 @@ export interface EscPosReceiptParams {
   tendered:       number;
   /** Pulse the cash drawer kick (both pins) at the start of this print job — for cash payments. */
   openDrawer?:    boolean;
+  /** FBR (Pakistan) POS service fee included in total. */
+  serviceFee?:       number;
+  /** null/undefined = not reported to FBR; "pending" | "submitted" | "failed". */
+  fbrStatus?:        string | null;
+  /** FBR invoice number - printed with a native ESC/POS QR code. */
+  fbrInvoiceNumber?: string | null;
 }
 
 /** ISO 4217 default decimal precision for a currency (e.g. BHD/KWD/OMR = 3, JPY = 0, most = 2). */
@@ -125,6 +131,10 @@ export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
 
   esc.row(`${p.taxLabel}:`, m(p.taxAmount));
 
+  if ((p.serviceFee ?? 0) > 0) {
+    esc.row("FBR POS fee:", m(p.serviceFee!));
+  }
+
   esc.rule("-");
   esc
     .bigOn().boldOn()
@@ -148,6 +158,23 @@ export function buildEscPosReceipt(p: EscPosReceiptParams): Uint8Array {
     esc
       .row("Tendered:", m(p.tendered))
       .boldOn().row("Change:", m(change)).boldOff();
+  }
+
+  // ── FBR (only when this sale is reported to FBR) ─────────────────────────────
+  if (p.fbrStatus) {
+    esc.rule().center();
+    if (p.fbrInvoiceNumber) {
+      esc
+        .boldOn().println("FBR Invoice No.").boldOff()
+        .println(p.fbrInvoiceNumber)
+        .qr(p.fbrInvoiceNumber, 6, "M")
+        .println("Verify in FBR Tax Asaan app");
+    } else {
+      esc
+        .println("FBR invoice: pending")
+        .println("Reported to FBR automatically.");
+    }
+    esc.left();
   }
 
   // ── Footer ────────────────────────────────────────────────────────────────────

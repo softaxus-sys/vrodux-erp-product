@@ -47,8 +47,17 @@ if %ERRORLEVEL% NEQ 0 ( echo  [ERROR] Desktop app setup VroduxERP-Setup-%APPVER%
 "%ISCC%" /DAppVersion=%APPVER% "%~dp0VroduxERP.iss"
 if %ERRORLEVEL% NEQ 0 ( echo  [ERROR] Installer compile failed. & exit /b 1 )
 
+REM Release layout: everything to hand out in one place - copy this folder to the site.
+REM   Deploy\VroduxErpSoftware\VroduxERP-<ver>.exe                    main installation (server + app)
+REM   Deploy\VroduxErpSoftware\Client\VroduxERP-Client-Setup-<ver>.exe  other tills (desktop app only)
+set RELEASE=%ROOT%\Deploy\VroduxErpSoftware
+if not exist "%RELEASE%\Client" mkdir "%RELEASE%\Client"
+copy /y "%ROOT%\FrontendVite\release\VroduxERP-Setup-%APPVER%.exe" "%RELEASE%\Client\VroduxERP-Client-Setup-%APPVER%.exe" >nul
+
 echo.
 echo  ============================================
-echo   Done: Deploy\installer\Output\VroduxERP-%APPVER%.exe
+echo   Done: Deploy\VroduxErpSoftware\   (copy this folder to the site)
+echo     VroduxERP-%APPVER%.exe                      main installation
+echo     Client\VroduxERP-Client-Setup-%APPVER%.exe  other tills
 echo  ============================================
 endlocal

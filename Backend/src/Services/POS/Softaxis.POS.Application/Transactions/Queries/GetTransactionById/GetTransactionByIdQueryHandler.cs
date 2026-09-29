@@ -25,6 +25,7 @@ public sealed class GetTransactionByIdQueryHandler(IPOSTransactionRepository txn
                 i.UnitPrice, i.Quantity, i.DiscountPercent, i.DiscountAmount,
                 i.TaxRate, i.TaxAmount, i.LineTotal, i.Unit)).ToList(),
             txn.Payments.Select(p => new POSPaymentDto(
-                p.Id, p.Method.ToString(), p.Amount, p.Reference)).ToList()));
+                p.Id, p.Method.ToString(), p.Amount, p.Reference)).ToList(),
+            txn.FbrStatus, txn.FbrInvoiceNumber, txn.FbrServiceFee, txn.FbrLastError));
     }
 }

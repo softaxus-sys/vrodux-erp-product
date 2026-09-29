@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.POS.Application.Abstractions;
 using Softaxis.POS.Application.Common;
 using Softaxis.POS.Application.DTOs;
+using Softaxis.POS.Application.Fbr;
 using Softaxis.POS.Domain.Entities;
 using Softaxis.POS.Domain.Repositories;
 
@@ -16,6 +17,7 @@ public sealed class CreateSaleCommandHandler(
     ICustomerRepository        customerRepo,
     IVoucherRepository         voucherRepo,
     IPosSettingsRepository     settingsRepo,
+    FbrReporter                fbrReporter,
     ICurrentUser               currentUser,
     IOptions<DiscountSettings> discountOpts,
     IUnitOfWork                uow)
@@ -81,7 +83,9 @@ public sealed class CreateSaleCommandHandler(
 
         // ── Pass 1: resolve products, compute per-line base subtotals ─────────
         var drafts = new List<LineDraft>();
-        bool? allowOutOfStock = null;   // POS setting: sell with no recorded stock
+        // Store-level POS settings (out-of-stock sales, FBR) - read once per sale.
+        var posSettings     = await settingsRepo.GetAsync(ct);
+        var allowOutOfStock = posSettings?.AllowOutOfStockSales ?? false;
         foreach (var req in cmd.LineItems)
         {
             var product = await productLookup.GetByIdForSaleAsync(req.ProductId, ct);
@@ -92,14 +96,12 @@ public sealed class CreateSaleCommandHandler(
             // Refusing it now for a product deactivated since, or stock that ran out, would lose
             // real revenue from the books without undoing the sale. The sync reports the stock instead.
             var isOffline = cmd.Offline is not null;
-            // Read once per sale, not per line.
-            allowOutOfStock ??= (await settingsRepo.GetAsync(ct))?.AllowOutOfStockSales ?? false;
 
             if (!product.IsActive && !isOffline)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Product.Inactive",
                     $"Product '{product.Name}' is not available for sale."));
 
-            if (!isOffline && allowOutOfStock != true && product.TrackInventory && product.StockQuantity < req.Quantity)
+            if (!isOffline && !allowOutOfStock && product.TrackInventory && product.StockQuantity < req.Quantity)
                 return Result.Failure<POSTransactionDto>(Error.Custom("Product.InsufficientStock",
                     $"Insufficient stock for '{product.Name}'. Available: {product.StockQuantity}."));
 
@@ -180,7 +182,12 @@ public sealed class CreateSaleCommandHandler(
         }
 
         // ── Validate sufficient payment ───────────────────────────────────────
-        var totalAmount = lineItems.Sum(i => i.LineTotal);
+        // FBR POS service fee (Pakistan): charged on every live sale reported to FBR. An offline
+        // replay was rung up at a till that could not add it, so it is reported with no fee.
+        var fbrOn  = posSettings?.FbrEnabled == true;
+        var fbrFee = fbrOn && cmd.Offline is null ? posSettings!.FbrServiceFee : 0m;
+
+        var totalAmount = lineItems.Sum(i => i.LineTotal) + fbrFee;
         var totalPaid   = payments.Sum(p => p.Amount);
         // Allow a 1-cent tolerance: the frontend computes its displayed total via
         // continuous (unrounded) per-item tax shares, which can differ from the
@@ -197,6 +204,9 @@ public sealed class CreateSaleCommandHandler(
 
         if (cmd.Offline is not null)
             transaction.MarkOffline(cmd.Offline.ClientRef, cmd.Offline.ReceiptNumber, cmd.Offline.OccurredAtUtc);
+
+        if (fbrOn)
+            transaction.ApplyFbr(fbrFee);
 
         // ── Deduct stock in the correct schema (pos or inventory) ─────────────
         foreach (var d in drafts)
@@ -218,6 +228,25 @@ public sealed class CreateSaleCommandHandler(
         txnRepo.Add(transaction);
         sessionRepo.Update(session);
         await uow.SaveChangesAsync(ct);
+
+        // ── FBR: report now so the receipt usually carries the FBR invoice number ──
+        // Saved as "pending" first, so a crash or timeout here can never lose the sale or the
+        // obligation to report it - the background job picks up whatever is still pending.
+        // Capped at a few seconds: the customer is waiting at the counter.
+        if (fbrOn && cmd.Offline is null)
+        {
+            using var fbrCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            fbrCts.CancelAfter(TimeSpan.FromSeconds(5));
+            try
+            {
+                await fbrReporter.SubmitAsync(transaction, posSettings!, customer?.Name, fbrCts.Token);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                transaction.MarkFbrAttemptFailed("FBR did not respond in time.", permanent: false);
+            }
+            await uow.SaveChangesAsync(ct);
+        }
 
         return Result.Success(MapToDto(transaction, customer?.Name));
     }
@@ -311,5 +340,6 @@ public sealed class CreateSaleCommandHandler(
                 i.UnitPrice, i.Quantity, i.DiscountPercent, i.DiscountAmount,
                 i.TaxRate, i.TaxAmount, i.LineTotal, i.Unit)).ToList(),
             t.Payments.Select(p => new POSPaymentDto(
-                p.Id, p.Method.ToString(), p.Amount, p.Reference)).ToList());
+                p.Id, p.Method.ToString(), p.Amount, p.Reference)).ToList(),
+            t.FbrStatus, t.FbrInvoiceNumber, t.FbrServiceFee, t.FbrLastError);
 }

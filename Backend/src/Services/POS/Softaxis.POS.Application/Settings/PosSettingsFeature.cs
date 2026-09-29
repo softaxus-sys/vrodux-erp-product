@@ -13,11 +13,15 @@ public sealed record PosSettingsDto(
     string? PrinterMode = null,
     string? PrinterName = null,
     string? PrinterIp   = null,
-    int?    PrinterPort = null)
+    int?    PrinterPort = null,
+    // FBR: what the till needs to add the service fee line. Credentials live in FbrSettingsDto.
+    bool    FbrEnabled    = false,
+    decimal FbrServiceFee = 0)
 {
     public static PosSettingsDto From(PosSettings? s) => s is null
         ? new PosSettingsDto(false)
-        : new PosSettingsDto(s.OfflineModeEnabled, s.AllowOutOfStockSales, s.PrinterMode, s.PrinterName, s.PrinterIp, s.PrinterPort);
+        : new PosSettingsDto(s.OfflineModeEnabled, s.AllowOutOfStockSales, s.PrinterMode, s.PrinterName, s.PrinterIp, s.PrinterPort,
+            s.FbrEnabled, s.FbrEnabled ? s.FbrServiceFee : 0);
 }
 
 public sealed record OpenShiftBlockerDto(Guid SessionId, string RegisterId, Guid CashierId, DateTime OpenedAt);

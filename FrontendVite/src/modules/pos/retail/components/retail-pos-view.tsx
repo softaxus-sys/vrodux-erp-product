@@ -91,6 +91,9 @@ export function RetailPOSView() {
   // Offline sales can't be refused for stock; online, the store's POS setting decides.
   const posSettings   = usePosSettings();
   const allowOversell = !!offline || !!posSettings.data?.allowOutOfStockSales;
+  // FBR (Pakistan): the POS service fee is charged on every sale reported to FBR. An offline
+  // till can't report live, so the server records offline sales without the fee - match it.
+  const fbrFee = !offline && posSettings.data?.fbrEnabled ? (posSettings.data.fbrServiceFee ?? 0) : 0;
 
   // ── POS permission flags ──────────────────────────────────────────────────────
   const canAddProduct   = hasRawPermission("pos.products.create");
@@ -134,6 +137,7 @@ export function RetailPOSView() {
   const [tenderedAmount, setTenderedAmount] = React.useState("");
   const [showReceipt, setShowReceipt]     = React.useState(false);
   const [completedTxnNumber, setCompletedTxnNumber] = React.useState("");
+  const [completedFbr, setCompletedFbr] = React.useState<{ status: string | null; number: string | null } | null>(null);
 
   // Scanner feedback
   const [scanFeedback, setScanFeedback]   = React.useState<"found" | "not_found" | null>(null);
@@ -268,7 +272,8 @@ export function RetailPOSView() {
     const itemShare = (i.total / subtotal) * taxBase;
     return s + itemShare * (i.taxRate / 100);
   }, 0) * 100) / 100;
-  const total   = Math.round((taxBase + taxAmount) * 100) / 100;
+  const serviceFee = cart.length > 0 ? fbrFee : 0;
+  const total   = Math.round((taxBase + taxAmount + serviceFee) * 100) / 100;
 
   const cashShort = paymentMethod === "Cash" && !!tenderedAmount && parseFloat(tenderedAmount) < total;
   const canCharge = cart.length > 0 && !!sessionId && !createSaleMutation.isPending && !cashShort;
@@ -299,6 +304,7 @@ export function RetailPOSView() {
 
       setCompletedTxnNumber(txn.transactionNumber);
       setCompletedPayments(payments.map(p => ({ method: p.method, amount: p.amount })));
+      setCompletedFbr(txn.fbrStatus ? { status: txn.fbrStatus, number: txn.fbrInvoiceNumber ?? null } : null);
       setShowReceipt(true);
       setShowSplit(false);
       refetchProducts();
@@ -323,6 +329,9 @@ export function RetailPOSView() {
           payments:      payments.map(p => ({ method: p.method, amount: p.amount })),
           tendered:       parseFloat(tenderedAmount) || 0,
           openDrawer:     hasCash,
+          serviceFee:       txn.fbrServiceFee ?? 0,
+          fbrStatus:        txn.fbrStatus ?? null,
+          fbrInvoiceNumber: txn.fbrInvoiceNumber ?? null,
         });
         printRaw(escData).catch(() => {/* non-fatal — receipt modal is still shown */});
       }
@@ -339,6 +348,7 @@ export function RetailPOSView() {
     setTenderedAmount("");
     setCompletedTxnNumber("");
     setCompletedPayments([]);
+    setCompletedFbr(null);
   };
 
   // ── Reprint a past receipt to the network printer ──────────────────────────────
@@ -369,6 +379,9 @@ export function RetailPOSView() {
         paymentMethod:  txn.payments.length > 1 ? "Split" : (txn.payments[0]?.method ?? "—"),
         payments:       txn.payments.map(p => ({ method: p.method, amount: p.amount })),
         tendered:       0,
+        serviceFee:       txn.fbrServiceFee ?? 0,
+        fbrStatus:        txn.fbrStatus ?? null,
+        fbrInvoiceNumber: txn.fbrInvoiceNumber ?? null,
       });
       await printRaw(escData);
       toast.success(`Receipt ${txn.transactionNumber} reprinted.`);
@@ -491,7 +504,20 @@ export function RetailPOSView() {
                       const actionBtn = "h-10 px-3 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-1.5";
                       return (
                         <tr key={tx.id} className="border-b border-border last:border-0 hover:bg-muted/30">
-                          <td className="px-5 py-3.5 text-base font-mono font-semibold">{tx.transactionNumber}</td>
+                          <td className="px-5 py-3.5 text-base font-mono font-semibold">
+                            {tx.transactionNumber}
+                            {/* FBR (Pakistan): has FBR accepted this sale? */}
+                            {tx.fbrStatus && (
+                              <span
+                                title={tx.fbrInvoiceNumber ? `FBR invoice ${tx.fbrInvoiceNumber}` : undefined}
+                                className={cn("ml-2 align-middle text-[10px] font-sans font-semibold uppercase px-1.5 py-0.5 rounded",
+                                  tx.fbrStatus === "submitted" ? "bg-emerald-500/10 text-emerald-700"
+                                  : tx.fbrStatus === "failed" ? "bg-red-500/10 text-red-600"
+                                  : "bg-amber-500/10 text-amber-700")}>
+                                {tx.fbrStatus === "submitted" ? "FBR ✓" : tx.fbrStatus === "failed" ? "FBR rejected" : "FBR queued"}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-5 py-3.5 text-lg font-black tabular-nums">{formatCurrency(tx.totalAmount, currency)}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2 text-base font-semibold">
@@ -644,6 +670,7 @@ export function RetailPOSView() {
                     taxAmount={taxAmount}
                     total={total}
                     currency={currency}
+                    serviceFee={serviceFee}
                   />
 
                   <PaymentMethodGrid
@@ -696,6 +723,9 @@ export function RetailPOSView() {
             paymentMethod={paymentMethod}
             tendered={parseFloat(tenderedAmount) || 0}
             txnNumber={completedTxnNumber}
+            serviceFee={serviceFee}
+            fbrStatus={completedFbr?.status ?? null}
+            fbrInvoiceNumber={completedFbr?.number ?? null}
             sessionId={sessionId ?? undefined}
             // Closing the receipt in ANY way (X, Esc, outside click) finishes the sale: the paid
             // items must leave the cart - they are already saved and listed in History.

@@ -16,6 +16,12 @@ public sealed class PosSettingsConfiguration : IEntityTypeConfiguration<PosSetti
         builder.Property(s => s.PrinterMode).HasMaxLength(20);
         builder.Property(s => s.PrinterName).HasMaxLength(256);
         builder.Property(s => s.PrinterIp).HasMaxLength(100);
+        builder.Property(s => s.FbrEnabled).HasDefaultValue(false);
+        builder.Property(s => s.FbrEnvironment).HasMaxLength(20).HasDefaultValue("sandbox");
+        builder.Property(s => s.FbrTokenProtected).HasMaxLength(4000);
+        builder.Property(s => s.FbrServiceFee).HasPrecision(18, 2).HasDefaultValue(1m);
+        builder.Property(s => s.FbrDefaultPctCode).HasMaxLength(20);
+        builder.Ignore(s => s.FbrReady);
     }
 }
 

@@ -56,6 +56,13 @@ public static class InfrastructureExtensions
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 
+        // FBR (Pakistan) POS integration: client, reporter, and the retry queue.
+        services.AddHttpClient(Softaxis.POS.Infrastructure.Fbr.FbrHttpClient.HttpClientName,
+            c => c.Timeout = TimeSpan.FromSeconds(10));
+        services.AddScoped<Softaxis.POS.Application.Fbr.IFbrClient, Softaxis.POS.Infrastructure.Fbr.FbrHttpClient>();
+        services.AddScoped<Softaxis.POS.Application.Fbr.FbrReporter>();
+        services.AddHostedService<Softaxis.POS.Infrastructure.Fbr.FbrRetryBackgroundService>();
+
         return services;
     }
 
