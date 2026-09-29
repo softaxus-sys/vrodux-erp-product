@@ -1,4 +1,4 @@
-﻿import { apiClient } from "@/lib/api-client";
+﻿import { apiClient, rawApiClient } from "@/lib/api-client";
 import type { DailySummaryDto } from "./types";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/reports`;
@@ -38,7 +38,12 @@ export const reportsApi = {
     return apiClient.get<DailySummaryDto>(`${BASE}/daily-summary?${qs}`);
   },
 
-  /** Run any POS report by its registry ID. Controller returns raw JSON (no ApiResponse envelope). */
+  /**
+   * Run any POS report by its registry ID. The controller returns raw JSON (no ApiResponse
+   * envelope) via `Ok(result)` directly — using the enveloped `apiClient` here would make every
+   * successful 200 read as `!body.success` and throw. `rawApiClient` matches what the controller
+   * actually sends, same as `inventoryReportsApi.run` does for its own (also raw) controller.
+   */
   run: (reportId: string, params: ReportRunParams = {}): Promise<ReportResult> => {
     const qs = new URLSearchParams();
     if (params.from)             qs.set("from",            params.from);
@@ -52,6 +57,6 @@ export const reportsApi = {
     if (params.valuationMethod)  qs.set("valuationMethod", params.valuationMethod);
     if (params.fiscalYear)       qs.set("fiscalYear",      params.fiscalYear);
     if (params.idleDays != null) qs.set("idleDays",        String(params.idleDays));
-    return apiClient.get<ReportResult>(`${BASE}/${encodeURIComponent(reportId)}?${qs}`);
+    return rawApiClient.get<ReportResult>(`${BASE}/${encodeURIComponent(reportId)}?${qs}`);
   },
 };
