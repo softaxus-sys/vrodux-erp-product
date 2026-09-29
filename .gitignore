@@ -48,4 +48,5 @@ Frontend/
 
 # On-prem installer build artefacts
 Deploy/installer/Output/
+Deploy/VroduxErpSoftware/
 Deploy/installer/payload/

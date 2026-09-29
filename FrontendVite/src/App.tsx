@@ -158,6 +158,7 @@ const AuditPage            = lazyWithRetry(() => import("@/pages/settings/audit"
 const AppearancePage       = lazyWithRetry(() => import("@/pages/settings/appearance"));
 const PosPaymentMethodsPage = lazyWithRetry(() => import("@/pages/settings/pos-payment-methods"));
 const ReceiptPrinterPage    = lazyWithRetry(() => import("@/pages/settings/receipt-printer"));
+const FbrSettingsPage       = lazyWithRetry(() => import("@/pages/settings/fbr"));
 const PaymentGatewayPage    = lazyWithRetry(() => import("@/pages/settings/payment-gateway"));
 const NotificationConfigPage = lazyWithRetry(() => import("@/pages/settings/notifications"));
 const DevicesPage           = lazyWithRetry(() => import("@/pages/settings/devices"));
@@ -576,6 +577,7 @@ export function App() {
           <Route element={<RoleGuard roles={["super_admin", "tenant_admin", "manager"]} />}>
             <Route path="/settings/pos-payment-methods"   element={<PosPaymentMethodsPage />} />
             <Route path="/settings/receipt-printer"       element={<ReceiptPrinterPage />} />
+            <Route path="/settings/fbr"                   element={<FbrSettingsPage />} />
             <Route path="/settings/payment-gateway"       element={<PaymentGatewayPage />} />
             <Route path="/settings/notifications"         element={<NotificationConfigPage />} />
             <Route path="/settings/devices"               element={<DevicesPage />} />

@@ -422,10 +422,12 @@ export function EmptyCart() {
 // ─── Totals ───────────────────────────────────────────────────────────────────
 
 export function TotalsBlock({
-  itemCount, subtotal, discountAmount = 0, discountLabel, taxAmount, total, currency,
+  itemCount, subtotal, discountAmount = 0, discountLabel, taxAmount, total, currency, serviceFee = 0,
 }: {
   itemCount: number; subtotal: number; discountAmount?: number; discountLabel?: string;
   taxAmount: number; total: number; currency: string;
+  /** FBR POS service fee (Pakistan) - already included in total. */
+  serviceFee?: number;
 }) {
   return (
     <div className="space-y-1.5">
@@ -443,6 +445,12 @@ export function TotalsBlock({
         <span>Tax</span>
         <span className="tabular-nums text-foreground">{formatCurrency(taxAmount, currency)}</span>
       </div>
+      {serviceFee > 0 && (
+        <div className="flex justify-between text-base font-semibold text-muted-foreground">
+          <span>FBR POS fee</span>
+          <span className="tabular-nums text-foreground">{formatCurrency(serviceFee, currency)}</span>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-900 text-white px-4 py-3 mt-2 dark:bg-slate-800">
         <span className="text-lg font-extrabold uppercase tracking-wide">Total</span>
         <span className="text-3xl font-black tabular-nums truncate">{formatCurrency(total, currency)}</span>

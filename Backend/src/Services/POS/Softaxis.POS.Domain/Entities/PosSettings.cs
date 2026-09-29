@@ -34,6 +34,22 @@ public sealed class PosSettings : AuditableEntity<Guid>
     public string? PrinterIp   { get; private set; }
     public int?    PrinterPort { get; private set; }
 
+    // ── FBR (Pakistan) POS integration ───────────────────────────────────────
+    // Every sale is reported to FBR's IMS; FBR answers with an invoice number that must be
+    // printed on the receipt with a QR code. Off by default - only Tier-1 retailers need it.
+
+    public bool     FbrEnabled     { get; private set; }
+    /// <summary>"sandbox" or "production".</summary>
+    public string   FbrEnvironment { get; private set; } = "sandbox";
+    /// <summary>POS ID issued by FBR for this till registration (IRIS).</summary>
+    public long?    FbrPosId       { get; private set; }
+    /// <summary>FBR API bearer token, encrypted at rest (never returned to the browser).</summary>
+    public string?  FbrTokenProtected { get; private set; }
+    /// <summary>FBR POS service fee added to each reported sale (Rs 1 by regulation).</summary>
+    public decimal  FbrServiceFee  { get; private set; } = 1m;
+    /// <summary>PCT (HS) code used for items that have none of their own.</summary>
+    public string?  FbrDefaultPctCode { get; private set; }
+
     private PosSettings() { }
 
     public static PosSettings CreateDefault() => new() { Id = Guid.NewGuid() };
@@ -49,4 +65,22 @@ public sealed class PosSettings : AuditableEntity<Guid>
         PrinterIp   = string.IsNullOrWhiteSpace(ip)   ? null : ip.Trim();
         PrinterPort = port;
     }
+
+    /// <param name="protectedToken">
+    /// The encrypted token, or null to keep the one already stored - the browser never sees the
+    /// stored token, so "no new token" must not wipe it.
+    /// </param>
+    public void SetFbr(bool enabled, string environment, long? posId, string? protectedToken,
+                       decimal serviceFee, string? defaultPctCode)
+    {
+        FbrEnabled        = enabled;
+        FbrEnvironment    = environment == "production" ? "production" : "sandbox";
+        FbrPosId          = posId;
+        if (protectedToken is not null) FbrTokenProtected = protectedToken;
+        FbrServiceFee     = Math.Max(0, serviceFee);
+        FbrDefaultPctCode = string.IsNullOrWhiteSpace(defaultPctCode) ? null : defaultPctCode.Trim();
+    }
+
+    /// <summary>True when reporting is on and everything needed to call FBR is present.</summary>
+    public bool FbrReady => FbrEnabled && FbrPosId is > 0 && !string.IsNullOrEmpty(FbrTokenProtected);
 }

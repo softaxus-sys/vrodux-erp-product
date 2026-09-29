@@ -26,7 +26,8 @@ public sealed class GetTransactionsQueryHandler(IPOSTransactionRepository txnRep
             t.Type.ToString(), t.Status.ToString(),
             t.TotalAmount,
             t.Payments.OrderByDescending(p => p.Amount).FirstOrDefault()?.Method.ToString() ?? "None",
-            t.CompletedAt)).ToList();
+            t.CompletedAt,
+            t.FbrStatus, t.FbrInvoiceNumber)).ToList();
 
         return Result.Success(PagedResult<POSTransactionSummaryDto>.Create(
             dtos, paged.TotalCount, paged.Page, paged.PageSize));

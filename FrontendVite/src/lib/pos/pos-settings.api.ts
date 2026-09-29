@@ -7,6 +7,9 @@ export interface PosSettingsDto {
   offlineModeEnabled: boolean;
   /** Sell tracked items with no recorded stock - stock goes negative instead of blocking the sale. */
   allowOutOfStockSales?: boolean;
+  /** FBR (Pakistan) reporting on: the till adds the service fee line to every sale. */
+  fbrEnabled?: boolean;
+  fbrServiceFee?: number;
 }
 
 export interface OpenShiftBlockerDto {

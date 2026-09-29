@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth.store";
 import { useHardware }  from "@/contexts/hardware-context";
 import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
+import QRCode from "qrcode";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,12 @@ export interface PosReceiptProps {
   txnNumber:      string;          // e.g. "TXN-000123"
   sessionId?:     string;
   cashierName?:   string;
+  /** FBR (Pakistan) POS service fee included in total. */
+  serviceFee?:       number;
+  /** null = not reported to FBR; "pending" | "submitted" | "failed". */
+  fbrStatus?:        string | null;
+  /** Invoice number FBR returned - printed with its QR code. */
+  fbrInvoiceNumber?: string | null;
   onNewSale:      () => void;
   onClose?:       () => void;
 }
@@ -173,11 +180,53 @@ function Row({ label, value, bold, green, small }: {
   );
 }
 
+// ─── FBR QR code ───────────────────────────────────────────────────────────────
+
+/** Real, scannable QR of the FBR invoice number (verifiable in FBR's Tax Asaan app). */
+function FbrQr({ value }: { value: string }) {
+  const [src, setSrc] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let alive = true;
+    QRCode.toDataURL(value, { margin: 1, width: 160, errorCorrectionLevel: "M" })
+      .then(url => { if (alive) setSrc(url); })
+      .catch(() => { if (alive) setSrc(null); });
+    return () => { alive = false; };
+  }, [value]);
+  return src
+    ? <img src={src} alt={`FBR invoice ${value}`} className="h-24 w-24" />
+    : <QrCode className="h-10 w-10 text-gray-400" />;
+}
+
+/** FBR block on the receipt - nothing at all when the sale isn't reported to FBR. */
+function FbrBlock({ status, number }: { status?: string | null; number?: string | null }) {
+  if (!status) return null;
+  return (
+    <>
+      <div className="text-center space-y-1">
+        {number ? (
+          <div className="inline-flex flex-col items-center gap-1 mx-auto">
+            <p className="text-[10px] font-bold uppercase tracking-wider">FBR Invoice No.</p>
+            <p className="text-[11px] font-mono font-bold break-all max-w-[220px]">{number}</p>
+            <FbrQr value={number} />
+            <p className="text-[9px] text-gray-500">Verify this invoice in the FBR Tax Asaan app</p>
+          </div>
+        ) : (
+          <p className="text-[10px] text-gray-500">
+            FBR invoice: pending - this sale will be reported to FBR automatically.
+          </p>
+        )}
+      </div>
+      <Divider />
+    </>
+  );
+}
+
 // ─── Pakistan Receipt ──────────────────────────────────────────────────────────
 
 function PakistanReceipt({
   cart, subtotal, discountAmount, discountLabel, taxAmount, total,
   paymentMethod, payments, tendered, txnNumber, cashierName,
+  serviceFee = 0, fbrStatus, fbrInvoiceNumber,
   cfg, companyName,
 }: PosReceiptProps & { cfg: ReceiptConfig; companyName: string }) {
   const change = Math.max(0, tendered - total);
@@ -250,6 +299,7 @@ function PakistanReceipt({
           <Row label={discountLabel ? `Discount (${discountLabel})` : "Discount"} value={`– ${fmtMoney(discountAmount, cfg.currency)}`} green />
         )}
         <Row label={`GST @${cfg.taxRate}%`} value={fmtMoney(taxAmount, cfg.currency)} />
+        {serviceFee > 0 && <Row label="FBR POS fee" value={fmtMoney(serviceFee, cfg.currency)} />}
         <Divider dashed={false} />
         <Row label={`TOTAL DUE (${cfg.currency})`} value={fmtMoney(total, cfg.currency)} bold />
       </div>
@@ -276,19 +326,8 @@ function PakistanReceipt({
 
       <Divider />
 
-      {/* ── FBR section ── */}
-      <div className="text-center space-y-1">
-        {/* Simulated QR / FBR verification area */}
-        <div className="inline-flex flex-col items-center gap-1 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 mx-auto">
-          <QrCode className="h-10 w-10 text-gray-400" />
-          <p className="text-[9px] text-gray-400">Scan to verify on FBR PRAL</p>
-          <p className="text-[9px] font-mono text-gray-500 break-all max-w-[180px]">
-            fbr.gov.pk/verify/{txnNumber}
-          </p>
-        </div>
-      </div>
-
-      <Divider />
+      {/* ── FBR section (only when this sale is reported to FBR) ── */}
+      <FbrBlock status={fbrStatus} number={fbrInvoiceNumber} />
 
       {/* ── Legal footer ── */}
       <div className="text-center space-y-0.5">
@@ -488,6 +527,9 @@ export function PosReceipt(props: PosReceiptProps) {
     tendered:       props.tendered,
     openDrawer:     props.paymentMethod.toLowerCase() === "cash"
       || !!props.payments?.some(p => p.method.toLowerCase() === "cash"),
+    serviceFee:       props.serviceFee ?? 0,
+    fbrStatus:        props.fbrStatus ?? null,
+    fbrInvoiceNumber: props.fbrInvoiceNumber ?? null,
   });
 
   /** Send ESC/POS bytes to the network printer — no browser dialog. */

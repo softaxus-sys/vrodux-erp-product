@@ -38,6 +38,18 @@ public sealed class POSTransaction : AuditableEntity<Guid>
     /// <summary>The receipt number printed at the till while offline, e.g. OFF-T1-20260915-0007.</summary>
     public string?   OfflineReceiptNumber { get; private set; }
 
+    // ── FBR (Pakistan) reporting ──────────────────────────────────────────────
+    /// <summary>null = not reported (FBR off); "pending" / "submitted" / "failed".</summary>
+    public string?   FbrStatus        { get; private set; }
+    /// <summary>Invoice number FBR returned - printed on the receipt with its QR code.</summary>
+    public string?   FbrInvoiceNumber { get; private set; }
+    public int       FbrAttempts      { get; private set; }
+    public string?   FbrLastError     { get; private set; }
+    public DateTime? FbrSubmittedAt   { get; private set; }
+    public DateTime? FbrNextAttemptAt { get; private set; }
+    /// <summary>FBR POS service fee included in TotalAmount (0 when FBR is off).</summary>
+    public decimal   FbrServiceFee    { get; private set; }
+
     // Navigation
     public POSSession              Session   { get; private set; } = default!;
     public Customer?               Customer  { get; private set; }
@@ -139,6 +151,61 @@ public sealed class POSTransaction : AuditableEntity<Guid>
     }
 
     /// <summary>Record how the order-level discount was applied (for audit and receipts).</summary>
+    /// <summary>
+    /// Adds the FBR POS service fee to the bill and queues the sale for FBR. Called after
+    /// <see cref="Complete"/>, before the payment check, so the customer pays the fee.
+    /// </summary>
+    public void ApplyFbr(decimal serviceFee)
+    {
+        FbrServiceFee    = Math.Max(0, serviceFee);
+        TotalAmount     += FbrServiceFee;
+        ChangeGiven      = Math.Max(0, AmountPaid - TotalAmount);
+        FbrStatus        = "pending";
+        FbrNextAttemptAt = DateTime.UtcNow;
+    }
+
+    public void MarkFbrSubmitted(string fbrInvoiceNumber)
+    {
+        FbrStatus        = "submitted";
+        FbrInvoiceNumber = fbrInvoiceNumber;
+        FbrSubmittedAt   = DateTime.UtcNow;
+        FbrLastError     = null;
+        FbrNextAttemptAt = null;
+        FbrAttempts++;
+    }
+
+    /// <summary>
+    /// A failed attempt. <paramref name="permanent"/> = FBR rejected the data itself (retrying the
+    /// same payload cannot succeed); otherwise it was a connection problem and it is retried with
+    /// backoff: 1, 2, 4 ... minutes, capped at an hour.
+    /// </summary>
+    public void MarkFbrAttemptFailed(string error, bool permanent)
+    {
+        FbrAttempts++;
+        FbrLastError = error.Length > 1000 ? error[..1000] : error;
+        if (permanent)
+        {
+            FbrStatus        = "failed";
+            FbrNextAttemptAt = null;
+        }
+        else
+        {
+            FbrStatus        = "pending";
+            var minutes      = Math.Min(60, Math.Pow(2, Math.Min(FbrAttempts - 1, 6)));
+            FbrNextAttemptAt = DateTime.UtcNow.AddMinutes(minutes);
+        }
+    }
+
+    /// <summary>Put a failed submission back in the queue (after the data was corrected).</summary>
+    public void RequeueFbr()
+    {
+        if (FbrStatus is "failed" or "pending")
+        {
+            FbrStatus        = "pending";
+            FbrNextAttemptAt = DateTime.UtcNow;
+        }
+    }
+
     public void SetOrderDiscount(string type, string? reference)
     {
         OrderDiscountType      = string.IsNullOrWhiteSpace(type) ? "none" : type.Trim().ToLowerInvariant();

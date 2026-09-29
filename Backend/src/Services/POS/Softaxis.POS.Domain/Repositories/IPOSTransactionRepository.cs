@@ -35,6 +35,12 @@ public interface IPOSTransactionRepository
 
     Task<POSTransaction?>  GetByClientRefAsync(string clientRef, CancellationToken ct = default);
 
+    /// <summary>Count of sales per FBR status ("pending" / "submitted" / "failed").</summary>
+    Task<Dictionary<string, int>> GetFbrStatusCountsAsync(CancellationToken ct = default);
+
+    /// <summary>Most recent sales FBR has not accepted yet, newest first.</summary>
+    Task<IReadOnlyList<POSTransaction>> GetFbrUnsubmittedAsync(int take, CancellationToken ct = default);
+
     void Add(POSTransaction transaction);
     void Update(POSTransaction transaction);
 }

@@ -30,7 +30,8 @@ AppPublisher=Softaxis Technologies
 DefaultDirName={autopf}\Vrodux ERP
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-OutputDir=Output
+; Release layout: main installer at Deploy\VroduxErpSoftware\, client-only setup in Deploy\VroduxErpSoftware\Client\
+OutputDir=..\VroduxErpSoftware
 OutputBaseFilename=VroduxERP-{#AppVersion}
 SetupIconFile=..\..\FrontendVite\public\vrodux-icon.ico
 UninstallDisplayIcon={app}\server\Softaxis.ApiGateway.exe
@@ -70,6 +71,7 @@ Name: "{group}\Uninstall Vrodux ERP Server"; Filename: "{uninstallexe}"
 Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}"; Flags: runhidden waituntilterminated; RunOnceId: "StopSvc"
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden waituntilterminated; RunOnceId: "DelSvc"
 Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""Vrodux ERP Server"""; Flags: runhidden waituntilterminated; RunOnceId: "DelFw"
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /F /TN ""Vrodux ERP Startup Watchdog"""; Flags: runhidden waituntilterminated; RunOnceId: "DelTask"
 
 [Code]
 var
@@ -334,6 +336,43 @@ begin
   Result := '';
 end;
 
+{ "Server=" value of the first connection string in appsettings.json (works for a fresh install
+  and for an upgrade that keeps the existing file). }
+function SqlServerSetting(const AppSettingsPath: String): String;
+var S: AnsiString; Txt: String; P, Sep: Integer;
+begin
+  Result := '';
+  if not LoadStringFromFile(AppSettingsPath, S) then Exit;
+  Txt := String(S);
+  P := Pos('Server=', Txt);
+  if P = 0 then Exit;
+  Txt := Copy(Txt, P + 7, 300);
+  Sep := Pos(';', Txt);
+  if Sep > 0 then Txt := Copy(Txt, 1, Sep - 1);
+  { appsettings.json escapes the backslash as \\ }
+  StringChangeEx(Txt, '\\', '\', True);
+  Result := Trim(Txt);
+end;
+
+{ Windows service name of that SQL Server - only when it runs on THIS computer (a remote SQL Server
+  cannot be a local service dependency). PC\SQLEXPRESS -> MSSQL$SQLEXPRESS, PC -> MSSQLSERVER. }
+function LocalSqlServiceName(const Server: String): String;
+var Host, Inst, Pc: String; P: Integer;
+begin
+  Result := '';
+  if Server = '' then Exit;
+  P := Pos('\', Server);
+  if P > 0 then begin Host := Copy(Server, 1, P - 1); Inst := Copy(Server, P + 1, 100); end
+  else begin Host := Server; Inst := ''; end;
+  P := Pos(',', Host);                                   { strip ",port" }
+  if P > 0 then Host := Copy(Host, 1, P - 1);
+  Pc := Uppercase(GetComputerNameString);
+  Host := Uppercase(Trim(Host));
+  if not ((Host = Pc) or (Host = '.') or (Host = 'LOCALHOST') or (Host = '(LOCAL)') or (Host = '127.0.0.1')) then Exit;
+  if (Inst = '') or (Uppercase(Inst) = 'MSSQLSERVER') then Result := 'MSSQLSERVER'
+  else Result := 'MSSQL$' + Inst;
+end;
+
 procedure RunStep(const Title, FileName, Params: String);
 var RC: Integer;
 begin
@@ -343,7 +382,7 @@ begin
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
-var Srv, Tools, Exe, Lic, ValuesFile: String; RC_Dummy: Integer;
+var Srv, Tools, Exe, Lic, ValuesFile, SqlSvc: String; RC_Dummy: Integer;
 begin
   if CurStep <> ssPostInstall then Exit;
   Srv   := ExpandConstant('{app}\server');
@@ -392,7 +431,25 @@ begin
   RunStep('Installing the Windows service...', ExpandConstant('{sys}\sc.exe'),
     'create {#ServiceName} binPath= "\"' + Exe + '\"" DisplayName= "Vrodux ERP Server" start= auto obj= LocalSystem');
   Exec(ExpandConstant('{sys}\sc.exe'), 'description {#ServiceName} "Vrodux ERP API Server"', '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
-  Exec(ExpandConstant('{sys}\sc.exe'), 'failure {#ServiceName} reset= 86400 actions= restart/5000/restart/10000/restart/30000', '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
+
+  { After a reboot, Vrodux and SQL Server start together; Vrodux reaches for its database before
+    SQL Server accepts connections, fails, and Windows gives up. So: start once boot has settled
+    (delayed auto-start), depend on the LOCAL SQL Server service when there is one, and keep
+    retrying (the last recovery action repeats for every later failure). }
+  Exec(ExpandConstant('{sys}\sc.exe'), 'config {#ServiceName} start= delayed-auto', '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
+  SqlSvc := LocalSqlServiceName(SqlServerSetting(Srv + '\appsettings.json'));
+  if SqlSvc <> '' then
+    Exec(ExpandConstant('{sys}\sc.exe'), 'config {#ServiceName} depend= ' + SqlSvc, '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
+  Exec(ExpandConstant('{sys}\sc.exe'), 'failure {#ServiceName} reset= 86400 actions= restart/10000/restart/30000/restart/60000', '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
+  { Recovery actions also apply when the service stops with an error, not only on a crash. }
+  Exec(ExpandConstant('{sys}\sc.exe'), 'failureflag {#ServiceName} 1', '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
+
+  { Last line of defence after a reboot: a SYSTEM task that starts the service 5 minutes after
+    boot if it is not running. "sc start" on a running service is a harmless no-op. }
+  Exec(ExpandConstant('{sys}\schtasks.exe'),
+    '/Create /F /TN "Vrodux ERP Startup Watchdog" /SC ONSTART /DELAY 0005:00 /RU SYSTEM /RL HIGHEST ' +
+    '/TR "' + ExpandConstant('{sys}') + '\sc.exe start {#ServiceName}"',
+    '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
 
   WizardForm.StatusLabel.Caption := 'Starting the Vrodux ERP service (first start can take a few minutes)...';
   if not TimeoutWasSet then

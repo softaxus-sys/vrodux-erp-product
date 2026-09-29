@@ -683,6 +683,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "billing", label: "Billing & Plan", href: "/settings/billing", icon: "CreditCard", requiresPermission: "settings.billing.view" },
           { id: "pos-payment-methods", label: "POS Payments", href: "/settings/pos-payment-methods", icon: "CreditCard", module: "pos" },
           { id: "receipt-printer", label: "Receipt Printer", href: "/settings/receipt-printer", icon: "Printer", module: "pos" },
+          { id: "fbr", label: "FBR Integration", href: "/settings/fbr", icon: "Landmark", module: "pos" },
           { id: "payment-gateway", label: "Payment Gateway", href: "/settings/payment-gateway", icon: "Landmark", module: "pos" },
           { id: "notifications", label: "SMS & WhatsApp", href: "/settings/notifications", icon: "Bell", module: "restaurant" },
           { id: "devices", label: "Registered Devices", href: "/settings/devices", icon: "Monitor", module: "restaurant" },

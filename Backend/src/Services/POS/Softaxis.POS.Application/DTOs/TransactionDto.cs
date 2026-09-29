@@ -19,7 +19,12 @@ public sealed record POSTransactionDto(
     string?  Notes,
     DateTime CompletedAt,
     IReadOnlyList<POSLineItemDto> LineItems,
-    IReadOnlyList<POSPaymentDto>  Payments);
+    IReadOnlyList<POSPaymentDto>  Payments,
+    // FBR (Pakistan): null status = not reported.
+    string?  FbrStatus        = null,
+    string?  FbrInvoiceNumber = null,
+    decimal  FbrServiceFee    = 0,
+    string?  FbrLastError     = null);
 
 public sealed record POSTransactionSummaryDto(
     Guid     Id,
@@ -29,7 +34,9 @@ public sealed record POSTransactionSummaryDto(
     string   Status,
     decimal  TotalAmount,
     string   PrimaryPaymentMethod,
-    DateTime CompletedAt);
+    DateTime CompletedAt,
+    string?  FbrStatus        = null,
+    string?  FbrInvoiceNumber = null);
 
 public sealed record POSLineItemDto(
     Guid    Id,

@@ -140,7 +140,14 @@ export interface POSTransactionDto {
   completedAt: string;
   lineItems: POSLineItemDto[];
   payments: POSPaymentDto[];
+  /** FBR (Pakistan): null = not reported; "pending" | "submitted" | "failed". */
+  fbrStatus?: FbrStatus | null;
+  fbrInvoiceNumber?: string | null;
+  fbrServiceFee?: number;
+  fbrLastError?: string | null;
 }
+
+export type FbrStatus = "pending" | "submitted" | "failed";
 
 export interface POSTransactionSummaryDto {
   id: string;
@@ -151,6 +158,8 @@ export interface POSTransactionSummaryDto {
   totalAmount: number;
   primaryPaymentMethod: string;
   completedAt: string;
+  fbrStatus?: FbrStatus | null;
+  fbrInvoiceNumber?: string | null;
 }
 
 export interface HeldTransactionDto {

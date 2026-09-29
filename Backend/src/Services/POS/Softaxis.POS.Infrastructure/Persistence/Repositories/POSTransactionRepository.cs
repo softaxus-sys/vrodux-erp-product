@@ -23,6 +23,20 @@ public sealed class POSTransactionRepository(POSDbContext db) : IPOSTransactionR
     public Task<POSTransaction?> GetByClientRefAsync(string clientRef, CancellationToken ct = default) =>
         FullQuery.FirstOrDefaultAsync(t => t.ClientRef == clientRef, ct);
 
+    public async Task<Dictionary<string, int>> GetFbrStatusCountsAsync(CancellationToken ct = default) =>
+        await db.Transactions
+            .Where(t => t.FbrStatus != null)
+            .GroupBy(t => t.FbrStatus!)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+
+    public async Task<IReadOnlyList<POSTransaction>> GetFbrUnsubmittedAsync(int take, CancellationToken ct = default) =>
+        await db.Transactions
+            .Where(t => t.FbrStatus == "pending" || t.FbrStatus == "failed")
+            .OrderByDescending(t => t.CompletedAt)
+            .Take(take)
+            .ToListAsync(ct);
+
     public async Task<string> GenerateTransactionNumberAsync(CancellationToken ct = default)
     {
         // Format: TXN-YYYYMMDD-NNNN (sequential per day)
