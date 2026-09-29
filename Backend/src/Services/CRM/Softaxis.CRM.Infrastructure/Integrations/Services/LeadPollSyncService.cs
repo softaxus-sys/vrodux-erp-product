@@ -24,15 +24,17 @@ namespace Softaxis.CRM.Infrastructure.Integrations.Services;
 /// <para>Dedupe is what makes it safe to overlap with the webhook: a lead already ingested comes
 /// back as a duplicate and is skipped, so the two paths cannot create the same lead twice.</para>
 ///
-/// <para>Deliberately infrequent. Every cycle costs provider API calls against a rate limit shared
-/// with the interactive import screens, so it runs on the hour scale rather than the minute scale —
-/// anything more aggressive would be paying real quota to catch a rare failure.</para>
+/// <para>3 minutes: none of the poll-sync providers document a per-minute rate limit narrow enough
+/// for that to matter (Property Finder's OAuth token endpoint is the only documented figure —
+/// 60 req/min — and this cadence stays far under it), and each sweep is a handful of requests per
+/// integration, not a bulk export. A real outage still isn't hammered: <see cref="DueForRetry"/>
+/// backs a failing integration off up to a day regardless of this base interval.</para>
 /// </summary>
 public sealed class LeadPollSyncService(
     IServiceScopeFactory scopeFactory,
     ILogger<LeadPollSyncService> logger) : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan Interval = TimeSpan.FromMinutes(3);
 
     /// <summary>
     /// Long on purpose. Every MigrateAndSeed runs before the host starts serving, and the deploy's
@@ -47,7 +49,7 @@ public sealed class LeadPollSyncService(
     /// <remarks>
     /// <para>Exponential on the consecutive-failure count, from one cycle up to a day: the first
     /// couple of failures retry at the normal rate — which is what makes a transient outage heal
-    /// itself within the hour — and only a persistently broken one backs off far enough to stop
+    /// itself within minutes — and only a persistently broken one backs off far enough to stop
     /// costing quota.</para>
     ///
     /// <para>A missing <c>LastFailureAt</c> means retry now. It cannot be used to justify skipping,
@@ -59,8 +61,11 @@ public sealed class LeadPollSyncService(
         if (integration.LastFailureAt is not { } lastFailure) return true;
 
         // Clamped before shifting: RetryCount climbs without bound while an integration is down,
-        // and 1 << 40 is undefined-shift territory, not a long wait.
-        var steps  = Math.Clamp(integration.RetryCount - 1, 0, 6);
+        // and 1 << 40 is undefined-shift territory, not a long wait. The clamp's upper bound
+        // (9) is tied to Interval — it is exactly the step count that lets a 3-minute base still
+        // reach the 24h ceiling below (3min * 2^9 ≈ 25.6h) rather than plateauing at ~3.2h and
+        // hammering a permanently broken key ten times as often as the old 30-minute base did.
+        var steps  = Math.Clamp(integration.RetryCount - 1, 0, 9);
         var delay  = TimeSpan.FromTicks(Interval.Ticks * (1L << steps));
         if (delay > MaxRetryDelay) delay = MaxRetryDelay;
 

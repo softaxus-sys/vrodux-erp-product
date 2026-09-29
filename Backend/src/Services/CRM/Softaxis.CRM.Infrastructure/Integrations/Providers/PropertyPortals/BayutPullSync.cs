@@ -24,8 +24,15 @@ internal static class BayutPullSync
     /// Overlap re-requested on every sweep. `timestamp` filters on the portal's clock, and neither
     /// the request nor the response states a timezone, so a small rewind costs a few duplicates
     /// (which dedupe on lead_id) and avoids the far worse failure of skipping leads.
+    ///
+    /// <para>Kept well above the poll interval (3 min) rather than equal to it: a value tied 1:1 to
+    /// the interval would fetch nothing extra to guard against a sweep that runs late (a slow
+    /// upstream response, a paused process). 5 minutes covers that plus real clock drift between
+    /// us and the portal, while asking for a much narrower window than the old 30-minute value did
+    /// — which, against a 3-minute cadence, would have re-fetched 10x the data actually new since
+    /// the last sweep on every single call.</para>
     /// </summary>
-    private static readonly TimeSpan Overlap = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan Overlap = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// The oldest timestamp the API accepts. Six months, enforced server-side: an older value is
