@@ -378,16 +378,21 @@ internal sealed class LeadAccessGuard(CrmDbContext db, ICurrentUser user) : ILea
         if (CanSeeAllActivities) return source;
         if (user.Id is not { } uid) return source.Where(_ => false);
 
+        // A task assigned to this user is always theirs to see — whoever owns the record it hangs
+        // off. Without this a manager could hand an agent a task (and the agent got the alert) that
+        // never appeared in the agent's own activity list.
         if (CanViewTeam)
-            return source.Where(a => a.RelatedToType == "lead"
+            return source.Where(a => a.AssignedToUserId == uid
+                || (a.RelatedToType == "lead"
                 && db.Leads.Any(l => l.Id == a.RelatedToId
                     && (l.AssignedToUserId == uid
                         || (l.AssignedToUserId != null && db.Set<IdentityTeamMemberView>()
                             .Any(m => m.UserId == l.AssignedToUserId
                                    && db.Set<IdentityTeamView>()
-                                        .Any(t => t.Id == m.TeamId && t.TeamLeadUserId == uid && t.IsActive && !t.IsDeleted))))));
+                                        .Any(t => t.Id == m.TeamId && t.TeamLeadUserId == uid && t.IsActive && !t.IsDeleted)))))));
 
-        return source.Where(a => a.RelatedToType == "lead"
-            && db.Leads.Any(l => l.Id == a.RelatedToId && l.AssignedToUserId == uid));
+        return source.Where(a => a.AssignedToUserId == uid
+            || (a.RelatedToType == "lead"
+                && db.Leads.Any(l => l.Id == a.RelatedToId && l.AssignedToUserId == uid)));
     }
 }
