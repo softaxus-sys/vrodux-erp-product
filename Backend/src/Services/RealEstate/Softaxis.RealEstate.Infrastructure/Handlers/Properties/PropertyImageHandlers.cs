@@ -189,6 +189,61 @@ internal sealed class SetPropertyWebsiteListingHandler(RealEstateDbContext db)
     }
 }
 
+internal sealed class SetPropertyQasroListingHandler(RealEstateDbContext db)
+    : ICommandHandler<SetPropertyQasroListingCommand>
+{
+    public async Task<Result> Handle(SetPropertyQasroListingCommand cmd, CancellationToken ct)
+    {
+        var property = await db.Properties
+            .Include(p => p.Images)
+            .FirstOrDefaultAsync(p => p.Id == cmd.PropertyId, ct);
+
+        if (property is null)
+            return Result.Failure(Error.Custom("Property.NotFound", "That property no longer exists."));
+
+        // Same reasoning as the website listing above — Qasro is a public portal too.
+        if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0)
+            return Result.Failure(Error.Custom("Property.NoImages",
+                "Add at least one photo before listing this property on Qasro."));
+
+        property.SetQasroListing(cmd.ListOnQasro);
+        await db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+}
+
+internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db)
+    : ICommandHandler<BulkSetPropertyQasroListingCommand, BulkQasroListingResultDto>
+{
+    public async Task<Result<BulkQasroListingResultDto>> Handle(BulkSetPropertyQasroListingCommand cmd, CancellationToken ct)
+    {
+        var properties = await db.Properties
+            .Include(p => p.Images)
+            .Where(p => cmd.PropertyIds.Contains(p.Id))
+            .ToListAsync(ct);
+
+        var updated = 0;
+        var skipped = 0;
+
+        foreach (var property in properties)
+        {
+            // Listing without a photo is refused per-property, not for the whole batch — a mixed
+            // selection should list what it can rather than failing everything over one property
+            // with no photos yet.
+            if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0) { skipped++; continue; }
+
+            property.SetQasroListing(cmd.ListOnQasro);
+            updated++;
+        }
+
+        // Ids that matched no property (deleted, wrong tenant) count as skipped too.
+        skipped += cmd.PropertyIds.Count - properties.Count;
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success(new BulkQasroListingResultDto(updated, skipped));
+    }
+}
+
 internal sealed class GetPropertyImageHandler(RealEstateDbContext db)
     : IQueryHandler<GetPropertyImageQuery, PropertyImageFileDto>
 {

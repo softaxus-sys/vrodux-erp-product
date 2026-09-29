@@ -27,7 +27,9 @@ internal static class PropertyMappings
             p.PublishedAt,
             gallery,
             gallery.FirstOrDefault(i => i.IsPrimary)?.Id ?? gallery.FirstOrDefault()?.Id,
-            p.Category);
+            p.Category,
+            p.ListOnQasro,
+            p.QasroPublishedAt);
     }
 
     public static PropertyImageDto ToDto(PropertyImage i) => new(

@@ -20,7 +20,7 @@ internal static class ListingMappings
     public static ListingDto ToDto(PropertyUnit u, Property p, GalleryInfo gallery) => new(
         u.Id, p.Id, p.PropertyNumber,
         p.Name, p.PropertyType, p.Category, p.Address, p.City, p.Emirate,
-        p.ListOnWebsite, gallery.PrimaryImageId, gallery.Count,
+        p.ListOnWebsite, p.ListOnQasro, gallery.PrimaryImageId, gallery.Count,
         u.UnitNumber, u.UnitType, u.Area, u.Floor, u.RentPerYear, u.SalePrice, u.Status,
         u.CurrentTenantId, u.CurrentTenantName,
         u.Furnishing, u.View, u.Bedrooms, u.Bathrooms, u.Parking, u.ServiceCharge, u.Notes,

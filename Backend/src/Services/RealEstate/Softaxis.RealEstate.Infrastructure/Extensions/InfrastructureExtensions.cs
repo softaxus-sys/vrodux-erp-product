@@ -11,6 +11,7 @@ using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Infrastructure.Services;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 using Softaxis.RealEstate.Infrastructure.Persistence.Seed;
+using Softaxis.RealEstate.Infrastructure.Qasro;
 
 namespace Softaxis.RealEstate.Infrastructure.Extensions;
 
@@ -39,6 +40,11 @@ public static class InfrastructureExtensions
         services.AddScoped<IRealEstateEmailService, SmtpRealEstateEmailService>();
         services.AddScoped<IRentAlertSender, RentAlertSender>();
         services.AddHostedService<RentAlertBackgroundService>();
+
+        // Qasro (qasro.com) — service-to-service only, no OAuth: both products are Softaxis's own.
+        services.Configure<QasroOptions>(configuration.GetSection(QasroOptions.Section));
+        services.AddHttpClient("qasro");
+        services.AddScoped<IQasroClient, QasroClient>();
 
         // ── FluentValidation — register all validators from Application ───────
         services.AddValidatorsFromAssembly(typeof(AssemblyReference).Assembly);

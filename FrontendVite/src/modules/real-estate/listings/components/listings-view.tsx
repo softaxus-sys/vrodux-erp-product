@@ -3,17 +3,21 @@ import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
   Search, Building2, Plus, UploadCloud, Home, Tag, KeyRound,
-  Camera, Megaphone, Wallet,
+  Camera, Megaphone, Wallet, Sparkles, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
-import { Can } from "@/components/auth/can";
+import { Can, useCan } from "@/components/auth/can";
 import { SpreadsheetImportModal } from "@/components/ui/spreadsheet-import-modal";
 import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { useListings, useListingsSummary, useImportRentalStock, useProperty } from "@/hooks/real-estate/use-re";
+import {
+  useListings, useListingsSummary, useImportRentalStock, useProperty,
+  useBulkSetQasroListing, useQasroIntegration,
+} from "@/hooks/real-estate/use-re";
 import type { ListingDto, PropertyDto, UnitStatus } from "@/lib/real-estate/re.api";
+import { useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { LISTING_IMPORT_FIELDS } from "./listing-import-fields";
 import { ListingForm } from "./listing-form";
 import { ListingDrawer } from "./listing-drawer";
@@ -62,6 +66,9 @@ const statusOf = (s: string) => STATUS_CONFIG[s as UnitStatus] ?? STATUS_FALLBAC
  */
 export function ListingsView() {
   const currency = useCurrency();
+  const canEditProperties = useCan("real-estate.properties.edit");
+  const { data: qasro } = useQasroIntegration();
+  const qasroConnected = qasro?.status === "connected";
 
   const [search, setSearch]       = React.useState("");
   const [purpose, setPurpose]     = React.useState("all");
@@ -110,6 +117,22 @@ export function ListingsView() {
   const totalPages = paged?.totalPages ?? 1;
 
   const { data: summary } = useListingsSummary();
+
+  // Selection is by listing row (matches what's on screen), but "list on Qasro" is a per-building
+  // action — several selected units can share one building, so the bulk call dedupes to distinct
+  // property ids before sending (see handleBulkQasro below).
+  const visibleIds = listings.map(l => l.id);
+  const { picked, toggle, allVisiblePicked, toggleAllVisible, clear } = useRowSelection(visibleIds);
+  const bulkSetQasro = useBulkSetQasroListing();
+
+  const handleBulkQasro = async (listOnQasro: boolean) => {
+    const propertyIds = [...new Set(
+      listings.filter(l => picked.has(l.id)).map(l => l.propertyId),
+    )];
+    if (propertyIds.length === 0) return;
+    try { await bulkSetQasro.mutateAsync({ propertyIds, listOnQasro }); clear(); }
+    catch { /* hook toasts */ }
+  };
 
   const STAT_CARDS = [
     { label: "Listings",   value: (summary?.total ?? 0).toLocaleString(),      icon: Home,      color: "text-primary bg-primary/10" },
@@ -231,12 +254,41 @@ export function ListingsView() {
         </div>
       </div>
 
+      {/* Bulk Qasro bar — only meaningful once Qasro is connected and something is selected */}
+      {qasroConnected && canEditProperties && picked.size > 0 && (
+        <div className="flex items-center gap-3 flex-wrap rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+          <span className="text-sm font-medium">{picked.size} selected</span>
+          <Button size="sm" className="h-8 gap-1.5" disabled={bulkSetQasro.isPending} onClick={() => handleBulkQasro(true)}>
+            {bulkSetQasro.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            List on Qasro
+          </Button>
+          <Button size="sm" variant="outline" className="h-8" disabled={bulkSetQasro.isPending} onClick={() => handleBulkQasro(false)}>
+            Remove from Qasro
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8" onClick={clear}>Clear</Button>
+          <p className="text-[11px] text-muted-foreground w-full">
+            Applies to the building each selected listing belongs to — a property with no photo yet is skipped, not failed.
+          </p>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/30">
               <tr>
+                {qasroConnected && canEditProperties && (
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allVisiblePicked}
+                      onChange={toggleAllVisible}
+                      onClick={e => e.stopPropagation()}
+                      aria-label="Select all visible listings"
+                    />
+                  </th>
+                )}
                 {["Building / unit", "Location", "Type", "Beds", "Area", "Price", "Furnishing", ...(showOwner ? ["Owner"] : []), "Agent", "Status"].map(h => (
                   <th key={h} className="px-4 py-3 text-start text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                     {h}
@@ -247,7 +299,7 @@ export function ListingsView() {
             <tbody className="divide-y divide-border">
               {listings.length === 0 ? (
                 <tr>
-                  <td colSpan={showOwner ? 10 : 9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={(showOwner ? 10 : 9) + (qasroConnected && canEditProperties ? 1 : 0)} className="px-4 py-12 text-center text-sm text-muted-foreground">
                     {debounced || purpose !== "all" || status !== "all"
                       ? "No listings match these filters."
                       : "No listings yet. Add one, or import your stock sheet."}
@@ -263,11 +315,22 @@ export function ListingsView() {
                     onClick={() => openRow(l)}
                     className="hover:bg-muted/30 cursor-pointer"
                   >
+                    {qasroConnected && canEditProperties && (
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={picked.has(l.id)}
+                          onChange={() => toggle(l.id)}
+                          aria-label={`Select ${l.propertyName}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 min-w-[200px]">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-foreground truncate">{l.propertyName}</span>
                         {l.hasMedia && <Camera className="h-3 w-3 text-muted-foreground shrink-0" aria-label="Photos on file" />}
                         {l.isListed && <Megaphone className="h-3 w-3 text-primary shrink-0" aria-label="Advertised" />}
+                        {l.listOnQasro && <Sparkles className="h-3 w-3 text-amber-500 shrink-0" aria-label="Listed on Qasro" />}
                       </div>
                       {l.hasConfidentialAccess ? (
                         <p className="text-[11px] text-muted-foreground">Unit {l.unitNumber}</p>

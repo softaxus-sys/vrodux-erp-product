@@ -166,6 +166,11 @@ internal sealed class WithdrawAllWebsiteListingsHandler(RealEstateDbContext db)
 /// Runs anonymously, before any tenant is known — hence IgnoreQueryFilters and the explicit
 /// tenant read off the row. Unknown key, disabled integration and lapsed workspace all fail the
 /// same way, so a caller learns nothing about which it hit.
+///
+/// Resolves BOTH a tenant's own WebsiteIntegration key and a QasroIntegration key — Qasro reuses
+/// the exact same PublicListingsController/WebsiteApiKeyAttribute pipeline as a tenant's own
+/// website, distinguished only by key prefix, so a tenant's published listings are served
+/// identically to either caller with no duplicated read endpoint.
 /// </summary>
 internal sealed class ResolveWebsiteClientHandler(RealEstateDbContext db)
     : IQueryHandler<ResolveWebsiteClientQuery, WebsiteClientDto>
@@ -177,10 +182,18 @@ internal sealed class ResolveWebsiteClientHandler(RealEstateDbContext db)
 
     public async Task<Result<WebsiteClientDto>> Handle(ResolveWebsiteClientQuery query, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(query.ApiKey) || !query.ApiKey.StartsWith(WebsiteIntegration.KeyPrefix))
+        if (string.IsNullOrWhiteSpace(query.ApiKey))
             return Result.Failure<WebsiteClientDto>(Invalid);
 
-        var hash = WebsiteIntegration.Hash(query.ApiKey.Trim());
+        var key = query.ApiKey.Trim();
+
+        if (key.StartsWith(QasroIntegration.KeyPrefix))
+            return await ResolveQasroAsync(key, ct);
+
+        if (!key.StartsWith(WebsiteIntegration.KeyPrefix))
+            return Result.Failure<WebsiteClientDto>(Invalid);
+
+        var hash = WebsiteIntegration.Hash(key);
 
         var row = await db.WebsiteIntegrations.IgnoreQueryFilters().AsNoTracking()
             .Where(w => w.KeyHash == hash && w.IsActive)
@@ -212,5 +225,38 @@ internal sealed class ResolveWebsiteClientHandler(RealEstateDbContext db)
         }
 
         return Result.Success(new WebsiteClientDto(row.Id, row.TenantId.Value, tenant.Name, row.WebsiteOrigin));
+    }
+
+    private async Task<Result<WebsiteClientDto>> ResolveQasroAsync(string key, CancellationToken ct)
+    {
+        var hash = QasroIntegration.Hash(key);
+
+        var row = await db.QasroIntegrations.IgnoreQueryFilters().AsNoTracking()
+            .Where(q => q.KeyHash == hash && q.Status == "connected")
+            .Select(q => new
+            {
+                q.Id,
+                q.LastUsedAt,
+                TenantId = EF.Property<Guid?>(q, RealEstateDbContext.OwnerTenant),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (row?.TenantId is null) return Result.Failure<WebsiteClientDto>(Invalid);
+
+        var tenant = await db.TenantLookups.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == row.TenantId.Value, ct);
+
+        if (tenant is null || tenant.Status is "Suspended" or "Expired")
+            return Result.Failure<WebsiteClientDto>(Invalid);
+
+        var now = DateTime.UtcNow;
+        if (row.LastUsedAt is null || now - row.LastUsedAt > LastUsedGranularity)
+        {
+            await db.QasroIntegrations.IgnoreQueryFilters()
+                .Where(q => q.Id == row.Id)
+                .ExecuteUpdateAsync(s => s.SetProperty(q => q.LastUsedAt, now), ct);
+        }
+
+        return Result.Success(new WebsiteClientDto(row.Id, row.TenantId.Value, tenant.Name, QasroIntegration.Origin, IsQasro: true));
     }
 }

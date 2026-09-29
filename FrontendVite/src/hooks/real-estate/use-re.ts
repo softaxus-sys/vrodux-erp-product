@@ -539,3 +539,87 @@ export function useWithdrawAllWebsiteListings() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+// ── Qasro integration ────────────────────────────────────────────────────────
+const QASRO = [QK, "qasro-integration"];
+
+export function useQasroIntegration() {
+  return useQuery({ queryKey: QASRO, queryFn: async () => (await reApi.getQasroIntegration()) ?? null });
+}
+
+export function useQasroPublished() {
+  return useQuery({ queryKey: [...QASRO, "published"], queryFn: reApi.getQasroPublished });
+}
+
+function useInvalidateQasro() {
+  const qc = useQueryClient();
+  return () => {
+    qc.invalidateQueries({ queryKey: QASRO });
+    qc.invalidateQueries({ queryKey: [QK, "properties"] });
+    qc.invalidateQueries({ queryKey: [QK, "property-summary"] });
+    qc.invalidateQueries({ queryKey: [QK, "listings"] });
+    qc.invalidateQueries({ queryKey: [QK, "listing"] });
+  };
+}
+
+/** No success toast on connect — the card shows the connecting/connected status itself, and a
+ * generic "Connected!" would land before the async link call to Qasro has even resolved. */
+export function useConnectQasro() {
+  const invalidate = useInvalidateQasro();
+  return useMutation({
+    mutationFn: reApi.connectQasro,
+    onSuccess: invalidate,
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDisconnectQasro() {
+  const invalidate = useInvalidateQasro();
+  return useMutation({
+    mutationFn: reApi.disconnectQasro,
+    onSuccess: () => { invalidate(); toast.success("Qasro disconnected — your listings have been taken down."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useWithdrawAllQasroListings() {
+  const invalidate = useInvalidateQasro();
+  return useMutation({
+    mutationFn: reApi.withdrawAllQasroListings,
+    onSuccess: (n) => { invalidate(); toast.success(`${n} ${n === 1 ? "property" : "properties"} removed from Qasro.`); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Publishes or withdraws a single property on Qasro. The server refuses to publish one with no
+ * photo, same rule as the website listing — surfaced, not swallowed. */
+export function useSetPropertyQasroListing() {
+  const invalidate = useInvalidateQasro();
+  return useMutation({
+    mutationFn: (v: { propertyId: string; listOnQasro: boolean }) =>
+      reApi.setPropertyQasroListing(v.propertyId, v.listOnQasro),
+    onSuccess: (_d, v) => {
+      invalidate();
+      toast.success(v.listOnQasro ? "Listed on Qasro." : "Removed from Qasro.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** "List all at once, or select some and list, keep some unlisted." Reports what actually changed
+ * — a mixed selection may skip properties with no photo yet, so a bare success toast would hide that. */
+export function useBulkSetQasroListing() {
+  const invalidate = useInvalidateQasro();
+  return useMutation({
+    mutationFn: (v: { propertyIds: string[]; listOnQasro: boolean }) =>
+      reApi.bulkSetQasroListing(v.propertyIds, v.listOnQasro),
+    onSuccess: (r, v) => {
+      invalidate();
+      const verb = v.listOnQasro ? "listed on Qasro" : "removed from Qasro";
+      if (r.updated > 0) toast.success(`${r.updated} ${r.updated === 1 ? "property" : "properties"} ${verb}.`);
+      if (r.skipped > 0)
+        toast.info(`${r.skipped} skipped — add at least one photo before listing on Qasro.`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}

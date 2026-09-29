@@ -49,6 +49,17 @@ public sealed class Property
     /// <summary>When it was last published, so the website can show genuinely new listings first.</summary>
     public DateTime? PublishedAt { get; private set; }
 
+    /// <summary>
+    /// Whether this property is syndicated to Qasro (qasro.com) — Softaxis's sister property
+    /// portal. Independent of <see cref="ListOnWebsite"/>: a workspace may want its own site yes,
+    /// Qasro no, or the reverse. Same off-by-default reasoning applies.
+    /// </summary>
+    public bool ListOnQasro { get; private set; }
+
+    /// <summary>Stamped only on the transition into listed — see <see cref="SetWebsiteListing"/>'s
+    /// remarks; the same reasoning applies here.</summary>
+    public DateTime? QasroPublishedAt { get; private set; }
+
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
@@ -105,6 +116,15 @@ public sealed class Property
     {
         if (listed && !ListOnWebsite) PublishedAt = DateTime.UtcNow;
         ListOnWebsite = listed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Syndicates to, or withdraws from, Qasro. See <see cref="SetWebsiteListing"/> for why
+    /// the published-at stamp is kept, not cleared, on withdrawal.</summary>
+    public void SetQasroListing(bool listed)
+    {
+        if (listed && !ListOnQasro) QasroPublishedAt = DateTime.UtcNow;
+        ListOnQasro = listed;
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -34,6 +34,37 @@ export interface WebsiteApiKeyDto {
   apiKey: string;
 }
 
+/**
+ * The workspace's connection to Qasro (qasro.com) — Softaxis's sister property portal.
+ *
+ * Unlike WebsiteIntegrationDto, there is no key here at all, ever — the one-click "Activate Qasro"
+ * flow generates and hands off the key server-to-server, so the tenant never sees or manages it.
+ */
+export interface QasroIntegrationDto {
+  id: string;
+  qasroAgencyId: string | null;
+  status: "connecting" | "connected" | "error" | "disconnected";
+  lastError: string | null;
+  createdAt: string;
+  connectedAt: string | null;
+  lastUsedAt: string | null;
+  publishedPropertyCount: number;
+}
+
+export interface BulkQasroListingResultDto {
+  updated: number;
+  skipped: number;
+}
+
+export interface QasroPublishedPropertyDto {
+  id: string;
+  propertyNumber: string;
+  name: string;
+  city: string;
+  publishedAt: string | null;
+  imageCount: number;
+}
+
 export interface PublishedPropertyDto {
   id: string;
   propertyNumber: string;
@@ -97,6 +128,8 @@ export interface ListingDto {
   city: string;
   emirate: string;
   listOnWebsite: boolean;
+  /** Independent of listOnWebsite — a building may be on the tenant's own site, on Qasro, both, or neither. */
+  listOnQasro: boolean;
   primaryImageId: string | null;
   imageCount: number;
 
@@ -281,6 +314,9 @@ export interface PropertyDto {
   /** Whether the property is published to the public website. */
   listOnWebsite: boolean;
   publishedAt: string | null;
+  /** Whether the property is syndicated to Qasro — independent of listOnWebsite. */
+  listOnQasro: boolean;
+  qasroPublishedAt: string | null;
   /** Metadata only — the bytes come from propertyImageUrl(). */
   images: PropertyImageDto[] | null;
   primaryImageId: string | null;
@@ -723,6 +759,26 @@ export const reApi = {
 
   setPropertyWebsiteListing: (propertyId: string, listOnWebsite: boolean) =>
     rawApiClient.patch(`${BASE}/properties/${propertyId}/website-listing`, { listOnWebsite }),
+
+  // ── Qasro integration ───────────────────────────────────────────────────────
+  // One-click, no form — see QasroIntegrationDto's own remarks on why there is no key to manage.
+
+  getQasroIntegration: (): Promise<QasroIntegrationDto | undefined> =>
+    rawApiClient.get(`${BASE}/qasro-integration`),
+  getQasroPublished: (): Promise<QasroPublishedPropertyDto[]> =>
+    rawApiClient.get(`${BASE}/qasro-integration/published`),
+  connectQasro: (): Promise<QasroIntegrationDto> =>
+    rawApiClient.post(`${BASE}/qasro-integration/connect`, {}),
+  disconnectQasro: (): Promise<void> =>
+    rawApiClient.post(`${BASE}/qasro-integration/disconnect`, {}),
+  withdrawAllQasroListings: (): Promise<number> =>
+    rawApiClient.post(`${BASE}/qasro-integration/withdraw-all`, {}),
+
+  setPropertyQasroListing: (propertyId: string, listOnQasro: boolean) =>
+    rawApiClient.patch(`${BASE}/properties/${propertyId}/qasro-listing`, { listOnQasro }),
+  /** "List all at once, or select some" — one call for a whole selection. */
+  bulkSetQasroListing: (propertyIds: string[], listOnQasro: boolean): Promise<BulkQasroListingResultDto> =>
+    rawApiClient.post(`${BASE}/properties/qasro-listing/bulk`, { propertyIds, listOnQasro }),
 
   // ── Listings ──────────────────────────────────────────────────────────────
   // The merged stock list: one row per unit, with its building. Supersedes calling

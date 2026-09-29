@@ -1,17 +1,20 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertTriangle, Check, Copy, Globe, ImageOff, KeyRound, Loader2, Power, RefreshCw, Save, ShieldCheck, Trash2, X,
+  AlertTriangle, Check, Copy, ExternalLink, Globe, ImageOff, KeyRound, Loader2, Power,
+  RefreshCw, Save, ShieldCheck, Sparkles, Trash2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Can, useCan } from "@/components/auth/can";
 import { cn, formatDate } from "@/lib/utils";
-import type { WebsiteIntegrationDto } from "@/lib/real-estate/re.api";
+import type { QasroIntegrationDto, WebsiteIntegrationDto } from "@/lib/real-estate/re.api";
 import {
   useCreateWebsiteIntegration, useRegenerateWebsiteKey, useSetPropertyWebsiteListing,
   useSetWebsiteIntegrationActive, useUpdateWebsiteIntegration, useWebsiteIntegration,
   useWebsitePublished, useWithdrawAllWebsiteListings,
+  useConnectQasro, useDisconnectQasro, useQasroIntegration, useQasroPublished,
+  useSetPropertyQasroListing, useWithdrawAllQasroListings,
 } from "@/hooks/real-estate/use-re";
 
 const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
@@ -46,7 +49,211 @@ export function WebsiteIntegrationView() {
       {integration && <PublishedList />}
       {integration && <IntegrationGuide />}
 
+      <QasroSection />
+
       {revealedKey && <KeyModal apiKey={revealedKey} onClose={() => setRevealedKey(null)} />}
+    </div>
+  );
+}
+
+// ── Qasro ────────────────────────────────────────────────────────────────────
+//
+// Deliberately not a form like the website connection above — both products are Softaxis's own,
+// so there is no address to type and no key to copy. One click either connects or disconnects.
+
+function QasroSection() {
+  const { data: integration, isLoading } = useQasroIntegration();
+  const canEdit = useCan("real-estate.website.edit");
+
+  if (isLoading) return null;
+
+  return (
+    <div className="space-y-5 border-t pt-5">
+      <div>
+        <h2 className="flex items-center gap-2 text-xl font-bold"><Sparkles className="h-5 w-5" /> Qasro</h2>
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+          Qasro is Softaxis's own property portal. Connect once, then choose which properties to list from
+          Properties &amp; Units — no address or key to manage, since it's the same company on both sides.
+        </p>
+      </div>
+
+      {integration
+        ? <QasroConnectedPanel integration={integration} canEdit={canEdit} />
+        : <QasroConnectCard canEdit={canEdit} />}
+
+      {integration?.status === "connected" && <QasroPublishedList />}
+    </div>
+  );
+}
+
+function QasroConnectCard({ canEdit }: { canEdit: boolean }) {
+  const connect = useConnectQasro();
+  return (
+    <div className="rounded-lg border bg-card p-5 space-y-3 max-w-2xl">
+      <h3 className="font-semibold">Not connected</h3>
+      <p className="text-sm text-muted-foreground">
+        Connecting takes a second — no forms, nothing to configure. Once connected, a "List on Qasro" checkbox
+        appears on your properties, so you choose exactly what gets published.
+      </p>
+      {canEdit ? (
+        <Button disabled={connect.isPending} onClick={() => connect.mutate()}>
+          {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {connect.isPending ? "Connecting…" : "Activate Qasro"}
+        </Button>
+      ) : (
+        <p className="text-xs text-muted-foreground">Ask a workspace admin to connect Qasro.</p>
+      )}
+    </div>
+  );
+}
+
+function QasroConnectedPanel({ integration: q, canEdit }: { integration: QasroIntegrationDto; canEdit: boolean }) {
+  const disconnect = useDisconnectQasro();
+  const [confirmDisconnect, setConfirmDisconnect] = React.useState(false);
+
+  const statusMeta: Record<QasroIntegrationDto["status"], { label: string; tone: string }> = {
+    connected:    { label: "Connected",    tone: "bg-emerald-500/10 text-emerald-600" },
+    connecting:   { label: "Connecting…",  tone: "bg-amber-500/10 text-amber-600" },
+    error:        { label: "Connection failed", tone: "bg-destructive/10 text-destructive" },
+    disconnected: { label: "Disconnected", tone: "bg-muted text-muted-foreground" },
+  };
+  const meta = statusMeta[q.status];
+
+  return (
+    <div className="rounded-lg border bg-card p-5 space-y-4 max-w-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold", meta.tone)}>
+            <span className={cn("h-2 w-2 rounded-full", q.status === "connected" ? "bg-emerald-500" : "bg-current")} />
+            {meta.label}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            {q.publishedPropertyCount} {q.publishedPropertyCount === 1 ? "property" : "properties"} on Qasro
+          </span>
+        </div>
+        {canEdit && (
+          <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmDisconnect(true)}>
+            <Power className="h-4 w-4" /> Disconnect
+          </Button>
+        )}
+      </div>
+
+      {q.status === "error" && q.lastError && (
+        <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          {q.lastError}
+          {canEdit && <RetryConnect />}
+        </div>
+      )}
+
+      <a
+        href="https://qasro.com" target="_blank" rel="noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+      >
+        View on Qasro <ExternalLink className="h-3.5 w-3.5" />
+      </a>
+
+      <ConfirmDialog
+        open={confirmDisconnect}
+        title="Disconnect Qasro?"
+        body="Every property currently listed on Qasro is taken down immediately. You can connect again at any time — nothing about your properties is deleted."
+        confirmLabel="Disconnect"
+        busy={disconnect.isPending}
+        onCancel={() => setConfirmDisconnect(false)}
+        onConfirm={async () => {
+          try { await disconnect.mutateAsync(); setConfirmDisconnect(false); } catch { /* hook toasts */ }
+        }}
+      />
+    </div>
+  );
+}
+
+/** Connecting again after a failure reuses the same "Connect" call — it rotates the key and
+ * retries the link, rather than needing a separate "retry" endpoint. */
+function RetryConnect() {
+  const connect = useConnectQasro();
+  return (
+    <Button variant="outline" size="sm" className="ms-2 h-6 px-2 text-xs" disabled={connect.isPending} onClick={() => connect.mutate()}>
+      {connect.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Retry"}
+    </Button>
+  );
+}
+
+function QasroPublishedList() {
+  const { data: rows = [], isLoading } = useQasroPublished();
+  const setListing = useSetPropertyQasroListing();
+  const withdrawAll = useWithdrawAllQasroListings();
+  const [confirmAll, setConfirmAll] = React.useState(false);
+
+  return (
+    <div className="rounded-lg border bg-card max-w-2xl">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+        <div>
+          <h3 className="font-semibold">On Qasro ({rows.length})</h3>
+          <p className="text-xs text-muted-foreground">
+            List a property from Properties &amp; Units. Removing it here takes it off Qasro on its next refresh.
+          </p>
+        </div>
+        {rows.length > 0 && (
+          <Can permission="real-estate.properties.edit">
+            <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmAll(true)}>
+              <Trash2 className="h-4 w-4" /> Remove all
+            </Button>
+          </Can>
+        )}
+      </div>
+
+      {isLoading ? (
+        <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="p-6 text-sm text-muted-foreground">
+          Nothing is listed yet. Open <Link to="/real-estate/properties" className="underline">Properties &amp; Units</Link> and
+          check "List on Qasro" on the ones you want published.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase text-muted-foreground">
+              <tr><th className="px-5 py-2">Property</th><th className="px-5 py-2">City</th><th className="px-5 py-2">Photos</th><th className="px-5 py-2">Listed</th><th /></tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id} className="border-t">
+                  <td className="px-5 py-2.5"><p className="font-medium">{r.name}</p><p className="text-xs text-muted-foreground">{r.propertyNumber}</p></td>
+                  <td className="px-5 py-2.5">{r.city}</td>
+                  <td className="px-5 py-2.5">
+                    {r.imageCount > 0 ? r.imageCount : <span className="inline-flex items-center gap-1 text-amber-600"><ImageOff className="h-3.5 w-3.5" /> none</span>}
+                  </td>
+                  <td className="px-5 py-2.5">{formatDate(r.publishedAt)}</td>
+                  <td className="px-5 py-2.5 text-right">
+                    <Can permission="real-estate.properties.edit">
+                      <Button
+                        variant="ghost" size="sm" className="text-destructive"
+                        disabled={setListing.isPending}
+                        onClick={() => setListing.mutate({ propertyId: r.id, listOnQasro: false })}
+                      >
+                        <X className="h-4 w-4" /> Remove
+                      </Button>
+                    </Can>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={confirmAll}
+        title="Remove every property from Qasro?"
+        body="All properties are taken off Qasro. They stay in Properties and can be listed again one by one, or in bulk from Properties &amp; Units."
+        confirmLabel="Remove all"
+        busy={withdrawAll.isPending}
+        onCancel={() => setConfirmAll(false)}
+        onConfirm={async () => {
+          try { await withdrawAll.mutateAsync(); setConfirmAll(false); } catch { /* hook toasts */ }
+        }}
+      />
     </div>
   );
 }

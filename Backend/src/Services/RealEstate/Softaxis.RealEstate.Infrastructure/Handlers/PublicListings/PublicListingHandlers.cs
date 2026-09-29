@@ -39,10 +39,13 @@ internal static class PublicListingScope
     ///
     /// Note the column is OwnerTenantId, not TenantIsolation.Column — this service already uses
     /// "TenantId" to mean the RENTER, so the SaaS tenant lives under a different name here.
+    ///
+    /// <paramref name="isQasro"/> picks which publish flag gates visibility — a tenant may list a
+    /// property on their own site, on Qasro, both, or neither, independently.
     /// </summary>
-    public static IQueryable<Property> PublishedFor(RealEstateDbContext db, Guid tenantId) =>
+    public static IQueryable<Property> PublishedFor(RealEstateDbContext db, Guid tenantId, bool isQasro) =>
         db.Properties.AsNoTracking()
-            .Where(p => p.ListOnWebsite
+            .Where(p => (isQasro ? p.ListOnQasro : p.ListOnWebsite)
                         && !p.IsDeleted
                         && EF.Property<Guid?>(p, RealEstateDbContext.OwnerTenant) == tenantId);
 
@@ -51,7 +54,7 @@ internal static class PublicListingScope
         Error.Custom("Listing.NotFound", "That listing is not available.");
 
     public static PublicPropertyDto ToDto(
-        Property p, IReadOnlyList<ImageRef> images, Guid integrationId, string keyHash)
+        Property p, IReadOnlyList<ImageRef> images, Guid integrationId, string keyHash, bool isQasro)
     {
         var live = p.Units.Where(u => !u.IsDeleted).ToList();
         var ordered = images
@@ -73,7 +76,7 @@ internal static class PublicListingScope
             live.Count(u => u.Status == "vacant"),
             p.Developer,
             p.Description,
-            p.PublishedAt,
+            isQasro ? p.QasroPublishedAt : p.PublishedAt,
             ordered,
             // Only what is actually available is advertised. A rented unit on a public listing
             // page is an enquiry the agent cannot fulfil.
@@ -125,11 +128,16 @@ internal static class PublicListingScope
     }
 
     /// <summary>The key hash for signing. Read per request so a regenerated key takes effect at once.</summary>
-    public static Task<string?> KeyHashAsync(RealEstateDbContext db, Guid integrationId, CancellationToken ct) =>
-        db.WebsiteIntegrations.IgnoreQueryFilters().AsNoTracking()
-            .Where(w => w.Id == integrationId && w.IsActive)
-            .Select(w => w.KeyHash)
-            .FirstOrDefaultAsync(ct);
+    public static Task<string?> KeyHashAsync(RealEstateDbContext db, Guid integrationId, bool isQasro, CancellationToken ct) =>
+        isQasro
+            ? db.QasroIntegrations.IgnoreQueryFilters().AsNoTracking()
+                .Where(q => q.Id == integrationId && q.Status == "connected")
+                .Select(q => q.KeyHash)
+                .FirstOrDefaultAsync(ct)
+            : db.WebsiteIntegrations.IgnoreQueryFilters().AsNoTracking()
+                .Where(w => w.Id == integrationId && w.IsActive)
+                .Select(w => w.KeyHash)
+                .FirstOrDefaultAsync(ct);
 }
 
 internal sealed class GetPublicPropertiesHandler(RealEstateDbContext db)
@@ -140,13 +148,13 @@ internal sealed class GetPublicPropertiesHandler(RealEstateDbContext db)
     public async Task<Result<PagedResult<PublicPropertyDto>>> Handle(
         GetPublicPropertiesQuery query, CancellationToken ct)
     {
-        var keyHash = await PublicListingScope.KeyHashAsync(db, query.Client.IntegrationId, ct);
+        var keyHash = await PublicListingScope.KeyHashAsync(db, query.Client.IntegrationId, query.Client.IsQasro, ct);
         if (keyHash is null) return Result.Failure<PagedResult<PublicPropertyDto>>(PublicListingScope.NotFound);
 
         var page     = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
 
-        IQueryable<Property> q = PublicListingScope.PublishedFor(db, query.Client.TenantId).Include(p => p.Units);
+        IQueryable<Property> q = PublicListingScope.PublishedFor(db, query.Client.TenantId, query.Client.IsQasro).Include(p => p.Units);
 
         if (!string.IsNullOrWhiteSpace(query.PropertyType))
             q = q.Where(p => p.PropertyType == query.PropertyType);
@@ -177,7 +185,7 @@ internal sealed class GetPublicPropertiesHandler(RealEstateDbContext db)
 
         return Result.Success(PagedResult<PublicPropertyDto>.Create(
             items.Select(p => PublicListingScope.ToDto(
-                p, images.GetValueOrDefault(p.Id, []), query.Client.IntegrationId, keyHash)).ToList(),
+                p, images.GetValueOrDefault(p.Id, []), query.Client.IntegrationId, keyHash, query.Client.IsQasro)).ToList(),
             total, page, pageSize));
     }
 }
@@ -187,10 +195,10 @@ internal sealed class GetPublicPropertyHandler(RealEstateDbContext db)
 {
     public async Task<Result<PublicPropertyDto>> Handle(GetPublicPropertyQuery query, CancellationToken ct)
     {
-        var keyHash = await PublicListingScope.KeyHashAsync(db, query.Client.IntegrationId, ct);
+        var keyHash = await PublicListingScope.KeyHashAsync(db, query.Client.IntegrationId, query.Client.IsQasro, ct);
         if (keyHash is null) return Result.Failure<PublicPropertyDto>(PublicListingScope.NotFound);
 
-        var property = await PublicListingScope.PublishedFor(db, query.Client.TenantId)
+        var property = await PublicListingScope.PublishedFor(db, query.Client.TenantId, query.Client.IsQasro)
             .Include(p => p.Units)
             .FirstOrDefaultAsync(p => p.Id == query.Id, ct);
 
@@ -198,7 +206,7 @@ internal sealed class GetPublicPropertyHandler(RealEstateDbContext db)
 
         var images = await PublicListingScope.LoadImagesAsync(db, [property.Id], ct);
         return Result.Success(PublicListingScope.ToDto(
-            property, images.GetValueOrDefault(property.Id, []), query.Client.IntegrationId, keyHash));
+            property, images.GetValueOrDefault(property.Id, []), query.Client.IntegrationId, keyHash, query.Client.IsQasro));
     }
 }
 
@@ -211,11 +219,18 @@ internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db)
         if (query.Expires < DateTimeOffset.UtcNow.ToUnixTimeSeconds())
             return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);
 
-        // Integration must still exist and be enabled; its tenant scopes everything below.
+        // Integration must still exist and be enabled; its tenant scopes everything below. The URL
+        // carries only a bare integration id (see ImageUrl), so this tries the website table first
+        // and falls back to Qasro — the two id spaces are independent GUIDs, so a match in one
+        // table means the other is irrelevant, never ambiguous.
         var integration = await db.WebsiteIntegrations.IgnoreQueryFilters().AsNoTracking()
             .Where(w => w.Id == query.IntegrationId && w.IsActive)
-            .Select(w => new { w.KeyHash, TenantId = EF.Property<Guid?>(w, RealEstateDbContext.OwnerTenant) })
-            .FirstOrDefaultAsync(ct);
+            .Select(w => new { w.KeyHash, TenantId = EF.Property<Guid?>(w, RealEstateDbContext.OwnerTenant), IsQasro = false })
+            .FirstOrDefaultAsync(ct)
+            ?? await db.QasroIntegrations.IgnoreQueryFilters().AsNoTracking()
+                .Where(q => q.Id == query.IntegrationId && q.Status == "connected")
+                .Select(q => new { q.KeyHash, TenantId = EF.Property<Guid?>(q, RealEstateDbContext.OwnerTenant), IsQasro = true })
+                .FirstOrDefaultAsync(ct);
 
         if (integration?.TenantId is null)
             return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);
@@ -228,7 +243,7 @@ internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db)
             return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);
 
         // Re-checked as published on every request: withdrawing a property must stop its photos too.
-        var published = await PublicListingScope.PublishedFor(db, integration.TenantId.Value)
+        var published = await PublicListingScope.PublishedFor(db, integration.TenantId.Value, integration.IsQasro)
             .AnyAsync(p => p.Id == query.PropertyId, ct);
 
         if (!published) return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);

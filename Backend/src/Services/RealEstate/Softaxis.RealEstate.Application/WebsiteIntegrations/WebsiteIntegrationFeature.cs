@@ -23,8 +23,10 @@ public sealed record WebsiteApiKeyDto(WebsiteIntegrationDto Integration, string 
 public sealed record PublishedPropertyDto(
     Guid Id, string PropertyNumber, string Name, string City, DateTime? PublishedAt, int ImageCount);
 
-/// <summary>What an authenticated website request resolves to. Internal to the request pipeline.</summary>
-public sealed record WebsiteClientDto(Guid IntegrationId, Guid TenantId, string TenantName, string WebsiteOrigin);
+/// <summary>What an authenticated website request resolves to. Internal to the request pipeline.
+/// <paramref name="IsQasro"/> distinguishes a Qasro-resolved client from a tenant's own website —
+/// the two read different publish flags (ListOnQasro vs. ListOnWebsite) off the same Property.</summary>
+public sealed record WebsiteClientDto(Guid IntegrationId, Guid TenantId, string TenantName, string WebsiteOrigin, bool IsQasro = false);
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 

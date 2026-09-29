@@ -23,6 +23,7 @@ public sealed record ListingDto(
     string City,
     string Emirate,
     bool ListOnWebsite,
+    bool ListOnQasro,
     Guid? PrimaryImageId,
     int ImageCount,
 

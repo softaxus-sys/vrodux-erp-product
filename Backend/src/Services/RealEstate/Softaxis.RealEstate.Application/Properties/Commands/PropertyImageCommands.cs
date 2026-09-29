@@ -29,6 +29,19 @@ public sealed record ReorderPropertyImagesCommand(Guid PropertyId, IReadOnlyList
 /// <summary>Publishes or withdraws a property from the public website.</summary>
 public sealed record SetPropertyWebsiteListingCommand(Guid PropertyId, bool ListOnWebsite) : ICommand;
 
+/// <summary>Syndicates or withdraws a single property to/from Qasro.</summary>
+public sealed record SetPropertyQasroListingCommand(Guid PropertyId, bool ListOnQasro) : ICommand;
+
+/// <summary>
+/// "List all at once, or select some and list, keep some unlisted" — one call, many properties.
+/// Each id is applied independently; one bad id does not fail the rest (see the handler). Returns
+/// how many were actually changed, so the UI can say "12 listed, 1 skipped" rather than a bare 204.
+/// </summary>
+public sealed record BulkSetPropertyQasroListingCommand(IReadOnlyList<Guid> PropertyIds, bool ListOnQasro)
+    : ICommand<BulkQasroListingResultDto>;
+
+public sealed record BulkQasroListingResultDto(int Updated, int Skipped);
+
 public sealed class AddPropertyImagesValidator : AbstractValidator<AddPropertyImagesCommand>
 {
     /// <summary>

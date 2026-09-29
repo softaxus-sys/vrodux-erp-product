@@ -198,6 +198,13 @@ services:
       Google__ClientId: "${GOOGLE_CLIENT_ID:-}"
       Google__ClientSecret: "${GOOGLE_CLIENT_SECRET:-}"
 
+      # ── Qasro (qasro.com) — Real Estate listing syndication ─────────────
+      # Service-to-service only, no OAuth: both products are Softaxis's own. Without these,
+      # ConnectQasroHandler's link-agency call throws immediately and "Activate Qasro" fails
+      # for every tenant.
+      Qasro__BaseUrl: "${QASRO_BASE_URL:-}"
+      Qasro__ServiceSecret: "${QASRO_SERVICE_SECRET:-}"
+
       # ── Billing / Subscriptions (Vrodux's OWN Stripe + PayPal accounts) ──────
       # Platform credentials, not per-tenant. Set them in /opt/vrodux/shared/.env;
       # each provider stays disabled (and is hidden from the billing UI) until its

@@ -130,6 +130,23 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
         Guid id, [FromBody] SetWebsiteListingRequest req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new SetPropertyWebsiteListingCommand(id, req.ListOnWebsite), ct));
 
+    // ---- Qasro listing ------------------------------------------------------------------
+
+    /// <summary>Same permission and "gated on edit, not a new key" reasoning as website-listing above.</summary>
+    [HttpPatch("{id:guid}/qasro-listing")]
+    [RequirePermission("real-estate.properties.edit")]
+    public async Task<IActionResult> SetQasroListing(
+        Guid id, [FromBody] SetQasroListingRequest req, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new SetPropertyQasroListingCommand(id, req.ListOnQasro), ct));
+
+    /// <summary>"List all at once, or select some" — one call, many properties. See
+    /// BulkSetPropertyQasroListingCommand for how a mixed selection (some with no photos yet) is handled.</summary>
+    [HttpPost("qasro-listing/bulk")]
+    [RequirePermission("real-estate.properties.edit")]
+    public async Task<IActionResult> BulkSetQasroListing(
+        [FromBody] BulkSetQasroListingRequest req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new BulkSetPropertyQasroListingCommand(req.PropertyIds, req.ListOnQasro), ct));
+
     public sealed record UpdatePropertyRequest(
         string Name, string PropertyType, string? Address, string? City, string Emirate,
         decimal TotalArea, int TotalUnits, decimal MarketValue, string? Developer, string? Description,
@@ -140,6 +157,8 @@ public sealed class PropertiesController(ISender sender) : RealEstateControllerB
         bool? ListOnWebsite = null);
 
     public sealed record SetWebsiteListingRequest(bool ListOnWebsite);
+    public sealed record SetQasroListingRequest(bool ListOnQasro);
+    public sealed record BulkSetQasroListingRequest(IReadOnlyList<Guid> PropertyIds, bool ListOnQasro);
     public sealed record AddImagesRequest(IReadOnlyList<PropertyImageInput> Images);
     public sealed record ReorderImagesRequest(IReadOnlyList<Guid> OrderedIds);
 }

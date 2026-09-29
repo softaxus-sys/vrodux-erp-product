@@ -32,9 +32,12 @@ public sealed record PropertyDto(
     IReadOnlyList<PropertyImageDto>? Images = null,
     Guid? PrimaryImageId = null,
     /// <summary>residential / commercial / mixed — the bucket the summary tiles count by.</summary>
-    string Category = "residential");
+    string Category = "residential",
+    bool ListOnQasro = false,
+    DateTime? QasroPublishedAt = null);
 
 public sealed record PropertiesSummaryDto(
     int Total, int Residential, int Commercial, int Mixed,
     int TotalUnits, int OccupiedUnits, double OccupancyRate, decimal TotalMarketValue,
-    int ListedOnWebsite = 0);
+    int ListedOnWebsite = 0,
+    int ListedOnQasro = 0);

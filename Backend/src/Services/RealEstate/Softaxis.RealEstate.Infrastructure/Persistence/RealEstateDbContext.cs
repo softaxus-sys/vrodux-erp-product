@@ -24,6 +24,7 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
     public DbSet<RentAlertSettings> RentAlertSettings => Set<RentAlertSettings>();
     public DbSet<RentAlertLog> RentAlertLogs => Set<RentAlertLog>();
     public DbSet<WebsiteIntegration> WebsiteIntegrations => Set<WebsiteIntegration>();
+    public DbSet<QasroIntegration> QasroIntegrations => Set<QasroIntegration>();
 
     /// <summary>Read-only view of identity.tenants — see <see cref="TenantLookup"/>.</summary>
     public DbSet<TenantLookup> TenantLookups => Set<TenantLookup>();
@@ -56,6 +57,10 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
         TenantIsolation.TenantUniqueIndex<WebsiteIntegration>(
             mb, [], excludeSoftDeleted: false, column: OwnerTenant);
 
+        // One Qasro connection per workspace — same reasoning as the website integration above.
+        TenantIsolation.TenantUniqueIndex<QasroIntegration>(
+            mb, [], excludeSoftDeleted: false, column: OwnerTenant);
+
         mb.Entity<WebsiteIntegration>(b =>
         {
             b.ToTable("website_integrations");
@@ -65,6 +70,18 @@ public sealed class RealEstateDbContext(DbContextOptions<RealEstateDbContext> op
             b.Property(x => x.KeyHash).HasMaxLength(64).IsRequired();
             b.Property(x => x.KeyHint).HasMaxLength(20).IsRequired();
             // Globally unique: an anonymous request is resolved to its workspace by this hash.
+            b.HasIndex(x => x.KeyHash).IsUnique();
+        });
+
+        mb.Entity<QasroIntegration>(b =>
+        {
+            b.ToTable("qasro_integrations");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.QasroAgencyId).HasMaxLength(100);
+            b.Property(x => x.KeyHash).HasMaxLength(64).IsRequired();
+            b.Property(x => x.KeyHint).HasMaxLength(20).IsRequired();
+            b.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            b.Property(x => x.LastError).HasMaxLength(500);
             b.HasIndex(x => x.KeyHash).IsUnique();
         });
 
