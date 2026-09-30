@@ -45,7 +45,13 @@ public static class InfrastructureExtensions
         // Qasro (qasro.com) — real OAuth against Qasro's own login/signup + agency-approval gate,
         // same shape as the Meta and Google OAuth integrations elsewhere in this codebase.
         services.Configure<QasroOptions>(configuration.GetSection(QasroOptions.Section));
-        services.AddHttpClient("qasro");
+        // AllowAutoRedirect disabled deliberately: HttpClient (like every conforming HTTP client)
+        // strips the Authorization header when a redirect changes host — e.g. Vercel's apex→www
+        // canonical redirect. Following it silently turned a config mistake (ApiBaseUrl pointing at
+        // the non-canonical host) into a confusing 401 from the destination instead of an obvious
+        // "this call got redirected" error. QasroClient now surfaces the redirect explicitly instead.
+        services.AddHttpClient("qasro")
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddScoped<IQasroClient, QasroClient>();
         services.AddScoped<ISecretProtector, DataProtectionSecretProtector>();
 

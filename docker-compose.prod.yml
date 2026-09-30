@@ -203,6 +203,9 @@ services:
       # authenticate and approve the connection from their agency dashboard there; Vrodux never
       # pushes credentials blindly. Without these, StartQasroOAuthHandler cannot build an
       # authorize URL and "Connect Qasro" fails for every tenant.
+      # QASRO_API_BASE_URL must be the CANONICAL host (no 3xx redirect) — QasroClient disables
+      # auto-redirect, so a wrong host now fails loudly instead of silently dropping the
+      # Authorization header on redirect. See .env.example for the confirmed value.
       Qasro__SiteUrl: "${QASRO_SITE_URL:-https://qasro.com}"
       Qasro__ApiBaseUrl: "${QASRO_API_BASE_URL:-}"
       Qasro__ClientId: "${QASRO_CLIENT_ID:-vrodux}"

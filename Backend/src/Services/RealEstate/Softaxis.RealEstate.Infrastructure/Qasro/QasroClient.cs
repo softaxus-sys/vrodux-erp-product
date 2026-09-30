@@ -38,6 +38,7 @@ public sealed class QasroClient(IHttpClientFactory httpFactory, IOptions<QasroOp
         };
 
         using var resp = await client.PostAsJsonAsync("/api/oauth/token", body, ct);
+        ThrowIfRedirected(resp, "token exchange");
         var text = await resp.Content.ReadAsStringAsync(ct);
 
         // Qasro's approval gate answers here, distinctly from a bad/expired code — see
@@ -66,6 +67,7 @@ public sealed class QasroClient(IHttpClientFactory httpFactory, IOptions<QasroOp
         var body = new { apiKey, listingsApiBaseUrl };
 
         using var resp = await client.PostAsJsonAsync($"/api/internal/agencies/{qasroAgencyId}/pull-key", body, ct);
+        ThrowIfRedirected(resp, "listings key registration");
         var text = await resp.Content.ReadAsStringAsync(ct);
 
         if (!resp.IsSuccessStatusCode)
@@ -83,7 +85,13 @@ public sealed class QasroClient(IHttpClientFactory httpFactory, IOptions<QasroOp
         {
             var client = AuthenticatedClient();
             using var resp = await client.PostAsync($"/api/internal/agencies/{qasroAgencyId}/unlink", null, ct);
-            if (!resp.IsSuccessStatusCode)
+            if ((int)resp.StatusCode is >= 300 and < 400)
+                logger.LogWarning(
+                    "Qasro unlink-agency call was redirected ({Status}) for {AgencyId} — Qasro:ApiBaseUrl ({BaseUrl}) is " +
+                    "probably not the canonical host (redirects strip the Authorization header, so this always 401s " +
+                    "downstream). Location: {Location}",
+                    (int)resp.StatusCode, qasroAgencyId, _o.ApiBaseUrl, resp.Headers.Location);
+            else if (!resp.IsSuccessStatusCode)
                 logger.LogWarning("Qasro unlink-agency call failed ({Status}) for {AgencyId}.", (int)resp.StatusCode, qasroAgencyId);
         }
         catch (Exception ex)
@@ -91,6 +99,26 @@ public sealed class QasroClient(IHttpClientFactory httpFactory, IOptions<QasroOp
             // Best-effort: the tenant's own disconnect must not fail because Qasro is unreachable.
             logger.LogWarning(ex, "Qasro unlink-agency call threw for {AgencyId}.", qasroAgencyId);
         }
+    }
+
+    /// <summary>
+    /// AllowAutoRedirect is off on this client (see InfrastructureExtensions), so a 3xx here means
+    /// Qasro:ApiBaseUrl is pointed at a non-canonical host (e.g. the Vercel apex→www redirect) —
+    /// exactly the bug that once produced a baffling downstream 401 on a header-authenticated call
+    /// while the body-authenticated token exchange worked fine. Fail loudly with the fix, not with
+    /// whatever status code the *next* hop happens to return.
+    /// </summary>
+    private void ThrowIfRedirected(HttpResponseMessage resp, string action)
+    {
+        if ((int)resp.StatusCode is not (>= 300 and < 400)) return;
+
+        var location = resp.Headers.Location?.ToString() ?? "(no Location header)";
+        logger.LogError("Qasro {Action} was redirected ({Status}) from {BaseUrl} to {Location}",
+            action, (int)resp.StatusCode, _o.ApiBaseUrl, location);
+        throw new InvalidOperationException(
+            $"Qasro's API redirected this request ({(int)resp.StatusCode}) from {_o.ApiBaseUrl} to {location}. " +
+            "Cross-host redirects silently drop the Authorization header, which breaks any authenticated call. " +
+            "Set Qasro:ApiBaseUrl (env Qasro__ApiBaseUrl) to the exact canonical host shown in that Location URL.");
     }
 
     private void RequireConfigured()
