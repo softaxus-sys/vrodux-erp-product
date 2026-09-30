@@ -409,7 +409,8 @@ begin
       'AdminLastName=' + Trim(AdminPage.Values[2]),
       'AdminPassword=' + AdminPage.Values[3],
       'LicenseKey=' + Lic,
-      'FrontendUrl=http://' + GetComputerNameString + ':{#ServerPort}'], False);
+      'FrontendUrl=http://' + GetComputerNameString + ':{#ServerPort}',
+      'ServerPort={#ServerPort}'], False);
     RunStep('Writing configuration...', 'powershell.exe',
       PS('-File ' + Q(Tools + '\configure-appsettings.ps1') + ' -Path ' + Q(Srv + '\appsettings.json') +
          ' -ValuesFile ' + Q(ValuesFile) + ' -LogFile ' + Q(LogPath)));

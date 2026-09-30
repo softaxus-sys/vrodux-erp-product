@@ -7204,7 +7204,8 @@ trimmed, and a **Test** button that calls the server's own `/health` via PowerSh
 plugin is needed. A failed test warns but never blocks: a site may install clients before the server
 is up.
 
-Written to `$INSTDIResources\server-config.json`, which `main.cjs` reads as the **default**.
+Written to `$INSTDIR
+esources\server-config.json`, which `main.cjs` reads as the **default**.
 Deliberately not a per-user file — a till is installed by an administrator and used by a cashier, so
 a per-user setting would be saved for the wrong account. The tray dialog still overrides it, so a
 server that moves does not need a reinstall.
@@ -7253,3 +7254,54 @@ with a bearer token and leaves `fetch` at its default `credentials: "same-origin
   reachable gateway. Specifically unproven: that the Test button reports success against a live
   server, and that the CORS relaxation is sufficient in practice (it is reasoned from the policy
   configuration, not observed).
+
+### Module 64b — 🔴 The server only ever listened on loopback
+
+Reported after Module 64: the Test button said "No response", and **a browser on another PC could
+not reach `http://192.168.101.10:5000` either** — which rules the client out entirely. Ping replied,
+so the machine was up and on the LAN, but ICMP is answered by the OS and says nothing about whether
+anything is bound to TCP 5000.
+
+**Nothing configured a listen address.** There was no `Urls` in the gateway's `appsettings.json`, no
+`UseUrls`/`ListenAnyIP` in `Program.cs`, and `sc create` set no `ASPNETCORE_URLS`. With nothing
+configured, Kestrel falls back to its built-in default of `http://localhost:5000` — **loopback
+only**. So the server answered on the machine it ran on and was unreachable from every till.
+
+`launchSettings.json` does set `http://localhost:5000`, but that file is a development artefact and
+is not read by a published exe, so it was neither the cause nor the fix.
+
+The symptom is deceptive in a specific way: the installer already opens TCP 5000 in the firewall
+(`netsh advfirewall`, .iss line 427), so the port looks configured and "open", while nothing is
+listening on the LAN address for the rule to admit.
+
+**Fixed in two places**, deliberately:
+- `configure-appsettings.ps1` writes `"Urls": "http://0.0.0.0:$port"` — the installer's own hook for
+  site configuration, so it also repairs an existing install on re-run. The port is passed through
+  from the wizard as a new `ServerPort` value rather than hardcoded, so it cannot drift from
+  `{#ServerPort}`.
+- The shipped `appsettings.json` carries the same default, so a deployment that never runs the
+  script still binds correctly.
+
+Neither affects the other deployments: Docker sets `ASPNETCORE_URLS: "http://+:8080"` and `dotnet
+run` sets it from `launchSettings`, and an **environment variable takes precedence over
+appsettings** — so this only takes effect for the published on-premises service, which is the one
+deployment that needed it.
+
+**No JSON comment was added to `appsettings.json`**, though the reasoning warranted one:
+`configure-appsettings.ps1` parses that file with Windows PowerShell 5.1's `ConvertFrom-Json`, which
+rejects comments (ASP.NET's own reader would have accepted them). The explanation lives in the
+script instead.
+
+### Verified by running it, not by reading the default
+- Started the published-path gateway with no `ASPNETCORE_URLS` override:
+  `netstat` reports **`TCP 0.0.0.0:5000 LISTENING`** and `/health` returns **200**.
+- Ran `configure-appsettings.ps1` end to end under Windows PowerShell against a copy of the real
+  `appsettings.json`: exit 0, `Urls` written as `http://0.0.0.0:5000`, connection strings and
+  `FrontendUrl` unchanged — so the comment-free JSON is still parseable by 5.1.
+
+### Immediate repair for a site already installed (no rebuild needed)
+1. Edit `C:\Program Files\Vrodux ERP\serverppsettings.json` and add as the first key:
+   `"Urls": "http://0.0.0.0:5000",`
+2. From an elevated prompt: `sc stop VroduxERP` then `sc start VroduxERP`
+3. Confirm on the server: `netstat -ano | findstr :5000` should show `0.0.0.0:5000`, not
+   `127.0.0.1:5000`.
