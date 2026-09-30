@@ -6,7 +6,8 @@ import { Can } from "@/components/auth/can";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useDeleteListing, useSetPropertyWebsiteListing, useListing } from "@/hooks/real-estate/use-re";
-import { reApi, type ListingDto } from "@/lib/real-estate/re.api";
+import type { ListingDto } from "@/lib/real-estate/re.api";
+import { PropertyImg } from "@/modules/real-estate/properties/components/property-photos";
 import { RestrictedBadge } from "./confidential-field";
 
 interface Props {
@@ -81,8 +82,9 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Cover photo, when the building has one. */}
               {l.primaryImageId && (
-                <img
-                  src={reApi.propertyImageUrl(l.propertyId, l.primaryImageId)}
+                <PropertyImg
+                  propertyId={l.propertyId}
+                  imageId={l.primaryImageId}
                   alt={l.propertyName}
                   className="w-full h-44 object-cover rounded-xl border border-border"
                 />

@@ -105,7 +105,7 @@ internal sealed class StartQasroOAuthHandler(RealEstateDbContext db, IQasroClien
 
         var tenant = await db.TenantLookups.AsNoTracking().FirstOrDefaultAsync(t => t.Id == tenantId, ct);
         if (tenant is null)
-            return Result.Failure<QasroOAuthUrlDto>(Error.Custom("QasroIntegration.TenantNotFound", "Workspace not found."));
+            return Result.Failure<QasroOAuthUrlDto>(Error.Custom("QasroIntegration.Tenant.NotFound", "Workspace not found."));
 
         var integration = await QasroIntegrationScope.For(db, tenantId).FirstOrDefaultAsync(ct);
         if (integration is null)

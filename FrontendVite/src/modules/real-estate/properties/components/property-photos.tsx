@@ -55,6 +55,40 @@ async function filesToStaged(files: FileList | null): Promise<StagedImage[]> {
 }
 
 /**
+ * Renders one uploaded property photo. The image endpoint needs the JWT bearer (see
+ * getPropertyImageObjectUrl's own remarks), so it can't be a plain <img src> — a raw <img src>
+ * pointed at that URL 401s every time, since a browser never attaches a custom Authorization
+ * header to an <img> request. Fetches the bytes as a blob and revokes the object URL on unmount
+ * or when the image changes, mirroring DocumentPreviewModal's established pattern.
+ */
+export function PropertyImg({
+  propertyId, imageId, alt, className,
+}: { propertyId: string; imageId: string; alt?: string; className?: string }) {
+  const [url, setUrl] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let revoked = false;
+    let objectUrl: string | null = null;
+
+    reApi.getPropertyImageObjectUrl(propertyId, imageId)
+      .then((u) => {
+        if (revoked) { URL.revokeObjectURL(u); return; }
+        objectUrl = u;
+        setUrl(u);
+      })
+      .catch(() => { /* left null — the muted background placeholder shows through */ });
+
+    return () => {
+      revoked = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [propertyId, imageId]);
+
+  if (!url) return <div className={`animate-pulse bg-muted ${className ?? ""}`} />;
+  return <img src={url} alt={alt} className={className} />;
+}
+
+/**
  * Photo manager for the property form.
  *
  * Two modes, because a new property has no id to upload against yet:
@@ -144,11 +178,11 @@ export function PropertyPhotos({
         <div className="grid grid-cols-3 gap-2">
           {existing.map((img) => (
             <div key={img.id} className="relative group aspect-[4/3] rounded-lg overflow-hidden bg-muted">
-              <img
-                src={reApi.propertyImageUrl(propertyId!, img.id)}
+              <PropertyImg
+                propertyId={propertyId!}
+                imageId={img.id}
                 alt={img.fileName ?? "Property photo"}
                 className="h-full w-full object-cover"
-                loading="lazy"
               />
               {img.isPrimary && (
                 <span className="absolute top-1.5 left-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">

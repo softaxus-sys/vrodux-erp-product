@@ -1,9 +1,22 @@
-import { rawApiClient } from "@/lib/api-client";
+import { rawApiClient, ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/store/auth.store";
 
 import type { ImportOutcome } from "@/components/ui/spreadsheet-import-modal";
 
 const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/real-estate`;
 const ALERTS = `${BASE}/rent-alerts`;
+
+/** GET a binary resource with the JWT bearer and return an object URL the browser can open —
+ * property photos need the bearer token, so their URL can't just be put in an <img src>. */
+async function fetchBlobUrl(url: string): Promise<string> {
+  const token = useAuthStore.getState().token;
+  const res = await fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) throw new ApiError(res.status, null, `HTTP ${res.status}`);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
 
 /** Builds a query string from defined values only, so an unset filter is omitted rather than
  * sent as the literal "undefined". */
@@ -721,11 +734,12 @@ export const reApi = {
   deleteProperty:      (id: string)                        => rawApiClient.delete(`${BASE}/properties/${id}`),
 
   /**
-   * Source URL for one photo. Used directly as an <img src>, so the browser fetches and caches
-   * each image itself rather than the app carrying megabytes of base64 around in memory.
+   * One photo's bytes as an object URL. The endpoint needs the JWT bearer (there is no
+   * query-string-token variant, unlike the signed public website/Qasro image URLs), so it can
+   * never be put directly in an <img src> — the caller must fetch, render, then revoke the URL.
    */
-  propertyImageUrl: (propertyId: string, imageId: string) =>
-    `${BASE}/properties/${propertyId}/images/${imageId}`,
+  getPropertyImageObjectUrl: (propertyId: string, imageId: string): Promise<string> =>
+    fetchBlobUrl(`${BASE}/properties/${propertyId}/images/${imageId}`),
 
   addPropertyImages: (
     propertyId: string,

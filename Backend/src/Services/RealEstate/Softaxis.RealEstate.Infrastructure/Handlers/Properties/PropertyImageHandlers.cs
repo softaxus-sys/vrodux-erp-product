@@ -104,7 +104,7 @@ internal sealed class DeletePropertyImageHandler(RealEstateDbContext db)
             .FirstOrDefaultAsync(i => i.Id == cmd.ImageId && i.PropertyId == cmd.PropertyId, ct);
 
         if (image is null)
-            return Result.Failure(Error.Custom("Property.ImageNotFound", "That image no longer exists."));
+            return Result.Failure(Error.Custom("Property.Image.NotFound", "That image no longer exists."));
 
         var wasPrimary = image.IsPrimary;
         image.Delete();
@@ -136,7 +136,7 @@ internal sealed class SetPrimaryPropertyImageHandler(RealEstateDbContext db)
 
         var target = images.FirstOrDefault(i => i.Id == cmd.ImageId);
         if (target is null)
-            return Result.Failure(Error.Custom("Property.ImageNotFound", "That image no longer exists."));
+            return Result.Failure(Error.Custom("Property.Image.NotFound", "That image no longer exists."));
 
         foreach (var image in images) image.SetPrimary(image.Id == cmd.ImageId);
 
@@ -273,7 +273,7 @@ internal sealed class GetPropertyImageHandler(RealEstateDbContext db)
 
         return image is null
             ? Result.Failure<PropertyImageFileDto>(
-                Error.Custom("Property.ImageNotFound", "That image no longer exists."))
+                Error.Custom("Property.Image.NotFound", "That image no longer exists."))
             : Result.Success(image);
     }
 }
