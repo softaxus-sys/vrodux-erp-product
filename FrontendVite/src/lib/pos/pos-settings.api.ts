@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-const API  = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const API  = `${getApiBaseUrl()}/api`;
 const BASE = `${API}/pos-settings`;
 
 export interface PosSettingsDto {

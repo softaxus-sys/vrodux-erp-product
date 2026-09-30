@@ -22,7 +22,8 @@ import type {
 } from "@/lib/pos/types";
 import { idbAll, idbGet, idbWrite, openOfflineDb } from "./offline-db";
 
-const API = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const API = `${getApiBaseUrl()}/api`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

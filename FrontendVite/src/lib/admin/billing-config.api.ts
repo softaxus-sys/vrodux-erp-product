@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/admin/billing-config`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/admin/billing-config`;
 
 /**
  * Platform billing configuration — Vrodux's OWN Stripe/PayPal accounts, used to charge tenants.

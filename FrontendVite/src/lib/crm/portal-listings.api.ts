@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/crm/portal-listings`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/crm/portal-listings`;
 
 export type ListingPortal = "bayut" | "property-finder" | "dubizzle";
 

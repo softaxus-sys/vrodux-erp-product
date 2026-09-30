@@ -3,7 +3,8 @@ import { mapAttendance } from "@/lib/hr/hr.api";
 import type { LeaveRequestDto, AttendanceRecordDto, EmployeePayslipDto } from "@/lib/hr/hr.api";
 import type { LeaveBalanceLineDto } from "@/lib/hr/hr.api";
 
-const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+import { getApiBaseUrl } from "@/lib/desktop";
+const API_ROOT = getApiBaseUrl();
 const BASE = `${API_ROOT}/api/hr/me`;
 
 /**

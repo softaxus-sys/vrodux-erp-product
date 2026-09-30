@@ -1,7 +1,8 @@
 ﻿import { apiClient } from "@/lib/api-client";
 import type { VoucherDto, VoucherValidationDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/vouchers`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/vouchers`;
 
 export interface UpsertVoucherPayload {
   id?:                string | null;

@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/pos/fbr`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/pos/fbr`;
 
 export type FbrEnvironment = "sandbox" | "production";
 

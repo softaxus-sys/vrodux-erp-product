@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/finance/exchange-rates`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/finance/exchange-rates`;
 
 /** A stored daily rate: units of USD (base) per 1 unit of {currencyCode}. */
 export interface ExchangeRateDto {

@@ -1,7 +1,8 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { AuditLogDto, AuditLogSummaryDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/audit-logs`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/audit-logs`;
 
 export interface GetAuditLogsParams {
   page?: number;

@@ -1,7 +1,8 @@
 import { rawApiClient, ApiError } from "@/lib/api-client";
 import { useAuthStore } from "@/store/auth.store";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/finance`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/finance`;
 
 /** POST multipart/form-data with the JWT bearer (browser sets the multipart boundary). */
 async function uploadMultipart(url: string, form: FormData): Promise<void> {

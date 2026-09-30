@@ -1,7 +1,8 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { ProductDto, ProductSummaryDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/inventory/products`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/inventory/products`;
 
 export interface GetProductsParams {
   page?: number;

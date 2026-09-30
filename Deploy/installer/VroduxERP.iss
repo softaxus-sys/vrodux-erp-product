@@ -10,7 +10,8 @@
 ;    3. Allows Windows services 3 minutes to start (ServicesPipeTimeout).
 ;    4. Creates the database if missing; grants NT AUTHORITY\SYSTEM db_owner.
 ;    5. Opens TCP 5000 in the firewall, installs + starts the Windows service.
-;    6. Installs the Vrodux ERP desktop app (points at localhost:5000).
+;    6. Installs the Vrodux ERP desktop app, pointed at this machine. On a workstation the
+;       client-only setup asks for the server address instead (see FrontendVite/build/installer.nsh).
 ;  Re-running on an installed PC upgrades in place and keeps appsettings.json.
 ; ============================================================================
 
@@ -457,7 +458,11 @@ begin
   else
     Exec(ExpandConstant('{sys}\sc.exe'), 'start {#ServiceName}', '', SW_HIDE, ewWaitUntilTerminated, RC_Dummy);
 
-  RunStep('Installing the Vrodux ERP desktop app...', ExpandConstant('{tmp}\{#ClientSetup}'), '/S');
+  { Pass the address explicitly rather than letting the client fall back to its localhost default:
+    if ServerPort ever changes, a silent default would point the desktop app at the wrong port and
+    the failure would only show up at first login. }
+  RunStep('Installing the Vrodux ERP desktop app...', ExpandConstant('{tmp}\{#ClientSetup}'),
+          '/S /SERVERURL=http://localhost:{#ServerPort}');
 end;
 
 function NeedRestart: Boolean;

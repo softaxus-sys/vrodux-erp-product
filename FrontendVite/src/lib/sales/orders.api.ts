@@ -1,9 +1,10 @@
 import { rawApiClient, type PagedResult } from "@/lib/api-client";
 import type { SalesOrderDto, SalesOrderSummaryDto } from "@/lib/pos/types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/orders`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/sales/orders`;
 // Its own controller — the orders one injects a DbContext directly and is flagged tech debt.
-const DASHBOARD = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/dashboard`;
+const DASHBOARD = `${getApiBaseUrl()}/api/sales/dashboard`;
 
 export interface GetSalesOrdersParams {
   page?: number;

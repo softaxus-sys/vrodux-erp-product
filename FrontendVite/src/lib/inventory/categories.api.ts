@@ -1,7 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 import type { ProductCategoryDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/inventory/categories`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/inventory/categories`;
 
 export const inventoryCategoriesApi = {
   getAll: (params: { search?: string; isActive?: boolean } = {}): Promise<ProductCategoryDto[]> => {

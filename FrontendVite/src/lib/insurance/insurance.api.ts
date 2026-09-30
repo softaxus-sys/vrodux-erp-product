@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/insurance`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/insurance`;
 
 export interface PolicyDto {
   id: string; policyNumber: string; leadId?: string | null; dealId?: string | null; customerId?: string | null;
@@ -33,7 +34,8 @@ export interface VerticalPage<T> {
   totalPages: number;
 }
 export const insuranceApi = {
-  getSummary:   (): Promise<InsuranceSummaryDto> => rawApiClient.get(`${BASE}/summary`),  getPolicies: (p: VerticalPageParams = {}): Promise<VerticalPage<PolicyDto>> => {
+  getSummary:   (): Promise<InsuranceSummaryDto> => rawApiClient.get(`${BASE}/summary`),
+  getPolicies: (p: VerticalPageParams = {}): Promise<VerticalPage<PolicyDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -44,7 +46,8 @@ export const insuranceApi = {
   createPolicy: (d: CreatePolicyReq): Promise<PolicyDto> => rawApiClient.post(`${BASE}/policies`, d),
   setPolicyStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/policies/${id}/status`, { status }),
   renewPolicy:  (id: string, d: RenewReq): Promise<RenewalDto> => rawApiClient.post(`${BASE}/policies/${id}/renew`, d),
-  deletePolicy: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/policies/${id}`),  getRenewals: (p: VerticalPageParams = {}): Promise<VerticalPage<RenewalDto>> => {
+  deletePolicy: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/policies/${id}`),
+  getRenewals: (p: VerticalPageParams = {}): Promise<VerticalPage<RenewalDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -54,7 +57,8 @@ export const insuranceApi = {
   },
   completeRenewal:(id: string): Promise<void> => rawApiClient.post(`${BASE}/renewals/${id}/complete`),
   setRenewalStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/renewals/${id}/status`, { status }),
-  deleteRenewal:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/renewals/${id}`),  getClaims: (p: VerticalPageParams = {}): Promise<VerticalPage<ClaimDto>> => {
+  deleteRenewal:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/renewals/${id}`),
+  getClaims: (p: VerticalPageParams = {}): Promise<VerticalPage<ClaimDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));

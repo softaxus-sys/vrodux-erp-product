@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/billing`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/billing`;
 
 export type SubscriptionStatus =
   | "Trialing" | "Active" | "PastDue" | "Canceled" | "Expired" | "Incomplete";

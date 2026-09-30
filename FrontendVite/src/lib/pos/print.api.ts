@@ -1,9 +1,10 @@
 import { rawApiClient } from "@/lib/api-client";
 
+import { getApiBaseUrl } from "@/lib/desktop";
 // PrintController answers with plain objects ({ success, message } / { reachable, … }), not the
 // { success, data } envelope — apiClient would return body.data (undefined) and read every
 // status as a failure, so these calls use the raw client.
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/pos/print`;
+const BASE = `${getApiBaseUrl()}/api/pos/print`;
 
 export type PrinterMode = "windows" | "network";
 

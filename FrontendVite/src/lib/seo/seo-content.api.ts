@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/seo`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/seo`;
 
 export type ContentFrequency = "weekly" | "biweekly" | "monthly";
 export type ArticleStatus = "pending_review" | "approved" | "rejected";

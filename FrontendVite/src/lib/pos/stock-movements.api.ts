@@ -1,7 +1,8 @@
 ﻿import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { StockMovementDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/stock-movements`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/stock-movements`;
 
 export interface GetStockMovementsParams {
   page?: number;

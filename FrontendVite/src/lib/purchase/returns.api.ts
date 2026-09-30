@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/purchase/returns`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/purchase/returns`;
 
 export interface PurchaseReturnItemDto {
   id: string;

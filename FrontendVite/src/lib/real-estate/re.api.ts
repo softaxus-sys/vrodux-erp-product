@@ -3,7 +3,8 @@ import { useAuthStore } from "@/store/auth.store";
 
 import type { ImportOutcome } from "@/components/ui/spreadsheet-import-modal";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/real-estate`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/real-estate`;
 const ALERTS = `${BASE}/rent-alerts`;
 
 /** GET a binary resource with the JWT bearer and return an object URL the browser can open —

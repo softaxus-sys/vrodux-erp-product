@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { isDesktop, clearApiUrlCache } from "@/lib/desktop";
+import { isDesktop } from "@/lib/desktop";
 
 export function ServerSettingsPrompt() {
   const [open, setOpen] = useState(false);
@@ -18,7 +18,7 @@ export function ServerSettingsPrompt() {
   const handleSave = async () => {
     const trimmed = url.trim().replace(/\/+$/, "");
     if (!trimmed) return;
-    clearApiUrlCache();
+    // setApiUrl reloads the window, which re-runs preload and re-reads the address — no cache to clear.
     await window.vroduxDesktop!.setApiUrl(trimmed);
     setOpen(false);
   };

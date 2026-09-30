@@ -14,6 +14,7 @@ import {
 } from "@/hooks/seo/use-seo";
 import type { ScanFrequency } from "@/lib/seo/seo.api";
 
+import { getApiBaseUrl } from "@/lib/desktop";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -78,7 +79,7 @@ export function ConnectSiteWizard({ open, onClose, siteId: resumeSiteId, initial
     );
   };
 
-  const snippetOrigin = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}`;
+  const snippetOrigin = `${getApiBaseUrl()}`;
   const snippetTag = site
     ? `<script src="${snippetOrigin}/api/seo/snippet/${site.snippetKey}/tag.js" async></script>`
     : "";

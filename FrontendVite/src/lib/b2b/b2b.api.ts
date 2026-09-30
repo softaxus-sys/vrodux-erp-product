@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/b2b`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/b2b`;
 
 export interface ProposalDto {
   id: string; proposalNumber: string; leadId?: string | null; dealId?: string | null; customerId?: string | null;
@@ -35,7 +36,8 @@ export interface VerticalPage<T> {
   totalPages: number;
 }
 export const b2bApi = {
-  getSummary:   (): Promise<B2BSummaryDto> => rawApiClient.get(`${BASE}/summary`),  getProposals: (p: VerticalPageParams = {}): Promise<VerticalPage<ProposalDto>> => {
+  getSummary:   (): Promise<B2BSummaryDto> => rawApiClient.get(`${BASE}/summary`),
+  getProposals: (p: VerticalPageParams = {}): Promise<VerticalPage<ProposalDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -45,7 +47,8 @@ export const b2bApi = {
   },
   createProposal:(d: CreateProposalReq): Promise<ProposalDto> => rawApiClient.post(`${BASE}/proposals`, d),
   setProposalStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/proposals/${id}/status`, { status }),
-  deleteProposal:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/proposals/${id}`),  getContracts: (p: VerticalPageParams = {}): Promise<VerticalPage<ServiceContractDto>> => {
+  deleteProposal:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/proposals/${id}`),
+  getContracts: (p: VerticalPageParams = {}): Promise<VerticalPage<ServiceContractDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -55,7 +58,8 @@ export const b2bApi = {
   },
   createContract:(d: CreateContractReq): Promise<ServiceContractDto> => rawApiClient.post(`${BASE}/contracts`, d),
   setContractStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/contracts/${id}/status`, { status }),
-  deleteContract:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/contracts/${id}`),  getTickets: (p: VerticalPageParams = {}): Promise<VerticalPage<SupportTicketDto>> => {
+  deleteContract:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/contracts/${id}`),
+  getTickets: (p: VerticalPageParams = {}): Promise<VerticalPage<SupportTicketDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));

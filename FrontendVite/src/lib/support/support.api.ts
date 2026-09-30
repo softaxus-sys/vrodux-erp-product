@@ -1,7 +1,8 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/support`;
-export const SUPPORT_HUB_URL = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/hubs/support`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/support`;
+export const SUPPORT_HUB_URL = `${getApiBaseUrl()}/hubs/support`;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 

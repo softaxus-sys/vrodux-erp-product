@@ -1,7 +1,8 @@
 import { rawApiClient } from "@/lib/api-client";
 import type { ProductStockBreakdown, ProductBatchDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/inventory/product-stock`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/inventory/product-stock`;
 
 export const productStockApi = {
   getByProduct: (productId: string): Promise<ProductStockBreakdown> =>

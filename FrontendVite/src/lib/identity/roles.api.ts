@@ -1,8 +1,9 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { RoleDto, RoleSummaryDto, PermissionDto } from "./types";
 
-const BASE_ROLES = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/roles`;
-const BASE_PERMS = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/permissions`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE_ROLES = `${getApiBaseUrl()}/api/roles`;
+const BASE_PERMS = `${getApiBaseUrl()}/api/permissions`;
 
 export const rolesApi = {
   getAll: (params: { page?: number; pageSize?: number; search?: string } = {}): Promise<PagedResult<RoleSummaryDto>> => {

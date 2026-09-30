@@ -1,6 +1,7 @@
+import { getApiBaseUrl } from "@/lib/desktop";
 ﻿import { apiClient } from "@/lib/api-client";
 
-const POS = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+const POS = getApiBaseUrl();
 
 // â”€â”€â”€ DTOs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

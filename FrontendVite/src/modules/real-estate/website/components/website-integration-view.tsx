@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Can, useCan } from "@/components/auth/can";
 import { cn, formatDate } from "@/lib/utils";
 import type { QasroIntegrationDto, WebsiteIntegrationDto } from "@/lib/real-estate/re.api";
+import { getApiBaseUrl } from "@/lib/desktop";
 import {
   useCreateWebsiteIntegration, useRegenerateWebsiteKey, useSetPropertyWebsiteListing,
   useSetWebsiteIntegrationActive, useUpdateWebsiteIntegration, useWebsiteIntegration,
@@ -18,7 +19,7 @@ import {
   useSetPropertyQasroListing, useWithdrawAllQasroListings,
 } from "@/hooks/real-estate/use-re";
 
-const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+const API_ROOT = getApiBaseUrl();
 
 type Confirm = "regenerate" | "disable" | "withdraw-all" | null;
 

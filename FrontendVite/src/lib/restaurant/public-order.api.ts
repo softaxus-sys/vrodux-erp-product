@@ -1,7 +1,8 @@
 import { rawApiClient } from "@/lib/api-client";
 import type { PublicMenu, PublicOrderLine, PublicOrderPlaced } from "./restaurant.api";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/restaurant`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/restaurant`;
 
 /**
  * Anonymous, guest-facing endpoints for QR-table ordering and self-ordering kiosks — no auth token

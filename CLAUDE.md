@@ -7161,3 +7161,95 @@ would never have come back. Test shift closed and the product left untouched aft
   among others) and EF migration snapshots — correct data, not hardcoding.
 - POS frontend is clean: no dead `onClick`, no `window.confirm`/`alert`, one benign TODO.
 - Tenant isolation is correct (raw SQL guarded per Modules 6b/6c); CQRS layering is clean.
+
+---
+
+## Module 64 — 🔴 The desktop client could only ever talk to localhost
+
+Reported as "the client installer is not pointing to the server IP". It was not a mis-set option:
+there was nothing to set.
+
+### The address was compiled in, not configured
+**95 API modules** built their base from `import.meta.env.VITE_API_URL ?? "http://localhost:5000"`
+in a module-level `const`. `VITE_API_URL` is a **Vite build-time substitution**, so every desktop
+build shipped with `http://localhost:5000` literally baked into the bundle — there was no variable
+left at runtime for any amount of configuration to change.
+
+The configuration mechanism existed and was wired to almost nothing. `lib/desktop.ts`, the Electron
+IPC bridge and the tray's **Server Settings** dialog were all present and correct, but only **4**
+files consumed them. So changing the server in the tray moved Identity (login) and left CRM, HR,
+POS, Finance and Inventory still calling localhost — which on a workstation is nothing at all.
+
+The combined installer's own header said as much: *"Installs the Vrodux ERP desktop app (points at
+localhost:5000)"* — true and harmless on the server box it was written for, wrong on every other PC.
+
+### Runtime resolution, and why it must be synchronous
+`getApiBaseUrl()` now returns the configured address, and the 95 modules call it. The subtlety is
+**when**: those `const BASE = …` lines run the instant the module is imported, long before any
+promise could settle, so an async bridge would hand them `undefined` and they would fall back to
+localhost — the same bug wearing a different hat.
+
+So **preload resolves the address over synchronous IPC** (`ipcRenderer.sendSync`) and exposes it as
+a plain string before any page script runs. `initDesktopApiUrl()` in `main.tsx` is kept as a no-op
+so the start-up sequence did not have to change. `lib/desktop.ts` carries a comment saying that
+making this async silently restores the bug.
+
+Web builds are untouched: with no `window.vroduxDesktop`, `getApiBaseUrl()` returns the same
+build-time value it always did — correct there, because the bundle is served by its own gateway.
+
+### Installer page (`FrontendVite/build/installer.nsh`)
+A **Server address** page after the install-directory step: prefilled, format-validated (rejects
+`192.168.1.10:5000` with no scheme — the single most likely thing to be typed), trailing slash
+trimmed, and a **Test** button that calls the server's own `/health` via PowerShell, so no NSIS HTTP
+plugin is needed. A failed test warns but never blocks: a site may install clients before the server
+is up.
+
+Written to `$INSTDIResources\server-config.json`, which `main.cjs` reads as the **default**.
+Deliberately not a per-user file — a till is installed by an administrator and used by a cashier, so
+a per-user setting would be saved for the wrong account. The tray dialog still overrides it, so a
+server that moves does not need a reinstall.
+
+Silent installs skip the page, and `/SERVERURL=http://10.0.0.5:5000` sets it unattended for scripted
+rollout. The **combined** installer now passes `/SERVERURL=http://localhost:{#ServerPort}` explicitly
+rather than relying on the default: if `ServerPort` ever changes, a silent default would point the
+desktop app at the wrong port and it would only surface at first login.
+
+### Four NSIS traps, each found by compiling rather than reasoning
+electron-builder's NSIS template is not Modern UI and is stricter than a hand-rolled script:
+1. `MUI_HEADER_TEXT` does not exist — the heading is an ordinary label.
+2. The custom `.nsh` is included **before** the standard headers, so `${If}` is an *Invalid command*
+   until `LogicLib.nsh` / `nsDialogs.nsh` are included explicitly (both are include-guarded).
+3. **The uninstaller is a separate `makensis` pass** in which the `customPageAfterChangeDir` hook is
+   skipped, leaving the page functions unreferenced — and electron-builder escalates NSIS's
+   *"not referenced - zeroing code out"* warning into a build failure. They are guarded with
+   `!ifndef BUILD_UNINSTALLER`; `customUnInstall` stays outside it.
+4. Same escalation for unused `Var`s, so the three control handles moved inside that guard while
+   `ServerUrlValue` stayed out (`preInit` expands in both passes and sets it).
+5. NSIS reads `$r` in an embedded PowerShell command as one of its own variables. The test command
+   was rewritten to use no PowerShell variable at all.
+
+### 🔴 Second blocker found on the way — CORS would have refused every call anyway
+The renderer is loaded with `loadFile`, so its origin is opaque and Chromium sends `Origin: null`.
+The gateway's `AllowFrontend` is an explicit allow-list (`AllowedOrigins`, shipped as localhost dev
+ports only) **plus `AllowCredentials`** — which can never match a null origin and can never answer
+`*`. Fixing the URL alone would have produced a client that knew the right address and still had
+every authenticated request refused at the preflight.
+
+Handled on the client, in `main.cjs`: `session.webRequest.onHeadersReceived` adds the allow headers
+**only** for responses from the exact origin the app is configured to use, and re-reads that origin
+when the server is changed from the tray. Adding `"null"` to the server's allow-list was the
+alternative and is worse — broader (any sandboxed iframe or local file on the network) and not
+reliably honoured next to `AllowCredentials`. Nothing credentialed is enabled: the app authenticates
+with a bearer token and leaves `fetch` at its default `credentials: "same-origin"`.
+
+### Build / Verification Status
+- **`tsc -p tsconfig.app.json`:** 0 errors ✅ · **`vite build` (web):** ✅ · **no migration.**
+- **Baked references in the desktop bundle went from 105 to 1** — verified by grepping the built
+  assets. The one that remains is `lib/desktop.ts`'s web fallback, which is correct.
+- **The installer compiles** — and the page is provably wired: the build *failed* earlier with
+  *"install function ServerUrlPageShow not referenced"*, and now passes with that function guarded
+  to the installer pass, which is only possible if `Page custom` is being inserted there.
+- **Not verified by running the installer or the desktop app** — that needs a Windows box with a
+  reachable gateway. Specifically unproven: that the Test button reports success against a live
+  server, and that the CORS relaxation is sufficient in practice (it is reasoned from the policy
+  configuration, not observed).

@@ -17,7 +17,8 @@
 import type { BackendResponse } from "@/lib/api-client";
 import { ApiError } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/trial`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/trial`;
 
 export interface TrialRegistrationRequest {
   fullName:      string;

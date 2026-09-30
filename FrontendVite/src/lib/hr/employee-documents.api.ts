@@ -1,8 +1,9 @@
 import { rawApiClient } from "@/lib/api-client";
 
+import { getApiBaseUrl } from "@/lib/desktop";
 // Must carry the API root like every other client module: a bare relative path hits the Vite dev
 // server (5173) instead of the backend, which answers 404 for anything it does not serve itself.
-const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+const API_ROOT = getApiBaseUrl();
 const BASE = (employeeId: string) => `${API_ROOT}/api/hr/employees/${employeeId}/documents`;
 
 /** Metadata only — the API never returns file bytes in a list. */

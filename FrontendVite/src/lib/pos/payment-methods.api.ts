@@ -1,6 +1,7 @@
+import { getApiBaseUrl } from "@/lib/desktop";
 ﻿import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/payment-methods`;
+const BASE = `${getApiBaseUrl()}/api/payment-methods`;
 
 // â”€â”€â”€ DTOs (mirrors backend PaymentMethodConfigDto) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

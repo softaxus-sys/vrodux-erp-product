@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/education`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/education`;
 
 export interface AdmissionDto {
   id: string; admissionNumber: string; leadId?: string | null; studentId?: string | null;
@@ -35,7 +36,8 @@ export interface VerticalPage<T> {
   totalPages: number;
 }
 export const educationApi = {
-  getSummary:     (): Promise<EducationSummaryDto> => rawApiClient.get(`${BASE}/summary`),  getAdmissions: (p: VerticalPageParams = {}): Promise<VerticalPage<AdmissionDto>> => {
+  getSummary:     (): Promise<EducationSummaryDto> => rawApiClient.get(`${BASE}/summary`),
+  getAdmissions: (p: VerticalPageParams = {}): Promise<VerticalPage<AdmissionDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -46,7 +48,8 @@ export const educationApi = {
   createAdmission:(d: CreateAdmissionReq): Promise<AdmissionDto> => rawApiClient.post(`${BASE}/admissions`, d),
   setAdmissionStatus:(id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/admissions/${id}/status`, { status }),
   enrollAdmission:(id: string): Promise<{ studentId: string; studentNumber: string }> => rawApiClient.post(`${BASE}/admissions/${id}/enroll`),
-  deleteAdmission:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/admissions/${id}`),  getStudents: (p: VerticalPageParams = {}): Promise<VerticalPage<StudentDto>> => {
+  deleteAdmission:(id: string): Promise<void> => rawApiClient.delete(`${BASE}/admissions/${id}`),
+  getStudents: (p: VerticalPageParams = {}): Promise<VerticalPage<StudentDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -55,7 +58,8 @@ export const educationApi = {
     return rawApiClient.get(`${BASE}/students?${qs}`);
   },
   createStudent:  (d: CreateStudentReq): Promise<StudentDto> => rawApiClient.post(`${BASE}/students`, d),
-  deleteStudent:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/students/${id}`),  getEnrollments: (p: VerticalPageParams = {}): Promise<VerticalPage<EnrollmentDto>> => {
+  deleteStudent:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/students/${id}`),
+  getEnrollments: (p: VerticalPageParams = {}): Promise<VerticalPage<EnrollmentDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));

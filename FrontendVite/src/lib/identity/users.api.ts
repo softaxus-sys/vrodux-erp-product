@@ -1,7 +1,8 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { UserDto, UserSummaryDto, ProvisionUserPayload, ProvisionedUserDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/users`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/users`;
 
 export interface GetUsersParams {
   page?: number;

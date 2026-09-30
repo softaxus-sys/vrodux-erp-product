@@ -1,7 +1,8 @@
 import { rawApiClient } from "@/lib/api-client";
 import i18n from "@/i18n";
 
-const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+import { getApiBaseUrl } from "@/lib/desktop";
+const API_ROOT = getApiBaseUrl();
 const BASE = `${API_ROOT}/api/crm/documents`;
 
 /** Which CRM record a document hangs off. Mirrors CrmDocumentTargets on the backend. */

@@ -1,10 +1,11 @@
+import { getApiBaseUrl } from "@/lib/desktop";
 /**
  * Public, anonymous careers-portal API — no auth headers, no token refresh.
  * Backed by CareersController (api/hr/careers/{tenantSlug}/...), which is
  * [AllowAnonymous] and resolves the tenant from the URL slug.
  */
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/hr/careers`;
+const BASE = `${getApiBaseUrl()}/api/hr/careers`;
 
 export class CareersApiError extends Error {
   constructor(public readonly statusCode: number, message: string) {
