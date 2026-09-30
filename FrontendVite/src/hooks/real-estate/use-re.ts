@@ -61,8 +61,15 @@ export function useImportProperties() {
 }
 
 export function useUpdateProperty() {
+  const qc = useQueryClient();
   const invalidate = useInvalidateProperties();
-  return useMutation({ mutationFn: (v: { id: string; data: UpsertPropertyInput }) => reApi.updateProperty(v.id, v.data), onSuccess: invalidate });
+  return useMutation({
+    mutationFn: (v: { id: string; data: UpsertPropertyInput }) => reApi.updateProperty(v.id, v.data),
+    // [QK,"property",id] is a DIFFERENT query key from [QK,"properties"] (singular vs plural,
+    // matched by exact key equality) — invalidating the list alone leaves an open edit drawer
+    // showing stale data until something else happens to refetch it.
+    onSuccess: (_data, v) => { invalidate(); qc.invalidateQueries({ queryKey: [QK, "property", v.id] }); },
+  });
 }
 export function useDeleteProperty() {
   const invalidate = useInvalidateProperties();
@@ -77,32 +84,46 @@ export function useDeleteProperty() {
  * Invalidates the property queries because the gallery, the cover image and the
  * "can this be published" state all change together.
  */
+// [QK,"property",id] (singular) is a different query key from [QK,"properties"] (plural) —
+// React Query matches by exact key, not substring, so invalidating the list never refreshes the
+// open edit form's gallery. Every image mutation below invalidates BOTH: the list/summary (cover
+// thumbnails, counts) via useInvalidateProperties, and this specific property so its own gallery
+// actually re-fetches. Without the second one, an upload/delete/set-primary succeeds on the
+// server and toasts success, but the form keeps showing what it had before the call.
+function useInvalidateOneProperty() {
+  const qc = useQueryClient();
+  return (propertyId: string) => qc.invalidateQueries({ queryKey: [QK, "property", propertyId] });
+}
+
 export function useAddPropertyImages() {
   const invalidate = useInvalidateProperties();
+  const invalidateOne = useInvalidateOneProperty();
   return useMutation({
     mutationFn: (v: { propertyId: string; images: { data: string; fileName?: string }[] }) =>
       reApi.addPropertyImages(v.propertyId, v.images),
-    onSuccess: invalidate,
+    onSuccess: (_data, v) => { invalidate(); invalidateOne(v.propertyId); },
     onError: (e: Error) => toast.error(e.message),
   });
 }
 
 export function useDeletePropertyImage() {
   const invalidate = useInvalidateProperties();
+  const invalidateOne = useInvalidateOneProperty();
   return useMutation({
     mutationFn: (v: { propertyId: string; imageId: string }) =>
       reApi.deletePropertyImage(v.propertyId, v.imageId),
-    onSuccess: invalidate,
+    onSuccess: (_data, v) => { invalidate(); invalidateOne(v.propertyId); },
     onError: (e: Error) => toast.error(e.message),
   });
 }
 
 export function useSetPrimaryPropertyImage() {
   const invalidate = useInvalidateProperties();
+  const invalidateOne = useInvalidateOneProperty();
   return useMutation({
     mutationFn: (v: { propertyId: string; imageId: string }) =>
       reApi.setPrimaryPropertyImage(v.propertyId, v.imageId),
-    onSuccess: invalidate,
+    onSuccess: (_data, v) => { invalidate(); invalidateOne(v.propertyId); },
     onError: (e: Error) => toast.error(e.message),
   });
 }

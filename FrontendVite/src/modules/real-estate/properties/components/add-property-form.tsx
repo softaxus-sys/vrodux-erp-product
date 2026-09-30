@@ -9,6 +9,7 @@ import {
   useUpdateProperty,
   useAddPropertyImages,
   useSetPropertyWebsiteListing,
+  useProperty,
 } from "@/hooks/real-estate/use-re";
 import { PropertyPhotos, type StagedImage } from "./property-photos";
 import type { PropertyDto } from "@/lib/real-estate/re.api";
@@ -56,6 +57,12 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
   const setListing = useSetPropertyWebsiteListing();
   const saving = createMut.isPending || updateMut.isPending || addImages.isPending || setListing.isPending;
   const isValid = name.trim() && propertyType && emirate;
+
+  // `editing` is a frozen snapshot (properties-view.tsx's useState, set once when the row is
+  // clicked) — it never updates again while the form is open, so its .images never reflects an
+  // upload/delete made here. A live query does; it re-fetches once useAddPropertyImages /
+  // useDeletePropertyImage / useSetPrimaryPropertyImage invalidate [QK,"property",id] on success.
+  const { data: liveProperty } = useProperty(open && editing ? editing.id : undefined);
 
   const reset = () => {
     setName(""); setPropertyType("Apartment"); setCategory("residential"); setEmirate("Dubai"); setArea("");
@@ -242,7 +249,7 @@ export function AddPropertyForm({ open, onClose, editing }: AddPropertyFormProps
               <div className="pt-1">
                 <PropertyPhotos
                   propertyId={editing?.id}
-                  images={editing?.images}
+                  images={liveProperty?.images}
                   staged={staged}
                   onStagedChange={setStaged}
                 />
