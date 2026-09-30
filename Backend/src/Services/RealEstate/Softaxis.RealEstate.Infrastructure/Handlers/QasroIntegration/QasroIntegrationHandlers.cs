@@ -33,6 +33,25 @@ internal static class QasroIntegrationScope
         RealEstateDbContext db, QasroIntegration q, Guid tenantId, CancellationToken ct) =>
         new(q.Id, q.QasroAgencyId, q.Status, q.LastError, q.CreatedAt, q.ConnectedAt, q.LastUsedAt,
             await PublishedFor(db, tenantId).CountAsync(ct));
+
+    /// <summary>
+    /// Best-effort "sync now" ping for the property-listing handlers — a no-op when Qasro isn't
+    /// connected for this tenant, and never throws (see IQasroClient.SyncNowAsync's own remarks):
+    /// a slow or unreachable Qasro must not block the tenant's own publish/unpublish action.
+    /// </summary>
+    public static async Task NotifySyncNowAsync(
+        RealEstateDbContext db, IQasroClient qasro, Guid tenantId, IReadOnlyList<Guid> propertyIds, CancellationToken ct)
+    {
+        if (propertyIds.Count == 0) return;
+
+        var agencyId = await For(db, tenantId).AsNoTracking()
+            .Where(q => q.Status == "connected")
+            .Select(q => q.QasroAgencyId)
+            .FirstOrDefaultAsync(ct);
+
+        if (agencyId is not null)
+            await qasro.SyncNowAsync(agencyId, propertyIds, ct);
+    }
 }
 
 internal sealed class GetQasroIntegrationHandler(RealEstateDbContext db)

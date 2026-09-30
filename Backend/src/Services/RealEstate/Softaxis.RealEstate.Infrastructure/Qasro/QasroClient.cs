@@ -77,6 +77,33 @@ public sealed class QasroClient(IHttpClientFactory httpFactory, IOptions<QasroOp
         }
     }
 
+    public async Task SyncNowAsync(string qasroAgencyId, IReadOnlyList<Guid> propertyIds, CancellationToken ct)
+    {
+        if (!_o.IsConfigured || propertyIds.Count == 0) return; // nothing to signal, and the cron still covers it
+
+        try
+        {
+            var client = AuthenticatedClient();
+            var body = new { propertyIds };
+            using var resp = await client.PostAsJsonAsync($"/api/internal/agencies/{qasroAgencyId}/sync-now", body, ct);
+
+            if ((int)resp.StatusCode is >= 300 and < 400)
+                logger.LogWarning(
+                    "Qasro sync-now call was redirected ({Status}) for {AgencyId} — Qasro:ApiBaseUrl ({BaseUrl}) is " +
+                    "probably not the canonical host (see ThrowIfRedirected's remarks).",
+                    (int)resp.StatusCode, qasroAgencyId, _o.ApiBaseUrl);
+            else if (!resp.IsSuccessStatusCode)
+                logger.LogWarning("Qasro sync-now call failed ({Status}) for {AgencyId}.", (int)resp.StatusCode, qasroAgencyId);
+        }
+        catch (Exception ex)
+        {
+            // Best-effort, deliberately — see this method's own remarks on IQasroClient. A tenant
+            // checking "List on Qasro" must succeed locally regardless of whether Qasro is reachable
+            // right now; the periodic cron picks up anything a lost signal missed.
+            logger.LogWarning(ex, "Qasro sync-now call threw for {AgencyId}.", qasroAgencyId);
+        }
+    }
+
     public async Task UnlinkAgencyAsync(string qasroAgencyId, CancellationToken ct)
     {
         if (!_o.IsConfigured) return; // nothing to tell — a local-only disconnect still succeeds

@@ -5,7 +5,9 @@ using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Queries;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
+using Softaxis.RealEstate.Infrastructure.Handlers.QasroIntegrations;
 using Softaxis.RealEstate.Infrastructure.Persistence;
+using Softaxis.RealEstate.Infrastructure.Qasro;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Properties;
 
@@ -189,7 +191,7 @@ internal sealed class SetPropertyWebsiteListingHandler(RealEstateDbContext db)
     }
 }
 
-internal sealed class SetPropertyQasroListingHandler(RealEstateDbContext db)
+internal sealed class SetPropertyQasroListingHandler(RealEstateDbContext db, IQasroClient qasro)
     : ICommandHandler<SetPropertyQasroListingCommand>
 {
     public async Task<Result> Handle(SetPropertyQasroListingCommand cmd, CancellationToken ct)
@@ -208,11 +210,19 @@ internal sealed class SetPropertyQasroListingHandler(RealEstateDbContext db)
 
         property.SetQasroListing(cmd.ListOnQasro);
         await db.SaveChangesAsync(ct);
+
+        // Best-effort — tells Qasro to pull this property right away instead of waiting for its own
+        // cron, which on a free-tier deployment can run as infrequently as once a day. Fired on both
+        // listing and un-listing, so a property that just sold stops showing on Qasro just as fast as
+        // a new one starts. See QasroIntegrationScope.NotifySyncNowAsync.
+        if (QasroIntegrationScope.CurrentTenant() is { } tenantId)
+            await QasroIntegrationScope.NotifySyncNowAsync(db, qasro, tenantId, [property.Id], ct);
+
         return Result.Success();
     }
 }
 
-internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db)
+internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db, IQasroClient qasro)
     : ICommandHandler<BulkSetPropertyQasroListingCommand, BulkQasroListingResultDto>
 {
     public async Task<Result<BulkQasroListingResultDto>> Handle(BulkSetPropertyQasroListingCommand cmd, CancellationToken ct)
@@ -222,7 +232,7 @@ internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db)
             .Where(p => cmd.PropertyIds.Contains(p.Id))
             .ToListAsync(ct);
 
-        var updated = 0;
+        var changed = new List<Guid>();
         var skipped = 0;
 
         foreach (var property in properties)
@@ -233,14 +243,20 @@ internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db)
             if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0) { skipped++; continue; }
 
             property.SetQasroListing(cmd.ListOnQasro);
-            updated++;
+            changed.Add(property.Id);
         }
 
         // Ids that matched no property (deleted, wrong tenant) count as skipped too.
         skipped += cmd.PropertyIds.Count - properties.Count;
 
         await db.SaveChangesAsync(ct);
-        return Result.Success(new BulkQasroListingResultDto(updated, skipped));
+
+        // One batched signal, not one per property — bulk-listing 50 properties should not fire 50
+        // separate calls at Qasro. See QasroIntegrationScope.NotifySyncNowAsync.
+        if (QasroIntegrationScope.CurrentTenant() is { } tenantId)
+            await QasroIntegrationScope.NotifySyncNowAsync(db, qasro, tenantId, changed, ct);
+
+        return Result.Success(new BulkQasroListingResultDto(changed.Count, skipped));
     }
 }
 

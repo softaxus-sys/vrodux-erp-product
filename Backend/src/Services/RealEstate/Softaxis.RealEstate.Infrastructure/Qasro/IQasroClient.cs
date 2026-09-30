@@ -32,6 +32,17 @@ public interface IQasroClient
     /// <summary>Tells Qasro to stop pulling and take the agency's listings down. Best-effort — a
     /// failure here should not block a local disconnect (see DisconnectQasroHandler).</summary>
     Task UnlinkAgencyAsync(string qasroAgencyId, CancellationToken ct);
+
+    /// <summary>
+    /// Fires the moment a property's Qasro listing flag changes, so Qasro doesn't have to wait for
+    /// its own periodic cron (which on a free-tier deployment can be as infrequent as once a day).
+    /// Carries only ids — never listing data — so Qasro still fetches the actual content through the
+    /// same authenticated read contract it already uses (the /website/properties endpoints); this
+    /// never becomes a second, untrusted way to write data into Qasro. Best-effort: a slow or
+    /// unreachable Qasro must not block the tenant's own publish/unpublish action, and the periodic
+    /// cron remains the fallback if this signal is ever lost.
+    /// </summary>
+    Task SyncNowAsync(string qasroAgencyId, IReadOnlyList<Guid> propertyIds, CancellationToken ct);
 }
 
 /// <summary>The code was valid, but Qasro's own approval gate rejected it — a distinct outcome from
