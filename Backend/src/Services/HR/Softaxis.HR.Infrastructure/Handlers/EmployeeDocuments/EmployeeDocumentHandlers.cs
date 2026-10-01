@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Storage;
 using Softaxis.HR.Application.EmployeeDocuments.Commands;
 using Softaxis.HR.Application.EmployeeDocuments.Dtos;
 using Softaxis.HR.Application.EmployeeDocuments.Queries;
@@ -103,6 +104,18 @@ internal sealed class UploadEmployeeDocumentHandler(
         var (data, contentType) = imageProcessor.IsCompressibleImage(cmd.ContentType)
             ? imageProcessor.Compress(cmd.Data, cmd.ContentType)
             : (cmd.Data, cmd.ContentType);
+
+        // Checked against the post-compression size — the actual bytes about to land in the
+        // bucket — so a tenant near their limit isn't blocked over an image that would have fit
+        // once compressed. Only when storage is actually in use: a deployment without the bucket
+        // configured has no quota to exceed.
+        if (storage.IsConfigured && TenantAmbient.TenantId is { } quotaTenantId)
+        {
+            var quota = await TenantStorageQuota.CheckAsync(db.Database, quotaTenantId, data.LongLength, ct);
+            if (!quota.Allowed)
+                return Result.Failure<EmployeeDocumentDto>(Error.Custom("EmployeeDocument.QuotaExceeded",
+                    TenantStorageQuota.QuotaErrorMessage(quota, cmd.FileName)));
+        }
 
         var doc = new EmployeeDocument(
             cmd.EmployeeId, cmd.FileName, contentType, data,

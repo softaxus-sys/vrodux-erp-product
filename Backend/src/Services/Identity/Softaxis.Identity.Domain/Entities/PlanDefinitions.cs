@@ -1,3 +1,4 @@
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.Identity.Domain.Enums;
 
 namespace Softaxis.Identity.Domain.Entities;
@@ -13,7 +14,8 @@ public sealed record PlanLimits(
     bool ApiAccess,
     bool CustomReports,
     bool WhiteLabel,
-    IReadOnlyList<string> Modules);
+    IReadOnlyList<string> Modules,
+    int StorageGb); // GB in the shared object-storage bucket. -1 = unlimited.
 
 /// <summary>
 /// List price in USD. <see cref="MonthlyUsd"/> is the month-to-month rate;
@@ -79,7 +81,8 @@ public static class PlanDefinitions
                 ApiAccess:      false,
                 CustomReports:  false,
                 WhiteLabel:     false,
-                Modules:        CoreModules),
+                Modules:        CoreModules,
+                StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Micro))),
 
             [PlanType.Starter] = new(
                 MaxUsers:       10,
@@ -89,7 +92,8 @@ public static class PlanDefinitions
                 ApiAccess:      false,
                 CustomReports:  false,
                 WhiteLabel:     false,
-                Modules:        CoreModules),
+                Modules:        CoreModules,
+                StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Starter))),
 
             [PlanType.Professional] = new(
                 MaxUsers:       50,
@@ -99,7 +103,8 @@ public static class PlanDefinitions
                 ApiAccess:      true,
                 CustomReports:  true,
                 WhiteLabel:     true,
-                Modules:        ProfessionalModules),
+                Modules:        ProfessionalModules,
+                StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Professional))),
 
             [PlanType.Enterprise] = new(
                 MaxUsers:       -1,
@@ -109,7 +114,8 @@ public static class PlanDefinitions
                 ApiAccess:      true,
                 CustomReports:  true,
                 WhiteLabel:     true,
-                Modules:        EnterpriseModules),
+                Modules:        EnterpriseModules,
+                StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Enterprise))),
         };
 
     public static readonly IReadOnlyDictionary<PlanType, PlanPricing> Pricing =

@@ -39,9 +39,15 @@ internal sealed class CreateTicketHandler(
             currentUser.Username ?? "Unknown user", isFromAgent: false, cmd.Message);
         db.Messages.Add(firstMessage);
 
-        var attachments = await TicketAttachmentFactory.BuildAsync(
+        // Checked before anything is saved — a quota failure here must leave no half-created
+        // ticket behind (nothing persists until SaveChangesAsync, so returning early is enough).
+        var attachmentsResult = await TicketAttachmentFactory.BuildAsync(
             ticket.Id, firstMessage.Id, cmd.Attachments, currentUser.Id.Value, currentUser.Username ?? "Unknown user",
-            storage, imageProcessor, ticket.RequestingTenantId, logger, ct);
+            storage, imageProcessor, ticket.RequestingTenantId, db.Database, logger, ct);
+        if (attachmentsResult.IsFailure)
+            return Result.Failure<Application.Tickets.Dtos.TicketDetailDto>(attachmentsResult.Error);
+
+        var attachments = attachmentsResult.Value;
         db.Attachments.AddRange(attachments);
 
         await db.SaveChangesAsync(ct);

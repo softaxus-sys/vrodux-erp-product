@@ -39,10 +39,15 @@ internal sealed class AddTicketMessageHandler(
         db.Messages.Add(message);
 
         // Keyed under the ticket's own (requesting) tenant regardless of who's replying — an
-        // agent posting a reply belongs to the operator tenant, not the ticket's tenant.
-        var attachments = await TicketAttachmentFactory.BuildAsync(
+        // agent posting a reply belongs to the operator tenant, not the ticket's tenant. Checked
+        // before anything is saved, same reasoning as CreateTicketHandler.
+        var attachmentsResult = await TicketAttachmentFactory.BuildAsync(
             ticket.Id, message.Id, cmd.Attachments, currentUser.Id.Value, currentUser.Username ?? "Unknown user",
-            storage, imageProcessor, ticket.RequestingTenantId, logger, ct);
+            storage, imageProcessor, ticket.RequestingTenantId, db.Database, logger, ct);
+        if (attachmentsResult.IsFailure)
+            return Result.Failure<TicketMessageDto>(attachmentsResult.Error);
+
+        var attachments = attachmentsResult.Value;
         db.Attachments.AddRange(attachments);
 
         ticket.Touch();

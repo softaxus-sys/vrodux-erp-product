@@ -31,6 +31,8 @@ public abstract class SupportControllerBase : ControllerBase
             var c when c.EndsWith(".Conflict")          => Conflict(body),
             var c when c.EndsWith(".Forbidden")         => StatusCode(StatusCodes.Status403Forbidden, body),
             var c when c.EndsWith(".InvalidTransition") => BadRequest(body),
+            // Storage-quota exceeded — 413 names the actual problem rather than overloading 409.
+            var c when c.EndsWith(".QuotaExceeded")     => StatusCode(StatusCodes.Status413PayloadTooLarge, body),
             "Validation.Failed"                          => UnprocessableEntity(body),
             // Support.NoTenant / Support.Unresolved — the caller's own identity/context is the
             // problem, not the server; these are client-side conditions, not 500s.

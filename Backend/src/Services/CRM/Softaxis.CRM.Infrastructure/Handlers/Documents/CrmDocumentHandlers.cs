@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Storage;
 using Softaxis.CRM.Application.Abstractions;
 using Softaxis.CRM.Application.Documents.Commands;
 using Softaxis.CRM.Application.Documents.Dtos;
@@ -249,6 +250,16 @@ internal sealed class UploadCrmDocumentHandler(
         var (data, contentType) = imageProcessor.IsCompressibleImage(cmd.ContentType)
             ? imageProcessor.Compress(cmd.Data, cmd.ContentType)
             : (cmd.Data, cmd.ContentType);
+
+        // Checked against the post-compression size — the actual bytes about to land in the
+        // bucket. Only when storage is actually in use.
+        if (storage.IsConfigured && TenantAmbient.TenantId is { } quotaTenantId)
+        {
+            var quota = await TenantStorageQuota.CheckAsync(db.Database, quotaTenantId, data.LongLength, ct);
+            if (!quota.Allowed)
+                return Result.Failure<CrmDocumentDto>(Error.Custom("CrmDocument.QuotaExceeded",
+                    TenantStorageQuota.QuotaErrorMessage(quota, cmd.FileName)));
+        }
 
         var doc = new CrmDocument(
             cmd.RelatedToType, cmd.RelatedToId, relatedName,

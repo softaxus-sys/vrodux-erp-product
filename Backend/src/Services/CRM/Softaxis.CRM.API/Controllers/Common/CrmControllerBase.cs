@@ -45,6 +45,8 @@ public abstract class CrmControllerBase : ControllerBase
             // reached. 503 tells the caller the failure is outside this system and worth retrying,
             // which a blanket 500 actively hides.
             var c when c.EndsWith(".Unavailable")  => StatusCode(StatusCodes.Status503ServiceUnavailable, body),
+            // Storage-quota exceeded — 413 names the actual problem rather than overloading 409.
+            var c when c.EndsWith(".QuotaExceeded") => StatusCode(StatusCodes.Status413PayloadTooLarge, body),
             "Validation.Failed"                 => UnprocessableEntity(body),
             _                                    => StatusCode(StatusCodes.Status500InternalServerError, body),
         };

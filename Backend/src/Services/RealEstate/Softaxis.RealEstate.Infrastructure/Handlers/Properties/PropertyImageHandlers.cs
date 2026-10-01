@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.BuildingBlocks.Infrastructure.Storage;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Queries;
 using Softaxis.RealEstate.Application.Properties.Dtos;
@@ -96,6 +97,10 @@ internal sealed class AddPropertyImagesHandler(
         var existing = property.Images.Where(i => !i.IsDeleted).ToList();
         var nextOrder = existing.Count == 0 ? 0 : existing.Max(i => i.SortOrder) + 1;
         var added = new List<PropertyImage>();
+        // Bytes already accepted earlier in THIS batch — several photos can be uploaded in one
+        // call, so the Nth photo is checked against what the first N-1 already committed, not
+        // just usage as of before this call started.
+        long committedInBatch = 0;
 
         foreach (var input in cmd.Images)
         {
@@ -129,11 +134,19 @@ internal sealed class AddPropertyImagesHandler(
 
             if (useStorage)
             {
+                var quota = await TenantStorageQuota.CheckAsync(
+                    db.Database, tenantId!.Value, committedInBatch + storedBytes.LongLength, ct);
+                if (!quota.Allowed)
+                    return Result.Failure<IReadOnlyList<PropertyImageDto>>(
+                        Error.Custom("Property.QuotaExceeded",
+                            TenantStorageQuota.QuotaErrorMessage(quota, input.FileName)));
+
                 var key = PropertyImageStorage.BuildKey(tenantId!.Value, property.Id, image.Id);
                 try
                 {
                     await storage.PutAsync(key, storedBytes, storedContentType, ct);
                     image.SetObjectKey(key, storedContentType, storedBytes.LongLength); // clears Data
+                    committedInBatch += storedBytes.LongLength;
                 }
                 catch (Exception ex)
                 {
