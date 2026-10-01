@@ -32,14 +32,30 @@ public sealed class S3ObjectStorage(IOptions<ObjectStorageOptions> options, ILog
 
         using var client = BuildClient();
         using var stream = new MemoryStream(data);
-        await client.PutObjectAsync(new PutObjectRequest
+        try
         {
-            BucketName  = _o.Bucket,
-            Key         = key,
-            InputStream = stream,
-            ContentType = contentType,
-            AutoCloseStream = false,
-        }, ct);
+            await client.PutObjectAsync(new PutObjectRequest
+            {
+                BucketName  = _o.Bucket,
+                Key         = key,
+                InputStream = stream,
+                ContentType = contentType,
+                AutoCloseStream = false,
+            }, ct);
+        }
+        catch (AmazonS3Exception ex)
+        {
+            // The default Exception.ToString() a logger renders does NOT include these — AWS SDK
+            // exceptions carry the real diagnostic (HTTP status, S3 error code, request id) as
+            // properties, not in .Message, which is frequently blank when the error response body
+            // wasn't standard AWS/S3 XML — a real possibility against a non-AWS provider. Logged
+            // here, then rethrown — PutAsync still throws on failure per IObjectStorage's contract.
+            logger.LogError(ex,
+                "S3 PutObject failed: StatusCode={StatusCode} ErrorCode={ErrorCode} RequestId={RequestId} " +
+                "Bucket={Bucket} Endpoint={Endpoint} Message={S3Message}",
+                ex.StatusCode, ex.ErrorCode, ex.RequestId, _o.Bucket, _o.Endpoint, ex.Message);
+            throw;
+        }
     }
 
     public async Task<ObjectStorageFile?> GetAsync(string key, CancellationToken ct = default)
@@ -58,10 +74,19 @@ public sealed class S3ObjectStorage(IOptions<ObjectStorageOptions> options, ILog
         {
             return null;
         }
-        catch (Exception ex)
+        catch (AmazonS3Exception ex)
         {
             // Swallowed deliberately — see IObjectStorage's remarks. A caller with a legacy
-            // DB-stored fallback must still be able to serve the file from there.
+            // DB-stored fallback must still be able to serve the file from there. StatusCode/
+            // ErrorCode logged explicitly — see PutAsync's own remarks on why .ToString() alone
+            // isn't enough for an AWS SDK exception.
+            logger.LogWarning(ex,
+                "Object storage GET failed: StatusCode={StatusCode} ErrorCode={ErrorCode} Key={Key}",
+                ex.StatusCode, ex.ErrorCode, key);
+            return null;
+        }
+        catch (Exception ex)
+        {
             logger.LogWarning(ex, "Object storage GET failed for key {Key}", key);
             return null;
         }
@@ -75,6 +100,12 @@ public sealed class S3ObjectStorage(IOptions<ObjectStorageOptions> options, ILog
         {
             using var client = BuildClient();
             await client.DeleteObjectAsync(_o.Bucket, key, ct);
+        }
+        catch (AmazonS3Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Object storage DELETE failed: StatusCode={StatusCode} ErrorCode={ErrorCode} Key={Key}",
+                ex.StatusCode, ex.ErrorCode, key);
         }
         catch (Exception ex)
         {
