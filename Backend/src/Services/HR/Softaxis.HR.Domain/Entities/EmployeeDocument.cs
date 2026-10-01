@@ -4,10 +4,12 @@ namespace Softaxis.HR.Domain.Entities;
 /// A file attached to an employee — passport and visa copies, the signed contract, certificates,
 /// medical insurance cards.
 ///
-/// <para><b>Bytes are stored in the database</b>, following the CRM document and expense-receipt
-/// precedent, so the on-prem deployment needs no blob store. <see cref="Data"/> must never be
-/// selected in list queries: the read handler projects metadata only, and only the download
-/// handler loads the bytes.</para>
+/// <para>Bytes live in the shared object storage bucket (see IObjectStorage) once configured —
+/// <see cref="ObjectKey"/> set, <see cref="Data"/> cleared. A row uploaded before object storage
+/// was configured keeps its bytes in <see cref="Data"/> instead; the two are never both populated.
+/// Either way, <see cref="Data"/> must never be selected in list queries: the read handler
+/// projects metadata only, and only the download handler loads the bytes (from whichever of the
+/// two actually holds them).</para>
 ///
 /// <para><see cref="ExpiryDate"/> is what makes this more than a file cabinet — passports, visas
 /// and insurance all expire, and HR needs to see what is lapsing.</para>
@@ -45,7 +47,15 @@ public sealed class EmployeeDocument
     public Guid      EmployeeId       { get; private set; }
     public string    FileName         { get; private set; } = string.Empty;
     public string    ContentType      { get; private set; } = string.Empty;
+
+    /// <summary>Legacy storage — null/empty once ObjectKey is set (see SetObjectKey). Never both
+    /// populated, so the bytes aren't paid for twice.</summary>
     public byte[]    Data             { get; private set; } = [];
+
+    /// <summary>Key in the shared object storage bucket (see IObjectStorage), e.g.
+    /// "hr/{tenantId}/{employeeId}/{documentId}". Null for a row stored the legacy way.</summary>
+    public string?   ObjectKey        { get; private set; }
+
     public long      SizeBytes        { get; private set; }
     /// <summary>passport | visa | emirates_id | contract | certificate | insurance | other</summary>
     public string    DocumentType     { get; private set; } = "other";
@@ -67,4 +77,12 @@ public sealed class EmployeeDocument
     }
 
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    /// <summary>Called once the bytes have actually landed in the bucket. Clears Data — the two
+    /// storage locations are never both populated for the same row.</summary>
+    public void SetObjectKey(string key)
+    {
+        ObjectKey = key;
+        Data = [];
+    }
 }

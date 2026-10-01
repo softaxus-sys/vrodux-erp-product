@@ -16,6 +16,7 @@ internal sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<E
         builder.Property(x => x.FileName).IsRequired().HasMaxLength(260);
         builder.Property(x => x.ContentType).IsRequired().HasMaxLength(150);
         builder.Property(x => x.Data).IsRequired().HasColumnType("varbinary(max)");
+        builder.Property(x => x.ObjectKey).HasMaxLength(500);
         builder.Property(x => x.DocumentType).IsRequired().HasMaxLength(40).HasDefaultValue("other");
         builder.Property(x => x.Description).HasMaxLength(500);
         builder.Property(x => x.ExpiryDate).HasMaxLength(20);
