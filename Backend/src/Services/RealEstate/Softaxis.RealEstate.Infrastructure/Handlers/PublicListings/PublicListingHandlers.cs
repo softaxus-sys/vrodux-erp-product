@@ -2,12 +2,14 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Application.PublicListings.Dtos;
 using Softaxis.RealEstate.Application.PublicListings.Queries;
 using Softaxis.RealEstate.Domain.Entities;
+using Softaxis.RealEstate.Infrastructure.Handlers.Properties;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.PublicListings;
@@ -210,7 +212,7 @@ internal sealed class GetPublicPropertyHandler(RealEstateDbContext db)
     }
 }
 
-internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db)
+internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db, IObjectStorage storage)
     : IQueryHandler<GetPublicPropertyImageQuery, PropertyImageFileDto>
 {
     public async Task<Result<PropertyImageFileDto>> Handle(
@@ -250,13 +252,14 @@ internal sealed class GetPublicPropertyImageHandler(RealEstateDbContext db)
 
         if (!published) return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);
 
-        var image = await db.PropertyImages.AsNoTracking()
+        var row = await db.PropertyImages.AsNoTracking()
             .Where(i => i.Id == query.ImageId && i.PropertyId == query.PropertyId && !i.IsDeleted)
-            .Select(i => new PropertyImageFileDto(i.Data, i.ContentType))
+            .Select(i => new { i.Data, i.ContentType, i.ObjectKey })
             .FirstOrDefaultAsync(ct);
 
-        return image is null
-            ? Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound)
-            : Result.Success(image);
+        if (row is null) return Result.Failure<PropertyImageFileDto>(PublicListingScope.NotFound);
+
+        return Result.Success(await PropertyImageStorage.LoadAsync(
+            row.Data, row.ContentType, row.ObjectKey, storage, ct));
     }
 }

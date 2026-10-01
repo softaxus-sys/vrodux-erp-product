@@ -16,6 +16,8 @@
     <PackageReference Include="MediatR"                                 Version="12.*" />
     <PackageReference Include="Serilog.AspNetCore"                      Version="9.*" />
     <PackageReference Include="Microsoft.Extensions.Http"               Version="9.*" />
+    <!-- S3-compatible object storage (Contabo) — see Storage/S3ObjectStorage.cs. -->
+    <PackageReference Include="AWSSDK.S3"                               Version="3.*" />
   </ItemGroup>
 
   <ItemGroup>

@@ -40,8 +40,11 @@ public sealed class RealEstateConfigurations :
         b.ToTable("PropertyImages");
         b.HasKey(x => x.Id);
         // varbinary(max): a photograph has no sensible length cap, and the API enforces the real
-        // limit on the way in rather than letting the column truncate silently.
+        // limit on the way in rather than letting the column truncate silently. An empty array
+        // (once ObjectKey is set — see PropertyImage.SetObjectKey) still satisfies IsRequired, since
+        // that only enforces NOT NULL, not non-empty.
         b.Property(x => x.Data).IsRequired();
+        b.Property(x => x.ObjectKey).HasMaxLength(500);
         b.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
         b.Property(x => x.FileName).HasMaxLength(255);
         b.Property(x => x.Caption).HasMaxLength(500);

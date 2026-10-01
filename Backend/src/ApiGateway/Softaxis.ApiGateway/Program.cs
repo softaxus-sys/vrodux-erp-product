@@ -33,6 +33,7 @@ using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
+using Softaxis.BuildingBlocks.Infrastructure.Storage;
 
 // ── Bootstrap Serilog ─────────────────────────────────────────────────────────
 // `Softaxis.ApiGateway.exe --device-id` prints this computer's Device ID and exits — no config,
@@ -230,6 +231,12 @@ try
     // SignalR channel that delivers them. The realtime notifier is registered HERE rather than in
     // BuildingBlocks so BuildingBlocks keeps no SignalR reference and every service can depend on it.
     builder.Services.AddNotifications(builder.Configuration);
+
+    // ── Platform-wide object storage ──────────────────────────────────────────
+    // One S3-compatible bucket (Contabo) for every module's files — see IObjectStorage's own
+    // remarks. Falls back to no-op (IsConfigured=false) until Storage:* is set; callers fall back
+    // to their own legacy DB-column storage in that state, nothing breaks by registering this early.
+    builder.Services.AddObjectStorage(builder.Configuration);
 
     // ── On-premises → cloud mirror: change capture ───────────────────────────
     //    Registration only; nothing touches the database until the startup step

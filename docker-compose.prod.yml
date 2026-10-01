@@ -211,6 +211,17 @@ services:
       Qasro__ClientId: "${QASRO_CLIENT_ID:-vrodux}"
       Qasro__ClientSecret: "${QASRO_CLIENT_SECRET:-}"
 
+      # ── Object storage (Contabo, S3-compatible) — one bucket, every module's files ──────
+      # Registered once in the gateway (AddObjectStorage) and injected as IObjectStorage into any
+      # service's handlers — see BuildingBlocks' Storage/ folder. Without these, every module falls
+      # back to its own legacy DB-column storage (IsConfigured=false) — nothing breaks, uploads just
+      # keep going into SQL Server until this is set. Qasro has its OWN separate bucket + credentials
+      # entirely outside this config — the two must never share a key.
+      Storage__Endpoint:  "${STORAGE_ENDPOINT:-}"
+      Storage__Bucket:    "${STORAGE_BUCKET:-}"
+      Storage__AccessKey: "${STORAGE_ACCESS_KEY:-}"
+      Storage__SecretKey: "${STORAGE_SECRET_KEY:-}"
+
       # ── Billing / Subscriptions (Vrodux's OWN Stripe + PayPal accounts) ──────
       # Platform credentials, not per-tenant. Set them in /opt/vrodux/shared/.env;
       # each provider stays disabled (and is hidden from the billing UI) until its

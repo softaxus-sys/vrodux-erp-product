@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Storage;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Queries;
@@ -10,6 +12,31 @@ using Softaxis.RealEstate.Infrastructure.Persistence;
 using Softaxis.RealEstate.Infrastructure.Qasro;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Properties;
+
+/// <summary>
+/// Object-storage plumbing shared by every PropertyImage read/write handler (and the public,
+/// anonymous image endpoint in PublicListingHandlers.cs, which reuses LoadAsync — same assembly,
+/// internal visibility is enough).
+/// </summary>
+internal static class PropertyImageStorage
+{
+    public static string BuildKey(Guid tenantId, Guid propertyId, Guid imageId) =>
+        $"real-estate/{tenantId:N}/{propertyId:N}/{imageId:N}";
+
+    /// <summary>Dual-read: bytes come from the bucket when ObjectKey is set, otherwise from the
+    /// legacy Data column. A bucket miss (shouldn't happen — see PropertyImage's own remarks on
+    /// the two never both being populated) falls back to Data rather than failing the request.</summary>
+    public static async Task<PropertyImageFileDto> LoadAsync(
+        byte[] data, string contentType, string? objectKey, IObjectStorage storage, CancellationToken ct)
+    {
+        if (objectKey is not null)
+        {
+            var file = await storage.GetAsync(objectKey, ct);
+            if (file is not null) return new PropertyImageFileDto(file.Data, file.ContentType);
+        }
+        return new PropertyImageFileDto(data, contentType);
+    }
+}
 
 /// <summary>Decodes the <c>data:</c> URIs the browser produces into storable bytes.</summary>
 internal static class DataUri
@@ -44,7 +71,7 @@ internal static class DataUri
     }
 }
 
-internal sealed class AddPropertyImagesHandler(RealEstateDbContext db)
+internal sealed class AddPropertyImagesHandler(RealEstateDbContext db, IObjectStorage storage)
     : ICommandHandler<AddPropertyImagesCommand, IReadOnlyList<PropertyImageDto>>
 {
     public async Task<Result<IReadOnlyList<PropertyImageDto>>> Handle(
@@ -57,6 +84,11 @@ internal sealed class AddPropertyImagesHandler(RealEstateDbContext db)
         if (property is null)
             return Result.Failure<IReadOnlyList<PropertyImageDto>>(
                 Error.Custom("Property.NotFound", "That property no longer exists."));
+
+        // Falls back to the legacy Data column when object storage isn't configured, or the
+        // ambient tenant is somehow unresolved — neither should ever block an upload.
+        var tenantId = TenantAmbient.TenantId;
+        var useStorage = storage.IsConfigured && tenantId is not null;
 
         var existing = property.Images.Where(i => !i.IsDeleted).ToList();
         var nextOrder = existing.Count == 0 ? 0 : existing.Max(i => i.SortOrder) + 1;
@@ -84,6 +116,26 @@ internal sealed class AddPropertyImagesHandler(RealEstateDbContext db)
             // gallery but no image to represent it in a list.
             if (existing.Count == 0 && added.Count == 0) image.SetPrimary(true);
 
+            if (useStorage)
+            {
+                var key = PropertyImageStorage.BuildKey(tenantId!.Value, property.Id, image.Id);
+                try
+                {
+                    await storage.PutAsync(key, bytes, contentType, ct);
+                    image.SetObjectKey(key); // clears Data — see PropertyImage.SetObjectKey
+                }
+                catch (Exception)
+                {
+                    // PutAsync throws on failure by contract (see IObjectStorage) — the upload
+                    // genuinely didn't land anywhere, so this must fail loudly, not fall back
+                    // silently to storing in the DB (that would surprise a deployment that chose
+                    // object storage specifically to stop doing that).
+                    return Result.Failure<IReadOnlyList<PropertyImageDto>>(
+                        Error.Custom("Property.ImageUploadFailed",
+                            $"'{input.FileName ?? "An image"}' could not be uploaded. Please try again."));
+                }
+            }
+
             added.Add(image);
             db.PropertyImages.Add(image);
         }
@@ -95,7 +147,7 @@ internal sealed class AddPropertyImagesHandler(RealEstateDbContext db)
     }
 }
 
-internal sealed class DeletePropertyImageHandler(RealEstateDbContext db)
+internal sealed class DeletePropertyImageHandler(RealEstateDbContext db, IObjectStorage storage)
     : ICommandHandler<DeletePropertyImageCommand>
 {
     public async Task<Result> Handle(DeletePropertyImageCommand cmd, CancellationToken ct)
@@ -107,6 +159,7 @@ internal sealed class DeletePropertyImageHandler(RealEstateDbContext db)
             return Result.Failure(Error.Custom("Property.Image.NotFound", "That image no longer exists."));
 
         var wasPrimary = image.IsPrimary;
+        var objectKey = image.ObjectKey;
         image.Delete();
 
         // Deleting the cover shot must promote another, or the property silently loses its
@@ -121,6 +174,12 @@ internal sealed class DeletePropertyImageHandler(RealEstateDbContext db)
         }
 
         await db.SaveChangesAsync(ct);
+
+        // After, not before: the tenant's own delete must not be blocked by the bucket being slow
+        // or unreachable (same reasoning as Qasro's UnlinkAgencyAsync). A failed bucket delete
+        // leaves an orphaned object — a storage cost, not a correctness problem.
+        if (objectKey is not null) await storage.DeleteAsync(objectKey, ct);
+
         return Result.Success();
     }
 }
@@ -260,20 +319,23 @@ internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db,
     }
 }
 
-internal sealed class GetPropertyImageHandler(RealEstateDbContext db)
+internal sealed class GetPropertyImageHandler(RealEstateDbContext db, IObjectStorage storage)
     : IQueryHandler<GetPropertyImageQuery, PropertyImageFileDto>
 {
     public async Task<Result<PropertyImageFileDto>> Handle(GetPropertyImageQuery query, CancellationToken ct)
     {
-        // The one place that deliberately selects Data. Everything else projects metadata only.
-        var image = await db.PropertyImages.AsNoTracking()
+        // One of the two places that deliberately selects Data (alongside ObjectKey, to know
+        // which one actually holds the bytes). Everything else projects metadata only.
+        var row = await db.PropertyImages.AsNoTracking()
             .Where(i => i.Id == query.ImageId && i.PropertyId == query.PropertyId && !i.IsDeleted)
-            .Select(i => new PropertyImageFileDto(i.Data, i.ContentType))
+            .Select(i => new { i.Data, i.ContentType, i.ObjectKey })
             .FirstOrDefaultAsync(ct);
 
-        return image is null
-            ? Result.Failure<PropertyImageFileDto>(
-                Error.Custom("Property.Image.NotFound", "That image no longer exists."))
-            : Result.Success(image);
+        if (row is null)
+            return Result.Failure<PropertyImageFileDto>(
+                Error.Custom("Property.Image.NotFound", "That image no longer exists."));
+
+        return Result.Success(await PropertyImageStorage.LoadAsync(
+            row.Data, row.ContentType, row.ObjectKey, storage, ct));
     }
 }

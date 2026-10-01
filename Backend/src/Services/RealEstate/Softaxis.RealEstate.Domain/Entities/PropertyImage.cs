@@ -18,7 +18,16 @@ public sealed class PropertyImage
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid PropertyId { get; private set; }
 
+    /// <summary>Legacy storage — populated only when the image was uploaded before object storage
+    /// was configured, or object storage was never configured for this deployment. Null/empty once
+    /// <see cref="ObjectKey"/> is set; the two are never both populated, to avoid paying for the
+    /// bytes twice.</summary>
     public byte[] Data { get; private set; } = [];
+
+    /// <summary>The key in the shared object storage bucket (see IObjectStorage), e.g.
+    /// "real-estate/{tenantId}/{propertyId}/{imageId}". Null for a row stored the legacy way.</summary>
+    public string? ObjectKey { get; private set; }
+
     public string ContentType { get; private set; } = "image/jpeg";
     public string? FileName { get; private set; }
     public string? Caption { get; private set; }
@@ -47,4 +56,12 @@ public sealed class PropertyImage
     public void SetSortOrder(int order) => SortOrder = order;
     public void SetCaption(string? caption) => Caption = string.IsNullOrWhiteSpace(caption) ? null : caption.Trim();
     public void Delete() => IsDeleted = true;
+
+    /// <summary>Called once the bytes have actually landed in the bucket. Clears Data — the two
+    /// storage locations are never both populated for the same row.</summary>
+    public void SetObjectKey(string key)
+    {
+        ObjectKey = key;
+        Data = [];
+    }
 }
