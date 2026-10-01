@@ -174,6 +174,9 @@ internal sealed class ImportRentalStockHandler(RealEstateDbContext db, ICurrentU
                     ownerPhone: row.OwnerPhone?.Trim(),
                     ownerPhoneAlt: row.OwnerPhoneAlt?.Trim());
 
+                // No column for it on these sheets — the date is inside the price cell.
+                unit.SetRentedUntil(null);
+
                 // Whoever runs the import is the one with the sheet and its owner data in front of
                 // them, so they become the listing's first agent — same default as a manually
                 // created listing. Reassignable afterward via Edit by an admin or the agent.

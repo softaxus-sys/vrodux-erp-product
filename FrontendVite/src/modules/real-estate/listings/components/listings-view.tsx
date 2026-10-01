@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import {
   Search, Building2, Plus, UploadCloud, Home, Tag, KeyRound,
-  Camera, Megaphone, Wallet, Sparkles, Loader2,
+  Camera, Megaphone, Wallet, Sparkles, Loader2, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,9 @@ import { cn, formatCurrency, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import {
   useListings, useListingsSummary, useImportRentalStock, useProperty,
-  useBulkSetQasroListing, useQasroIntegration,
+  useBulkSetQasroListing, useQasroIntegration, useListingFilterOptions,
 } from "@/hooks/real-estate/use-re";
+import { MultiSelectFilter, type FilterOption } from "./multi-select-filter";
 import type { ListingDto, PropertyDto, UnitStatus } from "@/lib/real-estate/re.api";
 import { useRowSelection } from "@/modules/crm/shared/components/team-filing-bar";
 import { LISTING_IMPORT_FIELDS } from "./listing-import-fields";
@@ -36,12 +37,31 @@ const PURPOSE_FILTERS = [
 ];
 
 const STATUS_FILTERS = [
-  { label: "Any status",  value: "all" },
   { label: "Vacant",      value: "vacant" },
   { label: "Rented",      value: "rented" },
+  { label: "Reserved",    value: "reserved" },
+  { label: "For sale",    value: "for_sale" },
   { label: "Sold",        value: "sold" },
   { label: "Maintenance", value: "maintenance" },
 ];
+
+/** The multi-select filters. Each list is "any of these"; the lists narrow each other. */
+type FilterKey = "buildings" | "beds" | "types" | "statuses" | "furnishings" | "cities" | "agents";
+type Filters = Record<FilterKey, string[]>;
+
+const NO_FILTERS: Filters = {
+  buildings: [], beds: [], types: [], statuses: [], furnishings: [], cities: [], agents: [],
+};
+
+/** A studio is stored as zero bedrooms. */
+const bedsLabel = (n: number) => (n === 0 ? "Studio" : `${n} BHK`);
+const furnishingLabel = (f: string) => f.replace(/_/g, " ").replace(/^\w/, c => c.toUpperCase());
+
+/** A price box's text as a number, or undefined when it is blank or not one. */
+const toPrice = (s: string) => {
+  const n = Number(s);
+  return s.trim() !== "" && Number.isFinite(n) && n >= 0 ? n : undefined;
+};
 
 const STATUS_CONFIG: Record<UnitStatus, { label: string; className: string }> = {
   vacant:      { label: "Vacant",      className: "text-warning bg-warning/10" },
@@ -72,8 +92,11 @@ export function ListingsView() {
 
   const [search, setSearch]       = React.useState("");
   const [purpose, setPurpose]     = React.useState("all");
-  const [status, setStatus]       = React.useState("all");
+  const [filters, setFilters]     = React.useState<Filters>(NO_FILTERS);
+  const [minPrice, setMinPrice]   = React.useState("");
+  const [maxPrice, setMaxPrice]   = React.useState("");
   const [page, setPage]           = React.useState(1);
+  const setFilter = (key: FilterKey, values: string[]) => setFilters(f => ({ ...f, [key]: values }));
 
   const [showForm, setShowForm]   = React.useState(false);
   const [editing, setEditing]     = React.useState<ListingDto | null>(null);
@@ -96,19 +119,55 @@ export function ListingsView() {
 
   // Typing hits the server, so the request waits until they stop.
   const [debounced, setDebounced] = React.useState("");
+  const [debouncedPrice, setDebouncedPrice] = React.useState<{ min?: number; max?: number }>({});
   React.useEffect(() => {
-    const id = setTimeout(() => setDebounced(search.trim()), 350);
+    const id = setTimeout(() => {
+      setDebounced(search.trim());
+      setDebouncedPrice({ min: toPrice(minPrice), max: toPrice(maxPrice) });
+    }, 350);
     return () => clearTimeout(id);
-  }, [search]);
+  }, [search, minPrice, maxPrice]);
 
   // Filtering narrows in SQL. Doing it in the browser cannot survive paging — it would filter
   // within one page and under-report everything.
-  React.useEffect(() => { setPage(1); }, [debounced, purpose, status, propertyId]);
+  React.useEffect(() => { setPage(1); }, [debounced, debouncedPrice, purpose, filters, propertyId]);
 
+  // An empty list is sent as nothing at all, so "no filter" keeps one cache entry.
+  const some = <T,>(a: T[]) => (a.length > 0 ? a : undefined);
   const { data: paged, isFetching } = useListings({
     search: debounced || undefined,
-    purpose, status, propertyId, page, pageSize: PAGE_SIZE,
+    purpose, propertyId, page, pageSize: PAGE_SIZE,
+    propertyIds:   some(filters.buildings),
+    bedrooms:      some(filters.beds.map(Number)),
+    propertyTypes: some(filters.types),
+    statuses:      some(filters.statuses),
+    furnishings:   some(filters.furnishings),
+    cities:        some(filters.cities),
+    agents:        some(filters.agents),
+    minPrice:      debouncedPrice.min,
+    maxPrice:      debouncedPrice.max,
   });
+
+  const { data: options } = useListingFilterOptions();
+  const FILTER_DEFS: { key: FilterKey; label: string; options: FilterOption[] }[] = [
+    { key: "buildings",   label: "Building",   options: (options?.buildings ?? []).map(b => ({ value: b.id, label: b.name })) },
+    { key: "beds",        label: "Bedrooms",   options: (options?.bedrooms ?? []).map(n => ({ value: String(n), label: bedsLabel(n) })) },
+    { key: "types",       label: "Property type", options: (options?.propertyTypes ?? []).map(t => ({ value: t, label: t })) },
+    { key: "statuses",    label: "Status",     options: STATUS_FILTERS },
+    { key: "furnishings", label: "Furnishing", options: (options?.furnishings ?? []).map(f => ({ value: f, label: furnishingLabel(f) })) },
+    { key: "cities",      label: "Location",   options: (options?.cities ?? []).map(c => ({ value: c, label: c })) },
+    { key: "agents",      label: "Agent",      options: (options?.agents ?? []).map(a => ({ value: a, label: a })) },
+  ];
+
+  // Every ticked value as a chip, so what is narrowing the list can be read — and undone —
+  // without opening each dropdown in turn.
+  const chips = FILTER_DEFS.flatMap(d =>
+    filters[d.key].map(value => ({
+      key: d.key, value, group: d.label,
+      label: d.options.find(o => o.value === value)?.label ?? value,
+    })));
+  const hasFilters = chips.length > 0 || minPrice !== "" || maxPrice !== "";
+  const clearFilters = () => { setFilters(NO_FILTERS); setMinPrice(""); setMaxPrice(""); };
   const listings   = paged?.items ?? [];
   // Unit number + owner details belong to the listing's agent and admins. A user who can see
   // none of them gets no Owner column at all rather than a column of "Restricted" badges.
@@ -228,14 +287,62 @@ export function ListingsView() {
               className="ps-8 h-9 text-sm"
             />
           </div>
-          <select
-            value={status}
-            onChange={e => setStatus(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-border bg-card text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-          >
-            {STATUS_FILTERS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {FILTER_DEFS.map(d => (
+            <MultiSelectFilter
+              key={d.key}
+              label={d.label}
+              options={d.options}
+              selected={filters[d.key]}
+              onChange={values => setFilter(d.key, values)}
+            />
+          ))}
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="number" min={0} inputMode="numeric"
+              placeholder="Min price"
+              value={minPrice}
+              onChange={e => setMinPrice(e.target.value)}
+              className="h-9 w-28 text-sm"
+            />
+            <span className="text-muted-foreground text-xs">–</span>
+            <Input
+              type="number" min={0} inputMode="numeric"
+              placeholder="Max price"
+              value={maxPrice}
+              onChange={e => setMaxPrice(e.target.value)}
+              className="h-9 w-28 text-sm"
+            />
+          </div>
+        </div>
+        {hasFilters && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {chips.map(c => (
+              <span
+                key={`${c.key}:${c.value}`}
+                className="inline-flex items-center gap-1 ps-2.5 pe-1 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium"
+              >
+                <span className="text-primary/70">{c.group}:</span> {c.label}
+                <button
+                  type="button"
+                  aria-label={`Remove ${c.group} ${c.label}`}
+                  onClick={() => setFilter(c.key, filters[c.key].filter(v => v !== c.value))}
+                  className="h-4 w-4 rounded-full inline-flex items-center justify-center hover:bg-primary/20"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-1.5 flex-wrap">
           {PURPOSE_FILTERS.map(f => (
             <button
@@ -300,7 +407,7 @@ export function ListingsView() {
               {listings.length === 0 ? (
                 <tr>
                   <td colSpan={(showOwner ? 10 : 9) + (qasroConnected && canEditProperties ? 1 : 0)} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    {debounced || purpose !== "all" || status !== "all"
+                    {debounced || purpose !== "all" || hasFilters || propertyId
                       ? "No listings match these filters."
                       : "No listings yet. Add one, or import your stock sheet."}
                   </td>

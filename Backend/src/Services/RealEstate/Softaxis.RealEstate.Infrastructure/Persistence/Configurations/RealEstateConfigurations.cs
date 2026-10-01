@@ -73,6 +73,8 @@ public sealed class RealEstateConfigurations :
         // real price cell, and truncating one loses the condition the deal was agreed on.
         b.Property(x => x.Purpose).HasMaxLength(20);
         b.Property(x => x.ListedOn).HasMaxLength(10);
+        b.Property(x => x.RentedUntil).HasMaxLength(10);
+        b.Property(x => x.VacancyAlertKey).HasMaxLength(40);
         b.Property(x => x.BedsLabel).HasMaxLength(200);
         b.Property(x => x.PriceLabel).HasMaxLength(500);
         b.Property(x => x.AreaLabel).HasMaxLength(200);

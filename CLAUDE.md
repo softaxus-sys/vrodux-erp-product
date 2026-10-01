@@ -7305,3 +7305,49 @@ script instead.
 2. From an elevated prompt: `sc stop VroduxERP` then `sc start VroduxERP`
 3. Confirm on the server: `netstat -ano | findstr :5000` should show `0.0.0.0:5000`, not
    `127.0.0.1:5000`.
+
+
+---
+
+## Module 65 — Real Estate: multi-select filters on the stock list
+
+Requested: several filters at once on Properties & Units — e.g. Building: Binary Tower, Type: 1BHK + 2BHK.
+
+- **Backend:** `GetListingsQuery` gained `PropertyIds`, `Bedrooms` (studio = 0), `PropertyTypes`, `Statuses`,
+  `Furnishings`, `Cities`, `Agents` (each "any of", ANDed together) and `MinPrice`/`MaxPrice` (compared against
+  `SalePrice` for a sale listing, `RentPerYear` otherwise). Applied in `GetListingsHandler.Build`; the old
+  single-value params are unchanged. Bound from repeated query keys (`?bedrooms=1&bedrooms=2`).
+- New `GetListingFilterOptionsQuery` → `GET api/real-estate/listings/filter-options` (`real-estate.units.view`):
+  the buildings, bedroom counts, types, furnishings, cities and agents that some listing actually has.
+- **Frontend:** `listings/components/multi-select-filter.tsx` (popover checklist, searchable past 8 options);
+  `listings-view` shows seven of them plus a price range, removable chips and "Clear all". The single Status
+  dropdown became a multi-select. `useListingFilterOptions()` is invalidated with the other listing queries.
+- The summary tiles still describe the whole stock list, not the filtered set.
+- No migration. **Build:** RealEstate.API 0 errors, `tsc -p tsconfig.app.json` 0 errors. **Not exercised in a
+  browser** — needs republish + restart of the RealEstate service.
+
+
+---
+
+## Module 66 — Real Estate: "about to fall vacant" notifications (bell only, no email)
+
+Requested: alert staff when a rented unit's rental period is nearly over — including units already
+removed (soft-deleted) from the stock list. Notification only.
+
+- `PropertyUnit.RentedUntil` (yyyy-MM-dd) + `VacancyAlertKey`; migration `AddUnitRentedUntil` (2 nullable
+  columns). `SetRentedUntil(explicit)` falls back to `RentedTill.FromText(PriceLabel)` — the sheets write the
+  date in the price cell ("rented till 29 feb 2026" → 2026-02-28, day clamped). Set from the listing form
+  ("Rented until", shown when status = rented), the listing create/update commands and the importer.
+- `VacancyAlertNotifier` (`IVacancyAlertNotifier`): every unit with `Status == "rented"`, **no `IsDeleted`
+  filter on purpose**. End date = active lease `EndDate` → `RentedUntil` → parsed price cell → **next yearly
+  anniversary of `ListedOn`** (user-approved assumption; the message says "estimated"). No `ListedOn` either
+  = no alert. Uses the workspace's `ExpiryReminderDaysBefore` ladder (default 90/60/30, plus 0)
+  with tightest-rung matching; idempotent via `VacancyAlertKey = "{endDate}:{rung}"`. Runs regardless of the
+  email `Enabled` switch.
+- Recipients: **the listing's agent (`AgentUserId`) + the workspace's administrators only** (holders of the
+  tenant's system "Administrator" role, resolved by a cross-schema read of `[identity].[roles]`). Not other
+  real-estate users. No link for a removed unit.
+- Called from `RentAlertBackgroundService` (tenant list now also includes workspaces with rented units but
+  no lease) and from "Run now" (not on a dry run). Event key `unit.vacating`.
+- **Build:** RealEstate.API 0 errors, `tsc` 0 errors; parser checked against sample cells. **Not runtime-tested**
+  — needs republish + restart (migration auto-applies).

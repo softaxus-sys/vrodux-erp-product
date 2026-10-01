@@ -166,6 +166,7 @@ export function ListingDrawer({ open, onClose, listing, onEdit, onOpenBuilding }
 
               <Group title="Listing">
                 <Row label="Date listed" value={l.listedOn ? formatDate(l.listedOn) : null} />
+                <Row label="Rented until" value={l.rentedUntil ? formatDate(l.rentedUntil) : null} />
                 <Row label="Listed by / permit" value={l.listedBy} />
                 <Row label="Agent" value={l.agentName} />
               </Group>

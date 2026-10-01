@@ -115,11 +115,20 @@ internal sealed class GetExpiringContractsHandler(RealEstateDbContext db)
             : null;
 }
 
-internal sealed class RunRentAlertSweepHandler(IRentAlertSender sender)
+internal sealed class RunRentAlertSweepHandler(IRentAlertSender sender, IVacancyAlertNotifier vacancy)
     : ICommandHandler<RunRentAlertSweepCommand, RentAlertRunResultDto>
 {
-    public async Task<Result<RentAlertRunResultDto>> Handle(RunRentAlertSweepCommand cmd, CancellationToken ct) =>
-        Result.Success(await sender.RunForCurrentTenantAsync(cmd.DryRun, ct));
+    public async Task<Result<RentAlertRunResultDto>> Handle(RunRentAlertSweepCommand cmd, CancellationToken ct)
+    {
+        var result = await sender.RunForCurrentTenantAsync(cmd.DryRun, ct);
+        if (cmd.DryRun) return Result.Success(result);
+
+        // "Run now" does what the nightly pass does, vacancy notifications included.
+        var announced = await vacancy.RunForCurrentTenantAsync(ct);
+        return Result.Success(announced == 0
+            ? result
+            : result with { Messages = [.. result.Messages, announced + " unit(s) announced as nearly vacant (notification only)."] });
+    }
 }
 
 internal sealed class SendRentReminderHandler(IRentAlertSender sender)

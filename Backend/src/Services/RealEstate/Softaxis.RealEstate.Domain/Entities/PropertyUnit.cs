@@ -109,6 +109,19 @@ public sealed class PropertyUnit
     /// </summary>
     public bool RestrictConfidentialDetails { get; private set; } = true;
 
+    /// <summary>
+    /// The day the current tenancy ends, as yyyy-MM-dd — what the "about to fall vacant" alert
+    /// counts down to for a rented unit that has no lease on file.
+    /// </summary>
+    public string? RentedUntil { get; private set; }
+
+    /// <summary>
+    /// The last vacancy alert raised for this unit, as "{end date}:{days-before rung}". The sweep
+    /// runs daily, so without it the same notice would be raised every day; keyed on the end date
+    /// as well so a renewed tenancy starts its own countdown.
+    /// </summary>
+    public string? VacancyAlertKey { get; private set; }
+
     public bool IsDeleted { get; private set; }
     public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; private set; } = DateTime.UtcNow;
@@ -154,6 +167,21 @@ public sealed class PropertyUnit
         OwnerName = Trim(ownerName); OwnerPhone = Trim(ownerPhone); OwnerPhoneAlt = Trim(ownerPhoneAlt);
         UpdatedAt = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// When the tenancy ends. A date given explicitly wins; failing that it is read out of the
+    /// price cell, which is where these sheets write it ("rented till 29 feb 2026"). Call after
+    /// <see cref="SetListing"/>, since that is what sets the price cell.
+    /// </summary>
+    public void SetRentedUntil(string? rentedUntil)
+    {
+        RentedUntil = Trim(rentedUntil) ?? RentedTill.FromText(PriceLabel);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>Records that a vacancy alert went out. Deliberately leaves UpdatedAt alone — the
+    /// listing itself did not change.</summary>
+    public void MarkVacancyAlerted(string key) => VacancyAlertKey = key;
 
     /// <summary>
     /// Who may see this listing's confidential columns. A second setter rather than folding it into

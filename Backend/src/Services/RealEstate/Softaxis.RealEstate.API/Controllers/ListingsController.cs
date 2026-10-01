@@ -50,9 +50,27 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
         [FromQuery] bool? advertised = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 30,
+        // Multi-select filters: each is sent as a repeated key (?bedrooms=1&bedrooms=2).
+        [FromQuery] Guid[]? propertyIds = null,
+        [FromQuery] int[]? bedrooms = null,
+        [FromQuery] string[]? propertyTypes = null,
+        [FromQuery] string[]? statuses = null,
+        [FromQuery] string[]? furnishings = null,
+        [FromQuery] string[]? cities = null,
+        [FromQuery] string[]? agents = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
         CancellationToken ct = default) =>
         OkOrError(await sender.Send(new GetListingsQuery(
-            search, purpose, status, propertyType, category, propertyId, advertised, page, pageSize), ct));
+            search, purpose, status, propertyType, category, propertyId, advertised, page, pageSize,
+            propertyIds, bedrooms, propertyTypes, statuses, furnishings, cities, agents,
+            minPrice, maxPrice), ct));
+
+    /// <summary>The choices for the stock list's filter bar — only values some listing has.</summary>
+    [HttpGet("filter-options")]
+    [RequirePermission("real-estate.units.view")]
+    public async Task<IActionResult> GetFilterOptions(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetListingFilterOptionsQuery(), ct));
 
     [HttpGet("{id:guid}")]
     [RequirePermission("real-estate.units.view")]
@@ -77,7 +95,7 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
             req.Purpose, req.ListedOn, req.BedsLabel, req.PriceLabel, req.AreaLabel,
             req.HasMedia, req.IsListed, req.ListedBy, req.AgentName,
             req.AgentUserId, req.RestrictConfidentialDetails,
-            req.OwnerName, req.OwnerPhone, req.OwnerPhoneAlt), ct));
+            req.OwnerName, req.OwnerPhone, req.OwnerPhoneAlt, req.RentedUntil), ct));
 
     /// <summary>
     /// Removes the listing. It is the unit that goes, so this is the unit delete — including its
@@ -103,5 +121,6 @@ public sealed class ListingsController(ISender sender) : RealEstateControllerBas
         string? Purpose, string? ListedOn, string? BedsLabel, string? PriceLabel, string? AreaLabel,
         bool HasMedia, bool IsListed, string? ListedBy, string? AgentName,
         Guid? AgentUserId, bool RestrictConfidentialDetails,
-        string? OwnerName, string? OwnerPhone, string? OwnerPhoneAlt);
+        string? OwnerName, string? OwnerPhone, string? OwnerPhoneAlt,
+        string? RentedUntil = null);
 }

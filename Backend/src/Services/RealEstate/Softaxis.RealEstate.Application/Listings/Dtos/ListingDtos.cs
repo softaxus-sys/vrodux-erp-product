@@ -88,7 +88,22 @@ public sealed record ListingDto(
     // ── confidential (null unless HasConfidentialAccess) ──
     string? OwnerName,
     string? OwnerPhone,
-    string? OwnerPhoneAlt);
+    string? OwnerPhoneAlt,
+
+    /// <summary>When the current tenancy ends (yyyy-MM-dd) — what the vacancy alert counts down to.</summary>
+    string? RentedUntil = null);
+
+/// <summary>The choices behind the stock list's multi-select filters.</summary>
+public sealed record ListingFilterOptionsDto(
+    IReadOnlyList<ListingBuildingOptionDto> Buildings,
+    /// <summary>Bedroom counts in use. A studio is 0.</summary>
+    IReadOnlyList<int> Bedrooms,
+    IReadOnlyList<string> PropertyTypes,
+    IReadOnlyList<string> Furnishings,
+    IReadOnlyList<string> Cities,
+    IReadOnlyList<string> Agents);
+
+public sealed record ListingBuildingOptionDto(Guid Id, string Name);
 
 /// <summary>
 /// The tiles above the stock list.

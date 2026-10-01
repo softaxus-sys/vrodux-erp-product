@@ -74,7 +74,9 @@ public sealed record CreateListingCommand(
     bool RestrictConfidentialDetails,
     string? OwnerName,
     string? OwnerPhone,
-    string? OwnerPhoneAlt) : ICommand<ListingDto>;
+    string? OwnerPhoneAlt,
+    /// <summary>When the current tenancy ends (yyyy-MM-dd). Left null, it is read from the price cell.</summary>
+    string? RentedUntil = null) : ICommand<ListingDto>;
 
 public sealed class CreateListingValidator : AbstractValidator<CreateListingCommand>
 {
@@ -97,6 +99,10 @@ public sealed class CreateListingValidator : AbstractValidator<CreateListingComm
             .Matches(@"^\d{4}-\d{2}-\d{2}$")
             .When(x => !string.IsNullOrWhiteSpace(x.ListedOn))
             .WithMessage("The listing date must be yyyy-MM-dd.");
+        RuleFor(x => x.RentedUntil)
+            .Matches(@"^\d{4}-\d{2}-\d{2}$")
+            .When(x => !string.IsNullOrWhiteSpace(x.RentedUntil))
+            .WithMessage("The rented-until date must be yyyy-MM-dd.");
     }
 }
 
@@ -168,7 +174,9 @@ public sealed record UpdateListingCommand(
     bool RestrictConfidentialDetails,
     string? OwnerName,
     string? OwnerPhone,
-    string? OwnerPhoneAlt) : ICommand<ListingDto>;
+    string? OwnerPhoneAlt,
+    /// <summary>When the current tenancy ends (yyyy-MM-dd). Left null, it is read from the price cell.</summary>
+    string? RentedUntil = null) : ICommand<ListingDto>;
 
 public sealed class UpdateListingValidator : AbstractValidator<UpdateListingCommand>
 {
@@ -186,5 +194,9 @@ public sealed class UpdateListingValidator : AbstractValidator<UpdateListingComm
             .Matches(@"^\d{4}-\d{2}-\d{2}$")
             .When(x => !string.IsNullOrWhiteSpace(x.ListedOn))
             .WithMessage("The listing date must be yyyy-MM-dd.");
+        RuleFor(x => x.RentedUntil)
+            .Matches(@"^\d{4}-\d{2}-\d{2}$")
+            .When(x => !string.IsNullOrWhiteSpace(x.RentedUntil))
+            .WithMessage("The rented-until date must be yyyy-MM-dd.");
     }
 }

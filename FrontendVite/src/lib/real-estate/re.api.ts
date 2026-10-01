@@ -173,6 +173,8 @@ export interface ListingDto {
   purpose: ListingPurpose | null;
   /** yyyy-MM-dd. A calendar date, so it is never shifted by a timezone. */
   listedOn: string | null;
+  /** yyyy-MM-dd. When the current tenancy ends — what the vacancy alert counts down to. */
+  rentedUntil?: string | null;
   /** The layout as the sheet words it — "2bhk+maid". The parsed count is `bedrooms`. */
   bedsLabel: string | null;
   /** The price cell as written, conditions and all. The parsed figures are rent/sale above. */
@@ -265,6 +267,8 @@ export interface CreateListingInput {
 
   purpose?: string | null;
   listedOn?: string | null;
+  /** Left empty, the server reads it from the price cell ("rented till 29 feb 2026"). */
+  rentedUntil?: string | null;
   bedsLabel?: string | null;
   priceLabel?: string | null;
   areaLabel?: string | null;
@@ -304,6 +308,28 @@ export interface ListingParams {
   category?: string;
   propertyId?: string;
   advertised?: boolean;
+  // Multi-select filters: "any of these" within a list, AND across lists.
+  propertyIds?: string[];
+  /** Bedroom counts. A studio is 0. */
+  bedrooms?: number[];
+  propertyTypes?: string[];
+  statuses?: string[];
+  furnishings?: string[];
+  cities?: string[];
+  agents?: string[];
+  /** Compared against the asking price for a sale listing and the annual rent otherwise. */
+  minPrice?: number;
+  maxPrice?: number;
+}
+
+/** The choices behind the stock list's filters — only values some listing actually has. */
+export interface ListingFilterOptionsDto {
+  buildings: { id: string; name: string }[];
+  bedrooms: number[];
+  propertyTypes: string[];
+  furnishings: string[];
+  cities: string[];
+  agents: string[];
 }
 
 export interface PropertyDto {
@@ -812,8 +838,22 @@ export const reApi = {
     if (p.category     && p.category     !== "all") q.set("category", p.category);
     if (p.propertyId) q.set("propertyId", p.propertyId);
     if (p.advertised !== undefined) q.set("advertised", String(p.advertised));
+    // Lists go as a repeated key (?bedrooms=1&bedrooms=2), which is what ASP.NET binds an array from.
+    const many = (key: string, values?: (string | number)[]) =>
+      values?.forEach(v => q.append(key, String(v)));
+    many("propertyIds", p.propertyIds);
+    many("bedrooms", p.bedrooms);
+    many("propertyTypes", p.propertyTypes);
+    many("statuses", p.statuses);
+    many("furnishings", p.furnishings);
+    many("cities", p.cities);
+    many("agents", p.agents);
+    if (p.minPrice !== undefined) q.set("minPrice", String(p.minPrice));
+    if (p.maxPrice !== undefined) q.set("maxPrice", String(p.maxPrice));
     return rawApiClient.get(`${BASE}/listings?${q}`);
   },
+  getListingFilterOptions: (): Promise<ListingFilterOptionsDto> =>
+    rawApiClient.get(`${BASE}/listings/filter-options`),
   getListing:         (id: string): Promise<ListingDto> => rawApiClient.get(`${BASE}/listings/${id}`),
   getListingsSummary: (): Promise<ListingsSummaryDto>   => rawApiClient.get(`${BASE}/listings/summary`),
 

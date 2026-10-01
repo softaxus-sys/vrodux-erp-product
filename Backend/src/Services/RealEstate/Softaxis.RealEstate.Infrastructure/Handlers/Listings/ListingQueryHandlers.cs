@@ -70,6 +70,48 @@ internal sealed class GetListingsSummaryHandler(RealEstateDbContext db)
     }
 }
 
+internal sealed class GetListingFilterOptionsHandler(RealEstateDbContext db)
+    : IQueryHandler<GetListingFilterOptionsQuery, ListingFilterOptionsDto>
+{
+    public async Task<Result<ListingFilterOptionsDto>> Handle(GetListingFilterOptionsQuery query, CancellationToken ct)
+    {
+        // The same join the list uses, so an option can never name something the table cannot show.
+        // Only the six filterable columns are read, and the distincts are taken in memory — one
+        // narrow query rather than six round trips.
+        var rows = await GetListingsHandler.Build(db, new GetListingsQuery())
+            .Select(x => new
+            {
+                PropertyId = x.Property.Id,
+                PropertyName = x.Property.Name,
+                x.Property.PropertyType,
+                x.Property.City,
+                x.Unit.Bedrooms,
+                x.Unit.Furnishing,
+                x.Unit.AgentName,
+            })
+            .ToListAsync(ct);
+
+        return Result.Success(new ListingFilterOptionsDto(
+            rows.GroupBy(r => r.PropertyId)
+                .Select(g => new ListingBuildingOptionDto(g.Key, g.First().PropertyName))
+                .OrderBy(b => b.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            rows.Where(r => r.Bedrooms.HasValue).Select(r => r.Bedrooms!.Value).Distinct().Order().ToList(),
+            Distinct(rows.Select(r => r.PropertyType)),
+            Distinct(rows.Select(r => r.Furnishing)),
+            Distinct(rows.Select(r => r.City)),
+            Distinct(rows.Select(r => r.AgentName))));
+    }
+
+    private static List<string> Distinct(IEnumerable<string?> values) =>
+        values
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => v!)
+            .Distinct()
+            .OrderBy(v => v, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+}
+
 internal sealed class GetPropertyTypesHandler(RealEstateDbContext db)
     : IQueryHandler<GetPropertyTypesQuery, IReadOnlyList<string>>
 {

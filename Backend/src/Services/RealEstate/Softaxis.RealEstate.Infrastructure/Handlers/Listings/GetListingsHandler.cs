@@ -95,6 +95,65 @@ internal sealed class GetListingsHandler(RealEstateDbContext db, ICurrentUser us
         if (query.Advertised.HasValue)
             q = q.Where(x => x.Unit.IsListed == query.Advertised.Value);
 
+        // The multi-select filters. Each is copied to a local first: EF translates a captured
+        // list to IN (...), but not a member access on the query record.
+        if (query.PropertyIds is { Count: > 0 })
+        {
+            var ids = query.PropertyIds.ToList();
+            q = q.Where(x => ids.Contains(x.Property.Id));
+        }
+
+        if (query.Bedrooms is { Count: > 0 })
+        {
+            var beds = query.Bedrooms.Select(b => (int?)b).ToList();
+            q = q.Where(x => beds.Contains(x.Unit.Bedrooms));
+        }
+
+        if (query.PropertyTypes is { Count: > 0 })
+        {
+            var types = query.PropertyTypes.ToList();
+            q = q.Where(x => types.Contains(x.Property.PropertyType));
+        }
+
+        if (query.Statuses is { Count: > 0 })
+        {
+            var statuses = query.Statuses.ToList();
+            q = q.Where(x => statuses.Contains(x.Unit.Status));
+        }
+
+        if (query.Furnishings is { Count: > 0 })
+        {
+            var furnishings = query.Furnishings.ToList();
+            q = q.Where(x => x.Unit.Furnishing != null && furnishings.Contains(x.Unit.Furnishing));
+        }
+
+        if (query.Cities is { Count: > 0 })
+        {
+            var cities = query.Cities.ToList();
+            q = q.Where(x => cities.Contains(x.Property.City));
+        }
+
+        if (query.Agents is { Count: > 0 })
+        {
+            var agents = query.Agents.ToList();
+            q = q.Where(x => x.Unit.AgentName != null && agents.Contains(x.Unit.AgentName));
+        }
+
+        // A listing has one price that matters: the asking price when it is for sale, the annual
+        // rent otherwise. Comparing both columns would let a 7M sale match a "under 100k" search
+        // through its empty rent.
+        if (query.MinPrice.HasValue)
+        {
+            var min = query.MinPrice.Value;
+            q = q.Where(x => (x.Unit.Purpose == "sale" ? x.Unit.SalePrice : x.Unit.RentPerYear) >= min);
+        }
+
+        if (query.MaxPrice.HasValue)
+        {
+            var max = query.MaxPrice.Value;
+            q = q.Where(x => (x.Unit.Purpose == "sale" ? x.Unit.SalePrice : x.Unit.RentPerYear) <= max);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var s = query.Search.Trim();

@@ -83,6 +83,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
   // ── the listing ──
   const [purpose, setPurpose]         = React.useState<"rent" | "sale">("rent");
   const [listedOn, setListedOn]       = React.useState(today());
+  const [rentedUntil, setRentedUntil] = React.useState("");
   const [priceLabel, setPriceLabel]   = React.useState("");
   const [price, setPrice]             = React.useState("");
   const [hasMedia, setHasMedia]       = React.useState(false);
@@ -131,6 +132,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
     setUnitNumber(""); setFloor(""); setBedsLabel(""); setBedrooms(""); setBathrooms("");
     setParking(""); setAreaLabel(""); setArea(""); setFurnishing(""); setView("");
     setStatus("vacant"); setServiceCharge(""); setNotes("");
+    setRentedUntil("");
     setPurpose("rent"); setListedOn(today()); setPriceLabel(""); setPrice("");
     setHasMedia(false); setIsListed(false); setListedBy(""); setAgentName("");
     setOwnerName(""); setOwnerPhone(""); setOwnerPhoneAlt(""); setAgentUserId(null);
@@ -173,6 +175,7 @@ export function ListingForm({ open, onClose, editing }: Props) {
     const p = editing.purpose ?? "rent";
     setPurpose(p);
     setListedOn(editing.listedOn ?? "");
+    setRentedUntil(editing.rentedUntil ?? "");
     setPriceLabel(editing.priceLabel ?? "");
     setPrice(String((p === "sale" ? editing.salePrice : editing.rentPerYear) || ""));
     setHasMedia(editing.hasMedia);
@@ -247,6 +250,9 @@ export function ListingForm({ open, onClose, editing }: Props) {
 
       purpose,
       listedOn: listedOn || null,
+      // Only meaningful while the unit is let; a stale date on a vacant unit would raise a
+      // vacancy alert for nothing the next time it is marked rented.
+      rentedUntil: status === "rented" ? rentedUntil || null : null,
       bedsLabel: bedsLabel.trim() || null,
       priceLabel: priceLabel.trim() || null,
       areaLabel: areaLabel.trim() || null,
@@ -513,6 +519,16 @@ export function ListingForm({ open, onClose, editing }: Props) {
                     {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
+                {status === "rented" && (
+                  <div className="space-y-1.5">
+                    <Label>Rented until</Label>
+                    <Input type="date" value={rentedUntil} onChange={e => setRentedUntil(e.target.value)}
+                      className="h-9 text-sm" />
+                    <p className="text-[11px] text-muted-foreground">
+                      You are notified before this date that the unit is about to fall vacant.
+                    </p>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label>Service charge ({currency})</Label>
                   <Input type="number" min={0} value={serviceCharge} onChange={e => setServiceCharge(e.target.value)}
