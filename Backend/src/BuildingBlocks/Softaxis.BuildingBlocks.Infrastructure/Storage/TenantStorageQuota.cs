@@ -55,7 +55,7 @@ public static class TenantStorageQuota
                     (SELECT ISNULL(SUM(SizeBytes),0) FROM [real_estate].[PropertyImages]
                      WHERE TenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0)
                 ) AS UsedBytes,
-                (SELECT [Plan] FROM [identity].[tenants] WHERE [Id] = {0}) AS Plan
+                (SELECT [Plan] FROM [identity].[tenants] WHERE [Id] = {0}) AS [Plan]
             """, tenantId).ToListAsync(ct);
 
         var row = rows.FirstOrDefault();

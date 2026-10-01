@@ -26,7 +26,7 @@ public sealed class GetStorageUsageQueryHandler(
     public async Task<Result<StorageUsageDto>> Handle(GetStorageUsageQuery query, CancellationToken ct)
     {
         var rows = await db.Database.SqlQueryRaw<TenantStorageUsageRow>("""
-            SELECT t.Id AS TenantId, t.Name AS TenantName, t.Plan AS Plan,
+            SELECT t.Id AS TenantId, t.Name AS TenantName, t.Plan AS [Plan],
                    ISNULL(hr.Bytes, 0)  AS HrBytes,
                    ISNULL(crm.Bytes, 0) AS CrmBytes,
                    ISNULL(sup.Bytes, 0) AS SupportBytes,
