@@ -13,6 +13,10 @@ public static class ObjectStorageServiceCollectionExtensions
     {
         services.Configure<ObjectStorageOptions>(configuration.GetSection(ObjectStorageOptions.Section));
         services.AddSingleton<IObjectStorage, S3ObjectStorage>();
+        // Paired with object storage, not configuration-dependent — compression happens in-process
+        // before a PutAsync, so it's useful even while object storage itself is unconfigured (a
+        // caller could still choose to compress what it stores in a legacy DB column).
+        services.AddSingleton<IImageProcessor, SkiaImageProcessor>();
         return services;
     }
 }

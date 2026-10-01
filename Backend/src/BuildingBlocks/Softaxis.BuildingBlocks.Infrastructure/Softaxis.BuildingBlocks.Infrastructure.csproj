@@ -25,6 +25,12 @@
          3.7.103.13 is the one version explicitly confirmed by another Ceph-tenant user to NOT
          exhibit this. Do not bump past the regression without re-verifying against a real upload. -->
     <PackageReference Include="AWSSDK.S3"                               Version="3.7.103.13" />
+    <!-- Server-side image resize/re-encode before upload (Storage/ImageProcessor.cs) — MIT
+         licensed, cross-platform (the Linux native-assets package is required for the Docker
+         deployment this gateway actually runs in; omitting it throws at runtime on Linux, not at
+         build time, so it's easy to forget). -->
+    <PackageReference Include="SkiaSharp"                               Version="3.*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux"            Version="3.*" />
   </ItemGroup>
 
   <ItemGroup>
