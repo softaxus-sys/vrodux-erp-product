@@ -210,6 +210,7 @@ internal sealed class CrmDocumentConfiguration : IEntityTypeConfiguration<CrmDoc
         builder.Property(x => x.FileName).IsRequired().HasMaxLength(300);
         builder.Property(x => x.ContentType).IsRequired().HasMaxLength(150);
         builder.Property(x => x.Data).IsRequired();
+        builder.Property(x => x.ObjectKey).HasMaxLength(500);
         builder.Property(x => x.DocumentType).IsRequired().HasMaxLength(40);
         builder.Property(x => x.Description).HasMaxLength(1000);
         builder.Property(x => x.UploadedByName).HasMaxLength(200);
