@@ -35,11 +35,43 @@ Var ServerUrlValue
 
   ; /SERVERURL=... for scripted deployment. Parsed before the page so it also prefills the field
   ; when the installer is run interactively with the switch.
+  ;
+  ; Parsed by hand, NOT with ${GetOptions}: that treats "/" as the start of the next switch, so
+  ; "/SERVERURL=http://localhost:5000" came back as "http:" — and the combined server installer,
+  ; which passes exactly that, shipped every server box a desktop app pointed at nothing.
   ${GetParameters} $R0
-  ${GetOptions} $R0 "/SERVERURL=" $R1
-  ${IfNot} ${Errors}
-    StrCpy $ServerUrlValue $R1
-  ${EndIf}
+  StrCpy $R2 0
+  ${Do}
+    StrCpy $R1 $R0 11 $R2
+    ${If} $R1 == ""
+      ${ExitDo}
+    ${EndIf}
+    ${If} $R1 == "/SERVERURL="
+      IntOp $R2 $R2 + 11
+      StrCpy $R1 $R0 "" $R2          ; everything after the switch
+      StrCpy $R4 " "                 ; value ends at the next space...
+      StrCpy $R3 $R1 1
+      ${If} $R3 == '"'               ; ...or at the closing quote when quoted
+        StrCpy $R1 $R1 "" 1
+        StrCpy $R4 '"'
+      ${EndIf}
+      StrCpy $R2 0
+      ${Do}
+        StrCpy $R3 $R1 1 $R2
+        ${If} $R3 == ""
+        ${OrIf} $R3 == $R4
+          ${ExitDo}
+        ${EndIf}
+        IntOp $R2 $R2 + 1
+      ${Loop}
+      StrCpy $R1 $R1 $R2
+      ${If} $R1 != ""
+        StrCpy $ServerUrlValue $R1
+      ${EndIf}
+      ${ExitDo}
+    ${EndIf}
+    IntOp $R2 $R2 + 1
+  ${Loop}
 !macroend
 
 !macro customPageAfterChangeDir

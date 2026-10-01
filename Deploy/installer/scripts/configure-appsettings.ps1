@@ -58,7 +58,9 @@ try {
     # in the firewall, so the port looks open while nothing is actually listening on the LAN
     # address. A client-side "cannot connect" is the only visible effect.
     $port = if ($v.ServerPort) { $v.ServerPort.Trim() } else { '5000' }
-    Set-Prop $json 'Urls' "http://0.0.0.0:$port"
+    # "*" rather than 0.0.0.0: Kestrel then listens on IPv6 as well as IPv4. Windows resolves
+    # "localhost" to ::1 first, so an IPv4-only bind breaks the desktop app on the server box itself.
+    Set-Prop $json 'Urls' "http://*:$port"
 
     if ($v.FrontendUrl) { Set-Prop $json 'FrontendUrl' $v.FrontendUrl.Trim() }
 

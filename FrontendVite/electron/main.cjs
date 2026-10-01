@@ -37,8 +37,34 @@ let isQuitting = false;
 
 const DEFAULT_API_URL = "http://localhost:5000";
 
+// Identifies the current installation: the installer rewrites server-config.json on every
+// install, so its modification time changes with each one.
+function installStamp() {
+  try {
+    return fs.statSync(INSTALL_CONFIG_PATH).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
 function getApiUrl() {
-  return loadConfig().apiUrl || readJson(INSTALL_CONFIG_PATH).apiUrl || DEFAULT_API_URL;
+  // A tray override lives in the user's profile and survives a reinstall. It only counts if it was
+  // made against THIS installation — otherwise an address typed months ago silently outranks the
+  // one the installer was just given, and the app keeps calling a server that is no longer there.
+  const cfg = loadConfig();
+  const override = cfg.installStamp === installStamp() ? usableUrl(cfg.apiUrl) : null;
+  return override || usableUrl(readJson(INSTALL_CONFIG_PATH).apiUrl) || DEFAULT_API_URL;
+}
+
+// A truncated address ("http:") is truthy, so it used to win over the default and every request
+// went nowhere. Only an http(s) URL with a host counts as configured.
+function usableUrl(value) {
+  try {
+    const u = new URL(value);
+    return (u.protocol === "http:" || u.protocol === "https:") && u.hostname ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Window ───────────────────────────────────────────────────────────────────
@@ -160,6 +186,7 @@ ipcMain.on("get-api-url-sync", (event) => {
 ipcMain.handle("set-api-url", (_event, url) => {
   const cfg = loadConfig();
   cfg.apiUrl = url;
+  cfg.installStamp = installStamp();
   saveConfig(cfg);
   refreshApiOrigin();
   // Reload the app with the new URL
