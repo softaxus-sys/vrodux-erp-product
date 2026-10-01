@@ -2,7 +2,8 @@
 // them, so apiClient would reject every 200 with a bare "HTTP 200".
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/crm/property-finder`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/crm/property-finder`;
 
 /** One Property Finder user, with everything needed to decide whether to give them a login. */
 export interface PfAgentDto {

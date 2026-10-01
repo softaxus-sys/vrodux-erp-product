@@ -4,7 +4,8 @@ import type {
 } from "./types";
 import { ApiError, apiClient, type BackendResponse } from "@/lib/api-client";
 
-const API_ROOT = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+import { getApiBaseUrl } from "@/lib/desktop";
+const API_ROOT = getApiBaseUrl();
 const BASE = `${API_ROOT}/api/auth`;
 const TFA_BASE = `${API_ROOT}/api/account/2fa`;
 

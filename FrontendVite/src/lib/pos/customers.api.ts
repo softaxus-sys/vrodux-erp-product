@@ -1,7 +1,8 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { CustomerDto, CustomerSummaryDto, WalletTransactionsPage } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/customers`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/customers`;
 
 export const customersApi = {
   getAll: (params: {

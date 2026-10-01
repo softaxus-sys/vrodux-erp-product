@@ -49,6 +49,19 @@ try {
         $json.Jwt.Secret = [Convert]::ToBase64String($bytes)
     }
 
+    # Listen on every network interface, not just loopback.
+    #
+    # With no "Urls" here, Kestrel falls back to its built-in default of http://localhost:5000,
+    # which binds ONLY 127.0.0.1 — so the server answers on the machine it runs on and is
+    # unreachable from every till and workstation on the LAN. The symptom is confusing because
+    # ping still replies (ICMP is handled by the OS) and the installer has already opened TCP 5000
+    # in the firewall, so the port looks open while nothing is actually listening on the LAN
+    # address. A client-side "cannot connect" is the only visible effect.
+    $port = if ($v.ServerPort) { $v.ServerPort.Trim() } else { '5000' }
+    # "*" rather than 0.0.0.0: Kestrel then listens on IPv6 as well as IPv4. Windows resolves
+    # "localhost" to ::1 first, so an IPv4-only bind breaks the desktop app on the server box itself.
+    Set-Prop $json 'Urls' "http://*:$port"
+
     if ($v.FrontendUrl) { Set-Prop $json 'FrontendUrl' $v.FrontendUrl.Trim() }
 
     $op = $json.OnPremises

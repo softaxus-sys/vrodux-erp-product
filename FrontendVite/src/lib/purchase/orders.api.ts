@@ -1,7 +1,8 @@
 import { rawApiClient, type PagedResult } from "@/lib/api-client";
 import type { PurchaseOrderDto, PurchaseOrderSummaryDto } from "@/lib/pos/types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/purchase/orders`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/purchase/orders`;
 
 export interface GetPurchaseOrdersParams {
   page?: number;
@@ -35,7 +36,7 @@ export interface VendorSpendDto { vendor: string; amount: number; orders: number
 export interface PurchaseDashboardDto { monthly: MonthlyPurchaseDto[]; topVendors: VendorSpendDto[]; }
 
 // Its own controller — the orders one injects a DbContext directly and is flagged tech debt.
-const DASHBOARD = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/purchase/dashboard`;
+const DASHBOARD = `${getApiBaseUrl()}/api/purchase/dashboard`;
 
 export const purchaseOrdersApi = {
   /** Monthly spend and the biggest vendors, aggregated in SQL for the dashboard charts. */

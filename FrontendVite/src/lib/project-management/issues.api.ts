@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+import { getApiBaseUrl } from "@/lib/desktop";
+const API = getApiBaseUrl();
 const BASE = `${API}/api/projectmanagement/issues`;
 
 export type IssueType = "epic" | "story" | "task" | "bug";

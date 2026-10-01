@@ -18,6 +18,7 @@ import {
 import { ContentTab } from "./content-tab";
 import { useAuthStore } from "@/store/auth.store";
 
+import { getApiBaseUrl } from "@/lib/desktop";
 type Tab = "fixes" | "google" | "history" | "content";
 
 export function SiteDetailDrawer({ siteId, onClose, initialTab }: { siteId: string | null; onClose: () => void; initialTab?: Tab }) {
@@ -104,7 +105,7 @@ function StatusStrip({ site }: { site: NonNullable<ReturnType<typeof useSeoSite>
   };
   const isFetching = verifyNow.isPending;
 
-  const snippetOrigin = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}`;
+  const snippetOrigin = `${getApiBaseUrl()}`;
   const snippetTag = `<script src="${snippetOrigin}/api/seo/snippet/${site.snippetKey}/tag.js" async></script>`;
 
   return (

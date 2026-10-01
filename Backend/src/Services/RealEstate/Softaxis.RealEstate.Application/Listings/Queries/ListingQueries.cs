@@ -15,7 +15,26 @@ public sealed record GetListingsQuery(
     /// <summary>True for units advertised on a portal, false for those that are not, null for all.</summary>
     bool? Advertised = null,
     int Page = 1,
-    int PageSize = 30) : IQuery<PagedResult<ListingDto>>;
+    int PageSize = 30,
+    // ── The multi-select filter bar ──
+    // Each list is "any of these"; the lists combine with AND. Null or empty means no filter.
+    IReadOnlyList<Guid>? PropertyIds = null,
+    /// <summary>Bedroom counts. A studio is 0, matching what the importer stores.</summary>
+    IReadOnlyList<int>? Bedrooms = null,
+    IReadOnlyList<string>? PropertyTypes = null,
+    IReadOnlyList<string>? Statuses = null,
+    IReadOnlyList<string>? Furnishings = null,
+    IReadOnlyList<string>? Cities = null,
+    IReadOnlyList<string>? Agents = null,
+    /// <summary>Compared against the asking price for a sale listing and the annual rent otherwise.</summary>
+    decimal? MinPrice = null,
+    decimal? MaxPrice = null) : IQuery<PagedResult<ListingDto>>;
+
+/// <summary>
+/// What the filter bar can offer: only values that some listing actually has, so no option ever
+/// leads to an empty table.
+/// </summary>
+public sealed record GetListingFilterOptionsQuery : IQuery<ListingFilterOptionsDto>;
 
 public sealed record GetListingByIdQuery(Guid Id) : IQuery<ListingDto>;
 

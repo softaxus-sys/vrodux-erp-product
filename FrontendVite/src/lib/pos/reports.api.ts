@@ -1,7 +1,8 @@
 ﻿import { apiClient, rawApiClient } from "@/lib/api-client";
 import type { DailySummaryDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/reports`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/reports`;
 
 // â”€â”€ Report filter params (mirrors backend ReportParams) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

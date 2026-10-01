@@ -1,8 +1,9 @@
 import { rawApiClient, type PagedResult } from "@/lib/api-client";
 
-const BASE          = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/quotations`;
-const TEMPLATE_BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/sales/quotation-templates`;
-const PUBLIC_BASE   = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/public/quotations`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE          = `${getApiBaseUrl()}/api/sales/quotations`;
+const TEMPLATE_BASE = `${getApiBaseUrl()}/api/sales/quotation-templates`;
+const PUBLIC_BASE   = `${getApiBaseUrl()}/api/public/quotations`;
 
 // ── Status ────────────────────────────────────────────────────────────────────
 // Unchanged from the original vocabulary, with "viewed" added — "approved"/"rejected" already

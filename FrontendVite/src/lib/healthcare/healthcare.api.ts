@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/healthcare`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/healthcare`;
 
 export interface PatientDto {
   id: string; patientNumber: string; leadId?: string | null; customerId?: string | null;
@@ -34,7 +35,8 @@ export interface VerticalPage<T> {
   totalPages: number;
 }
 export const healthcareApi = {
-  getSummary:    (): Promise<HealthcareSummaryDto> => rawApiClient.get(`${BASE}/summary`),  getPatients: (p: VerticalPageParams = {}): Promise<VerticalPage<PatientDto>> => {
+  getSummary:    (): Promise<HealthcareSummaryDto> => rawApiClient.get(`${BASE}/summary`),
+  getPatients: (p: VerticalPageParams = {}): Promise<VerticalPage<PatientDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -43,7 +45,8 @@ export const healthcareApi = {
     return rawApiClient.get(`${BASE}/patients?${qs}`);
   },
   createPatient: (d: CreatePatientReq): Promise<PatientDto> => rawApiClient.post(`${BASE}/patients`, d),
-  deletePatient: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/patients/${id}`),  getAppointments: (p: VerticalPageParams = {}): Promise<VerticalPage<AppointmentDto>> => {
+  deletePatient: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/patients/${id}`),
+  getAppointments: (p: VerticalPageParams = {}): Promise<VerticalPage<AppointmentDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));
@@ -53,7 +56,8 @@ export const healthcareApi = {
   },
   createAppointment: (d: CreateApptReq): Promise<AppointmentDto> => rawApiClient.post(`${BASE}/appointments`, d),
   setApptStatus:     (id: string, status: string): Promise<void> => rawApiClient.patch(`${BASE}/appointments/${id}/status`, { status }),
-  deleteAppointment: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/appointments/${id}`),  getPlans: (p: VerticalPageParams = {}): Promise<VerticalPage<TreatmentPlanDto>> => {
+  deleteAppointment: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/appointments/${id}`),
+  getPlans: (p: VerticalPageParams = {}): Promise<VerticalPage<TreatmentPlanDto>> => {
     const qs = new URLSearchParams();
     qs.set("page", String(p.page ?? 1));
     qs.set("pageSize", String(p.pageSize ?? 30));

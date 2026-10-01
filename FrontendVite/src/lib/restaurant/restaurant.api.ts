@@ -1,6 +1,7 @@
 import { rawApiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/restaurant`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/restaurant`;
 
 // ── Types (mirror the Restaurant service DTOs) ─────────────────────────────────
 
@@ -609,4 +610,4 @@ export const restaurantApi = {
     rawApiClient.post(`${BASE}/orders/${orderId}/send-receipt`, p),
 };
 
-export const RESTAURANT_HUB_URL = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/hubs/restaurant`;
+export const RESTAURANT_HUB_URL = `${getApiBaseUrl()}/hubs/restaurant`;

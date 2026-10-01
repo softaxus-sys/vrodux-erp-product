@@ -1,8 +1,9 @@
 import { apiClient } from "@/lib/api-client";
 
+import { getApiBaseUrl } from "@/lib/desktop";
 // apiClient does NOT prepend a base URL — every caller passes an absolute one (see users.api.ts).
 // Relative paths silently resolve against the Vite dev server instead of the gateway and 404.
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/teams`;
+const BASE = `${getApiBaseUrl()}/api/teams`;
 
 export interface TeamMemberDto {
   userId: string;

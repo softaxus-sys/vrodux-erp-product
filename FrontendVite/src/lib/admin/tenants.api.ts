@@ -1,7 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/admin/tenants`;
-const LICENSE_BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/license`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/admin/tenants`;
+const LICENSE_BASE = `${getApiBaseUrl()}/api/license`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

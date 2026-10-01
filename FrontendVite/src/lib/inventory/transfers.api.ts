@@ -1,7 +1,8 @@
 import { rawApiClient } from "@/lib/api-client";
 import type { StockTransferDto, TransfersSummaryDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/inventory`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/inventory`;
 
 export interface TransferPageParams { page?: number; pageSize?: number; status?: string; search?: string; }
 

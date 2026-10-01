@@ -40,6 +40,7 @@ public static class InfrastructureExtensions
         // with the "run now" endpoint so both decide what to send the same way.
         services.AddScoped<IRealEstateEmailService, SmtpRealEstateEmailService>();
         services.AddScoped<IRentAlertSender, RentAlertSender>();
+        services.AddScoped<IVacancyAlertNotifier, VacancyAlertNotifier>();
         services.AddHostedService<RentAlertBackgroundService>();
 
         // Qasro (qasro.com) — real OAuth against Qasro's own login/signup + agency-approval gate,

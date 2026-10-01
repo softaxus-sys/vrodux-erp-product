@@ -28,7 +28,7 @@ internal static class ListingMappings
         u.HasMedia, u.IsListed, u.ListedBy, u.AgentName,
         u.AgentUserId, HasConfidentialAccess: true, u.RestrictConfidentialDetails,
         CanManageConfidential: true,
-        u.OwnerName, u.OwnerPhone, u.OwnerPhoneAlt);
+        u.OwnerName, u.OwnerPhone, u.OwnerPhoneAlt, u.RentedUntil);
 
     /// <summary>
     /// Nulls out Unit Number and the owner fields when <paramref name="canView"/> is false, and

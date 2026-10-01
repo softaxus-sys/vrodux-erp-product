@@ -167,6 +167,8 @@ function useInvalidateListings() {
     // The type picker is fed by the types in use, so a listing that introduces a new one has to
     // make it available immediately — otherwise it vanishes from the dropdown until a reload.
     qc.invalidateQueries({ queryKey: [QK, "property-types"] });
+    // Same reason: a new building, agent or layout has to show up in the filter bar.
+    qc.invalidateQueries({ queryKey: [QK, "listing-filter-options"] });
     qc.invalidateQueries({ queryKey: [QK, "units"] });
     qc.invalidateQueries({ queryKey: [QK, "unit-summary"] });
     invalidateProperties();
@@ -194,6 +196,11 @@ export function useListing(id?: string) {
 
 export function useListingsSummary() {
   return useQuery({ queryKey: [QK, "listings-summary"], queryFn: reApi.getListingsSummary, staleTime: 60_000 });
+}
+
+/** The buildings, layouts, types, locations and agents the stock list can be filtered by. */
+export function useListingFilterOptions() {
+  return useQuery({ queryKey: [QK, "listing-filter-options"], queryFn: reApi.getListingFilterOptions, staleTime: 300_000 });
 }
 
 /** Defaults plus every type in use. Cached longer — it changes only when a new type is typed. */

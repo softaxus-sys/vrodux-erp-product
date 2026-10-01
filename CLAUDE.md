@@ -7161,3 +7161,193 @@ would never have come back. Test shift closed and the product left untouched aft
   among others) and EF migration snapshots — correct data, not hardcoding.
 - POS frontend is clean: no dead `onClick`, no `window.confirm`/`alert`, one benign TODO.
 - Tenant isolation is correct (raw SQL guarded per Modules 6b/6c); CQRS layering is clean.
+
+---
+
+## Module 64 — 🔴 The desktop client could only ever talk to localhost
+
+Reported as "the client installer is not pointing to the server IP". It was not a mis-set option:
+there was nothing to set.
+
+### The address was compiled in, not configured
+**95 API modules** built their base from `import.meta.env.VITE_API_URL ?? "http://localhost:5000"`
+in a module-level `const`. `VITE_API_URL` is a **Vite build-time substitution**, so every desktop
+build shipped with `http://localhost:5000` literally baked into the bundle — there was no variable
+left at runtime for any amount of configuration to change.
+
+The configuration mechanism existed and was wired to almost nothing. `lib/desktop.ts`, the Electron
+IPC bridge and the tray's **Server Settings** dialog were all present and correct, but only **4**
+files consumed them. So changing the server in the tray moved Identity (login) and left CRM, HR,
+POS, Finance and Inventory still calling localhost — which on a workstation is nothing at all.
+
+The combined installer's own header said as much: *"Installs the Vrodux ERP desktop app (points at
+localhost:5000)"* — true and harmless on the server box it was written for, wrong on every other PC.
+
+### Runtime resolution, and why it must be synchronous
+`getApiBaseUrl()` now returns the configured address, and the 95 modules call it. The subtlety is
+**when**: those `const BASE = …` lines run the instant the module is imported, long before any
+promise could settle, so an async bridge would hand them `undefined` and they would fall back to
+localhost — the same bug wearing a different hat.
+
+So **preload resolves the address over synchronous IPC** (`ipcRenderer.sendSync`) and exposes it as
+a plain string before any page script runs. `initDesktopApiUrl()` in `main.tsx` is kept as a no-op
+so the start-up sequence did not have to change. `lib/desktop.ts` carries a comment saying that
+making this async silently restores the bug.
+
+Web builds are untouched: with no `window.vroduxDesktop`, `getApiBaseUrl()` returns the same
+build-time value it always did — correct there, because the bundle is served by its own gateway.
+
+### Installer page (`FrontendVite/build/installer.nsh`)
+A **Server address** page after the install-directory step: prefilled, format-validated (rejects
+`192.168.1.10:5000` with no scheme — the single most likely thing to be typed), trailing slash
+trimmed, and a **Test** button that calls the server's own `/health` via PowerShell, so no NSIS HTTP
+plugin is needed. A failed test warns but never blocks: a site may install clients before the server
+is up.
+
+Written to `$INSTDIR
+esources\server-config.json`, which `main.cjs` reads as the **default**.
+Deliberately not a per-user file — a till is installed by an administrator and used by a cashier, so
+a per-user setting would be saved for the wrong account. The tray dialog still overrides it, so a
+server that moves does not need a reinstall.
+
+Silent installs skip the page, and `/SERVERURL=http://10.0.0.5:5000` sets it unattended for scripted
+rollout. The **combined** installer now passes `/SERVERURL=http://localhost:{#ServerPort}` explicitly
+rather than relying on the default: if `ServerPort` ever changes, a silent default would point the
+desktop app at the wrong port and it would only surface at first login.
+
+### Four NSIS traps, each found by compiling rather than reasoning
+electron-builder's NSIS template is not Modern UI and is stricter than a hand-rolled script:
+1. `MUI_HEADER_TEXT` does not exist — the heading is an ordinary label.
+2. The custom `.nsh` is included **before** the standard headers, so `${If}` is an *Invalid command*
+   until `LogicLib.nsh` / `nsDialogs.nsh` are included explicitly (both are include-guarded).
+3. **The uninstaller is a separate `makensis` pass** in which the `customPageAfterChangeDir` hook is
+   skipped, leaving the page functions unreferenced — and electron-builder escalates NSIS's
+   *"not referenced - zeroing code out"* warning into a build failure. They are guarded with
+   `!ifndef BUILD_UNINSTALLER`; `customUnInstall` stays outside it.
+4. Same escalation for unused `Var`s, so the three control handles moved inside that guard while
+   `ServerUrlValue` stayed out (`preInit` expands in both passes and sets it).
+5. NSIS reads `$r` in an embedded PowerShell command as one of its own variables. The test command
+   was rewritten to use no PowerShell variable at all.
+
+### 🔴 Second blocker found on the way — CORS would have refused every call anyway
+The renderer is loaded with `loadFile`, so its origin is opaque and Chromium sends `Origin: null`.
+The gateway's `AllowFrontend` is an explicit allow-list (`AllowedOrigins`, shipped as localhost dev
+ports only) **plus `AllowCredentials`** — which can never match a null origin and can never answer
+`*`. Fixing the URL alone would have produced a client that knew the right address and still had
+every authenticated request refused at the preflight.
+
+Handled on the client, in `main.cjs`: `session.webRequest.onHeadersReceived` adds the allow headers
+**only** for responses from the exact origin the app is configured to use, and re-reads that origin
+when the server is changed from the tray. Adding `"null"` to the server's allow-list was the
+alternative and is worse — broader (any sandboxed iframe or local file on the network) and not
+reliably honoured next to `AllowCredentials`. Nothing credentialed is enabled: the app authenticates
+with a bearer token and leaves `fetch` at its default `credentials: "same-origin"`.
+
+### Build / Verification Status
+- **`tsc -p tsconfig.app.json`:** 0 errors ✅ · **`vite build` (web):** ✅ · **no migration.**
+- **Baked references in the desktop bundle went from 105 to 1** — verified by grepping the built
+  assets. The one that remains is `lib/desktop.ts`'s web fallback, which is correct.
+- **The installer compiles** — and the page is provably wired: the build *failed* earlier with
+  *"install function ServerUrlPageShow not referenced"*, and now passes with that function guarded
+  to the installer pass, which is only possible if `Page custom` is being inserted there.
+- **Not verified by running the installer or the desktop app** — that needs a Windows box with a
+  reachable gateway. Specifically unproven: that the Test button reports success against a live
+  server, and that the CORS relaxation is sufficient in practice (it is reasoned from the policy
+  configuration, not observed).
+
+### Module 64b — 🔴 The server only ever listened on loopback
+
+Reported after Module 64: the Test button said "No response", and **a browser on another PC could
+not reach `http://192.168.101.10:5000` either** — which rules the client out entirely. Ping replied,
+so the machine was up and on the LAN, but ICMP is answered by the OS and says nothing about whether
+anything is bound to TCP 5000.
+
+**Nothing configured a listen address.** There was no `Urls` in the gateway's `appsettings.json`, no
+`UseUrls`/`ListenAnyIP` in `Program.cs`, and `sc create` set no `ASPNETCORE_URLS`. With nothing
+configured, Kestrel falls back to its built-in default of `http://localhost:5000` — **loopback
+only**. So the server answered on the machine it ran on and was unreachable from every till.
+
+`launchSettings.json` does set `http://localhost:5000`, but that file is a development artefact and
+is not read by a published exe, so it was neither the cause nor the fix.
+
+The symptom is deceptive in a specific way: the installer already opens TCP 5000 in the firewall
+(`netsh advfirewall`, .iss line 427), so the port looks configured and "open", while nothing is
+listening on the LAN address for the rule to admit.
+
+**Fixed in two places**, deliberately:
+- `configure-appsettings.ps1` writes `"Urls": "http://0.0.0.0:$port"` — the installer's own hook for
+  site configuration, so it also repairs an existing install on re-run. The port is passed through
+  from the wizard as a new `ServerPort` value rather than hardcoded, so it cannot drift from
+  `{#ServerPort}`.
+- The shipped `appsettings.json` carries the same default, so a deployment that never runs the
+  script still binds correctly.
+
+Neither affects the other deployments: Docker sets `ASPNETCORE_URLS: "http://+:8080"` and `dotnet
+run` sets it from `launchSettings`, and an **environment variable takes precedence over
+appsettings** — so this only takes effect for the published on-premises service, which is the one
+deployment that needed it.
+
+**No JSON comment was added to `appsettings.json`**, though the reasoning warranted one:
+`configure-appsettings.ps1` parses that file with Windows PowerShell 5.1's `ConvertFrom-Json`, which
+rejects comments (ASP.NET's own reader would have accepted them). The explanation lives in the
+script instead.
+
+### Verified by running it, not by reading the default
+- Started the published-path gateway with no `ASPNETCORE_URLS` override:
+  `netstat` reports **`TCP 0.0.0.0:5000 LISTENING`** and `/health` returns **200**.
+- Ran `configure-appsettings.ps1` end to end under Windows PowerShell against a copy of the real
+  `appsettings.json`: exit 0, `Urls` written as `http://0.0.0.0:5000`, connection strings and
+  `FrontendUrl` unchanged — so the comment-free JSON is still parseable by 5.1.
+
+### Immediate repair for a site already installed (no rebuild needed)
+1. Edit `C:\Program Files\Vrodux ERP\serverppsettings.json` and add as the first key:
+   `"Urls": "http://0.0.0.0:5000",`
+2. From an elevated prompt: `sc stop VroduxERP` then `sc start VroduxERP`
+3. Confirm on the server: `netstat -ano | findstr :5000` should show `0.0.0.0:5000`, not
+   `127.0.0.1:5000`.
+
+
+---
+
+## Module 65 — Real Estate: multi-select filters on the stock list
+
+Requested: several filters at once on Properties & Units — e.g. Building: Binary Tower, Type: 1BHK + 2BHK.
+
+- **Backend:** `GetListingsQuery` gained `PropertyIds`, `Bedrooms` (studio = 0), `PropertyTypes`, `Statuses`,
+  `Furnishings`, `Cities`, `Agents` (each "any of", ANDed together) and `MinPrice`/`MaxPrice` (compared against
+  `SalePrice` for a sale listing, `RentPerYear` otherwise). Applied in `GetListingsHandler.Build`; the old
+  single-value params are unchanged. Bound from repeated query keys (`?bedrooms=1&bedrooms=2`).
+- New `GetListingFilterOptionsQuery` → `GET api/real-estate/listings/filter-options` (`real-estate.units.view`):
+  the buildings, bedroom counts, types, furnishings, cities and agents that some listing actually has.
+- **Frontend:** `listings/components/multi-select-filter.tsx` (popover checklist, searchable past 8 options);
+  `listings-view` shows seven of them plus a price range, removable chips and "Clear all". The single Status
+  dropdown became a multi-select. `useListingFilterOptions()` is invalidated with the other listing queries.
+- The summary tiles still describe the whole stock list, not the filtered set.
+- No migration. **Build:** RealEstate.API 0 errors, `tsc -p tsconfig.app.json` 0 errors. **Not exercised in a
+  browser** — needs republish + restart of the RealEstate service.
+
+
+---
+
+## Module 66 — Real Estate: "about to fall vacant" notifications (bell only, no email)
+
+Requested: alert staff when a rented unit's rental period is nearly over — including units already
+removed (soft-deleted) from the stock list. Notification only.
+
+- `PropertyUnit.RentedUntil` (yyyy-MM-dd) + `VacancyAlertKey`; migration `AddUnitRentedUntil` (2 nullable
+  columns). `SetRentedUntil(explicit)` falls back to `RentedTill.FromText(PriceLabel)` — the sheets write the
+  date in the price cell ("rented till 29 feb 2026" → 2026-02-28, day clamped). Set from the listing form
+  ("Rented until", shown when status = rented), the listing create/update commands and the importer.
+- `VacancyAlertNotifier` (`IVacancyAlertNotifier`): every unit with `Status == "rented"`, **no `IsDeleted`
+  filter on purpose**. End date = active lease `EndDate` → `RentedUntil` → parsed price cell → **next yearly
+  anniversary of `ListedOn`** (user-approved assumption; the message says "estimated"). No `ListedOn` either
+  = no alert. Uses the workspace's `ExpiryReminderDaysBefore` ladder (default 90/60/30, plus 0)
+  with tightest-rung matching; idempotent via `VacancyAlertKey = "{endDate}:{rung}"`. Runs regardless of the
+  email `Enabled` switch.
+- Recipients: **the listing's agent (`AgentUserId`) + the workspace's administrators only** (holders of the
+  tenant's system "Administrator" role, resolved by a cross-schema read of `[identity].[roles]`). Not other
+  real-estate users. No link for a removed unit.
+- Called from `RentAlertBackgroundService` (tenant list now also includes workspaces with rented units but
+  no lease) and from "Run now" (not on a dry run). Event key `unit.vacating`.
+- **Build:** RealEstate.API 0 errors, `tsc` 0 errors; parser checked against sample cells. **Not runtime-tested**
+  — needs republish + restart (migration auto-applies).

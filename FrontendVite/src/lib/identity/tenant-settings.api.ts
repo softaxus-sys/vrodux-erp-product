@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/tenant-settings`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/tenant-settings`;
 
 /** This tenant's own usage of the shared object-storage bucket against their plan's budget. */
 export interface TenantStorageStatusDto {

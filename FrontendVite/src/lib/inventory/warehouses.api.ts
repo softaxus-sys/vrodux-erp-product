@@ -1,7 +1,8 @@
 import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { WarehouseDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/inventory/warehouses`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/inventory/warehouses`;
 
 export interface UpsertWarehouseRequest {
   name:          string;

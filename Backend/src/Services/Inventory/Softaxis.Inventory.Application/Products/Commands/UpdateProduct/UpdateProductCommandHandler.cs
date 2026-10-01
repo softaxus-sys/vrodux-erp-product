@@ -13,7 +13,22 @@ public sealed class UpdateProductCommandHandler(
     {
         var product = await productRepo.GetByIdAsync(cmd.Id, ct);
         if (product is null)
-            return Result.Failure(Error.Custom("Product.NotFound", $"Product '{cmd.Id}' not found."));
+        {
+            // The Inventory list UNIONs [inventory].[products] and [pos].[products]
+            // (ProductReadService), so a row on that screen may have no inventory row to
+            // load. Falling through to the POS row is what stops an imported catalogue
+            // item being visible in the list but impossible to change.
+            // Brand and unit-of-measure are dropped here: [pos].[products] has no column for
+            // either, so there is nowhere to put them.
+            var updated = await productRepo.UpdatePosProductAsync(new PosProductUpdate(
+                cmd.Id, cmd.Name, cmd.Description, cmd.SKU, cmd.Barcode, cmd.CategoryId,
+                cmd.SalePrice, cmd.CostPrice, cmd.TaxRate, cmd.Unit,
+                cmd.ReorderLevel, cmd.TrackInventory, cmd.ImageUrl), ct);
+
+            return updated
+                ? Result.Success()
+                : Result.Failure(Error.Custom("Product.NotFound", $"Product '{cmd.Id}' not found."));
+        }
 
         var categoryExists = await productRepo.CategoryExistsAsync(cmd.CategoryId, ct);
         if (!categoryExists)

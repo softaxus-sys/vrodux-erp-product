@@ -50,3 +50,5 @@ Frontend/
 Deploy/installer/Output/
 Deploy/VroduxErpSoftware/
 Deploy/installer/payload/
+/Deploy/installer/scripts/configure-appsettings.ps1
+/FrontendVite/build/installer.nsh

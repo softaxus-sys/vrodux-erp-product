@@ -1,7 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 import type { UnitOfMeasureDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/inventory/units-of-measure`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/inventory/units-of-measure`;
 
 export const uomApi = {
   getAll: (params: { search?: string; isActive?: boolean } = {}): Promise<UnitOfMeasureDto[]> => {

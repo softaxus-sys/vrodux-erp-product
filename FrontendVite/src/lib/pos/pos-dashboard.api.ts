@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api-client";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/pos-dashboard`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/pos-dashboard`;
 
 /**
  * Gross = completed sales + sales later refunded (a refund voids its original sale, so leaving those

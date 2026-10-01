@@ -1,7 +1,8 @@
 ﻿import { apiClient, type PagedResult } from "@/lib/api-client";
 import type { ProductCategoryDto } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_URL ?? "http://localhost:5000"}/api/categories`;
+import { getApiBaseUrl } from "@/lib/desktop";
+const BASE = `${getApiBaseUrl()}/api/categories`;
 
 export const categoriesApi = {
   getAll: (params: { page?: number; pageSize?: number; search?: string } = {}): Promise<PagedResult<ProductCategoryDto>> => {

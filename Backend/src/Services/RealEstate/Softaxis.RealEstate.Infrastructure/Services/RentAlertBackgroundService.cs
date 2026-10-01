@@ -57,6 +57,19 @@ internal sealed class RentAlertBackgroundService(
                 .Distinct()
                 .Select(id => id!.Value)
                 .ToListAsync(ct);
+
+            // Workspaces with rented stock but no lease on file still need the vacancy alert.
+            // Deleted units count too: a let unit is usually taken off the stock list.
+            var withRentedUnits = await db.PropertyUnits
+                .IgnoreQueryFilters()
+                .Where(u => u.Status == "rented")
+                .Select(u => EF.Property<Guid?>(u, "OwnerTenantId"))
+                .Where(id => id != null)
+                .Distinct()
+                .Select(id => id!.Value)
+                .ToListAsync(ct);
+
+            tenantIds = tenantIds.Union(withRentedUnits).ToList();
         }
 
         if (tenantIds.Count == 0) return;
@@ -82,6 +95,21 @@ internal sealed class RentAlertBackgroundService(
                         "Workspace {TenantId}: {Due} due, {Overdue} overdue, {Expiry} expiry, {Failed} failed.",
                         tenantId, result.DueRemindersSent, result.OverdueRemindersSent,
                         result.ExpiryRemindersSent, result.Failed);
+
+                // Separate from the emails above and guarded on its own: a failed tenant email
+                // must not cost the agency its own heads-up, or the reverse.
+                try
+                {
+                    var vacancy = scope.ServiceProvider.GetRequiredService<IVacancyAlertNotifier>();
+                    var announced = await vacancy.RunForCurrentTenantAsync(ct);
+                    if (announced > 0)
+                        logger.LogInformation("Workspace {TenantId}: {Count} unit(s) announced as nearly vacant.",
+                            tenantId, announced);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Vacancy alert sweep failed for workspace {TenantId}.", tenantId);
+                }
             }
             catch (Exception ex)
             {

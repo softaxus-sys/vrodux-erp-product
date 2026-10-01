@@ -111,6 +111,7 @@ internal sealed class CreateListingHandler(RealEstateDbContext db, ICurrentUser 
         unit.SetListing(cmd.Purpose, cmd.ListedOn, cmd.BedsLabel, cmd.PriceLabel, cmd.AreaLabel,
             cmd.HasMedia, cmd.IsListed, cmd.ListedBy, cmd.AgentName,
             cmd.OwnerName, cmd.OwnerPhone, cmd.OwnerPhoneAlt);
+        unit.SetRentedUntil(cmd.RentedUntil);
 
         // Defaults to whoever is creating the listing — they just supplied the owner data, so they
         // are the natural first agent. An explicit AgentUserId hands it straight to someone else.
@@ -215,6 +216,7 @@ internal sealed class UpdateListingHandler(RealEstateDbContext db, ICurrentUser 
         unit.SetListing(cmd.Purpose, cmd.ListedOn, cmd.BedsLabel, cmd.PriceLabel, cmd.AreaLabel,
             cmd.HasMedia, cmd.IsListed, cmd.ListedBy, cmd.AgentName,
             ownerName, ownerPhone, ownerPhoneAlt);
+        unit.SetRentedUntil(cmd.RentedUntil);
 
         // Reassigning the agent, or flipping the restriction switch itself, is a management action.
         // Both are skipped entirely (not even attempted) for a caller who could not already manage

@@ -64,4 +64,6 @@ public static class NotificationEvents
 
     public const string SeoFixesReady           = "seo.fixes-ready";
     public const string SeoArticlesReady        = "seo.articles-ready";
+
+    public const string UnitVacating            = "unit.vacating";
 }
