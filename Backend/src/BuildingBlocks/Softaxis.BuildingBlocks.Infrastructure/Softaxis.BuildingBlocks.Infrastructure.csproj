@@ -16,8 +16,15 @@
     <PackageReference Include="MediatR"                                 Version="12.*" />
     <PackageReference Include="Serilog.AspNetCore"                      Version="9.*" />
     <PackageReference Include="Microsoft.Extensions.Http"               Version="9.*" />
-    <!-- S3-compatible object storage (Contabo) — see Storage/S3ObjectStorage.cs. -->
-    <PackageReference Include="AWSSDK.S3"                               Version="3.*" />
+    <!-- S3-compatible object storage (Contabo, backed by Ceph RGW) — see Storage/S3ObjectStorage.cs.
+         PINNED, not "3.*": 3.7.307.4+ introduced a regression that percent-encodes ':' in the
+         BucketName when building the request path/canonical request. Ceph RGW's multi-tenant
+         bucket addressing (what Contabo uses — "<tenantId>:<bucketName>") requires an unescaped
+         colon; the encoded form produces a Forbidden/SignatureDoesNotMatch on every call. Confirmed
+         via https://github.com/aws/aws-sdk-net/issues/3239 — AWS closed it "not planned", and
+         3.7.103.13 is the one version explicitly confirmed by another Ceph-tenant user to NOT
+         exhibit this. Do not bump past the regression without re-verifying against a real upload. -->
+    <PackageReference Include="AWSSDK.S3"                               Version="3.7.103.13" />
   </ItemGroup>
 
   <ItemGroup>
