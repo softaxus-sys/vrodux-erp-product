@@ -55,7 +55,8 @@ public sealed record PlanOptionDto(
     int      MaxUsers,
     bool     SelfServe,
     bool     IsCurrent,
-    IReadOnlyList<string> Modules);
+    IReadOnlyList<string> Modules,
+    int      StorageGb);   // -1 = unlimited
 
 public sealed record InvoiceDto(
     Guid      Id,

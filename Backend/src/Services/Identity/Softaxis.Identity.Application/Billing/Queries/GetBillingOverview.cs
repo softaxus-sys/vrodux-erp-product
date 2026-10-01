@@ -49,7 +49,8 @@ public sealed class GetBillingOverviewQueryHandler(
                     MaxUsers:          kvp.Value.MaxUsers,
                     SelfServe:         PlanDefinitions.SelfServePlans.Contains(kvp.Key),
                     IsCurrent:         kvp.Key == tenant.Plan,
-                    Modules:           kvp.Value.Modules);
+                    Modules:           kvp.Value.Modules,
+                    StorageGb:         kvp.Value.StorageGb);
             })
             .ToList();
 

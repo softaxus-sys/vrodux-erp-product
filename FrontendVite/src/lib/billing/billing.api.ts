@@ -33,6 +33,8 @@ export interface PlanOptionDto {
   selfServe: boolean;
   isCurrent: boolean;
   modules: string[];
+  /** GB included in the shared object-storage bucket. -1 = unlimited. */
+  storageGb: number;
 }
 
 export interface BillingOverviewDto {

@@ -1,15 +1,15 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  CreditCard, Check, Loader2, AlertTriangle, Users, Calendar,
+  CreditCard, Check, Loader2, AlertTriangle, Users, Calendar, HardDrive,
   ExternalLink, ShieldCheck, Sparkles, Receipt, X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatFileSize } from "@/lib/utils";
 import {
   useBillingOverview, useBillingInvoices, useStartCheckout,
-  useBillingPortal, useCancelSubscription, useStartTrial,
+  useBillingPortal, useCancelSubscription, useStartTrial, useTenantStorageUsage,
 } from "@/hooks/billing/use-billing";
 import { formatUsd } from "@/lib/billing/plans";
 import type { PaymentProviderName, PlanOptionDto } from "@/lib/billing/billing.api";
@@ -36,6 +36,7 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 export function BillingSettingsView() {
   const { data: overview, isLoading } = useBillingOverview();
   const { data: invoices } = useBillingInvoices();
+  const { data: storage } = useTenantStorageUsage();
   const checkout   = useStartCheckout();
   const portal     = useBillingPortal();
   const cancel     = useCancelSubscription();
@@ -189,7 +190,7 @@ export function BillingSettingsView() {
       )}
 
       {/* Current state */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-5">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current plan</p>
@@ -255,6 +256,37 @@ export function BillingSettingsView() {
             )}
           </CardContent>
         </Card>
+
+        {storage && (
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Storage</p>
+              <div className="flex items-baseline gap-1.5 mt-2">
+                <HardDrive className="h-4 w-4 text-muted-foreground self-center" />
+                <p className="text-2xl font-bold">{formatFileSize(storage.usedBytes)}</p>
+                <p className="text-sm text-muted-foreground">
+                  / {storage.unlimited ? "Unlimited" : formatFileSize(storage.budgetBytes)}
+                </p>
+              </div>
+              {!storage.unlimited && (
+                <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all",
+                      storage.percentUsed >= 100 ? "bg-destructive"
+                        : storage.nearBudget ? "bg-amber-500" : "bg-primary")}
+                    style={{ width: `${Math.min(100, storage.percentUsed)}%` }} />
+                </div>
+              )}
+              {storage.nearBudget && (
+                <p className={cn("text-[11px] mt-1.5",
+                    storage.percentUsed >= 100 ? "text-destructive" : "text-amber-600")}>
+                  {storage.percentUsed >= 100
+                    ? "Storage limit reached — uploads are blocked until you free up space or upgrade."
+                    : `${storage.percentUsed.toFixed(0)}% used — approaching your plan's storage limit.`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Carried over from a "Buy Now" signup — confirm the payment method before leaving the app. */}
@@ -392,8 +424,11 @@ export function BillingSettingsView() {
                     )}
                   </div>
 
-                  <p className="text-xs text-muted-foreground mb-4">
+                  <p className="text-xs text-muted-foreground">
                     {plan.maxUsers < 0 ? "Unlimited users" : `Up to ${plan.maxUsers} users`}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {plan.storageGb < 0 ? "Unlimited storage" : `${plan.storageGb}GB document storage`}
                   </p>
 
                   <div className="mt-auto">
