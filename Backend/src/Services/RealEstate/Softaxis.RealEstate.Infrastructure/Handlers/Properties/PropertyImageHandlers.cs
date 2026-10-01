@@ -73,7 +73,8 @@ internal static class DataUri
 }
 
 internal sealed class AddPropertyImagesHandler(
-    RealEstateDbContext db, IObjectStorage storage, ILogger<AddPropertyImagesHandler> logger)
+    RealEstateDbContext db, IObjectStorage storage, IImageProcessor imageProcessor,
+    ILogger<AddPropertyImagesHandler> logger)
     : ICommandHandler<AddPropertyImagesCommand, IReadOnlyList<PropertyImageDto>>
 {
     public async Task<Result<IReadOnlyList<PropertyImageDto>>> Handle(
@@ -104,14 +105,22 @@ internal sealed class AddPropertyImagesHandler(
                         $"'{input.FileName ?? "An image"}' could not be read. Please re-select the file."));
 
             // Checked against the decoded length, not the base64 string, which is a third larger
-            // and would reject files comfortably inside the stated limit.
+            // and would reject files comfortably inside the stated limit. Checked on the ORIGINAL
+            // upload, not the post-compression size — the limit is about what the user is sending,
+            // not what ends up stored.
             if (bytes.Length > AddPropertyImagesValidator.MaxBytesPerImage)
                 return Result.Failure<IReadOnlyList<PropertyImageDto>>(
                     Error.Custom("Property.ImageTooLarge",
                         $"'{input.FileName ?? "An image"}' is {bytes.Length / 1024 / 1024}MB. " +
                         $"The limit is {AddPropertyImagesValidator.MaxBytesPerImage / 1024 / 1024}MB per photo."));
 
-            var image = new PropertyImage(property.Id, bytes, contentType, input.FileName, nextOrder++);
+            // Property photos routinely arrive at several MB from a phone camera — exactly what
+            // IImageProcessor's longest-dimension cap + WebP re-encode exists for.
+            var (storedBytes, storedContentType) = imageProcessor.IsCompressibleImage(contentType)
+                ? imageProcessor.Compress(bytes, contentType)
+                : (bytes, contentType);
+
+            var image = new PropertyImage(property.Id, storedBytes, storedContentType, input.FileName, nextOrder++);
             image.SetCaption(input.Caption);
 
             // The first photo uploaded becomes the cover, so a property is never left with a
@@ -123,8 +132,8 @@ internal sealed class AddPropertyImagesHandler(
                 var key = PropertyImageStorage.BuildKey(tenantId!.Value, property.Id, image.Id);
                 try
                 {
-                    await storage.PutAsync(key, bytes, contentType, ct);
-                    image.SetObjectKey(key); // clears Data — see PropertyImage.SetObjectKey
+                    await storage.PutAsync(key, storedBytes, storedContentType, ct);
+                    image.SetObjectKey(key, storedContentType, storedBytes.LongLength); // clears Data
                 }
                 catch (Exception ex)
                 {

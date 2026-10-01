@@ -70,5 +70,15 @@ public static class InfrastructureExtensions
             await DemoTenantSeeder.RunAsync(() => RealEstateSeedData.SeedAsync(db));
         else if (DemoSeedGate.DemoEnabled(scope.ServiceProvider))
             await RealEstateSeedData.SeedAsync(db);
+
+        // One-time, idempotent: AddPropertyImageSizeBytes defaulted every existing row to 0 (the
+        // column didn't exist before). A single cheap UPDATE, so unlike the heavier per-tenant CRM
+        // backfills this runs synchronously here rather than fire-and-forget in the background —
+        // DATALENGTH(Data) is 0 for a row already migrated to the bucket (Data cleared by
+        // SetObjectKey), so this only ever touches legacy bytes-in-DB rows and is a no-op once
+        // every row has been measured.
+        await db.Database.ExecuteSqlRawAsync(
+            "UPDATE [real_estate].[PropertyImages] SET SizeBytes = DATALENGTH(Data) " +
+            "WHERE SizeBytes = 0 AND DATALENGTH(Data) > 0");
     }
 }
