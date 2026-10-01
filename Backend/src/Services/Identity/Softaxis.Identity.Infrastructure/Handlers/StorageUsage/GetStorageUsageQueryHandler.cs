@@ -18,6 +18,14 @@ namespace Softaxis.Identity.Infrastructure.Handlers.StorageUsage;
 /// <para>`identity` is a reserved SQL Server keyword and MUST stay bracketed, or this fails with
 /// "Incorrect syntax near the keyword 'identity'" (same gotcha flagged throughout this codebase
 /// wherever a cross-schema query touches tenants/users).</para>
+///
+/// <para>RealEstate is the one service whose tenant shadow column is NOT called "TenantId" — see
+/// <c>RealEstateDbContext.OwnerTenant = "OwnerTenantId"</c>. Aliased back to "TenantId" inside its
+/// own subquery so the outer join condition and row mapping don't need to know about the
+/// exception. Confirmed live against production: getting this wrong produces a misleading
+/// "Incorrect syntax near..." error pointing at EARLIER tokens in the statement — SQL Server's
+/// parser-recovery cascade after the real "Invalid column name" binding error further down — so
+/// don't trust the first reported error location blindly when debugging a query like this one.</para>
 /// </summary>
 public sealed class GetStorageUsageQueryHandler(
     IdentityDbContext db, IOptionsSnapshot<ObjectStorageOptions> storageOptions)
@@ -26,7 +34,7 @@ public sealed class GetStorageUsageQueryHandler(
     public async Task<Result<StorageUsageDto>> Handle(GetStorageUsageQuery query, CancellationToken ct)
     {
         var rows = await db.Database.SqlQueryRaw<TenantStorageUsageRow>("""
-            SELECT t.Id AS TenantId, t.Name AS TenantName, t.Plan AS [Plan],
+            SELECT t.Id AS TenantId, t.Name AS TenantName, t.[Plan] AS [Plan],
                    ISNULL(hr.Bytes, 0)  AS HrBytes,
                    ISNULL(crm.Bytes, 0) AS CrmBytes,
                    ISNULL(sup.Bytes, 0) AS SupportBytes,
@@ -52,10 +60,10 @@ public sealed class GetStorageUsageQueryHandler(
                 GROUP BY st.RequestingTenantId
             ) sup ON sup.TenantId = t.Id
             LEFT JOIN (
-                SELECT TenantId, SUM(SizeBytes) AS Bytes
+                SELECT OwnerTenantId AS TenantId, SUM(SizeBytes) AS Bytes
                 FROM [real_estate].[PropertyImages]
-                WHERE ObjectKey IS NOT NULL AND IsDeleted = 0 AND TenantId IS NOT NULL
-                GROUP BY TenantId
+                WHERE ObjectKey IS NOT NULL AND IsDeleted = 0 AND OwnerTenantId IS NOT NULL
+                GROUP BY OwnerTenantId
             ) re ON re.TenantId = t.Id
             WHERE t.IsDeleted = 0
               AND (ISNULL(hr.Bytes,0) + ISNULL(crm.Bytes,0) + ISNULL(sup.Bytes,0) + ISNULL(re.Bytes,0)) > 0

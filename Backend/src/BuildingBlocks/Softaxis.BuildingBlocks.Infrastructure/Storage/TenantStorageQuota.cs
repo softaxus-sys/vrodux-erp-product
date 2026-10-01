@@ -36,6 +36,14 @@ public sealed record StorageQuotaStatus(long UsedBytes, long BudgetBytes, long I
 /// <para>`identity` is a reserved SQL Server keyword and MUST stay bracketed, or this fails with
 /// "Incorrect syntax near the keyword 'identity'" (the same gotcha flagged throughout this codebase
 /// wherever a cross-schema query touches tenants).</para>
+///
+/// <para>RealEstate is the one service whose tenant shadow column is NOT called "TenantId" — see
+/// <c>RealEstateDbContext.OwnerTenant = "OwnerTenantId"</c>. Every other service here uses the
+/// default name. Confirmed live against production: the wrong column name here produces a
+/// misleading "Incorrect syntax near..." error on EARLIER tokens (SQL Server's parser-recovery
+/// cascade after a real "Invalid column name" binding error later in the statement), not a clean
+/// error pointing at the actual problem — so don't trust the first reported error location blindly
+/// when debugging a cross-schema query that touches RealEstate.</para>
 /// </summary>
 public static class TenantStorageQuota
 {
@@ -53,7 +61,7 @@ public static class TenantStorageQuota
                      JOIN [support].[support_tickets] st ON st.Id = sa.TicketId
                      WHERE st.RequestingTenantId = {0} AND sa.ObjectKey IS NOT NULL) +
                     (SELECT ISNULL(SUM(SizeBytes),0) FROM [real_estate].[PropertyImages]
-                     WHERE TenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0)
+                     WHERE OwnerTenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0)
                 ) AS UsedBytes,
                 (SELECT [Plan] FROM [identity].[tenants] WHERE [Id] = {0}) AS [Plan]
             """, tenantId).ToListAsync(ct);
