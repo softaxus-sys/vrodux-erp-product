@@ -86,5 +86,17 @@ public sealed class S3ObjectStorage(IOptions<ObjectStorageOptions> options, ILog
     {
         ServiceURL     = _o.Endpoint,
         ForcePathStyle = true, // Contabo (and most non-AWS S3-compatible providers) need this.
+        // The SDK's SigV4 signing needs SOME region string, or every call fails signature
+        // validation server-side — confirmed against real Contabo setup guides, which all set
+        // this explicitly. Contabo's endpoints are consistently "{region}.contabostorage.com"
+        // (eu2/usc1/sin1/...), so it's derived from the endpoint rather than a separate config
+        // field nobody would remember to set.
+        AuthenticationRegion = RegionFromEndpoint(_o.Endpoint),
     });
+
+    private static string RegionFromEndpoint(string endpoint)
+    {
+        try { return new Uri(endpoint).Host.Split('.')[0]; }
+        catch (UriFormatException) { return "us-east-1"; } // never block on a malformed endpoint string
+    }
 }

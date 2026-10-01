@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Multitenancy;
@@ -71,7 +72,8 @@ internal static class DataUri
     }
 }
 
-internal sealed class AddPropertyImagesHandler(RealEstateDbContext db, IObjectStorage storage)
+internal sealed class AddPropertyImagesHandler(
+    RealEstateDbContext db, IObjectStorage storage, ILogger<AddPropertyImagesHandler> logger)
     : ICommandHandler<AddPropertyImagesCommand, IReadOnlyList<PropertyImageDto>>
 {
     public async Task<Result<IReadOnlyList<PropertyImageDto>>> Handle(
@@ -124,12 +126,17 @@ internal sealed class AddPropertyImagesHandler(RealEstateDbContext db, IObjectSt
                     await storage.PutAsync(key, bytes, contentType, ct);
                     image.SetObjectKey(key); // clears Data — see PropertyImage.SetObjectKey
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // PutAsync throws on failure by contract (see IObjectStorage) — the upload
                     // genuinely didn't land anywhere, so this must fail loudly, not fall back
                     // silently to storing in the DB (that would surprise a deployment that chose
-                    // object storage specifically to stop doing that).
+                    // object storage specifically to stop doing that). Logged with the real
+                    // exception — without this, a bucket-side failure (bad signature, policy,
+                    // connectivity) was previously swallowed with no trace anywhere.
+                    logger.LogError(ex,
+                        "Property image upload to object storage failed (key {Key}, property {PropertyId})",
+                        key, property.Id);
                     return Result.Failure<IReadOnlyList<PropertyImageDto>>(
                         Error.Custom("Property.ImageUploadFailed",
                             $"'{input.FileName ?? "An image"}' could not be uploaded. Please try again."));
