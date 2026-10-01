@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Support.Application.Abstractions;
 using Softaxis.Support.Application.Tickets.Commands;
@@ -17,7 +19,8 @@ namespace Softaxis.Support.Infrastructure.Handlers.Tickets;
 /// </summary>
 internal sealed class CreateTicketHandler(
     SupportDbContext db, ICurrentUser currentUser, ISupportEmailService email, ISupportRealtimeNotifier realtime,
-    IConfiguration configuration)
+    IConfiguration configuration, IObjectStorage storage, IImageProcessor imageProcessor,
+    ILogger<CreateTicketHandler> logger)
     : ICommandHandler<CreateTicketCommand, Application.Tickets.Dtos.TicketDetailDto>
 {
     public async Task<Result<Application.Tickets.Dtos.TicketDetailDto>> Handle(CreateTicketCommand cmd, CancellationToken ct)
@@ -36,8 +39,9 @@ internal sealed class CreateTicketHandler(
             currentUser.Username ?? "Unknown user", isFromAgent: false, cmd.Message);
         db.Messages.Add(firstMessage);
 
-        var attachments = TicketAttachmentFactory.Build(
-            ticket.Id, firstMessage.Id, cmd.Attachments, currentUser.Id.Value, currentUser.Username ?? "Unknown user");
+        var attachments = await TicketAttachmentFactory.BuildAsync(
+            ticket.Id, firstMessage.Id, cmd.Attachments, currentUser.Id.Value, currentUser.Username ?? "Unknown user",
+            storage, imageProcessor, ticket.RequestingTenantId, logger, ct);
         db.Attachments.AddRange(attachments);
 
         await db.SaveChangesAsync(ct);
@@ -69,6 +73,6 @@ internal sealed class CreateTicketHandler(
 
         await realtime.NotifyQueueChangedAsync(ct);
 
-        return Result.Success(TicketMappings.ToDetailDto(ticket, [firstMessage], [], attachments));
+        return Result.Success(await TicketMappings.ToDetailDtoAsync(ticket, [firstMessage], [], attachments, storage, ct));
     }
 }

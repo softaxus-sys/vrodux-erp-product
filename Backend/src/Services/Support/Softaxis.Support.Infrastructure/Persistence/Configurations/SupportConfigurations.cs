@@ -71,7 +71,9 @@ public sealed class TicketAttachmentConfiguration : IEntityTypeConfiguration<Tic
         b.Property(x => x.ContentType).HasMaxLength(100).IsRequired();
         // A 3 MB file limit (TicketAttachmentLimits) base64-encodes to ~4 MB of text — nvarchar(max)
         // is the only column type that fits without raising the limit again here to keep in sync.
+        // Empty (not null) once ObjectKey is set — see TicketAttachment.SetObjectKey.
         b.Property(x => x.DataUri).HasColumnType("nvarchar(max)").IsRequired();
+        b.Property(x => x.ObjectKey).HasMaxLength(500);
         b.Property(x => x.UploadedByName).HasMaxLength(200).IsRequired();
     }
 }

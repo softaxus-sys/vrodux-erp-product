@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Softaxis.Support.Application.Tickets;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Support.Application.Abstractions;
 using Softaxis.Support.Application.Tickets.Commands;
@@ -18,7 +20,8 @@ namespace Softaxis.Support.Infrastructure.Handlers.Tickets;
 /// </summary>
 internal sealed class AddTicketMessageHandler(
     SupportDbContext db, ICurrentUser currentUser, ISupportAccessGuard guard, ISupportEmailService email,
-    ISupportRealtimeNotifier realtime, IConfiguration configuration)
+    ISupportRealtimeNotifier realtime, IConfiguration configuration, IObjectStorage storage,
+    IImageProcessor imageProcessor, ILogger<AddTicketMessageHandler> logger)
     : ICommandHandler<AddTicketMessageCommand, TicketMessageDto>
 {
     public async Task<Result<TicketMessageDto>> Handle(AddTicketMessageCommand cmd, CancellationToken ct)
@@ -35,8 +38,11 @@ internal sealed class AddTicketMessageHandler(
             currentUser.Username ?? "Unknown user", isFromAgent, cmd.Body);
         db.Messages.Add(message);
 
-        var attachments = TicketAttachmentFactory.Build(
-            ticket.Id, message.Id, cmd.Attachments, currentUser.Id.Value, currentUser.Username ?? "Unknown user");
+        // Keyed under the ticket's own (requesting) tenant regardless of who's replying — an
+        // agent posting a reply belongs to the operator tenant, not the ticket's tenant.
+        var attachments = await TicketAttachmentFactory.BuildAsync(
+            ticket.Id, message.Id, cmd.Attachments, currentUser.Id.Value, currentUser.Username ?? "Unknown user",
+            storage, imageProcessor, ticket.RequestingTenantId, logger, ct);
         db.Attachments.AddRange(attachments);
 
         ticket.Touch();
@@ -73,6 +79,6 @@ internal sealed class AddTicketMessageHandler(
         await realtime.NotifyTicketUpdatedAsync(ticket.Id, ct);
         await realtime.NotifyQueueChangedAsync(ct);
 
-        return Result.Success(TicketMappings.ToDto(message, attachments));
+        return Result.Success(await TicketMappings.ToDtoAsync(message, attachments, storage, ct));
     }
 }

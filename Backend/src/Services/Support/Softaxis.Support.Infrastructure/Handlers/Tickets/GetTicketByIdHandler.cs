@@ -1,6 +1,7 @@
 using Softaxis.Support.Application.Tickets;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Application.Storage;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Support.Application.Abstractions;
 using Softaxis.Support.Application.Tickets.Dtos;
@@ -9,7 +10,8 @@ using Softaxis.Support.Infrastructure.Persistence;
 
 namespace Softaxis.Support.Infrastructure.Handlers.Tickets;
 
-internal sealed class GetTicketByIdHandler(SupportDbContext db, ICurrentUser currentUser, ISupportAccessGuard guard)
+internal sealed class GetTicketByIdHandler(
+    SupportDbContext db, ICurrentUser currentUser, ISupportAccessGuard guard, IObjectStorage storage)
     : IQueryHandler<GetTicketByIdQuery, TicketDetailDto>
 {
     public async Task<Result<TicketDetailDto>> Handle(GetTicketByIdQuery query, CancellationToken ct)
@@ -23,6 +25,6 @@ internal sealed class GetTicketByIdHandler(SupportDbContext db, ICurrentUser cur
         var history     = await db.AssignmentHistory.AsNoTracking().Where(a => a.TicketId == ticket.Id).ToListAsync(ct);
         var attachments = await db.Attachments.AsNoTracking().Where(a => a.TicketId == ticket.Id).ToListAsync(ct);
 
-        return Result.Success(TicketMappings.ToDetailDto(ticket, messages, history, attachments));
+        return Result.Success(await TicketMappings.ToDetailDtoAsync(ticket, messages, history, attachments, storage, ct));
     }
 }
