@@ -17,6 +17,12 @@ public sealed class ObjectStorageOptions
     public string AccessKey { get; set; } = string.Empty;
     public string SecretKey { get; set; } = string.Empty;
 
+    /// <summary>The bucket's provisioned capacity, for the super-admin storage-usage dashboard —
+    /// this is informational only (nothing enforces it), config-driven since the provisioned size
+    /// is an infrastructure fact, not something to hardcode. Defaults to the 250GB currently
+    /// provisioned on Contabo.</summary>
+    public int BudgetGb { get; set; } = 250;
+
     public bool IsConfigured =>
         !string.IsNullOrWhiteSpace(Endpoint) && !string.IsNullOrWhiteSpace(Bucket) &&
         !string.IsNullOrWhiteSpace(AccessKey) && !string.IsNullOrWhiteSpace(SecretKey);

@@ -183,6 +183,7 @@ const SuperAdminPage            = lazyWithRetry(() => import("@/pages/super-admi
 const NewTenantPage             = lazyWithRetry(() => import("@/pages/super-admin/new-tenant"));
 const TenantDetailPage          = lazyWithRetry(() => import("@/pages/super-admin/tenant-detail"));
 const PlatformBillingPage       = lazyWithRetry(() => import("@/pages/super-admin/billing"));
+const StorageUsagePage          = lazyWithRetry(() => import("@/pages/super-admin/storage"));
 const SubscriptionExpiredPage   = lazyWithRetry(() => import("@/pages/subscription-expired"));
 
 // ── Guards ───────────────────────────────────────────────────────────────────
@@ -530,6 +531,8 @@ export function App() {
             <Route path="/super-admin/tenants/:id" element={<TenantDetailPage />} />
             {/* Platform payment accounts (Vrodux's own Stripe/PayPal) — not a tenant setting. */}
             <Route path="/super-admin/billing"     element={<PlatformBillingPage />} />
+            {/* Shared object-storage bucket usage, per tenant — not a tenant setting either. */}
+            <Route path="/super-admin/storage"     element={<StorageUsagePage />} />
           </Route>
 
           {/* ── Settings — per-page permission, admin tiers always pass ─────── */}
