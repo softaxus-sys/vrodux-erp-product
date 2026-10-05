@@ -1,91 +1,140 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
-  Plus, X, Trash2, Pencil, ChevronDown, ChevronRight, Loader2, UtensilsCrossed,
-  Layers, CheckCircle2, Ban, Sliders, ChefHat, AlertTriangle,
+  Plus, X, Trash2, Pencil, Loader2, UtensilsCrossed, Layers, Sliders, ChefHat, AlertTriangle,
+  Search, Minus, Clock, Check,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { LeftDrawer } from "@/components/ui/left-drawer";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useAuthStore } from "@/store/auth.store";
+import { useCurrency } from "@/hooks/use-currency";
 import { useCan } from "@/components/auth/can";
 import {
   useMenu, useMenuSummary, useKitchenStations,
   useCreateCategory, useUpdateCategory, useDeleteCategory,
   useCreateMenuItem, useUpdateMenuItem, useDeleteMenuItem, useSetItemAvailability,
   useModifierGroups, useCreateModifierGroup, useUpdateModifierGroup, useDeleteModifierGroup,
-  useItemModifierGroups, useAssignItemModifierGroups,
+  useItemModifierGroups, useAssignItemModifierGroups, useAddItemImages,
 } from "@/hooks/restaurant/use-restaurant";
+import { DishPhoto, DishPhotosEditor, coverOf, type NewPhoto } from "./dish-photos";
 import { useRecipes } from "@/hooks/recipe/use-recipe";
 import type { MenuCategory, MenuItem, ModifierGroup } from "@/lib/restaurant/restaurant.api";
-import { useTranslation } from "react-i18next";
+
+/**
+ * Menu set-up. Laid out like the till it feeds — categories down the side, dishes as the same tiles
+ * staff will tap — so what you build here is recognisably what they will see.
+ */
 
 type Tab = "menu" | "modifiers";
+type Station = { id: string; name: string; displayName: string | null };
+
+// Same order and palette as the till, so a category keeps its colour on both screens.
+const CATEGORY_ACCENT = [
+  "border-s-emerald-500", "border-s-sky-500", "border-s-amber-500", "border-s-rose-500",
+  "border-s-violet-500", "border-s-teal-500", "border-s-orange-500", "border-s-indigo-500",
+];
+const CATEGORY_DOT = [
+  "bg-emerald-500", "bg-sky-500", "bg-amber-500", "bg-rose-500",
+  "bg-violet-500", "bg-teal-500", "bg-orange-500", "bg-indigo-500",
+];
+
+const input = "w-full h-12 px-3.5 rounded-xl border-2 border-border bg-card text-base font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium focus:outline-none focus:border-primary";
+const primaryBtn = "h-12 px-5 rounded-xl bg-primary text-primary-foreground text-base font-extrabold flex items-center justify-center gap-2 whitespace-nowrap hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all";
+const outlineBtn = "h-12 px-4 rounded-xl border-2 border-border bg-card text-base font-bold flex items-center justify-center gap-2 whitespace-nowrap hover:border-primary transition-colors disabled:opacity-50";
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="block"><span className="block text-sm font-bold text-muted-foreground mb-1.5">{label}</span>{children}</label>;
+}
+
+function Stepper({ value, min, onChange }: { value: number; min: number; onChange: (v: number) => void }) {
+  const btn = "h-12 w-12 rounded-xl border-2 border-border flex items-center justify-center hover:border-primary disabled:opacity-40";
+  return (
+    <div className="flex items-center gap-2">
+      <button type="button" disabled={value <= min} onClick={() => onChange(value - 1)} className={btn}><Minus className="h-4 w-4" strokeWidth={3} /></button>
+      <span className="w-10 text-center text-xl font-black tabular-nums">{value}</span>
+      <button type="button" onClick={() => onChange(value + 1)} className={btn}><Plus className="h-4 w-4" strokeWidth={3} /></button>
+    </div>
+  );
+}
+
+function Switch({ on, onChange, label, hint }: { on: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) {
+  return (
+    <button type="button" onClick={() => onChange(!on)}
+      className={cn("w-full flex items-center justify-between gap-3 p-3.5 rounded-xl border-2 text-start transition-colors",
+        on ? "border-primary bg-primary/5" : "border-border")}>
+      <span>
+        <span className="block text-base font-bold text-foreground">{label}</span>
+        {hint && <span className="block text-sm font-medium text-muted-foreground">{hint}</span>}
+      </span>
+      <span className={cn("h-7 w-12 rounded-full p-0.5 transition-colors shrink-0", on ? "bg-primary" : "bg-muted-foreground/30")}>
+        <span className={cn("block h-6 w-6 rounded-full bg-white shadow transition-transform", on && "translate-x-5 rtl:-translate-x-5")} />
+      </span>
+    </button>
+  );
+}
+
+function DrawerTitle({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-2xl font-black text-foreground">{children}</p>
+      <button onClick={onClose} className="h-11 w-11 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"><X className="h-6 w-6" /></button>
+    </div>
+  );
+}
+
+/** Delete lives at the bottom of the edit form, and asks once more before it happens. */
+function DeleteButton({ label, message, pending, onConfirm }: { label: string; message: string; pending?: boolean; onConfirm: () => void }) {
+  const { t } = useTranslation("restaurant");
+  const [asking, setAsking] = React.useState(false);
+  if (!asking) {
+    return (
+      <button onClick={() => setAsking(true)} className="w-full h-12 rounded-xl text-base font-bold text-destructive hover:bg-destructive/10 flex items-center justify-center gap-2">
+        <Trash2 className="h-5 w-5" />{label}
+      </button>
+    );
+  }
+  return (
+    <div className="rounded-xl border-2 border-destructive/40 bg-destructive/5 p-3 space-y-3">
+      <p className="text-sm font-bold text-foreground">{message}</p>
+      <div className="flex gap-2">
+        <button onClick={() => setAsking(false)} className={cn(outlineBtn, "flex-1")}>{t("menuMgmt.cancel")}</button>
+        <button disabled={pending} onClick={onConfirm} className="flex-1 h-12 rounded-xl bg-destructive text-white text-base font-extrabold flex items-center justify-center gap-2 disabled:opacity-50">
+          {pending && <Loader2 className="h-4 w-4 animate-spin" />}{t("menuMgmt.delete")}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function MenuManagementView() {
   const { t } = useTranslation("restaurant");
   const [tab, setTab] = React.useState<Tab>("menu");
-
+  const tabs = [
+    { id: "menu" as const, icon: Layers, label: t("menuMgmt.tabMenu") },
+    { id: "modifiers" as const, icon: Sliders, label: t("menuMgmt.tabModifiers") },
+  ];
   return (
-    <div className="p-6 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <UtensilsCrossed className="w-5 h-5 text-primary" /> {t("menuMgmt.title")}
+    <div className="flex flex-col h-full bg-muted/20">
+      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b-2 border-border bg-card shrink-0 flex-wrap">
+        <h1 className="text-2xl font-black text-foreground flex items-center gap-2.5">
+          <UtensilsCrossed className="h-7 w-7" />{t("menuMgmt.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">{t("menuMgmt.subtitle")}</p>
+        <div className="flex rounded-xl border-2 border-border p-1 bg-muted/40">
+          {tabs.map(tb => (
+            <button key={tb.id} onClick={() => setTab(tb.id)}
+              className={cn("h-10 px-4 rounded-lg text-base font-extrabold flex items-center gap-2",
+                tab === tb.id ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              <tb.icon className="h-5 w-5" />{tb.label}
+            </button>
+          ))}
+        </div>
       </div>
-
-      <div className="flex gap-2 border-b border-border pb-2">
-        <TabButton active={tab === "menu"} onClick={() => setTab("menu")} icon={Layers}>{t("menuMgmt.tabMenu")}</TabButton>
-        <TabButton active={tab === "modifiers"} onClick={() => setTab("modifiers")} icon={Sliders}>{t("menuMgmt.tabModifiers")}</TabButton>
-      </div>
-
       {tab === "menu" ? <MenuTab /> : <ModifierGroupsTab />}
     </div>
   );
 }
 
-function TabButton({ active, onClick, icon: Icon, children }: {
-  active: boolean; onClick: () => void; icon: React.ElementType; children: React.ReactNode;
-}) {
-  return (
-    <button onClick={onClick}
-      className={cn("px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5",
-        active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted/30")}>
-      <Icon className="w-3.5 h-3.5" /> {children}
-    </button>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-3">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="text-lg font-bold text-foreground">{value}</p>
-    </div>
-  );
-}
-
-function ConfirmModal({ title, message, onCancel, onConfirm, pending }: {
-  title: string; message: string; onCancel: () => void; onConfirm: () => void; pending?: boolean;
-}) {
-  const { t } = useTranslation("restaurant");
-  return (
-    <LeftDrawer onClose={onCancel} widthClassName="max-w-sm" zIndexClassName="z-[60]">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      <p className="text-sm text-muted-foreground">{message}</p>
-      <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel}>{t("menuMgmt.cancel")}</Button>
-        <Button variant="destructive" size="sm" onClick={onConfirm} disabled={pending}>
-          {pending && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />} {t("menuMgmt.delete")}
-        </Button>
-      </div>
-    </LeftDrawer>
-  );
-}
-
-// ─── Menu tab (categories + items) ────────────────────────────────────────────
+// ─── Menu tab ─────────────────────────────────────────────────────────────────
 
 function MenuTab() {
   const { t } = useTranslation("restaurant");
@@ -93,7 +142,7 @@ function MenuTab() {
   const { data: summary } = useMenuSummary();
   const { data: stations = [] } = useKitchenStations();
   const { data: recipes = [] } = useRecipes();
-  const currency = useAuthStore(s => s.tenant?.currency) || "AED";
+  const currency = useCurrency();
   const canCreate = useCan("restaurant.menu.create");
   const canEdit = useCan("restaurant.menu.edit");
 
@@ -105,177 +154,182 @@ function MenuTab() {
   const deleteItem = useDeleteMenuItem();
   const setAvailability = useSetItemAvailability();
   const assignGroups = useAssignItemModifierGroups();
+  const addImages = useAddItemImages();
 
-  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const [catId, setCatId] = React.useState<string>("all");
+  const [search, setSearch] = React.useState("");
   const [editingCategory, setEditingCategory] = React.useState<MenuCategory | "new" | null>(null);
   const [editingItem, setEditingItem] = React.useState<{ item: MenuItem | null; categoryId: string } | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<{ kind: "category" | "item"; id: string; name: string } | null>(null);
 
-  const toggleExpanded = (id: string) => setExpanded(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
+  const linked = React.useMemo(() => new Set(recipes.map(r => r.menuItemId)), [recipes]);
+  const allItems = React.useMemo(
+    () => categories.flatMap((c, idx) => c.items.map(item => ({ item, categoryId: c.id, idx }))), [categories]);
+  const unlinkedCount = allItems.filter(x => !linked.has(x.item.id)).length;
+  const selected = categories.find(c => c.id === catId) ?? null;
 
-  const stationName = (id: string | null) => id ? (stations.find(s => s.id === id)?.displayName ?? stations.find(s => s.id === id)?.name ?? "—") : null;
-
-  const linkedMenuItemIds = React.useMemo(() => new Set(recipes.map(r => r.menuItemId)), [recipes]);
-  const totalItemCount = React.useMemo(() => categories.reduce((n, c) => n + c.items.length, 0), [categories]);
-  const unlinkedItemCount = React.useMemo(
-    () => categories.reduce((n, c) => n + c.items.filter(i => !linkedMenuItemIds.has(i.id)).length, 0),
-    [categories, linkedMenuItemIds],
-  );
-
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      if (deleteTarget.kind === "category") await deleteCategory.mutateAsync(deleteTarget.id);
-      else await deleteItem.mutateAsync(deleteTarget.id);
-      setDeleteTarget(null);
-    } catch {
-      // hook's onError already toasted; keep the modal open for retry
-    }
+  const q = search.trim().toLowerCase();
+  // Searching looks across the whole menu, whichever category is open.
+  const shown = allItems.filter(x => q ? x.item.name.toLowerCase().includes(q) : (catId === "all" || x.categoryId === catId));
+  const stationName = (id: string | null) => {
+    const s = id ? stations.find(st => st.id === id) : null;
+    return s ? (s.displayName ?? s.name) : null;
   };
+  const addTarget = selected?.id ?? categories[0]?.id ?? null;
+
+  const railBtn = (active: boolean) => cn(
+    "w-full h-14 px-3.5 rounded-xl border-2 flex items-center gap-3 text-start transition-colors",
+    active ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted");
 
   return (
-    <div className="space-y-4">
-      {summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label={t("menuMgmt.stat.categories")} value={summary.totalCategories} />
-          <StatCard label={t("menuMgmt.stat.totalItems")} value={summary.totalItems} />
-          <StatCard label={t("menuMgmt.stat.available")} value={summary.availableItems} />
-          <StatCard label={t("menuMgmt.stat.unavailable")} value={summary.unavailableItems} />
-          <StatCard label={t("menuMgmt.stat.avgPrice")} value={formatCurrency(summary.avgPrice, currency)} />
-          <StatCard label={t("menuMgmt.stat.priceRange")} value={`${formatCurrency(summary.minPrice, currency)} – ${formatCurrency(summary.maxPrice, currency)}`} />
+    <div className="flex-1 flex overflow-hidden">
+      {/* Categories */}
+      <div className="w-[280px] shrink-0 flex flex-col border-e-2 border-border bg-card">
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <button onClick={() => setCatId("all")} className={railBtn(catId === "all")}>
+            <span className="h-3 w-3 rounded-full bg-foreground shrink-0" />
+            <span className="flex-1 text-base font-bold text-foreground truncate">{t("menuMgmt.allItems")}</span>
+            <span className="text-sm font-bold text-muted-foreground tabular-nums">{allItems.length}</span>
+          </button>
+          {categories.map((c, i) => (
+            <button key={c.id} onClick={() => setCatId(c.id)} className={railBtn(catId === c.id)}>
+              <span className={cn("h-3 w-3 rounded-full shrink-0", CATEGORY_DOT[i % CATEGORY_DOT.length])} />
+              <span className="flex-1 text-base font-bold text-foreground truncate">{c.name}</span>
+              <span className="text-sm font-bold text-muted-foreground tabular-nums">{c.items.length}</span>
+            </button>
+          ))}
         </div>
-      )}
+        {canCreate && (
+          <div className="p-3 border-t-2 border-border">
+            <button onClick={() => setEditingCategory("new")} className={cn(outlineBtn, "w-full")}>
+              <Plus className="h-5 w-5" />{t("menuMgmt.addCategory")}
+            </button>
+          </div>
+        )}
+      </div>
 
-      {totalItemCount > 0 && unlinkedItemCount > 0 && (
-        <Link to="/recipe/recipes" className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning hover:bg-warning/15 transition-colors">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          <span>{t("menuMgmt.recipeWarning", { unlinked: unlinkedItemCount, total: totalItemCount })}</span>
-        </Link>
-      )}
+      {/* Dishes */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex items-center gap-3 px-4 pt-4 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute start-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("menuMgmt.search")} className={cn(input, "ps-12")} />
+          </div>
+          {selected && canEdit && !q && (
+            <button onClick={() => setEditingCategory(selected)} className={outlineBtn}>
+              <Pencil className="h-4 w-4" />{t("menuMgmt.category.editTitle")}
+            </button>
+          )}
+          {canCreate && addTarget && (
+            <button onClick={() => setEditingItem({ item: null, categoryId: addTarget })} className={primaryBtn}>
+              <Plus className="h-5 w-5" />{t("menuMgmt.addItem")}
+            </button>
+          )}
+        </div>
 
-      {canCreate && (
-        <Button size="sm" onClick={() => setEditingCategory("new")}>
-          <Plus className="w-4 h-4 mr-1" /> {t("menuMgmt.addCategory")}
-        </Button>
-      )}
+        <div className="flex items-center gap-2 px-4 pt-3 flex-wrap text-sm font-bold">
+          {summary && (
+            <>
+              <span className="px-3 py-1.5 rounded-lg bg-success/15 text-success">{summary.availableItems} {t("menuMgmt.stat.available")}</span>
+              {summary.unavailableItems > 0 && (
+                <span className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive">{summary.unavailableItems} {t("menuMgmt.soldOut")}</span>
+              )}
+              <span className="px-3 py-1.5 rounded-lg bg-muted text-muted-foreground tabular-nums">
+                {formatCurrency(summary.minPrice, currency)} – {formatCurrency(summary.maxPrice, currency)}
+              </span>
+            </>
+          )}
+          {unlinkedCount > 0 && (
+            <Link to="/recipe/recipes" className="px-3 py-1.5 rounded-lg bg-warning/15 text-warning flex items-center gap-1.5 hover:bg-warning/25">
+              <AlertTriangle className="h-4 w-4 shrink-0" />{t("menuMgmt.recipeWarning", { unlinked: unlinkedCount, total: allItems.length })}
+            </Link>
+          )}
+        </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> {t("menuMgmt.loading")}</div>
-      ) : categories.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-10 text-center">{t("menuMgmt.emptyCategories")}</p>
-      ) : (
-        <div className="space-y-3">
-          {categories.map(cat => {
-            const isOpen = expanded.has(cat.id);
-            return (
-              <div key={cat.id} className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => toggleExpanded(cat.id)}>
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
-                    <p className="font-semibold text-foreground truncate">{cat.name}</p>
-                    <span className="text-xs text-muted-foreground">({cat.items.length})</span>
-                    {stationName(cat.kitchenStationId) && (
-                      <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted/40 text-muted-foreground">{stationName(cat.kitchenStationId)}</span>
+        <div className="flex-1 overflow-y-auto p-4">
+          {isLoading ? (
+            <div className="flex justify-center py-24"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+          ) : categories.length === 0 ? (
+            <Empty title={t("menuMgmt.emptyCategories")} />
+          ) : shown.length === 0 ? (
+            <Empty title={q ? t("menuMgmt.noMatch") : t("menuMgmt.emptyItems")} />
+          ) : (
+            <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+              {shown.map(({ item, categoryId, idx }) => {
+                const off = !item.isAvailable;
+                const station = stationName(item.kitchenStationId);
+                return (
+                  <div key={item.id}
+                    className={cn("rounded-2xl border-2 border-s-[6px] bg-card flex flex-col overflow-hidden transition-shadow hover:shadow-lg",
+                      CATEGORY_ACCENT[idx % CATEGORY_ACCENT.length], off ? "border-border opacity-70" : "border-border")}>
+                    {coverOf(item) && (
+                      <button disabled={!canEdit} onClick={() => setEditingItem({ item, categoryId })} className="block relative">
+                        <DishPhoto itemId={item.id} imageId={coverOf(item)!.id} alt={item.name} className="h-32 w-full" />
+                        {(item.images?.length ?? 0) > 1 && (
+                          <span className="absolute bottom-1.5 end-1.5 px-2 py-0.5 rounded-md bg-black/60 text-white text-xs font-bold tabular-nums">+{item.images!.length - 1}</span>
+                        )}
+                      </button>
                     )}
-                  </div>
-                  {canEdit && (
-                    <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => setEditingItem({ item: null, categoryId: cat.id })} className="text-xs text-primary hover:underline flex items-center gap-1">
-                        <Plus className="w-3 h-3" /> {t("menuMgmt.addItemShort")}
-                      </button>
-                      <button onClick={() => setEditingCategory(cat)} className="p-1 rounded hover:bg-muted/40">
-                        <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                      </button>
-                      <button onClick={() => setDeleteTarget({ kind: "category", id: cat.id, name: cat.name })} className="p-1 rounded hover:bg-destructive/10">
-                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {isOpen && (
-                  <div className="border-t border-border">
-                    {cat.items.length === 0 ? (
-                      <p className="text-sm text-muted-foreground px-4 py-4">{t("menuMgmt.emptyItems")}</p>
-                    ) : (
-                      <div className="divide-y divide-border/60">
-                        {cat.items.map(item => (
-                          <div key={item.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                                {item.modifierGroups.length > 0 && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{t("menuMgmt.modifierCount", { count: item.modifierGroups.length })}</span>
-                                )}
-                                <Link to="/recipe/recipes" title={linkedMenuItemIds.has(item.id) ? t("menuMgmt.recipeLinked") : t("menuMgmt.recipeMissing")}
-                                  className={cn("shrink-0", linkedMenuItemIds.has(item.id) ? "text-success" : "text-muted-foreground/50 hover:text-warning")}>
-                                  <ChefHat className="w-3 h-3" />
-                                </Link>
-                              </div>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {formatCurrency(item.price, currency)} · {t("menuMgmt.prepMinutes", { n: item.prepTimeMinutes })}
-                                {item.allergens ? ` · ${item.allergens}` : ""}
-                                {stationName(item.kitchenStationId) ? ` · ${stationName(item.kitchenStationId)}` : ""}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <button
-                                onClick={() => canEdit && setAvailability.mutate({ id: item.id, isAvailable: !item.isAvailable })}
-                                disabled={!canEdit}
-                                className={cn("px-2 py-0.5 rounded-full text-[11px] font-medium flex items-center gap-1",
-                                  item.isAvailable ? "bg-success/10 text-success" : "bg-muted/30 text-muted-foreground")}>
-                                {item.isAvailable ? <CheckCircle2 className="w-3 h-3" /> : <Ban className="w-3 h-3" />}
-                                {item.isAvailable ? t("menuMgmt.available86") : t("menuMgmt.unavailable86")}
-                              </button>
-                              {canEdit && (
-                                <>
-                                  <button onClick={() => setEditingItem({ item, categoryId: cat.id })} className="p-1 rounded hover:bg-muted/40">
-                                    <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                                  </button>
-                                  <button onClick={() => setDeleteTarget({ kind: "item", id: item.id, name: item.name })} className="p-1 rounded hover:bg-destructive/10">
-                                    <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                    <button disabled={!canEdit} onClick={() => setEditingItem({ item, categoryId })} className="flex-1 p-3.5 text-start">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-base font-bold text-foreground leading-snug line-clamp-2">{item.name}</p>
+                        <span title={linked.has(item.id) ? t("menuMgmt.recipeLinked") : t("menuMgmt.recipeMissing")} className="shrink-0">
+                          <ChefHat className={cn("h-5 w-5", linked.has(item.id) ? "text-success" : "text-muted-foreground/30")} />
+                        </span>
                       </div>
-                    )}
+                      <p className="text-xl font-black text-foreground tabular-nums mt-1.5">{formatCurrency(item.price, currency)}</p>
+                      <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1.5 text-sm font-semibold text-muted-foreground">
+                        <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{t("menuMgmt.prepMinutes", { n: item.prepTimeMinutes })}</span>
+                        {item.modifierGroups.length > 0 && <span className="text-primary">{t("menuMgmt.modifierCount", { count: item.modifierGroups.length })}</span>}
+                        {station && <span className="truncate">{station}</span>}
+                      </div>
+                      {item.allergens && <p className="text-sm font-semibold text-warning mt-1 truncate">{item.allergens}</p>}
+                    </button>
+                    <button disabled={!canEdit || setAvailability.isPending}
+                      onClick={() => setAvailability.mutate({ id: item.id, isAvailable: off })}
+                      className={cn("h-11 flex items-center justify-center gap-2 text-sm font-extrabold border-t-2 transition-colors",
+                        off ? "border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20"
+                            : "border-border bg-muted/40 text-success hover:bg-success/10")}>
+                      {off ? t("menuMgmt.soldOut") : <><Check className="h-4 w-4" strokeWidth={3} />{t("menuMgmt.onSale")}</>}
+                    </button>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {editingCategory && (
-        <CategoryModal
+        <CategoryDrawer
           category={editingCategory === "new" ? null : editingCategory}
           stations={stations}
+          deleting={deleteCategory.isPending}
           onClose={() => setEditingCategory(null)}
+          onDelete={async () => {
+            if (editingCategory === "new") return;
+            try { await deleteCategory.mutateAsync(editingCategory.id); setEditingCategory(null); setCatId("all"); } catch { /* hook toasts */ }
+          }}
           onSave={async p => {
             try {
               if (editingCategory === "new") await createCategory.mutateAsync(p);
               else await updateCategory.mutateAsync({ id: editingCategory.id, name: p.name, description: p.description, sortOrder: p.sortOrder });
               setEditingCategory(null);
-            } catch { /* hook's onError already toasted */ }
+            } catch { /* hook toasts */ }
           }}
         />
       )}
 
       {editingItem && (
-        <ItemModal
-          item={editingItem.item}
-          categoryId={editingItem.categoryId}
+        <ItemDrawer
+          item={editingItem.item ? allItems.find(x => x.item.id === editingItem.item!.id)?.item ?? editingItem.item : null}
           stations={stations}
+          deleting={deleteItem.isPending}
           onClose={() => setEditingItem(null)}
-          onSave={async (p, modifierGroupIds) => {
+          onDelete={async () => {
+            if (!editingItem.item) return;
+            try { await deleteItem.mutateAsync(editingItem.item.id); setEditingItem(null); } catch { /* hook toasts */ }
+          }}
+          onSave={async (p, modifierGroupIds, photos) => {
             try {
               let itemId = editingItem.item?.id;
               if (editingItem.item) {
@@ -285,78 +339,82 @@ function MenuTab() {
                 itemId = created.id;
               }
               if (itemId) await assignGroups.mutateAsync({ itemId, modifierGroupIds });
+              // A new dish only gets an id once it is saved, so its photos follow it. The dish is
+              // already created by now — a failed upload is reported by the hook and can be redone.
+              if (itemId && photos.length) await addImages.mutateAsync({ itemId, images: photos }).catch(() => {});
               setEditingItem(null);
-            } catch { /* hook's onError already toasted */ }
+            } catch { /* hook toasts */ }
           }}
-        />
-      )}
-
-      {deleteTarget && (
-        <ConfirmModal
-          title={t(deleteTarget.kind === "category" ? "menuMgmt.confirm.deleteCategoryTitle" : "menuMgmt.confirm.deleteItemTitle")}
-          message={t("menuMgmt.confirm.deleteMessage", { name: deleteTarget.name })}
-          onCancel={() => setDeleteTarget(null)}
-          onConfirm={handleConfirmDelete}
-          pending={deleteCategory.isPending || deleteItem.isPending}
         />
       )}
     </div>
   );
 }
 
-function CategoryModal({ category, stations, onClose, onSave }: {
-  category: MenuCategory | null;
-  stations: { id: string; name: string; displayName: string | null }[];
-  onClose: () => void;
+function Empty({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <UtensilsCrossed className="h-14 w-14 text-muted-foreground/30 mb-3" />
+      <p className="text-xl font-extrabold text-foreground max-w-md">{title}</p>
+    </div>
+  );
+}
+
+function CategoryDrawer({ category, stations, deleting, onClose, onSave, onDelete }: {
+  category: MenuCategory | null; stations: Station[]; deleting: boolean;
+  onClose: () => void; onDelete: () => void;
   onSave: (p: { name: string; description?: string | null; sortOrder: number; kitchenStationId?: string | null }) => void;
 }) {
   const { t } = useTranslation("restaurant");
+  const canEdit = useCan("restaurant.menu.edit");
   const [name, setName] = React.useState(category?.name ?? "");
   const [description, setDescription] = React.useState(category?.description ?? "");
   const [sortOrder, setSortOrder] = React.useState(category?.sortOrder?.toString() ?? "0");
   const [kitchenStationId, setKitchenStationId] = React.useState(category?.kitchenStationId ?? "");
 
   return (
-    <LeftDrawer onClose={onClose} widthClassName="max-w-sm">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{t(category ? "menuMgmt.category.editTitle" : "menuMgmt.category.addTitle")}</p>
-        <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-      </div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.name")}</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("menuMgmt.category.namePlaceholder")} className="h-9 text-sm" /></div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.description")}</label>
-        <Input value={description} onChange={e => setDescription(e.target.value)} className="h-9 text-sm" /></div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.sortOrder")}</label>
-          <Input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="h-9 text-sm" /></div>
-        <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.kitchenStation")}</label>
-          <select value={kitchenStationId} onChange={e => setKitchenStationId(e.target.value)}
-            className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
+    <LeftDrawer onClose={onClose} widthClassName="max-w-md">
+      <DrawerTitle onClose={onClose}>{t(category ? "menuMgmt.category.editTitle" : "menuMgmt.category.addTitle")}</DrawerTitle>
+      <Field label={t("menuMgmt.field.name")}>
+        <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder={t("menuMgmt.category.namePlaceholder")} className={input} />
+      </Field>
+      <Field label={t("menuMgmt.field.description")}>
+        <input value={description} onChange={e => setDescription(e.target.value)} className={input} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={t("menuMgmt.field.sortOrder")}>
+          <input type="number" value={sortOrder} onChange={e => setSortOrder(e.target.value)} className={input} />
+        </Field>
+        <Field label={t("menuMgmt.field.kitchenStation")}>
+          <select value={kitchenStationId} onChange={e => setKitchenStationId(e.target.value)} className={input}>
             <option value="">{t("menuMgmt.field.none")}</option>
             {stations.map(s => <option key={s.id} value={s.id}>{s.displayName ?? s.name}</option>)}
-          </select></div>
+          </select>
+        </Field>
       </div>
-      <Button className="w-full" disabled={!name.trim()}
-        onClick={() => onSave({
-          name: name.trim(), description: description.trim() || null,
-          sortOrder: Number(sortOrder) || 0, kitchenStationId: kitchenStationId || null,
-        })}>
+      <button className={cn(primaryBtn, "w-full h-14")} disabled={!name.trim()}
+        onClick={() => onSave({ name: name.trim(), description: description.trim() || null, sortOrder: Number(sortOrder) || 0, kitchenStationId: kitchenStationId || null })}>
         {t("menuMgmt.category.save")}
-      </Button>
+      </button>
+      {category && canEdit && (
+        <DeleteButton label={t("menuMgmt.confirm.deleteCategoryTitle")} pending={deleting}
+          message={t("menuMgmt.confirm.deleteMessage", { name: category.name })} onConfirm={onDelete} />
+      )}
     </LeftDrawer>
   );
 }
 
-function ItemModal({ item, categoryId, stations, onClose, onSave }: {
-  item: MenuItem | null; categoryId: string;
-  stations: { id: string; name: string; displayName: string | null }[];
-  onClose: () => void;
+function ItemDrawer({ item, stations, deleting, onClose, onSave, onDelete }: {
+  item: MenuItem | null; stations: Station[]; deleting: boolean;
+  onClose: () => void; onDelete: () => void;
   onSave: (
     p: { name: string; description?: string | null; price: number; prepTimeMinutes: number; allergens?: string | null; kitchenStationId?: string | null; isOnlineOrderable: boolean },
     modifierGroupIds: string[],
-  ) => void;
+    photos: NewPhoto[],
+  ) => void | Promise<void>;
 }) {
   const { t } = useTranslation("restaurant");
+  const currency = useCurrency();
   const [name, setName] = React.useState(item?.name ?? "");
   const [description, setDescription] = React.useState(item?.description ?? "");
   const [price, setPrice] = React.useState(item?.price?.toString() ?? "");
@@ -366,17 +424,14 @@ function ItemModal({ item, categoryId, stations, onClose, onSave }: {
   const [isOnlineOrderable, setIsOnlineOrderable] = React.useState(item?.isOnlineOrderable ?? true);
   const [selectedGroupIds, setSelectedGroupIds] = React.useState<string[]>(item?.modifierGroups.map(g => g.id) ?? []);
   const [saving, setSaving] = React.useState(false);
+  const [queuedPhotos, setQueuedPhotos] = React.useState<NewPhoto[]>([]);
 
   const { data: allGroups = [] } = useModifierGroups();
   const { data: assignedIds } = useItemModifierGroups(item?.id ?? null);
-
-  React.useEffect(() => {
-    if (assignedIds) setSelectedGroupIds(assignedIds);
-  }, [assignedIds]);
+  React.useEffect(() => { if (assignedIds) setSelectedGroupIds(assignedIds); }, [assignedIds]);
 
   const toggleGroup = (id: string) => setSelectedGroupIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-
-  const valid = name.trim() && Number(price) >= 0;
+  const valid = name.trim() && price !== "" && Number(price) >= 0;
 
   const handleSave = async () => {
     setSaving(true);
@@ -385,52 +440,52 @@ function ItemModal({ item, categoryId, stations, onClose, onSave }: {
         name: name.trim(), description: description.trim() || null, price: Number(price),
         prepTimeMinutes: Number(prepTimeMinutes) || 0, allergens: allergens.trim() || null,
         kitchenStationId: kitchenStationId || null, isOnlineOrderable,
-      }, selectedGroupIds);
-    } finally {
-      setSaving(false);
-    }
+      }, selectedGroupIds, queuedPhotos);
+    } finally { setSaving(false); }
   };
 
   return (
-    <LeftDrawer onClose={onClose} widthClassName="max-w-md">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{t(item ? "menuMgmt.item.editTitle" : "menuMgmt.item.addTitle")}</p>
-        <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
+    <LeftDrawer onClose={onClose} widthClassName="max-w-lg">
+      <DrawerTitle onClose={onClose}>{t(item ? "menuMgmt.item.editTitle" : "menuMgmt.item.addTitle")}</DrawerTitle>
+      <Field label={t("menuMgmt.field.name")}>
+        <input autoFocus={!item} value={name} onChange={e => setName(e.target.value)} placeholder={t("menuMgmt.item.namePlaceholder")} className={input} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={`${t("menuMgmt.field.price")} (${currency})`}>
+          <input inputMode="decimal" value={price} onChange={e => setPrice(e.target.value.replace(/[^\d.]/g, ""))} placeholder="0.00" className={cn(input, "text-xl font-black")} />
+        </Field>
+        <Field label={t("menuMgmt.field.prepTime")}>
+          <input inputMode="numeric" value={prepTimeMinutes} onChange={e => setPrepTimeMinutes(e.target.value.replace(/\D/g, ""))} className={input} />
+        </Field>
       </div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.name")}</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("menuMgmt.item.namePlaceholder")} className="h-9 text-sm" /></div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.description")}</label>
-        <Input value={description} onChange={e => setDescription(e.target.value)} className="h-9 text-sm" /></div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.price")}</label>
-          <Input type="number" min={0} step="0.01" value={price} onChange={e => setPrice(e.target.value)} className="h-9 text-sm" /></div>
-        <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.prepTime")}</label>
-          <Input type="number" min={0} value={prepTimeMinutes} onChange={e => setPrepTimeMinutes(e.target.value)} className="h-9 text-sm" /></div>
-      </div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.allergens")}</label>
-        <Input value={allergens} onChange={e => setAllergens(e.target.value)} placeholder={t("menuMgmt.item.allergensPlaceholder")} className="h-9 text-sm" /></div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.kitchenStation")}</label>
-        <select value={kitchenStationId} onChange={e => setKitchenStationId(e.target.value)}
-          className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
+      <DishPhotosEditor item={item} queued={queuedPhotos} onQueuedChange={setQueuedPhotos} />
+      <Field label={t("menuMgmt.field.description")}>
+        <input value={description} onChange={e => setDescription(e.target.value)} className={input} />
+      </Field>
+      <Field label={t("menuMgmt.field.allergens")}>
+        <input value={allergens} onChange={e => setAllergens(e.target.value)} placeholder={t("menuMgmt.item.allergensPlaceholder")} className={input} />
+      </Field>
+      <Field label={t("menuMgmt.field.kitchenStation")}>
+        <select value={kitchenStationId} onChange={e => setKitchenStationId(e.target.value)} className={input}>
           <option value="">{t("menuMgmt.field.useCategoryDefault")}</option>
           {stations.map(s => <option key={s.id} value={s.id}>{s.displayName ?? s.name}</option>)}
-        </select></div>
-      <label className="flex items-center gap-2 text-sm text-foreground">
-        <input type="checkbox" checked={isOnlineOrderable} onChange={e => setIsOnlineOrderable(e.target.checked)} />
-        {t("menuMgmt.item.onlineOrderable")}
-      </label>
+        </select>
+      </Field>
 
       {allGroups.length > 0 && (
         <div>
-          <label className="text-xs text-muted-foreground">{t("menuMgmt.item.modifierGroups")}</label>
-          <div className="flex flex-wrap gap-1.5 mt-1">
+          <span className="block text-sm font-bold text-muted-foreground mb-1.5">{t("menuMgmt.item.modifierGroups")}</span>
+          <div className="grid grid-cols-2 gap-2">
             {allGroups.map((g: ModifierGroup) => {
               const active = selectedGroupIds.includes(g.id);
               return (
                 <button key={g.id} type="button" onClick={() => toggleGroup(g.id)}
-                  className={cn("px-2.5 py-1 rounded-full text-[11px] font-medium border",
-                    active ? "bg-primary/10 border-primary text-primary" : "bg-muted/30 border-border text-muted-foreground")}>
-                  {g.name}
+                  className={cn("min-h-12 px-3 py-2 rounded-xl border-2 text-start flex items-center gap-2 text-base font-bold",
+                    active ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground hover:border-primary/50")}>
+                  <span className={cn("h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0", active ? "bg-primary border-primary" : "border-muted-foreground/50")}>
+                    {active && <Check className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={3.5} />}
+                  </span>
+                  <span className="truncate">{g.name}</span>
                 </button>
               );
             })}
@@ -438,14 +493,20 @@ function ItemModal({ item, categoryId, stations, onClose, onSave }: {
         </div>
       )}
 
-      <Button className="w-full" disabled={!valid || saving} onClick={handleSave}>
-        {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} {t("menuMgmt.item.save")}
-      </Button>
+      <Switch on={isOnlineOrderable} onChange={setIsOnlineOrderable} label={t("menuMgmt.item.onlineOrderable")} />
+
+      <button className={cn(primaryBtn, "w-full h-14")} disabled={!valid || saving} onClick={handleSave}>
+        {saving && <Loader2 className="h-5 w-5 animate-spin" />}{t("menuMgmt.item.save")}
+      </button>
+      {item && (
+        <DeleteButton label={t("menuMgmt.confirm.deleteItemTitle")} pending={deleting}
+          message={t("menuMgmt.confirm.deleteMessage", { name: item.name })} onConfirm={onDelete} />
+      )}
     </LeftDrawer>
   );
 }
 
-// ─── Modifier Groups tab ───────────────────────────────────────────────────────
+// ─── Modifier groups tab ──────────────────────────────────────────────────────
 
 interface ModifierRow { id: string | null; name: string; priceDelta: string; isActive: boolean }
 
@@ -457,151 +518,138 @@ function ModifierGroupsTab() {
   const del = useDeleteModifierGroup();
   const canCreate = useCan("restaurant.menu.create");
   const canEdit = useCan("restaurant.menu.edit");
-  const currency = useAuthStore(s => s.tenant?.currency) || "AED";
-
+  const currency = useCurrency();
   const [editing, setEditing] = React.useState<ModifierGroup | "new" | null>(null);
-  const [deleteTarget, setDeleteTarget] = React.useState<{ id: string; name: string } | null>(null);
-
-  const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    try {
-      await del.mutateAsync(deleteTarget.id);
-      setDeleteTarget(null);
-    } catch { /* hook's onError already toasted */ }
-  };
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        {t("menuMgmt.modifiers.intro")}
-      </p>
-      {canCreate && <Button size="sm" onClick={() => setEditing("new")}><Plus className="w-4 h-4 mr-1" /> {t("menuMgmt.modifiers.add")}</Button>}
+    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <p className="text-base font-medium text-muted-foreground max-w-2xl">{t("menuMgmt.modifiers.intro")}</p>
+        {canCreate && <button onClick={() => setEditing("new")} className={primaryBtn}><Plus className="h-5 w-5" />{t("menuMgmt.modifiers.add")}</button>}
+      </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-40 text-muted-foreground"><Loader2 className="animate-spin mr-2 h-5 w-5" /> {t("menuMgmt.loading")}</div>
+        <div className="flex justify-center py-24"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
       ) : groups.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-10 text-center">{t("menuMgmt.modifiers.empty")}</p>
+        <Empty title={t("menuMgmt.modifiers.empty")} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
           {groups.map(g => (
-            <div key={g.id} className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-foreground">{g.name}</p>
-                {canEdit && (
-                  <div className="flex gap-1">
-                    <button onClick={() => setEditing(g)} className="p-1 rounded hover:bg-muted/40">
-                      <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
-                    </button>
-                    <button onClick={() => setDeleteTarget({ id: g.id, name: g.name })} className="p-1 rounded hover:bg-destructive/10">
-                      <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </div>
-                )}
+            <button key={g.id} disabled={!canEdit} onClick={() => setEditing(g)}
+              className="rounded-2xl border-2 border-border bg-card p-4 text-start hover:border-primary hover:shadow-lg transition-all">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xl font-black text-foreground">{g.name}</p>
+                <span className={cn("text-xs font-extrabold uppercase px-2 py-1 rounded-lg whitespace-nowrap",
+                  g.minSelect > 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground")}>
+                  {g.minSelect === 0 ? t("menuMgmt.modifiers.optional") : t("menuMgmt.modifiers.requires", { n: g.minSelect })}
+                </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {g.minSelect === 0 ? t("menuMgmt.modifiers.optional") : t("menuMgmt.modifiers.requires", { n: g.minSelect })} · {t("menuMgmt.modifiers.max", { n: g.maxSelect })}
-              </p>
-              <div className="flex flex-wrap gap-1 mt-2">
+              <p className="text-sm font-semibold text-muted-foreground">{t("menuMgmt.modifiers.max", { n: g.maxSelect })}</p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
                 {g.modifiers.map(m => (
-                  <span key={m.id} className="text-[11px] px-1.5 py-0.5 rounded-full bg-muted/40 text-muted-foreground">
-                    {m.name}{m.priceDelta !== 0 ? ` (+${formatCurrency(m.priceDelta, currency)})` : ""}
+                  <span key={m.id} className={cn("text-sm font-bold px-2.5 py-1 rounded-lg bg-muted text-foreground", !m.isActive && "opacity-40 line-through")}>
+                    {m.name}{m.priceDelta !== 0 && <span className="text-muted-foreground"> {m.priceDelta > 0 ? "+" : ""}{formatCurrency(m.priceDelta, currency)}</span>}
                   </span>
                 ))}
-                {g.modifiers.length === 0 && <span className="text-[11px] text-muted-foreground">{t("menuMgmt.modifiers.noModifiers")}</span>}
+                {g.modifiers.length === 0 && <span className="text-sm font-semibold text-muted-foreground">{t("menuMgmt.modifiers.noModifiers")}</span>}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}
 
       {editing && (
-        <ModifierGroupModal
+        <ModifierGroupDrawer
           group={editing === "new" ? null : editing}
+          deleting={del.isPending}
           onClose={() => setEditing(null)}
+          onDelete={async () => {
+            if (editing === "new") return;
+            try { await del.mutateAsync(editing.id); setEditing(null); } catch { /* hook toasts */ }
+          }}
           onSave={async p => {
             try {
               if (editing === "new") await create.mutateAsync(p);
               else await update.mutateAsync({ id: editing.id, ...p });
               setEditing(null);
-            } catch { /* hook's onError already toasted */ }
+            } catch { /* hook toasts */ }
           }}
-        />
-      )}
-
-      {deleteTarget && (
-        <ConfirmModal
-          title={t("menuMgmt.confirm.deleteGroupTitle")}
-          message={t("menuMgmt.confirm.deleteGroupMessage", { name: deleteTarget.name })}
-          onCancel={() => setDeleteTarget(null)}
-          onConfirm={handleConfirmDelete}
-          pending={del.isPending}
         />
       )}
     </div>
   );
 }
 
-function ModifierGroupModal({ group, onClose, onSave }: {
-  group: ModifierGroup | null;
-  onClose: () => void;
+function ModifierGroupDrawer({ group, deleting, onClose, onSave, onDelete }: {
+  group: ModifierGroup | null; deleting: boolean; onClose: () => void; onDelete: () => void;
   onSave: (p: { name: string; minSelect: number; maxSelect: number; modifiers: { id?: string | null; name: string; priceDelta: number; sortOrder: number; isActive?: boolean }[] }) => void;
 }) {
   const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState(group?.name ?? "");
-  const [minSelect, setMinSelect] = React.useState(group?.minSelect?.toString() ?? "0");
-  const [maxSelect, setMaxSelect] = React.useState(group?.maxSelect?.toString() ?? "1");
+  const [minSelect, setMinSelect] = React.useState(group?.minSelect ?? 0);
+  const [maxSelect, setMaxSelect] = React.useState(group?.maxSelect ?? 1);
   const [rows, setRows] = React.useState<ModifierRow[]>(
     group?.modifiers.map(m => ({ id: m.id, name: m.name, priceDelta: m.priceDelta.toString(), isActive: m.isActive })) ??
-    [{ id: null, name: "", priceDelta: "0", isActive: true }],
+    [{ id: null, name: "", priceDelta: "", isActive: true }],
   );
 
-  const updateRow = (idx: number, patch: Partial<ModifierRow>) =>
-    setRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
-
-  const valid = name.trim() && Number(minSelect) >= 0 && Number(maxSelect) >= 1 &&
-    Number(maxSelect) >= Number(minSelect) && rows.every(r => r.name.trim());
-
-  const handleSave = () => onSave({
-    name: name.trim(), minSelect: Number(minSelect) || 0, maxSelect: Number(maxSelect) || 1,
-    modifiers: rows.map((r, i) => ({ id: r.id, name: r.name.trim(), priceDelta: Number(r.priceDelta) || 0, sortOrder: i, isActive: r.isActive })),
-  });
+  const updateRow = (idx: number, patch: Partial<ModifierRow>) => setRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  const valid = name.trim() && maxSelect >= 1 && maxSelect >= minSelect && rows.length > 0 && rows.every(r => r.name.trim());
 
   return (
-    <LeftDrawer onClose={onClose} widthClassName="max-w-md">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-foreground">{t(group ? "menuMgmt.modifiers.editTitle" : "menuMgmt.modifiers.addTitle")}</p>
-        <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
-      </div>
-      <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.name")}</label>
-        <Input value={name} onChange={e => setName(e.target.value)} placeholder={t("menuMgmt.modifiers.namePlaceholder")} className="h-9 text-sm" /></div>
-      <div className="grid grid-cols-2 gap-2">
-        <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.minSelect")}</label>
-          <Input type="number" min={0} value={minSelect} onChange={e => setMinSelect(e.target.value)} className="h-9 text-sm" /></div>
-        <div><label className="text-xs text-muted-foreground">{t("menuMgmt.field.maxSelect")}</label>
-          <Input type="number" min={1} value={maxSelect} onChange={e => setMaxSelect(e.target.value)} className="h-9 text-sm" /></div>
+    <LeftDrawer onClose={onClose} widthClassName="max-w-lg">
+      <DrawerTitle onClose={onClose}>{t(group ? "menuMgmt.modifiers.editTitle" : "menuMgmt.modifiers.addTitle")}</DrawerTitle>
+      <Field label={t("menuMgmt.field.name")}>
+        <input autoFocus={!group} value={name} onChange={e => setName(e.target.value)} placeholder={t("menuMgmt.modifiers.namePlaceholder")} className={input} />
+      </Field>
+
+      {/* Plain questions instead of "min select / max select" */}
+      <Switch on={minSelect > 0} label={t("menuMgmt.modifiers.mustChoose")} hint={t("menuMgmt.modifiers.mustChooseHint")}
+        onChange={on => { const m = on ? 1 : 0; setMinSelect(m); if (maxSelect < m) setMaxSelect(m); }} />
+      {minSelect > 0 && (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-base font-bold text-foreground">{t("menuMgmt.modifiers.atLeast")}</span>
+          <Stepper value={minSelect} min={1} onChange={v => { setMinSelect(v); if (maxSelect < v) setMaxSelect(v); }} />
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-base font-bold text-foreground">{t("menuMgmt.modifiers.atMost")}</span>
+        <Stepper value={maxSelect} min={Math.max(1, minSelect)} onChange={setMaxSelect} />
       </div>
 
-      <p className="text-xs font-semibold text-muted-foreground">{t("menuMgmt.modifiers.listLabel")}</p>
+      <span className="block text-sm font-bold text-muted-foreground pt-1">{t("menuMgmt.modifiers.listLabel")}</span>
       <div className="space-y-2">
         {rows.map((r, i) => (
-          <div key={i} className="flex items-center gap-2 border border-border rounded-lg p-2">
-            <Input value={r.name} onChange={e => updateRow(i, { name: e.target.value })} placeholder={t("menuMgmt.modifiers.rowNamePlaceholder")} className="h-8 text-xs flex-1" />
-            <Input type="number" step="0.01" value={r.priceDelta} onChange={e => updateRow(i, { priceDelta: e.target.value })} placeholder={t("menuMgmt.modifiers.rowPricePlaceholder")} className="h-8 w-20 text-xs" />
-            <label className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-              <input type="checkbox" checked={r.isActive} onChange={e => updateRow(i, { isActive: e.target.checked })} /> {t("menuMgmt.field.active")}
-            </label>
-            <button onClick={() => setRows(prev => prev.filter((_, x) => x !== i))}>
-              <Trash2 className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+          <div key={i} className={cn("flex items-center gap-2", !r.isActive && "opacity-50")}>
+            <input value={r.name} onChange={e => updateRow(i, { name: e.target.value })} placeholder={t("menuMgmt.modifiers.rowNamePlaceholder")} className={cn(input, "flex-1")} />
+            <input inputMode="decimal" value={r.priceDelta} onChange={e => updateRow(i, { priceDelta: e.target.value.replace(/[^\d.-]/g, "") })}
+              placeholder={t("menuMgmt.modifiers.rowPricePlaceholder")} className={cn(input, "w-24 text-end tabular-nums")} />
+            <button type="button" onClick={() => updateRow(i, { isActive: !r.isActive })} title={t("menuMgmt.field.active")}
+              className={cn("h-12 w-12 rounded-xl border-2 flex items-center justify-center shrink-0", r.isActive ? "border-success bg-success/10 text-success" : "border-border text-muted-foreground")}>
+              <Check className="h-5 w-5" strokeWidth={3} />
+            </button>
+            <button type="button" onClick={() => setRows(prev => prev.filter((_, x) => x !== i))}
+              className="h-12 w-12 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex items-center justify-center shrink-0">
+              <Trash2 className="h-5 w-5" />
             </button>
           </div>
         ))}
       </div>
-      <Button size="sm" variant="outline"
-        onClick={() => setRows(prev => [...prev, { id: null, name: "", priceDelta: "0", isActive: true }])}>
-        <Plus className="w-3.5 h-3.5 mr-1" /> {t("menuMgmt.modifiers.addRow")}
-      </Button>
+      <button type="button" onClick={() => setRows(prev => [...prev, { id: null, name: "", priceDelta: "", isActive: true }])} className={cn(outlineBtn, "w-full")}>
+        <Plus className="h-5 w-5" />{t("menuMgmt.modifiers.addRow")}
+      </button>
 
-      <Button className="w-full" disabled={!valid} onClick={handleSave}>{t("menuMgmt.modifiers.save")}</Button>
+      <button className={cn(primaryBtn, "w-full h-14")} disabled={!valid}
+        onClick={() => onSave({
+          name: name.trim(), minSelect, maxSelect,
+          modifiers: rows.map((r, i) => ({ id: r.id, name: r.name.trim(), priceDelta: Number(r.priceDelta) || 0, sortOrder: i, isActive: r.isActive })),
+        })}>
+        {t("menuMgmt.modifiers.save")}
+      </button>
+      {group && (
+        <DeleteButton label={t("menuMgmt.confirm.deleteGroupTitle")} pending={deleting}
+          message={t("menuMgmt.confirm.deleteGroupMessage", { name: group.name })} onConfirm={onDelete} />
+      )}
     </LeftDrawer>
   );
 }

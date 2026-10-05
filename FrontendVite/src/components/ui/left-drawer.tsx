@@ -15,6 +15,13 @@ interface LeftDrawerProps {
 /** Replaces the old center "popup" pattern app-wide in the restaurant module — slides in from the
  * left instead of appearing as a centered modal box. Backdrop click closes it, same as before. */
 export function LeftDrawer({ onClose, widthClassName = "max-w-md", zIndexClassName = "z-50", children }: LeftDrawerProps) {
+  // Mouse-and-keyboard tills close a prompt with Esc; touch tills tap the backdrop.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <div className={cn("fixed inset-0 bg-black/40 backdrop-blur-sm", zIndexClassName)} onClick={onClose}>
       <motion.div
@@ -22,7 +29,7 @@ export function LeftDrawer({ onClose, widthClassName = "max-w-md", zIndexClassNa
         className={cn("fixed left-0 top-0 h-full w-full bg-card border-r border-border flex flex-col shadow-2xl", widthClassName)}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex-1 overflow-auto p-5 space-y-3">
+        <div className="flex-1 overflow-auto overscroll-contain p-5 space-y-3">
           {children}
         </div>
       </motion.div>

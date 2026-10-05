@@ -28,7 +28,7 @@ public sealed record StorageQuotaStatus(long UsedBytes, long BudgetBytes, long I
 
 /// <summary>
 /// Enforces the per-tenant object-storage budget (<see cref="PlanStorageLimits"/>) at upload time,
-/// shared by the four services that write to the bucket (HR, CRM, Support, RealEstate). One raw
+/// shared by the services that write to the bucket (HR, CRM, Support, RealEstate, Restaurant). One raw
 /// cross-schema query per check — all five services (Identity + these four) point at the same
 /// physical SoftaxisErpDb under their own schema, which is what makes a single-tenant usage sum
 /// cheap enough to run on every upload rather than needing a cached counter.
@@ -61,7 +61,9 @@ public static class TenantStorageQuota
                      JOIN [support].[support_tickets] st ON st.Id = sa.TicketId
                      WHERE st.RequestingTenantId = {0} AND sa.ObjectKey IS NOT NULL) +
                     (SELECT ISNULL(SUM(SizeBytes),0) FROM [real_estate].[PropertyImages]
-                     WHERE OwnerTenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0)
+                     WHERE OwnerTenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0) +
+                    (SELECT ISNULL(SUM(SizeBytes),0) FROM [restaurant].[MenuItemImages]
+                     WHERE TenantId = {0} AND ObjectKey IS NOT NULL AND IsDeleted = 0)
                 ) AS UsedBytes,
                 (SELECT [Plan] FROM [identity].[tenants] WHERE [Id] = {0}) AS [Plan]
             """, tenantId).ToListAsync(ct);

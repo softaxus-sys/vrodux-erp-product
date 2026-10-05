@@ -1,7 +1,17 @@
-import { rawApiClient } from "@/lib/api-client";
+import { rawApiClient, ApiError } from "@/lib/api-client";
+import { useAuthStore } from "@/store/auth.store";
 
 import { getApiBaseUrl } from "@/lib/desktop";
 const BASE = `${getApiBaseUrl()}/api/restaurant`;
+
+/** GET a binary resource with the bearer token and return an object URL — dish photos sit behind
+ * a permission check, so their URL cannot simply be put in an <img src>. */
+async function fetchBlobUrl(url: string): Promise<string> {
+  const token = useAuthStore.getState().token;
+  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+  if (!res.ok) throw new ApiError(res.status, null, `HTTP ${res.status}`);
+  return URL.createObjectURL(await res.blob());
+}
 
 // ── Types (mirror the Restaurant service DTOs) ─────────────────────────────────
 
@@ -134,6 +144,9 @@ export interface ModifierGroup {
   modifiers: Modifier[];
 }
 
+/** Photo metadata only — the bytes come from getItemImageObjectUrl(). */
+export interface MenuItemImage { id: string; isPrimary: boolean; sortOrder: number; fileName: string | null }
+
 export interface MenuItem {
   id: string;
   categoryId?: string;
@@ -146,6 +159,8 @@ export interface MenuItem {
   modifierGroups: ModifierGroup[];
   kitchenStationId: string | null;
   isOnlineOrderable: boolean;
+  /** Cover first. Absent on the response of a create/update, which does not reload photos. */
+  images?: MenuItemImage[] | null;
 }
 
 export interface MenuCategory {
@@ -474,6 +489,14 @@ export const restaurantApi = {
     rawApiClient.patch(`${BASE}/menu/items/${id}/kitchen-station`, { kitchenStationId }),
   setCategoryStation: (id: string, kitchenStationId: string | null): Promise<MenuCategory> =>
     rawApiClient.patch(`${BASE}/menu/categories/${id}/kitchen-station`, { kitchenStationId }),
+  getItemImageObjectUrl: (itemId: string, imageId: string): Promise<string> =>
+    fetchBlobUrl(`${BASE}/menu/items/${itemId}/images/${imageId}`),
+  addItemImages:      (itemId: string, images: { data: string; fileName?: string }[]): Promise<MenuItemImage[]> =>
+    rawApiClient.post(`${BASE}/menu/items/${itemId}/images`, { images }),
+  deleteItemImage:    (itemId: string, imageId: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/menu/items/${itemId}/images/${imageId}`),
+  setPrimaryItemImage:(itemId: string, imageId: string): Promise<void> =>
+    rawApiClient.patch(`${BASE}/menu/items/${itemId}/images/${imageId}/primary`, {}),
   getItemModifierGroups:    (itemId: string): Promise<string[]> =>
     rawApiClient.get(`${BASE}/menu/items/${itemId}/modifier-groups`),
   assignItemModifierGroups:(itemId: string, modifierGroupIds: string[]): Promise<void> =>
@@ -503,6 +526,8 @@ export const restaurantApi = {
     rawApiClient.post(`${BASE}/orders`, p),
   setCustomer:      (id: string, customerId: string | null): Promise<RestaurantOrder> =>
     rawApiClient.patch(`${BASE}/orders/${id}/customer`, { customerId }),
+  setWaiter:        (id: string, waiter: string): Promise<RestaurantOrder> =>
+    rawApiClient.patch(`${BASE}/orders/${id}/waiter`, { waiter }),
   addItems:         (id: string, items: OrderLineInput[]): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/items`, { items }),
   voidItem:         (id: string, itemId: string, reason: string): Promise<RestaurantOrder> =>

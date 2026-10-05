@@ -134,6 +134,12 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> SetCustomer(Guid id, [FromBody] SetCustomerReq req, CancellationToken ct) =>
         OkOrError(await sender.Send(new SetOrderCustomerCommand(id, req.CustomerId), ct));
 
+    /// <summary>PATCH /api/restaurant/orders/{id}/waiter — hands the order to another waiter.</summary>
+    [HttpPatch("{id:guid}/waiter")]
+    [RequirePermission("restaurant.orders.edit")]
+    public async Task<IActionResult> SetWaiter(Guid id, [FromBody] SetWaiterReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new SetOrderWaiterCommand(id, req.Waiter), ct));
+
     /// <summary>PATCH /api/restaurant/orders/{id}/hold — parks an open order aside without losing its items.</summary>
     [HttpPatch("{id:guid}/hold")]
     [RequirePermission("restaurant.orders.edit")]
@@ -184,6 +190,7 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public record PayReq(string Method);
     public record TipReq(decimal Amount);
     public record SetCustomerReq(Guid? CustomerId);
+    public record SetWaiterReq(string Waiter);
     public record AddPaymentReq(string Method, decimal Amount, string? Reference);
     public record RefundReq(decimal Amount, string Reason, string Method);
     public record SplitReq(IReadOnlyList<SplitGroupInput> Groups);
