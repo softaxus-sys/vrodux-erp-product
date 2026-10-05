@@ -291,10 +291,12 @@ internal sealed class SetPropertyQasroListingHandler(RealEstateDbContext db, IQa
         if (property is null)
             return Result.Failure(Error.Custom("Property.NotFound", "That property no longer exists."));
 
-        // Same reasoning as the website listing above — Qasro is a public portal too.
-        if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0)
-            return Result.Failure(Error.Custom("Property.NoImages",
-                "Add at least one photo before listing this property on Qasro."));
+        // TEMPORARILY DISABLED (2026-10-02, at the user's request) — properties with no photos were
+        // being silently skipped from the Qasro feed entirely. Uncomment to require at least one
+        // photo again before listing on Qasro:
+        // if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0)
+        //     return Result.Failure(Error.Custom("Property.NoImages",
+        //         "Add at least one photo before listing this property on Qasro."));
 
         property.SetQasroListing(cmd.ListOnQasro);
         await db.SaveChangesAsync(ct);
@@ -325,10 +327,9 @@ internal sealed class BulkSetPropertyQasroListingHandler(RealEstateDbContext db,
 
         foreach (var property in properties)
         {
-            // Listing without a photo is refused per-property, not for the whole batch — a mixed
-            // selection should list what it can rather than failing everything over one property
-            // with no photos yet.
-            if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0) { skipped++; continue; }
+            // TEMPORARILY DISABLED (2026-10-02, at the user's request) — see the single-property
+            // handler above for why. Uncomment to skip photo-less properties again:
+            // if (cmd.ListOnQasro && property.Images.Count(i => !i.IsDeleted) == 0) { skipped++; continue; }
 
             property.SetQasroListing(cmd.ListOnQasro);
             changed.Add(property.Id);
