@@ -7351,3 +7351,55 @@ removed (soft-deleted) from the stock list. Notification only.
   no lease) and from "Run now" (not on a dry run). Event key `unit.vacating`.
 - **Build:** RealEstate.API 0 errors, `tsc` 0 errors; parser checked against sample cells. **Not runtime-tested**
   — needs republish + restart (migration auto-applies).
+
+---
+
+## Module 67 — Finance: recurring expenses (review by default, per-template auto-post)
+
+Finance had recurring **invoices** only; a monthly cost such as a storage subscription had to be
+entered by hand. New `RecurringExpense` template (name, vendor, category, amount, paid-from,
+frequency, next run, end date, `AutoPost`) generates a real `Expense` on each due date.
+
+- **AutoPost off (default):** the expense is created `pending` and goes through approve → pay.
+  **On:** it is approved, marked paid and posted to the ledger (debit the category's expense
+  account, credit cash or bank) with no review. Turning it on needs `finance.expenses.approve`
+  (checked in `RecurringExpensesController`) — otherwise anyone who can create an expense could
+  approve and pay their own by wrapping it in a template.
+- An auto-post expense dated in a **closed fiscal period** is left `pending`, not posted; a ledger
+  refusal (missing account) leaves it `approved` so "Mark as paid" retries. Both are counted as
+  "held for review" and reported, never silently dropped.
+- `ExpensePosting.PayAndPostAsync` is the one place an expense is paid + posted, shared with
+  `MarkExpensePaidHandler`. `MarkPaid()` now runs **after** the journal entry is built.
+- `AnchorDay` pins the day of the month, so a template starting on the 31st does not slide to the
+  28th for good after February (the invoice template's `AddMonths` chain does drift).
+- Runs in the existing daily `RecurringInvoiceHostedService` pass, per workspace with the ambient
+  tenant + currency set, in its own DI scope and try/catch so an expense failure cannot stop
+  invoicing. Tenant enumeration now includes workspaces that only have expense templates.
+- `Expense.RecurringExpenseId` links a generated expense to its template (badge in the list).
+- API `api/finance/recurring-expenses` (list / get / create / update / pause / resume / delete /
+  `{id}/generate` / `run-due`), gated on the existing `finance.expenses.*` keys — no new permissions.
+- Frontend: **Recurring** tab on the Expenses page (`recurring-expenses-panel.tsx`), en + ar.
+- Migration `AddRecurringExpenses` (new table + one nullable column on `expenses`).
+
+**Build:** Finance.API 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+**Not runtime-tested** — needs a gateway restart (migration auto-applies). Check: a review-mode
+template generates a pending expense; an auto-post one generates a paid expense with a journal entry.
+
+### Module 67b — 🔴 Ledger was posted in USD for every non-AED workspace (+ debit/credit accounts on recurring expenses)
+
+Reported as "a 1,000 PKR recurring expense shows 4". The expense row was right (1000.00 PKR); the
+journal entry was 3.61. `GlPoster.GetRateAsync` returned the stored exchange rate as-is, and since
+Module 6e those rates are quoted against **USD** — so every posting (invoices, bills, vouchers,
+expenses) for a PKR workspace landed in USD and was then reported with a PKR label. An AED
+workspace never saw it because of a leftover `if (code == "AED") return 1`.
+
+`GetRateAsync` now converts into the **workspace's operating currency**
+(`TenantCurrency.Resolve()`): document-currency rate ÷ workspace-currency rate, 1 when they match.
+One function, so all six callers are fixed together. **Existing entries are not rewritten** — any
+workspace that is not AED/USD and posted before this has USD-scale ledger amounts.
+
+Recurring expenses also gained explicit **debit / credit ledger accounts**
+(`ExpenseAccountId` / `PaymentAccountId` on `RecurringExpense`, carried onto each generated
+`Expense`; `ExpensePosting` honours them and falls back to category / payment method when unset or
+deleted). Migration `AddExpensePostingAccounts`. The manual expense claim form does not ask for
+accounts — it is filled in by claimants, not accountants.

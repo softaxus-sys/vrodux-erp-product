@@ -42,7 +42,7 @@ internal sealed class GetExpensesHandler(FinanceDbContext db) : IQueryHandler<Ge
                 x.Id, x.ExpenseNumber, x.Title, x.Category, x.Amount, x.ExpenseDate,
                 x.PaidBy, x.PaymentMethod, x.Reference, x.Notes, x.Status,
                 x.ApprovedById, x.ApprovedAt, x.CreatedAt, x.UpdatedAt,
-                x.ReceiptData != null, x.ReceiptFileName))
+                x.ReceiptData != null, x.ReceiptFileName, x.RecurringExpenseId))
             .ToListAsync(ct);
 
         return Result.Success(new PagedResult<ExpenseDto>(
