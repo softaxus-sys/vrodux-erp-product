@@ -116,6 +116,7 @@ const RestaurantReportsPage    = lazyWithRetry(() => import("@/pages/pos/reports
 const RestaurantDashboardsPage = lazyWithRetry(() => import("@/pages/pos/dashboards"));
 const BranchAccessPage         = lazyWithRetry(() => import("@/pages/pos/branch-access"));
 const PosCustomersPage         = lazyWithRetry(() => import("@/pages/pos/customers"));
+const PosLowStockPage          = lazyWithRetry(() => import("@/pages/pos/low-stock"));
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
 const RecipesPage          = lazyWithRetry(() => import("@/pages/recipe/recipes"));
@@ -472,6 +473,7 @@ export function App() {
             <Route path="/pos/dashboard"   element={<PosDashboardPage />} />
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
+            <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
             <Route path="/pos/restaurant"  element={<RestaurantPOSPage />} />
             <Route path="/pos/kitchen"     element={<KitchenDisplayPage />} />
             <Route path="/pos/floor-designer" element={<FloorDesignerPage />} />

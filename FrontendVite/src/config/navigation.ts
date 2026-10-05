@@ -606,6 +606,7 @@ export const navigationConfig: NavGroup[] = [
           { id: "pos-dashboard",   label: "Dashboard",       href: "/pos/dashboard",   icon: "LayoutDashboard", module: "pos" },
           { id: "retail-pos",      label: "Retail POS",      href: "/pos/retail",      icon: "ShoppingBag",     module: "pos" },
           { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos" },
+          { id: "pos-low-stock",   label: "Low Stock",       href: "/pos/low-stock",   icon: "PackageCheck",    module: "pos" },
           // module: "restaurant" → only visible to users with restaurant module access
           { id: "restaurant-pos",  label: "Restaurant POS",  href: "/pos/restaurant",  icon: "UtensilsCrossed", module: "restaurant" },
           { id: "kitchen-display", label: "Kitchen Display",  href: "/pos/kitchen",     icon: "ChefHat",         module: "restaurant" },

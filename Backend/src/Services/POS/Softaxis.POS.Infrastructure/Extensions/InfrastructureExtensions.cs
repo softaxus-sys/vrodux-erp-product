@@ -53,6 +53,7 @@ public static class InfrastructureExtensions
         // Services
         services.AddScoped<IReportService,               ReportService>();
         services.AddScoped<IPosDashboardReadService,     PosDashboardReadService>();
+        services.AddScoped<ILowStockReadService,         LowStockReadService>();
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
 
