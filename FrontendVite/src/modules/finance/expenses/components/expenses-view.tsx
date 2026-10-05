@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, X, CheckCircle2, XCircle, Receipt, Clock, Send, DollarSign,
-  FileText, Eye, Trash2,
+  FileText, Eye, Trash2, Repeat,
 } from "lucide-react";
 // Send used in stat card icon below
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { AddExpenseForm } from "./add-expense-form";
+import { RecurringExpensesPanel } from "./recurring-expenses-panel";
 
 const STATUS_STYLES_FALLBACK = "bg-muted text-muted-foreground";
 const STATUS_STYLES: Record<string, string> = {
@@ -262,6 +263,7 @@ export function ExpensesView() {
   const [activeStatus, setActiveStatus] = React.useState<ExpenseStatus | "all">("all");
   const [selectedExpense, setSelectedExpense] = React.useState<Expense | null>(null);
   const [showAddForm, setShowAddForm] = React.useState(false);
+  const [tab, setTab] = React.useState<"claims" | "recurring">("claims");
 
   const filtered = React.useMemo(() => {
     return expenses.filter((e) => {
@@ -294,15 +296,39 @@ export function ExpensesView() {
           <p className="text-muted-foreground mt-0.5 text-sm">{t("expenses.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
-          <Can permission="finance.expenses.create">
-            <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
-              <Plus className="h-4 w-4" /> {t("expenses.newClaim")}
-            </Button>
-          </Can>
+          {tab === "claims" && (
+            <>
+              <ExportMenu onCsv={exportCsv} onPdf={exportPdfReport} className="gap-2" />
+              <Can permission="finance.expenses.create">
+                <Button size="sm" className="gap-2" onClick={() => setShowAddForm(true)}>
+                  <Plus className="h-4 w-4" /> {t("expenses.newClaim")}
+                </Button>
+              </Can>
+            </>
+          )}
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        {(["claims", "recurring"] as const).map((key) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={cn(
+              "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5",
+              tab === key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {key === "recurring" && <Repeat className="h-3.5 w-3.5" />}
+            {t(`expenses.tab.${key}`)}
+          </button>
+        ))}
+      </div>
+
+      {tab === "recurring" ? <RecurringExpensesPanel /> : (<>
       {/* Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {STAT_CARDS.map((card, i) => (
@@ -389,7 +415,14 @@ export function ExpensesView() {
                   className="border-b border-border/30 last:border-0 hover:bg-muted/20 cursor-pointer transition-colors"
                 >
                   <td className="px-4 py-3">
-                    <p className="font-mono text-xs text-muted-foreground">{expense.expenseNumber}</p>
+                    <p className="font-mono text-xs text-muted-foreground flex items-center gap-1">
+                      {expense.expenseNumber}
+                      {expense.recurringExpenseId && (
+                        <span title={t("expenses.recurringBadge")}>
+                          <Repeat className="h-3 w-3 text-primary" aria-label={t("expenses.recurringBadge")} />
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-foreground/70 truncate max-w-[120px]">{expense.title}</p>
                   </td>
                   <td className="px-4 py-3">
@@ -444,6 +477,7 @@ export function ExpensesView() {
           </tbody>
         </table>
       </div>
+      </>)}
 
       {/* Drawer */}
       <AnimatePresence>

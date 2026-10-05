@@ -17,7 +17,9 @@ public sealed record ExpenseDto(
     DateTime  CreatedAt,
     DateTime? UpdatedAt,
     bool      HasReceipt,
-    string?   ReceiptFileName);
+    string?   ReceiptFileName,
+    // Set when a recurring template generated this expense.
+    Guid?     RecurringExpenseId = null);
 
 /// <summary>Raw receipt file bytes for streaming back to the client.</summary>
 public sealed record ExpenseReceiptDto(byte[] Data, string FileName, string ContentType);

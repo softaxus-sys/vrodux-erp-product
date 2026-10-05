@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Softaxis.Finance.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Softaxis.Finance.Infrastructure.Persistence;
 namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(FinanceDbContext))]
-    partial class FinanceDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261004111901_AddRecurringExpenses")]
+    partial class AddRecurringExpenses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -561,9 +564,6 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                         .HasColumnType("nvarchar(3)")
                         .HasDefaultValue("AED");
 
-                    b.Property<Guid?>("ExpenseAccountId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("ExpenseDate")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -589,9 +589,6 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.Property<string>("PaidBy")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid?>("PaymentAccountId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("PaymentMethod")
                         .HasMaxLength(30)
@@ -1400,9 +1397,6 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("ExpenseAccountId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("Frequency")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -1426,9 +1420,6 @@ namespace Softaxis.Finance.Infrastructure.Persistence.Migrations
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<Guid?>("PaymentAccountId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()

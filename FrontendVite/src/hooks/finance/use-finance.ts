@@ -10,6 +10,7 @@ import type {
   CreateJournalEntryRequest, CreateBudgetRequest, BudgetStatus, CreateTaxPeriodRequest,
   CreateBankTransactionRequest, CreateBankAccountRequest,
   UpsertRecurringRequest,
+  RecurringExpenseDto, CreateRecurringExpenseRequest, UpdateRecurringExpenseRequest,
   CreatePurchaseBillRequest,
   JournalPageParams,
   BankTxPageParams,
@@ -914,6 +915,80 @@ export function useRunDueRecurring() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+}
+
+// ── Recurring expenses ──────────────────────────────────────────────────────────
+
+export function useRecurringExpenses() {
+  return useQuery({
+    queryKey: [QK, "recurring-expenses"],
+    queryFn:  () => financeApi.getRecurringExpenses(),
+    select:   (data) => toItems<RecurringExpenseDto>(data),
+  });
+}
+
+/** Generating an expense changes the expense list and its totals too, so those are refreshed as well. */
+function useRecurringExpenseMutation<TArgs, TResult>(
+  fn: (arg: TArgs) => Promise<TResult>,
+  onDone?: (result: TResult) => void,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: [QK, "recurring-expenses"] });
+      qc.invalidateQueries({ queryKey: [QK, "expenses"] });
+      qc.invalidateQueries({ queryKey: [QK, "expenses-summary"] });
+      onDone?.(result);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCreateRecurringExpense() {
+  return useRecurringExpenseMutation(
+    (data: CreateRecurringExpenseRequest) => financeApi.createRecurringExpense(data),
+    () => toast.success("Recurring expense created."));
+}
+export function useUpdateRecurringExpense() {
+  return useRecurringExpenseMutation(
+    ({ id, data }: { id: string; data: UpdateRecurringExpenseRequest }) => financeApi.updateRecurringExpense(id, data),
+    () => toast.success("Recurring expense updated."));
+}
+export function useDeleteRecurringExpense() {
+  return useRecurringExpenseMutation(
+    (id: string) => financeApi.deleteRecurringExpense(id),
+    () => toast.success("Recurring expense deleted."));
+}
+export function usePauseRecurringExpense() {
+  return useRecurringExpenseMutation(
+    (id: string) => financeApi.pauseRecurringExpense(id),
+    () => toast.success("Recurring expense paused."));
+}
+export function useResumeRecurringExpense() {
+  return useRecurringExpenseMutation(
+    (id: string) => financeApi.resumeRecurringExpense(id),
+    () => toast.success("Recurring expense resumed."));
+}
+export function useGenerateRecurringExpenseNow() {
+  return useRecurringExpenseMutation(
+    (id: string) => financeApi.generateRecurringExpenseNow(id),
+    (r) => {
+      // An auto-post template that could not post says why, rather than reporting plain success.
+      if (r.message) toast.warning(r.message);
+      else if (r.status === "paid") toast.success(`${r.expenseNumber} created and posted to the ledger.`);
+      else toast.success(`${r.expenseNumber} created — waiting for approval.`);
+    });
+}
+export function useRunDueRecurringExpenses() {
+  return useRecurringExpenseMutation(
+    () => financeApi.runDueRecurringExpenses(),
+    (r) => {
+      if (r.generated === 0) { toast.info("Nothing is due yet."); return; }
+      const parts = [`${r.generated} expense(s) generated`, `${r.posted} posted to the ledger`];
+      if (r.heldForReview > 0) parts.push(`${r.heldForReview} left for review`);
+      toast.success(`${parts.join(", ")}.`);
+    });
 }
 
 export function useCreateBudget() {
