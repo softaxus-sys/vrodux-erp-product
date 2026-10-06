@@ -416,7 +416,7 @@ function LowStockCard() {
   const items = data?.items ?? [];
   return (
     <Card title="Low stock" subtitle="At or below reorder level"
-      action={<Link to="/inventory/stock"className="text-xs text-primary hover:underline shrink-0">View all</Link>}>
+      action={<Link to="/pos/low-stock" className="text-xs text-primary hover:underline shrink-0">View all</Link>}>
       {isLoading ? (
         <Empty message="Loading…" />
       ) : items.length === 0 ? (

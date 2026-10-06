@@ -99,6 +99,39 @@ public sealed class MenuController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> AssignItemModifierGroups(Guid id, [FromBody] AssignModifierGroupsReq req, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new AssignMenuItemModifierGroupsCommand(id, req.ModifierGroupIds), ct));
 
+    // ── Dish photos ──────────────────────────────────────────────────────────────
+
+    /// <summary>GET /api/restaurant/menu/items/{id}/images/{imageId} — one photo's bytes. A dedicated
+    /// endpoint rather than base64 in the menu JSON, so every till caches each photo once.</summary>
+    [HttpGet("items/{id:guid}/images/{imageId:guid}")]
+    [RequirePermission("restaurant.menu.view")]
+    public async Task<IActionResult> GetItemImage(Guid id, Guid imageId, CancellationToken ct)
+    {
+        var result = await sender.Send(new GetMenuItemImageQuery(id, imageId), ct);
+        if (!result.IsSuccess) return OkOrError(result);
+        // A photo's bytes never change — replacing one means uploading a new id — so cache hard.
+        Response.Headers.CacheControl = "private, max-age=31536000, immutable";
+        return File(result.Value.Data, result.Value.ContentType);
+    }
+
+    /// <summary>POST /api/restaurant/menu/items/{id}/images — upload one or more photos.</summary>
+    [HttpPost("items/{id:guid}/images")]
+    [RequirePermission("restaurant.menu.edit")]
+    public async Task<IActionResult> AddItemImages(Guid id, [FromBody] AddItemImagesReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new AddMenuItemImagesCommand(id, req.Images), ct));
+
+    [HttpDelete("items/{id:guid}/images/{imageId:guid}")]
+    [RequirePermission("restaurant.menu.edit")]
+    public async Task<IActionResult> DeleteItemImage(Guid id, Guid imageId, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new DeleteMenuItemImageCommand(id, imageId), ct));
+
+    /// <summary>PATCH .../images/{imageId}/primary — make this the cover photo.</summary>
+    [HttpPatch("items/{id:guid}/images/{imageId:guid}/primary")]
+    [RequirePermission("restaurant.menu.edit")]
+    public async Task<IActionResult> SetPrimaryItemImage(Guid id, Guid imageId, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new SetPrimaryMenuItemImageCommand(id, imageId), ct));
+
+    public record AddItemImagesReq(IReadOnlyList<MenuItemImageInput> Images);
     public record SetAvailabilityReq(bool IsAvailable);
     public record AssignModifierGroupsReq(IReadOnlyList<Guid> ModifierGroupIds);
     public record SetStationReq(Guid? KitchenStationId);

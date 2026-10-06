@@ -88,26 +88,26 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
   const paidGuests = displayOrder.payments.length;
 
   return (
-    <LeftDrawer onClose={onClose} widthClassName="max-w-md" zIndexClassName="z-[60]">
+    <LeftDrawer onClose={onClose} widthClassName="max-w-lg" zIndexClassName="z-[60]">
       <div className="-mx-5 -mt-5 px-5 py-3 border-b border-border flex items-center justify-between">
-        <h2 className="text-sm font-bold">{t("pay.title")}</h2>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted/60 text-muted-foreground"><X className="h-4 w-4" /></button>
+        <h2 className="text-2xl font-black">{t("pay.title")}</h2>
+        <button onClick={onClose} className="h-11 w-11 rounded-xl hover:bg-muted/60 text-muted-foreground flex items-center justify-center"><X className="h-6 w-6" /></button>
       </div>
 
       <div className="space-y-4">
           {/* Totals */}
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl bg-muted/40 py-2">
-              <p className="text-[10px] text-muted-foreground uppercase font-semibold">{t("pay.total")}</p>
-              <p className="text-sm font-bold tabular-nums">{formatCurrency(displayOrder.total, currency)}</p>
+            <div className="rounded-2xl bg-muted/40 py-3">
+              <p className="text-xs text-muted-foreground uppercase font-bold">{t("pay.total")}</p>
+              <p className="text-xl font-black tabular-nums">{formatCurrency(displayOrder.total, currency)}</p>
             </div>
-            <div className="rounded-xl bg-primary/10 py-2">
-              <p className="text-[10px] text-primary uppercase font-semibold">{t("pay.paid")}</p>
-              <p className="text-sm font-bold tabular-nums text-primary">{formatCurrency(displayOrder.amountPaid, currency)}</p>
+            <div className="rounded-2xl bg-primary/10 py-3">
+              <p className="text-xs text-primary uppercase font-bold">{t("pay.paid")}</p>
+              <p className="text-xl font-black tabular-nums text-primary">{formatCurrency(displayOrder.amountPaid, currency)}</p>
             </div>
-            <div className={cn("rounded-xl py-2", outstanding > 0 ? "bg-destructive/10" : "bg-success/10")}>
-              <p className={cn("text-[10px] uppercase font-semibold", outstanding > 0 ? "text-destructive" : "text-success")}>{t("pay.outstanding")}</p>
-              <p className={cn("text-sm font-bold tabular-nums", outstanding > 0 ? "text-destructive" : "text-success")}>{formatCurrency(outstanding, currency)}</p>
+            <div className={cn("rounded-2xl py-3", outstanding > 0 ? "bg-destructive/10" : "bg-success/10")}>
+              <p className={cn("text-xs uppercase font-bold", outstanding > 0 ? "text-destructive" : "text-success")}>{t("pay.outstanding")}</p>
+              <p className={cn("text-xl font-black tabular-nums", outstanding > 0 ? "text-destructive" : "text-success")}>{formatCurrency(outstanding, currency)}</p>
             </div>
           </div>
 
@@ -123,7 +123,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
           {/* Tip */}
           {(canEditTip || displayOrder.tipAmount > 0) && (
             <div className="rounded-xl border border-border overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 text-xs font-semibold">
+              <div className="flex items-center justify-between px-3 py-2.5 text-base font-bold">
                 <span className="flex items-center gap-1.5"><HandCoins className="h-3.5 w-3.5 text-primary" />{t("pay.tip")}</span>
                 <span className="tabular-nums">{formatCurrency(displayOrder.tipAmount, currency)}</span>
               </div>
@@ -133,12 +133,12 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                     {TIP_PRESETS.map(pct => (
                       <button key={pct} disabled={setTip.isPending}
                         onClick={() => applyTip(Math.round(displayOrder.subTotal * (pct / 100) * 100) / 100)}
-                        className="py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary disabled:opacity-50">
+                        className="h-12 rounded-xl border-2 border-border text-base font-bold text-foreground hover:border-primary/40 hover:text-primary disabled:opacity-50">
                         {pct}%
                       </button>
                     ))}
                     <button disabled={setTip.isPending} onClick={() => applyTip(0)}
-                      className="py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:border-destructive/40 hover:text-destructive disabled:opacity-50">
+                      className="h-12 rounded-xl border-2 border-border text-base font-bold text-foreground hover:border-destructive/40 hover:text-destructive disabled:opacity-50">
                       {t("pay.tipNone")}
                     </button>
                   </div>
@@ -183,9 +183,9 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                   const Icon = opt.icon;
                   return (
                     <button key={opt.id} onClick={() => setMode(opt.id)}
-                      className={cn("flex flex-col items-center gap-1 py-2 rounded-lg border text-[10px] font-semibold transition-all",
+                      className={cn("flex flex-col items-center justify-center gap-1 h-16 rounded-xl border-2 text-sm font-bold transition-all",
                         mode === opt.id ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30")}>
-                      <Icon className="h-3.5 w-3.5" />{t(`pay.mode.${opt.id}`)}
+                      <Icon className="h-5 w-5" />{t(`pay.mode.${opt.id}`)}
                     </button>
                   );
                 })}
@@ -209,8 +209,8 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                     return (
                       <Button key={m} variant="outline" disabled={addPayment.isPending || !!issue}
                         title={issue ?? undefined}
-                        onClick={() => post(outstanding, m)} className="gap-1.5 h-10">
-                        <Icon className="h-4 w-4" />{t(`pay.method.${m}`, { defaultValue: m })}
+                        onClick={() => post(outstanding, m)} className="gap-2 h-16 text-lg font-extrabold border-2 rounded-2xl">
+                        <Icon className="h-6 w-6" />{t(`pay.method.${m}`, { defaultValue: m })}
                       </Button>
                     );
                   })}
@@ -231,7 +231,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
                   {customerFundedIssue(method, parseFloat(amount) || 0) && (
                     <p className="text-xs text-destructive">{customerFundedIssue(method, parseFloat(amount) || 0)}</p>
                   )}
-                  <Button className="w-full" disabled={addPayment.isPending || (parseFloat(amount) || 0) <= 0 || !!customerFundedIssue(method, parseFloat(amount) || 0)}
+                  <Button className="w-full h-14 text-base font-extrabold rounded-2xl" disabled={addPayment.isPending || (parseFloat(amount) || 0) <= 0 || !!customerFundedIssue(method, parseFloat(amount) || 0)}
                     onClick={() => post(parseFloat(amount) || 0, method, mode === "members" ? (ref || `Guest ${paidGuests + 1}`) : null)}>
                     {addPayment.isPending ? <Loader2 className="h-4 w-4 animate-spin" />
                       : t("pay.addPayment", { amount: formatCurrency(parseFloat(amount) || 0, currency), method: t(`pay.method.${method}`, { defaultValue: method }) })}

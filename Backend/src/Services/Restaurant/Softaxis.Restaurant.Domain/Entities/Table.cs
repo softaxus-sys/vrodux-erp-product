@@ -40,6 +40,9 @@ public sealed class Table
         Status = "occupied"; OccupiedSince = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Keeps the floor plan in step when the order at this table changes hands.</summary>
+    public void SetWaiter(string waiter) { CurrentWaiter = waiter; UpdatedAt = DateTime.UtcNow; }
+
     public void Free()
     {
         CurrentOrderId = null; CurrentWaiter = null; OccupiedSince = null;

@@ -18,11 +18,13 @@ internal sealed class GetMenuItemsHandler(RestaurantDbContext db)
 
         var items = await q.OrderBy(x => x.Name).ToListAsync(ct);
         var groupsByItem = await ModifierGroupLookup.GetGroupsForItemsAsync(db, items.Select(i => i.Id).ToList(), ct);
+        var imagesByItem = await MenuItemImages.ForItemsAsync(db, items.Select(i => i.Id).ToList(), ct);
 
         var dtos = items.Select(i => new MenuItemDto(
             i.Id, i.CategoryId, i.Name, i.Description, i.Price,
             i.PrepTimeMinutes, i.Allergens, i.IsAvailable,
-            groupsByItem.TryGetValue(i.Id, out var g) ? g : [], i.KitchenStationId, i.IsOnlineOrderable))
+            groupsByItem.TryGetValue(i.Id, out var g) ? g : [], i.KitchenStationId, i.IsOnlineOrderable,
+            imagesByItem.GetValueOrDefault(i.Id) ?? []))
             .ToList();
 
         return Result.Success<IReadOnlyList<MenuItemDto>>(dtos);

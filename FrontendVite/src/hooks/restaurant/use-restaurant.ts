@@ -253,6 +253,43 @@ export function useSetOrderCustomer() {
   });
 }
 
+export function useAddItemImages() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ itemId, images }: { itemId: string; images: { data: string; fileName?: string }[] }) =>
+      restaurantApi.addItemImages(itemId, images),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useDeleteItemImage() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ itemId, imageId }: { itemId: string; imageId: string }) => restaurantApi.deleteItemImage(itemId, imageId),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSetPrimaryItemImage() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ itemId, imageId }: { itemId: string; imageId: string }) => restaurantApi.setPrimaryItemImage(itemId, imageId),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSetOrderWaiter() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ id, waiter }: { id: string; waiter: string }) => restaurantApi.setWaiter(id, waiter),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useHoldOrder() {
   const invalidate = useInvalidateAll();
   return useMutation({

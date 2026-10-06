@@ -405,7 +405,13 @@
     "button": {
       "markReady": "Mark Ready",
       "markServed": "Mark Served"
-    }
+    },
+    "cooking": "Cooking",
+    "late": "Late",
+    "readyShort": "Ready",
+    "allClear": "All caught up",
+    "allClearHint": "New orders appear here the moment they are sent.",
+    "nothingReady": "Nothing waiting at the pass."
   },
   "reservations": {
     "title": "Reservations",
@@ -696,7 +702,30 @@
       "rowNamePlaceholder": "Small",
       "rowPricePlaceholder": "+0.00",
       "addRow": "Add Modifier",
-      "save": "Save Modifier Group"
+      "save": "Save Modifier Group",
+      "mustChoose": "Customer must choose",
+      "mustChooseHint": "Turn on for things like Size, where an answer is needed.",
+      "atLeast": "At least",
+      "atMost": "Can pick up to"
+    },
+    "search": "Search dishes…",
+    "allItems": "All dishes",
+    "addItem": "Add dish",
+    "noMatch": "No dishes match your search.",
+    "soldOut": "Sold out",
+    "onSale": "On sale — tap to mark sold out",
+    "photos": {
+      "label": "Photos",
+      "cover": "Cover",
+      "makeCover": "Use as cover",
+      "remove": "Remove photo",
+      "addFirst": "Add photos — tap to choose, or drop them here",
+      "addMore": "Add more",
+      "uploading": "Uploading…",
+      "notImage": "{{name}} is not an image.",
+      "tooLarge": "{{name}} is larger than {{mb}}MB.",
+      "tooMany": "A dish can have up to {{max}} photos.",
+      "readFailed": "Those files could not be read. Please try again."
     }
   },
   "posView": {
@@ -857,6 +886,52 @@
       "noZone": "No zone (custom fee)",
       "items": "Items",
       "submit": "Create Delivery Order"
+    },
+    "screen": {
+      "back": "Tables",
+      "soldOutMode": "Sold out",
+      "soldOutHint": "Tap a dish to mark it sold out, or available again. Tap “Sold out” when you are done.",
+      "soldOut": "Sold out",
+      "options": "Options",
+      "required": "Required",
+      "guests": "Guests",
+      "tableIs": "This table is marked {{status}}.",
+      "markAvailable": "Mark available",
+      "newItems": "New items",
+      "onOrder": "Already ordered",
+      "emptyTitle": "No items yet",
+      "emptyHint": "Tap a dish to add it.",
+      "addNote": "Add a note for the kitchen",
+      "notePlaceholder": "e.g. no onions, extra spicy…",
+      "pay": "Pay {{amount}}",
+      "split": "Split bill",
+      "move": "Move table",
+      "moveTitle": "Move to which table?",
+      "noFreeTables": "No free tables right now.",
+      "nextCourse": "Next course",
+      "hold": "Hold",
+      "cancel": "Cancel order",
+      "save": "Save",
+      "sendCount": "Send to kitchen ({{count}})",
+      "served": "Served",
+      "rider": "Rider",
+      "assignLater": "Assign later",
+      "assignRider": "Assign rider",
+      "riderTitle": "Who is delivering?",
+      "noRiders": "No riders yet. Add them under Delivery.",
+      "waiterTitle": "Who is serving?",
+      "noStaff": "No staff found.",
+      "searchPeople": "Search by name…",
+      "guestCount": "{{count}} guests"
+    },
+    "floor": {
+      "tables": "Tables",
+      "mins": "{{n}} min",
+      "hours": "{{h}}h {{m}}m",
+      "counterOrders": "Takeaway & delivery — open",
+      "noTables": "No tables yet",
+      "noTablesHint": "Add your first table to start taking orders.",
+      "itemCount": "{{count}} items"
     }
   }
 }
