@@ -28,4 +28,13 @@ public interface ITenantRoleProvisioner
     /// Returns how many grants were made.
     /// </summary>
     Task<int> SyncNewTemplatePermissionsAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Gives every role that can take restaurant orders the till-shift keys (pos.sessions
+    /// view/create) it needs to do so: the order screen sits behind the shift gate, so a role
+    /// without them can open nothing. Roles created before the restaurant templates carried those
+    /// keys never got them, and <see cref="SyncNewTemplatePermissionsAsync"/> cannot help — the
+    /// keys are old, only their place in these roles is new. Idempotent. Returns the grants made.
+    /// </summary>
+    Task<int> EnsureRestaurantShiftAccessAsync(CancellationToken ct = default);
 }

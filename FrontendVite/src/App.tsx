@@ -474,6 +474,11 @@ export function App() {
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
             <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
+          </Route>
+
+          {/* Restaurant screens live under /pos/* but belong to the restaurant module. Guarding them
+              on "pos" bounced every restaurant-only role back to the dashboard. */}
+          <Route element={<ModuleGuard module="restaurant" />}>
             <Route path="/pos/restaurant"  element={<RestaurantPOSPage />} />
             <Route path="/pos/kitchen"     element={<KitchenDisplayPage />} />
             <Route path="/pos/floor-designer" element={<FloorDesignerPage />} />

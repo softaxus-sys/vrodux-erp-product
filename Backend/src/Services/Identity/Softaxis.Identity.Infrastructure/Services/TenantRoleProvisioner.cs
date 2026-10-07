@@ -132,4 +132,33 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
         if (granted > 0) await db.SaveChangesAsync(ct);
         return granted;
     }
+
+    /// <inheritdoc />
+    public async Task<int> EnsureRestaurantShiftAccessAsync(CancellationToken ct = default)
+    {
+        var perms = await db.Permissions.AsNoTracking()
+            .Where(p => (p.ModuleId == "restaurant.orders" && p.Action == "create")
+                     || (p.ModuleId == "pos.sessions" && (p.Action == "view" || p.Action == "create")))
+            .ToListAsync(ct);
+        var takesOrders = perms.FirstOrDefault(p => p.ModuleId == "restaurant.orders")?.Id;
+        var shiftKeys = perms.Where(p => p.ModuleId == "pos.sessions").Select(p => p.Id).ToList();
+        if (takesOrders is null || shiftKeys.Count == 0) return 0;
+
+        var roles = await db.Roles
+            .Include(r => r.RolePermissions)
+            .Where(r => r.TenantId != null && !r.IsSystem && !r.IsDeleted
+                     && r.RolePermissions.Any(rp => rp.PermissionId == takesOrders))
+            .ToListAsync(ct);
+
+        var granted = 0;
+        foreach (var role in roles)
+        foreach (var key in shiftKeys.Where(k => role.RolePermissions.All(rp => rp.PermissionId != k)))
+        {
+            role.AddPermission(key);
+            granted++;
+        }
+
+        if (granted > 0) await db.SaveChangesAsync(ct);
+        return granted;
+    }
 }

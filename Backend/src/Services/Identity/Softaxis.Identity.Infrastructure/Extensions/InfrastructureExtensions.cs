@@ -165,6 +165,9 @@ public static class InfrastructureExtensions
         // role created moments ago in this same pass is included.
         await scope.ServiceProvider.GetRequiredService<ITenantRoleProvisioner>()
                    .SyncNewTemplatePermissionsAsync();
+        // Restaurant roles need a till shift to take orders; older ones were created without it.
+        await scope.ServiceProvider.GetRequiredService<ITenantRoleProvisioner>()
+                   .EnsureRestaurantShiftAccessAsync();
         await RemoveRedundantGlobalRolesAsync(db);         // drop legacy global duplicates (all envs)
         await SeedDemoTenantAsync(scope.ServiceProvider, db);      // opt-in demo tenant (Seeding:DemoTenant)
     }
