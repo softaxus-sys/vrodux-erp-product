@@ -18,6 +18,7 @@ import i18n from "@/i18n";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, moduleLabel, moduleDesc, moduleCategoryLabel, businessTypeLabel, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
+import { loadMetaPixel, trackPixelEvent } from "@/lib/analytics/meta-pixel";
 import { getPlan, amountFor, formatUsd } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
 import { useAuthStore } from "@/store/auth.store";
@@ -470,6 +471,10 @@ export default function OnboardingPage() {
   // internal navigation before submit.
   const signup=useSignupAttribution();
   const selectedPlan=getPlan(signup.plan);
+
+  // Meta Pixel — scoped to this page only (the actual signup funnel), never loaded app-wide.
+  // See lib/analytics/meta-pixel.ts for why.
+  React.useEffect(() => { loadMetaPixel(); trackPixelEvent("PageView"); }, []);
 
   const showBT=needsBusinessType(selectedModules);
   const totalSteps=showBT?4:3;
