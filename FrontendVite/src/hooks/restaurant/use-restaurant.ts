@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   restaurantApi, type DiscountType, type OrderLineInput, type SplitGroupInput, type TableStatus,
   type TableShape, type DiningAreaType, type ReservationRule, type ComboItemInput, type ComboSelectionInput,
-  type HappyHourRule, type DeliveryStatus,
+  type HappyHourRule, type DeliveryStatus, type ImportMenuRow,
 } from "@/lib/restaurant/restaurant.api";
 import { toast } from "sonner";
 
@@ -248,6 +248,21 @@ export function useSetOrderCustomer() {
   const invalidate = useInvalidateAll();
   return useMutation({
     mutationFn: ({ id, customerId }: { id: string; customerId: string | null }) => restaurantApi.setCustomer(id, customerId),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** Refreshes every restaurant query — for flows that write through the API client directly. */
+export function useInvalidateRestaurant() {
+  return useInvalidateAll();
+}
+
+/** No success toast: the import dialog shows its own summary. */
+export function useImportMenu() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: (rows: ImportMenuRow[]) => restaurantApi.importMenu(rows),
     onSuccess: () => invalidate(),
     onError: (e: Error) => toast.error(e.message),
   });

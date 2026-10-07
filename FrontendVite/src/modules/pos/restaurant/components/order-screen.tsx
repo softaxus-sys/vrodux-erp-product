@@ -6,6 +6,7 @@ import {
   ArrowLeft, Search, X, Plus, Minus, Users, Send, CheckCircle2, Receipt, Trash2, Loader2,
   Tag, SplitSquareHorizontal, PauseCircle, PlayCircle, ChefHat, Ban, RotateCcw, Mail,
   ArrowRightLeft, MessageSquarePlus, UserRound, Bike, EyeOff, UtensilsCrossed, Save, Sparkles, Percent, Ticket,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -31,6 +32,7 @@ import type {
   DiscountType, RestaurantTable, RestaurantOrder, MenuItem, Combo,
 } from "@/lib/restaurant/restaurant.api";
 import { RestaurantPayDialog } from "./restaurant-pay-dialog";
+import { OrderReceiptModal } from "./order-receipt";
 import { DishPhoto, coverOf } from "./dish-photos";
 import { ReasonModal, RefundModal, SplitBillModal, ComboPickerModal, SendReceiptModal, PersonSheet } from "./order-dialogs";
 
@@ -66,6 +68,61 @@ const pill = (active: boolean) => cn(
   "h-12 px-5 rounded-xl text-base font-bold whitespace-nowrap shrink-0 border-2 transition-colors",
   active ? "bg-primary border-primary text-primary-foreground shadow-md" : "bg-card border-border text-foreground hover:border-primary",
 );
+/**
+ * The category pills on one row, with a back / next arrow at each end. An arrow shows only while
+ * there is more to reveal on its side, so a short menu gets a plain row with nothing to press.
+ */
+function CategoryRail({ children }: { children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [more, setMore] = React.useState({ back: false, next: false });
+
+  const measure = React.useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    // scrollLeft runs negative in RTL, so compare distances rather than raw offsets.
+    const scrolled = Math.abs(el.scrollLeft);
+    const max = el.scrollWidth - el.clientWidth;
+    setMore({ back: scrolled > 4, next: scrolled < max - 4 });
+  }, []);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [measure, children]);
+
+  const step = (direction: 1 | -1) => {
+    const el = ref.current;
+    if (!el) return;
+    const rtl = getComputedStyle(el).direction === "rtl";
+    el.scrollBy({ left: direction * (rtl ? -1 : 1) * el.clientWidth * 0.7, behavior: "smooth" });
+  };
+
+  const arrow = "h-12 w-12 shrink-0 rounded-xl border-2 border-border bg-card text-foreground flex items-center justify-center hover:border-primary active:scale-95 transition-all";
+
+  return (
+    <div className="flex items-start gap-2 px-4 py-3 shrink-0">
+      {more.back && (
+        <button type="button" onClick={() => step(-1)} className={arrow} aria-label="Previous categories">
+          <ChevronLeft className="h-6 w-6 rtl:rotate-180" strokeWidth={3} />
+        </button>
+      )}
+      <div ref={ref} onScroll={measure}
+        className="flex-1 min-w-0 flex gap-2 overflow-x-auto pb-1.5 [scrollbar-width:thin] [scrollbar-color:hsl(var(--border))_transparent]">
+        {children}
+      </div>
+      {more.next && (
+        <button type="button" onClick={() => step(1)} className={arrow} aria-label="More categories">
+          <ChevronRight className="h-6 w-6 rtl:rotate-180" strokeWidth={3} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 const bigBtn = "h-16 rounded-2xl flex items-center justify-center gap-2 px-4 text-lg font-black transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
 
 // ─── Options picker — one question per group, big targets ────────────────────
@@ -370,6 +427,9 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   const [comboPicker, setComboPicker] = React.useState<Combo | null>(null);
   const [payTarget, setPayTarget] = React.useState<RestaurantOrder | null>(null);
   const [appliedVoucher, setAppliedVoucher] = React.useState<string | null>(null);
+  // The receipt on screen: straight after a payment (leaveAfter = go back to the floor once it is
+  // closed), or reopened from an order that is already paid.
+  const [receipt, setReceipt] = React.useState<{ order: RestaurantOrder; justPaid: boolean; leaveAfter: boolean } | null>(null);
   const [dialog, setDialog] = React.useState<null | "discount" | "split" | "cancel" | "refund" | "receipt" | "move" | "waiter">(null);
   const [voidTarget, setVoidTarget] = React.useState<string | null>(null);
 
@@ -468,7 +528,8 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
     toast.success(t("posView.drawer.billSettled"));
     const wasMain = order != null && paid.id === order.id;
     setPayTarget(null);
-    if (wasMain) onBack(); // paying one part of a split bill keeps the overview open for the next guest
+    // Paying one part of a split bill keeps the overview open for the next guest.
+    setReceipt({ order: paid, justPaid: true, leaveAfter: wasMain });
   };
 
   const status = order?.status;
@@ -513,7 +574,8 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
           </p>
         )}
 
-        <div className="flex gap-2 flex-wrap px-4 py-3">
+        {/* One row — wrapping pushed the dishes down as the menu grew. */}
+        <CategoryRail>
           <button onClick={() => setCatId("all")} className={pill(catId === "all")}>{t("posView.drawer.all")}</button>
           {canDeals && (
             <button onClick={() => setCatId("deals")} className={pill(catId === "deals")}>
@@ -523,7 +585,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
           {menu.map(c => (
             <button key={c.id} onClick={() => setCatId(c.id)} className={pill(catId === c.id)}>{c.name}</button>
           ))}
-        </div>
+        </CategoryRail>
 
         <div className="flex-1 overflow-y-auto px-4 pb-4">
           {menuLoading ? (
@@ -847,6 +909,9 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
               </Can>
             ) : status === "paid" ? (
               <>
+                <button onClick={() => setReceipt({ order, justPaid: false, leaveAfter: false })} className={cn(bigBtn, "flex-1 border-2 border-border text-base")}>
+                  <Receipt className="h-5 w-5" />{t("posView.receiptView.view")}
+                </button>
                 <Can permission="restaurant.orders.edit">
                   <button onClick={() => setDialog("receipt")} className={cn(bigBtn, "flex-1 border-2 border-border text-base")}>
                     <Mail className="h-5 w-5" />{t("posView.receipt.title")}
@@ -894,6 +959,10 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
         <SplitBillModal order={order} currency={currency} busy={splitOrder.isPending}
           onConfirm={groups => splitOrder.mutate({ id: order.id, groups }, { onSuccess: () => setDialog(null) })}
           onCancel={() => setDialog(null)} />
+      )}
+      {receipt && (
+        <OrderReceiptModal order={receipt.order} currency={currency} justPaid={receipt.justPaid}
+          onClose={() => { const leave = receipt.leaveAfter; setReceipt(null); if (leave) onBack(); }} />
       )}
       {dialog === "move" && order && (
         <MoveTableSheet tables={tables} busy={transferTable.isPending}

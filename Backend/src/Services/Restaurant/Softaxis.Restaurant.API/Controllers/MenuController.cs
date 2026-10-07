@@ -49,6 +49,12 @@ public sealed class MenuController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> CreateItem([FromBody] CreateMenuItemCommand cmd, CancellationToken ct) =>
         OkOrError(await sender.Send(cmd, ct));
 
+    /// <summary>POST /api/restaurant/menu/import — bulk categories + dishes from a spreadsheet.</summary>
+    [HttpPost("import")]
+    [RequirePermission("restaurant.menu.create")]
+    public async Task<IActionResult> Import([FromBody] ImportMenuCommand cmd, CancellationToken ct) =>
+        OkOrError(await sender.Send(cmd, ct));
+
     /// <summary>PUT /api/restaurant/menu/items/{id}</summary>
     [HttpPut("items/{id:guid}")]
     [RequirePermission("restaurant.menu.edit")]

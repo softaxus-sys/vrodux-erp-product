@@ -13,7 +13,7 @@ import {
   useSalesDailyReport, useSalesByCategoryReport, useSalesByEmployeeReport, useVoidsDiscountsReport,
   useKitchenPrepTimesReport, useTableTurnoverReport, useTaxSummaryReport, useXReport, useZReport,
 } from "@/hooks/restaurant/use-restaurant-reports";
-import { useShift } from "@/modules/pos/retail/components/shift-gate";
+import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
 import { Can } from "@/components/auth/can";
 
 function todayIso() { return new Date().toISOString().split("T")[0]; }
@@ -289,7 +289,8 @@ function TaxSummaryTab({ range, currency }: { range: { from: string; to: string 
 
 function SessionReportTab({ currency }: { currency: string }) {
   const { t } = useTranslation("restaurant");
-  const { sessionId: activeSessionId } = useShift();
+  // The reports page is not behind the shift gate, so there may be no open shift to prefill from.
+  const activeSessionId = useOptionalShift()?.sessionId;
   const [sessionId, setSessionId] = React.useState(activeSessionId ?? "");
   const [mode, setMode] = React.useState<"x" | "z">("x");
   const xReport = useXReport(sessionId, mode === "x" && !!sessionId);

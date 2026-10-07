@@ -602,11 +602,12 @@ export const navigationConfig: NavGroup[] = [
         icon: "Monitor",
         module: "pos",
         children: [
-          // module: "pos" → visible to all with POS access (cashier, supervisor, manager)
-          { id: "pos-dashboard",   label: "Dashboard",       href: "/pos/dashboard",   icon: "LayoutDashboard", module: "pos" },
-          { id: "retail-pos",      label: "Retail POS",      href: "/pos/retail",      icon: "ShoppingBag",     module: "pos" },
-          { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos" },
-          { id: "pos-low-stock",   label: "Low Stock",       href: "/pos/low-stock",   icon: "PackageCheck",    module: "pos" },
+          // Retail screens need a retail key as well as the module. Restaurant roles hold only pos.sessions
+          // (to open a shift for the order screen), and that must not surface the retail till.
+          { id: "pos-dashboard",   label: "Dashboard",       href: "/pos/dashboard",   icon: "LayoutDashboard", module: "pos", requiresPermission: "pos.reports.view" },
+          { id: "retail-pos",      label: "Retail POS",      href: "/pos/retail",      icon: "ShoppingBag",     module: "pos", requiresPermission: "pos.products.view" },
+          { id: "pos-customers",   label: "Customers",       href: "/pos/customers",   icon: "Users",           module: "pos", requiresPermission: "pos.customers.view" },
+          { id: "pos-low-stock",   label: "Low Stock",       href: "/pos/low-stock",   icon: "PackageCheck",    module: "pos", requiresPermission: "pos.products.view" },
           // module: "restaurant" → only visible to users with restaurant module access
           { id: "restaurant-pos",  label: "Restaurant POS",  href: "/pos/restaurant",  icon: "UtensilsCrossed", module: "restaurant" },
           { id: "kitchen-display", label: "Kitchen Display",  href: "/pos/kitchen",     icon: "ChefHat",         module: "restaurant" },

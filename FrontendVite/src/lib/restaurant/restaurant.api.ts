@@ -163,6 +163,18 @@ export interface MenuItem {
   images?: MenuItemImage[] | null;
 }
 
+export interface ImportMenuRow {
+  category: string; name: string; price: number;
+  description?: string | null; prepTimeMinutes?: number | null; allergens?: string | null;
+  categoryDescription?: string | null;
+}
+/** `items[].row` is the zero-based index into the rows sent — used to attach each dish's photo. */
+export interface ImportMenuResult {
+  categoriesCreated: number; itemsCreated: number; skipped: number; failed: number;
+  errors: { row: number; message: string }[];
+  items: { row: number; itemId: string }[];
+}
+
 export interface MenuCategory {
   id: string;
   name: string;
@@ -485,6 +497,8 @@ export const restaurantApi = {
   updateItem:      (id: string, p: { name: string; description?: string | null; price: number; prepTimeMinutes: number; allergens?: string | null; isOnlineOrderable: boolean }): Promise<MenuItem> =>
     rawApiClient.put(`${BASE}/menu/items/${id}`, p),
   deleteItem:      (id: string): Promise<void> => rawApiClient.delete(`${BASE}/menu/items/${id}`),
+  importMenu:      (rows: ImportMenuRow[]): Promise<ImportMenuResult> =>
+    rawApiClient.post(`${BASE}/menu/import`, { rows }),
   setItemStation:     (id: string, kitchenStationId: string | null): Promise<MenuItem> =>
     rawApiClient.patch(`${BASE}/menu/items/${id}/kitchen-station`, { kitchenStationId }),
   setCategoryStation: (id: string, kitchenStationId: string | null): Promise<MenuCategory> =>

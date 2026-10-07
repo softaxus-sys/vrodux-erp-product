@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Plus, X, Trash2, Pencil, Loader2, UtensilsCrossed, Layers, Sliders, ChefHat, AlertTriangle,
-  Search, Minus, Clock, Check,
+  Search, Minus, Clock, Check, FileSpreadsheet,
 } from "lucide-react";
 import { LeftDrawer } from "@/components/ui/left-drawer";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -16,6 +16,7 @@ import {
   useModifierGroups, useCreateModifierGroup, useUpdateModifierGroup, useDeleteModifierGroup,
   useItemModifierGroups, useAssignItemModifierGroups, useAddItemImages,
 } from "@/hooks/restaurant/use-restaurant";
+import { ImportMenuModal } from "./import-menu-modal";
 import { DishPhoto, DishPhotosEditor, coverOf, type NewPhoto } from "./dish-photos";
 import { useRecipes } from "@/hooks/recipe/use-recipe";
 import type { MenuCategory, MenuItem, ModifierGroup } from "@/lib/restaurant/restaurant.api";
@@ -160,6 +161,7 @@ function MenuTab() {
   const [search, setSearch] = React.useState("");
   const [editingCategory, setEditingCategory] = React.useState<MenuCategory | "new" | null>(null);
   const [editingItem, setEditingItem] = React.useState<{ item: MenuItem | null; categoryId: string } | null>(null);
+  const [importing, setImporting] = React.useState(false);
 
   const linked = React.useMemo(() => new Set(recipes.map(r => r.menuItemId)), [recipes]);
   const allItems = React.useMemo(
@@ -217,6 +219,11 @@ function MenuTab() {
           {selected && canEdit && !q && (
             <button onClick={() => setEditingCategory(selected)} className={outlineBtn}>
               <Pencil className="h-4 w-4" />{t("menuMgmt.category.editTitle")}
+            </button>
+          )}
+          {canCreate && (
+            <button onClick={() => setImporting(true)} className={outlineBtn}>
+              <FileSpreadsheet className="h-5 w-5" />{t("menuMgmt.import.button")}
             </button>
           )}
           {canCreate && addTarget && (
@@ -298,6 +305,8 @@ function MenuTab() {
           )}
         </div>
       </div>
+
+      <ImportMenuModal open={importing} onClose={() => setImporting(false)} />
 
       {editingCategory && (
         <CategoryDrawer

@@ -203,6 +203,12 @@ export function useShift(): ShiftContextValue {
   return ctx;
 }
 
+/** For screens that only want the open shift as a convenience (e.g. prefilling a report) and are
+ *  also reachable with no shift open. Returns null outside <ShiftGate> instead of throwing. */
+export function useOptionalShift(): ShiftContextValue | null {
+  return React.useContext(ShiftContext);
+}
+
 // ─── Open Shift Screen ────────────────────────────────────────────────────────
 
 function OpenShiftScreen({ onOpened }: { onOpened: (s: POSSessionSummaryDto) => void }) {

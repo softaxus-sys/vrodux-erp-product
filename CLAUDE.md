@@ -7403,3 +7403,29 @@ Recurring expenses also gained explicit **debit / credit ledger accounts**
 `Expense`; `ExpensePosting` honours them and falls back to category / payment method when unset or
 deleted). Migration `AddExpensePostingAccounts`. The manual expense claim form does not ask for
 accounts — it is filled in by claimants, not accountants.
+
+---
+
+## Module 68 — Restaurant: bulk menu import (categories + dishes + photos) with a photographed sample menu
+
+**Import** button on Menu Management (`restaurant.menu.create`) → `ImportMenuModal`: upload Excel/CSV →
+preview (photo, dish, category, price) → import → result tiles.
+
+- **Backend (CQRS):** `ImportMenuCommand(Rows)` → `ImportMenuHandler` → `POST /api/restaurant/menu/import`.
+  A category is created the first time a row names it (matched case-insensitively against existing ones);
+  a dish already under its category is **skipped**, so re-running a file never doubles the menu. Bad rows are
+  counted and reported (first 100), never abort the batch. Max 2000 rows. Returns `items[{row, itemId}]`.
+  No migration.
+- **Photos are fetched by the browser, not the server.** Each row's `Image URL` is fetched client-side
+  (3 at a time) and uploaded through the existing `POST menu/items/{id}/images` — so the server never fetches
+  a URL a spreadsheet handed it (no SSRF surface), and photos get the usual compression + storage quota.
+  The image host must allow cross-origin reads; a photo that fails is counted and the dish is kept.
+- **Sample menu** `lib/restaurant/menu-sample.ts` — 62 dishes in 9 categories (Pakistani + international),
+  each with description, allergens, prep time and a Wikimedia Commons photo (free licences, mostly CC BY-SA;
+  all 62 links verified 200 + `access-control-allow-origin: *`). The modal offers **Download sample file**
+  (CSV built from this data) and **Import sample menu** (one click, for demos). Prices are PKR-scale plain numbers.
+- Columns auto-detected by header: Category, Category Description, Dish Name, Description, Price,
+  Prep Time (min), Allergens, Image URL. Category, Dish Name and Price are required.
+
+**Build:** Restaurant.API 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors · en/ar strings added.
+**Not runtime-tested** — needs a gateway restart; then import the sample and check the tiles on the till.
