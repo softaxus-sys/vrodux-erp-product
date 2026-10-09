@@ -1,13 +1,22 @@
 import type { Tone } from "@/theme";
 
 /**
- * Restaurant POS -- front-of-house + kitchen coordination, not an order-taking terminal. Mirrors
- * the scoping call already made for retail POS (types/pos.ts's own note): a phone isn't a card
- * machine, and the web app's order-taking screen (structured modifiers, combos, courses,
- * split-bill) is real desktop-appropriate complexity, not something to port here. What genuinely
- * belongs on a phone: checking the floor/kitchen/reservations status, and the handful of
- * workflow actions that don't touch cash or a physical drawer (seat a party, mark a kitchen item
- * ready) -- the same "workflow, not cash" line CLAUDE.md's Module 49 draws for the AI assistant.
+ * Restaurant POS -- full order-taking + front-of-house + kitchen coordination.
+ *
+ * This used to be scoped to "not an order-taking terminal" (the same line types/pos.ts's retail
+ * module still draws, and kept there deliberately -- see that file's own note). Reversed here on
+ * an explicit decision: waiters take orders under the CASHIER's open shift rather than opening
+ * their own till (GetOpenShiftQuery/OpenShiftDto below), so ordering on a phone never touches cash
+ * or a physical drawer the way checking out at a retail register does -- the thing that made
+ * retail POS "not a card machine" was never actually true of a waiter's phone here.
+ *
+ * Deliberately still NOT built here (desktop/admin, same judgment call as RealEstate's "real
+ * multi-field forms stay desktop-appropriate"): table layout/merge/QR-code/create, menu item
+ * CRUD/photo management/bulk import, modifier-group CRUD, driver CRUD, delivery zones, happy
+ * hour campaigns, combos (ordering a combo needs its own component-selection picker -- flagged as
+ * a follow-up, same as the web app's own "Modifier Groups admin page" gap), printer profiles,
+ * device registration, notification config, and the deeper Reports analytics screen (the
+ * dashboards on RestaurantHomeScreen already cover the at-a-glance numbers).
  */
 
 // ── Dashboards (GET /api/restaurant/dashboard/*) ────────────────────────────────────────────────
@@ -179,11 +188,34 @@ export interface OrderDto {
   currentCourse: number;
   items: OrderItemDto[];
   payments: OrderPaymentDto[];
+  branchId: string | null;
+  /** The cashier shift this order rides under -- see OpenShiftDto. Null on a legacy order or a
+   *  register with no shift tracking. */
+  sessionId: string | null;
+  cashierId: string | null;
   discounts: OrderDiscountDto[];
   voidLogs: OrderVoidLogDto[];
   refunds: OrderRefundDto[];
   parentOrderId: string | null;
   splits: OrderSplitSummaryDto[];
+  /** The linked POS customer, if any -- what SetCustomer/RedeemLoyalty act on. */
+  customerId: string | null;
+}
+
+/** "dine_in" | "takeaway" | "delivery" -- OrderType. */
+export const ORDER_TYPE_LABELS: Record<string, string> = {
+  dine_in: "Dine-in",
+  takeaway: "Takeaway",
+  delivery: "Delivery",
+};
+
+export const ORDER_TYPES = ["dine_in", "takeaway", "delivery"] as const;
+
+/** Whether a till is open for floor staff to order under right now -- GET /orders/open-shift.
+ *  Waiters never open their own session; they ride the cashier's. */
+export interface OpenShiftDto {
+  isOpen: boolean;
+  sessionId: string | null;
 }
 
 export interface OrdersSummaryDto {
@@ -376,3 +408,165 @@ export const WAITLIST_STATUS_TONE: Record<string, Tone> = {
   no_show: "destructive",
   cancelled: "neutral",
 };
+
+// ── Menu (read-only -- order-taking's own picker; no CRUD/import/photo management here) ────────
+
+export interface ModifierDto {
+  id: string;
+  name: string;
+  priceDelta: number;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface ModifierGroupDto {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  modifiers: ModifierDto[];
+}
+
+export interface MenuItemDto {
+  id: string;
+  categoryId: string;
+  name: string;
+  description: string | null;
+  price: number;
+  prepTimeMinutes: number;
+  allergens: string | null;
+  isAvailable: boolean;
+  modifierGroups: ModifierGroupDto[];
+  isOnlineOrderable: boolean;
+}
+
+export interface MenuCategoryDto {
+  id: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  items: MenuItemDto[];
+}
+
+export interface MenuSummaryDto {
+  totalCategories: number;
+  totalItems: number;
+  availableItems: number;
+  unavailableItems: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+}
+
+/** One modifier-group selection made while building a cart line, before the order exists. */
+export interface CartLineSelection {
+  menuItem: MenuItemDto;
+  quantity: number;
+  selectedModifierIds: string[];
+  /** Resolved display text for the selected modifiers, e.g. "Large, Extra cheese" -- built once at
+   *  selection time so the cart never has to re-walk modifierGroups to render a line. */
+  modifierSummary: string | null;
+  /** Per-unit price including modifier deltas -- what LineTotal = quantity * this on the backend. */
+  unitPriceWithModifiers: number;
+}
+
+// ── Delivery ─────────────────────────────────────────────────────────────────────────────────
+
+export interface DriverDto {
+  id: string;
+  branchId: string | null;
+  linkedUserId: string | null;
+  name: string;
+  phone: string;
+  vehicleInfo: string | null;
+  isActive: boolean;
+  /** Runs not yet delivered or failed -- what "available" means when picking a rider. */
+  activeDeliveries: number;
+}
+
+export interface DeliveryItemDto {
+  name: string;
+  quantity: number;
+  notes: string | null;
+}
+
+export interface DeliveryOrderDto {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  orderTotal: number;
+  deliveryZoneId: string | null;
+  deliveryZoneName: string | null;
+  driverId: string | null;
+  driverName: string | null;
+  status: string;
+  address: string;
+  phone: string;
+  estimatedDeliveryAt: string | null;
+  deliveredAt: string | null;
+  deliveryFee: number;
+  thirdPartyProvider: string | null;
+  thirdPartyOrderRef: string | null;
+  trackingToken: string;
+  createdAt: string;
+  customerName: string | null;
+  orderNotes: string | null;
+  amountToCollect: number;
+  items: DeliveryItemDto[] | null;
+}
+
+export interface DeliverySummaryDto {
+  total: number;
+  assigned: number;
+  pickedUp: number;
+  enroute: number;
+  delivered: number;
+  failed: number;
+}
+
+export interface DeliveryProviderDto {
+  key: string;
+  displayName: string;
+  isAvailable: boolean;
+}
+
+/** picked_up -> enroute -> delivered, or failed at any point (ChangeDeliveryStatusValidator's own
+ *  allowed list -- "assigned" isn't in it; that's what AssignDriver sets instead). */
+export const DELIVERY_STATUSES = ["assigned", "picked_up", "enroute", "delivered", "failed"] as const;
+export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
+
+export const DELIVERY_STATUS_LABELS: Record<string, string> = {
+  assigned: "Assigned",
+  picked_up: "Picked up",
+  enroute: "En route",
+  delivered: "Delivered",
+  failed: "Failed",
+};
+
+export const DELIVERY_STATUS_TONE: Record<string, Tone> = {
+  assigned: "neutral",
+  picked_up: "info",
+  enroute: "warning",
+  delivered: "success",
+  failed: "destructive",
+};
+
+/** The next status a tap should move a delivery to -- null once delivered/failed (terminal). */
+export function nextDeliveryStatus(current: string): DeliveryStatus | null {
+  const i = DELIVERY_STATUSES.indexOf(current as DeliveryStatus);
+  if (i < 0 || i >= DELIVERY_STATUSES.length - 1) return null;
+  return DELIVERY_STATUSES[i + 1];
+}
+
+// ── Lightweight customer lookup (link-to-order + loyalty) ───────────────────────────────────────
+
+/** Trimmed view of POS's CustomerDto (/api/customers) -- just enough to link a customer to an
+ *  order and show/spend their loyalty balance. Not duplicating the full POS customer module. */
+export interface CustomerLiteDto {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  loyaltyPoints: number;
+}

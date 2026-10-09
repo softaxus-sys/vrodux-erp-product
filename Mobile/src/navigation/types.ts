@@ -99,11 +99,17 @@ export type RestaurantStackParamList = {
   OrdersList: undefined;
   // Restaurant orders and Sales orders are unrelated resources sharing a route name within their
   // own stacks (each `Stack.Navigator` has its own param-list namespace) -- same "OrderDetail"
-  // name as SalesStackParamList above, not a collision.
-  OrderDetail: { orderId: string; orderNumber: string };
+  // name as SalesStackParamList above, not a collision. orderNumber is optional because
+  // TablesListScreen navigates straight from a table's currentOrderId, which carries no number.
+  OrderDetail: { orderId: string; orderNumber?: string };
+  // With orderId set, this screen operates in "add items to an existing order" mode instead of
+  // creating a new one -- one screen, one cart implementation, rather than two that could drift.
+  NewOrder: { tableId?: string; tableNumber?: string; orderId?: string; orderNumber?: string };
   KitchenTickets: undefined;
   ReservationsList: undefined;
   WaitlistList: undefined;
+  DeliveryOrdersList: undefined;
+  DeliveryOrderDetail: { deliveryOrderId: string; orderNumber: string };
 };
 
 export type VisaStackParamList = {
