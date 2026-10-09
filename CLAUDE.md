@@ -7429,3 +7429,98 @@ preview (photo, dish, category, price) → import → result tiles.
 
 **Build:** Restaurant.API 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors · en/ar strings added.
 **Not runtime-tested** — needs a gateway restart; then import the sample and check the tiles on the till.
+
+---
+
+## Module 69 — Restaurant: job roles, rider deliveries, delivery order flow, customer loyalty
+
+A run of restaurant work after the menu import (Module 68). **None of it was exercised in a browser** —
+everything below is verified by build / type-check only unless it says otherwise.
+
+### 🔴 Restaurant pages were guarded on the POS module
+Every `/pos/*` restaurant route sat under `<ModuleGuard module="pos" />`, so a user holding only a
+restaurant role was bounced to the dashboard on every click. They now sit under
+`<ModuleGuard module="restaurant" />` (`App.tsx`).
+
+### Default roles (`ModuleRoleCatalogue`, restaurant branch)
+Restaurant Manager · Restaurant Staff · **Restaurant Cashier** · **Waiter** · **Kitchen Staff** ·
+**Delivery Rider**. Templates may name keys outside their own module:
+- The order screen is behind the till's `ShiftGate`, so order-taking roles carry `pos.sessions` view/create
+  (Manager: all of `pos.sessions`).
+- Order-taking roles carry `pos.customers` (the customer book / loyalty).
+- **No restaurant role holds `pos.products` or `pos.reports`** — those are what surface the retail till.
+
+`ITenantRoleProvisioner.EnsureRestaurantShiftAccessAsync()` (startup, idempotent) tops up **existing** roles:
+any tenant role holding `restaurant.orders.create` gains `pos.sessions` + `pos.customers` view/create.
+Needed because `SyncNewTemplatePermissionsAsync` only grants keys nobody holds yet, and these keys are old.
+
+### Menus by role (`config/navigation.ts`)
+- Retail items need a retail key as well as the module: Retail POS / Low Stock → `pos.products.view`,
+  POS Dashboard → `pos.reports.view`, Customers → `pos.customers.view`. `/pos/retail` redirects to
+  `/pos/restaurant` without `pos.products.view`.
+- Each restaurant item names its job's key (POS → `restaurant.orders.create`, Kitchen Display →
+  `restaurant.kitchen.view`, Floor → `restaurant.tables.create`, Menu / Kitchen Config →
+  `restaurant.menu.create`, Delivery → `restaurant.delivery.view`, Reports / Dashboards →
+  `restaurant.reports.view`, …). **Menu only** — a typed URL still opens the page shell; the API refuses the data.
+
+### Waiter picker
+`GET /api/users?role=` (new exact-name role filter, tenant-scoped in `UserRepository.GetPagedAsync`).
+"Who is serving?" passes `role: "Waiter"`.
+
+### Riders
+- **Scoping (`DeliveryScope`, in `DeliveryOrderHandlers.cs`):** a *dispatcher* is anyone with
+  `restaurant.delivery.create`. Anyone else is a rider and sees only deliveries whose driver is linked to
+  their login (`Driver.LinkedUserId`) — applied to list, by-id (404), summary and status change. Only a
+  dispatcher can assign a driver (`Delivery.Conflict`).
+- **Riders are automatic:** `GetDriversHandler` creates a linked `Driver` for every active login holding the
+  **Delivery Rider** role (cross-schema read of `[identity]`; on first read, not at startup — a startup pass has
+  no tenant). `DriverDto.ActiveDeliveries` = runs not yet delivered/failed. `UpdateDriverCommand` gained
+  `LinkedUserId`; the Drivers form has a "Login account" select.
+- **`DeliveryOrderDto`** gained `CustomerName` (a delivery order stores the guest in `Order.Waiter`),
+  `OrderNotes`, `AmountToCollect` (`Order.Outstanding`) and `Items`.
+- **Rider screen** `rider-deliveries.tsx` — shown by `DeliveryView` to non-dispatchers: To deliver / Finished,
+  progress strip, destination headline, Navigate (Google Maps) + Call, items, amount to collect, one
+  full-width next step. POS pages live in a fixed-height shell (`<main overflow-hidden>`), so the screen
+  scrolls itself (`flex-1 min-h-0 overflow-y-auto`); the dispatcher board had the same bug.
+
+### Delivery orders are punched on the order screen
+The Delivery button opens `OrderScreen` with `newDelivery` instead of the old side form
+(`NewDeliveryOrderModal` is now unused, not deleted). Header collects name / phone / address / zone / rider;
+save is disabled until the first three are filled. The rider defaults to the freest one
+(`byAvailability`). Submit = create order (`orderType: "delivery"`) → create delivery leg → assign.
+
+`useOrderStatusLabel()` — a delivery order past the kitchen shows the rider's leg status; with no rider
+update, `served` reads "Delivered". Label only: a rider marking delivered does **not** change `Order.Status`.
+
+### Customers + loyalty
+- `OrderCustomer` (`order-customer.tsx`) puts the POS customer picker on every open bill (it used to be
+  reachable only inside the pay dialog), with the points balance.
+- **`LoyaltySupport`** (points live on the POS `Customer`, via `POSDbContext` like `CustomerPaymentSupport`):
+  earn `floor(Total / 100)` when a payment moves the order **into** paid (`EarnIfJustPaidAsync`, never fails
+  the payment); 1 point = 1 currency unit. Same rules as the retail till; both are constants, not settings.
+- **Redeem:** `POST /api/restaurant/orders/{id}/loyalty { points }` → `RedeemOrderLoyaltyCommand`, gated on
+  `restaurant.orders.edit` (the customer's entitlement, not a staff discount). Stored as an `OrderDiscount`
+  of type `"loyalty"`; `points = 0` removes it. Moves only the difference when the amount changes.
+  The generic discount endpoint still rejects type `loyalty`, so it cannot be applied without spending points.
+- Points are returned when the discount is removed, superseded by an ordinary discount, or the order is
+  cancelled (`ReturnSpentPointsAsync`). The customer cannot be changed while their points are on the bill.
+- Like the wallet charge, redemption runs once outside the concurrency-retried block; if the order save then
+  fails, points and bill can disagree — the same accepted gap documented on `CustomerPaymentSupport`.
+
+### Other
+- Tax receipt on screen after payment and from a paid order (`order-receipt.tsx`, print via a new window).
+- Order-screen categories are one scrolling row with back/next arrows (`CategoryRail`).
+- POS Reports' Session tab crashed outside `ShiftGate` → `useOptionalShift()`.
+
+### Local test data (SHAHBAZ-QFINITY only — not in any migration or seed)
+Workspace "Softaxis": `admin@softaxis.io` + restaurant manager / cashier / 2 waiters / chef / rider on
+`@softaxis.io`; 3 floors, 7 dining areas, 35 tables; the four new roles were created by hand.
+
+### Build / Verification Status
+- **Restaurant.API, Identity.Infrastructure:** 0 errors · **Frontend `tsc -p tsconfig.app.json`:** 0 errors.
+- No migration in this module.
+- **Pending (restart + re-login):** as a rider — only own runs, status changes work, others' 404; punch a
+  delivery order and confirm the rider is assigned; link a customer, pay, confirm points earned; redeem points,
+  then remove / cancel and confirm they return.
+- **Not built:** rider on/off-duty, configurable loyalty rates, automatic per-customer or per-group discounts,
+  route-level permission guards for the restaurant pages.
