@@ -2,7 +2,12 @@ import { useMemo } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useMarkAllNotificationsRead, useMarkNotificationRead, useMyNotifications } from "@/hooks/use-notifications";
+import {
+  useDismissNotification,
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useMyNotifications,
+} from "@/hooks/use-notifications";
 import { ErrorState, LoadingState } from "@/components/ui";
 import { fontSize, fontWeight, radius, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { AppNotificationDto } from "@/types/notifications";
@@ -17,10 +22,11 @@ const TYPE_ICON: Record<string, keyof typeof Feather.glyphMap> = {
 
 /**
  * Presented as a modal from the header bell (see RootNavigator.tsx), the same pattern as the AI
- * assistant. Reuses CRM's existing per-user "bell" feed (`GET /api/crm/notifications`) rather than
- * a new cross-module table -- today that means every notification shown here originated from CRM's
- * lead-alert pipeline (the one trigger this pass wired to mobile push too); see the Push
- * Notifications section of Mobile/README.md for what other modules are NOT wired up yet and why.
+ * assistant. Reads the shared, gateway-hosted cross-module feed (`GET /api/notifications`) -- every
+ * module's trigger writes here now (CRM lead/opportunity/account assignment, HR leave/payroll,
+ * Purchase requisitions, Project issue assignment, inbound portal leads, ...), not only the CRM lead
+ * pipeline this screen used to be limited to. The Expo push-tap path (`RootNavigator.tsx`) is
+ * separate and still lead-specific -- see Mobile/README.md's Push Notifications section.
  */
 export default function NotificationsScreen({
   onClose,
@@ -38,6 +44,7 @@ export default function NotificationsScreen({
   const { data, isLoading, isError, refetch, isRefetching } = useMyNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const dismiss = useDismissNotification();
 
   function handlePress(n: AppNotificationDto) {
     if (!n.read) markRead.mutate(n.id);
@@ -96,6 +103,15 @@ export default function NotificationsScreen({
                 <Text style={styles.rowDate}>{new Date(n.createdAt).toLocaleString()}</Text>
               </View>
               {!n.read && <View style={styles.unreadDot} />}
+              {/* Stops propagation implicitly -- a nested Pressable swallows the tap before the
+                  row's own onPress (which would mark-read / navigate) sees it. */}
+              <Pressable
+                hitSlop={8}
+                style={styles.dismissButton}
+                onPress={() => dismiss.mutate(n.id)}
+              >
+                <Feather name="x" size={13} color={colors.subtleForeground} />
+              </Pressable>
             </Pressable>
           ))}
         </ScrollView>
@@ -145,6 +161,7 @@ function createStyles(colors: AppColors) {
     rowMessage: { fontSize: fontSize.sm, color: colors.mutedForeground },
     rowDate: { fontSize: fontSize.xs, color: colors.subtleForeground, marginTop: 2 },
     unreadDot: { width: 8, height: 8, borderRadius: radius.full, backgroundColor: colors.primary, marginTop: 4 },
+    dismissButton: { padding: 4, marginLeft: 2, marginTop: -2 },
 
     empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm },
     emptyText: { fontSize: fontSize.sm, color: colors.subtleForeground },
