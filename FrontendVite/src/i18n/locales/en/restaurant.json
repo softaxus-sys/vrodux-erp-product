@@ -145,7 +145,33 @@
       "vehicle": "Vehicle (optional)",
       "vehiclePlaceholder": "Motorbike — ABC 123",
       "active": "Active",
-      "save": "Save Driver"
+      "save": "Save Driver",
+      "login": "Login account (optional)",
+      "noLogin": "Not linked to a login",
+      "loginHint": "Link the rider's own login so they see the deliveries assigned to this driver. Lists users with the Delivery Rider role."
+    },
+    "rider": {
+      "title": "My Deliveries",
+      "subtitle": "The orders assigned to you.",
+      "toDeliver": "To deliver",
+      "finished": "Finished",
+      "none": "No deliveries assigned to you right now.",
+      "noneHint": "If you were expecting one, ask your manager to assign it to you and to link your login to your driver profile.",
+      "noneFinished": "Nothing finished yet.",
+      "dueBy": "Due by {{time}}",
+      "navigate": "Navigate",
+      "collect": "Collect from customer",
+      "paid": "Already paid",
+      "fail": "Could not deliver",
+      "failConfirm": "Mark this delivery as failed? This cannot be undone.",
+      "keep": "Keep it",
+      "failYes": "Yes, it failed",
+      "action": {
+        "picked_up": "Picked up",
+        "enroute": "On my way",
+        "delivered": "Delivered"
+      },
+      "call": "Call"
     }
   },
   "reports": {
@@ -922,9 +948,13 @@
       "phone": "Phone",
       "address": "Delivery Address",
       "zone": "Delivery Zone",
-      "noZone": "No zone (custom fee)",
+      "noZone": "No zone",
       "items": "Items",
-      "submit": "Create Delivery Order"
+      "submit": "Create Delivery Order",
+      "riderFree": "Free",
+      "riderBusy_one": "{{count}} delivery in hand",
+      "riderBusy_other": "{{count}} deliveries in hand",
+      "needDetails": "Add the customer's name, phone and address to place this delivery."
     },
     "screen": {
       "back": "Tables",
@@ -957,9 +987,9 @@
       "assignLater": "Assign later",
       "assignRider": "Assign rider",
       "riderTitle": "Who is delivering?",
-      "noRiders": "No riders yet. Add them under Delivery.",
+      "noRiders": "No riders yet. Give someone the Delivery Rider role in Settings → Users.",
       "waiterTitle": "Who is serving?",
-      "noStaff": "No staff found.",
+      "noStaff": "No waiters yet. Give someone the Waiter role in Settings → Users.",
       "searchPeople": "Search by name…",
       "guestCount": "{{count}} guests"
     },
@@ -995,6 +1025,18 @@
       "thanks": "Thank you — please visit again",
       "print": "Print",
       "done": "Done"
+    },
+    "loyalty": {
+      "balance_one": "{{count}} loyalty point",
+      "balance_other": "{{count}} loyalty points",
+      "use": "Use points",
+      "used_one": "{{count}} point used",
+      "used_other": "{{count}} points used",
+      "apply": "Take off {{amount}}",
+      "max_one": "Up to {{count}} point on this bill.",
+      "max_other": "Up to {{count}} points on this bill.",
+      "willEarn_one": "Earns {{count}} point when paid.",
+      "willEarn_other": "Earns {{count}} points when paid."
     }
   }
 }

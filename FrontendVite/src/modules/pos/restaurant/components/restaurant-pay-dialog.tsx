@@ -247,7 +247,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
 
 /** Compact customer picker for the pay dialog — links the order to a POS customer so Wallet/House
  * Account payment can be validated against their real balance. Mirrors retail POS's CustomerSelect. */
-function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick }: {
+export function OrderCustomerPicker({ linkedCustomer, editable, busy, currency, onPick }: {
   linkedCustomer: CustomerDto | null; editable: boolean; busy: boolean; currency: string; onPick: (customerId: string | null) => void;
 }) {
   const { t } = useTranslation("restaurant");

@@ -18,7 +18,7 @@ import {
   useCancelOrder, useSetItemAvailability, useApplyOrderDiscount, useRemoveOrderDiscount,
   useRefundOrder, useSplitOrder, useHoldOrder, useRecallOrder, useCombos, useAddCombo,
   useFireNextCourse, useSendReceipt, useSetTableStatus, useTransferOrderTable, useSetOrderWaiter,
-  useDeliveryOrders, useDrivers, useAssignDriverToDelivery,
+  useDeliveryOrders, useDrivers, useAssignDriverToDelivery, useCreateDeliveryOrder, useDeliveryZones,
 } from "@/hooks/restaurant/use-restaurant";
 import { useRecipes } from "@/hooks/recipe/use-recipe";
 import { useUsers } from "@/hooks/identity/use-users";
@@ -29,10 +29,12 @@ import { vouchersApi } from "@/lib/pos/vouchers.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useShift } from "@/modules/pos/retail/components/shift-gate";
 import type {
-  DiscountType, RestaurantTable, RestaurantOrder, MenuItem, Combo,
+  DiscountType, RestaurantTable, RestaurantOrder, MenuItem, Combo, Driver,
 } from "@/lib/restaurant/restaurant.api";
 import { RestaurantPayDialog } from "./restaurant-pay-dialog";
 import { OrderReceiptModal } from "./order-receipt";
+import { OrderCustomer } from "./order-customer";
+import { useOrderStatusLabel } from "./order-status-label";
 import { DishPhoto, coverOf } from "./dish-photos";
 import { ReasonModal, RefundModal, SplitBillModal, ComboPickerModal, SendReceiptModal, PersonSheet } from "./order-dialogs";
 
@@ -123,6 +125,7 @@ function CategoryRail({ children }: { children: React.ReactNode }) {
   );
 }
 
+const dlvInput = "w-full h-11 px-3 rounded-xl border-2 border-border bg-card text-base font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium focus:outline-none focus:border-primary";
 const bigBtn = "h-16 rounded-2xl flex items-center justify-center gap-2 px-4 text-lg font-black transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100";
 
 // ─── Options picker — one question per group, big targets ────────────────────
@@ -355,13 +358,20 @@ function RiderChip({ orderId }: { orderId: string }) {
       {open && (
         <PersonSheet title={t("posView.screen.riderTitle")} loading={isLoading} busy={assign.isPending}
           currentName={delivery.driverName} emptyText={t("posView.screen.noRiders")}
-          people={drivers.map(d => ({ id: d.id, name: d.name, detail: [d.phone, d.vehicleInfo].filter(Boolean).join(" · ") }))}
+          people={byAvailability(drivers).map(d => ({ id: d.id, name: d.name, detail: riderDetail(d, t) }))}
           onPick={p => assign.mutate({ id: delivery.id, driverId: p.id }, { onSuccess: () => setOpen(false) })}
           onClose={() => setOpen(false)} />
       )}
     </>
   );
 }
+/** Free riders first, then the least loaded — the order a dispatcher wants to read them in. */
+const byAvailability = (drivers: Driver[]) =>
+  [...drivers].sort((a, b) => (a.activeDeliveries ?? 0) - (b.activeDeliveries ?? 0) || a.name.localeCompare(b.name));
+const riderDetail = (d: Driver, t: (k: string, o?: Record<string, unknown>) => string) =>
+  [(d.activeDeliveries ?? 0) === 0 ? t("posView.newDelivery.riderFree") : t("posView.newDelivery.riderBusy", { count: d.activeDeliveries }),
+   d.phone, d.vehicleInfo].filter(Boolean).join(" · ");
+
 const chipCls = "h-11 max-w-full px-3.5 rounded-xl border-2 flex items-center gap-2 text-base font-bold text-foreground transition-colors disabled:opacity-60";
 
 // ─── Labelled secondary action (never an unlabelled icon) ────────────────────
@@ -379,7 +389,9 @@ function ActionButton({ icon: Icon, label, onClick, danger, busy, disabled }: {
 }
 
 // ─── The screen ───────────────────────────────────────────────────────────────
-export function OrderScreen({ table, order, tables, allOrders, currency, onBack, onOrderCreated }: {
+export function OrderScreen({ table, order, tables, allOrders, currency, onBack, onOrderCreated, newDelivery = false }: {
+  /** Opened from the Delivery button: the order is punched here like any other, plus where it is going and who takes it. */
+  newDelivery?: boolean;
   /** null = a counter order (takeaway / delivery). */
   table: RestaurantTable | null;
   order: RestaurantOrder | null;
@@ -398,6 +410,21 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   const { openDrawer, printRaw, printerStatus } = useHardware();
 
   const createOrder = useCreateOrder();
+  const createDelivery = useCreateDeliveryOrder();
+  const assignRider = useAssignDriverToDelivery();
+  // Only a delivery being started needs the zones and riders.
+  const startingDelivery = newDelivery && !order;
+  const { data: zones = [] } = useDeliveryZones();
+  const { data: riders = [], isLoading: ridersLoading } = useDrivers(true);
+  const [dlv, setDlv] = React.useState({ name: "", phone: "", address: "", zoneId: "", riderId: "" });
+  const [riderTouched, setRiderTouched] = React.useState(false);
+  // Every delivery leaves with a rider: start on whoever is freest, and let the cashier change it.
+  React.useEffect(() => {
+    if (!startingDelivery || riderTouched || dlv.riderId || riders.length === 0) return;
+    setDlv(d => ({ ...d, riderId: byAvailability(riders)[0].id }));
+  }, [startingDelivery, riderTouched, dlv.riderId, riders]);
+  const dlvReady = !startingDelivery || (dlv.name.trim() !== "" && dlv.phone.trim() !== "" && dlv.address.trim() !== "");
+  const pickedRider = riders.find(r => r.id === dlv.riderId) ?? null;
   const addItems    = useAddItems();
   const voidItem    = useVoidItem();
   const sendKitchen = useSendToKitchen();
@@ -430,21 +457,23 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   // The receipt on screen: straight after a payment (leaveAfter = go back to the floor once it is
   // closed), or reopened from an order that is already paid.
   const [receipt, setReceipt] = React.useState<{ order: RestaurantOrder; justPaid: boolean; leaveAfter: boolean } | null>(null);
-  const [dialog, setDialog] = React.useState<null | "discount" | "split" | "cancel" | "refund" | "receipt" | "move" | "waiter">(null);
+  const [dialog, setDialog] = React.useState<null | "rider" | "discount" | "split" | "cancel" | "refund" | "receipt" | "move" | "waiter">(null);
   const [voidTarget, setVoidTarget] = React.useState<string | null>(null);
 
   // Recipe links are only shown while managing stock, so only fetched then.
   const { data: recipes = [] } = useRecipes(manageStock);
   const recipeIds = React.useMemo(() => new Set(recipes.map(r => r.menuItemId)), [recipes]);
 
-  const { data: staffPage, isLoading: staffLoading } = useUsers({ pageSize: 200 }, dialog === "waiter");
+  // Only people whose job is serving — not every login in the workspace.
+  const { data: staffPage, isLoading: staffLoading } = useUsers({ pageSize: 200, role: "Waiter" }, dialog === "waiter");
   const staff = (staffPage?.items ?? []).filter(u => u.status?.toLowerCase() === "active").map(u => ({ id: u.id, name: u.fullName, detail: u.email }));
   const isDelivery = order?.orderType === "delivery";
+  const statusLabel = useOrderStatusLabel();
   const waiterName = order?.waiter ?? waiter;
 
   const closed = !!order && CLOSED.includes(order.status);
   const live   = !!order && !closed;
-  const saving = createOrder.isPending || addItems.isPending || sendKitchen.isPending;
+  const saving = createOrder.isPending || addItems.isPending || sendKitchen.isPending || createDelivery.isPending || assignRider.isPending;
 
   const categoryIndex = React.useMemo(() => new Map(menu.map((c, i) => [c.id, i])), [menu]);
   const allItems = React.useMemo(() => menu.flatMap(c => c.items.map(i => ({ ...i, categoryId: c.id }))), [menu]);
@@ -493,10 +522,18 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
       if (pending.length) {
         if (!order) {
           created = await createOrder.mutateAsync({
-            tableId: table?.id ?? null, waiter, covers,
-            orderType: table ? "dine_in" : "takeaway", notes: null, items: lines(), sessionId, branchId,
+            // A delivery has no table or waiter, so the guest's name travels in that field.
+            tableId: table?.id ?? null, waiter: startingDelivery ? dlv.name.trim() : waiter, covers,
+            orderType: table ? "dine_in" : startingDelivery ? "delivery" : "takeaway", notes: null, items: lines(), sessionId, branchId,
           });
           id = created.id;
+          if (startingDelivery) {
+            const leg = await createDelivery.mutateAsync({
+              orderId: created.id, address: dlv.address.trim(), phone: dlv.phone.trim(), deliveryZoneId: dlv.zoneId || null,
+            });
+            // The order is already placed; a failed assignment is reported by the hook and can be redone from the order.
+            if (dlv.riderId) await assignRider.mutateAsync({ id: leg.id, driverId: dlv.riderId }).catch(() => {});
+          }
         } else {
           await addItems.mutateAsync({ id: order.id, items: lines() });
         }
@@ -661,7 +698,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
             <p className="text-2xl font-black text-foreground truncate">{title}</p>
             {status && (
               <span className={cn("px-3 py-1.5 rounded-xl text-sm font-extrabold whitespace-nowrap", ORDER_STATUS_STYLE[status])}>
-                {t(`orders.status.${status}`, { defaultValue: status })}
+                {order ? statusLabel(order) : t(`orders.status.${status}`, { defaultValue: status })}
               </span>
             )}
           </div>
@@ -678,6 +715,32 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
                 <button onClick={() => setCovers(c => c + 1)} className="h-10 w-10 rounded-xl border-2 border-border flex items-center justify-center hover:border-primary"><Plus className="h-4 w-4" strokeWidth={3} /></button>
               </div>
             </div>
+          ) : startingDelivery ? (
+            <div className="mt-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <input value={dlv.name} onChange={e => setDlv(d => ({ ...d, name: e.target.value }))}
+                  placeholder={t("posView.newDelivery.guestName")} className={dlvInput} />
+                <input value={dlv.phone} onChange={e => setDlv(d => ({ ...d, phone: e.target.value }))} inputMode="tel"
+                  placeholder={t("posView.newDelivery.phone")} className={dlvInput} />
+              </div>
+              <input value={dlv.address} onChange={e => setDlv(d => ({ ...d, address: e.target.value }))}
+                placeholder={t("posView.newDelivery.address")} className={dlvInput} />
+              <div className="grid grid-cols-2 gap-2">
+                {zones.length > 0 && (
+                  <select value={dlv.zoneId} onChange={e => setDlv(d => ({ ...d, zoneId: e.target.value }))} className={dlvInput}>
+                    <option value="">{t("posView.newDelivery.noZone")}</option>
+                    {zones.filter(z => z.isActive).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}
+                  </select>
+                )}
+                <button onClick={() => setDialog("rider")}
+                  className={cn(dlvInput, "flex items-center gap-2 text-start", zones.length === 0 && "col-span-2",
+                    pickedRider ? "" : "border-warning bg-warning/10 text-warning")}>
+                  <Bike className="h-5 w-5 shrink-0" />
+                  <span className="truncate">{pickedRider ? pickedRider.name : t("posView.screen.assignRider")}</span>
+                </button>
+              </div>
+              {!dlvReady && <p className="text-xs font-bold text-warning">{t("posView.newDelivery.needDetails")}</p>}
+            </div>
           ) : (
             <p className="text-sm font-semibold text-muted-foreground mt-0.5">{t("posView.drawer.counterPickup")}</p>
           )}
@@ -693,6 +756,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
               {isDelivery && order && <RiderChip orderId={order.id} />}
             </div>
           )}
+          {order && <OrderCustomer order={order} currency={currency} />}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -870,10 +934,10 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
           <div className="flex gap-2">
             {pending.length > 0 ? (
               <>
-                <button disabled={saving} onClick={() => submit(false)} className={cn(bigBtn, "w-28 border-2 border-border text-base")}>
+                <button disabled={saving || !dlvReady} onClick={() => submit(false)} className={cn(bigBtn, "w-28 border-2 border-border text-base")}>
                   <Save className="h-5 w-5" />{t("posView.screen.save")}
                 </button>
-                <button disabled={saving} onClick={() => submit(true)} className={cn(bigBtn, "flex-1 bg-primary text-primary-foreground shadow-lg shadow-primary/30")}>
+                <button disabled={saving || !dlvReady} onClick={() => submit(true)} className={cn(bigBtn, "flex-1 bg-primary text-primary-foreground shadow-lg shadow-primary/30")}>
                   {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : <><Send className="h-5 w-5 rtl:-scale-x-100" />{t("posView.screen.sendCount", { count: pendingCount })}</>}
                 </button>
               </>
@@ -894,7 +958,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
               <>
                 {status !== "served" && (
                   <button disabled={serveOrder.isPending} onClick={() => serveOrder.mutate(order.id)} className={cn(bigBtn, "w-36 border-2 border-border text-base")}>
-                    {serveOrder.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="h-5 w-5" />{t("posView.screen.served")}</>}
+                    {serveOrder.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="h-5 w-5" />{isDelivery ? t("delivery.status.delivered") : t("posView.screen.served")}</>}
                   </button>
                 )}
                 <button onClick={() => setPayTarget(order)} className={cn(bigBtn, "flex-1 bg-success text-white shadow-lg shadow-success/30")}>
@@ -942,6 +1006,13 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
         <ComboPickerModal combo={comboPicker} menu={menu} busy={addCombo.isPending}
           onConfirm={selections => addCombo.mutate({ id: order.id, comboId: comboPicker.id, selections }, { onSuccess: () => setComboPicker(null) })}
           onCancel={() => setComboPicker(null)} />
+      )}
+      {dialog === "rider" && (
+        <PersonSheet title={t("posView.screen.riderTitle")} loading={ridersLoading} currentName={pickedRider?.name}
+          emptyText={t("posView.screen.noRiders")}
+          people={byAvailability(riders).map(d => ({ id: d.id, name: d.name, detail: riderDetail(d, t) }))}
+          onPick={p => { setRiderTouched(true); setDlv(d => ({ ...d, riderId: p.id })); setDialog(null); }}
+          onClose={() => setDialog(null)} />
       )}
       {dialog === "waiter" && (
         <PersonSheet title={t("posView.screen.waiterTitle")} people={staff} loading={staffLoading} busy={setOrderWaiter.isPending}

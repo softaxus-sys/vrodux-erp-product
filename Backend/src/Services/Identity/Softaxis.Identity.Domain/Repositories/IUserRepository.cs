@@ -16,6 +16,7 @@ public interface IUserRepository
         string? search = null,
         string? sortBy = null, bool sortDesc = false,
         Guid? tenantId = null,
+        string? roleName = null,
         CancellationToken ct = default);
 
     Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct = default);

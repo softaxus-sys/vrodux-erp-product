@@ -36,6 +36,7 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
         string? search = null,
         string? sortBy = null, bool sortDesc = false,
         Guid? tenantId = null,
+        string? roleName = null,
         CancellationToken ct = default)
     {
         var query = db.Users.AsNoTracking()
@@ -45,6 +46,14 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
         // Tenant scoping — non-super-admin callers only see their own tenant's users.
         if (tenantId.HasValue)
             query = query.Where(u => u.TenantId == tenantId.Value);
+
+        // Pickers that want one job only (e.g. "who is serving" lists waiters). Combined with the
+        // tenant scope above, so a same-named role in another workspace can never match.
+        if (!string.IsNullOrWhiteSpace(roleName))
+        {
+            var role = roleName.Trim();
+            query = query.Where(u => u.UserRoles.Any(ur => ur.Role.Name == role));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {

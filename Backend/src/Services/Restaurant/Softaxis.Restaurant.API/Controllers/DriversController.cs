@@ -24,12 +24,12 @@ public sealed class DriversController(ISender sender) : RestaurantControllerBase
     [HttpPut("{id:guid}")]
     [RequirePermission("restaurant.delivery.edit")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateDriverReq req, CancellationToken ct) =>
-        OkOrError(await sender.Send(new UpdateDriverCommand(id, req.Name, req.Phone, req.VehicleInfo, req.IsActive), ct));
+        OkOrError(await sender.Send(new UpdateDriverCommand(id, req.Name, req.Phone, req.VehicleInfo, req.IsActive, req.LinkedUserId), ct));
 
     [HttpDelete("{id:guid}")]
     [RequirePermission("restaurant.delivery.edit")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new DeleteDriverCommand(id), ct));
 
-    public record UpdateDriverReq(string Name, string Phone, string? VehicleInfo, bool IsActive);
+    public record UpdateDriverReq(string Name, string Phone, string? VehicleInfo, bool IsActive, Guid? LinkedUserId);
 }

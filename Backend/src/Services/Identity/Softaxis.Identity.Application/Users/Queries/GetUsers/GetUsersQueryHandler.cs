@@ -20,7 +20,7 @@ public sealed class GetUsersQueryHandler(
 
         var paged = await userRepo.GetPagedAsync(
             query.Page, query.PageSize,
-            query.Search, query.SortBy, query.SortDesc, tenantScope, ct);
+            query.Search, query.SortBy, query.SortDesc, tenantScope, query.Role, ct);
 
         var dtos = paged.Items
             .Select(u => new UserSummaryDto(

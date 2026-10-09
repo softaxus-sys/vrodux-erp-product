@@ -16,7 +16,8 @@ public sealed class CreateDriverValidator : AbstractValidator<CreateDriverComman
     }
 }
 
-public sealed record UpdateDriverCommand(Guid Id, string Name, string Phone, string? VehicleInfo, bool IsActive) : ICommand<DriverDto>;
+public sealed record UpdateDriverCommand(Guid Id, string Name, string Phone, string? VehicleInfo, bool IsActive, Guid? LinkedUserId = null)
+    : ICommand<DriverDto>;
 
 public sealed class UpdateDriverValidator : AbstractValidator<UpdateDriverCommand>
 {

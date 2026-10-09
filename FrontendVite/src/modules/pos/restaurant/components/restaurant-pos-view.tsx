@@ -12,8 +12,8 @@ import { Can } from "@/components/auth/can";
 import type { RestaurantTable, RestaurantOrder, TableStatus } from "@/lib/restaurant/restaurant.api";
 import { BranchSwitcher } from "./branch-switcher";
 import { AddTableForm } from "./add-table-form";
-import { NewDeliveryOrderModal } from "./order-dialogs";
 import { OrderScreen, ORDER_STATUS_STYLE } from "./order-screen";
+import { useOrderStatusLabel } from "./order-status-label";
 
 const ORDERS_PAGE_SIZE = 30;
 /** The floor needs one live order per table, so this is bounded by floor size, not history. */
@@ -29,7 +29,7 @@ const TILE: Record<TableStatus, string> = {
   cleaning:  "border-border bg-muted/50 hover:border-muted-foreground",
 };
 
-type Screen = null | { kind: "table"; tableId: string } | { kind: "order"; orderId: string | null };
+type Screen = null | { kind: "table"; tableId: string } | { kind: "order"; orderId: string | null; delivery?: boolean };
 
 /** Re-renders once a minute so "seated 42 min" stays honest without a timer per tile. */
 function useMinuteTick() {
@@ -87,6 +87,7 @@ export function RestaurantPOSView() {
   useDeviceRegistration();
   useMinuteTick();
   const currency = useCurrency();
+  const statusLabel = useOrderStatusLabel();
 
   const [screen, setScreen] = React.useState<Screen>(null);
   /** Covers the moment between an order being created and the next refresh carrying it. */
@@ -95,7 +96,6 @@ export function RestaurantPOSView() {
   const [section, setSection] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState<"all" | TableStatus>("all");
   const [showAddTable, setShowAddTable] = React.useState(false);
-  const [showDelivery, setShowDelivery] = React.useState(false);
 
   const { data: tables = [], isLoading: tablesLoading } = useTables();
   // The floor only wants what is live right now; history is a separate, paged query.
@@ -147,11 +147,12 @@ export function RestaurantPOSView() {
     return (
       <OrderScreen
         key={screen.kind === "table" ? screen.tableId : "counter"}
+        newDelivery={screen.kind === "order" && !!screen.delivery}
         table={table} order={order} tables={tables} allOrders={openOrders} currency={currency}
         onBack={close}
         onOrderCreated={created => {
           setJustCreated(created);
-          if (screen.kind === "order") setScreen({ kind: "order", orderId: created.id });
+          if (screen.kind === "order") setScreen({ kind: "order", orderId: created.id, delivery: screen.delivery });
         }}
       />
     );
@@ -194,7 +195,7 @@ export function RestaurantPOSView() {
             </button>
           </Can>
           <Can permission="restaurant.delivery.create">
-            <button onClick={() => setShowDelivery(true)} className={cn(headBtn, "border-2 border-border hover:border-primary")}>
+            <button onClick={() => setScreen({ kind: "order", orderId: null, delivery: true })} className={cn(headBtn, "border-2 border-border hover:border-primary")}>
               <Bike className="h-5 w-5" />{t("posView.delivery")}
             </button>
           </Can>
@@ -245,7 +246,7 @@ export function RestaurantPOSView() {
                           {o.orderNumber.slice(-6)}
                         </span>
                         <span className={cn("px-2 py-1 rounded-lg text-xs font-extrabold", ORDER_STATUS_STYLE[o.status])}>
-                          {t(`orders.status.${o.status}`, { defaultValue: o.status })}
+                          {statusLabel(o)}
                         </span>
                       </div>
                       <p className="text-xl font-black tabular-nums mt-2">{formatCurrency(o.total, currency)}</p>
@@ -291,7 +292,7 @@ export function RestaurantPOSView() {
                     </p>
                   </div>
                   <span className={cn("px-3 py-1.5 rounded-xl text-sm font-extrabold whitespace-nowrap", ORDER_STATUS_STYLE[o.status])}>
-                    {t(`orders.status.${o.status}`, { defaultValue: o.status })}
+                    {statusLabel(o)}
                   </span>
                   <p className="w-32 text-end text-lg font-black tabular-nums">{formatCurrency(o.total, currency)}</p>
                   <ChevronRight className="h-5 w-5 text-muted-foreground rtl:rotate-180 shrink-0" />
@@ -312,7 +313,6 @@ export function RestaurantPOSView() {
       </div>
 
       <AddTableForm open={showAddTable} onClose={() => setShowAddTable(false)} />
-      {showDelivery && <NewDeliveryOrderModal currency={currency} onClose={() => setShowDelivery(false)} />}
     </div>
   );
 }

@@ -223,7 +223,7 @@ export interface OrderPaymentDto {
   createdAt: string;
 }
 
-export type DiscountType = "flat" | "percentage" | "voucher";
+export type DiscountType = "flat" | "percentage" | "voucher" | "loyalty";
 
 export interface OrderDiscountDto {
   id: string;
@@ -385,6 +385,8 @@ export interface DeliveryZone {
 export interface Driver {
   id: string; branchId: string | null; linkedUserId: string | null; name: string; phone: string;
   vehicleInfo: string | null; isActive: boolean;
+  /** Runs this rider is still on. 0 = free. */
+  activeDeliveries?: number;
 }
 
 export type DeliveryStatus = "assigned" | "picked_up" | "enroute" | "delivered" | "failed";
@@ -397,6 +399,9 @@ export interface DeliveryOrder {
   estimatedDeliveryAt: string | null; deliveredAt: string | null; deliveryFee: number;
   thirdPartyProvider: string | null; thirdPartyOrderRef: string | null;
   trackingToken: string; createdAt: string;
+  /** Who it is for, what is in the bag, and what is still owed at the door. */
+  customerName?: string | null; orderNotes?: string | null; amountToCollect?: number;
+  items?: { name: string; quantity: number; notes: string | null }[] | null;
 }
 
 export interface DeliverySummary {
@@ -548,6 +553,9 @@ export const restaurantApi = {
     rawApiClient.post(`${BASE}/orders/${id}/items/${itemId}/void`, { reason }),
   applyDiscount:    (id: string, p: { type: DiscountType; amount: number; reason: string }): Promise<RestaurantOrder> =>
     rawApiClient.patch(`${BASE}/orders/${id}/discount`, p),
+  /** Spend the linked customer's loyalty points on this bill; 0 takes them back off. */
+  redeemLoyalty:    (id: string, points: number): Promise<RestaurantOrder> =>
+    rawApiClient.post(`${BASE}/orders/${id}/loyalty`, { points }),
   removeDiscount:   (id: string, reason: string): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/discount/remove`, { reason }),
   sendToKitchen:    (id: string) => rawApiClient.patch(`${BASE}/orders/${id}/send`),
@@ -624,7 +632,7 @@ export const restaurantApi = {
     rawApiClient.get(`${BASE}/drivers${activeOnly ? "?activeOnly=true" : ""}`),
   createDriver: (p: { name: string; phone: string; vehicleInfo?: string | null; linkedUserId?: string | null; branchId?: string | null }): Promise<Driver> =>
     rawApiClient.post(`${BASE}/drivers`, p),
-  updateDriver: (id: string, p: { name: string; phone: string; vehicleInfo?: string | null; isActive: boolean }): Promise<Driver> =>
+  updateDriver: (id: string, p: { name: string; phone: string; vehicleInfo?: string | null; isActive: boolean; linkedUserId?: string | null }): Promise<Driver> =>
     rawApiClient.put(`${BASE}/drivers/${id}`, p),
   deleteDriver: (id: string): Promise<void> => rawApiClient.delete(`${BASE}/drivers/${id}`),
 

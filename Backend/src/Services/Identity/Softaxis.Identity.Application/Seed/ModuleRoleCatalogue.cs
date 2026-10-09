@@ -123,14 +123,15 @@ public static class ModuleRoleCatalogue
             return
             [
                 // pos.sessions too: a manager opens, closes and approves the shifts the order screen
-                // runs on. No restaurant role holds pos.products / pos.customers / pos.reports —
+                // runs on. No restaurant role holds pos.products / pos.reports —
                 // those are what surface the retail till.
                 new($"{label} Manager", $"Full access to the {label} module.",
-                    (m, _) => InModule(m, "restaurant") || m == "pos.sessions"),
+                    (m, a) => InModule(m, "restaurant") || m == "pos.sessions" || (m == "pos.customers" && a != "delete")),
 
                 new($"{label} Staff",
                     $"Day-to-day {label} work — can view and record, but not void, discount or refund.",
-                    (m, a) => InModule(m, "restaurant") && !PrivilegedActions.Contains(a)),
+                    (m, a) => (InModule(m, "restaurant") && !PrivilegedActions.Contains(a))
+                              || (m is "pos.sessions" or "pos.customers" && a is "view" or "create")),
 
                 // Named apart from the POS "Cashier", which a tenant with retail tills also gets.
                 new($"{label} Cashier",
@@ -144,6 +145,8 @@ public static class ModuleRoleCatalogue
                         "restaurant.delivery"     => a is "view" or "create",
                         "pos.sessions"            => a is "view" or "create",
                         "pos.transactions"        => a is "view" or "create" or "print",
+                        // The customer book: who is eating, and their loyalty points.
+                        "pos.customers"           => a is "view" or "create" or "edit",
                         _                         => false,
                     }),
 
@@ -157,6 +160,7 @@ public static class ModuleRoleCatalogue
                         "restaurant.kitchen"      => a == "view",
                         "restaurant.reservations" => a is "view" or "create" or "edit",
                         "pos.sessions"            => a is "view" or "create",
+                        "pos.customers"           => a is "view" or "create",
                         _                         => false,
                     }),
 

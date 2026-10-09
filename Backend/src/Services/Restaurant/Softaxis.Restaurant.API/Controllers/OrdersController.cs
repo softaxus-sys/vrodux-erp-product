@@ -89,6 +89,14 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> RemoveDiscount(Guid id, [FromBody] ReasonReq req, CancellationToken ct) =>
         OkOrError(await sender.Send(new RemoveOrderDiscountCommand(id, req.Reason), ct));
 
+    /// <summary>POST /api/restaurant/orders/{id}/loyalty — spend the linked customer's points on this
+    /// bill (points = 0 takes them back off). Gated on .edit, not .discount: it is the customer's own
+    /// entitlement, and the handler checks their balance.</summary>
+    [HttpPost("{id:guid}/loyalty")]
+    [RequirePermission("restaurant.orders.edit")]
+    public async Task<IActionResult> RedeemLoyalty(Guid id, [FromBody] LoyaltyReq req, CancellationToken ct) =>
+        OkOrError(await sender.Send(new RedeemOrderLoyaltyCommand(id, req.Points), ct));
+
     /// <summary>PATCH /api/restaurant/orders/{id}/send</summary>
     [HttpPatch("{id:guid}/send")]
     [RequirePermission("restaurant.orders.edit")]
@@ -186,6 +194,7 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public record ComboSelectionReq(Guid ComboItemId, Guid MenuItemId);
     public record AddComboReq(Guid ComboId, IReadOnlyList<ComboSelectionReq> Selections);
     public record DiscountReq(string Type, decimal Amount, string Reason);
+    public record LoyaltyReq(decimal Points);
     public record ReasonReq(string Reason);
     public record PayReq(string Method);
     public record TipReq(decimal Amount);

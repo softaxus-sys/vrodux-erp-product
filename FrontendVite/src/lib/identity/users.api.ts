@@ -10,6 +10,8 @@ export interface GetUsersParams {
   search?: string;
   sortBy?: string;
   sortDesc?: boolean;
+  /** Only users holding a role with exactly this name, e.g. "Waiter". */
+  role?: string;
 }
 
 export interface CreateUserPayload {
@@ -51,6 +53,7 @@ export const usersApi = {
     if (params.search)   qs.set("search",   params.search);
     if (params.sortBy)   qs.set("sortBy",   params.sortBy);
     if (params.sortDesc) qs.set("sortDesc", "true");
+    if (params.role)     qs.set("role",     params.role);
     return apiClient.get<PagedResult<UserSummaryDto>>(`${BASE}?${qs}`);
   },
 

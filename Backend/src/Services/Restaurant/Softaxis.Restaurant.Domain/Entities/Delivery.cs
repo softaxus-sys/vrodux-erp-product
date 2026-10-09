@@ -60,6 +60,9 @@ public sealed class Driver
         Name = name; Phone = phone; VehicleInfo = vehicleInfo; IsActive = isActive; UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>Ties this driver to a login, which is what lets that person see their own deliveries.</summary>
+    public void LinkUser(Guid? userId) { LinkedUserId = userId; UpdatedAt = DateTime.UtcNow; }
+
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
 

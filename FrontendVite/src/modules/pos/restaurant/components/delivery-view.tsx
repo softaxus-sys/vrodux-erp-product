@@ -14,6 +14,8 @@ import type { DeliveryZone, Driver, DeliveryOrder, DeliveryStatus } from "@/lib/
 import { useAuthStore } from "@/store/auth.store";
 import { Can, useCan } from "@/components/auth/can";
 import { toast } from "sonner";
+import { useUsers } from "@/hooks/identity/use-users";
+import { RiderDeliveries } from "./rider-deliveries";
 
 /** Ids double as translation keys (delivery.tabs.*). */
 const TABS = ["board", "zones", "drivers"] as const;
@@ -40,9 +42,12 @@ function StatCard({ label, value, accent = "bg-primary" }: { label: string; valu
 export function DeliveryView() {
   const { t } = useTranslation("restaurant");
   const [tab, setTab] = React.useState<typeof TABS[number]>("board");
+  // Someone who can only view and update deliveries is a rider: they get their own runs, not the board.
+  const isDispatcher = useCan("restaurant.delivery.create");
+  if (!isDispatcher) return <RiderDeliveries />;
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold text-foreground flex items-center gap-2"><Truck className="w-5 h-5" /> {t("delivery.title")}</h1>
         <p className="text-sm text-muted-foreground">{t("delivery.description")}</p>
@@ -302,13 +307,15 @@ function DriversTab() {
 
 function DriverModal({ driver, onClose, onSave }: {
   driver: Driver | null; onClose: () => void;
-  onSave: (p: { name: string; phone: string; vehicleInfo?: string | null; isActive?: boolean }) => void;
+  onSave: (p: { name: string; phone: string; vehicleInfo?: string | null; isActive?: boolean; linkedUserId?: string | null }) => void;
 }) {
   const { t } = useTranslation("restaurant");
   const [name, setName] = React.useState(driver?.name ?? "");
   const [phone, setPhone] = React.useState(driver?.phone ?? "");
   const [vehicleInfo, setVehicleInfo] = React.useState(driver?.vehicleInfo ?? "");
   const [isActive, setIsActive] = React.useState(driver?.isActive ?? true);
+  const [linkedUserId, setLinkedUserId] = React.useState(driver?.linkedUserId ?? "");
+  const { data: riderLogins } = useUsers({ pageSize: 200, role: "Delivery Rider" });
 
   return (
     <LeftDrawer onClose={onClose} widthClassName="max-w-sm">
@@ -322,13 +329,20 @@ function DriverModal({ driver, onClose, onSave }: {
         <Input value={phone} onChange={e => setPhone(e.target.value)} className="h-9 text-sm" /></div>
       <div><label className="text-xs text-muted-foreground">{t("delivery.drivers.vehicle")}</label>
         <Input value={vehicleInfo} onChange={e => setVehicleInfo(e.target.value)} placeholder={t("delivery.drivers.vehiclePlaceholder")} className="h-9 text-sm" /></div>
+      <div><label className="text-xs text-muted-foreground">{t("delivery.drivers.login")}</label>
+        <select value={linkedUserId} onChange={e => setLinkedUserId(e.target.value)}
+          className="w-full h-9 text-sm rounded-md border border-border bg-card px-2">
+          <option value="">{t("delivery.drivers.noLogin")}</option>
+          {(riderLogins?.items ?? []).map(u => <option key={u.id} value={u.id}>{u.fullName} — {u.email}</option>)}
+        </select>
+        <p className="text-[11px] text-muted-foreground mt-1">{t("delivery.drivers.loginHint")}</p></div>
       {driver && (
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} /> {t("delivery.drivers.active")}
         </label>
       )}
       <Button className="w-full" disabled={!name.trim() || !phone.trim()}
-        onClick={() => onSave({ name: name.trim(), phone: phone.trim(), vehicleInfo: vehicleInfo.trim() || null, isActive })}>
+        onClick={() => onSave({ name: name.trim(), phone: phone.trim(), vehicleInfo: vehicleInfo.trim() || null, isActive, linkedUserId: linkedUserId || null })}>
         {t("delivery.drivers.save")}
       </Button>
     </LeftDrawer>

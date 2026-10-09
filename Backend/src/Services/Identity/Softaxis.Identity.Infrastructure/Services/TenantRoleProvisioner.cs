@@ -138,10 +138,11 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
     {
         var perms = await db.Permissions.AsNoTracking()
             .Where(p => (p.ModuleId == "restaurant.orders" && p.Action == "create")
-                     || (p.ModuleId == "pos.sessions" && (p.Action == "view" || p.Action == "create")))
+                     // The shift to take orders on, and the customer book to attach a guest and their points.
+                     || ((p.ModuleId == "pos.sessions" || p.ModuleId == "pos.customers") && (p.Action == "view" || p.Action == "create")))
             .ToListAsync(ct);
         var takesOrders = perms.FirstOrDefault(p => p.ModuleId == "restaurant.orders")?.Id;
-        var shiftKeys = perms.Where(p => p.ModuleId == "pos.sessions").Select(p => p.Id).ToList();
+        var shiftKeys = perms.Where(p => p.ModuleId != "restaurant.orders").Select(p => p.Id).ToList();
         if (takesOrders is null || shiftKeys.Count == 0) return 0;
 
         var roles = await db.Roles

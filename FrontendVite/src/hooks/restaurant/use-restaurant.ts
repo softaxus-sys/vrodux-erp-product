@@ -244,6 +244,15 @@ export function useSetOrderTip() {
   });
 }
 
+export function useRedeemOrderLoyalty() {
+  const invalidate = useInvalidateAll();
+  return useMutation({
+    mutationFn: ({ id, points }: { id: string; points: number }) => restaurantApi.redeemLoyalty(id, points),
+    onSuccess: () => invalidate(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useSetOrderCustomer() {
   const invalidate = useInvalidateAll();
   return useMutation({
@@ -914,7 +923,7 @@ export function useCreateDriver() {
 export function useUpdateDriver() {
   const invalidate = useInvalidateAll();
   return useMutation({
-    mutationFn: ({ id, ...p }: { id: string; name: string; phone: string; vehicleInfo?: string | null; isActive: boolean }) =>
+    mutationFn: ({ id, ...p }: { id: string; name: string; phone: string; vehicleInfo?: string | null; isActive: boolean; linkedUserId?: string | null }) =>
       restaurantApi.updateDriver(id, p),
     onSuccess: () => { invalidate(); toast.success("Driver updated."); },
     onError: (e: Error) => toast.error(e.message),
@@ -940,8 +949,8 @@ export function useDeliverySummary() {
   return useQuery({ queryKey: rKeys.deliverySummary(), queryFn: restaurantApi.getDeliverySummary, refetchInterval: 15_000 });
 }
 
-export function useDeliveryOrders(status?: string) {
-  return useQuery({ queryKey: rKeys.deliveryOrders(status), queryFn: () => restaurantApi.getDeliveryOrders(status), refetchInterval: 15_000 });
+export function useDeliveryOrders(status?: string, enabled = true) {
+  return useQuery({ queryKey: rKeys.deliveryOrders(status), queryFn: () => restaurantApi.getDeliveryOrders(status), refetchInterval: 15_000, enabled });
 }
 
 export function useDeliveryOrder(id: string, enabled = true) {
