@@ -36,3 +36,12 @@ public sealed record SessionReportDto(
     int VoidCount,
     decimal VoidValue,
     IReadOnlyDictionary<string, decimal> PaymentMethodBreakdown);
+
+/// <summary>One till shift in the Z/X report picker. <c>Status</c> is "open" or "closed".</summary>
+public sealed record ReportShiftDto(
+    Guid SessionId, string Status, string? Register, string? CashierName,
+    DateTime OpenedAt, DateTime? ClosedAt, int OrderCount);
+
+/// <summary>A report as a table: column names, and rows keyed by column name.</summary>
+public sealed record TabularReportDto(
+    IReadOnlyList<string> Columns, IReadOnlyList<Dictionary<string, object?>> Rows, int TotalCount);

@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import type { ReportDefinition, ReportFilter, CountryConfig, ReportCategory } from "../config/report-registry";
 import { COUNTRY_CONFIGS } from "../config/report-registry";
 import { reportsApi }          from "@/lib/pos/reports.api";
+import { reportsApi as restaurantReportsApi } from "@/lib/restaurant/reports.api";
 import { inventoryReportsApi } from "@/lib/inventory/reports.api";
 import type { ReportResult, ReportRunParams } from "@/lib/pos/reports.api";
 import { useAuthStore }        from "@/store/auth.store";
@@ -136,6 +137,7 @@ type CategoryRunner = (reportId: string, params: ReportRunParams) => Promise<Rep
 const CATEGORY_RUNNERS: Partial<Record<ReportCategory, CategoryRunner>> = {
   POS:       (id, params) => reportsApi.run(id, params),
   Inventory: (id, params) => inventoryReportsApi.run(id, params),
+  Restaurant: (id, params) => restaurantReportsApi.run(id, params),
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -172,6 +174,8 @@ function buildApiParams(
       params.valuationMethod = val;
     } else if (key === "paymentMethod") {
       params.paymentMethod = val;
+    } else if (key === "orderType") {
+      params.orderType = val;
     } else if (key === "status") {
       params.status = val;
     } else if (key === "taxPeriod") {

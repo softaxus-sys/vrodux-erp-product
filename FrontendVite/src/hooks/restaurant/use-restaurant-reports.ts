@@ -40,6 +40,9 @@ export const useTableTurnoverReport = (p: ReportRangeParams, enabled = true) =>
 export const useTaxSummaryReport = (p: ReportRangeParams, enabled = true) =>
   useQuery({ queryKey: reportKeys.taxSummary(p), queryFn: () => reportsApi.taxSummary(p), enabled });
 
+export const useReportShifts = () =>
+  useQuery({ queryKey: [...reportKeys.all, "shifts"], queryFn: () => reportsApi.shifts() });
+
 export const useXReport = (sessionId: string, enabled = true) =>
   useQuery({ queryKey: reportKeys.xReport(sessionId), queryFn: () => reportsApi.xReport(sessionId), enabled: enabled && !!sessionId });
 

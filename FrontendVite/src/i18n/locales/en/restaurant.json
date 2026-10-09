@@ -230,10 +230,10 @@
     },
     "kitchenPrepHint": "No kitchen timing data yet — items only appear once served through a flow that stamps a ready time.",
     "session": {
-      "sessionId": "Session ID",
+      "sessionId": "Shift",
       "sessionIdPlaceholder": "POS session id",
-      "xReport": "X-Report (open)",
-      "zReport": "Z-Report (close)",
+      "xReport": "X-Report (shift still open)",
+      "zReport": "Z-Report (shift closed)",
       "enterId": "Enter a POS session id to view its reconciliation report.",
       "enterIdPrefilled": "Enter a POS session id to view its reconciliation report (your current shift's id is pre-filled).",
       "status": "Status",
@@ -247,7 +247,12 @@
       "voids": "Voids",
       "voidsValue": "{{count}} ({{amount}})",
       "paymentBreakdown": "Payment Method Breakdown",
-      "noPayments": "No payments recorded."
+      "noPayments": "No payments recorded.",
+      "open": "Open",
+      "closed": "Closed",
+      "orderCount_one": "{{count}} order",
+      "orderCount_other": "{{count}} orders",
+      "noShifts": "No till shifts yet. A shift appears here once a cashier opens the till."
     }
   },
   "dashboards": {

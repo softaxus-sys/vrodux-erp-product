@@ -80,6 +80,7 @@ export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
   Purchase:      "purchase",
   HR:            "hr",
   CRM:           "crm",
+  Restaurant:    "restaurant",
   "Real Estate": "real-estate",
   Construction:  "construction",
 };
@@ -92,6 +93,7 @@ export type ReportCategory =
   | "Purchase"
   | "HR"
   | "CRM"
+  | "Restaurant"
   | "Real Estate"
   | "Construction";
 
@@ -1023,4 +1025,134 @@ export const CRM_REPORTS: ReportDefinition[] = CRM_REPORT_CATALOGUE.map(r => ({
   href:               `/crm/reports?report=${r.id}`,
   requiresModule:     "crm",
   requiresPermission: "crm.reports.view",
+}));
+
+// ─── Restaurant / F&B ─────────────────────────────────────────────────────────
+
+/**
+ * Restaurant reports run in the same tabular runner as the retail POS ones, served by
+ * `GET /api/restaurant/reports/run/{id}`. Sales figures count paid orders.
+ */
+const ORDER_TYPE_FILTER: ReportFilter = {
+  key: "orderType", label: "Order Type", type: "select",
+  options: [
+    { value: "all",      label: "All order types" },
+    { value: "dine_in",  label: "Dine-in" },
+    { value: "takeaway", label: "Takeaway" },
+    { value: "delivery", label: "Delivery" },
+  ],
+};
+
+const ORDER_STATUS_FILTER: ReportFilter = {
+  key: "status", label: "Order Status", type: "select",
+  options: [
+    { value: "all",       label: "All" },
+    { value: "open",      label: "Open" },
+    { value: "sent",      label: "Sent to kitchen" },
+    { value: "ready",     label: "Ready" },
+    { value: "served",    label: "Served" },
+    { value: "paid",      label: "Paid" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+};
+
+type Tone = "primary" | "success" | "warning" | "destructive";
+type RestaurantCard = {
+  id: string; title: string; description: string; icon: string; group: string; tone: Tone;
+  columns: string[]; filters: ReportFilter[]; badges?: ReportBadge[];
+};
+
+const RESTAURANT_REPORT_CARDS: RestaurantCard[] = [
+  // Sales
+  { id: "shift-summary", title: "Shift Summary (Z-Report)", group: "Sales", icon: "Receipt", tone: "primary", badges: ["Popular"],
+    description: "Each till shift: orders, sales, discounts, tax, tips, refunds and net sales.",
+    columns: ["Opened", "Closed", "Cashier", "Terminal", "Status", "Orders", "Gross Sales", "Discounts", "Tax", "Tips", "Refunds", "Net Sales"],
+    filters: [DATE_RANGE] },
+  { id: "daily-sales", title: "Daily Sales Summary", group: "Sales", icon: "TrendingUp", tone: "success", badges: ["Popular"],
+    description: "Orders, guests, gross and net sales and the average bill for each day.",
+    columns: ["Date", "Orders", "Guests", "Gross Sales", "Discounts", "Tax", "Tips", "Net Sales", "Avg Bill"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "item-performance", title: "Menu Item Performance", group: "Sales", icon: "BarChart3", tone: "primary", badges: ["Popular"],
+    description: "Quantity sold and revenue for every dish, best sellers first.",
+    columns: ["Item", "Category", "Qty Sold", "Revenue", "Avg Price", "% of Sales"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "category-sales", title: "Category Sales Analysis", group: "Sales", icon: "PieChart", tone: "success",
+    description: "Items sold and revenue for each menu category.",
+    columns: ["Category", "Items Sold", "Different Dishes", "Revenue", "% of Sales"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "order-type", title: "Sales by Order Type", group: "Sales", icon: "Layers", tone: "primary",
+    description: "Dine-in, takeaway and delivery compared: orders, sales and average bill.",
+    columns: ["Order Type", "Orders", "Gross Sales", "Discounts", "Tax", "Net Sales", "Avg Bill", "% of Sales"],
+    filters: [DATE_RANGE] },
+  { id: "hourly-sales", title: "Hourly Sales", group: "Sales", icon: "Clock", tone: "warning",
+    description: "Orders and sales for each hour of the day, to see the busy periods.",
+    columns: ["Hour", "Orders", "Guests", "Sales", "Avg Bill", "% of Sales"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "payment-analysis", title: "Payment Method Analysis", group: "Sales", icon: "CreditCard", tone: "primary",
+    description: "How guests paid: number of payments and amount for each method.",
+    columns: ["Payment Method", "Payments", "Amount", "% of Total", "Avg Payment"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "modifier-sales", title: "Add-ons & Options", group: "Sales", icon: "Tag", tone: "success",
+    description: "How often each add-on or option was chosen and the extra revenue it brought in.",
+    columns: ["Add-on / Option", "Times Chosen", "Extra Revenue", "Most Chosen With"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+
+  // Staff
+  { id: "waiter-performance", title: "Waiter Performance", group: "Staff", icon: "Users", tone: "primary",
+    description: "Orders, guests, revenue, tips and average bill for each waiter.",
+    columns: ["Waiter", "Orders", "Guests", "Revenue", "Tips", "Avg Bill"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "tips", title: "Tips Report", group: "Staff", icon: "Banknote", tone: "success",
+    description: "Tips collected by day and waiter.",
+    columns: ["Date", "Waiter", "Orders with Tip", "Tips", "Sales", "Tip %"],
+    filters: [DATE_RANGE] },
+
+  // Controls
+  { id: "void-refund", title: "Void & Refund Report", group: "Controls", icon: "RotateCcw", tone: "destructive",
+    description: "Every voided item, cancelled order and refund, with the reason and who did it.",
+    columns: ["Date", "Order", "Type", "Item / Method", "Amount", "Reason", "By"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "discount-analysis", title: "Discount Analysis", group: "Controls", icon: "Percent", tone: "warning",
+    description: "Every discount given: amount, reason, who applied and who approved it.",
+    columns: ["Date", "Order", "Type", "Discount", "% of Bill", "Reason", "Applied By", "Approved By", "Status"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "order-register", title: "Order Register", group: "Controls", icon: "FileText", tone: "primary",
+    description: "Every order in the period with its amounts, status and payment method.",
+    columns: ["Order", "Date", "Type", "Table", "Waiter / Customer", "Status", "Subtotal", "Discount", "Tax", "Tip", "Total", "Paid", "Payment"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER, ORDER_STATUS_FILTER] },
+  { id: "tax-summary", title: "Tax Summary", group: "Controls", icon: "Calculator", tone: "warning",
+    description: "Taxable amount and tax collected for each day.",
+    columns: ["Date", "Orders", "Taxable Amount", "Tax Collected", "Total incl. Tax", "Effective Rate %"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+
+  // Operations
+  { id: "table-turnover", title: "Table Turnover", group: "Operations", icon: "Layers", tone: "success",
+    description: "How many times each table was used, its revenue and how long guests stayed.",
+    columns: ["Table", "Times Used", "Guests", "Revenue", "Avg Bill", "Avg Minutes Occupied"],
+    filters: [DATE_RANGE] },
+  { id: "kitchen-prep", title: "Kitchen Prep Times", group: "Operations", icon: "Clock", tone: "warning",
+    description: "Average, fastest and slowest preparation time for each dish.",
+    columns: ["Item", "Times Prepared", "Avg Minutes", "Fastest", "Slowest"],
+    filters: [DATE_RANGE] },
+  { id: "delivery-performance", title: "Delivery Performance", group: "Operations", icon: "Package", tone: "primary",
+    description: "Deliveries, failures, average delivery time and fees for each rider.",
+    columns: ["Rider", "Deliveries", "Delivered", "Failed", "In Progress", "Avg Minutes", "Delivery Fees", "Order Value"],
+    filters: [DATE_RANGE] },
+];
+
+export const RESTAURANT_REPORTS: ReportDefinition[] = RESTAURANT_REPORT_CARDS.map(r => ({
+  id:          `restaurant-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Restaurant" as ReportCategory,
+  icon:        r.icon,
+  color:       `text-${r.tone}`,
+  bg:          `bg-${r.tone}/10`,
+  badges:      r.badges,
+  previewColumns: r.columns,
+  filters:        r.filters,
+  exportFormats:  ["PDF", "Excel", "CSV"],
+  subGroup:       r.group,
+  requiresModule:     "restaurant",
+  requiresPermission: "restaurant.reports.view",
 }));

@@ -1,17 +1,18 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { BarChart3, Loader2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExportMenu } from "@/components/ui/export-menu";
 import { toCsv, downloadFile } from "@/lib/csv";
 import { exportPdf } from "@/lib/pdf";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useUsers } from "@/hooks/identity/use-users";
 import {
   useSalesDailyReport, useSalesByCategoryReport, useSalesByEmployeeReport, useVoidsDiscountsReport,
-  useKitchenPrepTimesReport, useTableTurnoverReport, useTaxSummaryReport, useXReport, useZReport,
+  useKitchenPrepTimesReport, useTableTurnoverReport, useTaxSummaryReport, useXReport, useZReport, useReportShifts,
 } from "@/hooks/restaurant/use-restaurant-reports";
 import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
 import { Can } from "@/components/auth/can";
@@ -81,7 +82,10 @@ export function ReportsView() {
 
 function ReportsContent() {
   const { t } = useTranslation("restaurant");
-  const [tab, setTab] = React.useState<TabId>("sales-daily");
+  // The Reports hub links straight to a tab (?tab=tax-summary). An unknown value falls back to the first.
+  const [searchParams] = useSearchParams();
+  const linked = searchParams.get("tab") as TabId | null;
+  const [tab, setTab] = React.useState<TabId>(linked && TABS.includes(linked) ? linked : "sales-daily");
   const [from, setFrom] = React.useState(daysAgoIso(30));
   const [to, setTo] = React.useState(todayIso());
   const currency = useCurrency();
@@ -291,27 +295,43 @@ function SessionReportTab({ currency }: { currency: string }) {
   const { t } = useTranslation("restaurant");
   // The reports page is not behind the shift gate, so there may be no open shift to prefill from.
   const activeSessionId = useOptionalShift()?.sessionId;
-  const [sessionId, setSessionId] = React.useState(activeSessionId ?? "");
-  const [mode, setMode] = React.useState<"x" | "z">("x");
+  const { data: shifts = [], isLoading: shiftsLoading } = useReportShifts();
+  const [picked, setPicked] = React.useState("");
+  // Until one is chosen: your own open shift, otherwise the most recent.
+  const sessionId = picked || (shifts.some(s => s.sessionId === activeSessionId) ? activeSessionId! : shifts[0]?.sessionId ?? "");
+  const shift = shifts.find(s => s.sessionId === sessionId);
+  // An open shift gets an X-report (a snapshot so far), a closed one its final Z-report.
+  const mode: "x" | "z" = shift?.status === "closed" ? "z" : "x";
   const xReport = useXReport(sessionId, mode === "x" && !!sessionId);
   const zReport = useZReport(sessionId, mode === "z" && !!sessionId);
   const report = mode === "x" ? xReport.data : zReport.data;
   const isLoading = mode === "x" ? xReport.isLoading : zReport.isLoading;
+  const when = (iso: string) => parseApiDate(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[240px]">
           <label className="text-xs text-muted-foreground">{t("reports.session.sessionId")}</label>
-          <Input value={sessionId} onChange={e => setSessionId(e.target.value)} placeholder={t("reports.session.sessionIdPlaceholder")} className="h-9 text-sm font-mono" />
+          <select value={sessionId} onChange={e => setPicked(e.target.value)} disabled={shifts.length === 0}
+            className="w-full h-9 rounded-md border border-input bg-card px-3 text-sm">
+            {shifts.map(s => (
+              <option key={s.sessionId} value={s.sessionId}>
+                {when(s.openedAt)} · {s.cashierName ?? "—"}{s.register ? ` · ${s.register}` : ""} · {t(s.status === "open" ? "reports.session.open" : "reports.session.closed")} · {t("reports.session.orderCount", { count: s.orderCount })}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="flex gap-1.5">
-          <Button size="sm" variant={mode === "x" ? "default" : "outline"} onClick={() => setMode("x")}>{t("reports.session.xReport")}</Button>
-          <Button size="sm" variant={mode === "z" ? "default" : "outline"} onClick={() => setMode("z")}>{t("reports.session.zReport")}</Button>
-        </div>
+        {shift && (
+          <span className={cn("h-9 inline-flex items-center px-3 rounded-md text-sm font-semibold",
+            mode === "x" ? "bg-warning/15 text-warning" : "bg-success/15 text-success")}>
+            {t(mode === "x" ? "reports.session.xReport" : "reports.session.zReport")}
+          </span>
+        )}
       </div>
 
-      {!sessionId && <p className="text-sm text-muted-foreground">{activeSessionId ? t("reports.session.enterIdPrefilled") : t("reports.session.enterId")}</p>}
+      {shiftsLoading && <Loading />}
+      {!shiftsLoading && shifts.length === 0 && <p className="text-sm text-muted-foreground">{t("reports.session.noShifts")}</p>}
       {sessionId && isLoading && <Loading />}
       {sessionId && !isLoading && report && (
         <div className="space-y-4">
