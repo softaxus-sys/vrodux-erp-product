@@ -27,7 +27,7 @@ import { useHardware } from "@/contexts/hardware-context";
 import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
 import { vouchersApi } from "@/lib/pos/vouchers.api";
 import { useAuthStore } from "@/store/auth.store";
-import { useShift } from "@/modules/pos/retail/components/shift-gate";
+import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
 import type {
   DiscountType, RestaurantTable, RestaurantOrder, MenuItem, Combo, Driver,
 } from "@/lib/restaurant/restaurant.api";
@@ -403,7 +403,8 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
 }) {
   const { t } = useTranslation("restaurant");
   const { user, tenant } = useAuthStore();
-  const { sessionId } = useShift();
+  // Floor staff reach this screen with no shift of their own; the server attaches the cashier's.
+  const sessionId = useOptionalShift()?.sessionId;
   const { branchId } = useCurrentBranch();
   const { data: menu = [], isLoading: menuLoading } = useMenu();
   const { data: combos = [] } = useCombos(true);

@@ -53,6 +53,26 @@ internal static class PosSessionLedger
     /// <summary>Returns "open"/"closed" for the given session, or null if it doesn't exist for this
     /// tenant — used by the Z/X report, which is read-only and shouldn't hard-fail just because a
     /// stale/foreign session id was passed in (the order-derived totals are still meaningful).</summary>
+    /// <summary>
+    /// The till shift a floor order should ride on when the person taking it has no shift of their
+    /// own — a waiter works under the cashier's shift. Newest open shift in this workspace, or null.
+    /// </summary>
+    public static async Task<Guid?> FindOpenSessionAsync(RestaurantDbContext db, CancellationToken ct)
+    {
+        int bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+
+        var row = await db.Database
+            .SqlQuery<SessionRow>($"""
+                SELECT TOP 1 Id, CashierId, Status
+                FROM [pos].[pos_sessions]
+                WHERE Status = {OpenStatus} AND IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})
+                ORDER BY OpenedAt DESC
+                """)
+            .FirstOrDefaultAsync(ct);
+        return row?.Id;
+    }
+
     public static async Task<string?> GetStatusLabelAsync(RestaurantDbContext db, Guid sessionId, CancellationToken ct)
     {
         int bypass = TenantAmbient.BypassFilter ? 1 : 0;

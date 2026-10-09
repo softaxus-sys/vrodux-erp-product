@@ -159,7 +159,7 @@ public static class ModuleRoleCatalogue
                         "restaurant.menu"         => a == "view",
                         "restaurant.kitchen"      => a == "view",
                         "restaurant.reservations" => a is "view" or "create" or "edit",
-                        "pos.sessions"            => a is "view" or "create",
+                        // No pos.sessions: a waiter works under the cashier's open shift, not their own.
                         "pos.customers"           => a is "view" or "create",
                         _                         => false,
                     }),

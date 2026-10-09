@@ -554,6 +554,8 @@ export const restaurantApi = {
   applyDiscount:    (id: string, p: { type: DiscountType; amount: number; reason: string }): Promise<RestaurantOrder> =>
     rawApiClient.patch(`${BASE}/orders/${id}/discount`, p),
   /** Spend the linked customer's loyalty points on this bill; 0 takes them back off. */
+  /** Whether a till shift is open for floor staff (who run no till of their own) to order under. */
+  getOpenShift:     (): Promise<{ isOpen: boolean; sessionId: string | null }> => rawApiClient.get(`${BASE}/orders/open-shift`),
   redeemLoyalty:    (id: string, points: number): Promise<RestaurantOrder> =>
     rawApiClient.post(`${BASE}/orders/${id}/loyalty`, { points }),
   removeDiscount:   (id: string, reason: string): Promise<RestaurantOrder> =>

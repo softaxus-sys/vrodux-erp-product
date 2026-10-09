@@ -18,6 +18,12 @@ public sealed class OrdersController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> GetSummary(CancellationToken ct) =>
         OkOrError(await sender.Send(new GetOrdersSummaryQuery(), ct));
 
+    /// <summary>GET /api/restaurant/orders/open-shift — is a till open for floor staff to order under?</summary>
+    [HttpGet("open-shift")]
+    [RequirePermission("restaurant.orders.view")]
+    public async Task<IActionResult> GetOpenShift(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetOpenShiftQuery(), ct));
+
     /// <summary>GET /api/restaurant/orders?status=</summary>
     [HttpGet]
     [RequirePermission("restaurant.orders.view")]

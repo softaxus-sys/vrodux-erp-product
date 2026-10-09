@@ -244,6 +244,11 @@ export function useSetOrderTip() {
   });
 }
 
+/** For floor staff only — polled, so the banner clears soon after the cashier opens the till. */
+export function useOpenShift(enabled = true) {
+  return useQuery({ queryKey: [...rKeys.all, "open-shift"], queryFn: () => restaurantApi.getOpenShift(), enabled, refetchInterval: 30_000 });
+}
+
 export function useRedeemOrderLoyalty() {
   const invalidate = useInvalidateAll();
   return useMutation({

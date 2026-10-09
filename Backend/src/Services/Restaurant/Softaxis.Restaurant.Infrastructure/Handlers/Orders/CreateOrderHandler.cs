@@ -17,11 +17,23 @@ internal sealed class CreateOrderHandler(RestaurantDbContext db, ICurrentUser cu
         // A client-supplied SessionId ties this order to an open shift — validated up front so a
         // stale/closed session reference (e.g. a cached sessionId after the shift was closed
         // elsewhere) never silently creates an order that can't reconcile at end-of-day.
-        if (cmd.SessionId.HasValue)
+        var sessionId = cmd.SessionId;
+        if (sessionId.HasValue)
         {
-            var sessionCheck = await PosSessionLedger.ValidateOpenSessionAsync(db, cmd.SessionId.Value, ct);
+            var sessionCheck = await PosSessionLedger.ValidateOpenSessionAsync(db, sessionId.Value, ct);
             if (sessionCheck.IsFailure)
                 return Result.Failure<OrderDto>(sessionCheck.Error);
+        }
+        else
+        {
+            // No shift came with the order: the person taking it is on the floor, not at the till.
+            // It rides on the cashier's open shift, so the money still lands in one Z-report.
+            sessionId = await PosSessionLedger.FindOpenSessionAsync(db, ct);
+
+            // Someone who cannot open a shift themselves must not create a bill no shift will count.
+            if (sessionId is null && !currentUser.IsSuperAdmin && !currentUser.HasPermission("pos.sessions.create"))
+                return Result.Failure<OrderDto>(Error.Custom("PosSession.Conflict",
+                    "No till is open. Ask the cashier to open a shift before taking orders."));
         }
 
         // Takeaway / delivery orders are not tied to a table.
@@ -36,14 +48,14 @@ internal sealed class CreateOrderHandler(RestaurantDbContext db, ICurrentUser cu
                 return Result.Failure<OrderDto>(Error.NotFoundById("Table", cmd.TableId!.Value));
 
             order = new Order(table.Id, table.TableNumber, cmd.Waiter, cmd.Covers, "dine_in", cmd.Notes,
-                cmd.BranchId, cmd.SessionId, currentUser.Id, customerId: cmd.CustomerId);
+                cmd.BranchId, sessionId, currentUser.Id, customerId: cmd.CustomerId);
         }
         else
         {
             var label = cmd.OrderType == "delivery" ? "Delivery" : "Takeaway";
             order = new Order(Guid.Empty, label, cmd.Waiter, cmd.Covers,
                 cmd.OrderType == "delivery" ? "delivery" : "takeaway", cmd.Notes,
-                cmd.BranchId, cmd.SessionId, currentUser.Id, customerId: cmd.CustomerId);
+                cmd.BranchId, sessionId, currentUser.Id, customerId: cmd.CustomerId);
         }
 
         foreach (var li in cmd.Items)

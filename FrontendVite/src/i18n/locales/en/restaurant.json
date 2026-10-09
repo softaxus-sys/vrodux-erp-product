@@ -1037,6 +1037,7 @@
       "max_other": "Up to {{count}} points on this bill.",
       "willEarn_one": "Earns {{count}} point when paid.",
       "willEarn_other": "Earns {{count}} points when paid."
-    }
+    },
+    "noOpenTill": "No till is open. Ask the cashier to open a shift before taking orders."
   }
 }

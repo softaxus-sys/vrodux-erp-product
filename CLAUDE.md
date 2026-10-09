@@ -7524,3 +7524,19 @@ Workspace "Softaxis": `admin@softaxis.io` + restaurant manager / cashier / 2 wai
   then remove / cancel and confirm they return.
 - **Not built:** rider on/off-duty, configurable loyalty rates, automatic per-customer or per-group discounts,
   route-level permission guards for the restaurant pages.
+
+### Module 69b — Waiters work under the cashier's shift (no till of their own)
+
+A waiter used to hit `ShiftGate` and had to open and count a cash drawer to take an order.
+- `pages/pos/restaurant.tsx` — `ShiftGate` only for users who hold `pos.sessions.create`. Everyone else
+  (floor staff) goes straight to the floor, with a banner when no till is open
+  (`GET /api/restaurant/orders/open-shift` → `GetOpenShiftQuery`, polled every 30 s).
+- `CreateOrderHandler` — an order arriving with no `SessionId` is attached to the workspace's newest open
+  shift (`PosSessionLedger.FindOpenSessionAsync`), so its payments land in that cashier's Z-report. With no
+  shift open, a caller who cannot open one is refused (`PosSession.Conflict`, 409); one who can is not.
+- `OrderScreen` and the restaurant dashboards read the shift with `useOptionalShift()`.
+- The **Waiter** template no longer holds `pos.sessions`; `EnsureRestaurantShiftAccessAsync` skips shift keys
+  for a role named "Waiter" (it still gets `pos.customers`).
+- Unchanged, and a known departure from stricter setups: a waiter can still take payment and sees every table.
+
+**Build:** Restaurant.API, Identity.Infrastructure 0 errors · frontend `tsc` 0 errors. Not runtime-tested.

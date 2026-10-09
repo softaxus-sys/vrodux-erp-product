@@ -143,6 +143,8 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
             .ToListAsync(ct);
         var takesOrders = perms.FirstOrDefault(p => p.ModuleId == "restaurant.orders")?.Id;
         var shiftKeys = perms.Where(p => p.ModuleId != "restaurant.orders").Select(p => p.Id).ToList();
+        // A waiter takes orders under the cashier's shift and must not be handed one of their own.
+        var customerKeys = perms.Where(p => p.ModuleId == "pos.customers").Select(p => p.Id).ToList();
         if (takesOrders is null || shiftKeys.Count == 0) return 0;
 
         var roles = await db.Roles
@@ -153,7 +155,7 @@ public sealed class TenantRoleProvisioner(IdentityDbContext db) : ITenantRolePro
 
         var granted = 0;
         foreach (var role in roles)
-        foreach (var key in shiftKeys.Where(k => role.RolePermissions.All(rp => rp.PermissionId != k)))
+        foreach (var key in (role.Name == "Waiter" ? customerKeys : shiftKeys).Where(k => role.RolePermissions.All(rp => rp.PermissionId != k)))
         {
             role.AddPermission(key);
             granted++;
