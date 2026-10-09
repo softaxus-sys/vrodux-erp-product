@@ -1,13 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Properties;
 
-internal sealed class UpdatePropertyHandler(RealEstateDbContext db)
+internal sealed class UpdatePropertyHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<UpdatePropertyCommand, PropertyDto>
 {
     public async Task<Result<PropertyDto>> Handle(UpdatePropertyCommand cmd, CancellationToken ct)
@@ -38,6 +39,6 @@ internal sealed class UpdatePropertyHandler(RealEstateDbContext db)
         await db.SaveChangesAsync(ct);
 
         var images = await PropertyMappings.LoadImagesAsync(db, [p.Id], ct);
-        return Result.Success(PropertyMappings.ToDto(p, images.GetValueOrDefault(p.Id, [])));
+        return Result.Success(PropertyMappings.ToDto(p, user, images.GetValueOrDefault(p.Id, [])));
     }
 }

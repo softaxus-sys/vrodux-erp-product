@@ -1,5 +1,6 @@
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.RealEstate.Application.Abstractions;
 using Softaxis.RealEstate.Application.Properties.Commands;
 using Softaxis.RealEstate.Application.Properties.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
@@ -7,7 +8,7 @@ using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Properties;
 
-internal sealed class CreatePropertyHandler(RealEstateDbContext db)
+internal sealed class CreatePropertyHandler(RealEstateDbContext db, ICurrentUser user)
     : ICommandHandler<CreatePropertyCommand, PropertyDto>
 {
     public async Task<Result<PropertyDto>> Handle(CreatePropertyCommand cmd, CancellationToken ct)
@@ -19,6 +20,6 @@ internal sealed class CreatePropertyHandler(RealEstateDbContext db)
         db.Properties.Add(p);
         await db.SaveChangesAsync(ct);
 
-        return Result.Success(PropertyMappings.ToDto(p));
+        return Result.Success(PropertyMappings.ToDto(p, user));
     }
 }

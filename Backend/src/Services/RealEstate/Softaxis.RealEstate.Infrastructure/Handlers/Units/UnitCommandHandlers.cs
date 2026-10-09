@@ -73,7 +73,7 @@ internal sealed class CreateUnitHandler(RealEstateDbContext db, ICurrentUser use
         await PropertyCounts.RefreshAsync(db, cmd.PropertyId, ct);
         await db.SaveChangesAsync(ct);
 
-        return Result.Success(UnitMappings.ToDto(unit));
+        return Result.Success(UnitMappings.ToDto(unit, user));
     }
 }
 

@@ -30,6 +30,18 @@ export interface PropertyUnitDto {
   status: string;
   currentTenantId: string | null;
   currentTenantName: string | null;
+  /** "rent" | "sale" -- which of rentPerYear/salePrice is the real figure for this unit. */
+  purpose: string | null;
+  /** The sheet's own display text, e.g. "3BR" -- shown alongside the parsed `bedrooms` because the
+   *  parsed number isn't always trustworthy (see Backend CLAUDE.md Module 62). */
+  bedsLabel: string | null;
+  /** The sheet's own price text, e.g. "700k(rented till 29 feb 2026 in 55k)" -- kept beside the
+   *  parsed rentPerYear/salePrice for the same reason as bedsLabel. */
+  priceLabel: string | null;
+  /** Null when the caller has no confidentiality access to this unit (not just "no value recorded"
+   *  -- see ListingConfidentiality on the backend). Same convention as currentTenantName. */
+  ownerName: string | null;
+  agentName: string | null;
 }
 
 export interface PropertyDto {
@@ -47,7 +59,20 @@ export interface PropertyDto {
   description: string | null;
   occupancyRate: number;
   units: PropertyUnitDto[];
+  /** residential | commercial | mixed -- what the summary tiles count by. The building's own
+   *  free-text type (e.g. "Warehouse", "Villa") lives in `propertyType` above. */
+  category: string;
 }
+
+export const PURPOSE_LABELS: Record<string, string> = {
+  rent: "For Rent",
+  sale: "For Sale",
+};
+
+export const PURPOSE_TONE: Record<string, Tone> = {
+  rent: "info",
+  sale: "success",
+};
 
 export interface PropertiesSummaryDto {
   total: number;
@@ -72,6 +97,14 @@ export const PROPERTY_STATUS_TONE: Record<string, Tone> = {
   fully_occupied: "info",
 };
 
+/** `PropertyDto.category` -- residential/commercial/mixed, the bucket the summary tiles count by.
+ *  Not the same as `propertyType` (free text, e.g. "Warehouse", "Villa"). */
+export const PROPERTY_CATEGORY_LABELS: Record<string, string> = {
+  residential: "Residential",
+  commercial: "Commercial",
+  mixed: "Mixed Use",
+};
+
 // ── Units (standalone, cross-property list) ─────────────────────────────────────────────────────
 
 export interface UnitDto {
@@ -93,6 +126,26 @@ export interface UnitDto {
   parking: number;
   serviceCharge: number;
   notes: string | null;
+  // ── the listing half (Backend CLAUDE.md Module 62 -- Properties/Units merged into one agency
+  //    stock list; these ride alongside the unit's own fields above rather than replacing them) ──
+  /** "rent" | "sale" -- which of rentPerYear/salePrice is the real figure for this unit. */
+  purpose: string | null;
+  /** yyyy-MM-dd -- when this unit was put on the market. */
+  listedOn: string | null;
+  /** The sheet's own display text, e.g. "3BR" -- shown beside the parsed `bedrooms`, which isn't
+   *  always trustworthy for a raw import row. */
+  bedsLabel: string | null;
+  priceLabel: string | null;
+  areaLabel: string | null;
+  hasMedia: boolean;
+  isListed: boolean;
+  listedBy: string | null;
+  agentName: string | null;
+  /** Null when the caller has no confidentiality access to this unit (not just "no value
+   *  recorded") -- see ListingConfidentiality on the backend, which masks these three server-side. */
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneAlt: string | null;
 }
 
 export interface UnitsSummaryDto {

@@ -4,7 +4,16 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useProperty } from "@/hooks/use-real-estate";
 import { formatCompactValue } from "@/lib/crm-helpers";
 import { useAuthStore } from "@/store/auth.store";
-import { PROPERTY_STATUS_LABELS, PROPERTY_STATUS_TONE, UNIT_STATUS_LABELS, UNIT_STATUS_TONE } from "@/types/real-estate";
+import {
+  PROPERTY_CATEGORY_LABELS,
+  PROPERTY_STATUS_LABELS,
+  PROPERTY_STATUS_TONE,
+  PURPOSE_LABELS,
+  PURPOSE_TONE,
+  UNIT_STATUS_LABELS,
+  UNIT_STATUS_TONE,
+} from "@/types/real-estate";
+import type { PropertyUnitDto } from "@/types/real-estate";
 import { Badge, DetailRow, ErrorState, LoadingState, SectionCard, Stat } from "@/components/ui";
 import { fontSize, fontWeight, spacing, useAppTheme, type AppColors } from "@/theme";
 import type { RealEstateStackParamList } from "@/navigation/types";
@@ -39,6 +48,7 @@ export default function PropertyDetailScreen({ route, navigation }: Props) {
           <Badge label={PROPERTY_STATUS_LABELS[p.status] ?? p.status} tone={PROPERTY_STATUS_TONE[p.status] ?? "neutral"} />
           <Text style={styles.subtitle}>
             {p.propertyNumber} · {p.propertyType}
+            {p.category ? ` · ${PROPERTY_CATEGORY_LABELS[p.category] ?? p.category}` : ""}
           </Text>
         </View>
         <View style={styles.statsRow}>
@@ -66,23 +76,57 @@ export default function PropertyDetailScreen({ route, navigation }: Props) {
         {p.units.length === 0 ? (
           <Text style={styles.emptyText}>No units recorded yet.</Text>
         ) : (
-          p.units.map((u) => (
-            <View key={u.id} style={styles.unitRow}>
-              <View style={styles.unitTop}>
-                <Text style={styles.unitName}>
-                  Unit {u.unitNumber} <Text style={styles.unitType}>· {u.unitType}</Text>
-                </Text>
-                <Badge label={UNIT_STATUS_LABELS[u.status] ?? u.status} tone={UNIT_STATUS_TONE[u.status] ?? "neutral"} />
-              </View>
-              <Text style={styles.unitMeta}>
-                Floor {u.floor} · {u.area.toLocaleString()} sqft · {formatCompactValue(u.rentPerYear, currency)}/yr
-                {u.currentTenantName ? ` · ${u.currentTenantName}` : ""}
-              </Text>
-            </View>
-          ))
+          p.units.map((u) => <EmbeddedUnitRow key={u.id} unit={u} currency={currency} styles={styles} />)
         )}
       </SectionCard>
     </ScrollView>
+  );
+}
+
+/** Mirrors UnitsListScreen's purpose-aware price logic -- a sale unit's meaningful figure is
+ *  salePrice, never rentPerYear/yr (the Module 62 bug this building drawer must not repeat). */
+function EmbeddedUnitRow({
+  unit: u,
+  currency,
+  styles,
+}: {
+  unit: PropertyUnitDto;
+  currency: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const isSale = u.purpose === "sale";
+  const parsedAmount = isSale ? u.salePrice : u.rentPerYear;
+  const priceText = parsedAmount > 0
+    ? `${formatCompactValue(parsedAmount, currency)}${isSale ? "" : "/yr"}`
+    : u.priceLabel ?? "—";
+  const bedsText = u.bedsLabel ?? null;
+
+  return (
+    <View style={styles.unitRow}>
+      <View style={styles.unitTop}>
+        <Text style={styles.unitName}>
+          Unit {u.unitNumber} <Text style={styles.unitType}>· {u.unitType}</Text>
+        </Text>
+        <View style={styles.unitBadgeGroup}>
+          {u.purpose ? (
+            <Badge label={PURPOSE_LABELS[u.purpose] ?? u.purpose} tone={PURPOSE_TONE[u.purpose] ?? "neutral"} />
+          ) : null}
+          <Badge label={UNIT_STATUS_LABELS[u.status] ?? u.status} tone={UNIT_STATUS_TONE[u.status] ?? "neutral"} />
+        </View>
+      </View>
+      <Text style={styles.unitMeta}>
+        Floor {u.floor} · {u.area.toLocaleString()} sqft · {priceText}
+        {bedsText ? ` · ${bedsText}` : ""}
+        {u.currentTenantName ? ` · ${u.currentTenantName}` : ""}
+      </Text>
+      {u.agentName || u.ownerName ? (
+        <Text style={styles.unitAgent}>
+          {u.agentName ? `Agent: ${u.agentName}` : ""}
+          {u.agentName && u.ownerName ? " · " : ""}
+          {u.ownerName ? `Owner: ${u.ownerName}` : ""}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -103,6 +147,8 @@ function createStyles(colors: AppColors) {
     unitTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     unitName: { fontSize: fontSize.base, fontWeight: fontWeight.semibold, color: colors.foreground },
     unitType: { fontWeight: fontWeight.regular, color: colors.mutedForeground },
+    unitBadgeGroup: { flexDirection: "row", gap: spacing.xs },
     unitMeta: { fontSize: fontSize.sm, color: colors.mutedForeground },
+    unitAgent: { fontSize: fontSize.xs, color: colors.subtleForeground },
   });
 }
