@@ -1047,7 +1047,12 @@
       "manufacturing.work-centres": "Work Centres",
       "manufacturing.boms": "Bills of Materials",
       "manufacturing.orders": "Production Orders",
-      "manufacturing.planning": "Planning & Reports"
+      "manufacturing.planning": "Planning & Reports",
+      "library.catalog": "Catalogue (titles & copies)",
+      "library.members": "Members",
+      "library.circulation": "Circulation (issue, return, reserve)",
+      "library.fines": "Fines",
+      "library.setup": "Branches & Membership Rules"
     }
   },
   "roles": {

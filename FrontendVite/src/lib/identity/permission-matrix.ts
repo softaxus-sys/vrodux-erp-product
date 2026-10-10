@@ -50,6 +50,7 @@ export const MODULE_GROUPS: Record<string, string> = {
   "file-manager": "File Manager",
   seo: "SEO AI Agent",
   manufacturing: "Manufacturing",
+  library: "Library",
   // Only meaningful for whichever tenant is configured as the Support operator (Softaxis's own
   // workspace) — see ISupportAccessGuard on the backend. Granting it elsewhere does nothing.
   support: "Support",
@@ -57,7 +58,7 @@ export const MODULE_GROUPS: Record<string, string> = {
 
 export const GROUP_ORDER = [
   "POS", "Restaurant", "Inventory", "Manufacturing", "Finance", "Sales", "Purchase", "CRM",
-  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "HR",
+  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "HR",
   "Project Management", "SEO AI Agent", "Reports", "File Manager", "Support", "Settings",
 ];
 

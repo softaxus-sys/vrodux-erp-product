@@ -171,7 +171,8 @@
     "Wholesale & Distribution": "الجملة والتوزيع",
     "Professional Services": "الخدمات المهنية",
     "Agriculture": "الزراعة",
-    "Other": "أخرى"
+    "Other": "أخرى",
+    "Library": "المكتبات"
   },
   "language": {
     "English": "الإنجليزية",
@@ -252,6 +253,10 @@
     "manufacturing": {
       "label": "التصنيع",
       "desc": "قوائم المواد وأوامر الإنتاج والتكلفة"
+    },
+    "library": {
+      "label": "المكتبة",
+      "desc": "الفهرس والأعضاء والإعارة والغرامات عبر الفروع"
     }
   },
   "businessType": {

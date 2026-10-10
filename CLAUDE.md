@@ -7686,3 +7686,129 @@ dashboard · AI-assistant tools.
 - Migration `AddActivityLongNotesAndDueTime` (widen + one column), applied locally.
 - Verified against the local DB: a 1,979-character note saves, 4,001 is refused with the message,
   a meeting keeps 12:00 and still counts as due today; timeline checked in the browser.
+
+---
+
+## Module 72 — Library Management (new module + "Library" industry)
+
+**New service `Softaxis.Library`** (schema `library`, clean CQRS, same shape as Manufacturing). Built for a
+customer enquiry: books, lending and everything around them, across several locations. Sold as its own
+module (code `library`) and **stands alone** — no Inventory, CRM or Finance needed.
+
+### Model
+- `LibraryBranch` — a location. Every copy sits at one; every loan is issued at one.
+- `BookTitle` (the work: title, authors, ISBN, category, type, replacement cost) and `BookCopy` (one physical
+  item: barcode, branch, shelf, condition, status `available | on_loan | reserved | in_transit | lost |
+  damaged | withdrawn`). Members borrow copies, not titles.
+- `MembershipType` — the borrowing rules: items allowed, loan days, renewals, fine per day, reservations.
+- `Member` (card number, type, home branch, expiry, `active | suspended`).
+- `Loan`, `Reservation` (`waiting | ready | fulfilled | cancelled`), `Fine` (`unpaid | paid | waived`).
+- Dates are calendar days (`yyyy-MM-dd` strings). **"Overdue" and "expired" are never stored** — they are the
+  date against today. The client sends its own `today`; the server uses it when it is within a day of UTC
+  (`LibraryDates.Today`), so a late-evening loan is not dated tomorrow.
+
+### Rules (handlers in `Infrastructure/Handlers`)
+- **Issue**: member must be active and unexpired and under their item limit; the copy must be available, or
+  held for *this* member. The loan is issued at the branch the copy is at.
+- **Return** at any branch: the copy then lives at that branch (send it back with a transfer). Late days ×
+  the member's daily rate becomes an overdue `Fine`. If someone is waiting for the title **at that branch**,
+  the copy is set aside for the longest-waiting member (`LibraryRules.HoldForNextReservationAsync`, 3-day hold).
+- **Renew**: refused past the renewal limit or while anyone is waiting; days already overdue are charged first.
+- **Lost**: copy → lost, member charged the title's replacement cost (else the copy's price).
+- **Reserve**: a copy on the shelf at the pickup branch is held at once; otherwise the member joins the queue.
+- **Transfer**: available copy → `in_transit` → received at the destination (which re-checks the queue).
+- On loan / reserved / in transit are set by circulation only; a librarian can set available / damaged / lost /
+  withdrawn by hand.
+- Deletes are refused while they would strand something (member with items or unpaid fines, title with a copy
+  out, branch holding copies, membership type in use).
+- Default branch ("Main Library") and three membership types are created **per tenant on first read**, never
+  at startup (a startup seed has no tenant).
+
+### Licensing
+- `Tenant.IndustryPackModule["library"] = "library"` — a tenant whose industry is Library gets the module on
+  every plan, **without** CRM being pulled in. Onboarding industry "Library" normalises to `library`.
+- Enterprise plan includes it; other tiers by industry or super-admin manual grant (module-selector chip).
+- `ModuleEnforcementMiddleware` maps `/api/library/`. Connection string `LibraryDb`, falling back to `IdentityDb`.
+- Permissions: `library.catalog` / `library.members` (view/create/edit/delete), `library.circulation`
+  (view / create = issue + reserve / edit = return, renew, lost), `library.fines` (view / create / edit =
+  take payment / approve = waive), `library.setup` (view/edit). Default roles **Library Manager** and
+  **Library Staff** (Staff cannot delete or waive). Catalogue and member reads are also open to the desk.
+
+### API (`api/library`)
+`dashboard` · `branches` · `membership-types` · `titles` (+ `categories`, `{id}/copies`) · `copies`
+(`by-barcode/{code}`, `in-transit`, `{id}/transfer`, `{id}/receive`) · `members` · `loans`
+(`{id}/return|renew|lost`) · `reservations` (`{id}/cancel`) · `fines` (`summary`, `{id}/pay|waive`).
+
+### Frontend
+`lib/library/library.api.ts`, `hooks/library/use-library.ts`, `modules/library/{dashboard,catalogue,
+circulation,members,fines,setup,shared}`, routes `/library/*`, nav group "Library", `library` i18n namespace
+(en + ar, 322 keys each, generated from one table so they cannot drift).
+- **Circulation** has four tabs: Issue / Return desk (barcode box fires on Enter, i.e. a handheld scanner),
+  Loans, Reservations, Transfers. The desk's branch is remembered per device (`useWorkingBranch`).
+- `shared/ui.tsx` `Modal` centres with a flex wrapper, **not** `left-1/2 -translate-x-1/2`: framer-motion
+  writes its own `transform` on the panel, which cancels the translate and pushes the dialog off-centre.
+- EF gotcha hit again: a query projected into a **positional record** cannot be filtered or sorted
+  afterwards — `LoanReader.Row` is a class with init properties for that reason.
+
+### Migrations
+`InitialLibrary` (8 tables; barcode and member number unique per tenant) · Identity `AddLibraryPermissions`
+(17 rows). Both applied to SHAHBAZ-QFINITY.
+
+### Verified
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+- **90 scripted API checks pass** against the local DB with a test-signed JWT: access control (401 / 403 no
+  module / 403 no permission / desk-only limits), the whole issue → reserve → return → renew → late fine →
+  lost → transfer flow, every guard above, dashboard figures, and tenant isolation (a second workspace sees
+  nothing, 404s on the first one's ids, and gets its own default branch and card numbers).
+- A Micro-plan test tenant with industry `library` was given Library Manager (17) and Library Staff (14)
+  roles at startup — the industry → module → roles chain works. 0 NULL-tenant rows.
+- In the browser: dashboard, catalogue + title drawer, issue and return at the desk, loans, a member record,
+  fines, setup, and adding a title through the form.
+- Test tenants and all their rows were removed afterwards; no test data is left.
+- **Not clicked through in the browser:** the member, reserve, add-copies, transfer and fine payment forms
+  (their API calls are covered by the script), Arabic / RTL, and signup with the Library industry.
+
+### Not built
+Bulk import of an existing catalogue or member list (Excel/CSV) · overdue / pickup reminder emails or SMS ·
+barcode label and member card printing · restricting a librarian to one branch · a member self-service
+portal (search, renew, reserve online) · posting fines to Finance · e-books · Reports-hub entries and
+AI-assistant tools · automatic expiry of a hold nobody collected (it is flagged; staff cancel it).
+
+### Module 72b — Library: Excel / CSV import for the catalogue and members
+
+**Import** button on Catalogue and on Members (`library.catalog.create` / `library.members.create`) →
+`modules/library/shared/import-modal.tsx`: upload → match columns → result. One component, two field lists.
+
+- **Endpoints:** `POST api/library/titles/import` (`ImportTitlesCommand`) and `POST api/library/members/import`
+  (`ImportMembersCommand`), handlers in `Infrastructure/Handlers/Import`. Max 1,000 rows a call; the screen
+  sends a larger file 500 rows at a time. Each handler reads what it matches against once, then works in
+  memory and saves once (1,000 titles + 2,000 copies ≈ 1.2 s locally). No migration.
+- **Running a file twice is safe** — that is the design rule, since a first import always has rows to fix:
+  - Title: same ISBN (hyphens ignored), or with no ISBN the same title + author (case and spacing ignored),
+    is the same book. The row adds copies to it instead of creating a second title.
+  - `Copies` is **how many the branch should hold**, not how many to add, so a re-run tops up to that number
+    rather than doubling the shelf. Given barcodes already in the library are skipped.
+  - Member: same card number; without one, same email, or same name + phone → skipped as already there.
+- A branch named in the file but not on record is created (switchable off in the dialog). An unknown
+  **membership type fails the row** rather than falling back: importing "Student" as "Standard" would quietly
+  give those members the wrong limits and fines.
+- A bad row never stops the file. It is counted and reported with **its row number in the sheet** and a reason
+  (first 100 shown). Descriptive text that is too long is cut to fit; a title, barcode or name that is too long
+  fails the row.
+- **Dates:** Excel is read in the modal itself (`readSheet`, `cellDates: true`) and written as `yyyy-MM-dd`,
+  not through `parseDelimitedFile` — that helper returns dates as Excel displays them ("1/5/25", month first),
+  which cannot be told apart from a day-first date. Text dates from CSV are accepted as `yyyy-MM-dd` or
+  day-first with a four-digit year (`ImportText.Date`); anything else fails the row instead of being guessed.
+  An unreadable expiry is an error, never treated as "does not expire".
+- Column headings are matched automatically (exact synonym first, then partial; each field used once), and
+  "Download a template" gives a CSV whose headings always map themselves.
+
+**Verified:** 28 scripted API checks pass (matching, top-up, re-run adds nothing, branch creation on/off,
+barcode handling, 1,000-row limit, each member failure reason, permissions). In the browser: a real `.xlsx`
+with date cells and non-standard headings ("Student Name", "Mobile No", "Member Since", "Valid Till",
+"Roll No") auto-mapped and imported with the right dates; the catalogue template's 17 headings all mapped
+and a 3-row CSV imported with the expected counts. Test workspace removed afterwards.
+
+**Known limits:** only the first sheet of a workbook is read · existing titles and members are never
+*updated* by an import, only added to or skipped · Excel drops a leading zero from a phone number stored
+as a number (format the column as text) · the import does not set aside new copies for waiting reservations.

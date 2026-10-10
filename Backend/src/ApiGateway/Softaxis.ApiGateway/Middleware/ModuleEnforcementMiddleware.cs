@@ -51,6 +51,7 @@ public sealed class ModuleEnforcementMiddleware(RequestDelegate next)
             ["/api/hospitality/"]       = ModuleCodes.Hospitality,
             ["/api/visa/"]              = ModuleCodes.Visa,
             ["/api/manufacturing/"]     = ModuleCodes.Manufacturing,
+            ["/api/library/"]           = ModuleCodes.Library,
             // Includes the public snippet.js / ping / rules endpoints — harmless, since those are
             // anonymous and line 94's "not authenticated" check already lets them pass through
             // before this map is even consulted.

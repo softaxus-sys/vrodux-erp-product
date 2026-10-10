@@ -461,6 +461,21 @@ export const navigationConfig: NavGroup[] = [
         ],
       },
       {
+        id: "library",
+        label: "Library",
+        labelAr: "المكتبة",
+        icon: "Library",
+        module: "library",
+        children: [
+          { id: "library-dashboard",   label: "Dashboard",   labelAr: "لوحة التحكم", href: "/library/dashboard",   icon: "BarChart3",     requiresPermission: "library.catalog.view" },
+          { id: "library-circulation", label: "Circulation", labelAr: "الإعارة",      href: "/library/circulation", icon: "ArrowLeftRight", requiresPermission: "library.circulation.view" },
+          { id: "library-catalogue",   label: "Catalogue",   labelAr: "الفهرس",       href: "/library/catalogue",   icon: "BookOpen",      requiresPermission: "library.catalog.view" },
+          { id: "library-members",     label: "Members",     labelAr: "الأعضاء",      href: "/library/members",     icon: "Users",         requiresPermission: "library.members.view" },
+          { id: "library-fines",       label: "Fines",       labelAr: "الغرامات",     href: "/library/fines",       icon: "Coins",         requiresPermission: "library.fines.view" },
+          { id: "library-setup",       label: "Branches & Rules", labelAr: "الفروع والقواعد", href: "/library/setup", icon: "Settings2",  requiresPermission: "library.setup.view" },
+        ],
+      },
+      {
         id: "inventory",
         label: "Inventory",
         labelAr: "المخزون",

@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory,
+  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library,
 } from "lucide-react";
 
 // ── Module definitions ────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa" | "manufacturing";
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -206,6 +206,19 @@ export const MODULES: ModuleDef[] = [
     // Components and finished goods are Inventory products.
     requires: ["inventory"],
     recommends: ["purchase", "finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "library",
+    label: "Library",
+    description: "Catalogue, members, lending & fines across branches",
+    icon: Library,
+    color: "bg-indigo-500/10",
+    iconColor: "text-indigo-500",
+    // Stands alone: it keeps its own catalogue, members and branches.
+    requires: [],
+    recommends: ["finance"],
     triggersBusinessType: false,
     category: "industry",
   },

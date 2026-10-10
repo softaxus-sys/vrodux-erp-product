@@ -133,6 +133,13 @@
     "manufacturing-boms": "قوائم المواد",
     "manufacturing-work-centres": "مراكز العمل",
     "manufacturing-planning": "التخطيط والإنتاجية",
-    "manufacturing-dashboard": "لوحة التحكم"
+    "manufacturing-dashboard": "لوحة التحكم",
+    "library": "المكتبة",
+    "library-dashboard": "لوحة التحكم",
+    "library-circulation": "الإعارة",
+    "library-catalogue": "الفهرس",
+    "library-members": "الأعضاء",
+    "library-fines": "الغرامات",
+    "library-setup": "الفروع والقواعد"
   }
 }

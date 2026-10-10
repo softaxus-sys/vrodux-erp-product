@@ -136,6 +136,14 @@ const ManufacturingDashboardPage   = lazyWithRetry(() => import("@/pages/manufac
 const ManufacturingWorkCentresPage = lazyWithRetry(() => import("@/pages/manufacturing/work-centres"));
 const ManufacturingPlanningPage    = lazyWithRetry(() => import("@/pages/manufacturing/planning"));
 
+// ── Library ──────────────────────────────────────────────────────────────────
+const LibraryDashboardPage   = lazyWithRetry(() => import("@/pages/library/dashboard"));
+const LibraryCirculationPage = lazyWithRetry(() => import("@/pages/library/circulation"));
+const LibraryCataloguePage   = lazyWithRetry(() => import("@/pages/library/catalogue"));
+const LibraryMembersPage     = lazyWithRetry(() => import("@/pages/library/members"));
+const LibraryFinesPage       = lazyWithRetry(() => import("@/pages/library/fines"));
+const LibrarySetupPage       = lazyWithRetry(() => import("@/pages/library/setup"));
+
 // ── Visa Services ────────────────────────────────────────────────────────────
 const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
 const VisaCasesPage         = lazyWithRetry(() => import("@/pages/visa/cases"));
@@ -521,6 +529,16 @@ export function App() {
             <Route path="/manufacturing/dashboard" element={<ManufacturingDashboardPage />} />
             <Route path="/manufacturing/work-centres" element={<ManufacturingWorkCentresPage />} />
             <Route path="/manufacturing/planning"     element={<ManufacturingPlanningPage />} />
+          </Route>
+
+          {/* ── Library ─────────────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="library" />}>
+            <Route path="/library/dashboard"   element={<LibraryDashboardPage />} />
+            <Route path="/library/circulation" element={<LibraryCirculationPage />} />
+            <Route path="/library/catalogue"   element={<LibraryCataloguePage />} />
+            <Route path="/library/members"     element={<LibraryMembersPage />} />
+            <Route path="/library/fines"       element={<LibraryFinesPage />} />
+            <Route path="/library/setup"       element={<LibrarySetupPage />} />
           </Route>
 
           {/* ── Visa Services ───────────────────────────────────────────────── */}

@@ -2380,6 +2380,125 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("e8879168-1962-2e40-3244-9a1917588a1a"),
+                            Action = "view",
+                            Description = "View library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("b0932dfd-bd71-883a-f5f6-ab196ac84fab"),
+                            Action = "create",
+                            Description = "Create library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("ae21fe2b-f154-df31-af10-c9d32f58f435"),
+                            Action = "edit",
+                            Description = "Edit library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("a900d05e-9e1e-04bf-ce1c-cb857eb39cb6"),
+                            Action = "delete",
+                            Description = "Delete library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("f2def96d-37db-ff02-0882-7a96eed2dce8"),
+                            Action = "view",
+                            Description = "View library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("6e2f0275-2dbf-bbb0-e5f2-b43d10dc9314"),
+                            Action = "create",
+                            Description = "Create library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("4242ea25-61c4-738f-f63a-ccec7bce061e"),
+                            Action = "edit",
+                            Description = "Edit library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("f6cd37d7-f62c-bcfd-2698-0b82f9daa58b"),
+                            Action = "delete",
+                            Description = "Delete library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("bd829283-d3fa-1cb8-fc92-4c59757d826a"),
+                            Action = "view",
+                            Description = "View library circulation",
+                            ModuleId = "library.circulation"
+                        },
+                        new
+                        {
+                            Id = new Guid("711ed266-2b4d-08e1-061f-868fd140656c"),
+                            Action = "create",
+                            Description = "Create library circulation",
+                            ModuleId = "library.circulation"
+                        },
+                        new
+                        {
+                            Id = new Guid("d6df99aa-334b-5fef-f5dc-8449209e6800"),
+                            Action = "edit",
+                            Description = "Edit library circulation",
+                            ModuleId = "library.circulation"
+                        },
+                        new
+                        {
+                            Id = new Guid("35add296-c6f0-900a-1647-1226bc29ea46"),
+                            Action = "view",
+                            Description = "View library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("8f5ab2a7-d9b6-9cac-4922-02c1ce56b551"),
+                            Action = "create",
+                            Description = "Create library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("4124274b-23f5-7e3d-ca87-922c0598531d"),
+                            Action = "edit",
+                            Description = "Edit library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("5154338a-9ddd-9aac-a93a-62e14ce4f502"),
+                            Action = "approve",
+                            Description = "Approve library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("63898d84-d829-ba20-8f23-3d5201ddfa1d"),
+                            Action = "view",
+                            Description = "View library setup",
+                            ModuleId = "library.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("da48e6af-655f-cc00-fd3c-772511ff6dbf"),
+                            Action = "edit",
+                            Description = "Edit library setup",
+                            ModuleId = "library.setup"
+                        },
+                        new
+                        {
                             Id = new Guid("65584a54-e95e-4f76-0fab-38daed09bd06"),
                             Action = "view",
                             Description = "View seo sites",

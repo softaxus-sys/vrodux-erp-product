@@ -158,6 +158,21 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
       { key: "orders", label: "Production Orders" },
     ],
   },
+  {
+    industry: "library",
+    moduleKey: "library",
+    label: "Library",
+    description: "Catalogue, members, lending, reservations and fines across several branches.",
+    icon: "Library",
+    crmFlow: "Catalogue → Member → Issue → Return / Renew → Fines",
+    entities: ["Titles", "Copies", "Members", "Loans", "Reservations", "Fines", "Branches"],
+    features: [
+      { key: "circulation", label: "Issue & Return" },
+      { key: "reservations", label: "Reservations" },
+      { key: "fines", label: "Fines" },
+      { key: "branches", label: "Multiple Branches" },
+    ],
+  },
 ];
 
 /** Industries offered in the Create-Tenant picker (value + label). */

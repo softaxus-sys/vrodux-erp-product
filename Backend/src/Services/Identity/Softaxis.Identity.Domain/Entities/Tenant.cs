@@ -126,6 +126,8 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["visa_services"]= "visa",
         // A tenant that signs up (or is created) as a manufacturer gets the Manufacturing module.
         ["manufacturing"]= "manufacturing",
+        // Public, school, university and corporate libraries.
+        ["library"]      = "library",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>
@@ -215,8 +217,8 @@ public sealed class Tenant : AuditableEntity<Guid>
                 if (pack is not null)
                 {
                     // The CRM verticals build on CRM. Manufacturing does not — it builds on
-                    // Inventory, which is added below.
-                    if (pack != "manufacturing" && !list.Contains("crm")) list.Add("crm");
+                    // Inventory, which is added below. Library builds on nothing.
+                    if (pack is not ("manufacturing" or "library") && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }

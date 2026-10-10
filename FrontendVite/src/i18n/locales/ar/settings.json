@@ -1051,7 +1051,12 @@
       "manufacturing.work-centres": "مراكز العمل",
       "manufacturing.boms": "قوائم المواد",
       "manufacturing.orders": "أوامر الإنتاج",
-      "manufacturing.planning": "التخطيط والتقارير"
+      "manufacturing.planning": "التخطيط والتقارير",
+      "library.catalog": "الفهرس (العناوين والنسخ)",
+      "library.members": "الأعضاء",
+      "library.circulation": "الإعارة (إعارة، إعادة، حجز)",
+      "library.fines": "الغرامات",
+      "library.setup": "الفروع وقواعد العضوية"
     }
   },
   "roles": {

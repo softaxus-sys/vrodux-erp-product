@@ -50,6 +50,8 @@
     <ProjectReference Include="..\..\Services\AiAssistant\Softaxis.AiAssistant.Infrastructure\Softaxis.AiAssistant.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Manufacturing\Softaxis.Manufacturing.API\Softaxis.Manufacturing.API.csproj" />
     <ProjectReference Include="..\..\Services\Manufacturing\Softaxis.Manufacturing.Infrastructure\Softaxis.Manufacturing.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Library\Softaxis.Library.API\Softaxis.Library.API.csproj" />
+    <ProjectReference Include="..\..\Services\Library\Softaxis.Library.Infrastructure\Softaxis.Library.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\VisaServices\Softaxis.VisaServices.API\Softaxis.VisaServices.API.csproj" />
     <ProjectReference Include="..\..\Services\VisaServices\Softaxis.VisaServices.Infrastructure\Softaxis.VisaServices.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Support\Softaxis.Support.API\Softaxis.Support.API.csproj" />

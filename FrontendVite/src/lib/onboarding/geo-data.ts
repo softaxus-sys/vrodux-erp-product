@@ -187,6 +187,7 @@ export const INDUSTRIES = [
   "Hospitality & Tourism",
   "Healthcare",
   "Education",
+  "Library",
   "Manufacturing",
   "Finance & Banking",
   "Logistics & Supply Chain",

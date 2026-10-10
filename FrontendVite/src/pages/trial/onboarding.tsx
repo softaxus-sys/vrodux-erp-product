@@ -52,6 +52,7 @@ const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
   "Healthcare":               ["healthcare","hr","finance"],
   "Education":                ["education","hr","finance"],
   "Manufacturing":            ["manufacturing","inventory","purchase","hr","finance"],
+  "Library":                  ["library","hr","finance"],
   "Finance & Banking":        ["finance","hr","crm"],
   "Logistics & Supply Chain": ["inventory","purchase","hr"],
   "Food & Beverage":          ["pos","inventory","purchase","hr"],

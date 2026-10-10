@@ -157,6 +157,15 @@ public static class PermissionSeedData
         // Material requirements, work in progress, work-centre load, yield.
         ["manufacturing.planning"] = ["view"],
 
+        // Library — catalogue (titles + copies), members, the circulation desk (create = issue /
+        // reserve, edit = return / renew / report lost), fines (edit = take payment, approve =
+        // waive) and setup (branches + membership rules).
+        ["library.catalog"]     = ["view","create","edit","delete"],
+        ["library.members"]     = ["view","create","edit","delete"],
+        ["library.circulation"] = ["view","create","edit"],
+        ["library.fines"]       = ["view","create","edit","approve"],
+        ["library.setup"]       = ["view","edit"],
+
         // SEO AI Agent — "sites" (connect/manage a site, super-admin-grant only for now) and
         // "fixes" (review/approve the AI's proposed changes) are separate: approving a fix should
         // not require the same permission as connecting a whole new site.

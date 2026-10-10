@@ -41,6 +41,9 @@ public static class ModuleCodes
     // ── Manufacturing / Construction ─────────────────────────────────────────
     public const string Manufacturing = "manufacturing";
 
+    // ── Library Management ───────────────────────────────────────────────────
+    public const string Library = "library";
+
     // ── Project Management ───────────────────────────────────────────────────
     public const string ProjectManagement = "project-management";
 

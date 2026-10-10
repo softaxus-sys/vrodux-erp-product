@@ -171,7 +171,8 @@
     "Wholesale & Distribution": "Wholesale & Distribution",
     "Professional Services": "Professional Services",
     "Agriculture": "Agriculture",
-    "Other": "Other"
+    "Other": "Other",
+    "Library": "Library"
   },
   "language": {
     "English": "English",
@@ -252,6 +253,10 @@
     "manufacturing": {
       "label": "Manufacturing",
       "desc": "Bills of materials, production orders & costing"
+    },
+    "library": {
+      "label": "Library",
+      "desc": "Catalogue, members, lending & fines across branches"
     }
   },
   "businessType": {
