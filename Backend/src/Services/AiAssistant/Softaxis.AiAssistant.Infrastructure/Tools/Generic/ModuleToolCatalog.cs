@@ -144,6 +144,28 @@ public static class ModuleToolCatalog
             new("withinDays", "integer", "Horizon in days (default 90) (optional)"),
         ]),
 
+        // ── Manufacturing ─────────────────────────────────────────────────────
+        new("manufacturing_list_boms", "List bills of materials with their ids — finished product, batch size, status, cost per unit.", "manufacturing", "api/manufacturing/boms", "manufacturing.boms.view,manufacturing.orders.view",
+        [
+            new("status", "string", "Only BOMs in this status: draft, active or archived (optional)"),
+            new("search", "string", "Match on name, product or BOM number (optional)"),
+        ]),
+        new("manufacturing_list_orders", "List production orders — number, product, quantity, status, due date, cost.", "manufacturing", "api/manufacturing/orders", "manufacturing.orders.view",
+        [
+            new("status",    "string", "Only orders in this status: planned, released, in_progress, completed or cancelled (optional)"),
+            new("search",    "string", "Match on order number, product or reference (optional)"),
+            new("reference", "string", "Only orders with exactly this reference, e.g. a sales order number (optional)"),
+        ]),
+        new("manufacturing_list_work_centres", "List work centres with their ids — hourly labour and overhead rates, daily capacity.", "manufacturing", "api/manufacturing/work-centres", "manufacturing.work-centres.view,manufacturing.boms.view,manufacturing.orders.view"),
+        new("manufacturing_list_material_requirements", "List components open production orders still need — required, on hand and shortage.", "manufacturing", "api/manufacturing/planning/material-requirements", "manufacturing.planning.view"),
+        new("manufacturing_list_work_in_progress", "List open production orders with the cost put into them so far (work in progress).", "manufacturing", "api/manufacturing/planning/wip", "manufacturing.planning.view"),
+        new("manufacturing_list_work_centre_load", "List how much work is queued at each work centre against its daily capacity.", "manufacturing", "api/manufacturing/planning/work-centre-load", "manufacturing.planning.view"),
+        new("manufacturing_list_yield", "List completed production by product — produced, scrapped, yield % and cost per unit.", "manufacturing", "api/manufacturing/planning/yield", "manufacturing.planning.view",
+        [
+            new("from", "string", "Completed on or after, yyyy-MM-dd (optional)"),
+            new("to",   "string", "Completed on or before, yyyy-MM-dd (optional)"),
+        ]),
+
         // ── Support (raising/tracking a ticket with the VroduxERP team) ─────────
         // No permission required — every workspace can see its own support history, same as
         // raising one requires none. This tool is deliberately available in every tenant
@@ -214,6 +236,8 @@ public static class ModuleToolCatalog
         new("projects_get_project", "Get one project's full detail by id.", "project-management", "api/projectmanagement/projects/{id}", "projectId", "project-management.projects.view"),
         new("restaurant_get_order", "Get one restaurant order's full detail by id, including items and payments.", "restaurant", "api/restaurant/orders/{id}", "orderId", "restaurant.orders.view"),
         new("visa_get_case", "Get one visa case's full detail by id, including applicants and documents.", "visa", "api/visa/cases/{id}", "caseId", "visa.cases.view"),
+        new("manufacturing_get_bom", "Get one bill of materials by id — components, operations, by-products and cost.", "manufacturing", "api/manufacturing/boms/{id}", "bomId", "manufacturing.boms.view,manufacturing.orders.view"),
+        new("manufacturing_get_order", "Get one production order by id — components with stock on hand, operations, cost, batch and sub-orders.", "manufacturing", "api/manufacturing/orders/{id}", "orderId", "manufacturing.orders.view"),
         // No permission required — same posture as support_list_my_tickets; the backend itself
         // only ever returns a ticket that belongs to the caller's own workspace (or, for a
         // Softaxis agent, any ticket) — see SupportTicketsController.GetById.
@@ -555,6 +579,27 @@ public static class ModuleToolCatalog
             new("defaultGovtFee",    "number", "Default government fee (required)", true),
             new("defaultServiceFee", "number", "Default service fee (required)", true),
             new("processingDays",    "integer","Typical processing days (required)", true),
+        ]),
+
+        // ── Manufacturing ─────────────────────────────────────────────────────
+        new("manufacturing_create_work_centre", "Add a work centre (machine, line or team).", "manufacturing", "api/manufacturing/work-centres", "manufacturing.work-centres.create",
+        [
+            new("name",                "string", "Work centre name (required)", true),
+            new("code",                "string", "Short code (optional)"),
+            new("labourRatePerHour",   "number", "Labour cost per hour (required)", true),
+            new("overheadRatePerHour", "number", "Overhead cost per hour (required)", true),
+            new("capacityHoursPerDay", "number", "Productive hours per day", false, "8"),
+        ]),
+        new("manufacturing_plan_order", "Plan a production order from an ACTIVE bill of materials. Look the BOM id up with manufacturing_list_boms first.", "manufacturing", "api/manufacturing/orders", "manufacturing.orders.create",
+        [
+            new("bomId",             "string",  "Bill of materials id (GUID) (required)", true),
+            new("plannedQuantity",   "number",  "Quantity to produce (required)", true),
+            new("warehouseId",       "string",  "Warehouse id (GUID) to draw from and receive into (optional)"),
+            new("plannedStartDate",  "string",  "Start date, yyyy-MM-dd (optional)"),
+            new("dueDate",           "string",  "Due date, yyyy-MM-dd (optional)"),
+            new("reference",         "string",  "Reference such as a sales order number (optional)"),
+            new("notes",             "string",  "Notes (optional)"),
+            new("planSubAssemblies", "boolean", "Also plan orders for manufactured components that are short in stock (optional)"),
         ]),
 
         // ── Support — no permission required (open to any workspace user; see the note by
@@ -1279,6 +1324,27 @@ public static class ModuleToolCatalog
         ]),
 
         // ── Visa Services ─────────────────────────────────────────────────────
+        // ── Manufacturing ─────────────────────────────────────────────────────
+        new("manufacturing_release_order", "Release a planned production order to the shop floor.", "manufacturing", "POST", "api/manufacturing/orders/{orderId}/release", "manufacturing.orders.edit",
+        [
+            new("orderId", "string", "Production order id (GUID) (required)", true),
+        ]),
+        new("manufacturing_cancel_order", "Cancel a production order. Only possible while no materials are issued to it.", "manufacturing", "POST", "api/manufacturing/orders/{orderId}/cancel", "manufacturing.orders.edit",
+        [
+            new("orderId", "string", "Production order id (GUID) (required)", true),
+        ]),
+        new("manufacturing_set_bom_status", "Activate, archive or return a bill of materials to draft.", "manufacturing", "PATCH", "api/manufacturing/boms/{bomId}/status", "manufacturing.boms.edit",
+        [
+            new("bomId",  "string", "Bill of materials id (GUID) (required)", true),
+            new("status", "string", "draft, active or archived (required)", true),
+        ]),
+        new("manufacturing_record_operation", "Record the minutes actually spent on one operation of a released production order.", "manufacturing", "POST", "api/manufacturing/orders/{orderId}/operations/{operationId}/record", "manufacturing.orders.edit",
+        [
+            new("orderId",       "string", "Production order id (GUID) (required)", true),
+            new("operationId",   "string", "Operation id (GUID) from manufacturing_get_order (required)", true),
+            new("actualMinutes", "number", "Minutes actually spent (required)", true),
+        ]),
+
         new("visa_change_case_status", "Move a visa case to its next status. Give govtReference when submitting, rejectionReason when rejecting, and visaExpiryDate when issuing.", "visa", "PATCH", "api/visa/cases/{caseId}/status", "visa.cases.edit",
         [
             new("caseId",          "string", "Visa case id (GUID) (required)", true),

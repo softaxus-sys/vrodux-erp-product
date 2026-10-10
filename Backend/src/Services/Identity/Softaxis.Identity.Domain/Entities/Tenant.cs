@@ -124,6 +124,8 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["insurance"]   = "insurance",
         ["b2b_services"]= "b2b",
         ["visa_services"]= "visa",
+        // A tenant that signs up (or is created) as a manufacturer gets the Manufacturing module.
+        ["manufacturing"]= "manufacturing",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>
@@ -133,11 +135,10 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// <summary>
     /// Legacy module codes that are NOT real modules and map to nothing. <c>api</c> and
     /// <c>custom-reports</c> are now expressed as <see cref="PlanLimits.ApiAccess"/> /
-    /// <see cref="PlanLimits.CustomReports"/> feature flags, and <c>manufacturing</c> was never
-    /// built. Dropped rather than mapped.
+    /// <see cref="PlanLimits.CustomReports"/> feature flags. Dropped rather than mapped.
     /// </summary>
     private static readonly HashSet<string> RetiredModuleCodes =
-        new(StringComparer.OrdinalIgnoreCase) { "api", "custom-reports", "manufacturing" };
+        new(StringComparer.OrdinalIgnoreCase) { "api", "custom-reports" };
 
     /// <summary>Legacy code → canonical <c>ModuleKey</c>.</summary>
     private static readonly Dictionary<string, string> LegacyModuleAliases =
@@ -213,10 +214,19 @@ public sealed class Tenant : AuditableEntity<Guid>
                 var pack = PackModuleFor(Industry);
                 if (pack is not null)
                 {
-                    if (!list.Contains("crm"))  list.Add("crm");
+                    // The CRM verticals build on CRM. Manufacturing does not — it builds on
+                    // Inventory, which is added below.
+                    if (pack != "manufacturing" && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }
+
+            // Manufacturing keeps no stock of its own — components and finished goods are
+            // Inventory products. A tenant sold Manufacturing alone would have nowhere to create
+            // them, so Inventory comes with it, manual grant included.
+            if (list.Contains("manufacturing", StringComparer.OrdinalIgnoreCase)
+                && !list.Contains("inventory", StringComparer.OrdinalIgnoreCase))
+                list.Add("inventory");
 
             // Settings and Users are how a tenant administers itself — invite colleagues, set roles,
             // manage billing. Locking them behind a plan, an onboarding checkbox, or even a manual

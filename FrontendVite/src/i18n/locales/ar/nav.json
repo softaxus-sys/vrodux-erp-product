@@ -127,6 +127,12 @@
     "integrations": "التكاملات",
     "audit-logs": "سجلات التدقيق",
     "crm-documents": "المستندات",
-    "teams": "الفرق"
+    "teams": "الفرق",
+    "manufacturing": "التصنيع",
+    "manufacturing-orders": "أوامر الإنتاج",
+    "manufacturing-boms": "قوائم المواد",
+    "manufacturing-work-centres": "مراكز العمل",
+    "manufacturing-planning": "التخطيط والإنتاجية",
+    "manufacturing-dashboard": "لوحة التحكم"
   }
 }

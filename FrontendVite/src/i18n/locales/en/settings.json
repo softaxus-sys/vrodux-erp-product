@@ -1043,7 +1043,11 @@
       "crm.pipeline-assigned": "Pipeline (Assigned only)",
       "crm.pipeline-team": "Pipeline (My team)",
       "crm.customers-assigned": "Customers (Assigned only)",
-      "crm.customers-team": "Customers (My team)"
+      "crm.customers-team": "Customers (My team)",
+      "manufacturing.work-centres": "Work Centres",
+      "manufacturing.boms": "Bills of Materials",
+      "manufacturing.orders": "Production Orders",
+      "manufacturing.planning": "Planning & Reports"
     }
   },
   "roles": {

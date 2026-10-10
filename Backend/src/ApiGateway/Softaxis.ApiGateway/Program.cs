@@ -28,6 +28,7 @@ using Softaxis.Restaurant.Infrastructure.Extensions;
 using Softaxis.Recipe.Infrastructure.Extensions;
 using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
+using Softaxis.Manufacturing.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
@@ -148,6 +149,8 @@ try
     // AI Assistant: DbContext, provider abstraction (Claude/Groq), orchestrator, tools
     builder.Services.AddAiAssistantInfrastructure(builder.Configuration);
     builder.Services.AddVisaServicesInfrastructure(builder.Configuration);
+    // Manufacturing: BOMs + production orders. Moves stock through Inventory's own commands.
+    builder.Services.AddManufacturingInfrastructure(builder.Configuration);
     builder.Services.AddSupportInfrastructure(builder.Configuration);
     builder.Services.AddSeoInfrastructure(builder.Configuration);
 
@@ -282,6 +285,7 @@ try
         .AddApplicationPart(typeof(Softaxis.ProjectManagement.API.Controllers.ProjectsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.AiAssistant.API.Controllers.AiChatController).Assembly)
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Manufacturing.API.Controllers.BomsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
         .AddJsonOptions(o =>
@@ -437,6 +441,7 @@ try
         await ForModule("recipe",             app.Services.MigrateAndSeedRecipeAsync);
         await ForModule("project-management", app.Services.MigrateAndSeedProjectManagementAsync);
         await ForModule("visa",               app.Services.MigrateAndSeedVisaServicesAsync);
+        await ForModule("manufacturing",      app.Services.MigrateAndSeedManufacturingAsync);
 
         // Cross-cutting, licensed to nobody in particular. The notifications backfill checks for
         // the CRM tables before reading them, so it is safe on a box with no CRM schema.
@@ -501,7 +506,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Support", "Seo" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Support", "Seo" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);

@@ -68,6 +68,8 @@ public static class PlanDefinitions
     [
         .. ProfessionalModules,
         "real-estate", "construction", "healthcare", "education", "insurance", "b2b", "visa",
+        // Sold as an add-on: on lower tiers a super admin grants it per tenant.
+        "manufacturing",
     ];
 
     public static readonly IReadOnlyDictionary<PlanType, PlanLimits> All =

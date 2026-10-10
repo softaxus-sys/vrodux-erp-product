@@ -167,6 +167,7 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
   "settings": true, "users": true, "ai-assistant": true, "notifications": true,
   "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
   "insurance": true, "b2b": true, "project-management": true, "visa": true,
+  "manufacturing": true,
   "support": true, "seo": true,
 };
 
@@ -174,7 +175,7 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
 const LEGACY_MODULE_ALIASES: Record<string, ModuleKey> = { purchasing: "purchase" };
 
 /** Codes that are no longer modules. Mirrors `Tenant.RetiredModuleCodes` (backend). */
-const RETIRED_MODULE_CODES = new Set(["api", "custom-reports", "manufacturing"]);
+const RETIRED_MODULE_CODES = new Set(["api", "custom-reports"]);
 
 /**
  * Normalise one backend module code to a canonical ModuleKey, or null to drop it.

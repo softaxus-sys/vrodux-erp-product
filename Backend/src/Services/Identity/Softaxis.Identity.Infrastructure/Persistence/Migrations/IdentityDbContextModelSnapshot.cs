@@ -2289,6 +2289,97 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("c43a5cf1-d8dd-3bef-c390-439ff4166006"),
+                            Action = "view",
+                            Description = "View manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("4518afaa-5be8-bf66-5493-af99ca7ef4a3"),
+                            Action = "create",
+                            Description = "Create manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("dc271bcc-e9f3-4a46-d94c-6d467ae7f2a0"),
+                            Action = "edit",
+                            Description = "Edit manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("1e57288d-3d6e-2351-9889-0aa4ed43c31d"),
+                            Action = "delete",
+                            Description = "Delete manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("558c25f7-f535-f69e-eed0-45f96176fd9a"),
+                            Action = "view",
+                            Description = "View manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("1a3308e5-8d24-63bc-73df-e4305a3fbdd6"),
+                            Action = "create",
+                            Description = "Create manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("de166c0c-80e6-d9a3-af7c-14c85b5792b2"),
+                            Action = "edit",
+                            Description = "Edit manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("5196562b-9acb-e4cc-87de-bba58258ffef"),
+                            Action = "delete",
+                            Description = "Delete manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("f8d13ec7-7d53-ce0a-3694-489045bce8c1"),
+                            Action = "view",
+                            Description = "View manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("fccb1aee-3936-b46f-6ea5-71bce3365c63"),
+                            Action = "create",
+                            Description = "Create manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("11b455c1-ddcd-58e8-521a-ea9ed9d8d89d"),
+                            Action = "edit",
+                            Description = "Edit manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("b73cc9d2-bc6a-2736-e582-7b45a475bf37"),
+                            Action = "delete",
+                            Description = "Delete manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("e5a46fcb-e78a-04b8-c09f-5b253a7b7589"),
+                            Action = "view",
+                            Description = "View manufacturing planning",
+                            ModuleId = "manufacturing.planning"
+                        },
+                        new
+                        {
                             Id = new Guid("65584a54-e95e-4f76-0fab-38daed09bd06"),
                             Action = "view",
                             Description = "View seo sites",

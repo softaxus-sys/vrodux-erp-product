@@ -149,6 +149,14 @@ public static class PermissionSeedData
         // Visa Services (UAE visa consultancy — cases, applicants, documents)
         ["visa.cases"] = ["view","create","edit","delete"],
 
+        // Manufacturing — bills of materials, and production orders. "edit" on orders covers
+        // release / issue materials / complete / cancel, which are what move stock.
+        ["manufacturing.boms"]   = ["view","create","edit","delete"],
+        ["manufacturing.orders"] = ["view","create","edit","delete"],
+        ["manufacturing.work-centres"] = ["view","create","edit","delete"],
+        // Material requirements, work in progress, work-centre load, yield.
+        ["manufacturing.planning"] = ["view"],
+
         // SEO AI Agent — "sites" (connect/manage a site, super-admin-grant only for now) and
         // "fixes" (review/approve the AI's proposed changes) are separate: approving a fix should
         // not require the same permission as connecting a whole new site.

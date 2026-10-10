@@ -1047,7 +1047,11 @@
       "crm.pipeline-assigned": "الصفقات (المسندة إليّ فقط)",
       "crm.pipeline-team": "الصفقات (فريقي)",
       "crm.customers-assigned": "العملاء (المسندون إليّ فقط)",
-      "crm.customers-team": "العملاء (فريقي)"
+      "crm.customers-team": "العملاء (فريقي)",
+      "manufacturing.work-centres": "مراكز العمل",
+      "manufacturing.boms": "قوائم المواد",
+      "manufacturing.orders": "أوامر الإنتاج",
+      "manufacturing.planning": "التخطيط والتقارير"
     }
   },
   "roles": {

@@ -524,6 +524,8 @@ export interface ActivityDto {
   relatedToId: string;
   relatedToName?: string | null;
   dueDate?: string | null;
+  /** "HH:mm" for a scheduled meeting or call; null when only a date was set. */
+  dueTime?: string | null;
   completed: boolean;
   completedAt?: string | null;
   assignedTo: string;
@@ -540,6 +542,7 @@ export interface CreateActivityRequest {
   relatedToId: string;
   relatedToName?: string | null;
   dueDate?: string | null;
+  dueTime?: string | null;
   assignedTo: string;
   /** Identity user id of the assignee — what routes the notification. */
   assignedToUserId?: string | null;

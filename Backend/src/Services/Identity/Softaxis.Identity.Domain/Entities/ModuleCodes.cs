@@ -77,9 +77,23 @@ public static class ModuleCodes
     ///
     /// The reverse is NOT true: having "inventory.basic" does NOT satisfy "inventory".
     /// </summary>
-    public static bool Satisfies(string tenantModule, string requiredModule) =>
-        tenantModule == requiredModule ||
-        requiredModule.StartsWith(tenantModule + ".", StringComparison.OrdinalIgnoreCase);
+    public static bool Satisfies(string tenantModule, string requiredModule)
+    {
+        tenantModule   = Canonical(tenantModule);
+        requiredModule = Canonical(requiredModule);
+
+        return string.Equals(tenantModule, requiredModule, StringComparison.OrdinalIgnoreCase) ||
+               requiredModule.StartsWith(tenantModule + ".", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// The Purchase module has two spellings: the route map still asks for the legacy
+    /// <see cref="Purchasing"/>, while a tenant's resolved modules (and so its JWT claim) carry the
+    /// canonical "purchase". Without treating them as one, every Purchase route refused every
+    /// tenant with MODULE_NOT_LICENSED.
+    /// </summary>
+    private static string Canonical(string code) =>
+        string.Equals(code, Purchasing, StringComparison.OrdinalIgnoreCase) ? "purchase" : code;
 
     /// <summary>
     /// Returns true if the <paramref name="tenantModules"/> collection contains

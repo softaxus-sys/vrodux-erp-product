@@ -127,6 +127,12 @@
     "integrations": "Integrations",
     "audit-logs": "Audit Logs",
     "crm-documents": "Documents",
-    "teams": "Teams"
+    "teams": "Teams",
+    "manufacturing": "Manufacturing",
+    "manufacturing-orders": "Production Orders",
+    "manufacturing-boms": "Bills of Materials",
+    "manufacturing-work-centres": "Work Centres",
+    "manufacturing-planning": "Planning & Yield",
+    "manufacturing-dashboard": "Dashboard"
   }
 }

@@ -145,6 +145,7 @@ export type ModuleKey =
   | "b2b"
   | "project-management"
   | "visa"
+  | "manufacturing"
   | "support"
   | "seo";
 

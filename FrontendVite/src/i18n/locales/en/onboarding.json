@@ -248,6 +248,10 @@
     "visa": {
       "label": "Visa Services",
       "desc": "Visa cases, documents & renewals"
+    },
+    "manufacturing": {
+      "label": "Manufacturing",
+      "desc": "Bills of materials, production orders & costing"
     }
   },
   "businessType": {

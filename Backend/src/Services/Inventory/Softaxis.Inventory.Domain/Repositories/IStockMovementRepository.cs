@@ -20,6 +20,11 @@ public interface IStockMovementRepository
     /// </summary>
     Task<bool> AdjustPosProductStockAsync(Guid productId, decimal delta, CancellationToken ct = default);
 
+    /// <summary>
+    /// Moving-average cost update for a pos.products row, run before its quantity is adjusted.
+    /// </summary>
+    Task ApplyPosReceiptCostAsync(Guid productId, decimal quantity, decimal unitCost, CancellationToken ct = default);
+
     /// <summary>Returns the tracked per-warehouse stock row, creating it (unsaved) if absent.</summary>
     Task<ProductStock> GetOrCreateStockAsync(Guid productId, Guid warehouseId, CancellationToken ct = default);
 

@@ -50,6 +50,19 @@ public sealed class StockMovementRepository(InventoryDbContext db) : IStockMovem
         return rows > 0;
     }
 
+    public async Task ApplyPosReceiptCostAsync(Guid productId, decimal quantity, decimal unitCost, CancellationToken ct = default)
+    {
+        if (quantity <= 0 || unitCost <= 0) return;
+        int  bypass = TenantAmbient.BypassFilter ? 1 : 0;
+        Guid tenant = TenantAmbient.TenantId ?? Guid.Empty;
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $@"UPDATE [pos].[products]
+               SET CostPrice = ROUND(((CASE WHEN StockQuantity > 0 THEN StockQuantity ELSE 0 END) * CostPrice + {quantity} * {unitCost})
+                               / ((CASE WHEN StockQuantity > 0 THEN StockQuantity ELSE 0 END) + {quantity}), 2)
+               WHERE Id = {productId} AND IsDeleted = 0 AND ({bypass} = 1 OR TenantId = {tenant})",
+            ct);
+    }
+
     public async Task<ProductStock> GetOrCreateStockAsync(Guid productId, Guid warehouseId, CancellationToken ct = default)
     {
         var existing = await db.ProductStocks

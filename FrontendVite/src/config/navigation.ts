@@ -447,6 +447,20 @@ export const navigationConfig: NavGroup[] = [
         ],
       },
       {
+        id: "manufacturing",
+        label: "Manufacturing",
+        labelAr: "التصنيع",
+        icon: "Factory",
+        module: "manufacturing",
+        children: [
+          { id: "manufacturing-dashboard", label: "Dashboard", labelAr: "لوحة التحكم", href: "/manufacturing/dashboard", icon: "BarChart3", requiresPermission: "manufacturing.orders.view" },
+          { id: "manufacturing-orders", label: "Production Orders", labelAr: "أوامر الإنتاج", href: "/manufacturing/orders", icon: "ClipboardList", requiresPermission: "manufacturing.orders.view" },
+          { id: "manufacturing-boms",   label: "Bills of Materials", labelAr: "قوائم المواد", href: "/manufacturing/boms",   icon: "Layers",        requiresPermission: "manufacturing.boms.view" },
+          { id: "manufacturing-work-centres", label: "Work Centres", labelAr: "مراكز العمل", href: "/manufacturing/work-centres", icon: "Settings2", requiresPermission: "manufacturing.work-centres.view" },
+          { id: "manufacturing-planning", label: "Planning & Yield", labelAr: "التخطيط والإنتاجية", href: "/manufacturing/planning", icon: "CalendarClock", requiresPermission: "manufacturing.planning.view" },
+        ],
+      },
+      {
         id: "inventory",
         label: "Inventory",
         labelAr: "المخزون",

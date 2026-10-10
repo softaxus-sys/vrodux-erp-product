@@ -59,6 +59,9 @@ public static class LicensedModules
             ["inventory"]  = ["pos"],
             ["restaurant"] = ["pos", "inventory"],
             ["recipe"]     = ["restaurant", "pos", "inventory"],
+            // Manufacturing keeps no stock of its own: products, warehouses and every movement
+            // are Inventory's, reached in-process through IManufacturingStock.
+            ["manufacturing"] = ["inventory"],
         };
 
     /// <summary>

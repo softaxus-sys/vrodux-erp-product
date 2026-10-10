@@ -451,7 +451,10 @@
       }
     },
     "assignTo": "Assign to",
-    "unassigned": "Unassigned"
+    "unassigned": "Unassigned",
+    "loggedOn": "Logged {{date}}",
+    "dueDate": "Date",
+    "dueTime": "Time"
   },
   "contacts": {
     "heading": "Contacts ({{count}})",

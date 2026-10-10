@@ -184,8 +184,11 @@ internal sealed class ActivityConfiguration : IEntityTypeConfiguration<Activity>
         builder.ToTable("activities");
         builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.Type).IsRequired().HasMaxLength(20);
-        builder.Property(x => x.Subject).IsRequired().HasMaxLength(300);
+        // A note's whole text is its subject, so this has to hold a real paragraph — it was 300
+        // and a longer note failed in the database.
+        builder.Property(x => x.Subject).IsRequired().HasMaxLength(Activity.SubjectMaxLength);
         builder.Property(x => x.Description).HasMaxLength(2000);
+        builder.Property(x => x.DueTime).HasMaxLength(5);
         builder.Property(x => x.RelatedToType).IsRequired().HasMaxLength(20);
         builder.Property(x => x.RelatedToName).HasMaxLength(200);
         builder.Property(x => x.DueDate).HasMaxLength(20);

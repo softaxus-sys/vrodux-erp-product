@@ -451,7 +451,10 @@
       }
     },
     "assignTo": "إسناد إلى",
-    "unassigned": "غير مُسند"
+    "unassigned": "غير مُسند",
+    "loggedOn": "سُجّل في {{date}}",
+    "dueDate": "التاريخ",
+    "dueTime": "الوقت"
   },
   "contacts": {
     "heading": "جهات الاتصال ({{count}})",

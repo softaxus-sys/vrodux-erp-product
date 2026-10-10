@@ -17,7 +17,7 @@ import {
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins, CloudUpload,
   Stamp, CalendarClock, Printer, Globe,
   LifeBuoy, MessageSquare, Headset,
-  Rocket, Search, Wand2,
+  Rocket, Search, Wand2, Factory,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins, CloudUpload,
   Stamp, CalendarClock, Printer, Globe,
   LifeBuoy, MessageSquare, Headset,
-  Rocket, Search, Wand2,
+  Rocket, Search, Wand2, Factory,
 };
 
 export function NavIcon({ name, className }: { name?: string; className?: string }) {

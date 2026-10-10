@@ -12,7 +12,7 @@ public sealed class CreateStockMovementCommandHandler(
     : ICommandHandler<CreateStockMovementCommand, Guid>
 {
     private static readonly HashSet<string> OutMovements =
-        ["Sale", "WriteOff", "Transfer"];
+        ["Sale", "WriteOff", "Transfer", MovementTypes.ProductionIssue];
 
     public async Task<Result<Guid>> Handle(CreateStockMovementCommand cmd, CancellationToken ct)
     {
@@ -24,9 +24,16 @@ public sealed class CreateStockMovementCommandHandler(
                 ? -Math.Abs(cmd.Quantity)
                 :  Math.Abs(cmd.Quantity);
 
+        // Goods made in-house arrive at what they cost to make, so the product's cost price is
+        // re-averaged. A zero cost (a by-product) leaves it alone.
+        var revalue = cmd.MovementType.Equals(MovementTypes.ProductionReceipt, StringComparison.OrdinalIgnoreCase)
+                      && cmd.UnitCost > 0;
+
         var product = await movementRepo.GetTrackedProductAsync(cmd.ProductId, ct);
         if (product is null)
         {
+            if (revalue) await movementRepo.ApplyPosReceiptCostAsync(cmd.ProductId, Math.Abs(cmd.Quantity), cmd.UnitCost, ct);
+
             // The product picker also shows pos.products rows (see ProductReadService's
             // combined UNION) — those have no row in inventory.products and therefore no
             // FK target for stock_movements, so we can only adjust their stock quantity
@@ -38,6 +45,7 @@ public sealed class CreateStockMovementCommandHandler(
             return Result.Success(Guid.NewGuid());
         }
 
+        if (revalue) product.ApplyReceiptCost(Math.Abs(cmd.Quantity), cmd.UnitCost);
         product.AdjustStock(delta);
 
         // Keep the per-warehouse bucket in sync when a warehouse is specified.

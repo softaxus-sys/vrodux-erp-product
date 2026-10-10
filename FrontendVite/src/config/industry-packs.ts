@@ -145,6 +145,19 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
       { key: "renewals", label: "Renewals & Alerts" },
     ],
   },
+  {
+    industry: "manufacturing",
+    moduleKey: "manufacturing",
+    label: "Manufacturing",
+    description: "Bills of materials, production orders, material issue and finished-goods receipt.",
+    icon: "Factory",
+    crmFlow: "Bill of Materials → Production Order → Issue Materials → Finished Goods",
+    entities: ["Bills of Materials", "Production Orders", "Work Centres", "Material Requirements"],
+    features: [
+      { key: "boms", label: "Bills of Materials" },
+      { key: "orders", label: "Production Orders" },
+    ],
+  },
 ];
 
 /** Industries offered in the Create-Tenant picker (value + label). */

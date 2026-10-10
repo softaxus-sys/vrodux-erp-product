@@ -1,8 +1,7 @@
 import {
   AtSign, Banknote, Bell, Briefcase, Building2, CalendarClock, CheckCircle2, FileText,
   Handshake, Info, Package, ShoppingCart, Stamp, TriangleAlert, UtensilsCrossed, XCircle,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, Factory } from "lucide-react";
 
 /**
  * How a notification looks. Keyed by the BACKEND's module keys (NotificationModules) — the two
@@ -33,6 +32,7 @@ const MODULES: Record<string, ModuleMeta> = {
   "project-management": { label: "Projects",  icon: CalendarClock,    tone: "text-indigo-600 bg-indigo-500/10 dark:text-indigo-300",  accent: "bg-indigo-500" },
   "real-estate":        { label: "Property",  icon: Building2,        tone: "text-teal-600 bg-teal-500/10 dark:text-teal-300",        accent: "bg-teal-500" },
   visa:                 { label: "Visa",      icon: Stamp,            tone: "text-rose-600 bg-rose-500/10 dark:text-rose-300",        accent: "bg-rose-500" },
+  manufacturing:                 { label: "Manufacturing",      icon: Factory,            tone: "text-zinc-600 bg-zinc-500/10 dark:text-zinc-300",        accent: "bg-zinc-500" },
   restaurant:           { label: "Restaurant",icon: UtensilsCrossed,  tone: "text-red-600 bg-red-500/10 dark:text-red-300",           accent: "bg-red-500" },
   pos:                  { label: "POS",       icon: ShoppingCart,     tone: "text-cyan-600 bg-cyan-500/10 dark:text-cyan-300",        accent: "bg-cyan-500" },
   support:              { label: "Support",   icon: Info,             tone: "text-slate-600 bg-slate-500/10 dark:text-slate-300",     accent: "bg-slate-500" },

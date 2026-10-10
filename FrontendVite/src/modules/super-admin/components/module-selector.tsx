@@ -38,6 +38,7 @@ export const ALL_MODULES: ModuleInfo[] = [
   { code: "insurance",           label: "Insurance",            desc: "Policies, renewals, claims"                             },
   { code: "b2b",                 label: "B2B",                   desc: "Proposals, contracts, support tickets"                  },
   { code: "visa",                label: "Visa Services",         desc: "Visa case management, document checklists"              },
+  { code: "manufacturing",       label: "Manufacturing",        desc: "Bills of materials, production orders (adds Inventory)" },
   { code: "seo",                 label: "SEO AI Agent",         desc: "Autopilot site audits, AI-proposed SEO fixes (add-on)"  },
   { code: "settings",            label: "Settings",              desc: "App config, branches, tax rates, payment methods"       },
   { code: "users",               label: "Users",                 desc: "User & role management"                                 },
@@ -82,6 +83,7 @@ export const INDUSTRY_MODULE_DEFAULTS: Record<string, string[]> = {
   insurance:        [...CORE_MODULE_CODES, "insurance"],
   b2b_services:     [...CORE_MODULE_CODES, "b2b"],
   visa_services:    [...CORE_MODULE_CODES, "visa"],
+  manufacturing:    [...CORE_MODULE_CODES, "manufacturing"],
   custom:           [],
 };
 
@@ -94,7 +96,7 @@ function ALL_MODULES_CODES(): string[] {
   return [
     "pos", "restaurant", "recipe", "inventory", "purchase", "sales", "crm", "finance", "hr",
     "reports", "project-management", "real-estate", "construction", "hospitality", "healthcare",
-    "education", "insurance", "b2b", "visa", "settings", "users",
+    "education", "insurance", "b2b", "visa", "manufacturing", "settings", "users",
   ];
 }
 
@@ -126,6 +128,7 @@ const CHIP_STYLE: Record<string, string> = {
   "insurance":          "bg-blue-100    border-blue-400    text-blue-800    dark:bg-blue-900/40    dark:border-blue-600    dark:text-blue-300",
   "b2b":                "bg-slate-100   border-slate-400   text-slate-700   dark:bg-slate-900/40   dark:border-slate-500   dark:text-slate-300",
   "visa":               "bg-green-100   border-green-400   text-green-800   dark:bg-green-900/40   dark:border-green-600   dark:text-green-300",
+  "manufacturing":      "bg-zinc-100    border-zinc-400    text-zinc-800    dark:bg-zinc-900/40    dark:border-zinc-500    dark:text-zinc-300",
   "seo":                "bg-stone-100   border-stone-400   text-stone-800   dark:bg-stone-900/40   dark:border-stone-500   dark:text-stone-300",
   "settings":           "bg-gray-100    border-gray-400    text-gray-700    dark:bg-gray-900/40    dark:border-gray-500    dark:text-gray-300",
   "users":              "bg-gray-100    border-gray-400    text-gray-700    dark:bg-gray-900/40    dark:border-gray-500    dark:text-gray-300",

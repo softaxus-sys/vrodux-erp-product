@@ -20,6 +20,7 @@ public static class NotificationModules
     public const string Pos               = "pos";
     public const string Restaurant        = "restaurant";
     public const string Seo               = "seo";
+    public const string Manufacturing     = "manufacturing";
     /// <summary>Account-level alerts (billing, security) — never module-gated, everyone sees their own.</summary>
     public const string System            = "system";
 }
@@ -66,4 +67,7 @@ public static class NotificationEvents
     public const string SeoArticlesReady        = "seo.articles-ready";
 
     public const string UnitVacating            = "unit.vacating";
+
+    /// <summary>Daily digest: overdue production orders and components that are short.</summary>
+    public const string ProductionAttention     = "production.attention";
 }

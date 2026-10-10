@@ -7540,3 +7540,149 @@ A waiter used to hit `ShiftGate` and had to open and count a cash drawer to take
 - Unchanged, and a known departure from stricter setups: a waiter can still take payment and sees every table.
 
 **Build:** Restaurant.API, Identity.Infrastructure 0 errors · frontend `tsc` 0 errors. Not runtime-tested.
+
+---
+
+## Module 70 — Manufacturing (new module) — Phase 1: BOMs + production orders + stock issue/receipt
+
+**New service `Softaxis.Manufacturing`** (schema `manufacturing`, clean CQRS). Sold as its own module
+(code `manufacturing`, un-retired). Customers buy modules separately, so the only hard dependency is
+**Inventory**; links to Sales / Purchase / Finance / HR are later phases and must stay optional.
+Restaurant **Recipe stays separate** (per-serving menu costing, tied to a menu item).
+
+### Model
+- `BillOfMaterials` + `BomLine` — finished product, batch size (`OutputQuantity`), components with
+  scrap %. Status `draft | active | archived`. Component name / SKU / unit / cost are read from
+  Inventory on save, never trusted from the client.
+- `ProductionOrder` + `ProductionOrderComponent` — `planned → released → in_progress → completed`,
+  `cancelled` only while nothing has been issued. The component list is **copied and scaled from the
+  BOM at creation**, so editing a BOM never changes an order on the floor.
+- Cost: `MaterialCost` = materials actually issued; `UnitCost` = that ÷ quantity produced (materials
+  only — no labour/overhead yet).
+
+### Stock — Inventory stays the only ledger
+`IManufacturingStock` → `InventoryStockGateway` is the single door: reads via `IProductReadService`,
+moves stock by sending Inventory's own `CreateStockMovementCommand` through `ISender` (project
+reference to `Inventory.Application`). New movement types **`ProductionIssue`** (out) and
+**`ProductionReceipt`** (in) — kept apart from Sale/Receipt so production never shows as sales or
+purchases in the stock reports.
+- Issue checks every line's stock first (one shortage message, nothing moved), then issues line by
+  line, saving the order after each — each movement is its own Inventory transaction.
+- Complete can backflush (`IssueRemaining`), refuses if nothing was ever issued, then receives the
+  finished goods. The receipt commits before the order save: if that save fails the order stays open
+  with goods in stock (accepted gap, commented in the handler).
+- Stock check is against the product's **global** quantity, like the sales path; the per-warehouse
+  bucket still clamps at zero in Inventory.
+
+### Licensing / entitlement
+- `Tenant.ResolvedModules`: `manufacturing` adds `inventory` (manual grant included).
+  `LicensedModules.Requires["manufacturing"] = ["inventory"]`. `ModuleEnforcementMiddleware` maps
+  `/api/manufacturing/`. Plan: Enterprise only; other tiers get it by super-admin manual grant
+  (module-selector chip added).
+- Product / warehouse pickers are served by `api/manufacturing/lookups/*`, so a Manufacturing user
+  needs **no Inventory permission**.
+- Permissions `manufacturing.boms` / `manufacturing.orders` (view/create/edit/delete); order `edit`
+  covers release / issue / complete / cancel. Default roles Manufacturing Manager + Staff.
+- Connection string `ManufacturingDb`, falling back to `IdentityDb` (not added to appsettings).
+
+### API
+`api/manufacturing/boms` (CRUD + `PATCH {id}/status`), `api/manufacturing/orders` (list, `summary`,
+get, create, update-while-planned, `release`, `issue`, `complete`, `cancel`, delete),
+`api/manufacturing/lookups/products|warehouses`.
+
+### Frontend
+`lib/manufacturing/manufacturing.api.ts`, `hooks/manufacturing/use-manufacturing.ts`,
+`modules/manufacturing/{boms,orders,shared}`, routes `/manufacturing/orders` + `/manufacturing/boms`,
+nav group under Operations (icon `Factory`), `manufacturing` i18n namespace (en + ar, 142 keys each).
+
+### Migrations
+`InitialManufacturing` (4 tables) · Identity `AddManufacturingPermissions` (8 rows). Both applied to
+SHAHBAZ-QFINITY.
+
+### Verified
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors.
+- Run against the local DB with a test-signed JWT: 401 anonymous, 403 without permission, 403
+  `MODULE_NOT_LICENSED` without the module; BOM create/update/activate; order plan → re-plan →
+  release → partial issue → shortage refusal → backflush complete. Stock ended exactly right
+  (oak 100→56, screws 1000→760, table 0→9, unit cost 6,000) with 0 NULL-tenant rows.
+- Same flow clicked through in the browser (plan, release, complete; BOM edit + component picker).
+- **Local test data left in the Softaxis tenant:** warehouse "MFG Test Store", products `MFG-OAK`,
+  `MFG-SCR`, `MFG-TBL`, one BOM, two completed orders.
+
+### Module 70b — Manufacturing phases 2–4 + industry attach (same day)
+
+**Industry attach.** `Tenant.IndustryPackModule["manufacturing"] = "manufacturing"`: a tenant whose
+industry is Manufacturing (website signup or super-admin create) gets the module on every plan,
+with Inventory. Unlike the CRM verticals it does **not** pull in CRM. Onboarding picker, industry
+pack list and module-selector defaults updated to match.
+
+**Phase 2 — routing and full cost.**
+- `WorkCentre` (labour + overhead rate per hour), `BomOperation` (setup minutes once per order, run
+  minutes per batch; rates snapshotted from the work centre on save), `ProductionOrderOperation`
+  (copied + scaled at order creation; `RecordOperationCommand` stores actual minutes).
+- Cost = materials issued + labour + overhead from **actual** operation time. Completing an order
+  takes any untimed operation at its planned time, so conversion cost is never silently missing.
+  `UnitCost` = total ÷ good units, and that is the cost the finished goods are received at.
+- Re-planning a planned order rebuilds the routing from the BOM (setup is not scaled by quantity).
+- **Finance posting is explicit and optional.** "Post cost to Finance" on a completed order opens a
+  dialog that shows the three accounts (finished goods / raw materials / labour + overhead),
+  guessed by name and remembered per device, and the resulting lines before anything is created.
+  The client creates a **draft** journal entry through the Finance API, then
+  `PATCH orders/{id}/journal` records it; a second posting is refused. Same-account lines are
+  netted, so a single "Inventory" account posts only the conversion cost.
+
+**Phase 3 — optional links** (`hooks/manufacturing/use-manufacturing-links.ts`, each gated by
+`useModuleLink(module, permission)` — other module present **and** permission held).
+- Shortage → purchase requisition: button on the order drawer and on Planning, through
+  `POST /api/purchase/approvals` (`approvalsApi.create` added; new category `raw_materials`).
+- Sales order → production: "Plan production" in the Sales order drawer, lines matched to an
+  active BOM by product; the sales order number becomes the production order's reference.
+
+**Phase 4 — planning, quality, scrap.**
+- `GET planning/material-requirements` — components still to issue across open orders vs stock.
+- Completion takes `ScrappedQuantity` + `QualityNotes`; scrapped units are not received.
+- `GET planning/yield?from=&to=` — completed output, scrap, yield % and average unit cost by product.
+- Pages `/manufacturing/work-centres`, `/manufacturing/planning`. Work centres use the
+  `manufacturing.boms.*` keys, planning `manufacturing.orders.view` — no new permissions.
+
+Migration `AddRoutingCostingAndQuality` (3 tables + 6 columns on `production_orders`), applied locally.
+
+### 🔴 Found on the way — Purchase API refused every tenant
+`ModuleEnforcementMiddleware` maps `/api/purchase/` and `/api/vendors` to `ModuleCodes.Purchasing`
+("purchasing"), while `Tenant.ResolvedModules` (and so the JWT) carries the canonical "purchase".
+`ModuleCodes.Satisfies` compared them literally, so those routes returned `MODULE_NOT_LICENSED` for
+any non-super-admin. `Satisfies` now treats the two spellings as one. Verified: a token with
+`purchase` → 200, without it → 403.
+
+### Verified (phases 2–4)
+- Gateway build 0 errors · frontend `tsc -p tsconfig.app.json` 0 errors · en/ar key parity.
+- 18 scripted API checks against the local DB all pass (BOM cost 5,400 + 1,350 = 6,750/unit;
+  re-plan 270 → 150 min; actual 120 min → labour 1,200 / overhead 600; 1 good + 1 scrapped →
+  unit cost 12,600; stock exact; yield 92.9 %; journal link once only).
+- In the browser: Planning, Work Centres, order drawer (operations + cost), BOM routing section,
+  and Finance posting end to end (a draft JE was created and linked).
+- **Not clicked through:** the Sales "Plan production" dialog, the purchase-request buttons (their
+  API call is verified), and signup with the Manufacturing industry.
+
+### Not built
+Returning issued materials (an order with issued stock can only be completed) · updating the
+product's cost price in Inventory on receipt · per-warehouse stock check · capacity scheduling ·
+dashboard · AI-assistant tools.
+
+---
+
+## Module 71 — CRM: long notes failed to save; activity dates and meeting time
+
+- **Bug:** a note's whole text is stored in `Activity.Subject`, which was `nvarchar(300)`, so a
+  longer note failed in the database with a generic error. Now 4,000 (`Activity.SubjectMaxLength`),
+  with validators returning a readable 422 above that.
+- **Meeting / call time:** new `Activity.DueTime` ("HH:mm"). Kept apart from `DueDate` because every
+  due-today / overdue query compares `DueDate` as a plain `yyyy-MM-dd` string.
+- **Timeline:** notes and emails use a multi-line box (Ctrl+Enter adds); meetings and calls get a
+  time picker; each entry shows its scheduled date and time and a "Logged {date, time}" line; long
+  notes keep their line breaks. Shared parts in `modules/crm/activities/components/activity-parts.tsx`
+  and `lib/crm/activity-format.ts`, used by the lead/deal timeline, the account timeline and the
+  Activities page.
+- Migration `AddActivityLongNotesAndDueTime` (widen + one column), applied locally.
+- Verified against the local DB: a 1,979-character note saves, 4,001 is refused with the message,
+  a meeting keeps 12:00 and still counts as due today; timeline checked in the browser.

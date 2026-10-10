@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap, Stamp,
+  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory,
 } from "lucide-react";
 
 // ── Module definitions ────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa";
+  | "healthcare" | "education" | "visa" | "manufacturing";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -193,6 +193,19 @@ export const MODULES: ModuleDef[] = [
     iconColor: "text-sky-500",
     requires: [],
     recommends: ["crm", "finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "manufacturing",
+    label: "Manufacturing",
+    description: "Bills of materials, production orders & costing",
+    icon: Factory,
+    color: "bg-zinc-500/10",
+    iconColor: "text-zinc-500",
+    // Components and finished goods are Inventory products.
+    requires: ["inventory"],
+    recommends: ["purchase", "finance"],
     triggersBusinessType: false,
     category: "industry",
   },

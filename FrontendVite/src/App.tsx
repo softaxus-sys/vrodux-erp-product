@@ -129,6 +129,13 @@ const ProjectBoardPage      = lazyWithRetry(() => import("@/pages/project-manage
 const ProjectBacklogPage    = lazyWithRetry(() => import("@/pages/project-management/backlog"));
 const ProjectIssuesPage     = lazyWithRetry(() => import("@/pages/project-management/issues"));
 
+// ── Manufacturing ────────────────────────────────────────────────────────────
+const ManufacturingOrdersPage = lazyWithRetry(() => import("@/pages/manufacturing/orders"));
+const ManufacturingBomsPage   = lazyWithRetry(() => import("@/pages/manufacturing/boms"));
+const ManufacturingDashboardPage   = lazyWithRetry(() => import("@/pages/manufacturing/dashboard"));
+const ManufacturingWorkCentresPage = lazyWithRetry(() => import("@/pages/manufacturing/work-centres"));
+const ManufacturingPlanningPage    = lazyWithRetry(() => import("@/pages/manufacturing/planning"));
+
 // ── Visa Services ────────────────────────────────────────────────────────────
 const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
 const VisaCasesPage         = lazyWithRetry(() => import("@/pages/visa/cases"));
@@ -505,6 +512,15 @@ export function App() {
             <Route path="/project-management/:projectId/board"   element={<ProjectBoardPage />} />
             <Route path="/project-management/:projectId/backlog" element={<ProjectBacklogPage />} />
             <Route path="/project-management/:projectId/issues"  element={<ProjectIssuesPage />} />
+          </Route>
+
+          {/* ── Manufacturing ───────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="manufacturing" />}>
+            <Route path="/manufacturing/orders" element={<ManufacturingOrdersPage />} />
+            <Route path="/manufacturing/boms"   element={<ManufacturingBomsPage />} />
+            <Route path="/manufacturing/dashboard" element={<ManufacturingDashboardPage />} />
+            <Route path="/manufacturing/work-centres" element={<ManufacturingWorkCentresPage />} />
+            <Route path="/manufacturing/planning"     element={<ManufacturingPlanningPage />} />
           </Route>
 
           {/* ── Visa Services ───────────────────────────────────────────────── */}

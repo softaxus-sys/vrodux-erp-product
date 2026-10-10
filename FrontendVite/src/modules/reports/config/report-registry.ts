@@ -83,6 +83,7 @@ export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
   Restaurant:    "restaurant",
   "Real Estate": "real-estate",
   Construction:  "construction",
+  Manufacturing: "manufacturing",
 };
 
 export type ReportCategory =
@@ -95,7 +96,8 @@ export type ReportCategory =
   | "CRM"
   | "Restaurant"
   | "Real Estate"
-  | "Construction";
+  | "Construction"
+  | "Manufacturing";
 
 export type ReportBadge =
   | "Popular"
@@ -1155,4 +1157,32 @@ export const RESTAURANT_REPORTS: ReportDefinition[] = RESTAURANT_REPORT_CARDS.ma
   subGroup:       r.group,
   requiresModule:     "restaurant",
   requiresPermission: "restaurant.reports.view",
+}));
+
+// ── Manufacturing ────────────────────────────────────────────────────────────
+// Analytical views that live on the Manufacturing planning page; listed here so every report is
+// findable in one place. Each card deep-links to its section, where it can be exported.
+const MANUFACTURING_REPORT_CARDS = [
+  { id: "requirements", title: "Material Requirements",  description: "Components open production orders still need, against stock on hand, with shortages.", icon: "Boxes",        group: "Planning" },
+  { id: "load",         title: "Work Centre Load",       description: "Work queued at each work centre against its daily capacity.",                        icon: "Activity",     group: "Planning" },
+  { id: "schedule",     title: "Production Schedule",    description: "Open operations in due-date order — the running list for the shop floor.",           icon: "CalendarClock", group: "Planning" },
+  { id: "wip",          title: "Work in Progress",       description: "Cost put into orders that are still open: the WIP value for period end.",            icon: "Layers",       group: "Costing" },
+  { id: "yield",        title: "Yield and Scrap",        description: "Completed output, rejects, yield % and cost per unit by product.",                   icon: "TrendingUp",   group: "Costing" },
+] as const;
+
+export const MANUFACTURING_REPORTS: ReportDefinition[] = MANUFACTURING_REPORT_CARDS.map(r => ({
+  id:          `manufacturing-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Manufacturing" as ReportCategory,
+  icon:        r.icon,
+  color:       "text-primary",
+  bg:          "bg-primary/10",
+  previewColumns: [],
+  filters:        [],
+  exportFormats:  ["PDF", "CSV"],
+  subGroup:       r.group,
+  href:               `/manufacturing/planning#${r.id}`,
+  requiresModule:     "manufacturing",
+  requiresPermission: "manufacturing.planning.view",
 }));

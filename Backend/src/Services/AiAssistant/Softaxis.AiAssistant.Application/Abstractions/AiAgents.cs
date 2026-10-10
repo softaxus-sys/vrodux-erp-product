@@ -20,6 +20,7 @@ public static class AiAgents
         ["project-management"] = "Projects",
         ["restaurant"]          = "Restaurant",
         ["visa"]                = "Visa Services",
+        ["manufacturing"]      = "Manufacturing",
         ["b2b"]                = "B2B",
         ["education"]          = "Education",
         ["healthcare"]        = "Healthcare",

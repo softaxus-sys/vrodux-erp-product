@@ -187,7 +187,10 @@
     "Transfer": "Transfer",
     "WriteOff": "Write-Off",
     "Return": "Return",
-    "Opening": "Opening"
+    "Opening": "Opening",
+    "ProductionIssue": "Issued to Production",
+    "ProductionReceipt": "Production Receipt",
+    "ProductionReturn": "Returned from Production"
   },
   "movements": {
     "title": "Stock Movements",
@@ -232,10 +235,22 @@
     "title": "Record Stock Adjustment",
     "subtitle": "Scan barcode or search to select an item",
     "types": {
-      "in": { "label": "Receive In", "desc": "Stock received from supplier or return" },
-      "write_off": { "label": "Write-Off", "desc": "Damaged, expired, or lost stock" },
-      "adjustment": { "label": "Manual Adjust", "desc": "Correct quantity — increase or decrease" },
-      "count_correction": { "label": "Count Correction", "desc": "Physical count result differs from system" }
+      "in": {
+        "label": "Receive In",
+        "desc": "Stock received from supplier or return"
+      },
+      "write_off": {
+        "label": "Write-Off",
+        "desc": "Damaged, expired, or lost stock"
+      },
+      "adjustment": {
+        "label": "Manual Adjust",
+        "desc": "Correct quantity — increase or decrease"
+      },
+      "count_correction": {
+        "label": "Count Correction",
+        "desc": "Physical count result differs from system"
+      }
     },
     "writeOffReasons": {
       "damaged_transit": "Damaged in transit",
