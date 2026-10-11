@@ -53,6 +53,11 @@ public static class InfrastructureExtensions
         // Services
         services.AddScoped<IReportService,               ReportService>();
         services.AddScoped<IPosDashboardReadService,     PosDashboardReadService>();
+        services.AddScoped<IPosCreditReadService,        PosCreditReadService>();
+        services.AddScoped<Softaxis.POS.Infrastructure.Services.CreditReminderService>();
+        services.AddScoped<Softaxis.POS.Application.Customers.Credit.Reminders.ICreditReminderService>(sp => sp.GetRequiredService<Softaxis.POS.Infrastructure.Services.CreditReminderService>());
+        services.AddSingleton<Softaxis.POS.Infrastructure.Services.ICreditMailSender, Softaxis.POS.Infrastructure.Services.SmtpCreditMailSender>();
+        services.AddHostedService<Softaxis.POS.Infrastructure.Services.CreditReminderBackgroundService>();
         services.AddScoped<ILowStockReadService,         LowStockReadService>();
         services.AddScoped<ICrossSchemaProductService,   CrossSchemaProductService>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();

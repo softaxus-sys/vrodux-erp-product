@@ -67,8 +67,9 @@ public sealed record SetContractStatusCommand(Guid Id, string Status) : ICommand
 public sealed class SetContractStatusValidator : AbstractValidator<SetContractStatusCommand>
 {
     public SetContractStatusValidator() =>
-        RuleFor(x => x.Status).Must(s => s is "active" or "expired" or "terminated" or "renewed")
-            .WithMessage("Status must be active, expired, terminated or renewed.");
+        // Renewing and terminating have their own commands: each one does more than change a word.
+        RuleFor(x => x.Status).Must(s => s is "expired")
+            .WithMessage("Only 'expired' can be set here. Use Renew or Terminate for the other two.");
 }
 
 public sealed record GenerateRentScheduleCommand(Guid ContractId, bool ReplaceExisting = false)

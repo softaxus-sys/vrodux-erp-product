@@ -105,14 +105,16 @@ export function useRecordCashMovement() {
       type,
       amount,
       reason,
+      category,
     }: {
       sessionId: string;
       type: "payin" | "payout";
       amount: number;
       reason: string;
+      category: string;
     }) => off
-      ? off.engine.recordCashMovement(sessionId, type, amount, reason)
-      : sessionsApi.recordCashMovement(sessionId, { type, amount, reason }),
+      ? off.engine.recordCashMovement(sessionId, type, amount, reason, category)
+      : sessionsApi.recordCashMovement(sessionId, { type, amount, reason, category }),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: sessionKeys.detail(data.sessionId) });
       toast.success(`${data.type === "PayIn" ? "Cash in" : "Cash out"} recorded: ${data.amount}`);

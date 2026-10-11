@@ -49,8 +49,8 @@ export const customersApi = {
   getWalletTransactions: (id: string, page = 1, pageSize = 30): Promise<WalletTransactionsPage> =>
     apiClient.get<WalletTransactionsPage>(`${BASE}/${id}/wallet-transactions?page=${page}&pageSize=${pageSize}`),
 
-  topUpWallet: (id: string, amount: number, notes?: string | null): Promise<CustomerDto> =>
-    apiClient.post<CustomerDto>(`${BASE}/${id}/wallet/topup`, { amount, notes }),
+  topUpWallet: (id: string, amount: number, paymentMethod: string, notes?: string | null): Promise<CustomerDto> =>
+    apiClient.post<CustomerDto>(`${BASE}/${id}/wallet/topup`, { amount, notes, paymentMethod }),
 
   setCreditLimit: (id: string, creditLimit: number): Promise<CustomerDto> =>
     apiClient.put<CustomerDto>(`${BASE}/${id}/credit-limit`, { creditLimit }),
@@ -58,6 +58,6 @@ export const customersApi = {
   adjustLoyalty: (id: string, points: number, reason?: string | null): Promise<CustomerDto> =>
     apiClient.post<CustomerDto>(`${BASE}/${id}/loyalty/adjust`, { points, reason }),
 
-  recordHouseAccountPayment: (id: string, amount: number, notes?: string | null): Promise<CustomerDto> =>
-    apiClient.post<CustomerDto>(`${BASE}/${id}/house-account/payment`, { amount, notes }),
+  recordHouseAccountPayment: (id: string, amount: number, paymentMethod: string, notes?: string | null): Promise<CustomerDto> =>
+    apiClient.post<CustomerDto>(`${BASE}/${id}/house-account/payment`, { amount, notes, paymentMethod }),
 };

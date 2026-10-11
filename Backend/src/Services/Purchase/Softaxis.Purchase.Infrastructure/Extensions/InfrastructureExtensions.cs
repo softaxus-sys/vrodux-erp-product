@@ -24,6 +24,9 @@ public static class InfrastructureExtensions
                 configuration.GetConnectionString("PurchaseDb"),
                 sql => sql.MigrationsAssembly(typeof(PurchaseDbContext).Assembly.FullName)));
 
+        services.AddHttpContextAccessor();
+        services.AddScoped<Softaxis.Purchase.Infrastructure.Services.GrnStockReceiver>();
+
         // ── MediatR — scan Application + Infrastructure for handlers ─────────
         services.AddMediatR(cfg =>
         {

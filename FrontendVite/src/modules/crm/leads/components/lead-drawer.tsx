@@ -8,6 +8,7 @@ import {
   CheckCircle2, TrendingUp, Star, Stamp, Clock,
 } from "lucide-react";
 import { Trash2, Loader2, Pencil, UserCog, History } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils";
@@ -362,8 +363,8 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("drawer.contactInformation")}</h4>
                     <div className="space-y-0 bg-muted/30 rounded-xl p-4">
                       {[
-                        { icon: Mail,      label: t("drawer.email"),        value: <a href={`mailto:${lead.email}`} className="text-primary hover:underline">{lead.email}</a> },
-                        { icon: Phone,     label: t("drawer.phone"),        value: lead.phone },
+                        { icon: Mail,      label: t("drawer.email"),        value: <span className="inline-flex items-center gap-1.5"><a href={`mailto:${lead.email}`} className="text-primary hover:underline">{lead.email}</a><CopyButton value={lead.email} label="Copy email" /></span> },
+                        { icon: Phone,     label: t("drawer.phone"),        value: lead.phone ? <span className="inline-flex items-center gap-1.5" dir="ltr">{lead.phone}<CopyButton value={lead.phone} label="Copy phone number" /></span> : lead.phone },
                         { icon: Building2, label: t("drawer.company"),      value: lead.company },
                         { icon: User,      label: t("drawer.industry"),     value: lead.industry },
                         { icon: MapPin,    label: t("drawer.location"),     value: `${lead.city}, ${lead.country}` },

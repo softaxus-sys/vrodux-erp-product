@@ -144,6 +144,28 @@ public static class ModuleToolCatalog
             new("withinDays", "integer", "Horizon in days (default 90) (optional)"),
         ]),
 
+        // ── Manufacturing ─────────────────────────────────────────────────────
+        new("manufacturing_list_boms", "List bills of materials with their ids — finished product, batch size, status, cost per unit.", "manufacturing", "api/manufacturing/boms", "manufacturing.boms.view,manufacturing.orders.view",
+        [
+            new("status", "string", "Only BOMs in this status: draft, active or archived (optional)"),
+            new("search", "string", "Match on name, product or BOM number (optional)"),
+        ]),
+        new("manufacturing_list_orders", "List production orders — number, product, quantity, status, due date, cost.", "manufacturing", "api/manufacturing/orders", "manufacturing.orders.view",
+        [
+            new("status",    "string", "Only orders in this status: planned, released, in_progress, completed or cancelled (optional)"),
+            new("search",    "string", "Match on order number, product or reference (optional)"),
+            new("reference", "string", "Only orders with exactly this reference, e.g. a sales order number (optional)"),
+        ]),
+        new("manufacturing_list_work_centres", "List work centres with their ids — hourly labour and overhead rates, daily capacity.", "manufacturing", "api/manufacturing/work-centres", "manufacturing.work-centres.view,manufacturing.boms.view,manufacturing.orders.view"),
+        new("manufacturing_list_material_requirements", "List components open production orders still need — required, on hand and shortage.", "manufacturing", "api/manufacturing/planning/material-requirements", "manufacturing.planning.view"),
+        new("manufacturing_list_work_in_progress", "List open production orders with the cost put into them so far (work in progress).", "manufacturing", "api/manufacturing/planning/wip", "manufacturing.planning.view"),
+        new("manufacturing_list_work_centre_load", "List how much work is queued at each work centre against its daily capacity.", "manufacturing", "api/manufacturing/planning/work-centre-load", "manufacturing.planning.view"),
+        new("manufacturing_list_yield", "List completed production by product — produced, scrapped, yield % and cost per unit.", "manufacturing", "api/manufacturing/planning/yield", "manufacturing.planning.view",
+        [
+            new("from", "string", "Completed on or after, yyyy-MM-dd (optional)"),
+            new("to",   "string", "Completed on or before, yyyy-MM-dd (optional)"),
+        ]),
+
         // ── Support (raising/tracking a ticket with the VroduxERP team) ─────────
         // No permission required — every workspace can see its own support history, same as
         // raising one requires none. This tool is deliberately available in every tenant
@@ -192,6 +214,29 @@ public static class ModuleToolCatalog
             new("search", "string", "Free-text search over name/phone/email (optional)"),
         ]),
         new("pos_list_transactions", "List POS sales transactions — receipt number, total, payment method, status.", "pos", "api/transactions", "pos.transactions.view"),
+
+        // ── Import / Export (trade) ───────────────────────────────────────────
+        new("trade_list_shipments", "List import / export shipments with their ids — number, direction, status, supplier or buyer, route, expected arrival, goods value.", "trade", "api/trade/shipments", "trade.shipments.view",
+        [
+            new("search",    "string",  "Match on shipment number, bill of lading, order reference, container or party name (optional)"),
+            new("direction", "string",  "import or export (optional)"),
+            new("status",    "string",  "booked, in_transit, arrived, customs, cleared, delivered, closed or cancelled (optional)"),
+            new("openOnly",  "boolean", "true = only shipments not yet delivered, closed or cancelled (optional)"),
+        ]),
+        new("trade_list_parties", "List suppliers, buyers, forwarders, clearing agents, carriers and banks with their ids.", "trade", "api/trade/parties", "trade.parties.view,trade.shipments.view",
+        [
+            new("search", "string", "Match on name, country, contact or email (optional)"),
+            new("kind",   "string", "supplier, buyer, forwarder, clearing_agent, carrier, bank or other (optional)"),
+        ]),
+        new("trade_dashboard", "Show what needs attention on shipments right now: open imports and exports, delayed cargo, port free days, payments due, expiring documents.", "trade", "api/trade/dashboard", "trade.shipments.view"),
+        new("trade_list_in_transit", "List goods on their way by product — quantity incoming on open imports and outgoing on open exports, next arrival and whether any is late.", "trade", "api/trade/in-transit", "trade.shipments.view",
+        [
+            new("search", "string", "Match on description or SKU (optional)"),
+        ]),
+        new("trade_list_duty_rates", "List customs duty rates by HS code.", "trade", "api/trade/duty-rates", "trade.costs.view",
+        [
+            new("search", "string", "Match on HS code or description (optional)"),
+        ]),
     ];
 
     public static readonly IReadOnlyList<AiGetByIdSpec> GetByIds =
@@ -214,12 +259,17 @@ public static class ModuleToolCatalog
         new("projects_get_project", "Get one project's full detail by id.", "project-management", "api/projectmanagement/projects/{id}", "projectId", "project-management.projects.view"),
         new("restaurant_get_order", "Get one restaurant order's full detail by id, including items and payments.", "restaurant", "api/restaurant/orders/{id}", "orderId", "restaurant.orders.view"),
         new("visa_get_case", "Get one visa case's full detail by id, including applicants and documents.", "visa", "api/visa/cases/{id}", "caseId", "visa.cases.view"),
+        new("manufacturing_get_bom", "Get one bill of materials by id — components, operations, by-products and cost.", "manufacturing", "api/manufacturing/boms/{id}", "bomId", "manufacturing.boms.view,manufacturing.orders.view"),
+        new("manufacturing_get_order", "Get one production order by id — components with stock on hand, operations, cost, batch and sub-orders.", "manufacturing", "api/manufacturing/orders/{id}", "orderId", "manufacturing.orders.view"),
         // No permission required — same posture as support_list_my_tickets; the backend itself
         // only ever returns a ticket that belongs to the caller's own workspace (or, for a
         // Softaxis agent, any ticket) — see SupportTicketsController.GetById.
         new("support_get_ticket", "Get one of your support tickets' full detail and message thread by id.", "support", "api/support/tickets/{id}", "id", ""),
         new("pos_get_product", "Get one POS product's full detail by id.", "pos", "api/products/{id}", "productId", "pos.products.view"),
         new("pos_get_customer", "Get one POS customer's full detail by id.", "pos", "api/customers/{id}", "customerId", "pos.customers.view"),
+
+        new("trade_get_shipment", "Get one shipment by id — goods, containers, milestones, documents and (if permitted) costs, landed cost and payments.", "trade", "api/trade/shipments/{id}", "shipmentId", "trade.shipments.view"),
+        new("trade_get_duty_estimate", "Estimate customs duty for one shipment from the duty rates and its HS codes. Lines with no matching rate show no duty.", "trade", "api/trade/shipments/{id}/duty-estimate", "shipmentId", "trade.costs.view"),
     ];
 
     public static readonly IReadOnlyList<AiCreateSpec> Creates =
@@ -557,6 +607,27 @@ public static class ModuleToolCatalog
             new("processingDays",    "integer","Typical processing days (required)", true),
         ]),
 
+        // ── Manufacturing ─────────────────────────────────────────────────────
+        new("manufacturing_create_work_centre", "Add a work centre (machine, line or team).", "manufacturing", "api/manufacturing/work-centres", "manufacturing.work-centres.create",
+        [
+            new("name",                "string", "Work centre name (required)", true),
+            new("code",                "string", "Short code (optional)"),
+            new("labourRatePerHour",   "number", "Labour cost per hour (required)", true),
+            new("overheadRatePerHour", "number", "Overhead cost per hour (required)", true),
+            new("capacityHoursPerDay", "number", "Productive hours per day", false, "8"),
+        ]),
+        new("manufacturing_plan_order", "Plan a production order from an ACTIVE bill of materials. Look the BOM id up with manufacturing_list_boms first.", "manufacturing", "api/manufacturing/orders", "manufacturing.orders.create",
+        [
+            new("bomId",             "string",  "Bill of materials id (GUID) (required)", true),
+            new("plannedQuantity",   "number",  "Quantity to produce (required)", true),
+            new("warehouseId",       "string",  "Warehouse id (GUID) to draw from and receive into (optional)"),
+            new("plannedStartDate",  "string",  "Start date, yyyy-MM-dd (optional)"),
+            new("dueDate",           "string",  "Due date, yyyy-MM-dd (optional)"),
+            new("reference",         "string",  "Reference such as a sales order number (optional)"),
+            new("notes",             "string",  "Notes (optional)"),
+            new("planSubAssemblies", "boolean", "Also plan orders for manufactured components that are short in stock (optional)"),
+        ]),
+
         // ── Support — no permission required (open to any workspace user; see the note by
         //    support_list_my_tickets above). The tenant/user this ticket is raised for is always
         //    resolved server-side from the caller's own JWT — never accepted from this tool. ────
@@ -706,6 +777,27 @@ public static class ModuleToolCatalog
             new("email",   "string", "Email address (optional)"),
             new("address", "string", "Address (optional)"),
             new("notes",   "string", "Notes (optional)"),
+        ]),
+
+        // ── Import / Export (trade) ───────────────────────────────────────────
+        new("trade_create_party", "Add a supplier, buyer, forwarder, clearing agent, carrier or bank.", "trade", "api/trade/parties", "trade.parties.create",
+        [
+            new("kind",        "string", "supplier, buyer, forwarder, clearing_agent, carrier, bank or other (required)", true),
+            new("name",        "string", "Name (required)", true),
+            new("country",     "string", "Country (optional)"),
+            new("contactName", "string", "Contact person (optional)"),
+            new("email",       "string", "Email address (optional)"),
+            new("phone",       "string", "Phone (optional)"),
+            new("address",     "string", "Address (optional)"),
+            new("taxNumber",   "string", "Tax or registration number (optional)"),
+            new("notes",       "string", "Notes (optional)"),
+        ]),
+        new("trade_create_duty_rate", "Add a customs duty rate for an HS code. A rate for a short code (e.g. 7306) covers longer codes that start with it unless a more specific rate exists.", "trade", "api/trade/duty-rates", "trade.costs.create",
+        [
+            new("hsCode",      "string", "HS code, 2 to 12 digits, e.g. 7306.30 (required)", true),
+            new("dutyPercent", "number", "Duty as a percentage of customs value, e.g. 5 (required)", true),
+            new("description", "string", "What the code covers (optional)"),
+            new("notes",       "string", "Notes (optional)"),
         ]),
     ];
 
@@ -953,6 +1045,30 @@ public static class ModuleToolCatalog
             new("address", "string", "Address"),
             new("notes",   "string", "Notes"),
         ], "PUT", "api/customers/{id}", "customerId"),
+
+        // ── Import / Export (trade) ───────────────────────────────────────────
+        new("trade_update_shipment", "Change details on an existing shipment — parties, route, dates, bill of lading, incoterm, currency, notes. Only pass the fields being changed; goods and containers are kept. Use trade_change_shipment_status to move it along its journey.", "trade", "api/trade/shipments/{id}", "trade.shipments.edit",
+        [
+            new("mode",               "string",  "sea, air, road, rail or courier"),
+            new("partnerId",          "string",  "Supplier or buyer party id (GUID)"),
+            new("forwarderId",        "string",  "Forwarder / carrier party id (GUID)"),
+            new("agentId",            "string",  "Clearing agent party id (GUID)"),
+            new("orderReference",     "string",  "Purchase or sales order number"),
+            new("incoterm",           "string",  "EXW, FCA, FAS, FOB, CFR, CIF, CPT, CIP, DAP, DPU or DDP"),
+            new("blNumber",           "string",  "Bill of lading / air waybill number"),
+            new("carrierName",        "string",  "Shipping line or airline"),
+            new("vesselOrFlight",     "string",  "Vessel and voyage, or flight"),
+            new("originCountry",      "string",  "Origin country"),
+            new("originPort",         "string",  "Port of loading"),
+            new("destinationCountry", "string",  "Destination country"),
+            new("destinationPort",    "string",  "Port of discharge"),
+            new("etd",                "string",  "Expected departure, yyyy-MM-dd"),
+            new("eta",                "string",  "Expected arrival, yyyy-MM-dd"),
+            new("freeDays",           "integer", "Free days at the port before demurrage"),
+            new("currency",           "string",  "3-letter invoice currency"),
+            new("exchangeRate",       "number",  "Rate into the company currency"),
+            new("notes",              "string",  "Notes"),
+        ]),
     ];
 
     public static readonly IReadOnlyList<AiActionSpec> Actions =
@@ -1279,6 +1395,27 @@ public static class ModuleToolCatalog
         ]),
 
         // ── Visa Services ─────────────────────────────────────────────────────
+        // ── Manufacturing ─────────────────────────────────────────────────────
+        new("manufacturing_release_order", "Release a planned production order to the shop floor.", "manufacturing", "POST", "api/manufacturing/orders/{orderId}/release", "manufacturing.orders.edit",
+        [
+            new("orderId", "string", "Production order id (GUID) (required)", true),
+        ]),
+        new("manufacturing_cancel_order", "Cancel a production order. Only possible while no materials are issued to it.", "manufacturing", "POST", "api/manufacturing/orders/{orderId}/cancel", "manufacturing.orders.edit",
+        [
+            new("orderId", "string", "Production order id (GUID) (required)", true),
+        ]),
+        new("manufacturing_set_bom_status", "Activate, archive or return a bill of materials to draft.", "manufacturing", "PATCH", "api/manufacturing/boms/{bomId}/status", "manufacturing.boms.edit",
+        [
+            new("bomId",  "string", "Bill of materials id (GUID) (required)", true),
+            new("status", "string", "draft, active or archived (required)", true),
+        ]),
+        new("manufacturing_record_operation", "Record the minutes actually spent on one operation of a released production order.", "manufacturing", "POST", "api/manufacturing/orders/{orderId}/operations/{operationId}/record", "manufacturing.orders.edit",
+        [
+            new("orderId",       "string", "Production order id (GUID) (required)", true),
+            new("operationId",   "string", "Operation id (GUID) from manufacturing_get_order (required)", true),
+            new("actualMinutes", "number", "Minutes actually spent (required)", true),
+        ]),
+
         new("visa_change_case_status", "Move a visa case to its next status. Give govtReference when submitting, rejectionReason when rejecting, and visaExpiryDate when issuing.", "visa", "PATCH", "api/visa/cases/{caseId}/status", "visa.cases.edit",
         [
             new("caseId",          "string", "Visa case id (GUID) (required)", true),
@@ -1454,6 +1591,48 @@ public static class ModuleToolCatalog
             new("adjustmentType", "string", "e.g. receipt, write-off, stock-take (required)", true),
             new("reference",      "string", "Reference (optional)"),
             new("notes",          "string", "Notes (optional)"),
+        ]),
+
+        // ── Import / Export (trade) ───────────────────────────────────────────
+        new("trade_change_shipment_status", "Move a shipment forward: in_transit, arrived, customs, cleared, delivered or closed — or cancelled while it is not yet cleared. A shipment only moves forward. Give date (yyyy-MM-dd) when it happened on a different day than today.", "trade", "PATCH", "api/trade/shipments/{shipmentId}/status", "trade.shipments.edit",
+        [
+            new("shipmentId", "string", "Shipment id (GUID) (required)", true),
+            new("status",     "string", "in_transit, arrived, customs, cleared, delivered, closed or cancelled (required)", true),
+            new("date",       "string", "Day it happened, yyyy-MM-dd (optional, defaults to today)"),
+            new("note",       "string", "Note for the history (optional)"),
+        ]),
+        new("trade_add_shipment_cost", "Add a cost to a shipment — freight, insurance, customs duty, clearing, port charges and so on. Amounts are in the company currency. The cost is shared across the goods to give each line's landed cost.", "trade", "POST", "api/trade/shipments/{shipmentId}/costs", "trade.costs.create",
+        [
+            new("shipmentId",       "string", "Shipment id (GUID) (required)", true),
+            new("type",             "string", "freight, insurance, customs_duty, clearing, port_charges, inland_transport, demurrage, inspection or other (required)", true),
+            new("amount",           "number", "Amount in the company currency (required)", true),
+            new("basis",            "string", "How to share it across the goods: value, weight, volume or quantity (default value)"),
+            new("description",      "string", "Description (optional)"),
+            new("vendorName",       "string", "Who it was paid to (optional)"),
+            new("invoiceReference", "string", "Invoice number (optional)"),
+            new("paidOn",           "string", "Date paid, yyyy-MM-dd (optional)"),
+        ]),
+        new("trade_add_shipment_payment", "Record a payment for the goods on a shipment — what is paid to the supplier (import) or received from the buyer (export). Give paidOn once the money has moved; leave it out for a payment still due. For a letter of credit give lcNumber, bankName and lcExpiry.", "trade", "POST", "api/trade/shipments/{shipmentId}/payments", "trade.payments.create",
+        [
+            new("shipmentId", "string", "Shipment id (GUID) (required)", true),
+            new("kind",       "string", "advance, balance, lc, tt or other (required)", true),
+            new("amount",     "number", "Amount in the shipment's invoice currency (required)", true),
+            new("dueDate",    "string", "Due date, yyyy-MM-dd (optional)"),
+            new("paidOn",     "string", "Date paid, yyyy-MM-dd — only once it has been paid (optional)"),
+            new("reference",  "string", "Bank or payment reference (optional)"),
+            new("lcNumber",   "string", "Letter of credit number (optional)"),
+            new("bankName",   "string", "Issuing bank (optional)"),
+            new("lcExpiry",   "string", "Letter of credit expiry, yyyy-MM-dd (optional)"),
+            new("notes",      "string", "Notes (optional)"),
+        ]),
+        new("trade_register_shipment_document", "Register a document against a shipment (bill of lading, certificate of origin, permit …) so its number and expiry are tracked. A file cannot be attached from chat; upload it on the shipment afterwards.", "trade", "POST", "api/trade/shipments/{shipmentId}/documents", "trade.documents.create",
+        [
+            new("shipmentId", "string", "Shipment id (GUID) (required)", true),
+            new("type",       "string", "commercial_invoice, proforma_invoice, packing_list, bill_of_lading, airway_bill, certificate_of_origin, customs_declaration, insurance, letter_of_credit, inspection_certificate, import_permit, export_permit, delivery_order or other (required)", true),
+            new("number",     "string", "Document number (optional)"),
+            new("issueDate",  "string", "Issue date, yyyy-MM-dd (optional)"),
+            new("expiryDate", "string", "Expiry date, yyyy-MM-dd (optional)"),
+            new("notes",      "string", "Notes (optional)"),
         ]),
     ];
 }

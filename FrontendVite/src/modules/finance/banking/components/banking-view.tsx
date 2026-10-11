@@ -2,15 +2,16 @@
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
-  Building2, ArrowUpCircle, ArrowDownCircle, Wallet, AlertCircle, CheckCircle2, Plus,
+  Building2, ArrowUpCircle, ArrowDownCircle, Wallet, AlertCircle, CheckCircle2, Plus, Link2, Link2Off,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AddTransactionForm } from "./add-transaction-form";
 import { AddBankAccountForm } from "./add-bank-account-form";
+import { ReconcilePanel } from "./reconcile-panel";
 import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { BankAccountDto as BankAccount } from "@/lib/finance/finance.api";
-import { useBankAccounts, useBankTransactions, useBankingSummary, useReconcileTransaction } from "@/hooks/finance/use-finance";
+import { useBankAccounts, useBankTransactions, useBankingSummary, useReconcileTransaction, useUnmatchBankTransaction } from "@/hooks/finance/use-finance";
 import { Can } from "@/components/auth/can";
 
 const PAGE_SIZE = 30;
@@ -27,6 +28,8 @@ export function BankingView() {
   const currency = useCurrency();
   const { data: bankAccounts = [] } = useBankAccounts();
   const reconcile = useReconcileTransaction();
+  const unmatch = useUnmatchBankTransaction();
+  const [showReconcile, setShowReconcile] = React.useState(false);
   const { data: bankingSummary } = useBankingSummary();
 
   const STAT_CARDS = [
@@ -68,6 +71,9 @@ export function BankingView() {
           <p className="text-muted-foreground mt-0.5 text-sm">{t("banking.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="outline" className="gap-2" disabled={!bankAccounts.length} onClick={() => setShowReconcile(true)}>
+            <Link2 className="h-4 w-4" /> {t("banking.recon.button")}
+          </Button>
           <Can permission="finance.banking.create">
             <Button size="sm" variant="outline" className="gap-2" onClick={() => setShowAddAccount(true)}>
               <Building2 className="h-4 w-4" /> {t("banking.addAccount")}
@@ -174,7 +180,20 @@ export function BankingView() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {txn.reconciled ? (
-                          <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                          txn.matchedEntryNumber ? (
+                            <span className="inline-flex items-center gap-1.5" title={t("banking.recon.matchedTo", { entry: txn.matchedEntryNumber })}>
+                              <CheckCircle2 className="h-4 w-4 text-success" />
+                              <span className="font-mono text-[10px] text-muted-foreground">{txn.matchedEntryNumber}</span>
+                              <Can permission="finance.banking.edit">
+                                <button onClick={() => unmatch.mutate(txn.id)} disabled={unmatch.isPending} aria-label={t("banking.recon.unmatch")}
+                                  title={t("banking.recon.unmatch")} className="text-muted-foreground hover:text-destructive disabled:opacity-50">
+                                  <Link2Off className="h-3.5 w-3.5" />
+                                </button>
+                              </Can>
+                            </span>
+                          ) : (
+                            <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                          )
                         ) : (
                           <button
                             onClick={() => reconcile.mutate(txn.id)}
@@ -219,6 +238,7 @@ export function BankingView() {
         </div>
       </div>
       <AddTransactionForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+      <ReconcilePanel account={selectedAccount} open={showReconcile} onClose={() => setShowReconcile(false)} />
       <AddBankAccountForm open={showAddAccount} onClose={() => setShowAddAccount(false)} />
     </div>
   );

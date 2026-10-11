@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { cn, formatCurrency, formatDate, fitTextClass } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import type { BookingDto as Booking, BookingStatus, BookingSource } from "@/lib/hospitality/hospitality.api";
-import { useBookings, useBookingsSummary } from "@/hooks/hospitality/use-hospitality";
+import { useBookings, useBookingsSummary, useRecordBookingPayment, useCheckInBooking, useCheckOutBooking } from "@/hooks/hospitality/use-hospitality";
+import { Can } from "@/components/auth/can";
 import { AddBookingForm } from "./add-booking-form";
 import { Pager } from "@/components/ui/pager";
 
@@ -32,8 +33,50 @@ const ROOM_TYPE_LABELS = {
   standard: "Standard", deluxe: "Deluxe", suite: "Suite", penthouse: "Penthouse", studio: "Studio",
 };
 
+const PAY_METHODS = [
+  { value: "cash", label: "Cash" }, { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank transfer" }, { value: "cheque", label: "Cheque" },
+];
+
+/** Takes a payment against a booking. How it was paid is required: the accounts need cash told from bank. */
+function CollectPaymentDialog({ booking, onClose }: { booking: Booking; onClose: () => void }) {
+  const currency = useCurrency();
+  const record = useRecordBookingPayment();
+  const [amount, setAmount] = React.useState(String(booking.balance));
+  const [method, setMethod] = React.useState("cash");
+  const [reference, setReference] = React.useState("");
+  const parsed = Number(amount);
+  const valid = amount.trim() !== "" && parsed > 0 && parsed <= booking.balance + 0.005;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 w-full max-w-sm space-y-3" onClick={e => e.stopPropagation()}>
+        <p className="text-sm font-semibold">Collect payment — {booking.bookingNumber}</p>
+        <p className="text-xs text-muted-foreground">Still owed: {formatCurrency(booking.balance, currency)}</p>
+        <Input type="number" min={0} step="0.01" autoFocus value={amount} onChange={e => setAmount(e.target.value)} className="h-9 text-sm" aria-label="Amount" />
+        {parsed > booking.balance + 0.005 && <p className="text-xs text-destructive">More than is owed.</p>}
+        <select value={method} onChange={e => setMethod(e.target.value)} aria-label="Payment method"
+          className="h-9 w-full px-3 rounded-lg border border-border bg-card text-sm text-foreground">
+          {PAY_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
+        <Input value={reference} onChange={e => setReference(e.target.value)} maxLength={100} placeholder="Reference (optional)" className="h-9 text-sm" aria-label="Reference" />
+        <div className="flex gap-2 justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={onClose} disabled={record.isPending}>Cancel</Button>
+          <Button size="sm" disabled={!valid || record.isPending}
+            onClick={() => record.mutate({ id: booking.id, amount: parsed, method, reference: reference.trim() || null }, { onSuccess: onClose })}>
+            Record payment
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BookingDrawer({ booking, open, onClose }: { booking: Booking | null; open: boolean; onClose: () => void }) {
   const currency = useCurrency();
+  const [collecting, setCollecting] = React.useState(false);
+  const checkIn = useCheckInBooking();
+  const checkOut = useCheckOutBooking();
   if (!booking) return null;
   const sc = STATUS_CONFIG[booking.status];
   const balanceDue = booking.balance > 0;
@@ -115,13 +158,21 @@ function BookingDrawer({ booking, open, onClose }: { booking: Booking | null; op
             )}
           </div>
           <div className="border-t border-border px-6 py-4 flex items-center gap-2">
-            {booking.status === "confirmed" && <Button size="sm" className="gap-1.5 h-9"><LogIn className="h-3.5 w-3.5" />Check In</Button>}
-            {booking.status === "checked_in" && <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90"><LogOut className="h-3.5 w-3.5" />Check Out</Button>}
-            {balanceDue && booking.status === "checked_in" && (
-              <Button size="sm" variant="outline" className="gap-1.5 h-9"><CreditCard className="h-3.5 w-3.5" />Collect Payment</Button>
-            )}
+            <Can permission="hospitality.bookings.edit">
+              {booking.status === "confirmed" && <Button size="sm" className="gap-1.5 h-9" disabled={checkIn.isPending} onClick={() => checkIn.mutate(booking.id, { onSuccess: onClose })}><LogIn className="h-3.5 w-3.5" />Check In</Button>}
+              {booking.status === "checked_in" && (
+                <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={checkOut.isPending}
+                  title={balanceDue ? "A balance is still owed" : undefined} onClick={() => checkOut.mutate(booking.id, { onSuccess: onClose })}><LogOut className="h-3.5 w-3.5" />Check Out</Button>
+              )}
+              {balanceDue && (booking.status === "checked_in" || booking.status === "confirmed" || booking.status === "checked_out") && (
+                <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setCollecting(true)}>
+                  <CreditCard className="h-3.5 w-3.5" />Collect Payment
+                </Button>
+              )}
+            </Can>
           </div>
         </motion.div>
+        {collecting && <CollectPaymentDialog booking={booking} onClose={() => setCollecting(false)} />}
       </>)}
     </AnimatePresence>
   );
@@ -175,7 +226,7 @@ export function BookingsView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold">Bookings</h1><p className="text-sm text-muted-foreground mt-0.5">Manage hotel reservations, check-ins, and check-outs</p></div>
-        <Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Booking</Button>
+        <Can permission="hospitality.bookings.create"><Button className="gap-2 h-9" onClick={() => setShowAddForm(true)}><Plus className="h-4 w-4" />New Booking</Button></Can>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {STATS.map((s, i) => {

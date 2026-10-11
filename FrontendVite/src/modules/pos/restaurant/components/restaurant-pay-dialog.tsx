@@ -58,6 +58,7 @@ export function RestaurantPayDialog({ order, currency, onPaid, onClose }: Restau
     if (!CUSTOMER_FUNDED_METHODS.has(m)) return null;
     if (!linkedCustomer) return t("pay.issue.linkCustomer");
     if (m === "Wallet" && amt > linkedCustomer.walletBalance) return t("pay.issue.walletOnly", { amount: formatCurrency(linkedCustomer.walletBalance, currency) });
+    if (m === "House Account" && linkedCustomer.creditHold) return t("pay.issue.creditHold");
     if (m === "House Account" && amt > linkedCustomer.availableCredit) return t("pay.issue.creditOnly", { amount: formatCurrency(linkedCustomer.availableCredit, currency) });
     return null;
   };

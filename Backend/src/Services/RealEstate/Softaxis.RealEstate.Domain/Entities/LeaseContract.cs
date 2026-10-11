@@ -23,6 +23,13 @@ public sealed class LeaseContract
     /// <summary>monthly / quarterly / semi_annual / annual — drives how the schedule is cut.</summary>
     public string PaymentFrequency { get; private set; } = "annual";
 
+    // Renewal chain. A renewal is a separate lease that points back at the one it replaces, so
+    // the whole tenancy can be read in order. RenewalNumber is 0 for the original lease.
+    public Guid? RenewedFromContractId { get; private set; }
+    public Guid? RenewedToContractId { get; private set; }
+    public int RenewalNumber { get; private set; }
+    public decimal? PreviousAnnualRent { get; private set; }
+
     public List<RentInstallment> Installments { get; private set; } = [];
 
     public bool IsDeleted { get; private set; }
@@ -179,6 +186,111 @@ public sealed class LeaseContract
     public void RecordPayment(decimal amount) { TotalPaid += amount; UpdatedAt = DateTime.UtcNow; }
     public void Terminate() { Status = "terminated"; UpdatedAt = DateTime.UtcNow; }
     public void Expire() { Status = "expired"; UpdatedAt = DateTime.UtcNow; }
-    public void Renew() { Status = "renewed"; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
+
+    // ── Renewal ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The lease that follows this one: same unit and tenant, new term and rent. A renewal is a
+    /// NEW lease rather than an edit of this one, so this lease keeps its own schedule and
+    /// payment history exactly as it was signed.
+    /// </summary>
+    public LeaseContract CreateRenewal(string startDate, string endDate, decimal annualRent,
+        decimal securityDeposit, string paymentFrequency, string? ejariNumber, string? notes) =>
+        new(PropertyId, PropertyName, UnitId, UnitNumber, TenantId, TenantName, startDate, endDate,
+            annualRent, 0, securityDeposit, ejariNumber, notes, paymentFrequency)
+        {
+            RenewedFromContractId = Id,
+            RenewalNumber = RenewalNumber + 1,
+            PreviousAnnualRent = AnnualRent,
+        };
+
+    public void MarkRenewed(Guid renewalId)
+    {
+        Status = "renewed";
+        RenewedToContractId = renewalId;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>The renewal was deleted, so this lease is the current one again.</summary>
+    public void ReopenAfterRenewalRemoved()
+    {
+        RenewedToContractId = null;
+        if (Status == "renewed") Status = "active";
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    // ── Termination ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rent owed for occupation up to and including <paramref name="lastDay"/>.
+    ///
+    /// Each installment pays for the period from its due date to the next one's. A period that
+    /// has fully passed is owed in full; the one the last day falls inside is owed by the day;
+    /// later ones are not owed. Waived installments owe nothing.
+    /// </summary>
+    public decimal RentOwedThrough(string lastDay)
+    {
+        if (!DateTime.TryParse(lastDay, out var last)) return 0m;
+
+        var live = Installments.Where(i => !i.IsDeleted).OrderBy(i => i.InstallmentNumber).ToList();
+        var owed = 0m;
+
+        // A lease with no schedule (created before schedules existed): by the day, at the annual rate.
+        if (live.Count == 0)
+        {
+            if (!DateTime.TryParse(StartDate, out var start) || last.Date < start.Date) return 0m;
+            var days = (last.Date - start.Date).Days + 1;
+            return Math.Round(AnnualRent * days / 365m, 2, MidpointRounding.AwayFromZero);
+        }
+
+        for (var n = 0; n < live.Count; n++)
+        {
+            var inst = live[n];
+            if (inst.Status == "waived") continue;
+            if (!DateTime.TryParse(inst.DueDate, out var from) || last.Date < from.Date) continue;
+
+            var until      = PeriodEnd(live, n, from);
+            var periodDays = Math.Max(1, (until.Date - from.Date).Days);
+            var usedDays   = (last.Date - from.Date).Days + 1;
+
+            owed += usedDays >= periodDays
+                ? inst.Amount
+                : Math.Round(inst.Amount * usedDays / periodDays, 2, MidpointRounding.AwayFromZero);
+        }
+
+        return owed;
+    }
+
+    /// <summary>First day NOT covered by installment <paramref name="index"/>.</summary>
+    private DateTime PeriodEnd(List<RentInstallment> live, int index, DateTime from)
+    {
+        if (index + 1 < live.Count && DateTime.TryParse(live[index + 1].DueDate, out var next) && next > from)
+            return next;
+        if (DateTime.TryParse(EndDate, out var end) && end.AddDays(1) > from)
+            return end.AddDays(1);
+        return from.AddMonths(12 / InstallmentsPerYear(PaymentFrequency));
+    }
+
+    /// <summary>Cancels every untouched payment falling due after <paramref name="lastDay"/>.
+    /// Returns how many were cancelled and what they were worth.</summary>
+    public (int Count, decimal Amount) CancelInstallmentsAfter(string lastDay, string? reason)
+    {
+        var count = 0; var amount = 0m;
+        foreach (var i in Installments.Where(i => !i.IsDeleted
+                     && string.CompareOrdinal(i.DueDate, lastDay) > 0))
+        {
+            var value = i.Amount;
+            if (!i.Cancel(reason)) continue;
+            count++; amount += value;
+        }
+        if (count > 0) UpdatedAt = DateTime.UtcNow;
+        return (count, amount);
+    }
+
+    public void ReinstateCancelledInstallments()
+    {
+        foreach (var i in Installments.Where(i => !i.IsDeleted)) i.Reinstate();
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

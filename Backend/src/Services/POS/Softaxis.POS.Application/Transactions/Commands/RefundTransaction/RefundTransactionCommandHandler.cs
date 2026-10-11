@@ -13,6 +13,8 @@ public sealed class RefundTransactionCommandHandler(
     IPOSTransactionRepository  txnRepo,
     IPOSSessionRepository      sessionRepo,
     ICrossSchemaProductService productLookup,
+    ICustomerRepository        customerRepo,
+    ICustomerWalletTransactionRepository walletRepo,
     ICurrentUser               currentUser,
     IUnitOfWork                uow)
     : ICommandHandler<RefundTransactionCommand, POSTransactionDto>
@@ -104,6 +106,48 @@ public sealed class RefundTransactionCommandHandler(
         var completeResult = refundTxn.Complete(lineItems, payments, cmd.Reason);
         if (completeResult.IsFailure)
             return Result.Failure<POSTransactionDto>(completeResult.Error);
+
+        // ── A refund of a sale bought on credit comes off what the customer owes ──
+        // Otherwise the goods go back and the bill stays. The part of the refund that reverses credit is
+        // what this sale put on the account, capped at what the customer still owes: if they have
+        // already paid it, the money goes back the ordinary way instead.
+        var creditOnSale = originalTxn.Payments.Where(p => p.Method == PaymentMethod.HouseAccount).Sum(p => p.Amount);
+        var refundedToAccount = refundTxn.Payments.Where(p => p.Method == PaymentMethod.HouseAccount).Sum(p => p.Amount);
+        if (creditOnSale > 0 || refundedToAccount > 0)
+        {
+            var owner = originalTxn.CustomerId is Guid cid ? await customerRepo.GetByIdAsync(cid, ct) : null;
+            if (owner is null)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict", "This refund has no customer account to credit."));
+
+            var mustReverse = Math.Min(Math.Min(creditOnSale, refundTxn.TotalAmount), owner.CreditBalance);
+            if (refundedToAccount + 0.01m < mustReverse)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict",
+                    $"This sale was bought on credit. Refund {mustReverse:N2} to the customer's account so it comes off what they owe."));
+            if (refundedToAccount > mustReverse + 0.01m)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict",
+                    $"Only {mustReverse:N2} can go back to the customer's account; refund the rest another way."));
+
+            if (refundedToAccount > 0)
+            {
+                owner.RecordHouseAccountPayment(refundedToAccount);
+                customerRepo.Update(owner);
+                walletRepo.Add(new CustomerWalletTransaction(owner.Id, "house_refund", refundedToAccount, originalTxn.Id,
+                    $"Refund {txnNumber} of sale {originalTxn.TransactionNumber}"));
+            }
+        }
+
+        // A refund paid out as store credit goes back onto the wallet.
+        var toWallet = refundTxn.Payments.Where(p => p.Method == PaymentMethod.StoreCredit).Sum(p => p.Amount);
+        if (toWallet > 0)
+        {
+            var holder = originalTxn.CustomerId is Guid wid ? await customerRepo.GetByIdAsync(wid, ct) : null;
+            if (holder is null)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Wallet.Conflict", "Store-credit refunds need a customer account to put the credit on."));
+            holder.TopUpWallet(toWallet);
+            customerRepo.Update(holder);
+            walletRepo.Add(new CustomerWalletTransaction(holder.Id, "wallet_refund", toWallet, originalTxn.Id,
+                $"Refund {txnNumber} of sale {originalTxn.TransactionNumber}"));
+        }
 
         if (cmd.Offline is not null)
             refundTxn.MarkOffline(cmd.Offline.ClientRef, cmd.Offline.ReceiptNumber, cmd.Offline.OccurredAtUtc);

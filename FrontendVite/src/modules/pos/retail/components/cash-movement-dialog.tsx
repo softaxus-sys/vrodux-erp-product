@@ -6,6 +6,19 @@ import { Input } from "@/components/ui/input";
 import { useRecordCashMovement } from "@/hooks/pos/use-sessions";
 import { useHardware } from "@/contexts/hardware-context";
 
+/** What the cash is for — the other side of the accounting entry. Must match the server's list. */
+const CATEGORIES: Record<"payin" | "payout", { value: string; label: string }[]> = {
+  payin: [
+    { value: "owner_deposit",   label: "Owner / partner deposit" },
+    { value: "bank_withdrawal", label: "Float taken from the bank" },
+  ],
+  payout: [
+    { value: "petty_expense",    label: "Petty cash expense" },
+    { value: "bank_deposit",     label: "Cash taken to the bank" },
+    { value: "owner_withdrawal", label: "Owner / partner withdrawal" },
+  ],
+};
+
 interface CashMovementDialogProps {
   open:      boolean;
   sessionId: string;
@@ -21,13 +34,17 @@ export function CashMovementDialog({ open, sessionId, currency, onClose }: CashM
   const [type, setType]     = React.useState<"payin" | "payout">("payin");
   const [amount, setAmount] = React.useState("");
   const [reason, setReason] = React.useState("");
+  const [category, setCategory] = React.useState(CATEGORIES.payin[0].value);
 
   const record = useRecordCashMovement();
   const { openDrawer } = useHardware();
 
   React.useEffect(() => {
-    if (open) { setType("payin"); setAmount(""); setReason(""); }
+    if (open) { setType("payin"); setAmount(""); setReason(""); setCategory(CATEGORIES.payin[0].value); }
   }, [open]);
+
+  // The categories depend on the direction; switching it must not keep a category that no longer fits.
+  React.useEffect(() => { setCategory(CATEGORIES[type][0].value); }, [type]);
 
   if (!open) return null;
 
@@ -38,7 +55,7 @@ export function CashMovementDialog({ open, sessionId, currency, onClose }: CashM
     e.preventDefault();
     if (!canSubmit) return;
     try {
-      await record.mutateAsync({ sessionId, type, amount: amt, reason: reason.trim() });
+      await record.mutateAsync({ sessionId, type, amount: amt, reason: reason.trim(), category });
       await openDrawer().catch(() => {});
       onClose();
     } catch { /* toast in hook */ }
@@ -71,6 +88,14 @@ export function CashMovementDialog({ open, sessionId, currency, onClose }: CashM
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount ({currency})</label>
             <Input autoFocus type="number" min={0} step="0.01" value={amount}
               onChange={e => setAmount(e.target.value)} placeholder="0.00" className="h-10 text-right text-base font-bold" />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">What is it for?</label>
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="h-9 w-full px-3 rounded-lg border border-border bg-card text-sm text-foreground">
+              {CATEGORIES[type].map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
           </div>
 
           <div className="space-y-1.5">

@@ -19,7 +19,11 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   paid:    { label: "Paid",    cls: "bg-success/10 text-success" },
   waived:  { label: "Waived",  cls: "bg-slate-100 dark:bg-slate-800/50 text-muted-foreground" },
   overdue: { label: "Overdue", cls: "bg-destructive/10 text-destructive" },
+  cancelled: { label: "Cancelled", cls: "bg-slate-100 dark:bg-slate-800/50 text-muted-foreground" },
 };
+
+/** Nothing more can be done to a payment in one of these states. */
+const CLOSED = ["paid", "waived", "cancelled"];
 
 // ── Record payment ──────────────────────────────────────────────────────────
 
@@ -152,7 +156,12 @@ export function RentSchedulePanel({
   const canRecord = useCan("real-estate.rent.record");
 
   const collected  = installments.reduce((s, i) => s + i.amountPaid, 0);
-  const outstanding = installments.filter(i => i.status !== "waived").reduce((s, i) => s + i.balance, 0);
+  const outstanding = installments
+    .filter(i => i.status !== "waived" && i.status !== "cancelled")
+    .reduce((s, i) => s + i.balance, 0);
+
+  // Once a lease is terminated, what it owes is settled through its final account instead.
+  const locked = contract.status === "terminated";
 
   if (installments.length === 0) {
     return (
@@ -182,7 +191,7 @@ export function RentSchedulePanel({
           <p className="text-[11px] text-muted-foreground">Outstanding</p>
           <p className="text-sm font-semibold">{formatCurrency(outstanding, currency)}</p>
         </div>
-        <div className={cn("rounded-lg border p-3", contract.overdueCount > 0 ? "border-destructive/40 bg-destructive/5" : "border-border")}>
+        <div className={cn("rounded-lg border p-3", contract.overdueCount > 0 ? "border-destructive/40 bg-destructive/5" : "border-border", locked && "hidden")}>
           <p className="text-[11px] text-muted-foreground">Overdue</p>
           <p className={cn("text-sm font-semibold", contract.overdueCount > 0 && "text-destructive")}>
             {contract.overdueCount > 0 ? formatCurrency(contract.overdueAmount, currency) : "None"}
@@ -190,9 +199,22 @@ export function RentSchedulePanel({
         </div>
       </div>
 
+      {locked && (
+        <p className="text-xs text-muted-foreground mb-3">
+          This lease has ended. Anything unpaid below is settled through the final account, not
+          collected payment by payment.
+        </p>
+      )}
+
       <div className="space-y-1.5">
-        {installments.map(i => {
-          const s = STATUS[i.status] ?? STATUS.pending;
+        {installments.map(rawInstallment => {
+          // On an ended lease nothing is "late" any more — it is simply unpaid.
+          const i = locked && rawInstallment.status === "overdue"
+            ? { ...rawInstallment, status: "pending" as const }
+            : rawInstallment;
+          const s = locked && i.status === "pending"
+            ? { label: "Unpaid", cls: STATUS.pending.cls }
+            : STATUS[i.status] ?? STATUS.pending;
           return (
             <div key={i.id}
               className={cn("flex items-center gap-3 rounded-lg border px-3 py-2.5",
@@ -219,20 +241,22 @@ export function RentSchedulePanel({
               </div>
 
               <div className="text-end shrink-0">
-                <p className="text-sm font-semibold">{formatCurrency(i.amount, currency)}</p>
+                <p className={cn("text-sm font-semibold", i.status === "cancelled" && "line-through text-muted-foreground")}>
+                  {formatCurrency(i.amount, currency)}
+                </p>
                 {i.balance > 0 && i.amountPaid > 0 && (
                   <p className="text-[11px] text-muted-foreground">{formatCurrency(i.balance, currency)} left</p>
                 )}
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {i.status !== "paid" && i.status !== "waived" && canRecord && (
+                {!locked && !CLOSED.includes(i.status) && canRecord && (
                   <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
                     onClick={() => setPaying(i)}>
                     <Check className="w-3.5 h-3.5 me-1" /> Pay
                   </Button>
                 )}
-                {i.status !== "paid" && i.status !== "waived" && (
+                {!locked && !CLOSED.includes(i.status) && (
                   <Can permission="real-estate.rent.remind">
                     <Button size="sm" variant="ghost" className="h-7 px-2"
                       title="Send this tenant the reminder now"
@@ -242,7 +266,7 @@ export function RentSchedulePanel({
                     </Button>
                   </Can>
                 )}
-                {i.status !== "paid" && i.status !== "waived" && canRecord && (
+                {!locked && !CLOSED.includes(i.status) && canRecord && (
                   <Button size="sm" variant="ghost" className="h-7 px-2 text-muted-foreground"
                     title="Waive this installment" onClick={() => { setWaiving(i); setReason(""); }}>
                     <X className="w-3.5 h-3.5" />

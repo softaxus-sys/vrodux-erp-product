@@ -13,3 +13,5 @@ public sealed record GetBookingsQuery(
     string? Search   = null,
     int     Page     = 1,
     int     PageSize = 30) : IQuery<PagedResult<BookingDto>>;
+
+public sealed record GetBookingPaymentsQuery(Guid BookingId) : IQuery<IReadOnlyList<BookingPaymentDto>>;

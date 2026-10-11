@@ -112,8 +112,8 @@ function useCustomerMutationInvalidation(customerId: string) {
 export function useTopUpWallet(customerId: string) {
   const onDone = useCustomerMutationInvalidation(customerId);
   return useMutation({
-    mutationFn: ({ amount, notes }: { amount: number; notes?: string | null }) =>
-      customersApi.topUpWallet(customerId, amount, notes),
+    mutationFn: ({ amount, paymentMethod, notes }: { amount: number; paymentMethod: string; notes?: string | null }) =>
+      customersApi.topUpWallet(customerId, amount, paymentMethod, notes),
     onSuccess: (data) => { onDone(data); toast.success("Wallet topped up."); },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -141,8 +141,8 @@ export function useSetCreditLimit(customerId: string) {
 export function useRecordHouseAccountPayment(customerId: string) {
   const onDone = useCustomerMutationInvalidation(customerId);
   return useMutation({
-    mutationFn: ({ amount, notes }: { amount: number; notes?: string | null }) =>
-      customersApi.recordHouseAccountPayment(customerId, amount, notes),
+    mutationFn: ({ amount, paymentMethod, notes }: { amount: number; paymentMethod: string; notes?: string | null }) =>
+      customersApi.recordHouseAccountPayment(customerId, amount, paymentMethod, notes),
     onSuccess: (data) => { onDone(data); toast.success("Payment recorded."); },
     onError: (err: Error) => toast.error(err.message),
   });

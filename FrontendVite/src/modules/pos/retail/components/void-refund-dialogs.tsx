@@ -20,6 +20,7 @@ import {
 import { cn, formatCurrency, parseApiDate } from "@/lib/utils";
 import { useTransaction, useVoidTransaction, useRefundTransaction } from "@/hooks/pos/use-transactions";
 import { usePaymentMethods } from "@/hooks/pos/use-payment-methods";
+import { useCustomerCredit } from "@/hooks/pos/use-credit";
 import { useAuthStore } from "@/store/auth.store";
 import type { POSTransactionSummaryDto, POSLineItemDto } from "@/lib/pos/types";
 
@@ -209,6 +210,11 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
     transaction?.id ?? ""
   );
 
+  // A sale bought on credit: the part that was on the customer's account comes off what they owe,
+  // not out of the drawer. The server insists on the same split, so it is worked out here and shown.
+  const creditOnSale = (fullTxn?.payments ?? []).filter(p => p.method === "HouseAccount").reduce((s, p) => s + p.amount, 0);
+  const { data: credit } = useCustomerCredit(fullTxn?.customerId, creditOnSale > 0 && !!transaction);
+
   // Line item selection state
   const [lines, setLines] = React.useState<RefundLineState[]>([]);
   const [refundMethod, setRefundMethod] = React.useState<string>("");
@@ -232,7 +238,7 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
     const original = fullTxn.payments?.[0]?.method ?? "";
     const resolved = paymentMethods.find(
       p => p.id.toLowerCase() === original.toLowerCase()
-    );
+    ) ?? paymentMethods.find(p => p.id === "Cash");
     setRefundMethod(resolved?.id ?? paymentMethods[0]?.id ?? "Cash");
     setReason("");
   }, [fullTxn, paymentMethods]);
@@ -258,6 +264,10 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
     return (selectedSubtotal / originalSubtotal) * totalOriginal;
   }, [lines, fullTxn]);
 
+  const refundTotal    = Math.round(refundAmount * 100) / 100;
+  const toAccount      = creditOnSale > 0 && credit ? Math.round(Math.min(creditOnSale, refundTotal, credit.creditBalance) * 100) / 100 : 0;
+  const refundRest     = Math.round((refundTotal - toAccount) * 100) / 100;
+  const creditPending  = creditOnSale > 0 && !credit;   // wait for the balance before offering a refund that could be refused
   const selectedCount = lines.filter(l => l.checked && l.selectedQty > 0).length;
   const allChecked    = lines.length > 0 && lines.every(l => l.checked && l.selectedQty === l.maxQty);
 
@@ -303,11 +313,10 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
             discountPercent: 0,
             discountAmount:  0,
           })),
-          payments: [{
-            method:    refundMethod,
-            amount:    Math.round(refundAmount * 100) / 100,
-            reference: null,
-          }],
+          payments: [
+            ...(toAccount > 0 ? [{ method: "HouseAccount", amount: toAccount, reference: null }] : []),
+            ...(refundRest > 0.005 ? [{ method: refundMethod, amount: refundRest, reference: null }] : []),
+          ],
           reason: reason.trim() || "Customer refund",
         },
       });
@@ -449,8 +458,15 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
               </span>
             </div>
 
+            {toAccount > 0 && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-xs space-y-0.5">
+                <p className="font-semibold text-foreground">This sale was bought on credit</p>
+                <p><strong>{fmt(toAccount, currency)}</strong> comes off what the customer owes.{refundRest > 0.005 ? <> The other <strong>{fmt(refundRest, currency)}</strong> goes back by the method below.</> : null}</p>
+              </div>
+            )}
+
             {/* ── Refund payment method ────────────────────────────────── */}
-            <div>
+            <div className={refundRest <= 0.005 && toAccount > 0 ? "hidden" : undefined}>
               <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">
                 Refund Via
               </p>
@@ -515,7 +531,7 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
                 disabled={
                   refundMutation.isPending ||
                   selectedCount === 0 ||
-                  refundAmount <= 0 ||
+                  refundAmount <= 0 || creditPending ||
                   !sessionId
                 }
                 className="min-w-[140px] gap-2 bg-warning text-warning-foreground hover:bg-warning/90"

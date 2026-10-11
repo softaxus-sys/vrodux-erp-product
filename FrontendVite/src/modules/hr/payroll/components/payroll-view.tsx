@@ -1,3 +1,4 @@
+import { PostToFinanceButton } from "@/components/finance/post-to-finance";
 import * as React from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
@@ -855,6 +856,7 @@ export function PayrollView() {
           <p className="text-sm text-muted-foreground mt-0.5">{t("payroll.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
+          <PostToFinanceButton module="hr" />
           <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => currentRun && openWps(currentRun)} disabled={!currentRun}><Download className="h-3.5 w-3.5" />{t("payroll.wpsFile")}</Button>
           <Can permission="hr.payroll.create"><Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setShowAddForm(true)}><CheckCircle2 className="h-4 w-4" />{t("payroll.runPayroll")}</Button></Can>
         </div>

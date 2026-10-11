@@ -1,4 +1,5 @@
 import { rawApiClient } from "@/lib/api-client";
+import type { ReportResult, ReportRunParams } from "@/lib/pos/reports.api";
 
 import { getApiBaseUrl } from "@/lib/desktop";
 const BASE = `${getApiBaseUrl()}/api/restaurant`;
@@ -55,6 +56,16 @@ export interface TaxSummaryRow {
   date: string;
   taxableAmount: number;
   taxCollected: number;
+}
+
+export interface ReportShift {
+  sessionId: string;
+  status: "open" | "closed";
+  register: string | null;
+  cashierName: string | null;
+  openedAt: string;
+  closedAt: string | null;
+  orderCount: number;
 }
 
 export interface SessionReportDto {
@@ -155,6 +166,16 @@ export const reportsApi = {
     rawApiClient.get(`${BASE}/reports/table-turnover?${rangeQs(p)}`),
   taxSummary:       (p: ReportRangeParams): Promise<TaxSummaryRow[]> =>
     rawApiClient.get(`${BASE}/reports/tax-summary?${rangeQs(p)}`),
+  /** Run a hub report by its registry id. Sends the browser's UTC offset so days and hours are local. */
+  run: (reportId: string, params: ReportRunParams = {}): Promise<ReportResult> => {
+    const qs = new URLSearchParams({ utcOffsetMinutes: String(-new Date().getTimezoneOffset()) });
+    if (params.from)      qs.set("from", params.from);
+    if (params.to)        qs.set("to", params.to);
+    if (params.orderType) qs.set("orderType", params.orderType);
+    if (params.status)    qs.set("status", params.status);
+    return rawApiClient.get(`${BASE}/reports/run/${encodeURIComponent(reportId)}?${qs}`);
+  },
+  shifts:           (): Promise<ReportShift[]> => rawApiClient.get(`${BASE}/reports/shifts`),
   xReport:          (sessionId: string): Promise<SessionReportDto> =>
     rawApiClient.get(`${BASE}/reports/x-report?sessionId=${sessionId}`),
   zReport:          (sessionId: string): Promise<SessionReportDto> =>

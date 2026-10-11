@@ -485,7 +485,19 @@ export interface CreateTenantRequest {
 // endpoint, so every one of them was `undefined` at runtime. It now mirrors the API exactly.
 
 export type PaymentFrequency   = "monthly" | "quarterly" | "semi_annual" | "annual";
-export type InstallmentStatus  = "pending" | "partial" | "paid" | "waived" | "overdue";
+/** "cancelled" = the lease ended before the payment fell due, so it is not owed. */
+export type InstallmentStatus  = "pending" | "partial" | "paid" | "waived" | "overdue" | "cancelled";
+export type TerminationStatus  = "scheduled" | "pending_settlement" | "settled";
+
+export const TERMINATION_REASONS: { value: string; label: string }[] = [
+  { value: "tenant_request", label: "Tenant asked to leave" },
+  { value: "non_payment",    label: "Rent not paid" },
+  { value: "breach",         label: "Breach of lease terms" },
+  { value: "mutual",         label: "Mutual agreement" },
+  { value: "landlord_use",   label: "Landlord needs the unit" },
+  { value: "property_sale",  label: "Property being sold" },
+  { value: "other",          label: "Other" },
+];
 
 export interface ContractDto {
   id: string;
@@ -514,6 +526,108 @@ export interface ContractDto {
   overdueAmount: number;
   installmentCount: number;
   daysToExpiry: number | null;
+  /** Renewal chain. renewalNumber is 0 for the original lease. */
+  renewedFromContractId: string | null;
+  renewedToContractId: string | null;
+  renewalNumber: number;
+  previousAnnualRent: number | null;
+  /** null when no notice or termination is on record. */
+  terminationStatus: TerminationStatus | null;
+  terminationDate: string | null;
+}
+
+export interface LeaseHistoryItemDto {
+  id: string;
+  contractNumber: string;
+  startDate: string;
+  endDate: string;
+  annualRent: number;
+  status: ContractStatus;
+  renewalNumber: number;
+}
+
+/** netSettlement: positive = refund due to the tenant, negative = the tenant still owes. */
+export interface TerminationStatementDto {
+  terminationDate: string;
+  rentOwed: number;
+  rentPaid: number;
+  rentArrears: number;
+  rentRefund: number;
+  depositHeld: number;
+  penaltyAmount: number;
+  deductionsAmount: number;
+  netSettlement: number;
+  installmentsCancelled: number;
+  cancelledAmount: number;
+  takesEffectNow: boolean;
+}
+
+export interface LeaseTerminationDto {
+  id: string;
+  contractId: string;
+  status: TerminationStatus;
+  terminationDate: string;
+  noticeDate: string | null;
+  reason: string;
+  reasonNotes: string | null;
+  rentOwed: number;
+  rentPaid: number;
+  rentArrears: number;
+  rentRefund: number;
+  depositHeld: number;
+  penaltyAmount: number;
+  deductionsAmount: number;
+  deductionNotes: string | null;
+  netSettlement: number;
+  settledOn: string | null;
+  settlementMethod: string | null;
+  settlementReference: string | null;
+  settlementNotes: string | null;
+  recordedByName: string | null;
+  createdAt: string;
+}
+
+export interface RenewContractRequest {
+  startDate: string;
+  endDate: string;
+  annualRent: number;
+  securityDeposit: number;
+  paymentFrequency: PaymentFrequency;
+  ejariNumber?: string | null;
+  notes?: string | null;
+  advanceRentAmount?: number;
+  advancePaidDate?: string;
+  advanceMethod?: string;
+  advanceReference?: string;
+}
+
+export interface RenewedContractDto {
+  id: string;
+  contractNumber: string;
+  renewalNumber: number;
+  installmentsCreated: number;
+  previousAnnualRent: number;
+  rentChangePercent: number;
+  outstandingOnPreviousLease: number;
+  advanceApplied: number;
+  nextDueDate: string | null;
+}
+
+export interface TerminateContractRequest {
+  terminationDate: string;
+  noticeDate?: string | null;
+  reason: string;
+  reasonNotes?: string | null;
+  penaltyAmount?: number;
+  deductionsAmount?: number;
+  deductionNotes?: string | null;
+}
+
+export interface SettleTerminationRequest {
+  settledOn: string;
+  method?: string | null;
+  reference?: string | null;
+  notes?: string | null;
 }
 
 export interface RentInstallmentDto {
@@ -536,6 +650,9 @@ export interface RentInstallmentDto {
 export interface ContractDetailDto {
   contract: ContractDto;
   installments: RentInstallmentDto[];
+  /** Every lease in this tenancy, oldest first. */
+  history: LeaseHistoryItemDto[] | null;
+  termination: LeaseTerminationDto | null;
 }
 
 export interface RentDueItemDto {
@@ -699,6 +816,9 @@ export interface ReContractSummaryDto {
   overdueAmount: number;
   dueThisMonth: number;
   dueThisMonthAmount: number;
+  renewed: number;
+  noticeGiven: number;
+  pendingSettlements: number;
 }
 
 // ── API client ────────────────────────────────────────────────────────────────
@@ -944,6 +1064,18 @@ export const reApi = {
   setContractStatus:   (id: string, status: ContractStatus): Promise<void> =>
     rawApiClient.patch(`${BASE}/contracts/${id}/status`, { status }),
   deleteContract:      (id: string): Promise<void>         => rawApiClient.delete(`${BASE}/contracts/${id}`),
+
+  // Renewal + early termination
+  renewContract:       (id: string, data: RenewContractRequest): Promise<RenewedContractDto> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/renew`, data),
+  previewTermination:  (id: string, date: string, penalty = 0, deductions = 0): Promise<TerminationStatementDto> =>
+    rawApiClient.get(`${BASE}/contracts/${id}/termination-preview?date=${date}&penalty=${penalty}&deductions=${deductions}`),
+  terminateContract:   (id: string, data: TerminateContractRequest): Promise<LeaseTerminationDto> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/terminate`, data),
+  withdrawTermination: (id: string): Promise<void> =>
+    rawApiClient.delete(`${BASE}/contracts/${id}/termination`),
+  settleTermination:   (id: string, data: SettleTerminationRequest): Promise<LeaseTerminationDto> =>
+    rawApiClient.post(`${BASE}/contracts/${id}/termination/settle`, data),
 
   // ── Rent schedule ──────────────────────────────────────────────────────────
   generateSchedule:    (id: string, replaceExisting = false): Promise<RentInstallmentDto[]> =>

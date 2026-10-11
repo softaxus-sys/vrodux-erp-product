@@ -65,6 +65,10 @@ public static class InfrastructureExtensions
         services.TryAddSingleton<BuildingBlocks.Application.Multitenancy.ITenantWorkFilter,
                                  BuildingBlocks.Application.Multitenancy.AllowAllTenantWorkFilter>();
 
+        // Finance Integration Center: collects other modules' documents and posts them to the ledger.
+        services.AddScoped<Integrations.PostingEngine>();
+        services.AddHostedService<Integrations.PostingQueueHostedService>();
+
         services.AddHostedService<Services.RecurringInvoiceHostedService>();
         services.AddHostedService<Services.ExchangeRateRefreshService>();
 

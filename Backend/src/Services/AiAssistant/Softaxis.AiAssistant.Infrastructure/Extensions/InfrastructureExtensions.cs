@@ -18,6 +18,7 @@ using Softaxis.AiAssistant.Infrastructure.Tools.Generic;
 using Softaxis.AiAssistant.Infrastructure.Tools.Purchase;
 using Softaxis.AiAssistant.Infrastructure.Tools.Restaurant;
 using Softaxis.AiAssistant.Infrastructure.Tools.Sales;
+using Softaxis.AiAssistant.Infrastructure.Tools.Trade;
 using Softaxis.AiAssistant.Infrastructure.Tools.Visa;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 
@@ -79,6 +80,7 @@ public static class InfrastructureExtensions
         services.AddScoped<IAiTool, PurchaseCreateRequisitionTool>();  // write (confirm-gated)
         services.AddScoped<IAiTool, VisaCreateCaseTool>();             // write (confirm-gated)
         services.AddScoped<IAiTool, RestaurantCreateOrderTool>();      // write (confirm-gated)
+        services.AddScoped<IAiTool, TradeCreateShipmentTool>();        // write (confirm-gated)
 
         // Data-driven module coverage — one catalog entry each instead of a bespoke class. See
         // Tools/Generic/ModuleToolCatalog.cs. Module gating (AiToolRegistry.IsModuleEnabled) keys

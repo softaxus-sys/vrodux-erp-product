@@ -47,6 +47,21 @@ public sealed class ReportsController(ISender sender) : RestaurantControllerBase
     public async Task<IActionResult> TaxSummary([FromQuery] DateOnly from, [FromQuery] DateOnly to, [FromQuery] Guid? branchId, CancellationToken ct) =>
         OkOrError(await sender.Send(new GetTaxSummaryReportQuery(from, to, branchId), ct));
 
+    /// <summary>GET /api/restaurant/reports/run/{reportId}?from=&amp;to=&amp;utcOffsetMinutes=&amp;orderType=&amp;status=</summary>
+    [HttpGet("run/{reportId}")]
+    public async Task<IActionResult> Run(string reportId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to,
+        [FromQuery] int utcOffsetMinutes, [FromQuery] string? orderType, [FromQuery] string? status, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddMinutes(utcOffsetMinutes));
+        return OkOrError(await sender.Send(new RunRestaurantReportQuery(
+            reportId, from ?? today.AddDays(-30), to ?? today, utcOffsetMinutes, orderType, status), ct));
+    }
+
+    /// <summary>GET /api/restaurant/reports/shifts — recent till shifts for the Z/X report picker.</summary>
+    [HttpGet("shifts")]
+    public async Task<IActionResult> Shifts(CancellationToken ct) =>
+        OkOrError(await sender.Send(new GetReportShiftsQuery(), ct));
+
     /// <summary>GET /api/restaurant/reports/x-report?sessionId= — snapshot of a still-open shift.</summary>
     [HttpGet("x-report")]
     public async Task<IActionResult> XReport([FromQuery] Guid sessionId, CancellationToken ct) =>

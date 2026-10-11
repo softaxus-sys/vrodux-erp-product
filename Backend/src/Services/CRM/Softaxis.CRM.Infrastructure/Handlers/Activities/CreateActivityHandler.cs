@@ -23,7 +23,7 @@ internal sealed class CreateActivityHandler(
 
         var a = new Activity(cmd.Type, cmd.Subject, cmd.Description,
             cmd.RelatedToType, cmd.RelatedToId, cmd.RelatedToName, cmd.DueDate, cmd.AssignedTo,
-            cmd.AssignedToUserId);
+            cmd.AssignedToUserId, cmd.DueTime);
 
         db.Activities.Add(a);
 

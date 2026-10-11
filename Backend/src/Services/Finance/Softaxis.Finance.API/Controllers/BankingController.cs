@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Softaxis.Finance.API.Authorization;
 using Softaxis.Finance.API.Controllers.Common;
+using System.Security.Claims;
 using Softaxis.Finance.Application.Banking.Commands;
+using Softaxis.Finance.Application.Banking.Reconciliation;
 using Softaxis.Finance.Application.Banking.Queries;
 
 namespace Softaxis.Finance.API.Controllers;
@@ -57,4 +59,38 @@ public sealed class BankingController(ISender sender) : FinanceControllerBase
     [RequirePermission("finance.banking.edit")]
     public async Task<IActionResult> Reconcile(Guid id, CancellationToken ct) =>
         NoContentOrError(await sender.Send(new ReconcileBankTransactionCommand(id), ct));
+
+    private string? UserName =>
+        User.FindFirstValue(ClaimTypes.Name) ?? User.FindFirstValue("name") ?? User.FindFirstValue(ClaimTypes.Email);
+
+    // Bank reconciliation: statement lines against the ledger lines on the bank's own account.
+
+    [HttpGet("accounts/{id:guid}/reconciliation")]
+    [RequirePermission("finance.banking.view")]
+    public async Task<IActionResult> GetReconciliation(Guid id, [FromQuery] int windowDays = 5, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetReconciliationQuery(id, windowDays), ct));
+
+    public sealed record LedgerAccountRequest(Guid? LedgerAccountId);
+
+    [HttpPut("accounts/{id:guid}/ledger-account")]
+    [RequirePermission("finance.banking.edit")]
+    public async Task<IActionResult> SetLedgerAccount(Guid id, [FromBody] LedgerAccountRequest req, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new SetBankLedgerAccountCommand(id, req.LedgerAccountId), ct));
+
+    public sealed record MatchRequest(Guid JournalLineId);
+
+    [HttpPost("transactions/{id:guid}/match")]
+    [RequirePermission("finance.banking.edit")]
+    public async Task<IActionResult> Match(Guid id, [FromBody] MatchRequest req, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new MatchBankTransactionCommand(id, req.JournalLineId, UserName), ct));
+
+    [HttpPost("transactions/{id:guid}/unmatch")]
+    [RequirePermission("finance.banking.edit")]
+    public async Task<IActionResult> Unmatch(Guid id, CancellationToken ct) =>
+        NoContentOrError(await sender.Send(new UnmatchBankTransactionCommand(id), ct));
+
+    [HttpPost("accounts/{id:guid}/auto-match")]
+    [RequirePermission("finance.banking.edit")]
+    public async Task<IActionResult> AutoMatch(Guid id, [FromQuery] int windowDays = 5, CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new AutoMatchBankTransactionsCommand(id, windowDays, UserName), ct));
 }

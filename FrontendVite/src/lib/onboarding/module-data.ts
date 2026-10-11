@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap, Stamp,
+  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Ship,
 } from "lucide-react";
 
 // ── Module definitions ────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa";
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "trade";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -193,6 +193,46 @@ export const MODULES: ModuleDef[] = [
     iconColor: "text-sky-500",
     requires: [],
     recommends: ["crm", "finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "manufacturing",
+    label: "Manufacturing",
+    description: "Bills of materials, production orders & costing",
+    icon: Factory,
+    color: "bg-zinc-500/10",
+    iconColor: "text-zinc-500",
+    // Components and finished goods are Inventory products.
+    requires: ["inventory"],
+    recommends: ["purchase", "finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "library",
+    label: "Library",
+    description: "Catalogue, members, lending & fines across branches",
+    icon: Library,
+    color: "bg-indigo-500/10",
+    iconColor: "text-indigo-500",
+    // Stands alone: it keeps its own catalogue, members and branches.
+    requires: [],
+    recommends: ["finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "trade",
+    label: "Import / Export",
+    description: "Shipments, trade documents, landed cost & payments",
+    icon: Ship,
+    color: "bg-sky-500/10",
+    iconColor: "text-sky-500",
+    // Stands alone: it keeps its own shipments, parties and documents. Inventory, Purchase, Sales
+    // and Finance make a trader's day easier but none is required.
+    requires: [],
+    recommends: ["inventory", "purchase", "sales", "finance"],
     triggersBusinessType: false,
     category: "industry",
   },

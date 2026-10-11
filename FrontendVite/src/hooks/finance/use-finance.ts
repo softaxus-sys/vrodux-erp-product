@@ -805,6 +805,58 @@ export function useVoidJournal() {
   });
 }
 
+const invalidateReconciliation = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: [QK, "reconciliation"] });
+  qc.invalidateQueries({ queryKey: [QK, "bank-transactions"] });
+  qc.invalidateQueries({ queryKey: [QK, "bank-accounts"] });
+  qc.invalidateQueries({ queryKey: [QK, "banking-summary"] });
+};
+
+export function useReconciliation(accountId: string | undefined, windowDays: number, enabled = true) {
+  return useQuery({
+    queryKey: [QK, "reconciliation", accountId, windowDays],
+    queryFn:  () => financeApi.getReconciliation(accountId!, windowDays),
+    enabled:  enabled && Boolean(accountId),
+    staleTime: 0, // open items change with every posting; never show a stale pairing list
+  });
+}
+
+export function useSetBankLedgerAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { accountId: string; ledgerAccountId: string | null }) => financeApi.setBankLedgerAccount(v.accountId, v.ledgerAccountId),
+    onSuccess: () => { invalidateReconciliation(qc); toast.success("Ledger account saved."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useMatchBankTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; journalLineId: string }) => financeApi.matchBankTransaction(v.id, v.journalLineId),
+    onSuccess: () => { invalidateReconciliation(qc); toast.success("Matched."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUnmatchBankTransaction() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => financeApi.unmatchBankTransaction(id),
+    onSuccess: () => { invalidateReconciliation(qc); toast.success("Unmatched."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useAutoMatchBank() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { accountId: string; windowDays: number }) => financeApi.autoMatchBank(v.accountId, v.windowDays),
+    onSuccess: () => invalidateReconciliation(qc),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useReconcileTransaction() {
   const qc = useQueryClient();
   return useMutation({

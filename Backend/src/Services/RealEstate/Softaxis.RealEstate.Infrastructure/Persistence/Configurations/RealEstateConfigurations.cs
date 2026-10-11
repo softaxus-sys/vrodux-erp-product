@@ -10,6 +10,7 @@ public sealed class RealEstateConfigurations :
     IEntityTypeConfiguration<PropertyImage>,
     IEntityTypeConfiguration<Tenant>,
     IEntityTypeConfiguration<LeaseContract>,
+    IEntityTypeConfiguration<LeaseTermination>,
     IEntityTypeConfiguration<Broker>
 {
     public void Configure(EntityTypeBuilder<Property> b)
@@ -142,8 +143,38 @@ public sealed class RealEstateConfigurations :
         b.Property(x => x.EjariNumber).HasMaxLength(100);
         b.Property(x => x.Notes).HasMaxLength(1000);
         b.Property(x => x.PaymentFrequency).HasMaxLength(20).IsRequired().HasDefaultValue("annual");
+        b.Property(x => x.PreviousAnnualRent).HasPrecision(18, 2);
+        // Scalar links to another lease in the same table, no FK constraint: a self-referencing
+        // constraint would block deleting either end of a renewal chain.
+        b.HasIndex(x => x.RenewedFromContractId);
         b.HasMany(x => x.Installments).WithOne().HasForeignKey(i => i.ContractId).OnDelete(DeleteBehavior.Cascade);
         b.HasQueryFilter(x => !x.IsDeleted);
+    }
+
+    public void Configure(EntityTypeBuilder<LeaseTermination> b)
+    {
+        b.ToTable("LeaseTerminations");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Status).HasMaxLength(30).IsRequired();
+        b.Property(x => x.TerminationDate).HasMaxLength(20).IsRequired();
+        b.Property(x => x.NoticeDate).HasMaxLength(20);
+        b.Property(x => x.Reason).HasMaxLength(30).IsRequired();
+        b.Property(x => x.ReasonNotes).HasMaxLength(1000);
+        b.Property(x => x.RentOwed).HasPrecision(18, 2);
+        b.Property(x => x.RentPaid).HasPrecision(18, 2);
+        b.Property(x => x.DepositHeld).HasPrecision(18, 2);
+        b.Property(x => x.PenaltyAmount).HasPrecision(18, 2);
+        b.Property(x => x.DeductionsAmount).HasPrecision(18, 2);
+        b.Property(x => x.DeductionNotes).HasMaxLength(1000);
+        b.Property(x => x.NetSettlement).HasPrecision(18, 2);
+        b.Property(x => x.SettledOn).HasMaxLength(20);
+        b.Property(x => x.SettlementMethod).HasMaxLength(50);
+        b.Property(x => x.SettlementReference).HasMaxLength(100);
+        b.Property(x => x.SettlementNotes).HasMaxLength(1000);
+        b.Property(x => x.RecordedByName).HasMaxLength(200);
+        // One termination per lease. A lease id is a GUID, so it cannot repeat across workspaces.
+        b.HasIndex(x => x.ContractId).IsUnique();
+        b.HasIndex(x => x.Status);
     }
 
     public void Configure(EntityTypeBuilder<Broker> b)

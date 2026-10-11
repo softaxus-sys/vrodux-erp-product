@@ -10,6 +10,15 @@ export type RoomType   = "standard" | "deluxe" | "suite" | "penthouse" | "studio
 export type BedType    = "king" | "queen" | "twin" | "double";
 export type ViewType   = "city" | "sea" | "pool" | "garden" | "courtyard";
 
+/** Mirrors CreateBookingCommand. The server prices the stay from the room, so no rate or total is sent. */
+export interface CreateBookingRequest {
+  roomId: string; guestName: string; guestEmail: string; guestPhone: string; guestNationality: string;
+  checkIn: string; checkOut: string; nights: number; adults: number; children: number;
+  source: string; specialRequests?: string | null;
+  paidAmount?: number | null; paymentMethod?: string | null;
+}
+export interface CreateBookingResult { id: string; bookingNumber: string; totalAmount: number }
+
 export interface RoomDto {
   id: string;
   roomNumber: string;
@@ -155,7 +164,12 @@ export const hospitalityApi = {
     return rawApiClient.get(`${BASE}/bookings?${qs}`);
   },
   getBookingsSummary: (): Promise<BookingsSummaryDto> => rawApiClient.get(`${BASE}/bookings/summary`),
-  createBooking:      (data: Record<string, unknown>): Promise<BookingDto> => rawApiClient.post(`${BASE}/bookings`, data),
+  createBooking:      (data: CreateBookingRequest): Promise<CreateBookingResult> => rawApiClient.post(`${BASE}/bookings`, data),
+  checkInBooking:  (id: string): Promise<void> => rawApiClient.patch(`${BASE}/bookings/${id}/checkin`),
+  checkOutBooking: (id: string): Promise<void> => rawApiClient.patch(`${BASE}/bookings/${id}/checkout`),
+  recordBookingPayment: (id: string, data: { amount: number; method: string; reference?: string | null }): Promise<BookingPaymentDto> =>
+    rawApiClient.post(`${BASE}/bookings/${id}/payments`, data),
+  getBookingPayments: (id: string): Promise<BookingPaymentDto[]> => rawApiClient.get(`${BASE}/bookings/${id}/payments`),
 
   getHKTasks: (p: HKTaskParams = {}): Promise<HospPaged<HKTaskDto>> => {
     const qs = new URLSearchParams();
@@ -169,3 +183,14 @@ export const hospitalityApi = {
   getHKSummary:       (): Promise<HKSummaryDto>       => rawApiClient.get(`${BASE}/housekeeping/summary`),
   createHKTask:       (data: Record<string, unknown>): Promise<HKTaskDto> => rawApiClient.post(`${BASE}/housekeeping`, data),
 };
+
+export interface BookingPaymentDto {
+  id: string;
+  bookingId: string;
+  amount: number;
+  method: string;
+  paidOn: string;
+  reference: string | null;
+  paidTotal: number;
+  balance: number;
+}

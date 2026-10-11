@@ -24,8 +24,12 @@ internal sealed class GetContractsHandler(RealEstateDbContext db)
 
         var today = (await RentAlertSettingsStore.GetOrCreateAsync(db, ct)).Today();
 
+        // Few leases ever have one, so the whole workspace's set is cheaper than an IN list.
+        var terminations = (await db.LeaseTerminations.AsNoTracking().ToListAsync(ct))
+            .ToDictionary(t => t.ContractId);
+
         return Result.Success<IReadOnlyList<ContractDto>>(
-            items.Select(c => ContractMappings.ToDto(c, today)).ToList());
+            items.Select(c => ContractMappings.ToDto(c, today, terminations.GetValueOrDefault(c.Id))).ToList());
     }
 }
 
@@ -46,7 +50,52 @@ internal sealed class GetContractByIdHandler(RealEstateDbContext db)
             .Select(i => ContractMappings.ToDto(i, today))
             .ToList();
 
-        return Result.Success(new ContractDetailDto(ContractMappings.ToDto(c, today), installments));
+        var termination = await db.LeaseTerminations.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.ContractId == c.Id, ct);
+
+        return Result.Success(new ContractDetailDto(
+            ContractMappings.ToDto(c, today, termination), installments,
+            await HistoryAsync(c.Id, c.UnitId, c.TenantId, ct),
+            termination is null ? null : LeaseLifecycle.ToDto(termination)));
+    }
+
+    /// <summary>Every lease in the same tenancy, oldest first, found by walking the renewal links
+    /// in both directions from this one.</summary>
+    private async Task<IReadOnlyList<LeaseHistoryItemDto>> HistoryAsync(
+        Guid id, Guid unitId, Guid tenantId, CancellationToken ct)
+    {
+        // A renewal always keeps the unit and the tenant, so this is every lease that could be linked.
+        var candidates = await db.LeaseContracts.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.UnitId == unitId && x.TenantId == tenantId)
+            .Select(x => new
+            {
+                x.Id, x.ContractNumber, x.StartDate, x.EndDate, x.AnnualRent, x.Status,
+                x.RenewalNumber, x.RenewedFromContractId,
+            })
+            .ToListAsync(ct);
+
+        var byId   = candidates.ToDictionary(x => x.Id);
+        var byFrom = candidates.Where(x => x.RenewedFromContractId is not null)
+                               .GroupBy(x => x.RenewedFromContractId!.Value)
+                               .ToDictionary(g => g.Key, g => g.First());
+
+        if (!byId.TryGetValue(id, out var current)) return [];
+
+        var chain = new List<LeaseHistoryItemDto>();
+        var seen  = new HashSet<Guid>();
+
+        // Back to the original lease…
+        var first = current;
+        while (first.RenewedFromContractId is { } from && byId.TryGetValue(from, out var earlier) && seen.Add(earlier.Id))
+            first = earlier;
+
+        // …then forward through every renewal.
+        seen.Clear();
+        for (var node = first; node is not null && seen.Add(node.Id); node = byFrom.GetValueOrDefault(node.Id))
+            chain.Add(new LeaseHistoryItemDto(node.Id, node.ContractNumber, node.StartDate, node.EndDate,
+                node.AnnualRent, node.Status, node.RenewalNumber));
+
+        return chain;
     }
 }
 
@@ -62,15 +111,16 @@ internal sealed class GetRentDueHandler(RealEstateDbContext db)
         var today = (await RentAlertSettingsStore.GetOrCreateAsync(db, ct)).Today();
         var horizon = DateTime.Parse(today).AddDays(Math.Max(0, query.WithinDays)).ToString("yyyy-MM-dd");
 
-        // Only active leases: a terminated lease's remaining installments are not owed, and
-        // listing them would have staff chasing money that is not due.
+        // Active leases, and leases that were renewed: the tenant is still there, so what is unpaid
+        // on the earlier lease is still owed. A terminated lease is left out — what it owes is
+        // settled through its final account, not chased payment by payment.
         var rows = await (
             from i in db.RentInstallments.AsNoTracking()
             join c in db.LeaseContracts.AsNoTracking() on i.ContractId equals c.Id
             join t in db.Tenants.AsNoTracking() on c.TenantId equals t.Id
             where !i.IsDeleted && !c.IsDeleted && !t.IsDeleted
-                  && c.Status == "active"
-                  && i.Status != "paid" && i.Status != "waived"
+                  && (c.Status == "active" || c.Status == "renewed")
+                  && i.Status != "paid" && i.Status != "waived" && i.Status != "cancelled"
                   && string.Compare(i.DueDate, horizon) <= 0
             select new
             {

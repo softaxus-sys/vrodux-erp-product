@@ -42,6 +42,9 @@ public static class PermissionSeedData
         ["finance.budgeting"]    = ["view","create","edit","approve","export"],
         ["finance.tax"]          = ["view","create","edit","approve","export"],
         ["finance.banking"]      = ["view","create","edit","approve","export"],
+        // Integration Center. `approve` is the key that writes other modules' documents into the
+        // ledger (post, retry, reverse); `edit` changes modes and account mappings only.
+        ["finance.integrations"] = ["view","edit","approve","submit","approve-high"],
 
         // HR
         // "create-login" lets HR give an employee portal access without holding
@@ -148,6 +151,36 @@ public static class PermissionSeedData
 
         // Visa Services (UAE visa consultancy — cases, applicants, documents)
         ["visa.cases"] = ["view","create","edit","delete"],
+
+        // Manufacturing — bills of materials, and production orders. "edit" on orders covers
+        // release / issue materials / complete / cancel, which are what move stock.
+        ["manufacturing.boms"]   = ["view","create","edit","delete"],
+        ["manufacturing.orders"] = ["view","create","edit","delete"],
+        ["manufacturing.work-centres"] = ["view","create","edit","delete"],
+        // Material requirements, work in progress, work-centre load, yield.
+        ["manufacturing.planning"] = ["view"],
+
+        // Library — catalogue (titles + copies), members, the circulation desk (create = issue /
+        // reserve, edit = return / renew / report lost), fines (edit = take payment, approve =
+        // waive) and setup (branches + membership rules).
+        // Hospitality: reading rooms is also allowed to anyone who can create a booking (the booking form needs the room list).
+        ["hospitality.bookings"]    = ["view","create","edit"],
+        ["hospitality.rooms"]       = ["view"],
+        ["hospitality.housekeeping"] = ["view","create","edit"],
+        ["library.catalog"]     = ["view","create","edit","delete"],
+        ["library.members"]     = ["view","create","edit","delete"],
+        ["library.circulation"] = ["view","create","edit"],
+        ["library.fines"]       = ["view","create","edit","approve"],
+        ["library.setup"]       = ["view","edit"],
+
+        // Trade (import / export) — shipments (edit also moves the status), the parties they involve,
+        // the paper that travels with them, landed costs and the money for the goods. Costs and payments
+        // are separate keys: seeing where the cargo is does not mean seeing what it cost.
+        ["trade.shipments"] = ["view","create","edit","delete"],
+        ["trade.parties"]   = ["view","create","edit","delete"],
+        ["trade.documents"] = ["view","create","edit","delete"],
+        ["trade.costs"]     = ["view","create","edit","delete"],
+        ["trade.payments"]  = ["view","create","edit"],
 
         // SEO AI Agent — "sites" (connect/manage a site, super-admin-grant only for now) and
         // "fixes" (review/approve the AI's proposed changes) are separate: approving a fix should

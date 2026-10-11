@@ -14,6 +14,7 @@ export interface ReportRunParams {
   warehouseId?: string;
   paymentMethod?: string;
   status?: string;
+  orderType?: string;
   taxPeriod?: string;
   valuationMethod?: string;
   fiscalYear?: string;

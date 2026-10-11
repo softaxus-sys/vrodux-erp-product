@@ -18,7 +18,7 @@ public sealed class RentInstallment
     public decimal Amount           { get; private set; }
     public decimal AmountPaid       { get; private set; }
 
-    /// <summary>pending / paid / partial / waived. NOTE there is deliberately no "overdue"
+    /// <summary>pending / paid / partial / waived / cancelled. NOTE there is deliberately no "overdue"
     /// value: lateness is a function of today's date, so a stored flag would be wrong from the
     /// moment the clock passed it until something re-ran. Use <see cref="IsOverdue"/>.</summary>
     public string  Status           { get; private set; } = "pending";
@@ -34,7 +34,9 @@ public sealed class RentInstallment
 
     // ── computed — not mapped ────────────────────────────────────────────────
     public decimal Balance => Amount - AmountPaid;
-    public bool    IsSettled => Status is "paid" or "waived";
+    // "cancelled" = the lease ended before this payment fell due, so it is not owed. Kept as a row
+    // rather than deleted so the schedule still shows what the lease was signed for.
+    public bool    IsSettled => Status is "paid" or "waived" or "cancelled";
 
     public bool IsOverdue(string today) => !IsSettled && string.CompareOrdinal(DueDate, today) < 0;
 
@@ -71,6 +73,26 @@ public sealed class RentInstallment
     {
         Status = "waived";
         if (!string.IsNullOrWhiteSpace(reason)) Notes = reason;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>The lease ends before this payment falls due. Only an untouched payment can be
+    /// cancelled: one with money against it stays as it is and the settlement accounts for it.</summary>
+    public bool Cancel(string? reason)
+    {
+        if (IsSettled || AmountPaid > 0) return false;
+        Status = "cancelled";
+        if (!string.IsNullOrWhiteSpace(reason)) Notes = reason;
+        UpdatedAt = DateTime.UtcNow;
+        return true;
+    }
+
+    /// <summary>Undoes <see cref="Cancel"/> when a termination notice is withdrawn.</summary>
+    public void Reinstate()
+    {
+        if (Status != "cancelled") return;
+        Status = "pending";
+        Notes = null;
         UpdatedAt = DateTime.UtcNow;
     }
 

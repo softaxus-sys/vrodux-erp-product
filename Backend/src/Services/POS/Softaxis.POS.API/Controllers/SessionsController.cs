@@ -63,7 +63,7 @@ public sealed class SessionsController(ISender sender) : BaseApiController(sende
     public async Task<IActionResult> RecordCashMovement(
         Guid id, [FromBody] CashMovementRequest req, CancellationToken ct = default)
         => HandleResult(await Sender.Send(
-            new RecordCashMovementCommand(id, req.Type, req.Amount, req.Reason), ct), successCode: 201);
+            new RecordCashMovementCommand(id, req.Type, req.Amount, req.Reason, null, req.Category), ct), successCode: 201);
 
     /// <summary>List the cash movements (pay-in / pay-out) recorded in a session.</summary>
     [RequirePermission("pos.sessions.view")]
@@ -74,4 +74,4 @@ public sealed class SessionsController(ISender sender) : BaseApiController(sende
 
 public sealed record CloseSessionRequest(decimal ClosingCash, string? Notes);
 public sealed record SuspendSessionRequest(string? Notes);
-public sealed record CashMovementRequest(string Type, decimal Amount, string Reason);
+public sealed record CashMovementRequest(string Type, decimal Amount, string Reason, string? Category = null);

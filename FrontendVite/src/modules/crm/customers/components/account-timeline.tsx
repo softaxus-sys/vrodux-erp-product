@@ -1,12 +1,13 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
-import { Phone, Mail, Calendar, CheckSquare, StickyNote, Plus, Check, RotateCcw, Clock, Building2, DollarSign, UserPlus } from "lucide-react";
+import { Phone, Mail, Calendar, CheckSquare, StickyNote, Plus, Check, RotateCcw, Building2, DollarSign, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useCustomerTimeline, useCreateActivity, useCompleteActivity, useReopenActivity } from "@/hooks/crm/use-crm";
 import { useAuthStore } from "@/store/auth.store";
 import { isActivityLog, type ActivityType } from "@/lib/crm/crm.api";
+import { ActivityDueFields, ActivityLogged, ActivitySchedule, ActivityText, ActivityTextField } from "@/modules/crm/activities/components/activity-parts";
+import { isTimedActivity } from "@/lib/crm/activity-format";
 
 const TYPES: { value: ActivityType; icon: typeof Phone }[] = [
   { value: "task", icon: CheckSquare },
@@ -43,6 +44,7 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
   const [type, setType] = React.useState<ActivityType>("note");
   const [subject, setSubject] = React.useState("");
   const [dueDate, setDueDate] = React.useState("");
+  const [dueTime, setDueTime] = React.useState("");
 
   const needsDue = type === "task" || type === "call" || type === "meeting";
 
@@ -52,8 +54,9 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
     create.mutate({
       type, subject: subject.trim(), description: null,
       relatedToType: "customer", relatedToId: customerId, relatedToName: customerName,
-      dueDate: needsDue && dueDate ? dueDate : null, assignedTo: owner,
-    }, { onSuccess: () => { setSubject(""); setDueDate(""); } });
+      dueDate: needsDue && dueDate ? dueDate : null,
+      dueTime: needsDue && dueDate && dueTime && isTimedActivity(type) ? dueTime : null, assignedTo: owner,
+    }, { onSuccess: () => { setSubject(""); setDueDate(""); setDueTime(""); } });
   };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -74,10 +77,10 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
             );
           })}
         </div>
-        <div className="flex gap-2">
-          <Input value={subject} onChange={e => setSubject(e.target.value)} onKeyDown={e => e.key === "Enter" && add()}
-            placeholder={type === "note" ? t("activity.logNote") : t("activity.addA", { type: t(`activityType.${type}`) })} className="h-8 text-sm flex-1" />
-          {needsDue && <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="h-8 text-xs w-36" />}
+        <div className="flex flex-wrap items-start gap-2">
+          <ActivityTextField type={type} value={subject} onChange={setSubject} onSubmit={add}
+            placeholder={type === "note" ? t("activity.logNote") : t("activity.addA", { type: t(`activityType.${type}`) })} />
+          <ActivityDueFields type={type} dueDate={dueDate} dueTime={dueTime} onDate={setDueDate} onTime={setDueTime} />
           <Button size="sm" className="h-8 gap-1" disabled={!subject.trim() || create.isPending} onClick={add}>
             <Plus className="h-3.5 w-3.5" />{t("activity.add")}
           </Button>
@@ -104,20 +107,17 @@ export function AccountTimeline({ customerId, customerName, accountManager = "" 
                   <Icon className="h-3.5 w-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium leading-tight">{a.subject}</p>
+                  <ActivityText text={a.subject} />
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground flex-wrap">
                     <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-medium", origin.cls)}>
                       <OriginIcon className="h-2.5 w-2.5" />{t(`activity.origin.${ORIGIN[a.relatedToType] ? a.relatedToType : "customer"}`)}
                     </span>
                     {a.relatedToName && a.relatedToType !== "customer" && <span className="truncate max-w-[140px]">{a.relatedToName}</span>}
                     <span>{t(`activityType.${a.type}`)}</span>
-                    {a.dueDate && (
-                      <span className={cn("inline-flex items-center gap-0.5", overdue && "text-destructive font-semibold")}>
-                        <Clock className="h-2.5 w-2.5" />{a.dueDate}{overdue && ` · ${t("activity.overdue")}`}
-                      </span>
-                    )}
+                    <ActivitySchedule activity={a} overdue={!!overdue} />
                     {a.assignedTo && <span>· {a.assignedTo}</span>}
                   </div>
+                  <ActivityLogged activity={a} />
                 </div>
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   {!isActivityLog(a.type) && (

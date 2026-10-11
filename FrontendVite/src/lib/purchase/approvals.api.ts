@@ -9,7 +9,7 @@ export type ApprovalStatus   = "pending" | "approved" | "rejected" | "cancelled"
 export type ApprovalPriority = "low" | "medium" | "high" | "urgent";
 export type ApprovalCategory =
   | "software" | "cloud" | "hardware" | "telecom"
-  | "office_supplies" | "facilities" | "professional_services" | "logistics";
+  | "office_supplies" | "facilities" | "professional_services" | "logistics" | "raw_materials";
 
 export interface ApprovalItemDto {
   id: string;
@@ -33,7 +33,7 @@ export interface PurchaseApprovalDto {
   vendorSuggestion?: string;
   items: ApprovalItemDto[];
   totalAmount: number;
-  currency: "AED" | "USD";
+  currency: string;
   justification: string;
   approvedBy?: string;
   approvedDate?: string;
@@ -58,11 +58,26 @@ export const CATEGORY_LABELS: Record<ApprovalCategory, string> = {
   facilities:            "Facilities",
   professional_services: "Professional Services",
   logistics:             "Logistics",
+  raw_materials:         "Raw Materials",
 };
 
 // ── API ───────────────────────────────────────────────────────────────────────
 
+export interface CreateApprovalRequest {
+  title: string;
+  requestedBy: string;
+  department: string;
+  requiredBy: string;
+  priority: ApprovalPriority;
+  category: ApprovalCategory;
+  vendorSuggestion?: string | null;
+  justification: string;
+  currency: string;
+  items: { description: string; quantity: number; estimatedUnitPrice: number }[];
+}
+
 export const approvalsApi = {
+  create:     (body: CreateApprovalRequest): Promise<PurchaseApprovalDto> => rawApiClient.post(`${BASE}/approvals`, body),
   getAll:     (): Promise<PurchaseApprovalDto[]>   => rawApiClient.get(`${BASE}/approvals`),
   getSummary: (): Promise<ApprovalsSummaryDto>     => rawApiClient.get(`${BASE}/approvals/summary`),
   getById:    (id: string): Promise<PurchaseApprovalDto> => rawApiClient.get(`${BASE}/approvals/${id}`),

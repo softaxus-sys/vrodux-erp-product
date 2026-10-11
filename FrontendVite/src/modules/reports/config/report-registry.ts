@@ -80,8 +80,12 @@ export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
   Purchase:      "purchase",
   HR:            "hr",
   CRM:           "crm",
+  Restaurant:    "restaurant",
   "Real Estate": "real-estate",
   Construction:  "construction",
+  Manufacturing: "manufacturing",
+  Library:       "library",
+  "Import / Export": "trade",
 };
 
 export type ReportCategory =
@@ -92,8 +96,12 @@ export type ReportCategory =
   | "Purchase"
   | "HR"
   | "CRM"
+  | "Restaurant"
   | "Real Estate"
-  | "Construction";
+  | "Construction"
+  | "Manufacturing"
+  | "Library"
+  | "Import / Export";
 
 export type ReportBadge =
   | "Popular"
@@ -1023,4 +1031,312 @@ export const CRM_REPORTS: ReportDefinition[] = CRM_REPORT_CATALOGUE.map(r => ({
   href:               `/crm/reports?report=${r.id}`,
   requiresModule:     "crm",
   requiresPermission: "crm.reports.view",
+}));
+
+// ─── Restaurant / F&B ─────────────────────────────────────────────────────────
+
+/**
+ * Restaurant reports run in the same tabular runner as the retail POS ones, served by
+ * `GET /api/restaurant/reports/run/{id}`. Sales figures count paid orders.
+ */
+const ORDER_TYPE_FILTER: ReportFilter = {
+  key: "orderType", label: "Order Type", type: "select",
+  options: [
+    { value: "all",      label: "All order types" },
+    { value: "dine_in",  label: "Dine-in" },
+    { value: "takeaway", label: "Takeaway" },
+    { value: "delivery", label: "Delivery" },
+  ],
+};
+
+const ORDER_STATUS_FILTER: ReportFilter = {
+  key: "status", label: "Order Status", type: "select",
+  options: [
+    { value: "all",       label: "All" },
+    { value: "open",      label: "Open" },
+    { value: "sent",      label: "Sent to kitchen" },
+    { value: "ready",     label: "Ready" },
+    { value: "served",    label: "Served" },
+    { value: "paid",      label: "Paid" },
+    { value: "cancelled", label: "Cancelled" },
+  ],
+};
+
+type Tone = "primary" | "success" | "warning" | "destructive";
+type RestaurantCard = {
+  id: string; title: string; description: string; icon: string; group: string; tone: Tone;
+  columns: string[]; filters: ReportFilter[]; badges?: ReportBadge[];
+};
+
+const RESTAURANT_REPORT_CARDS: RestaurantCard[] = [
+  // Sales
+  { id: "shift-summary", title: "Shift Summary (Z-Report)", group: "Sales", icon: "Receipt", tone: "primary", badges: ["Popular"],
+    description: "Each till shift: orders, sales, discounts, tax, tips, refunds and net sales.",
+    columns: ["Opened", "Closed", "Cashier", "Terminal", "Status", "Orders", "Gross Sales", "Discounts", "Tax", "Tips", "Refunds", "Net Sales"],
+    filters: [DATE_RANGE] },
+  { id: "daily-sales", title: "Daily Sales Summary", group: "Sales", icon: "TrendingUp", tone: "success", badges: ["Popular"],
+    description: "Orders, guests, gross and net sales and the average bill for each day.",
+    columns: ["Date", "Orders", "Guests", "Gross Sales", "Discounts", "Tax", "Tips", "Net Sales", "Avg Bill"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "item-performance", title: "Menu Item Performance", group: "Sales", icon: "BarChart3", tone: "primary", badges: ["Popular"],
+    description: "Quantity sold and revenue for every dish, best sellers first.",
+    columns: ["Item", "Category", "Qty Sold", "Revenue", "Avg Price", "% of Sales"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "category-sales", title: "Category Sales Analysis", group: "Sales", icon: "PieChart", tone: "success",
+    description: "Items sold and revenue for each menu category.",
+    columns: ["Category", "Items Sold", "Different Dishes", "Revenue", "% of Sales"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "order-type", title: "Sales by Order Type", group: "Sales", icon: "Layers", tone: "primary",
+    description: "Dine-in, takeaway and delivery compared: orders, sales and average bill.",
+    columns: ["Order Type", "Orders", "Gross Sales", "Discounts", "Tax", "Net Sales", "Avg Bill", "% of Sales"],
+    filters: [DATE_RANGE] },
+  { id: "hourly-sales", title: "Hourly Sales", group: "Sales", icon: "Clock", tone: "warning",
+    description: "Orders and sales for each hour of the day, to see the busy periods.",
+    columns: ["Hour", "Orders", "Guests", "Sales", "Avg Bill", "% of Sales"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "payment-analysis", title: "Payment Method Analysis", group: "Sales", icon: "CreditCard", tone: "primary",
+    description: "How guests paid: number of payments and amount for each method.",
+    columns: ["Payment Method", "Payments", "Amount", "% of Total", "Avg Payment"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "modifier-sales", title: "Add-ons & Options", group: "Sales", icon: "Tag", tone: "success",
+    description: "How often each add-on or option was chosen and the extra revenue it brought in.",
+    columns: ["Add-on / Option", "Times Chosen", "Extra Revenue", "Most Chosen With"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+
+  // Staff
+  { id: "waiter-performance", title: "Waiter Performance", group: "Staff", icon: "Users", tone: "primary",
+    description: "Orders, guests, revenue, tips and average bill for each waiter.",
+    columns: ["Waiter", "Orders", "Guests", "Revenue", "Tips", "Avg Bill"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "tips", title: "Tips Report", group: "Staff", icon: "Banknote", tone: "success",
+    description: "Tips collected by day and waiter.",
+    columns: ["Date", "Waiter", "Orders with Tip", "Tips", "Sales", "Tip %"],
+    filters: [DATE_RANGE] },
+
+  // Controls
+  { id: "void-refund", title: "Void & Refund Report", group: "Controls", icon: "RotateCcw", tone: "destructive",
+    description: "Every voided item, cancelled order and refund, with the reason and who did it.",
+    columns: ["Date", "Order", "Type", "Item / Method", "Amount", "Reason", "By"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "discount-analysis", title: "Discount Analysis", group: "Controls", icon: "Percent", tone: "warning",
+    description: "Every discount given: amount, reason, who applied and who approved it.",
+    columns: ["Date", "Order", "Type", "Discount", "% of Bill", "Reason", "Applied By", "Approved By", "Status"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+  { id: "order-register", title: "Order Register", group: "Controls", icon: "FileText", tone: "primary",
+    description: "Every order in the period with its amounts, status and payment method.",
+    columns: ["Order", "Date", "Type", "Table", "Waiter / Customer", "Status", "Subtotal", "Discount", "Tax", "Tip", "Total", "Paid", "Payment"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER, ORDER_STATUS_FILTER] },
+  { id: "tax-summary", title: "Tax Summary", group: "Controls", icon: "Calculator", tone: "warning",
+    description: "Taxable amount and tax collected for each day.",
+    columns: ["Date", "Orders", "Taxable Amount", "Tax Collected", "Total incl. Tax", "Effective Rate %"],
+    filters: [DATE_RANGE, ORDER_TYPE_FILTER] },
+
+  // Operations
+  { id: "table-turnover", title: "Table Turnover", group: "Operations", icon: "Layers", tone: "success",
+    description: "How many times each table was used, its revenue and how long guests stayed.",
+    columns: ["Table", "Times Used", "Guests", "Revenue", "Avg Bill", "Avg Minutes Occupied"],
+    filters: [DATE_RANGE] },
+  { id: "kitchen-prep", title: "Kitchen Prep Times", group: "Operations", icon: "Clock", tone: "warning",
+    description: "Average, fastest and slowest preparation time for each dish.",
+    columns: ["Item", "Times Prepared", "Avg Minutes", "Fastest", "Slowest"],
+    filters: [DATE_RANGE] },
+  { id: "delivery-performance", title: "Delivery Performance", group: "Operations", icon: "Package", tone: "primary",
+    description: "Deliveries, failures, average delivery time and fees for each rider.",
+    columns: ["Rider", "Deliveries", "Delivered", "Failed", "In Progress", "Avg Minutes", "Delivery Fees", "Order Value"],
+    filters: [DATE_RANGE] },
+];
+
+export const RESTAURANT_REPORTS: ReportDefinition[] = RESTAURANT_REPORT_CARDS.map(r => ({
+  id:          `restaurant-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Restaurant" as ReportCategory,
+  icon:        r.icon,
+  color:       `text-${r.tone}`,
+  bg:          `bg-${r.tone}/10`,
+  badges:      r.badges,
+  previewColumns: r.columns,
+  filters:        r.filters,
+  exportFormats:  ["PDF", "Excel", "CSV"],
+  subGroup:       r.group,
+  requiresModule:     "restaurant",
+  requiresPermission: "restaurant.reports.view",
+}));
+
+// ── Manufacturing ────────────────────────────────────────────────────────────
+// Analytical views that live on the Manufacturing planning page; listed here so every report is
+// findable in one place. Each card deep-links to its section, where it can be exported.
+const MANUFACTURING_REPORT_CARDS = [
+  { id: "requirements", title: "Material Requirements",  description: "Components open production orders still need, against stock on hand, with shortages.", icon: "Boxes",        group: "Planning" },
+  { id: "load",         title: "Work Centre Load",       description: "Work queued at each work centre against its daily capacity.",                        icon: "Activity",     group: "Planning" },
+  { id: "schedule",     title: "Production Schedule",    description: "Open operations in due-date order — the running list for the shop floor.",           icon: "CalendarClock", group: "Planning" },
+  { id: "wip",          title: "Work in Progress",       description: "Cost put into orders that are still open: the WIP value for period end.",            icon: "Layers",       group: "Costing" },
+  { id: "yield",        title: "Yield and Scrap",        description: "Completed output, rejects, yield % and cost per unit by product.",                   icon: "TrendingUp",   group: "Costing" },
+] as const;
+
+export const MANUFACTURING_REPORTS: ReportDefinition[] = MANUFACTURING_REPORT_CARDS.map(r => ({
+  id:          `manufacturing-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Manufacturing" as ReportCategory,
+  icon:        r.icon,
+  color:       "text-primary",
+  bg:          "bg-primary/10",
+  previewColumns: [],
+  filters:        [],
+  exportFormats:  ["PDF", "CSV"],
+  subGroup:       r.group,
+  href:               `/manufacturing/planning#${r.id}`,
+  requiresModule:     "manufacturing",
+  requiresPermission: "manufacturing.planning.view",
+}));
+
+// ── Library ──────────────────────────────────────────────────────────────────
+// Run in the tabular runner, served by `GET /api/library/reports/run/{id}`. There is no separate
+// "library reports" permission: each report needs the permission of the area it reads, so someone
+// who may not open Fines does not see the fines reports here either.
+type LibraryCard = {
+  id: string; title: string; description: string; icon: string; group: string; tone: Tone;
+  columns: string[]; ranged: boolean; permission: string; badges?: ReportBadge[];
+};
+
+const LIBRARY_REPORT_CARDS: LibraryCard[] = [
+  // Circulation
+  { id: "overdue-loans", title: "Overdue Loans", group: "Circulation", icon: "AlertTriangle", tone: "destructive", badges: ["Popular"],
+    description: "Every item that is late right now, with the member's phone and the fine so far.",
+    columns: ["Member", "Card No.", "Phone", "Title", "Barcode", "Branch", "Issued", "Due", "Days Overdue", "Fine So Far"],
+    ranged: false, permission: "library.circulation.view" },
+  { id: "loans-register", title: "Loans Register", group: "Circulation", icon: "ClipboardList", tone: "primary",
+    description: "Every loan issued in the period, with its due date, return date and status.",
+    columns: ["Issued", "Title", "Barcode", "Member", "Card No.", "Branch", "Due", "Returned", "Renewals", "Status", "Issued By"],
+    ranged: true, permission: "library.circulation.view" },
+  { id: "daily-circulation", title: "Daily Circulation", group: "Circulation", icon: "Calendar", tone: "success",
+    description: "Items issued and returned on each day.",
+    columns: ["Date", "Issued", "Returned", "Net Out"],
+    ranged: true, permission: "library.circulation.view" },
+  { id: "popular-titles", title: "Most Borrowed Titles", group: "Circulation", icon: "TrendingUp", tone: "success", badges: ["Popular"],
+    description: "The titles borrowed most in the period, and how hard each copy is working.",
+    columns: ["Title", "Authors", "Category", "Loans", "Copies", "Loans per Copy"],
+    ranged: true, permission: "library.circulation.view" },
+  { id: "branch-activity", title: "Branch Activity", group: "Circulation", icon: "Building2", tone: "primary",
+    description: "Stock, loans and returns for each branch, and what is overdue there now.",
+    columns: ["Branch", "Copies", "Available", "On Loan", "Issued in Period", "Returned in Period", "Overdue Now"],
+    ranged: true, permission: "library.circulation.view" },
+
+  // Catalogue
+  { id: "stock-by-category", title: "Stock by Category", group: "Catalogue", icon: "Layers", tone: "primary",
+    description: "Titles and copies in each category, how many are available, and what the copies cost.",
+    columns: ["Category", "Titles", "Copies", "Available", "On Loan", "Lost / Damaged / Withdrawn", "Value of Copies"],
+    ranged: false, permission: "library.catalog.view" },
+  { id: "not-borrowed", title: "Titles Not Borrowed", group: "Catalogue", icon: "Clock", tone: "warning",
+    description: "Titles nobody borrowed in the period — candidates for weeding or promotion.",
+    columns: ["Title", "Authors", "Category", "Copies", "Last Borrowed", "Added"],
+    ranged: true, permission: "library.catalog.view" },
+  { id: "lost-damaged", title: "Lost, Damaged and Withdrawn", group: "Catalogue", icon: "Trash2", tone: "destructive",
+    description: "Copies that are out of circulation, with their price and replacement cost.",
+    columns: ["Title", "Authors", "Barcode", "Branch", "Status", "Price", "Replacement Cost", "Last Changed", "Notes"],
+    ranged: false, permission: "library.catalog.view" },
+
+  // Members
+  { id: "member-activity", title: "Member Activity", group: "Members", icon: "Users", tone: "primary",
+    description: "The most active borrowers in the period, with what they have out and owe now.",
+    columns: ["Member", "Card No.", "Membership", "Borrowed in Period", "Out Now", "Overdue Now", "Unpaid Fines"],
+    ranged: true, permission: "library.members.view" },
+  { id: "expiring-memberships", title: "Expiring Memberships", group: "Members", icon: "Calendar", tone: "warning",
+    description: "Memberships that have lapsed or will lapse in the next 60 days.",
+    columns: ["Member", "Card No.", "Membership", "Phone", "Email", "Expires", "Days Left", "State"],
+    ranged: false, permission: "library.members.view" },
+
+  // Fines
+  { id: "fines-collected", title: "Fines Collected", group: "Fines", icon: "Banknote", tone: "success", badges: ["Popular"],
+    description: "Every fine payment taken in the period, and whether it is in the accounts yet.",
+    columns: ["Date", "Member", "Card No.", "Fine Type", "Title", "Method", "Amount", "In Accounts"],
+    ranged: true, permission: "library.fines.view" },
+  { id: "fines-outstanding", title: "Outstanding Fines", group: "Fines", icon: "DollarSign", tone: "warning",
+    description: "Every unpaid fine with the member's phone and the balance still owed.",
+    columns: ["Member", "Card No.", "Phone", "Fine Type", "Title", "Raised", "Amount", "Paid", "Balance"],
+    ranged: false, permission: "library.fines.view" },
+];
+
+export const LIBRARY_REPORTS: ReportDefinition[] = LIBRARY_REPORT_CARDS.map(r => ({
+  id:          `library-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Library" as ReportCategory,
+  icon:        r.icon,
+  color:       `text-${r.tone}`,
+  bg:          `bg-${r.tone}/10`,
+  badges:      r.badges,
+  previewColumns: r.columns,
+  filters:        r.ranged ? [DATE_RANGE] : [],
+  exportFormats:  ["PDF", "Excel", "CSV"],
+  subGroup:       r.group,
+  requiresModule:     "library",
+  requiresPermission: r.permission,
+}));
+
+// ── Import / Export ──────────────────────────────────────────────────────────
+// Run in the tabular runner, served by `GET /api/trade/reports/run/{id}`. Like Library there is no
+// "trade reports" permission: each report needs the permission of the area it reads, so someone who
+// may not see costs or payments does not see those reports here either.
+type TradeCard = {
+  id: string; title: string; description: string; icon: string; group: string; tone: Tone;
+  columns: string[]; ranged: boolean; permission: string; badges?: ReportBadge[];
+};
+
+const TRADE_REPORT_CARDS: TradeCard[] = [
+  // Shipments
+  { id: "shipment-register", title: "Shipment Register", group: "Shipments", icon: "ClipboardList", tone: "primary", badges: ["Popular"],
+    description: "Every shipment booked in the period, with route, dates and goods value.",
+    columns: ["Shipment", "Direction", "Status", "Supplier / Buyer", "Order Ref.", "B/L", "Route", "ETD", "ETA", "Arrived", "Currency", "Goods Value"],
+    ranged: true, permission: "trade.shipments.view" },
+  { id: "delayed-shipments", title: "Delayed Shipments", group: "Shipments", icon: "AlertTriangle", tone: "destructive", badges: ["Popular"],
+    description: "Cargo that has not arrived although its expected arrival date has passed.",
+    columns: ["Shipment", "Direction", "Supplier / Buyer", "Status", "B/L", "Vessel / Flight", "Route", "ETA", "Days Late", "Goods Value", "Currency"],
+    ranged: false, permission: "trade.shipments.view" },
+  { id: "by-partner", title: "Shipments by Supplier / Buyer", group: "Shipments", icon: "Users", tone: "primary",
+    description: "How many shipments, and how much goods value, each supplier or buyer accounts for.",
+    columns: ["Supplier / Buyer", "Direction", "Shipments", "Open", "Goods Value"],
+    ranged: true, permission: "trade.shipments.view" },
+  { id: "port-free-days", title: "Port Free Days", group: "Shipments", icon: "Clock", tone: "warning",
+    description: "Cargo sitting at the port or in customs, and how many free days are left before demurrage.",
+    columns: ["Shipment", "Direction", "Supplier / Buyer", "Status", "Port", "Arrived", "Free Days", "Free Time Ends", "Days Left"],
+    ranged: false, permission: "trade.shipments.view" },
+
+  // Costs
+  { id: "landed-cost", title: "Landed Cost by Item", group: "Costs", icon: "Layers", tone: "success", badges: ["Popular"],
+    description: "What each item really cost once it was here: goods plus its share of freight, duty and clearing.",
+    columns: ["Shipment", "Item", "HS Code", "Qty", "Unit", "Goods (company currency)", "Added Costs", "Landed Cost", "Landed Unit Cost"],
+    ranged: true, permission: "trade.costs.view" },
+  { id: "cost-breakdown", title: "Shipping Cost Breakdown", group: "Costs", icon: "DollarSign", tone: "primary",
+    description: "Freight, duty, clearing and the other costs of moving goods, totalled by type.",
+    columns: ["Cost", "Entries", "Imports", "Exports", "Total", "Share %"],
+    ranged: true, permission: "trade.costs.view" },
+
+  // Money and paper
+  { id: "payments-schedule", title: "Payments Schedule", group: "Payments & Documents", icon: "Banknote", tone: "warning",
+    description: "Payments still to be made or received against shipments, and letters of credit with their expiry.",
+    columns: ["Shipment", "Direction", "Supplier / Buyer", "Payment", "Amount", "Currency", "Due", "Days", "L/C No.", "Bank", "L/C Expiry"],
+    ranged: false, permission: "trade.payments.view" },
+  { id: "documents-expiring", title: "Expiring Documents", group: "Payments & Documents", icon: "Calendar", tone: "warning",
+    description: "Permits, certificates and other documents that have expired or lapse within 90 days.",
+    columns: ["Shipment", "Direction", "Document", "Number", "Issued", "Expires", "Days Left", "State", "File"],
+    ranged: false, permission: "trade.documents.view" },
+];
+
+export const TRADE_REPORTS: ReportDefinition[] = TRADE_REPORT_CARDS.map(r => ({
+  id:          `trade-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Import / Export" as ReportCategory,
+  icon:        r.icon,
+  color:       `text-${r.tone}`,
+  bg:          `bg-${r.tone}/10`,
+  badges:      r.badges,
+  previewColumns: r.columns,
+  filters:        r.ranged ? [DATE_RANGE] : [],
+  exportFormats:  ["PDF", "Excel", "CSV"],
+  subGroup:       r.group,
+  requiresModule:     "trade",
+  requiresPermission: r.permission,
 }));

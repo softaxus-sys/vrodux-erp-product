@@ -8,6 +8,9 @@ import {
   type UpsertUnitRequest,
   type UpdateContractRequest,
   type ContractStatus,
+  type RenewContractRequest,
+  type TerminateContractRequest,
+  type SettleTerminationRequest,
   type RentAlertSettingsDto,
   type RePageParams,
   type ListingParams,
@@ -391,6 +394,66 @@ export function useDeleteContract() {
   return useMutation({
     mutationFn: (id: string) => reApi.deleteContract(id),
     onSuccess: () => { invalidate(); toast.success("Lease deleted."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ── Renewal + early termination ─────────────────────────────────────────────
+export function useRenewContract() {
+  const invalidate = useInvalidateContracts();
+  return useMutation({
+    mutationFn: (v: { id: string; data: RenewContractRequest }) => reApi.renewContract(v.id, v.data),
+    onSuccess: (r, v) => {
+      invalidate(v.id);
+      const parts = [`Renewed as ${r.contractNumber}`];
+      if (r.installmentsCreated > 0)
+        parts.push(`${r.installmentsCreated} payment${r.installmentsCreated === 1 ? "" : "s"} scheduled`);
+      if (r.nextDueDate) parts.push(`next due ${r.nextDueDate}`);
+      toast.success(parts.join(" — ") + ".");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+/** The final account for ending the lease on `date`. Nothing is changed by asking. */
+export function useTerminationPreview(id: string | null, date: string, penalty: number, deductions: number) {
+  return useQuery({
+    queryKey: [QK, "termination-preview", id, date, penalty, deductions],
+    queryFn: () => reApi.previewTermination(id!, date, penalty, deductions),
+    enabled: !!id && /^\d{4}-\d{2}-\d{2}$/.test(date),
+    placeholderData: (prev) => prev,
+    staleTime: 0,
+  });
+}
+
+export function useTerminateContract() {
+  const invalidate = useInvalidateContracts();
+  return useMutation({
+    mutationFn: (v: { id: string; data: TerminateContractRequest }) => reApi.terminateContract(v.id, v.data),
+    onSuccess: (r, v) => {
+      invalidate(v.id);
+      toast.success(r.status === "scheduled"
+        ? `Notice recorded. The lease ends on ${r.terminationDate}.`
+        : "Lease terminated.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useWithdrawTermination() {
+  const invalidate = useInvalidateContracts();
+  return useMutation({
+    mutationFn: (id: string) => reApi.withdrawTermination(id),
+    onSuccess: (_r, id) => { invalidate(id); toast.success("Notice withdrawn. The lease carries on."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSettleTermination() {
+  const invalidate = useInvalidateContracts();
+  return useMutation({
+    mutationFn: (v: { id: string; data: SettleTerminationRequest }) => reApi.settleTermination(v.id, v.data),
+    onSuccess: (_r, v) => { invalidate(v.id); toast.success("Final account settled."); },
     onError: (e: Error) => toast.error(e.message),
   });
 }

@@ -952,6 +952,41 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                         },
                         new
                         {
+                            Id = new Guid("98549498-159e-f9bf-ccaa-84e7e872359e"),
+                            Action = "view",
+                            Description = "View finance integrations",
+                            ModuleId = "finance.integrations"
+                        },
+                        new
+                        {
+                            Id = new Guid("583dbd60-fd3c-956e-283b-d4429dd2a268"),
+                            Action = "edit",
+                            Description = "Edit finance integrations",
+                            ModuleId = "finance.integrations"
+                        },
+                        new
+                        {
+                            Id = new Guid("1e059c8c-62f8-3bcd-8278-88a2c065ad04"),
+                            Action = "approve",
+                            Description = "Approve finance integrations",
+                            ModuleId = "finance.integrations"
+                        },
+                        new
+                        {
+                            Id = new Guid("aa801c5a-7ded-fe4b-eee2-34c0244d6cb0"),
+                            Action = "submit",
+                            Description = "Submit finance integrations",
+                            ModuleId = "finance.integrations"
+                        },
+                        new
+                        {
+                            Id = new Guid("85d5e99c-5052-2a21-3130-1a6ecad820c6"),
+                            Action = "approve-high",
+                            Description = "Approve-high finance integrations",
+                            ModuleId = "finance.integrations"
+                        },
+                        new
+                        {
                             Id = new Guid("68c2c635-8f5e-3308-657a-d48bbb0d0006"),
                             Action = "view",
                             Description = "View hr employees",
@@ -2286,6 +2321,398 @@ namespace Softaxis.Identity.Infrastructure.Persistence.Migrations
                             Action = "delete",
                             Description = "Delete visa cases",
                             ModuleId = "visa.cases"
+                        },
+                        new
+                        {
+                            Id = new Guid("c43a5cf1-d8dd-3bef-c390-439ff4166006"),
+                            Action = "view",
+                            Description = "View manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("4518afaa-5be8-bf66-5493-af99ca7ef4a3"),
+                            Action = "create",
+                            Description = "Create manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("dc271bcc-e9f3-4a46-d94c-6d467ae7f2a0"),
+                            Action = "edit",
+                            Description = "Edit manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("1e57288d-3d6e-2351-9889-0aa4ed43c31d"),
+                            Action = "delete",
+                            Description = "Delete manufacturing boms",
+                            ModuleId = "manufacturing.boms"
+                        },
+                        new
+                        {
+                            Id = new Guid("558c25f7-f535-f69e-eed0-45f96176fd9a"),
+                            Action = "view",
+                            Description = "View manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("1a3308e5-8d24-63bc-73df-e4305a3fbdd6"),
+                            Action = "create",
+                            Description = "Create manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("de166c0c-80e6-d9a3-af7c-14c85b5792b2"),
+                            Action = "edit",
+                            Description = "Edit manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("5196562b-9acb-e4cc-87de-bba58258ffef"),
+                            Action = "delete",
+                            Description = "Delete manufacturing orders",
+                            ModuleId = "manufacturing.orders"
+                        },
+                        new
+                        {
+                            Id = new Guid("f8d13ec7-7d53-ce0a-3694-489045bce8c1"),
+                            Action = "view",
+                            Description = "View manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("fccb1aee-3936-b46f-6ea5-71bce3365c63"),
+                            Action = "create",
+                            Description = "Create manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("11b455c1-ddcd-58e8-521a-ea9ed9d8d89d"),
+                            Action = "edit",
+                            Description = "Edit manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("b73cc9d2-bc6a-2736-e582-7b45a475bf37"),
+                            Action = "delete",
+                            Description = "Delete manufacturing work-centres",
+                            ModuleId = "manufacturing.work-centres"
+                        },
+                        new
+                        {
+                            Id = new Guid("e5a46fcb-e78a-04b8-c09f-5b253a7b7589"),
+                            Action = "view",
+                            Description = "View manufacturing planning",
+                            ModuleId = "manufacturing.planning"
+                        },
+                        new
+                        {
+                            Id = new Guid("e5e30b52-1ec2-6071-5ed8-28444cac980b"),
+                            Action = "view",
+                            Description = "View hospitality bookings",
+                            ModuleId = "hospitality.bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("ead375f4-474a-d074-0130-01f35b9eb44d"),
+                            Action = "create",
+                            Description = "Create hospitality bookings",
+                            ModuleId = "hospitality.bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("2c005a49-ceda-f574-96e7-6ac46a3cb48d"),
+                            Action = "edit",
+                            Description = "Edit hospitality bookings",
+                            ModuleId = "hospitality.bookings"
+                        },
+                        new
+                        {
+                            Id = new Guid("fac04faf-6b8a-83b3-b764-b7690057653a"),
+                            Action = "view",
+                            Description = "View hospitality rooms",
+                            ModuleId = "hospitality.rooms"
+                        },
+                        new
+                        {
+                            Id = new Guid("d0cd454b-8006-8389-5933-282eba939c96"),
+                            Action = "view",
+                            Description = "View hospitality housekeeping",
+                            ModuleId = "hospitality.housekeeping"
+                        },
+                        new
+                        {
+                            Id = new Guid("a89871f3-c76b-9358-0b5e-198e20f9bf2d"),
+                            Action = "create",
+                            Description = "Create hospitality housekeeping",
+                            ModuleId = "hospitality.housekeeping"
+                        },
+                        new
+                        {
+                            Id = new Guid("6acc8105-d11b-71bd-71dc-22f9bc963c6c"),
+                            Action = "edit",
+                            Description = "Edit hospitality housekeeping",
+                            ModuleId = "hospitality.housekeeping"
+                        },
+                        new
+                        {
+                            Id = new Guid("e8879168-1962-2e40-3244-9a1917588a1a"),
+                            Action = "view",
+                            Description = "View library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("b0932dfd-bd71-883a-f5f6-ab196ac84fab"),
+                            Action = "create",
+                            Description = "Create library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("ae21fe2b-f154-df31-af10-c9d32f58f435"),
+                            Action = "edit",
+                            Description = "Edit library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("a900d05e-9e1e-04bf-ce1c-cb857eb39cb6"),
+                            Action = "delete",
+                            Description = "Delete library catalog",
+                            ModuleId = "library.catalog"
+                        },
+                        new
+                        {
+                            Id = new Guid("f2def96d-37db-ff02-0882-7a96eed2dce8"),
+                            Action = "view",
+                            Description = "View library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("6e2f0275-2dbf-bbb0-e5f2-b43d10dc9314"),
+                            Action = "create",
+                            Description = "Create library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("4242ea25-61c4-738f-f63a-ccec7bce061e"),
+                            Action = "edit",
+                            Description = "Edit library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("f6cd37d7-f62c-bcfd-2698-0b82f9daa58b"),
+                            Action = "delete",
+                            Description = "Delete library members",
+                            ModuleId = "library.members"
+                        },
+                        new
+                        {
+                            Id = new Guid("bd829283-d3fa-1cb8-fc92-4c59757d826a"),
+                            Action = "view",
+                            Description = "View library circulation",
+                            ModuleId = "library.circulation"
+                        },
+                        new
+                        {
+                            Id = new Guid("711ed266-2b4d-08e1-061f-868fd140656c"),
+                            Action = "create",
+                            Description = "Create library circulation",
+                            ModuleId = "library.circulation"
+                        },
+                        new
+                        {
+                            Id = new Guid("d6df99aa-334b-5fef-f5dc-8449209e6800"),
+                            Action = "edit",
+                            Description = "Edit library circulation",
+                            ModuleId = "library.circulation"
+                        },
+                        new
+                        {
+                            Id = new Guid("35add296-c6f0-900a-1647-1226bc29ea46"),
+                            Action = "view",
+                            Description = "View library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("8f5ab2a7-d9b6-9cac-4922-02c1ce56b551"),
+                            Action = "create",
+                            Description = "Create library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("4124274b-23f5-7e3d-ca87-922c0598531d"),
+                            Action = "edit",
+                            Description = "Edit library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("5154338a-9ddd-9aac-a93a-62e14ce4f502"),
+                            Action = "approve",
+                            Description = "Approve library fines",
+                            ModuleId = "library.fines"
+                        },
+                        new
+                        {
+                            Id = new Guid("63898d84-d829-ba20-8f23-3d5201ddfa1d"),
+                            Action = "view",
+                            Description = "View library setup",
+                            ModuleId = "library.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("da48e6af-655f-cc00-fd3c-772511ff6dbf"),
+                            Action = "edit",
+                            Description = "Edit library setup",
+                            ModuleId = "library.setup"
+                        },
+                        new
+                        {
+                            Id = new Guid("22db9567-d7df-dacf-e95a-5d231bb67bdc"),
+                            Action = "view",
+                            Description = "View trade shipments",
+                            ModuleId = "trade.shipments"
+                        },
+                        new
+                        {
+                            Id = new Guid("54424c9a-fdcb-3317-ea87-c076572f9038"),
+                            Action = "create",
+                            Description = "Create trade shipments",
+                            ModuleId = "trade.shipments"
+                        },
+                        new
+                        {
+                            Id = new Guid("4fa57969-c2bd-1c71-98aa-f459557b154d"),
+                            Action = "edit",
+                            Description = "Edit trade shipments",
+                            ModuleId = "trade.shipments"
+                        },
+                        new
+                        {
+                            Id = new Guid("fa350e58-6a22-ef38-e0ce-bb2c77b9f588"),
+                            Action = "delete",
+                            Description = "Delete trade shipments",
+                            ModuleId = "trade.shipments"
+                        },
+                        new
+                        {
+                            Id = new Guid("0ef909e5-7be9-671f-112f-64d8fddd094c"),
+                            Action = "view",
+                            Description = "View trade parties",
+                            ModuleId = "trade.parties"
+                        },
+                        new
+                        {
+                            Id = new Guid("87f98c49-fac6-1bb5-c130-3bc46a97cecc"),
+                            Action = "create",
+                            Description = "Create trade parties",
+                            ModuleId = "trade.parties"
+                        },
+                        new
+                        {
+                            Id = new Guid("e86a898d-d452-f055-aa44-7fe6346d0e4b"),
+                            Action = "edit",
+                            Description = "Edit trade parties",
+                            ModuleId = "trade.parties"
+                        },
+                        new
+                        {
+                            Id = new Guid("ef171d42-3b98-db02-e26b-513e6d08d0f4"),
+                            Action = "delete",
+                            Description = "Delete trade parties",
+                            ModuleId = "trade.parties"
+                        },
+                        new
+                        {
+                            Id = new Guid("3bc6f938-3cdd-5041-87ba-0d4f12532788"),
+                            Action = "view",
+                            Description = "View trade documents",
+                            ModuleId = "trade.documents"
+                        },
+                        new
+                        {
+                            Id = new Guid("6c3f40cb-f41c-6a49-1aff-d89cbc536a28"),
+                            Action = "create",
+                            Description = "Create trade documents",
+                            ModuleId = "trade.documents"
+                        },
+                        new
+                        {
+                            Id = new Guid("424f302d-cd2c-9f3f-48b3-b397f09f7595"),
+                            Action = "edit",
+                            Description = "Edit trade documents",
+                            ModuleId = "trade.documents"
+                        },
+                        new
+                        {
+                            Id = new Guid("a2fbecf3-4163-702e-c9c3-a084f157dac3"),
+                            Action = "delete",
+                            Description = "Delete trade documents",
+                            ModuleId = "trade.documents"
+                        },
+                        new
+                        {
+                            Id = new Guid("afec20ba-672b-2499-37ca-e11abf7cf423"),
+                            Action = "view",
+                            Description = "View trade costs",
+                            ModuleId = "trade.costs"
+                        },
+                        new
+                        {
+                            Id = new Guid("ee991263-e44b-d666-3b04-f709a25358c1"),
+                            Action = "create",
+                            Description = "Create trade costs",
+                            ModuleId = "trade.costs"
+                        },
+                        new
+                        {
+                            Id = new Guid("522e230a-981a-496c-f17e-656850c33edd"),
+                            Action = "edit",
+                            Description = "Edit trade costs",
+                            ModuleId = "trade.costs"
+                        },
+                        new
+                        {
+                            Id = new Guid("ad8536c0-906a-b08a-4644-ed01df6ec7f5"),
+                            Action = "delete",
+                            Description = "Delete trade costs",
+                            ModuleId = "trade.costs"
+                        },
+                        new
+                        {
+                            Id = new Guid("6c3861d7-6e69-b24a-51be-f3a831b3e653"),
+                            Action = "view",
+                            Description = "View trade payments",
+                            ModuleId = "trade.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("614dddd3-0c7c-34ec-f1be-f3fc61ed8887"),
+                            Action = "create",
+                            Description = "Create trade payments",
+                            ModuleId = "trade.payments"
+                        },
+                        new
+                        {
+                            Id = new Guid("cffc8ff8-704f-dbd6-bf89-8ef4656ec056"),
+                            Action = "edit",
+                            Description = "Edit trade payments",
+                            ModuleId = "trade.payments"
                         },
                         new
                         {

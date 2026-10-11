@@ -131,6 +131,24 @@ export interface AccountTypeDto {
   isActive: boolean;
 }
 
+/** A ledger line on the bank account's ledger account. `in` = money into the bank (a debit). */
+export interface ReconBookItemDto {
+  journalLineId: string; journalEntryId: string; entryNumber: string; date: string;
+  description: string; amount: number; in: boolean;
+}
+export interface ReconBankItemDto {
+  id: string; date: string; description: string; reference: string; amount: number; in: boolean;
+  suggestions: string[];
+}
+export interface ReconciliationDto {
+  bankAccountId: string; accountName: string; currency: string;
+  ledgerAccountId: string | null; ledgerAccountNumber: string | null; ledgerAccountName: string | null;
+  statementBalance: number; bookBalance: number; difference: number;
+  unmatchedBankNet: number; unmatchedBookNet: number; matchedCount: number;
+  windowDays: number; truncated: boolean;
+  unmatchedBank: ReconBankItemDto[]; unmatchedBook: ReconBookItemDto[];
+}
+
 export interface AccountDto {
   id: string;
   accountNumber: string;
@@ -203,6 +221,7 @@ export interface BankAccountDto {
   status: "active" | "inactive";
   accountType: "current" | "savings";
   lastSynced: string;
+  ledgerAccountId?: string | null;
 }
 
 export interface BankTransactionDto {
@@ -216,6 +235,8 @@ export interface BankTransactionDto {
   category: string;
   reconciled: boolean;
   balance: number;
+  matchedEntryNumber?: string | null;
+  matchedJournalEntryId?: string | null;
 }
 
 /** Server-side paging for the statement list — a bank feed only ever grows. */
@@ -900,6 +921,15 @@ export const financeApi = {
   createBankAccount:      (data: CreateBankAccountRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/accounts`, data),
   createBankTransaction:  (data: CreateBankTransactionRequest): Promise<unknown> => rawApiClient.post(`${BASE}/banking/transactions`, data),
   reconcileTransaction:   (id: string): Promise<void> => rawApiClient.post(`${BASE}/banking/transactions/${id}/reconcile`),
+  getReconciliation:      (accountId: string, windowDays = 5): Promise<ReconciliationDto> =>
+    rawApiClient.get(`${BASE}/banking/accounts/${accountId}/reconciliation?windowDays=${windowDays}`),
+  setBankLedgerAccount:   (accountId: string, ledgerAccountId: string | null): Promise<void> =>
+    rawApiClient.put(`${BASE}/banking/accounts/${accountId}/ledger-account`, { ledgerAccountId }),
+  matchBankTransaction:   (id: string, journalLineId: string): Promise<void> =>
+    rawApiClient.post(`${BASE}/banking/transactions/${id}/match`, { journalLineId }),
+  unmatchBankTransaction: (id: string): Promise<void> => rawApiClient.post(`${BASE}/banking/transactions/${id}/unmatch`),
+  autoMatchBank:          (accountId: string, windowDays = 5): Promise<number> =>
+    rawApiClient.post(`${BASE}/banking/accounts/${accountId}/auto-match?windowDays=${windowDays}`),
 
   // Budgeting
   getBudgets: (p: BudgetPageParams = {}): Promise<PagedResult<BudgetDto>> => {

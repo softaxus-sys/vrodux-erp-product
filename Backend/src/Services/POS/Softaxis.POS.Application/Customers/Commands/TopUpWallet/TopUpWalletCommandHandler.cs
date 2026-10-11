@@ -23,7 +23,7 @@ public sealed class TopUpWalletCommandHandler(
             return Result.Failure<CustomerDto>(result.Error);
 
         customerRepo.Update(customer);
-        walletRepo.Add(new CustomerWalletTransaction(customer.Id, "topup", cmd.Amount, null, cmd.Notes));
+        walletRepo.Add(new CustomerWalletTransaction(customer.Id, "topup", cmd.Amount, null, cmd.Notes, cmd.PaymentMethod));
         await uow.SaveChangesAsync(ct);
 
         return Result.Success(CustomerMappings.ToDto(customer));
