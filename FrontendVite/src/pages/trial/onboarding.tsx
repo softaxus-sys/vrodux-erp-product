@@ -44,7 +44,7 @@ function getInitialMode(): "light" | "dark" {
 // ── Industry → modules ────────────────────────────────────────────────────────
 
 const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
-  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","hospitality","real-estate","construction","healthcare","education"],
+  "All Industries":           ["pos","inventory","sales","purchase","finance","hr","crm","hospitality","real-estate","construction","healthcare","education","visa","library","manufacturing","trade"],
   "Retail & E-Commerce":      ["pos","inventory","sales","crm","finance"],
   "Real Estate":              ["real-estate","crm","finance"],
   "Construction":             ["construction","purchase","hr","finance"],
