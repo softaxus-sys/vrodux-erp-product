@@ -68,7 +68,8 @@
     "issue": {
       "linkCustomer": "اربط عميلًا أولاً",
       "walletOnly": "يتوفر {{amount}} فقط في المحفظة",
-      "creditOnly": "يتوفر {{amount}} فقط"
+      "creditOnly": "يتوفر {{amount}} فقط",
+      "creditHold": "الائتمان متوقف"
     },
     "customer": {
       "none": "لا يوجد عميل مرتبط",

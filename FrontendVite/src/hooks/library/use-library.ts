@@ -3,9 +3,11 @@ import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tansta
 import { toast } from "sonner";
 import i18n from "@/i18n";
 import {
-  libraryApi, type AddCopiesRequest, type BranchRequest, type CopyRequest, type LoanFilter,
-  type MemberRequest, type MembershipTypeRequest, type TitleRequest,
+  libraryApi, type AddCopiesRequest, type BranchRequest, type BranchStaffDto, type CopyRequest, type LoanFilter,
+  type MemberRequest, type MembershipTypeRequest, type ReminderSettingsRequest, type TitleRequest,
 } from "@/lib/library/library.api";
+
+import { portalAdminApi, type PortalSettingsRequest } from "@/lib/library/portal.api";
 
 const QK = "library";
 const msg = (key: string) => i18n.t(`toast.${key}`, { ns: "library" });
@@ -19,7 +21,7 @@ const BRANCH_KEY = "vrodux.library.branch";
  * branch whoever is signed in. It is where returns are received and what the lists start filtered to.
  */
 export function useWorkingBranch() {
-  const { data: branches = [] } = useBranches(true);
+  const { branches, restricted } = useMyBranches();
   const [stored, setStored] = React.useState<string>(() => {
     try { return localStorage.getItem(BRANCH_KEY) ?? ""; } catch { return ""; }
   });
@@ -32,7 +34,23 @@ export function useWorkingBranch() {
     try { localStorage.setItem(BRANCH_KEY, id); } catch { /* private window — keep it in memory */ }
   }, []);
 
-  return { branchId, setBranchId, branches, branch: branches.find(b => b.id === branchId) ?? null };
+  return { branchId, setBranchId, branches, restricted, branch: branches.find(b => b.id === branchId) ?? null };
+}
+
+/**
+ * The branches the signed-in user may work at: all active ones, or — for staff assigned to
+ * branches — just theirs. For choosing where to ACT (issue, shelve, add copies, collect). Lists
+ * that only LOOK across the library (catalogue availability, a transfer's destination) use
+ * useBranches instead. The server enforces the same limit; this only keeps wrong choices off screen.
+ */
+export function useMyBranches() {
+  const { data: all = [] } = useBranches(true);
+  const { data: mine } = useQuery({ queryKey: [QK, "my-branches"], queryFn: libraryApi.getMyBranches, staleTime: 5 * 60 * 1000 });
+  const restricted = mine?.restricted ?? false;
+  const branches = React.useMemo(
+    () => (restricted ? all.filter(b => mine!.branchIds.includes(b.id)) : all),
+    [all, mine, restricted]);
+  return { branches, restricted };
 }
 
 // ── Queries ─────────────────────────────────────────────────────────────────
@@ -70,6 +88,16 @@ export function useCategories(enabled = true) {
 
 export function useTitle(id: string | null) {
   return useQuery({ queryKey: [QK, "title", id], queryFn: () => libraryApi.getTitle(id!), enabled: !!id });
+}
+
+/** Copies as a flat list — what label printing chooses from. */
+export function useCopies(
+  p: { search?: string; branchId?: string; titleId?: string; addedFrom?: string; pageSize?: number }, enabled = true,
+) {
+  return useQuery({
+    queryKey: [QK, "copies", p.search ?? "", p.branchId ?? "", p.titleId ?? "", p.addedFrom ?? "", p.pageSize ?? 100],
+    queryFn: () => libraryApi.getCopies(p), enabled, staleTime: 30 * 1000, placeholderData: keepPreviousData,
+  });
 }
 
 export function useInTransit(enabled = true) {
@@ -112,6 +140,14 @@ export function useFinesSummary(enabled = true) {
   return useQuery({ queryKey: [QK, "fines-summary"], queryFn: libraryApi.getFinesSummary, enabled, staleTime: 30 * 1000 });
 }
 
+export function useReminderSettings(enabled = true) {
+  return useQuery({ queryKey: [QK, "reminder-settings"], queryFn: libraryApi.getReminderSettings, enabled, staleTime: 60 * 1000 });
+}
+
+export function useReminderLog(enabled = true) {
+  return useQuery({ queryKey: [QK, "reminder-log"], queryFn: libraryApi.getReminderLog, enabled, staleTime: 30 * 1000 });
+}
+
 // ── Mutations ───────────────────────────────────────────────────────────────
 
 /**
@@ -134,6 +170,8 @@ function useLibraryMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult
 export const useCreateBranch = () => useLibraryMutation((b: BranchRequest) => libraryApi.createBranch(b), "branchSaved");
 export const useUpdateBranch = () =>
   useLibraryMutation(({ id, body }: { id: string; body: BranchRequest }) => libraryApi.updateBranch(id, body), "branchSaved");
+export const useSetBranchStaff = () =>
+  useLibraryMutation(({ branchId, staff }: { branchId: string; staff: BranchStaffDto[] }) => libraryApi.setBranchStaff(branchId, staff), "staffSaved");
 export const useDeleteBranch = () => useLibraryMutation((id: string) => libraryApi.deleteBranch(id), "branchDeleted");
 
 export const useCreateMembershipType = () =>
@@ -178,6 +216,23 @@ export const useMarkLoanLost = () => useLibraryMutation((id: string) => libraryA
 export const useReserve = () =>
   useLibraryMutation((b: { titleId: string; memberId: string; pickupBranchId: string }) => libraryApi.reserve(b));
 export const useCancelReservation = () => useLibraryMutation((id: string) => libraryApi.cancelReservation(id), "reservationCancelled");
+
+export const useUpdateReminderSettings = () =>
+  useLibraryMutation((b: ReminderSettingsRequest) => libraryApi.updateReminderSettings(b), "remindersSaved");
+/** Pass true for a preview. No toast: the card reports what was, or would be, sent. */
+// ── Member portal ───────────────────────────────────────────────────────────
+
+export function usePortalSettings(enabled = true) {
+  return useQuery({ queryKey: [QK, "portal-settings"], queryFn: portalAdminApi.getSettings, enabled, staleTime: 60 * 1000 });
+}
+export const useUpdatePortalSettings = () =>
+  useLibraryMutation((b: PortalSettingsRequest) => portalAdminApi.updateSettings(b), "portalSaved");
+// No toast on set: the dialog shows the PIN, which is the result that matters.
+export const useSetMemberPortalPin = () => useLibraryMutation((memberId: string) => portalAdminApi.setPin(memberId));
+export const useClearMemberPortalPin = () =>
+  useLibraryMutation((memberId: string) => portalAdminApi.clearPin(memberId), "portalAccessRemoved");
+
+export const useRunReminders = () => useLibraryMutation((dryRun: boolean) => libraryApi.runReminders(dryRun));
 
 export const useCreateFine = () =>
   useLibraryMutation((b: { memberId: string; type: string; amount: number; reason?: string | null }) => libraryApi.createFine(b), "fineAdded");

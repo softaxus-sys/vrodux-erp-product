@@ -53,6 +53,7 @@ const INDUSTRY_MODULES: Record<string, ModuleId[]> = {
   "Education":                ["education","hr","finance"],
   "Manufacturing":            ["manufacturing","inventory","purchase","hr","finance"],
   "Library":                  ["library","hr","finance"],
+  "Import & Export":          ["trade","inventory","purchase","sales","finance","hr"],
   "Finance & Banking":        ["finance","hr","crm"],
   "Logistics & Supply Chain": ["inventory","purchase","hr"],
   "Food & Beverage":          ["pos","inventory","purchase","hr"],

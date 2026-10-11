@@ -932,7 +932,9 @@
       "record": "تسجيل دفعة الإيجار",
       "remind": "إرسال تذكير بالإيجار",
       "import": "استيراد بيانات خارجية",
-      "view-confidential": "عرض بيانات العقار السرية"
+      "view-confidential": "عرض بيانات العقار السرية",
+      "submit": "إرسال للاعتماد",
+      "approve-high": "اعتماد المبالغ الكبيرة"
     },
     "actionShort": {
       "view": "عرض",
@@ -953,7 +955,9 @@
       "record": "تسجيل",
       "remind": "تذكير",
       "import": "استيراد",
-      "view-confidential": "سرية"
+      "view-confidential": "سرية",
+      "submit": "إرسال",
+      "approve-high": "كبير"
     },
     "group": {
       "inventory": "المخزون",
@@ -1056,7 +1060,12 @@
       "library.members": "الأعضاء",
       "library.circulation": "الإعارة (إعارة، إعادة، حجز)",
       "library.fines": "الغرامات",
-      "library.setup": "الفروع وقواعد العضوية"
+      "library.setup": "الفروع وقواعد العضوية",
+      "trade.shipments": "الشحنات",
+      "trade.parties": "الموردون والمشترون والوكلاء",
+      "trade.documents": "المستندات التجارية",
+      "trade.costs": "التكاليف الواصلة",
+      "trade.payments": "دفعات الشحنات والاعتمادات"
     }
   },
   "roles": {

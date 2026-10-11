@@ -35,6 +35,7 @@ public static class NotificationModuleAccess
             [NotificationModules.RealEstate]        = ModuleCodes.RealEstate,
             [NotificationModules.Visa]              = ModuleCodes.Visa,
             [NotificationModules.Manufacturing]     = ModuleCodes.Manufacturing,
+            [NotificationModules.Trade]             = ModuleCodes.Trade,
             [NotificationModules.Pos]               = ModuleCodes.Pos,
             [NotificationModules.Restaurant]        = ModuleCodes.Pos,
             // Support and System are deliberately absent — an account-level or support alert is never

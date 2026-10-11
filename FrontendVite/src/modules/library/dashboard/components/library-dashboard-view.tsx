@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useLibraryDashboard } from "@/hooks/library/use-library";
-import { PageHeader, TH } from "../../shared/ui";
+import { PageHeader, TH, useCanAny } from "../../shared/ui";
 
 function Tile({ label, value, hint, tone, to }: {
   label: string; value: React.ReactNode; hint?: string; tone?: string; to?: string;
@@ -47,6 +47,8 @@ export function LibraryDashboardView() {
   const { t } = useTranslation("library");
   const currency = useCurrency();
   const { data: d, isLoading, isError, error, refetch } = useLibraryDashboard();
+  // Only those who can open library setup are offered the way there.
+  const canSetup = useCanAny(["library.setup.view", "library.setup.edit"]);
 
   if (isLoading) return <div className="p-12 text-center text-sm text-muted-foreground">{t("loading")}</div>;
   if (isError || !d)
@@ -80,7 +82,7 @@ export function LibraryDashboardView() {
 
       <div className="grid lg:grid-cols-5 gap-4">
         <div className="lg:col-span-3">
-          <Panel title={t("dashboard.branches")} to="/library/setup" linkLabel={t("dashboard.manage")}>
+          <Panel title={t("dashboard.branches")} to={canSetup ? "/library/setup" : undefined} linkLabel={t("dashboard.manage")}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground">

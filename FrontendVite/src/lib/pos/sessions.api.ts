@@ -43,7 +43,7 @@ export const sessionsApi = {
 
   recordCashMovement: (
     sessionId: string,
-    payload: { type: "payin" | "payout"; amount: number; reason: string }
+    payload: { type: "payin" | "payout"; amount: number; reason: string; category: string }
   ): Promise<CashMovementDto> =>
     apiClient.post<CashMovementDto>(`${BASE}/${sessionId}/cash-movement`, payload),
 

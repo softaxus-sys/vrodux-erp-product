@@ -23,7 +23,9 @@ public sealed record GoodsReceiptNoteDto(
     string  Status,
     IReadOnlyList<GoodsReceiptNoteItemDto> Items,
     DateTime  CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    int       StockLinesAdded = 0,
+    string?   StockNote = null);
 
 public sealed record GoodsReceiptNoteSummaryDto(
     Guid    Id,

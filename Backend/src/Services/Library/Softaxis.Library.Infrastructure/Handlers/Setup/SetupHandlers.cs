@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Library.Application.Abstractions;
 using Softaxis.Library.Application.Setup;
 using Softaxis.Library.Domain.Entities;
 using Softaxis.Library.Infrastructure.Persistence;
@@ -9,7 +10,7 @@ namespace Softaxis.Library.Infrastructure.Handlers.Setup;
 
 // ── Branches ────────────────────────────────────────────────────────────────
 
-internal sealed class GetBranchesHandler(LibraryDbContext db) : IQueryHandler<GetBranchesQuery, IReadOnlyList<BranchDto>>
+internal sealed class GetBranchesHandler(LibraryDbContext db, ICurrentUser user) : IQueryHandler<GetBranchesQuery, IReadOnlyList<BranchDto>>
 {
     public async Task<Result<IReadOnlyList<BranchDto>>> Handle(GetBranchesQuery q, CancellationToken ct)
     {
@@ -24,12 +25,18 @@ internal sealed class GetBranchesHandler(LibraryDbContext db) : IQueryHandler<Ge
             .Select(g => new { g.Key.BranchId, g.Key.Status, Count = g.Count() })
             .ToListAsync(ct);
 
+        // Who works where is setup information; the desk does not need the staff list.
+        var staff = user.IsSuperAdmin || user.HasPermission("library.setup.view") || user.HasPermission("library.setup.edit")
+            ? (await db.BranchStaff.AsNoTracking().OrderBy(s => s.UserName).ToListAsync(ct)).ToLookup(s => s.BranchId)
+            : null;
+
         int Count(Guid branchId, string? status = null) =>
             counts.Where(c => c.BranchId == branchId && (status is null || c.Status == status)).Sum(c => c.Count);
 
         return Result.Success<IReadOnlyList<BranchDto>>(branches.Select(b => new BranchDto(
             b.Id, b.Name, b.Code, b.Address, b.Phone, b.Email, b.IsActive,
-            Count(b.Id), Count(b.Id, CopyStatus.Available), Count(b.Id, CopyStatus.OnLoan))).ToList());
+            Count(b.Id), Count(b.Id, CopyStatus.Available), Count(b.Id, CopyStatus.OnLoan),
+            staff is null ? [] : staff[b.Id].Select(s => new BranchStaffDto(s.UserId, s.UserName)).ToList())).ToList());
     }
 }
 
@@ -45,7 +52,38 @@ internal sealed class CreateBranchHandler(LibraryDbContext db) : ICommandHandler
         db.Branches.Add(branch);
         await db.SaveChangesAsync(ct);
         return Result.Success(new BranchDto(branch.Id, branch.Name, branch.Code, branch.Address, branch.Phone,
-            branch.Email, branch.IsActive, 0, 0, 0));
+            branch.Email, branch.IsActive, 0, 0, 0, []));
+    }
+}
+
+internal sealed class GetMyBranchesHandler(IBranchAccess access) : IQueryHandler<GetMyBranchesQuery, MyBranchesDto>
+{
+    public async Task<Result<MyBranchesDto>> Handle(GetMyBranchesQuery q, CancellationToken ct)
+    {
+        var allowed = await access.AllowedBranchIdsAsync(ct);
+        return Result.Success(new MyBranchesDto(allowed is not null, allowed?.ToList() ?? []));
+    }
+}
+
+internal sealed class SetBranchStaffHandler(LibraryDbContext db) : ICommandHandler<SetBranchStaffCommand, BranchDto>
+{
+    public async Task<Result<BranchDto>> Handle(SetBranchStaffCommand cmd, CancellationToken ct)
+    {
+        var branch = await db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == cmd.BranchId && !b.IsDeleted, ct);
+        if (branch is null) return Result.Failure<BranchDto>(Error.NotFoundById("Branch", cmd.BranchId));
+
+        var wanted  = cmd.Staff.GroupBy(s => s.UserId).Select(g => g.First()).ToList();
+        var current = await db.BranchStaff.Where(s => s.BranchId == cmd.BranchId).ToListAsync(ct);
+
+        db.BranchStaff.RemoveRange(current.Where(c => wanted.All(w => w.UserId != c.UserId)));
+        db.BranchStaff.AddRange(wanted.Where(w => current.All(c => c.UserId != w.UserId))
+                                      .Select(w => new BranchStaff(cmd.BranchId, w.UserId, w.UserName)));
+        await db.SaveChangesAsync(ct);
+
+        var copies = await db.Copies.CountAsync(c => !c.IsDeleted && c.BranchId == branch.Id, ct);
+        return Result.Success(new BranchDto(branch.Id, branch.Name, branch.Code, branch.Address, branch.Phone,
+            branch.Email, branch.IsActive, copies, 0, 0,
+            wanted.OrderBy(w => w.UserName).Select(w => new BranchStaffDto(w.UserId, w.UserName.Trim())).ToList()));
     }
 }
 
@@ -64,8 +102,9 @@ internal sealed class UpdateBranchHandler(LibraryDbContext db) : ICommandHandler
         await db.SaveChangesAsync(ct);
 
         var copies = await db.Copies.CountAsync(c => !c.IsDeleted && c.BranchId == branch.Id, ct);
+        var staff  = await db.BranchStaff.AsNoTracking().Where(s => s.BranchId == branch.Id).OrderBy(s => s.UserName).ToListAsync(ct);
         return Result.Success(new BranchDto(branch.Id, branch.Name, branch.Code, branch.Address, branch.Phone,
-            branch.Email, branch.IsActive, copies, 0, 0));
+            branch.Email, branch.IsActive, copies, 0, 0, staff.Select(s => new BranchStaffDto(s.UserId, s.UserName)).ToList()));
     }
 }
 
@@ -89,6 +128,8 @@ internal sealed class DeleteBranchHandler(LibraryDbContext db) : ICommandHandler
             return Result.Failure(Error.Custom("Branch.Conflict",
                 $"{holds} open reservations are to be collected at this branch. Cancel them first."));
 
+        // Assignments go with the branch, so nobody is left limited to a branch that is gone.
+        db.BranchStaff.RemoveRange(await db.BranchStaff.Where(s => s.BranchId == cmd.Id).ToListAsync(ct));
         branch.Delete();
         await db.SaveChangesAsync(ct);
         return Result.Success();
@@ -101,7 +142,7 @@ internal static class MembershipTypeMappings
 {
     public static MembershipTypeDto ToDto(MembershipType t, int members) => new(
         t.Id, t.Name, t.MaxLoans, t.LoanDays, t.MaxRenewals, t.FinePerDay, t.MaxReservations, t.AnnualFee,
-        t.IsActive, members);
+        t.IsActive, members, t.SameTitleReserveAfterDays);
 }
 
 internal sealed class GetMembershipTypesHandler(LibraryDbContext db)
@@ -136,7 +177,7 @@ internal sealed class CreateMembershipTypeHandler(LibraryDbContext db)
                 $"A membership type named \"{name}\" already exists."));
 
         var type = new MembershipType(name, cmd.MaxLoans, cmd.LoanDays, cmd.MaxRenewals, cmd.FinePerDay,
-            cmd.MaxReservations, cmd.AnnualFee);
+            cmd.MaxReservations, cmd.AnnualFee, cmd.SameTitleReserveAfterDays);
         db.MembershipTypes.Add(type);
         await db.SaveChangesAsync(ct);
         return Result.Success(MembershipTypeMappings.ToDto(type, 0));
@@ -158,7 +199,7 @@ internal sealed class UpdateMembershipTypeHandler(LibraryDbContext db)
 
         // New rules apply from the next issue, renewal and return. Due dates already given stand.
         type.Update(name, cmd.MaxLoans, cmd.LoanDays, cmd.MaxRenewals, cmd.FinePerDay, cmd.MaxReservations,
-            cmd.AnnualFee, cmd.IsActive);
+            cmd.AnnualFee, cmd.IsActive, cmd.SameTitleReserveAfterDays);
         await db.SaveChangesAsync(ct);
 
         var members = await db.Members.CountAsync(m => !m.IsDeleted && m.MembershipTypeId == type.Id, ct);

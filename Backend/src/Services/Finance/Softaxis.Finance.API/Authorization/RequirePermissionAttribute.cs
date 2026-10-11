@@ -19,7 +19,9 @@ public sealed class RequirePermissionAttribute(string permission) : Attribute, I
         var user = context.HttpContext.User;
 
         if (user.FindFirstValue("is_super_admin") == "true") return;
-        if (user.HasClaim("permission", permission)) return;
+        // "a,b" means any one of them — a screen several levels of staff share.
+        if (permission.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Any(p => user.HasClaim("permission", p))) return;
 
         context.Result = new ObjectResult(new { Code = "Permission.Denied", Description = $"Missing permission: {permission}" })
         {

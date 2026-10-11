@@ -128,6 +128,8 @@ public sealed class Tenant : AuditableEntity<Guid>
         ["manufacturing"]= "manufacturing",
         // Public, school, university and corporate libraries.
         ["library"]      = "library",
+        // Importers, exporters and trading companies. "Import & Export" signs up as import_export.
+        ["import_export"]= "trade",
     };
 
     /// <summary>The Industry-Pack module code for a given industry, or null.</summary>
@@ -217,8 +219,8 @@ public sealed class Tenant : AuditableEntity<Guid>
                 if (pack is not null)
                 {
                     // The CRM verticals build on CRM. Manufacturing does not — it builds on
-                    // Inventory, which is added below. Library builds on nothing.
-                    if (pack is not ("manufacturing" or "library") && !list.Contains("crm")) list.Add("crm");
+                    // Inventory, which is added below. Library and Trade build on nothing.
+                    if (pack is not ("manufacturing" or "library" or "trade") && !list.Contains("crm")) list.Add("crm");
                     if (!list.Contains(pack))   list.Add(pack);
                 }
             }

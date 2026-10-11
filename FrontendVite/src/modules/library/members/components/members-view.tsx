@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
-import { BookMarked, Coins, Loader2, Pencil, Plus, Trash2, UploadCloud, Users } from "lucide-react";
+import { BookMarked, Coins, Globe, IdCard, Loader2, Pencil, Plus, Trash2, UploadCloud, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,17 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { Can, useCan } from "@/components/auth/can";
 import {
-  useBranches, useCreateMember, useDeleteMember, useMember, useMembers, useMembershipTypes, useUpdateMember,
-  useWorkingBranch,
+  useBranches, useCreateMember, useDeleteMember, useMember, useMembers, useMembershipTypes, useMyBranches,
+  useClearMemberPortalPin, useSetMemberPortalPin, useUpdateMember, useWorkingBranch,
 } from "@/hooks/library/use-library";
+import { portalUrl, type MemberPortalPinDto } from "@/lib/library/portal.api";
+import { useAuthStore } from "@/store/auth.store";
 import { statusMeta, type MemberDto } from "@/lib/library/library.api";
 import {
   ConfirmDialog, Field, Modal, PageHeader, Pager, Pill, SearchBox, SELECT, TableState, TH, useCanAny, useDebounced,
 } from "../../shared/ui";
 import { ImportModal } from "../../shared/import-modal";
+import { CardsModal } from "../../shared/print-modals";
 import { LoansPanel } from "../../circulation/components/loans-panel";
 import { ReserveForm } from "../../circulation/components/reservations-panel";
 import { AddFineForm, FinesTable } from "../../fines/components/fines-view";
@@ -116,11 +119,88 @@ function MemberForm({ editing, defaultBranchId, onClose }: {
   );
 }
 
+/**
+ * Online access for one member: give a PIN, replace it, or take access away. The PIN is shown
+ * once, right after it is made — only its hash is kept, so nobody can look it up later.
+ */
+function PortalAccess({ member }: { member: MemberDto }) {
+  const { t } = useTranslation("library");
+  const slug = useAuthStore(s => s.tenant?.slug);
+  const canEdit = useCan("library.members.edit");
+  const setPin = useSetMemberPortalPin();
+  const clearPin = useClearMemberPortalPin();
+  const [issued, setIssued] = React.useState<MemberPortalPinDto | null>(null);
+  const [confirm, setConfirm] = React.useState<"replace" | "remove" | null>(null);
+
+  const issue = () => setPin.mutate(member.id, { onSuccess: setIssued, onSettled: () => setConfirm(null) });
+
+  return (
+    <div className="rounded-lg border border-border px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{t("portal.member.heading")}</p>
+        <p className="text-xs text-muted-foreground">
+          {member.hasPortalAccess ? t("portal.member.has") : t("portal.member.none")}
+        </p>
+      </div>
+      {canEdit && (
+        <div className="flex items-center gap-2">
+          {member.hasPortalAccess && (
+            <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirm("remove")}>
+              {t("portal.member.remove")}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-1.5" disabled={setPin.isPending}
+            onClick={() => (member.hasPortalAccess ? setConfirm("replace") : issue())}>
+            {setPin.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            {member.hasPortalAccess ? t("portal.member.newPin") : t("portal.member.give")}
+          </Button>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {confirm === "replace" && (
+          <ConfirmDialog key="replace" title={t("portal.member.replaceTitle")} confirmLabel={t("portal.member.newPin")}
+            body={t("portal.member.replaceBody", { name: member.fullName })} destructive={false} pending={setPin.isPending}
+            onClose={() => setConfirm(null)} onConfirm={issue} />
+        )}
+        {confirm === "remove" && (
+          <ConfirmDialog key="remove" title={t("portal.member.removeTitle")} confirmLabel={t("portal.member.remove")}
+            body={t("portal.member.removeBody", { name: member.fullName })} pending={clearPin.isPending}
+            onClose={() => setConfirm(null)}
+            onConfirm={() => clearPin.mutate(member.id, { onSettled: () => setConfirm(null) })} />
+        )}
+        {issued && (
+          <Modal key="pin" title={t("portal.member.pinTitle")} subtitle={member.fullName} onClose={() => setIssued(null)}
+            footer={<Button size="sm" onClick={() => setIssued(null)}>{t("portal.member.pinDone")}</Button>}>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border px-3 py-2.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("portal.member.cardNumber")}</p>
+                <p className="text-lg font-bold mt-1 break-all">{issued.memberNumber}</p>
+              </div>
+              <div className="rounded-lg border border-border px-3 py-2.5">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("portal.member.pin")}</p>
+                <p className="text-lg font-bold mt-1 tracking-[0.25em] tabular-nums">{issued.pin}</p>
+              </div>
+            </div>
+            {slug && (
+              <p className="text-xs text-muted-foreground break-all">{t("portal.member.signInAt")} <span className="font-medium text-foreground">{portalUrl(slug)}</span></p>
+            )}
+            <p className="rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 text-sm px-3 py-2">
+              {t("portal.member.pinOnce")}
+            </p>
+          </Modal>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function MemberDrawer({ id, deskBranchId, onClose }: { id: string; deskBranchId: string; onClose: () => void }) {
   const { t } = useTranslation("library");
   const currency = useCurrency();
   const { data: m, isLoading, isError, error } = useMember(id);
-  const { data: branches = [] } = useBranches(true);
+  const { branches } = useMyBranches();
   const del = useDeleteMember();
   const canLoans = useCanAny(["library.circulation.view", "library.members.view"]);
   const canReserve = useCan("library.circulation.create");
@@ -130,6 +210,7 @@ function MemberDrawer({ id, deskBranchId, onClose }: { id: string; deskBranchId:
   const [reserving, setReserving] = React.useState(false);
   const [fining, setFining] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [card, setCard] = React.useState(false);
 
   return (
     <>
@@ -143,6 +224,9 @@ function MemberDrawer({ id, deskBranchId, onClose }: { id: string; deskBranchId:
                 <Trash2 className="h-3.5 w-3.5" />{t("action.delete")}
               </Button>
             </Can>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setCard(true)}>
+              <IdCard className="h-3.5 w-3.5" />{t("print.cards.button")}
+            </Button>
             <Can permission="library.fines.create">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setFining(true)}><Coins className="h-3.5 w-3.5" />{t("fines.add")}</Button>
             </Can>
@@ -188,6 +272,8 @@ function MemberDrawer({ id, deskBranchId, onClose }: { id: string; deskBranchId:
               ))}
             </div>
 
+            <PortalAccess member={m} />
+
             <div className="flex gap-1 border-b border-border">
               {(["loans", "fines"] as const).map(x => (
                 <button key={x} onClick={() => setTab(x)}
@@ -205,7 +291,9 @@ function MemberDrawer({ id, deskBranchId, onClose }: { id: string; deskBranchId:
 
       <AnimatePresence>
         {editing && m && <MemberForm key="edit" editing={m} defaultBranchId={deskBranchId} onClose={() => setEditing(false)} />}
-        {reserving && m && <ReserveForm key="reserve" branches={branches} defaultBranchId={m.homeBranchId ?? deskBranchId} member={m} onClose={() => setReserving(false)} />}
+        {reserving && m && <ReserveForm key="reserve" branches={branches} member={m} onClose={() => setReserving(false)}
+          defaultBranchId={branches.some(b => b.id === m.homeBranchId) ? m.homeBranchId! : deskBranchId} />}
+        {card && m && <CardsModal key="card" members={[m]} onClose={() => setCard(false)} />}
         {fining && m && <AddFineForm key="fine" member={m} onClose={() => setFining(false)} />}
         {confirmDelete && m && (
           <ConfirmDialog key="delete" title={t("members.deleteTitle")} confirmLabel={t("action.delete")}
@@ -230,6 +318,7 @@ export function MembersView() {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
+  const [cards, setCards] = React.useState(false);
 
   const term = useDebounced(search.trim());
   React.useEffect(() => { setPage(1); }, [term, status]);
@@ -242,6 +331,9 @@ export function MembersView() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("members.title")} description={t("members.description")}>
+        <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setCards(true)} disabled={rows.length === 0}>
+          <IdCard className="h-4 w-4" />{t("print.cards.button")}
+        </Button>
         <Can permission="library.members.create">
           <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setImporting(true)}>
             <UploadCloud className="h-4 w-4" />{t("import.button")}
@@ -305,6 +397,7 @@ export function MembersView() {
       <AnimatePresence>
         {openId && <MemberDrawer key={openId} id={openId} deskBranchId={branchId} onClose={() => setOpenId(null)} />}
         {creating && <MemberForm key="new" editing={null} defaultBranchId={branchId} onClose={() => setCreating(false)} />}
+        {cards && <CardsModal key="cards" members={rows} onClose={() => setCards(false)} />}
         {importing && <ImportModal key="import" kind="members" onClose={() => setImporting(false)} />}
       </AnimatePresence>
     </div>

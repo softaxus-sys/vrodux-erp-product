@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
 import { useCreateGoodsReceiptNote } from "@/hooks/purchase/use-grn";
+import { useAuthStore } from "@/store/auth.store";
 import type { PurchaseOrderDto } from "@/lib/pos/types";
 
 const TODAY = new Date().toISOString().split("T")[0];
@@ -19,6 +20,7 @@ interface ReceiveLine {
   alreadyReceived: number;
   receiveQty: number;
   unitCost: number;
+  taxRate: number;
 }
 
 interface CreateGrnFormProps {
@@ -30,6 +32,7 @@ interface CreateGrnFormProps {
 export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
   const { t } = useTranslation("purchase");
   const currency = useCurrency();
+  const hasInventory = useAuthStore(s => s.hasModuleAccess("inventory"));
   const [grnDate, setGrnDate]     = React.useState(TODAY);
   const [driverName, setDriverName] = React.useState("");
   const [notes, setNotes]         = React.useState("");
@@ -50,6 +53,7 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
         alreadyReceived:     0,
         receiveQty:          i.quantity,
         unitCost:            i.unitCost,
+        taxRate:             i.taxRate ?? 0,
       })));
     }
   }, [open, order]);
@@ -60,7 +64,12 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
     setLines(prev => prev.map(l => l.purchaseOrderItemId === id ? { ...l, receiveQty: qty } : l));
 
   const isValid = !!order && lines.some(l => l.receiveQty > 0);
-  const total = lines.reduce((s, l) => s + l.receiveQty * l.unitCost, 0);
+  // Tax is shown, not stored: the GRN records what arrived, and the vendor's bill carries the tax. Each line is
+  // taxed at the rate it was ordered with, so the figure matches what the PO promised.
+  const subtotal = lines.reduce((s, l) => s + l.receiveQty * l.unitCost, 0);
+  const taxTotal = lines.reduce((s, l) => s + l.receiveQty * l.unitCost * (l.taxRate / 100), 0);
+  const total = subtotal + taxTotal;
+  const unlinked = lines.filter(l => l.receiveQty > 0 && !l.productId).length;
 
   function handleSubmit() {
     if (!order) return;
@@ -144,7 +153,10 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
                     <tbody className="divide-y divide-border">
                       {lines.map(line => (
                         <tr key={line.purchaseOrderItemId} className="hover:bg-muted/10">
-                          <td className="px-3 py-2 text-xs">{line.description}</td>
+                          <td className="px-3 py-2 text-xs">
+                            {line.description}
+                            {line.taxRate > 0 && <span className="ml-2 text-[10px] text-muted-foreground">{t("grn.form.taxRate", { rate: line.taxRate })}</span>}
+                          </td>
                           <td className="px-3 py-2 text-right text-xs text-muted-foreground">{line.orderedQuantity}</td>
                           <td className="px-2 py-1.5">
                             <Input type="number" min={0} step={1} value={line.receiveQty || ""}
@@ -159,19 +171,32 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
                     </tbody>
                     <tfoot className="bg-muted/10 border-t border-border text-xs">
                       <tr>
-                        <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">{t("common:field.totalValue")}</td>
+                        <td colSpan={3} className="px-3 py-1.5 text-right text-muted-foreground">{t("grn.form.subtotal")}</td>
+                        <td className="px-3 py-1.5 text-right text-foreground">{formatCurrency(subtotal, currency)}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan={3} className="px-3 py-1.5 text-right text-muted-foreground">{t("grn.form.tax")}</td>
+                        <td className="px-3 py-1.5 text-right text-foreground">{formatCurrency(taxTotal, currency)}</td>
+                      </tr>
+                      <tr className="border-t border-border">
+                        <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">{t("grn.form.totalWithTax")}</td>
                         <td className="px-3 py-2 text-right font-bold text-primary text-sm">{formatCurrency(total, currency)}</td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
+                {hasInventory && (
+                  <p className={`mt-2 text-xs ${unlinked > 0 ? "text-warning" : "text-muted-foreground"}`}>
+                    {unlinked > 0 ? t("grn.form.notLinked", { count: unlinked }) : t("grn.form.stockHint")}
+                  </p>
+                )}
               </div>
 
               {/* Notes */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("common:field.notes")}</label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                  placeholder={t("grn.form.description")} rows={3}
+                  placeholder={t("grn.form.notesPlaceholder")} rows={3}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
                 />
               </div>
@@ -181,7 +206,7 @@ export function CreateGrnForm({ order, open, onClose }: CreateGrnFormProps) {
             <div className="px-6 py-4 border-t border-border flex gap-2 justify-between shrink-0">
               <Button variant="outline" onClick={handleClose} disabled={isPending}>{t("common:action.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common:action.saving")}</> : t("grn.form.confirm")}
+                {isPending ? <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />{t("common:action.saving")}</> : t("grn.form.button.confirm")}
               </Button>
             </div>
           </motion.div>

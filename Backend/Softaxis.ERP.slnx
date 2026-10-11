@@ -93,6 +93,12 @@
     <Project Path="src/Services/Manufacturing/Softaxis.Manufacturing.Domain/Softaxis.Manufacturing.Domain.csproj" />
     <Project Path="src/Services/Manufacturing/Softaxis.Manufacturing.Infrastructure/Softaxis.Manufacturing.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Trade/">
+    <Project Path="src/Services/Trade/Softaxis.Trade.API/Softaxis.Trade.API.csproj" />
+    <Project Path="src/Services/Trade/Softaxis.Trade.Application/Softaxis.Trade.Application.csproj" />
+    <Project Path="src/Services/Trade/Softaxis.Trade.Domain/Softaxis.Trade.Domain.csproj" />
+    <Project Path="src/Services/Trade/Softaxis.Trade.Infrastructure/Softaxis.Trade.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Library/">
     <Project Path="src/Services/Library/Softaxis.Library.API/Softaxis.Library.API.csproj" />
     <Project Path="src/Services/Library/Softaxis.Library.Application/Softaxis.Library.Application.csproj" />
@@ -127,5 +133,9 @@
     <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Application/Softaxis.AiAssistant.Application.csproj" />
     <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Domain/Softaxis.AiAssistant.Domain.csproj" />
     <Project Path="src/Services/AiAssistant/Softaxis.AiAssistant.Infrastructure/Softaxis.AiAssistant.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Softaxis.Finance.Tests/Softaxis.Finance.Tests.csproj" />
+    <Project Path="tests/Softaxis.POS.Tests/Softaxis.POS.Tests.csproj" />
   </Folder>
 </Solution>

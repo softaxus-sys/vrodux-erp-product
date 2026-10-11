@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Library.Application.Abstractions;
 using Softaxis.Library.Application.Catalogue;
 using Softaxis.Library.Domain.Entities;
 using Softaxis.Library.Infrastructure.Persistence;
@@ -103,7 +104,7 @@ internal sealed class GetCategoriesHandler(LibraryDbContext db) : IQueryHandler<
     }
 }
 
-internal sealed class CreateTitleHandler(LibraryDbContext db) : ICommandHandler<CreateTitleCommand, TitleDetailDto>
+internal sealed class CreateTitleHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<CreateTitleCommand, TitleDetailDto>
 {
     public async Task<Result<TitleDetailDto>> Handle(CreateTitleCommand cmd, CancellationToken ct)
     {
@@ -121,6 +122,8 @@ internal sealed class CreateTitleHandler(LibraryDbContext db) : ICommandHandler<
 
         if (cmd.Copies > 0 && !await TitleReader.BranchExistsAsync(db, cmd.BranchId!.Value, ct))
             return Result.Failure<TitleDetailDto>(Error.NotFoundById("Branch", cmd.BranchId!.Value));
+        if (cmd.Copies > 0 && await branches.DeniedAsync(cmd.BranchId!.Value, ct) is { } denied)
+            return Result.Failure<TitleDetailDto>(denied);
 
         var title = new BookTitle(cmd.Title);
         title.SetDetails(cmd.Title, cmd.Subtitle, cmd.Authors, cmd.Isbn, cmd.Publisher, cmd.PublicationYear,
@@ -199,19 +202,60 @@ internal sealed class GetCopyByBarcodeHandler(LibraryDbContext db) : IQueryHandl
     }
 }
 
-internal sealed class GetCopiesInTransitHandler(LibraryDbContext db)
+internal sealed class GetCopiesHandler(LibraryDbContext db, IBranchAccess branches) : IQueryHandler<GetCopiesQuery, PagedDto<CopyDto>>
+{
+    public async Task<Result<PagedDto<CopyDto>>> Handle(GetCopiesQuery q, CancellationToken ct)
+    {
+        var copies = db.Copies.AsNoTracking().Where(c => !c.IsDeleted);
+
+        // This list is what labels are printed from: branch staff get their own branch's copies.
+        if (await branches.AllowedBranchIdsAsync(ct) is { } allowed) copies = copies.Where(c => allowed.Contains(c.BranchId));
+
+        if (q.BranchId is { } branchId) copies = copies.Where(c => c.BranchId == branchId);
+        if (q.TitleId  is { } titleId)  copies = copies.Where(c => c.TitleId == titleId);
+        if (!string.IsNullOrWhiteSpace(q.Status)) copies = copies.Where(c => c.Status == q.Status);
+
+        if (LibraryDates.Clean(q.AddedFrom) is { } from)
+        {
+            var since = DateTime.ParseExact(from, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+            copies = copies.Where(c => c.CreatedAt >= since);
+        }
+
+        if (!string.IsNullOrWhiteSpace(q.Search))
+        {
+            var s = q.Search.Trim();
+            copies = copies.Where(c => c.Barcode.Contains(s)
+                || db.Titles.Any(t => t.Id == c.TitleId && (t.Title.Contains(s) || t.Authors.Contains(s))));
+        }
+
+        var total    = await copies.CountAsync(ct);
+        var pageSize = Math.Clamp(q.PageSize, 1, 1000);
+        var page     = Math.Max(q.Page, 1);
+
+        // Barcode order: generated barcodes are sequential, so this is also shelving-cart order.
+        var rows = await copies.OrderBy(c => c.Barcode).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return Result.Success(new PagedDto<CopyDto>(await CopyReader.ToDtosAsync(db, rows, ct), total));
+    }
+}
+
+internal sealed class GetCopiesInTransitHandler(LibraryDbContext db, IBranchAccess branches)
     : IQueryHandler<GetCopiesInTransitQuery, IReadOnlyList<CopyDto>>
 {
     public async Task<Result<IReadOnlyList<CopyDto>>> Handle(GetCopiesInTransitQuery q, CancellationToken ct)
     {
-        var copies = await db.Copies.AsNoTracking()
-            .Where(c => !c.IsDeleted && c.Status == CopyStatus.InTransit)
-            .OrderBy(c => c.UpdatedAt).ToListAsync(ct);
+        var query = db.Copies.AsNoTracking().Where(c => !c.IsDeleted && c.Status == CopyStatus.InTransit);
+
+        // Branch staff see what they sent and what is coming to them.
+        if (await branches.AllowedBranchIdsAsync(ct) is { } allowed)
+            query = query.Where(c => allowed.Contains(c.BranchId)
+                                     || (c.TransitToBranchId != null && allowed.Contains(c.TransitToBranchId.Value)));
+
+        var copies = await query.OrderBy(c => c.UpdatedAt).ToListAsync(ct);
         return Result.Success<IReadOnlyList<CopyDto>>(await CopyReader.ToDtosAsync(db, copies, ct));
     }
 }
 
-internal sealed class AddCopiesHandler(LibraryDbContext db) : ICommandHandler<AddCopiesCommand, TitleDetailDto>
+internal sealed class AddCopiesHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<AddCopiesCommand, TitleDetailDto>
 {
     public async Task<Result<TitleDetailDto>> Handle(AddCopiesCommand cmd, CancellationToken ct)
     {
@@ -220,6 +264,8 @@ internal sealed class AddCopiesHandler(LibraryDbContext db) : ICommandHandler<Ad
 
         if (!await TitleReader.BranchExistsAsync(db, cmd.BranchId, ct))
             return Result.Failure<TitleDetailDto>(Error.NotFoundById("Branch", cmd.BranchId));
+        if (await branches.DeniedAsync(cmd.BranchId, ct) is { } denied)
+            return Result.Failure<TitleDetailDto>(denied);
 
         List<string> barcodes;
         if (cmd.Barcodes is { Count: > 0 })
@@ -257,12 +303,13 @@ internal sealed class AddCopiesHandler(LibraryDbContext db) : ICommandHandler<Ad
     }
 }
 
-internal sealed class UpdateCopyHandler(LibraryDbContext db) : ICommandHandler<UpdateCopyCommand, CopyDto>
+internal sealed class UpdateCopyHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<UpdateCopyCommand, CopyDto>
 {
     public async Task<Result<CopyDto>> Handle(UpdateCopyCommand cmd, CancellationToken ct)
     {
         var copy = await db.Copies.FirstOrDefaultAsync(c => c.Id == cmd.Id && !c.IsDeleted, ct);
         if (copy is null) return Result.Failure<CopyDto>(Error.NotFoundById("Copy", cmd.Id));
+        if (await branches.DeniedAsync(copy.BranchId, ct) is { } denied) return Result.Failure<CopyDto>(denied);
 
         var barcode = cmd.Barcode.Trim();
         if (await db.Copies.AnyAsync(c => !c.IsDeleted && c.Id != cmd.Id && c.Barcode == barcode, ct))
@@ -291,12 +338,13 @@ internal sealed class UpdateCopyHandler(LibraryDbContext db) : ICommandHandler<U
     }
 }
 
-internal sealed class DeleteCopyHandler(LibraryDbContext db) : ICommandHandler<DeleteCopyCommand>
+internal sealed class DeleteCopyHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<DeleteCopyCommand>
 {
     public async Task<Result> Handle(DeleteCopyCommand cmd, CancellationToken ct)
     {
         var copy = await db.Copies.FirstOrDefaultAsync(c => c.Id == cmd.Id && !c.IsDeleted, ct);
         if (copy is null) return Result.Failure(Error.NotFoundById("Copy", cmd.Id));
+        if (await branches.DeniedAsync(copy.BranchId, ct) is { } denied) return Result.Failure(denied);
 
         if (!CopyStatus.Manual.Contains(copy.Status))
             return Result.Failure(Error.Custom("Copy.Conflict",
@@ -308,12 +356,14 @@ internal sealed class DeleteCopyHandler(LibraryDbContext db) : ICommandHandler<D
     }
 }
 
-internal sealed class TransferCopyHandler(LibraryDbContext db) : ICommandHandler<TransferCopyCommand, CopyDto>
+internal sealed class TransferCopyHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<TransferCopyCommand, CopyDto>
 {
     public async Task<Result<CopyDto>> Handle(TransferCopyCommand cmd, CancellationToken ct)
     {
         var copy = await db.Copies.FirstOrDefaultAsync(c => c.Id == cmd.Id && !c.IsDeleted, ct);
         if (copy is null) return Result.Failure<CopyDto>(Error.NotFoundById("Copy", cmd.Id));
+        // Sending is done by the branch that holds the copy; it may go to any branch.
+        if (await branches.DeniedAsync(copy.BranchId, ct) is { } denied) return Result.Failure<CopyDto>(denied);
 
         if (copy.Status != CopyStatus.Available)
             return Result.Failure<CopyDto>(Error.Custom("Copy.Conflict",
@@ -332,7 +382,7 @@ internal sealed class TransferCopyHandler(LibraryDbContext db) : ICommandHandler
     }
 }
 
-internal sealed class ReceiveCopyHandler(LibraryDbContext db) : ICommandHandler<ReceiveCopyCommand, CopyDto>
+internal sealed class ReceiveCopyHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<ReceiveCopyCommand, CopyDto>
 {
     public async Task<Result<CopyDto>> Handle(ReceiveCopyCommand cmd, CancellationToken ct)
     {
@@ -341,6 +391,8 @@ internal sealed class ReceiveCopyHandler(LibraryDbContext db) : ICommandHandler<
 
         if (copy.Status != CopyStatus.InTransit || copy.TransitToBranchId is not { } destination)
             return Result.Failure<CopyDto>(Error.Custom("Copy.Conflict", "This copy is not in transit."));
+        // Receiving is done by the branch it was sent to.
+        if (await branches.DeniedAsync(destination, ct) is { } denied) return Result.Failure<CopyDto>(denied);
 
         copy.ShelveAt(destination);
         // Often the reason it was sent: someone at this branch is waiting for it.

@@ -28,6 +28,10 @@ export interface GoodsReceiptNoteDto {
   items: GoodsReceiptNoteItemDto[];
   createdAt: string;
   updatedAt: string | null;
+  /** Lines added to stock (only when the workspace also has Inventory). */
+  stockLinesAdded?: number;
+  /** Why stock was not fully updated, if it was not. */
+  stockNote?: string | null;
 }
 
 export interface GoodsReceiptNoteSummaryDto {

@@ -14,6 +14,7 @@ const ForgotPasswordPage = lazyWithRetry(() => import("@/pages/auth/forgot-passw
 const ResetPasswordPage  = lazyWithRetry(() => import("@/pages/auth/reset-password"));
 const VerifyEmailPage    = lazyWithRetry(() => import("@/pages/auth/verify-email"));
 const PublicQuotationPage = lazyWithRetry(() => import("@/pages/public/quotation"));
+const LibraryPortalPage   = lazyWithRetry(() => import("@/pages/public/library-portal"));
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 const DashboardPage        = lazyWithRetry(() => import("@/pages/dashboard"));
@@ -38,6 +39,8 @@ const AgeingPage           = lazyWithRetry(() => import("@/pages/finance/ageing"
 const BudgetingPage        = lazyWithRetry(() => import("@/pages/finance/budgeting"));
 const TaxPage              = lazyWithRetry(() => import("@/pages/finance/tax"));
 const BankingPage          = lazyWithRetry(() => import("@/pages/finance/banking"));
+const FinanceIntegrationsPage = lazyWithRetry(() => import("@/pages/finance/integrations"));
+const FinancePostingPage = lazyWithRetry(() => import("@/pages/finance/posting"));
 
 // ── HR ────────────────────────────────────────────────────────────────────────
 const EmployeesPage        = lazyWithRetry(() => import("@/pages/hr/employees"));
@@ -116,6 +119,7 @@ const RestaurantReportsPage    = lazyWithRetry(() => import("@/pages/pos/reports
 const RestaurantDashboardsPage = lazyWithRetry(() => import("@/pages/pos/dashboards"));
 const BranchAccessPage         = lazyWithRetry(() => import("@/pages/pos/branch-access"));
 const PosCustomersPage         = lazyWithRetry(() => import("@/pages/pos/customers"));
+const PosCreditPage            = lazyWithRetry(() => import("@/pages/pos/credit"));
 const PosLowStockPage          = lazyWithRetry(() => import("@/pages/pos/low-stock"));
 
 // ── Recipe ────────────────────────────────────────────────────────────────────
@@ -143,6 +147,13 @@ const LibraryCataloguePage   = lazyWithRetry(() => import("@/pages/library/catal
 const LibraryMembersPage     = lazyWithRetry(() => import("@/pages/library/members"));
 const LibraryFinesPage       = lazyWithRetry(() => import("@/pages/library/fines"));
 const LibrarySetupPage       = lazyWithRetry(() => import("@/pages/library/setup"));
+
+// ── Import / Export ──────────────────────────────────────────────────────────
+const TradeDashboardPage = lazyWithRetry(() => import("@/pages/trade/dashboard"));
+const TradeShipmentsPage = lazyWithRetry(() => import("@/pages/trade/shipments"));
+const TradePartiesPage   = lazyWithRetry(() => import("@/pages/trade/parties"));
+const TradeInTransitPage = lazyWithRetry(() => import("@/pages/trade/in-transit"));
+const TradeDutyRatesPage = lazyWithRetry(() => import("@/pages/trade/duty-rates"));
 
 // ── Visa Services ────────────────────────────────────────────────────────────
 const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
@@ -327,6 +338,8 @@ export function App() {
         {/* Customer-facing quotation link — fully public, no auth. Kept short (/q/:token)
             because the URL is pasted into emails and read aloud on calls. */}
         <Route path="/q/:token" element={<PublicQuotationPage />} />
+        {/* Library members' own page: card number + PIN, no staff sign-in. */}
+        <Route path="/library-portal/:slug" element={<LibraryPortalPage />} />
 
         {/* Careers portal — fully public, no auth */}
         <Route path="/careers/:tenantSlug" element={<CareersJobsPage />} />
@@ -383,6 +396,8 @@ export function App() {
             <Route path="/finance/budgeting"      element={<BudgetingPage />} />
             <Route path="/finance/tax"            element={<TaxPage />} />
             <Route path="/finance/banking"        element={<BankingPage />} />
+            <Route path="/finance/integrations"   element={<FinanceIntegrationsPage />} />
+            <Route path="/finance/posting"        element={<FinancePostingPage />} />
           </Route>
 
           {/* ── HR ──────────────────────────────────────────────────────────── */}
@@ -488,6 +503,7 @@ export function App() {
             <Route path="/pos/dashboard"   element={<PosDashboardPage />} />
             <Route path="/pos/retail"      element={<RetailPOSPage />} />
             <Route path="/pos/customers"   element={<PosCustomersPage />} />
+            <Route path="/pos/credit"      element={<PosCreditPage />} />
             <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
           </Route>
 
@@ -539,6 +555,15 @@ export function App() {
             <Route path="/library/members"     element={<LibraryMembersPage />} />
             <Route path="/library/fines"       element={<LibraryFinesPage />} />
             <Route path="/library/setup"       element={<LibrarySetupPage />} />
+          </Route>
+
+          {/* ── Import / Export ─────────────────────────────────────────────── */}
+          <Route element={<ModuleGuard module="trade" />}>
+            <Route path="/trade/dashboard" element={<TradeDashboardPage />} />
+            <Route path="/trade/shipments" element={<TradeShipmentsPage />} />
+            <Route path="/trade/parties"   element={<TradePartiesPage />} />
+            <Route path="/trade/in-transit" element={<TradeInTransitPage />} />
+            <Route path="/trade/duty-rates" element={<TradeDutyRatesPage />} />
           </Route>
 
           {/* ── Visa Services ───────────────────────────────────────────────── */}

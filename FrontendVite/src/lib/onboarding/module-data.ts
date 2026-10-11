@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ShoppingCart, Package, DollarSign, Users, BarChart3,
   Truck, Building2, Home, Utensils, BedDouble, Briefcase,
-  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library,
+  TrendingUp, HeartPulse, GraduationCap, Stamp, Factory, Library, Ship,
 } from "lucide-react";
 
 // ── Module definitions ────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ export type ModuleId =
   | "pos" | "inventory" | "sales" | "purchase"
   | "finance" | "hr" | "crm"
   | "hospitality" | "real-estate" | "construction"
-  | "healthcare" | "education" | "visa" | "manufacturing" | "library";
+  | "healthcare" | "education" | "visa" | "manufacturing" | "library" | "trade";
 
 export interface ModuleDef {
   id: ModuleId;
@@ -219,6 +219,20 @@ export const MODULES: ModuleDef[] = [
     // Stands alone: it keeps its own catalogue, members and branches.
     requires: [],
     recommends: ["finance"],
+    triggersBusinessType: false,
+    category: "industry",
+  },
+  {
+    id: "trade",
+    label: "Import / Export",
+    description: "Shipments, trade documents, landed cost & payments",
+    icon: Ship,
+    color: "bg-sky-500/10",
+    iconColor: "text-sky-500",
+    // Stands alone: it keeps its own shipments, parties and documents. Inventory, Purchase, Sales
+    // and Finance make a trader's day easier but none is required.
+    requires: [],
+    recommends: ["inventory", "purchase", "sales", "finance"],
     triggersBusinessType: false,
     category: "industry",
   },

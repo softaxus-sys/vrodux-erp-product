@@ -21,6 +21,7 @@ public static class NotificationModules
     public const string Restaurant        = "restaurant";
     public const string Seo               = "seo";
     public const string Manufacturing     = "manufacturing";
+    public const string Trade             = "trade";
     /// <summary>Account-level alerts (billing, security) — never module-gated, everyone sees their own.</summary>
     public const string System            = "system";
 }
@@ -70,4 +71,9 @@ public static class NotificationEvents
 
     /// <summary>Daily digest: overdue production orders and components that are short.</summary>
     public const string ProductionAttention     = "production.attention";
+
+    /// <summary>Daily digest: late shipments, port free-days, expiring documents.</summary>
+    public const string TradeAttention          = "trade.attention";
+    /// <summary>Daily digest for people who handle the money: overdue payments, expiring letters of credit.</summary>
+    public const string TradePaymentsAttention  = "trade.payments-attention";
 }

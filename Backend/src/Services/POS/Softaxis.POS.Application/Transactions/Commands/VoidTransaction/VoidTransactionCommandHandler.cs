@@ -11,6 +11,8 @@ namespace Softaxis.POS.Application.Transactions.Commands.VoidTransaction;
 public sealed class VoidTransactionCommandHandler(
     IPOSTransactionRepository  txnRepo,
     ICrossSchemaProductService productLookup,
+    ICustomerRepository        customerRepo,
+    ICustomerWalletTransactionRepository walletRepo,
     ICurrentUser               currentUser,
     IUnitOfWork                uow)
     : ICommandHandler<VoidTransactionCommand, POSTransactionDto>
@@ -31,6 +33,37 @@ public sealed class VoidTransactionCommandHandler(
         var voidResult = transaction.Void(currentUser.Id ?? Guid.Empty, cmd.Reason);
         if (voidResult.IsFailure)
             return Result.Failure<POSTransactionDto>(voidResult.Error);
+
+        // A voided sale on credit takes its charge back off the account. If the customer has already
+        // paid some of it, the sale cannot simply disappear: refund it instead, so the money goes back.
+        var creditOnSale = transaction.Payments.Where(p => p.Method == PaymentMethod.HouseAccount).Sum(p => p.Amount);
+        if (creditOnSale > 0 && transaction.CustomerId is Guid creditCustomerId)
+        {
+            var owner = await customerRepo.GetByIdAsync(creditCustomerId, ct);
+            if (owner is not null)
+            {
+                if (creditOnSale > owner.CreditBalance + 0.01m)
+                    return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict",
+                        "This credit sale has already been paid in part. Refund it instead of voiding, so the money goes back to the customer."));
+                owner.RecordHouseAccountPayment(creditOnSale);
+                customerRepo.Update(owner);
+                walletRepo.Add(new CustomerWalletTransaction(owner.Id, "house_refund", creditOnSale, transaction.Id,
+                    $"Void of sale {transaction.TransactionNumber}"));
+            }
+        }
+
+        var walletSpent = transaction.Payments.Where(p => p.Method == PaymentMethod.StoreCredit).Sum(p => p.Amount);
+        if (walletSpent > 0 && transaction.CustomerId is Guid walletCustomerId)
+        {
+            var holder = await customerRepo.GetByIdAsync(walletCustomerId, ct);
+            if (holder is not null)
+            {
+                holder.TopUpWallet(walletSpent);
+                customerRepo.Update(holder);
+                walletRepo.Add(new CustomerWalletTransaction(holder.Id, "wallet_refund", walletSpent, transaction.Id,
+                    $"Void of sale {transaction.TransactionNumber}"));
+            }
+        }
 
         // Restore stock for voided transactions.
         // Must go through the cross-schema service, exactly as the sale deducted it: a POS sale can

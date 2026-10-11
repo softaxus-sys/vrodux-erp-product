@@ -44,6 +44,9 @@ public sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.CreditBalance)
             .HasPrecision(18, 2);
 
+        // No HasDefaultValue on terms: 0 days (due immediately) is a real choice and EF would read it as unset.
+        builder.Property(c => c.CreditHoldReason).HasMaxLength(300);
+
         // Unique per tenant, live rows only — declared in POSDbContext (needs the TenantId shadow column).
 
         builder.HasQueryFilter(c => !c.IsDeleted);

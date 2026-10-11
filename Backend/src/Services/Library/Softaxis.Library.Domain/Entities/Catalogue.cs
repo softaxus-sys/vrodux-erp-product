@@ -42,6 +42,30 @@ public sealed class LibraryBranch
 }
 
 /// <summary>
+/// A member of staff assigned to a branch. Someone with one or more of these is limited to those
+/// branches; someone with none may work at every branch. The name is kept as it was when they
+/// were assigned, so the list reads without a call to the user directory.
+/// </summary>
+public sealed class BranchStaff
+{
+    private BranchStaff() { }
+
+    public BranchStaff(Guid branchId, Guid userId, string userName)
+    {
+        Id       = Guid.NewGuid();
+        BranchId = branchId;
+        UserId   = userId;
+        UserName = userName.Trim();
+    }
+
+    public Guid     Id        { get; private set; }
+    public Guid     BranchId  { get; private set; }
+    public Guid     UserId    { get; private set; }
+    public string   UserName  { get; private set; } = null!;
+    public DateTime CreatedAt { get; private set; } = DateTime.UtcNow;
+}
+
+/// <summary>
 /// A catalogue record: the work itself, not a physical item. The physical items are its
 /// <see cref="BookCopy"/> rows, which is what members borrow.
 /// </summary>

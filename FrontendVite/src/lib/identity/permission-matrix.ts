@@ -23,6 +23,9 @@ export const ACTION_ORDER = [
   // from plain "view" — granting it widens who can see those two columns tenant-wide, on top of
   // the listing's own assigned agent (who always sees them regardless of this permission).
   "view-confidential",
+  // Finance posting approval levels: preparing a document for approval, and approving one above
+  // the workspace's value limit, are separate decisions from plain approve.
+  "submit", "approve-high",
 ] as const;
 
 export type Action = typeof ACTION_ORDER[number];
@@ -51,14 +54,16 @@ export const MODULE_GROUPS: Record<string, string> = {
   seo: "SEO AI Agent",
   manufacturing: "Manufacturing",
   library: "Library",
+  hospitality: "Hospitality",
+  trade: "Import / Export",
   // Only meaningful for whichever tenant is configured as the Support operator (Softaxis's own
   // workspace) — see ISupportAccessGuard on the backend. Granting it elsewhere does nothing.
   support: "Support",
 };
 
 export const GROUP_ORDER = [
-  "POS", "Restaurant", "Inventory", "Manufacturing", "Finance", "Sales", "Purchase", "CRM",
-  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "HR",
+  "POS", "Restaurant", "Inventory", "Manufacturing", "Finance", "Sales", "Purchase", "Import / Export", "CRM",
+  "B2B", "Education", "Healthcare", "Insurance", "Visa Services", "Real Estate", "Library", "Hospitality", "HR",
   "Project Management", "SEO AI Agent", "Reports", "File Manager", "Support", "Settings",
 ];
 

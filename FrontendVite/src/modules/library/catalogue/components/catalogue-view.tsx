@@ -1,19 +1,20 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
-import { ArrowLeftRight, BookOpen, PackageCheck, Pencil, Plus, Trash2, UploadCloud } from "lucide-react";
+import { ArrowLeftRight, BookOpen, PackageCheck, Pencil, Plus, Printer, Trash2, UploadCloud } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, formatDate } from "@/lib/utils";
 import { Can } from "@/components/auth/can";
 import {
-  useCategories, useDeleteCopy, useDeleteTitle, useReceiveCopy, useTitle, useTitles, useWorkingBranch,
+  useBranches, useCategories, useDeleteCopy, useDeleteTitle, useReceiveCopy, useTitle, useTitles, useWorkingBranch,
 } from "@/hooks/library/use-library";
 import { copyStatusMeta, type CopyDto } from "@/lib/library/library.api";
 import {
   ConfirmDialog, Modal, PageHeader, Pager, Pill, SearchBox, SELECT, TableState, TH, useCanAny, useDebounced,
 } from "../../shared/ui";
 import { ImportModal } from "../../shared/import-modal";
+import { LabelsModal } from "../../shared/print-modals";
 import { AddCopiesForm, CopyForm, TitleForm, TransferForm } from "./title-forms";
 
 const PAGE_SIZE = 50;
@@ -42,6 +43,7 @@ function TitleDrawer({ id, branchId, onClose }: { id: string; branchId: string; 
   const [transferCopy, setTransferCopy] = React.useState<CopyDto | null>(null);
   const [pendingCopy, setPendingCopy] = React.useState<CopyDto | null>(null);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [labels, setLabels] = React.useState(false);
 
   const iconBtn = "p-1.5 rounded-lg hover:bg-muted text-muted-foreground disabled:opacity-40";
 
@@ -57,6 +59,11 @@ function TitleDrawer({ id, branchId, onClose }: { id: string; branchId: string; 
                 <Trash2 className="h-3.5 w-3.5" />{t("action.delete")}
               </Button>
             </Can>
+            {title.copies.length > 0 && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setLabels(true)}>
+                <Printer className="h-3.5 w-3.5" />{t("print.labels.button")}
+              </Button>
+            )}
             <Can permission="library.catalog.edit">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}>
                 <Pencil className="h-3.5 w-3.5" />{t("action.edit")}
@@ -174,6 +181,7 @@ function TitleDrawer({ id, branchId, onClose }: { id: string; branchId: string; 
       <AnimatePresence>
         {editing && title && <TitleForm key="edit" editing={title} defaultBranchId={branchId} onClose={() => setEditing(false)} />}
         {adding && title && <AddCopiesForm key="add" title={title} defaultBranchId={branchId} onClose={() => setAdding(false)} />}
+        {labels && title && <LabelsModal key="labels" titleId={title.id} titleName={title.title} onClose={() => setLabels(false)} />}
         {editCopy && <CopyForm key="copy" copy={editCopy} onClose={() => setEditCopy(null)} />}
         {transferCopy && <TransferForm key="transfer" copy={transferCopy} onClose={() => setTransferCopy(null)} />}
         {pendingCopy && (
@@ -196,7 +204,8 @@ function TitleDrawer({ id, branchId, onClose }: { id: string; branchId: string; 
 export function CatalogueView() {
   const { t } = useTranslation("library");
   const canView = useCanAny(["library.catalog.view", "library.circulation.view"]);
-  const { branchId: workingBranch, branches } = useWorkingBranch();
+  const { branchId: workingBranch } = useWorkingBranch();
+  const { data: branches = [] } = useBranches(true, canView);
   const { data: categories = [] } = useCategories(canView);
 
   const [search, setSearch] = React.useState("");
@@ -207,6 +216,7 @@ export function CatalogueView() {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [creating, setCreating] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
+  const [labels, setLabels] = React.useState(false);
 
   const term = useDebounced(search.trim());
   React.useEffect(() => { setPage(1); }, [term, category, branchId, availableOnly]);
@@ -220,6 +230,9 @@ export function CatalogueView() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("catalogue.title")} description={t("catalogue.description")}>
+        <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setLabels(true)}>
+          <Printer className="h-4 w-4" />{t("print.labels.button")}
+        </Button>
         <Can permission="library.catalog.create">
           <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setImporting(true)}>
             <UploadCloud className="h-4 w-4" />{t("import.button")}
@@ -293,6 +306,7 @@ export function CatalogueView() {
         {creating && (
           <TitleForm key="new" editing={null} defaultBranchId={workingBranch} onClose={() => setCreating(false)} />
         )}
+        {labels && <LabelsModal key="labels" defaultBranchId={branchId} onClose={() => setLabels(false)} />}
         {importing && <ImportModal key="import" kind="titles" defaultBranchId={workingBranch} onClose={() => setImporting(false)} />}
       </AnimatePresence>
     </div>

@@ -24,6 +24,8 @@ public abstract class LibraryControllerBase : ControllerBase
         return error.Code switch
         {
             var c when c.EndsWith(".NotFound")          => NotFound(body),
+            var c when c.EndsWith(".Unauthorized")      => Unauthorized(body),
+            var c when c.EndsWith(".Forbidden")         => StatusCode(StatusCodes.Status403Forbidden, body),
             var c when c.EndsWith(".Duplicate")         => Conflict(body),
             var c when c.EndsWith(".Conflict")          => Conflict(body),
             var c when c.EndsWith(".InvalidTransition") => BadRequest(body),

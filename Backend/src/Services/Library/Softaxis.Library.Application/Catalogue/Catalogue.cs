@@ -35,6 +35,15 @@ public sealed record GetCategoriesQuery : IQuery<IReadOnlyList<string>>;
 /// <summary>The issue / return desk: scan a barcode, get the copy and who has it.</summary>
 public sealed record GetCopyByBarcodeQuery(string Barcode) : IQuery<CopyDto>;
 
+/// <summary>
+/// Copies as a flat list — what label printing works from: "everything at this branch",
+/// "everything added since Monday", or the copies of one title.
+/// </summary>
+/// <param name="AddedFrom">yyyy-MM-dd; copies entered on or after this day.</param>
+public sealed record GetCopiesQuery(
+    string? Search = null, Guid? BranchId = null, Guid? TitleId = null, string? Status = null,
+    string? AddedFrom = null, int Page = 1, int PageSize = 100) : IQuery<PagedDto<CopyDto>>;
+
 /// <summary>Copies on their way to another branch.</summary>
 public sealed record GetCopiesInTransitQuery : IQuery<IReadOnlyList<CopyDto>>;
 

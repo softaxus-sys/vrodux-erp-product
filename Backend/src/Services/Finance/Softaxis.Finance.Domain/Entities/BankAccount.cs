@@ -38,6 +38,9 @@ public sealed class BankAccount
     public DateTime? UpdatedAt        { get; private set; }
     public bool      IsDeleted        { get; private set; }
 
+    /// <summary>The chart-of-accounts account this bank account is kept in. Reconciliation compares the statement against it; nothing is guessed, so it is null until someone chooses.</summary>
+    public Guid?     LedgerAccountId  { get; private set; }
+
     public ICollection<BankTransaction> Transactions { get; private set; } = new List<BankTransaction>();
 
     public void UpdateBalance(decimal balance, decimal available)
@@ -47,6 +50,8 @@ public sealed class BankAccount
         LastSynced       = DateTime.UtcNow;
         UpdatedAt        = DateTime.UtcNow;
     }
+
+    public void SetLedgerAccount(Guid? accountId) { LedgerAccountId = accountId; UpdatedAt = DateTime.UtcNow; }
 
     public void SetStatus(string status) { Status = status; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
@@ -84,8 +89,28 @@ public sealed class BankTransaction
     public decimal   Balance     { get; private set; }
     public DateTime  CreatedAt   { get; private set; }
 
+    /// <summary>The ledger line this statement line was matched to. A ledger line can be matched once (unique index).</summary>
+    public Guid?     MatchedJournalLineId  { get; private set; }
+    public Guid?     MatchedJournalEntryId { get; private set; }
+    public string?   MatchedEntryNumber    { get; private set; }
+    public DateTime? MatchedAt             { get; private set; }
+    public string?   MatchedByName         { get; private set; }
+
     public BankAccount? Account { get; private set; }
 
     public void Reconcile() { Reconciled = true; }
+
+    public void Match(Guid journalLineId, Guid journalEntryId, string entryNumber, string? byName)
+    {
+        MatchedJournalLineId = journalLineId; MatchedJournalEntryId = journalEntryId;
+        MatchedEntryNumber = entryNumber; MatchedAt = DateTime.UtcNow; MatchedByName = byName;
+        Reconciled = true;
+    }
+
+    public void Unmatch()
+    {
+        MatchedJournalLineId = null; MatchedJournalEntryId = null; MatchedEntryNumber = null;
+        MatchedAt = null; MatchedByName = null; Reconciled = false;
+    }
     public void SetBalance(decimal balance) { Balance = balance; }
 }

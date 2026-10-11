@@ -6,8 +6,9 @@ import {
   Search, Plus, Users, TrendingUp,
   Target, CheckCircle2, DollarSign, Zap, LayoutGrid, List,
   Building2, Calendar, Globe, ArrowRight, UploadCloud, Phone, Clock, Wallet, Tag,
-  ArrowUp, ArrowDown, Loader2, X
+  ArrowUp, ArrowDown, Loader2, X, Mail
 } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -201,10 +202,22 @@ function LeadKanbanCard({ lead, index, onClick }: { lead: Lead; index: number; o
       {/* Key details */}
       <div className="space-y-1 mb-2.5">
         {lead.phone && (
-          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
-            className="flex items-center gap-1.5 text-[11px] text-foreground hover:text-primary w-fit">
-            <Phone className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="truncate">{lead.phone}</span>
-          </a>
+          <div className="flex items-center gap-1">
+            <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+              className="flex items-center gap-1.5 text-[11px] text-foreground hover:text-primary w-fit min-w-0">
+              <Phone className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="truncate">{lead.phone}</span>
+            </a>
+            <CopyButton value={lead.phone} label="Copy phone number" />
+          </div>
+        )}
+        {lead.email && (
+          <div className="flex items-center gap-1">
+            <a href={`mailto:${lead.email}`} onClick={e => e.stopPropagation()}
+              className="flex items-center gap-1.5 text-[11px] text-foreground hover:text-primary w-fit min-w-0">
+              <Mail className="h-3 w-3 shrink-0 text-muted-foreground" /><span className="truncate">{lead.email}</span>
+            </a>
+            <CopyButton value={lead.email} label="Copy email" />
+          </div>
         )}
         {lead.interestedIn && (
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -846,9 +859,13 @@ export function LeadsView() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {lead.phone ? (
-                          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
-                            className="text-sm text-foreground hover:text-primary hover:underline">{lead.phone}</a>
-                        ) : <span className="text-sm text-muted-foreground">—</span>}
+                          <span className="inline-flex items-center gap-1">
+                            <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()}
+                              className="text-sm text-foreground hover:text-primary hover:underline">{lead.phone}</a>
+                            <CopyButton value={lead.phone} label="Copy phone number" />
+                            <CopyButton value={lead.email} label="Copy email" className="[&>svg]:text-sky-600" />
+                          </span>
+                        ) : <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">—<CopyButton value={lead.email} label="Copy email" /></span>}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {(lead.whatsApp || lead.contactLink) ? (

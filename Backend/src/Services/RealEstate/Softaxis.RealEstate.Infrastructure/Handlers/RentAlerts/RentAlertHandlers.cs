@@ -89,6 +89,8 @@ internal sealed class GetExpiringContractsHandler(RealEstateDbContext db)
             join t in db.Tenants.AsNoTracking() on c.TenantId equals t.Id
             where !c.IsDeleted && !t.IsDeleted
                   && c.Status == "active"
+                  // Notice already on record: it is ending on purpose, not waiting on a renewal.
+                  && !db.LeaseTerminations.Any(x => x.ContractId == c.Id)
                   && string.Compare(c.EndDate, horizon) <= 0
             select new
             {

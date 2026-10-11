@@ -928,7 +928,9 @@
       "record": "Record rent payment",
       "remind": "Send rent reminder",
       "import": "Import external data",
-      "view-confidential": "View confidential listing details"
+      "view-confidential": "View confidential listing details",
+      "submit": "Submit for approval",
+      "approve-high": "Approve high-value"
     },
     "actionShort": {
       "view": "VIE",
@@ -949,7 +951,9 @@
       "record": "REC",
       "remind": "REM",
       "import": "IMP",
-      "view-confidential": "CONF"
+      "view-confidential": "CONF",
+      "submit": "SUB",
+      "approve-high": "HIGH"
     },
     "group": {
       "inventory": "Inventory",
@@ -1052,7 +1056,12 @@
       "library.members": "Members",
       "library.circulation": "Circulation (issue, return, reserve)",
       "library.fines": "Fines",
-      "library.setup": "Branches & Membership Rules"
+      "library.setup": "Branches & Membership Rules",
+      "trade.shipments": "Shipments",
+      "trade.parties": "Suppliers, buyers & agents",
+      "trade.documents": "Trade documents",
+      "trade.costs": "Landed costs",
+      "trade.payments": "Shipment payments & LCs"
     }
   },
   "roles": {

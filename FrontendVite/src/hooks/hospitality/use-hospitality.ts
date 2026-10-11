@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { hospitalityApi, type HospPageParams, type HKTaskParams } from "@/lib/hospitality/hospitality.api";
+import { hospitalityApi, type HospPageParams, type HKTaskParams, type CreateBookingRequest } from "@/lib/hospitality/hospitality.api";
 
 const QK = "hospitality";
 
@@ -68,8 +68,37 @@ export function useCreateRoom() {
 export function useCreateBooking() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Record<string, unknown>) => hospitalityApi.createBooking(data),
+    mutationFn: (data: CreateBookingRequest) => hospitalityApi.createBooking(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: [QK, "bookings"] }); qc.invalidateQueries({ queryKey: [QK, "bookings-summary"] }); toast.success("Booking confirmed."); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+function useStayChange(kind: "in" | "out") {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => (kind === "in" ? hospitalityApi.checkInBooking(id) : hospitalityApi.checkOutBooking(id)),
+    onSuccess: () => {
+      // A stay changes the booking, the room's status and the housekeeping list.
+      for (const k of ["bookings", "bookings-summary", "rooms", "rooms-summary", "housekeeping"]) qc.invalidateQueries({ queryKey: [QK, k] });
+      toast.success(kind === "in" ? "Guest checked in." : "Guest checked out.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+export const useCheckInBooking = () => useStayChange("in");
+export const useCheckOutBooking = () => useStayChange("out");
+
+export function useRecordBookingPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; amount: number; method: string; reference?: string | null }) =>
+      hospitalityApi.recordBookingPayment(v.id, { amount: v.amount, method: v.method, reference: v.reference }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [QK, "bookings"] });
+      qc.invalidateQueries({ queryKey: [QK, "bookings-summary"] });
+      toast.success("Payment recorded.");
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 }

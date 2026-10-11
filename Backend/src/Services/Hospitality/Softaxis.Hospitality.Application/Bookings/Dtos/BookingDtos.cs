@@ -36,3 +36,7 @@ public sealed record BookingsSummaryDto(
 public sealed record CreateBookingResultDto(Guid Id, string BookingNumber, decimal TotalAmount);
 
 public sealed record BookingStatusDto(Guid Id, string Status);
+
+public sealed record BookingPaymentDto(
+    Guid Id, Guid BookingId, decimal Amount, string Method, string PaidOn, string? Reference,
+    decimal PaidTotal, decimal Balance);

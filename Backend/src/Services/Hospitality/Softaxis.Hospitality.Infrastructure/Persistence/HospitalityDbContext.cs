@@ -9,6 +9,7 @@ public sealed class HospitalityDbContext(DbContextOptions<HospitalityDbContext> 
 {
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Booking> Bookings => Set<Booking>();
+    public DbSet<BookingPayment> BookingPayments => Set<BookingPayment>();
     public DbSet<HousekeepingTask> HousekeepingTasks => Set<HousekeepingTask>();
 
     protected override void OnModelCreating(ModelBuilder mb)

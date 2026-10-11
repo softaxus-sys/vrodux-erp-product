@@ -173,6 +173,21 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
       { key: "branches", label: "Multiple Branches" },
     ],
   },
+  {
+    industry: "import_export",
+    moduleKey: "trade",
+    label: "Import & Export",
+    description: "Shipments, containers, trade documents, landed cost and payments for importers and exporters.",
+    icon: "Ship",
+    crmFlow: "Order → Shipment → Customs → Delivery → Landed cost → Payment",
+    entities: ["Shipments", "Containers", "Documents", "Costs", "Payments", "Suppliers & Buyers", "Forwarders"],
+    features: [
+      { key: "shipments", label: "Shipment Tracking" },
+      { key: "documents", label: "Trade Documents" },
+      { key: "landed-cost", label: "Landed Cost" },
+      { key: "payments", label: "LC & Payments" },
+    ],
+  },
 ];
 
 /** Industries offered in the Create-Tenant picker (value + label). */

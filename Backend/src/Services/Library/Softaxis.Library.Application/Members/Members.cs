@@ -8,7 +8,8 @@ public sealed record MemberDto(
     Guid Id, string MemberNumber, string FullName, string? Email, string? Phone, string? Address,
     string? IdNumber, Guid MembershipTypeId, string MembershipTypeName, Guid? HomeBranchId,
     string? HomeBranchName, string JoinedOn, string? ExpiresOn, string Status, string? Notes,
-    int ActiveLoans, int OverdueLoans, int MaxLoans, decimal UnpaidFines, bool IsExpired);
+    int ActiveLoans, int OverdueLoans, int MaxLoans, decimal UnpaidFines, bool IsExpired,
+    bool HasPortalAccess = false);
 
 /// <param name="Status">active | suspended | expired, or null for all.</param>
 public sealed record GetMembersQuery(

@@ -32,6 +32,7 @@ import enPurchase  from "./locales/en/purchase.json";
 import enVisa      from "./locales/en/visa.json";
 import enManufacturing from "./locales/en/manufacturing.json";
 import enLibrary   from "./locales/en/library.json";
+import enTrade     from "./locales/en/trade.json";
 import enRestaurant from "./locales/en/restaurant.json";
 import enSettings  from "./locales/en/settings.json";
 import enOnboarding from "./locales/en/onboarding.json";
@@ -52,16 +53,17 @@ import arPurchase  from "./locales/ar/purchase.json";
 import arVisa      from "./locales/ar/visa.json";
 import arManufacturing from "./locales/ar/manufacturing.json";
 import arLibrary   from "./locales/ar/library.json";
+import arTrade     from "./locales/ar/trade.json";
 import arRestaurant from "./locales/ar/restaurant.json";
 import arSettings  from "./locales/ar/settings.json";
 import arOnboarding from "./locales/ar/onboarding.json";
 import arPos       from "./locales/ar/pos.json";
 
-export const NAMESPACES = ["common", "nav", "auth", "topbar", "dashboard", "finance", "crm", "hr", "inventory", "sales", "purchase", "visa", "manufacturing", "library", "restaurant", "settings", "onboarding", "pos"] as const;
+export const NAMESPACES = ["common", "nav", "auth", "topbar", "dashboard", "finance", "crm", "hr", "inventory", "sales", "purchase", "visa", "manufacturing", "library", "trade", "restaurant", "settings", "onboarding", "pos"] as const;
 
 const resources = {
-  en: { common: enCommon, nav: enNav, auth: enAuth, topbar: enTopbar, dashboard: enDashboard, finance: enFinance, crm: enCrm, hr: enHr, inventory: enInventory, sales: enSales, purchase: enPurchase, visa: enVisa, manufacturing: enManufacturing, library: enLibrary, restaurant: enRestaurant, settings: enSettings, onboarding: enOnboarding, pos: enPos },
-  ar: { common: arCommon, nav: arNav, auth: arAuth, topbar: arTopbar, dashboard: arDashboard, finance: arFinance, crm: arCrm, hr: arHr, inventory: arInventory, sales: arSales, purchase: arPurchase, visa: arVisa, manufacturing: arManufacturing, library: arLibrary, restaurant: arRestaurant, settings: arSettings, onboarding: arOnboarding, pos: arPos },
+  en: { common: enCommon, nav: enNav, auth: enAuth, topbar: enTopbar, dashboard: enDashboard, finance: enFinance, crm: enCrm, hr: enHr, inventory: enInventory, sales: enSales, purchase: enPurchase, visa: enVisa, manufacturing: enManufacturing, library: enLibrary, trade: enTrade, restaurant: enRestaurant, settings: enSettings, onboarding: enOnboarding, pos: enPos },
+  ar: { common: arCommon, nav: arNav, auth: arAuth, topbar: arTopbar, dashboard: arDashboard, finance: arFinance, crm: arCrm, hr: arHr, inventory: arInventory, sales: arSales, purchase: arPurchase, visa: arVisa, manufacturing: arManufacturing, library: arLibrary, trade: arTrade, restaurant: arRestaurant, settings: arSettings, onboarding: arOnboarding, pos: arPos },
 } as const;
 
 /** localStorage key holding the user's chosen UI language. */

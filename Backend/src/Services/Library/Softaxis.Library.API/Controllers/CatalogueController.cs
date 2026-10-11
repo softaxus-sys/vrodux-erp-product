@@ -71,6 +71,14 @@ public sealed class CatalogueController(ISender sender) : LibraryControllerBase
         OkOrError(await sender.Send(new AddCopiesCommand(
             id, req.BranchId, req.Count, req.Barcodes, req.ShelfLocation, req.Price, req.AcquiredOn), ct));
 
+    [HttpGet("copies")]
+    [RequirePermission(View, DeskView)]
+    public async Task<IActionResult> GetCopies(
+        [FromQuery] string? search, [FromQuery] Guid? branchId, [FromQuery] Guid? titleId, [FromQuery] string? status,
+        [FromQuery] string? addedFrom, [FromQuery] int page = 1, [FromQuery] int pageSize = 100,
+        CancellationToken ct = default) =>
+        OkOrError(await sender.Send(new GetCopiesQuery(search, branchId, titleId, status, addedFrom, page, pageSize), ct));
+
     [HttpGet("copies/by-barcode/{barcode}")]
     [RequirePermission(View, DeskView)]
     public async Task<IActionResult> GetCopyByBarcode(string barcode, CancellationToken ct) =>

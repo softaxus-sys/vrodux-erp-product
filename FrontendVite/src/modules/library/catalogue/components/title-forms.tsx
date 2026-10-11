@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCurrency } from "@/hooks/use-currency";
 import {
-  useAddCopies, useBranches, useCategories, useCreateTitle, useTransferCopy, useUpdateCopy, useUpdateTitle,
+  useAddCopies, useBranches, useCategories, useCreateTitle, useMyBranches, useTransferCopy, useUpdateCopy, useUpdateTitle,
 } from "@/hooks/library/use-library";
 import {
   MANUAL_COPY_STATUSES, MATERIAL_TYPES, type CopyDto, type TitleDetailDto,
@@ -36,7 +36,7 @@ export function TitleForm({ editing, defaultBranchId, onClose }: {
   const currency = useCurrency();
   const create = useCreateTitle();
   const update = useUpdateTitle();
-  const { data: branches = [] } = useBranches(true);
+  const { branches } = useMyBranches();
   const { data: categories = [] } = useCategories();
   const saving = create.isPending || update.isPending;
 
@@ -141,9 +141,11 @@ export function AddCopiesForm({ title, defaultBranchId, onClose }: {
   const { t } = useTranslation("library");
   const currency = useCurrency();
   const add = useAddCopies();
-  const { data: branches = [] } = useBranches(true);
+  const { branches } = useMyBranches();
 
-  const [branchId, setBranchId] = React.useState(defaultBranchId);
+  const [chosenBranch, setBranchId] = React.useState(defaultBranchId);
+  // Opened from another branch's title, the default may not be one this user can add to.
+  const branchId = branches.some(b => b.id === chosenBranch) ? chosenBranch : (branches[0]?.id ?? "");
   const [count, setCount] = React.useState("1");
   const [barcodes, setBarcodes] = React.useState("");
   const [shelf, setShelf] = React.useState("");

@@ -15,6 +15,7 @@ public sealed class CreateSaleCommandHandler(
     IPOSTransactionRepository  txnRepo,
     ICrossSchemaProductService productLookup,
     ICustomerRepository        customerRepo,
+    ICustomerWalletTransactionRepository walletRepo,
     IVoucherRepository         voucherRepo,
     IPosSettingsRepository     settingsRepo,
     FbrReporter                fbrReporter,
@@ -196,6 +197,49 @@ public sealed class CreateSaleCommandHandler(
             return Result.Failure<POSTransactionDto>(Error.Custom("Sale.Underpaid",
                 $"Payment amount ({totalPaid:F2}) is less than total ({totalAmount:F2})."));
 
+        // ── Bought on credit: charge the customer's house account ─────────────
+        // The server decides, not the till: the till only hides the option. The part on credit must
+        // be a real customer's, within what is left of their limit, not on hold, and no more than is
+        // still owed once the other payments are counted (credit never produces change).
+        var creditAmount = payments.Where(p => p.Method == Domain.Enums.PaymentMethod.HouseAccount).Sum(p => p.Amount);
+        DateTime? creditDueOn = null;
+        if (creditAmount > 0)
+        {
+            if (cmd.Offline is not null)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict",
+                    "A sale on credit needs a connection: the credit limit can only be checked online."));
+            if (customer is null)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict", "Choose a customer to sell on credit."));
+            if (!customer.IsActive)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict", "This customer is inactive."));
+            if (creditAmount > totalAmount - (totalPaid - creditAmount) + 0.01m)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict",
+                    "The amount on credit is more than is still owed on the sale."));
+
+            var charge = customer.ChargeHouseAccount(creditAmount);
+            if (charge.IsFailure)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Credit.Conflict", charge.Error.Description));
+            creditDueOn = DateTime.UtcNow.Date.AddDays(customer.CreditTermsDays);
+        }
+
+        // ── Paid with store credit: take it off the wallet ────────────────────
+        // A StoreCredit payment used to be recorded on the sale and never deducted, so the same
+        // balance could be spent again and again.
+        var walletAmount = payments.Where(p => p.Method == Domain.Enums.PaymentMethod.StoreCredit).Sum(p => p.Amount);
+        if (walletAmount > 0)
+        {
+            if (cmd.Offline is not null)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Wallet.Conflict",
+                    "Store credit needs a connection: the balance can only be checked online."));
+            if (customer is null)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Wallet.Conflict", "Choose a customer to pay with store credit."));
+            if (walletAmount > totalAmount - (totalPaid - walletAmount) + 0.01m)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Wallet.Conflict", "The store credit used is more than is still owed on the sale."));
+            var redeem = customer.RedeemWallet(walletAmount);
+            if (redeem.IsFailure)
+                return Result.Failure<POSTransactionDto>(Error.Custom("Wallet.Conflict", redeem.Error.Description));
+        }
+
         // ── Complete ──────────────────────────────────────────────────────────
         transaction.SetOrderDiscount(discountType, discountReference);
         var completeResult = transaction.Complete(lineItems, payments, cmd.Notes);
@@ -224,6 +268,12 @@ public sealed class CreateSaleCommandHandler(
             customer.AddLoyaltyPoints(Math.Floor(transaction.TotalAmount / 100));
             customerRepo.Update(customer);
         }
+
+        if (walletAmount > 0 && customer is not null)
+            walletRepo.Add(new CustomerWalletTransaction(customer.Id, "redeem", walletAmount, transaction.Id, $"Sale {txnNumber}"));
+        if (creditAmount > 0 && customer is not null)
+            walletRepo.Add(new CustomerWalletTransaction(customer.Id, "house_charge", creditAmount, transaction.Id,
+                $"Sale {txnNumber}", null, creditDueOn));
 
         txnRepo.Add(transaction);
         sessionRepo.Update(session);

@@ -30,6 +30,7 @@ using Softaxis.ProjectManagement.Infrastructure.Extensions;
 using Softaxis.AiAssistant.Infrastructure.Extensions;
 using Softaxis.Manufacturing.Infrastructure.Extensions;
 using Softaxis.Library.Infrastructure.Extensions;
+using Softaxis.Trade.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
@@ -154,6 +155,8 @@ try
     builder.Services.AddManufacturingInfrastructure(builder.Configuration);
     // Library: catalogue, members, lending across branches. Stands alone — no other module needed.
     builder.Services.AddLibraryInfrastructure(builder.Configuration);
+    // Trade: import / export shipments, trade documents, landed cost. Stands alone.
+    builder.Services.AddTradeInfrastructure(builder.Configuration);
     builder.Services.AddSupportInfrastructure(builder.Configuration);
     builder.Services.AddSeoInfrastructure(builder.Configuration);
 
@@ -214,6 +217,16 @@ try
     builder.Services.AddScoped<
         Softaxis.HR.Application.Abstractions.ICurrentUser,
         Softaxis.HR.API.Middleware.CurrentUserService>();
+
+    // Library.Application.Abstractions.ICurrentUser  →  Library CurrentUserService (branch-restricted staff)
+    builder.Services.AddScoped<
+        Softaxis.Library.Application.Abstractions.ICurrentUser,
+        Softaxis.Library.API.Middleware.CurrentUserService>();
+
+    // Trade.Application.Abstractions.ICurrentUser  →  Trade CurrentUserService (cost / payment visibility)
+    builder.Services.AddScoped<
+        Softaxis.Trade.Application.Abstractions.ICurrentUser,
+        Softaxis.Trade.API.Middleware.CurrentUserService>();
 
     // Restaurant.Application.Abstractions.ICurrentUser  →  Restaurant CurrentUserService (cashier stamping)
     builder.Services.AddScoped<
@@ -290,6 +303,7 @@ try
         .AddApplicationPart(typeof(Softaxis.VisaServices.API.Controllers.VisaCasesController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Manufacturing.API.Controllers.BomsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Library.API.Controllers.CatalogueController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Trade.API.Controllers.ShipmentsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
         .AddJsonOptions(o =>
@@ -447,6 +461,7 @@ try
         await ForModule("visa",               app.Services.MigrateAndSeedVisaServicesAsync);
         await ForModule("manufacturing",      app.Services.MigrateAndSeedManufacturingAsync);
         await ForModule("library",            app.Services.MigrateAndSeedLibraryAsync);
+        await ForModule("trade",              app.Services.MigrateAndSeedTradeAsync);
 
         // Cross-cutting, licensed to nobody in particular. The notifications backfill checks for
         // the CRM tables before reading them, so it is safe on a box with no CRM schema.
@@ -511,7 +526,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Support", "Seo" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);
@@ -526,3 +541,4 @@ finally
 {
     await Log.CloseAndFlushAsync();
 }
+

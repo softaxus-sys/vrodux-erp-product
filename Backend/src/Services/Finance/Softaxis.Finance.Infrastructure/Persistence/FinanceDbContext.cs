@@ -34,6 +34,9 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<ReceiptVoucher>       ReceiptVouchers       => Set<ReceiptVoucher>();
     public DbSet<ReceiptAllocation>    ReceiptAllocations    => Set<ReceiptAllocation>();
     public DbSet<FiscalPeriod>         FiscalPeriods         => Set<FiscalPeriod>();
+    public DbSet<IntegrationSetting>   IntegrationSettings   => Set<IntegrationSetting>();
+    public DbSet<AccountMapping>       AccountMappings       => Set<AccountMapping>();
+    public DbSet<PostingItem>          PostingItems          => Set<PostingItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +75,12 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
         TenantIsolation.TenantUniqueIndex<ReceiptVoucher>(modelBuilder, [nameof(ReceiptVoucher.VoucherNumber)]);
         // FiscalPeriod has no IsDeleted column.
         TenantIsolation.TenantUniqueIndex<FiscalPeriod>(modelBuilder, [nameof(FiscalPeriod.PeriodCode)], excludeSoftDeleted: false);
+
+        // Finance Integration Center. The posting_items key is the duplicate-posting guard: one
+        // source document can only ever own one row per integration, and so one journal entry.
+        TenantIsolation.TenantUniqueIndex<IntegrationSetting>(modelBuilder, [nameof(IntegrationSetting.IntegrationKey)], excludeSoftDeleted: false);
+        TenantIsolation.TenantUniqueIndex<AccountMapping>(modelBuilder, [nameof(AccountMapping.IntegrationKey), nameof(AccountMapping.Role)], excludeSoftDeleted: false);
+        TenantIsolation.TenantUniqueIndex<PostingItem>(modelBuilder, [nameof(PostingItem.IntegrationKey), nameof(PostingItem.SourceId)], excludeSoftDeleted: false);
 
         base.OnModelCreating(modelBuilder);
     }

@@ -1,7 +1,8 @@
+import { PostToFinanceButton } from "@/components/finance/post-to-finance";
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
-import { Coins, Loader2, Plus } from "lucide-react";
+import { Coins, Landmark, Loader2, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,8 @@ import { FINE_TYPES, PAYMENT_METHODS, statusMeta, type FineDto, type MemberDto }
 import {
   Field, MemberPicker, Modal, PageHeader, Pill, SearchBox, SELECT, TableState, TH, num, useCanAny, useDebounced,
 } from "../../shared/ui";
+import { useCanPostFines } from "@/hooks/library/use-library-finance";
+import { PostFinesModal } from "./post-fines-modal";
 
 function PayForm({ fine, onClose }: { fine: FineDto; onClose: () => void }) {
   const { t } = useTranslation("library");
@@ -198,6 +201,9 @@ export function FinesView() {
   const [status, setStatus] = React.useState("unpaid");
   const [search, setSearch] = React.useState("");
   const [adding, setAdding] = React.useState(false);
+  const [posting, setPosting] = React.useState(false);
+  // Only offered when the workspace has Finance and this user may create journal entries there.
+  const canPost = useCanPostFines();
   const term = useDebounced(search.trim());
 
   if (!canView) return <div className="p-12 text-center text-sm text-muted-foreground">{t("noAccess")}</div>;
@@ -211,6 +217,12 @@ export function FinesView() {
   return (
     <div className="space-y-6">
       <PageHeader title={t("fines.title")} description={t("fines.description")}>
+        <PostToFinanceButton module="library" />
+        {canPost && (
+          <Button size="sm" variant="outline" className="h-9 gap-1.5 text-sm" onClick={() => setPosting(true)}>
+            <Landmark className="h-4 w-4" />{t("finance.button")}
+          </Button>
+        )}
         <Can permission="library.fines.create">
           <Button size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setAdding(true)}><Plus className="h-4 w-4" />{t("fines.add")}</Button>
         </Can>
@@ -245,6 +257,7 @@ export function FinesView() {
 
       <AnimatePresence>
         {adding && <AddFineForm onClose={() => setAdding(false)} />}
+        {posting && <PostFinesModal key="post" onClose={() => setPosting(false)} />}
       </AnimatePresence>
     </div>
   );

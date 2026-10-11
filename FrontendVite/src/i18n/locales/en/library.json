@@ -196,7 +196,8 @@
       "loans": "Loans",
       "reservations": "Reservations",
       "transfers": "Transfers"
-    }
+    },
+    "yourBranch": "Your branch:"
   },
   "desk": {
     "issue": "Issue",
@@ -368,11 +369,25 @@
       "loanDays": "Loan days",
       "maxRenewals": "Renewals",
       "maxReservations": "Reservations",
+      "sameTitleWait": "Days before the same title can be reserved again",
+      "sameTitleWaitHint": "A member who has a title on loan must wait this many days from the issue date before reserving it again. 0 means no wait.",
       "finePerDay": "Fine / day ({{currency}})",
       "annualFee": "Annual fee ({{currency}})",
       "members": "Members",
       "hint": "Changes apply from the next issue, renewal and return. Due dates already given stay as they are.",
       "deleteTitle": "Delete this membership type?"
+    },
+    "staff": {
+      "column": "Staff",
+      "anyone": "Any staff",
+      "title": "Branch staff",
+      "explain": "Staff listed here can only issue, shelve, receive and reserve at this branch (and any other branch they are listed under). Staff listed under no branch can work at every branch. Anyone who can change library setup is never limited.",
+      "assigned": "Assigned to this branch ({{count}})",
+      "none": "Nobody is assigned, so any staff member can work here.",
+      "add": "Add a staff member",
+      "search": "Search users by name or email…",
+      "noUsers": "No users found.",
+      "remove": "Remove from this branch"
     }
   },
   "import": {
@@ -456,7 +471,56 @@
       }
     }
   },
+  "reminders": {
+    "heading": "Member reminders",
+    "description": "Emails sent to members automatically: before an item is due, when it is overdue, and when a reserved book is ready.",
+    "on": "On",
+    "off": "Off",
+    "noEmailServer": "This server has no email account set up, so reminders cannot be sent yet. You can still choose the settings and preview what would go out.",
+    "enable": "Send reminders automatically",
+    "enableHint": "Due and overdue notices go out once a day, in the morning. Ready-for-pickup notices go out within 15 minutes.",
+    "dueSoonDays": "Due-soon notice (days before)",
+    "dueSoonHint": "0 = no due-soon notice.",
+    "overdueEveryDays": "Overdue notice every (days)",
+    "overdueEveryHint": "The first goes the day after the due date. 0 = none.",
+    "overdueMaxReminders": "Overdue notices per loan",
+    "overdueMaxHint": "After this many, the library follows up by hand.",
+    "libraryName": "Library name on the emails",
+    "libraryNameHint": "Blank = \"The Library\".",
+    "timeZone": "Time zone",
+    "timeZoneHint": "Decides what counts as today for due dates.",
+    "notifyReady": "Email the member when a reserved copy is ready to collect",
+    "preview": "Preview",
+    "sendNow": "Send now",
+    "lastRun": "Last daily run: {{date}}",
+    "previewHeading": "Emails that would be sent now: {{count}}",
+    "noAddress": "members with no email address: {{count}}",
+    "nothingToSend": "Nothing to send right now.",
+    "sent": "Emails sent: {{count}}",
+    "sentWithFailures": "Sent {{sent}}; {{failed}} could not be sent — see the log below.",
+    "sendTitle": "Send reminders now?",
+    "sendBody": "Every member with something due soon, overdue or ready to collect is emailed now. Anyone already reminded is not emailed again.",
+    "kind": {
+      "due_soon": "Due soon",
+      "overdue": "Overdue",
+      "ready": "Ready for pickup"
+    },
+    "status": {
+      "sent": "Sent",
+      "failed": "Not sent",
+      "pending": "Sending"
+    },
+    "logHeading": "Recent notices",
+    "col": {
+      "when": "Sent",
+      "notice": "Notice"
+    },
+    "showAll": "Show all {{count}}",
+    "showLess": "Show fewer"
+  },
   "toast": {
+    "remindersSaved": "Reminder settings saved.",
+    "staffSaved": "Branch staff saved.",
     "branchSaved": "Branch saved.",
     "branchDeleted": "Branch deleted.",
     "typeSaved": "Membership type saved.",
@@ -480,6 +544,122 @@
     "reservationCancelled": "Reservation cancelled.",
     "fineAdded": "Charge added.",
     "finePaid": "Payment recorded.",
-    "fineWaived": "Fine waived."
+    "fineWaived": "Fine waived.",
+    "portalSaved": "Member portal settings saved.",
+    "portalAccessRemoved": "Online access removed."
+  },
+  "print": {
+    "libraryName": "Name printed on them",
+    "scaleNote": "In the print window, set Scale to 100% (\"Actual size\") and margins to None — otherwise the labels drift off the stock.",
+    "labels": {
+      "button": "Print labels",
+      "title": "Print barcode labels",
+      "print": "Print {{count}} labels",
+      "addedFrom": "Added on or after",
+      "find": "Find",
+      "findPlaceholder": "Barcode, title or author…",
+      "chosen": "{{count}} of {{total}} copies selected",
+      "none": "No copies match.",
+      "capped": "Showing the first {{shown}} of {{total}}. Narrow the filter to print the rest.",
+      "unreadable": "Barcodes that cannot be printed as bars (non-English characters): {{count}}. Their number prints as text only.",
+      "stock": "Label stock",
+      "layout": {
+        "a4_21": "A4 sheet — 21 labels (63.5 × 38.1 mm)",
+        "a4_24": "A4 sheet — 24 labels (63.5 × 33.9 mm)",
+        "a4_65": "A4 sheet — 65 small labels (38.1 × 21.2 mm)",
+        "roll_50": "Label printer roll — 50 × 25 mm",
+        "roll_38": "Label printer roll — 38 × 25 mm"
+      },
+      "skip": "Labels already used",
+      "skipHint": "On a part-used sheet, printing starts after these.",
+      "showTitle": "Print the title",
+      "showShelf": "Print the shelf location"
+    },
+    "cards": {
+      "button": "Print cards",
+      "title": "Print member cards",
+      "count": "The {{count}} members on this page",
+      "print": "Print {{count}} cards",
+      "paper": "Paper",
+      "layout": {
+        "a4": "A4 sheet",
+        "card": "Card printer"
+      },
+      "layoutHint": {
+        "a4": "Ten cards to cut out",
+        "card": "One card per page"
+      },
+      "validUntil": "Valid until",
+      "unreadable": "Card numbers that cannot be printed as a barcode: {{count}}. The number prints as text only."
+    }
+  },
+  "portal": {
+    "heading": "Member portal",
+    "description": "A page where members see their books, renew them and reserve titles, using their card number and a PIN.",
+    "on": "Open",
+    "off": "Closed",
+    "enabled": "Open the portal to members",
+    "enabledHint": "Only members you have given a PIN can sign in.",
+    "allowRenewals": "Members can renew online",
+    "allowRenewalsHint": "The usual renewal limits still apply.",
+    "allowReservations": "Members can reserve online",
+    "allowReservationsHint": "The usual reservation limits still apply.",
+    "publicCatalogue": "Anyone can search the catalogue",
+    "publicCatalogueHint": "Without signing in. Titles and availability only — never member details.",
+    "link": "Portal address",
+    "linkHint_one": "Share this address with your members. {{count}} member has a PIN.",
+    "linkHint_other": "Share this address with your members. {{count}} members have a PIN.",
+    "copy": "Copy",
+    "open": "Open",
+    "linkCopied": "Portal address copied.",
+    "linkCopyFailed": "Could not copy. Select the address and copy it by hand.",
+    "member": {
+      "heading": "Online access",
+      "has": "This member has a PIN for the member portal.",
+      "none": "This member cannot sign in to the member portal yet.",
+      "give": "Give online access",
+      "newPin": "New PIN",
+      "remove": "Remove access",
+      "replaceTitle": "Give a new PIN?",
+      "replaceBody": "{{name}}'s current PIN will stop working, and they will be signed out of the portal.",
+      "removeTitle": "Remove online access?",
+      "removeBody": "{{name}} will no longer be able to sign in to the member portal. Their loans and reservations are not affected.",
+      "pinTitle": "Portal sign-in details",
+      "cardNumber": "Card number",
+      "pin": "PIN",
+      "signInAt": "They sign in at",
+      "pinOnce": "Give these to the member now. The PIN is not stored in a readable form and cannot be shown again — if it is lost, give a new one.",
+      "pinDone": "Done"
+    }
+  },
+  "finance": {
+    "button": "Post to Finance",
+    "title": "Post collected fines to Finance",
+    "subtitle": "One draft journal entry for the fine payments not yet in the accounts.",
+    "through": "Include payments up to",
+    "throughHint": "Payments taken on or before this day.",
+    "nothing": "Everything collected up to this day is already in the accounts.",
+    "toPost": "To post",
+    "payments_one": "{{count}} payment",
+    "payments_other": "{{count}} payments",
+    "breakdown": "What it is made of",
+    "receivedIn": "Money received in",
+    "receivedInHint": "Debited. Usually cash on hand or a bank account.",
+    "income": "Fines income",
+    "incomeHint": "Credited. An income account for fines and fees.",
+    "chooseAccount": "Choose an account…",
+    "noAccounts": "Finance has no active accounts yet. Set up the chart of accounts first.",
+    "sameAccount": "The two accounts must be different.",
+    "account": "Account",
+    "debit": "Debit",
+    "credit": "Credit",
+    "draftNote": "The entry is created as a draft in Finance, where an accountant reviews and posts it. These payments are then marked so they cannot be posted twice.",
+    "post": "Create journal entry",
+    "history": "Already posted",
+    "posted_one": "{{count}} payment posted to Finance as {{number}}.",
+    "posted_other": "{{count}} payments posted to Finance as {{number}}.",
+    "nothingToPost": "There is nothing to post, or the accounts are not chosen.",
+    "postFailed": "Finance did not create the journal entry. Nothing was posted.",
+    "markFailed": "Draft journal entry {{number}} was created in Finance, but the payments could not be marked as posted ({{error}}). Delete that draft entry in Finance before trying again, or the same money will be entered twice."
   }
 }

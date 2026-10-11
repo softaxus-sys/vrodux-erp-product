@@ -19,6 +19,17 @@ internal sealed class LibraryBranchConfiguration : IEntityTypeConfiguration<Libr
     }
 }
 
+internal sealed class BranchStaffConfiguration : IEntityTypeConfiguration<BranchStaff>
+{
+    public void Configure(EntityTypeBuilder<BranchStaff> builder)
+    {
+        builder.ToTable("branch_staff");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.UserName).IsRequired().HasMaxLength(200);
+        builder.HasIndex(x => x.UserId);
+    }
+}
+
 internal sealed class BookTitleConfiguration : IEntityTypeConfiguration<BookTitle>
 {
     public void Configure(EntityTypeBuilder<BookTitle> builder)
@@ -94,6 +105,7 @@ internal sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.Property(x => x.IsDeleted).HasDefaultValue(false);
         builder.HasIndex(x => x.FullName);
         builder.HasIndex(x => x.MembershipTypeId);
+        builder.Property(x => x.PortalPinHash).HasMaxLength(200);
     }
 }
 
@@ -129,6 +141,62 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(x => x.HoldUntil).HasMaxLength(10);
         builder.HasIndex(x => new { x.TitleId, x.Status });
         builder.HasIndex(x => x.MemberId);
+    }
+}
+
+internal sealed class ReminderSettingsConfiguration : IEntityTypeConfiguration<ReminderSettings>
+{
+    public void Configure(EntityTypeBuilder<ReminderSettings> builder)
+    {
+        builder.ToTable("reminder_settings");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.LibraryName).HasMaxLength(200);
+        builder.Property(x => x.TimeZoneId).IsRequired().HasMaxLength(100);
+        builder.Property(x => x.LastDailyRunOn).HasMaxLength(10);
+    }
+}
+
+internal sealed class FinePaymentConfiguration : IEntityTypeConfiguration<FinePayment>
+{
+    public void Configure(EntityTypeBuilder<FinePayment> builder)
+    {
+        builder.ToTable("fine_payments");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Amount).HasPrecision(18, 2);
+        builder.Property(x => x.Method).IsRequired().HasMaxLength(30);
+        builder.Property(x => x.PaidOn).IsRequired().HasMaxLength(10);
+        builder.Property(x => x.JournalEntryNumber).HasMaxLength(60);
+        builder.Ignore(x => x.IsPosted);
+        builder.HasIndex(x => x.FineId);
+        builder.HasIndex(x => x.PaidOn);
+        builder.HasIndex(x => x.JournalEntryId);
+    }
+}
+
+internal sealed class PortalSettingsConfiguration : IEntityTypeConfiguration<PortalSettings>
+{
+    public void Configure(EntityTypeBuilder<PortalSettings> builder)
+    {
+        builder.ToTable("portal_settings");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+    }
+}
+
+internal sealed class ReminderLogConfiguration : IEntityTypeConfiguration<ReminderLog>
+{
+    public void Configure(EntityTypeBuilder<ReminderLog> builder)
+    {
+        builder.ToTable("reminder_log");
+        builder.HasKey(x => x.Id); builder.Property(x => x.Id).ValueGeneratedNever();
+        builder.Property(x => x.Kind).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.Key).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.MemberName).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.ToEmail).IsRequired().HasMaxLength(320);
+        builder.Property(x => x.Title).IsRequired().HasMaxLength(400);
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.Error).HasMaxLength(500);
+        builder.HasIndex(x => x.CreatedAt);
+        builder.HasIndex(x => x.LoanId);
     }
 }
 

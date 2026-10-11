@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Library.Application.Abstractions;
 using Softaxis.Library.Application.Catalogue;
 using Softaxis.Library.Application.Circulation;
 using Softaxis.Library.Domain.Entities;
@@ -36,10 +37,15 @@ internal static class LoanReader
             MemberNumber = m.MemberNumber, MemberName = m.FullName, MemberPhone = m.Phone,
         };
 
-    public static async Task<PagedDto<LoanDto>> PageAsync(LibraryDbContext db, GetLoansQuery q, CancellationToken ct)
+    /// <param name="allowed">Branches the caller is limited to, or null. A single member's own
+    /// loans are not narrowed — the desk needs all of them to answer "what do you have out?".</param>
+    public static async Task<PagedDto<LoanDto>> PageAsync(
+        LibraryDbContext db, GetLoansQuery q, IReadOnlyCollection<Guid>? allowed, CancellationToken ct)
     {
         var today = LibraryDates.Today(q.Today);
         var rows  = Rows(db);
+
+        if (allowed is not null && q.MemberId is null) rows = rows.Where(r => allowed.Contains(r.Loan.BranchId));
 
         rows = q.Status switch
         {
@@ -97,13 +103,13 @@ internal static class LoanReader
     }
 }
 
-internal sealed class GetLoansHandler(LibraryDbContext db) : IQueryHandler<GetLoansQuery, PagedDto<LoanDto>>
+internal sealed class GetLoansHandler(LibraryDbContext db, IBranchAccess branches) : IQueryHandler<GetLoansQuery, PagedDto<LoanDto>>
 {
     public async Task<Result<PagedDto<LoanDto>>> Handle(GetLoansQuery q, CancellationToken ct) =>
-        Result.Success(await LoanReader.PageAsync(db, q, ct));
+        Result.Success(await LoanReader.PageAsync(db, q, await branches.AllowedBranchIdsAsync(ct), ct));
 }
 
-internal sealed class IssueLoanHandler(LibraryDbContext db) : ICommandHandler<IssueLoanCommand, LoanDto>
+internal sealed class IssueLoanHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<IssueLoanCommand, LoanDto>
 {
     public async Task<Result<LoanDto>> Handle(IssueLoanCommand cmd, CancellationToken ct)
     {
@@ -119,6 +125,8 @@ internal sealed class IssueLoanHandler(LibraryDbContext db) : ICommandHandler<Is
 
         var copy = await db.Copies.FirstOrDefaultAsync(c => c.Id == cmd.CopyId && !c.IsDeleted, ct);
         if (copy is null) return Result.Failure<LoanDto>(Error.NotFoundById("Copy", cmd.CopyId));
+        // A copy is issued by the branch that holds it.
+        if (await branches.DeniedAsync(copy.BranchId, ct) is { } denied) return Result.Failure<LoanDto>(denied);
 
         var mine = await db.Reservations
             .Where(r => r.TitleId == copy.TitleId && r.MemberId == member.Id
@@ -176,7 +184,7 @@ internal sealed class IssueLoanHandler(LibraryDbContext db) : ICommandHandler<Is
     }
 }
 
-internal sealed class ReturnLoanHandler(LibraryDbContext db) : ICommandHandler<ReturnLoanCommand, ReturnResultDto>
+internal sealed class ReturnLoanHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<ReturnLoanCommand, ReturnResultDto>
 {
     public async Task<Result<ReturnResultDto>> Handle(ReturnLoanCommand cmd, CancellationToken ct)
     {
@@ -187,9 +195,14 @@ internal sealed class ReturnLoanHandler(LibraryDbContext db) : ICommandHandler<R
         if (loan.Status != LoanStatus.Active)
             return Result.Failure<ReturnResultDto>(Error.Custom("Loan.Conflict", $"This loan is already {loan.Status}."));
 
-        var branchId = cmd.ReturnBranchId ?? loan.BranchId;
+        // A book can come back to any branch, whoever issued it — but branch staff can only take
+        // it in at their own. With no branch named, theirs is assumed rather than the issuer's.
+        var allowed  = await branches.AllowedBranchIdsAsync(ct);
+        var branchId = cmd.ReturnBranchId
+                       ?? (allowed is null || allowed.Contains(loan.BranchId) ? loan.BranchId : allowed.First());
         if (!await db.Branches.AnyAsync(b => b.Id == branchId && !b.IsDeleted, ct))
             return Result.Failure<ReturnResultDto>(Error.NotFoundById("Branch", branchId));
+        if (await branches.DeniedAsync(branchId, ct) is { } denied) return Result.Failure<ReturnResultDto>(denied);
 
         var copy = await db.Copies.FirstAsync(c => c.Id == loan.CopyId, ct);
 
@@ -257,7 +270,7 @@ internal sealed class RenewLoanHandler(LibraryDbContext db) : ICommandHandler<Re
     }
 }
 
-internal sealed class MarkLoanLostHandler(LibraryDbContext db) : ICommandHandler<MarkLoanLostCommand, LoanDto>
+internal sealed class MarkLoanLostHandler(LibraryDbContext db, IBranchAccess branches) : ICommandHandler<MarkLoanLostCommand, LoanDto>
 {
     public async Task<Result<LoanDto>> Handle(MarkLoanLostCommand cmd, CancellationToken ct)
     {
@@ -267,6 +280,8 @@ internal sealed class MarkLoanLostHandler(LibraryDbContext db) : ICommandHandler
         if (loan is null) return Result.Failure<LoanDto>(Error.NotFoundById("Loan", cmd.LoanId));
         if (loan.Status != LoanStatus.Active)
             return Result.Failure<LoanDto>(Error.Custom("Loan.Conflict", $"This loan is already {loan.Status}."));
+        // Writing a book off, and charging for it, is for the branch that lent it.
+        if (await branches.DeniedAsync(loan.BranchId, ct) is { } denied) return Result.Failure<LoanDto>(denied);
 
         var copy  = await db.Copies.FirstAsync(c => c.Id == loan.CopyId, ct);
         var title = await db.Titles.AsNoTracking().FirstAsync(t => t.Id == loan.TitleId, ct);

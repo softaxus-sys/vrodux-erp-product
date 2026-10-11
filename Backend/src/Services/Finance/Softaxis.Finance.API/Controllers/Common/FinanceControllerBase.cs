@@ -45,6 +45,9 @@ public abstract class FinanceControllerBase : ControllerBase
             var c when c.EndsWith(".Duplicate")     => Conflict(body),
             var c when c.EndsWith(".HasTransactions")=> Conflict(body),
             var c when c.EndsWith(".Conflict")      => Conflict(body),
+            // A closed fiscal period is the caller's situation to resolve, not a server fault.
+            var c when c.EndsWith(".Locked")        => Conflict(body),
+            var c when c.EndsWith(".Invalid")       => BadRequest(body),
             var c when c.EndsWith(".Unbalanced")    => UnprocessableEntity(body),
             "Validation.Failed"                     => UnprocessableEntity(body),
             _                                       => StatusCode(StatusCodes.Status500InternalServerError, body),

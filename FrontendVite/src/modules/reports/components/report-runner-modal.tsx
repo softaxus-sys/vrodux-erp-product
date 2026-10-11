@@ -15,6 +15,8 @@ import type { ReportDefinition, ReportFilter, CountryConfig, ReportCategory } fr
 import { COUNTRY_CONFIGS } from "../config/report-registry";
 import { reportsApi }          from "@/lib/pos/reports.api";
 import { reportsApi as restaurantReportsApi } from "@/lib/restaurant/reports.api";
+import { libraryReportsApi } from "@/lib/library/reports.api";
+import { tradeReportsApi } from "@/lib/trade/reports.api";
 import { inventoryReportsApi } from "@/lib/inventory/reports.api";
 import type { ReportResult, ReportRunParams } from "@/lib/pos/reports.api";
 import { useAuthStore }        from "@/store/auth.store";
@@ -138,6 +140,8 @@ const CATEGORY_RUNNERS: Partial<Record<ReportCategory, CategoryRunner>> = {
   POS:       (id, params) => reportsApi.run(id, params),
   Inventory: (id, params) => inventoryReportsApi.run(id, params),
   Restaurant: (id, params) => restaurantReportsApi.run(id, params),
+  Library:    (id, params) => libraryReportsApi.run(id, params),
+  "Import / Export": (id, params) => tradeReportsApi.run(id, params),
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

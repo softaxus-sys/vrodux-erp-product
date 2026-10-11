@@ -130,13 +130,15 @@ export function PageHeader({ title, description, children }: {
   );
 }
 
-export function SearchBox({ value, onChange, placeholder, className, autoFocus }: {
+export function SearchBox({ value, onChange, placeholder, className, autoFocus, onEnter }: {
   value: string; onChange: (v: string) => void; placeholder: string; className?: string; autoFocus?: boolean;
+  onEnter?: () => void;
 }) {
   return (
     <div className={cn("relative", className)}>
       <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
       <Input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} autoFocus={autoFocus}
+        onKeyDown={onEnter ? e => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined}
         className="h-9 ps-9 text-sm" />
     </div>
   );
@@ -182,10 +184,11 @@ export function TableState({ loading, error, empty, emptyText, icon: Icon }: {
 
 // ── Pickers ─────────────────────────────────────────────────────────────────
 
-function PickerShell<T extends { id: string }>({ selected, renderSelected, onClear, search, setSearch, placeholder, loading, items, renderItem, onPick, emptyText, autoFocus }: {
+function PickerShell<T extends { id: string }>({ selected, renderSelected, onClear, search, setSearch, placeholder, loading, items, renderItem, onPick, emptyText, autoFocus, onEnter }: {
   selected: T | null; renderSelected: (item: T) => React.ReactNode; onClear: () => void;
   search: string; setSearch: (s: string) => void; placeholder: string; loading: boolean; items: T[];
   renderItem: (item: T) => React.ReactNode; onPick: (item: T) => void; emptyText: string; autoFocus?: boolean;
+  onEnter?: () => void;
 }) {
   const { t } = useTranslation("library");
 
@@ -201,7 +204,7 @@ function PickerShell<T extends { id: string }>({ selected, renderSelected, onCle
 
   return (
     <div className="space-y-1.5">
-      <SearchBox value={search} onChange={setSearch} placeholder={placeholder} autoFocus={autoFocus} />
+      <SearchBox value={search} onChange={setSearch} placeholder={placeholder} autoFocus={autoFocus} onEnter={onEnter} />
       {search.trim().length >= 2 && (
         <div className="rounded-lg border border-border max-h-52 overflow-y-auto divide-y divide-border">
           {loading ? (
@@ -229,6 +232,18 @@ export function MemberPicker({ value, onChange, autoFocus }: {
   const term = useDebounced(search.trim());
   const { data, isFetching } = useMembers({ search: term, pageSize: 8 }, term.length >= 2 && !value);
 
+  // A scanned member card arrives as the card number followed by Enter — faster than the search
+  // can answer. The Enter is remembered, and once the results for that text are in, the member
+  // with that exact card number (or the only match) is picked without a click.
+  const [entered, setEntered] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (entered === null || isFetching || term !== entered || !data) return;
+    const match = data.items.find(m => m.memberNumber.toLowerCase() === entered.toLowerCase())
+      ?? (data.items.length === 1 ? data.items[0] : null);
+    setEntered(null);
+    if (match) { onChange(match); setSearch(""); }
+  }, [entered, isFetching, term, data, onChange]);
+
   const line = (m: MemberDto) => (
     <>
       <p className="font-medium truncate">{m.fullName}</p>
@@ -241,7 +256,8 @@ export function MemberPicker({ value, onChange, autoFocus }: {
   return (
     <PickerShell<MemberDto> selected={value} renderSelected={line} onClear={() => onChange(null)} search={search} setSearch={setSearch}
       placeholder={t("picker.member")} loading={isFetching} items={data?.items ?? []} renderItem={line}
-      onPick={onChange} emptyText={t("picker.noMembers")} autoFocus={autoFocus} />
+      onPick={onChange} emptyText={t("picker.noMembers")} autoFocus={autoFocus}
+      onEnter={() => { if (search.trim().length >= 2) setEntered(search.trim()); }} />
   );
 }
 

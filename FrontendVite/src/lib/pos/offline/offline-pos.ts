@@ -69,6 +69,7 @@ export interface LocalEvent {
     notes?:           string | null;
     targetClientRef?: string | null;
     cashType?:        "payin" | "payout";
+    cashCategory?:    string;
     amount?:          number;
     reason?:          string | null;
   };
@@ -441,7 +442,7 @@ export class OfflinePos {
     });
   }
 
-  recordCashMovement(sessionRef: string, type: "payin" | "payout", amount: number, reason: string): Promise<CashMovementDto> {
+  recordCashMovement(sessionRef: string, type: "payin" | "payout", amount: number, reason: string, category?: string): Promise<CashMovementDto> {
     return this.serial(async () => {
       const session = await this.requireOpen(sessionRef);
       if (amount <= 0) throw new Error("Amount must be greater than zero.");
@@ -457,7 +458,7 @@ export class OfflinePos {
 
       const event: LocalEvent = {
         clientRef, sessionRef: session.clientRef, seq: this.nextSeq(), kind: "cash", occurredAt: now, receiptNumber: null,
-        payload: { cashType: type, amount, reason: reason.trim() }, movement, status: "pending",
+        payload: { cashType: type, cashCategory: category, amount, reason: reason.trim() }, movement, status: "pending",
       };
       await this.commit(event, session, undefined, []);
       return movement;
@@ -605,7 +606,7 @@ export class OfflinePos {
             clientRef: e.clientRef, kind: e.kind, occurredAt: e.occurredAt, receiptNumber: e.receiptNumber,
             customerId: e.payload.customerId ?? null, lineItems: e.payload.lineItems ?? null, payments: e.payload.payments ?? null,
             orderDiscount: e.payload.orderDiscount ?? null, notes: e.payload.notes ?? null,
-            targetClientRef: e.payload.targetClientRef ?? null, cashType: e.payload.cashType ?? null,
+            targetClientRef: e.payload.targetClientRef ?? null, cashType: e.payload.cashType ?? null, cashCategory: e.payload.cashCategory ?? null,
             amount: e.payload.amount ?? null, reason: e.payload.reason ?? null,
           })),
         })),

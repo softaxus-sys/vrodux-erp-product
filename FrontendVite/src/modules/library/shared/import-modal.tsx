@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Loader2, Upload
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buildImportTemplate, downloadFile, parseDelimitedFile } from "@/lib/csv";
-import { useBranches, useImportMembers, useImportTitles, useMembershipTypes } from "@/hooks/library/use-library";
+import { useImportMembers, useImportTitles, useMembershipTypes, useMyBranches } from "@/hooks/library/use-library";
 import type { ImportResultDto } from "@/lib/library/library.api";
 import { Field, Modal, SELECT } from "./ui";
 
@@ -139,7 +139,7 @@ export function ImportModal({ kind, defaultBranchId, onClose }: {
   const fields = kind === "titles" ? TITLE_FIELDS : MEMBER_FIELDS;
   const importTitles = useImportTitles();
   const importMembers = useImportMembers();
-  const { data: branches = [] } = useBranches(true, kind === "titles");
+  const { branches, restricted } = useMyBranches();
   const { data: types = [] } = useMembershipTypes(true, kind === "members");
 
   const [stage, setStage] = React.useState<"upload" | "map" | "result">("upload");
@@ -155,7 +155,7 @@ export function ImportModal({ kind, defaultBranchId, onClose }: {
   const [typeId, setTypeId] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
 
-  const branch = branchId || branches[0]?.id || "";
+  const branch = branches.some(b => b.id === branchId) ? branchId : (branches[0]?.id ?? "");
   const type = typeId || types.find(x => x.name === "Standard")?.id || types[0]?.id || "";
   const label = (f: ImportField) => t(`import.field.${kind}.${f.key}`);
 
@@ -277,10 +277,12 @@ export function ImportModal({ kind, defaultBranchId, onClose }: {
                   {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </Field>
-              <label className="flex items-start gap-2 text-sm cursor-pointer sm:pt-6">
-                <input type="checkbox" className="mt-0.5" checked={createBranches} onChange={e => setCreateBranches(e.target.checked)} />
-                <span>{t("import.createBranches")}</span>
-              </label>
+              {!restricted && (
+                <label className="flex items-start gap-2 text-sm cursor-pointer sm:pt-6">
+                  <input type="checkbox" className="mt-0.5" checked={createBranches} onChange={e => setCreateBranches(e.target.checked)} />
+                  <span>{t("import.createBranches")}</span>
+                </label>
+              )}
             </div>
           ) : (
             <Field label={t("import.defaultType")} hint={t("import.defaultTypeHint")} className="sm:max-w-xs">

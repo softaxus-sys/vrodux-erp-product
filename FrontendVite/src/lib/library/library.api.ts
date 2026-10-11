@@ -68,7 +68,12 @@ export const statusMeta = (s: string) => STATUS_META[s] ?? FALLBACK_META;
 export interface BranchDto {
   id: string; name: string; code: string | null; address: string | null; phone: string | null;
   email: string | null; isActive: boolean; copies: number; available: number; onLoan: number;
+  /** Staff limited to this branch. Empty unless the caller can see library setup. */
+  staff: BranchStaffDto[];
 }
+export interface BranchStaffDto { userId: string; userName: string; }
+/** Whether the signed-in user is limited to some branches, and which. */
+export interface MyBranchesDto { restricted: boolean; branchIds: string[]; }
 export interface BranchRequest {
   name: string; code?: string | null; address?: string | null; phone?: string | null; email?: string | null;
   isActive?: boolean;
@@ -77,6 +82,8 @@ export interface BranchRequest {
 export interface MembershipTypeDto {
   id: string; name: string; maxLoans: number; loanDays: number; maxRenewals: number; finePerDay: number;
   maxReservations: number; annualFee: number; isActive: boolean; members: number;
+  /** Days a member holding a title waits before reserving it again. 0 = no wait. */
+  sameTitleReserveAfterDays: number;
 }
 export type MembershipTypeRequest = Omit<MembershipTypeDto, "id" | "members">;
 
@@ -125,6 +132,8 @@ export interface MemberDto {
   homeBranchId: string | null; homeBranchName: string | null; joinedOn: string; expiresOn: string | null;
   status: string; notes: string | null; activeLoans: number; overdueLoans: number; maxLoans: number;
   unpaidFines: number; isExpired: boolean;
+  /** The member has a PIN for the online portal. */
+  hasPortalAccess: boolean;
 }
 
 export interface MemberRequest {
@@ -176,6 +185,24 @@ export interface ImportResultDto {
   errors: { row: number; message: string }[];
 }
 
+export interface ReminderSettingsDto {
+  enabled: boolean; dueSoonDays: number; overdueEveryDays: number; overdueMaxReminders: number;
+  notifyReady: boolean; libraryName: string | null; timeZoneId: string; lastDailyRunOn: string | null;
+  /** False when this server has no mail account, so nothing can actually be sent. */
+  emailConfigured: boolean;
+}
+export type ReminderSettingsRequest = Omit<ReminderSettingsDto, "lastDailyRunOn" | "emailConfigured">;
+
+export interface ReminderRunDto {
+  dryRun: boolean; dueSoon: number; overdue: number; ready: number; failed: number; noEmail: number;
+  emails: { kind: string; memberName: string; toEmail: string; titles: string[] }[];
+}
+
+export interface ReminderLogDto {
+  id: string; kind: string; memberName: string; toEmail: string; title: string; status: string;
+  error: string | null; createdAt: string;
+}
+
 export interface LoanFilter {
   status?: string; branchId?: string; memberId?: string; titleId?: string; search?: string;
   page?: number; pageSize?: number;
@@ -188,6 +215,8 @@ export const libraryApi = {
 
   // Setup
   getBranches:   (activeOnly = false): Promise<BranchDto[]> => rawApiClient.get(`${BASE}/branches${qs({ activeOnly })}`),
+  getMyBranches: (): Promise<MyBranchesDto> => rawApiClient.get(`${BASE}/branches/mine`),
+  setBranchStaff: (id: string, staff: BranchStaffDto[]): Promise<BranchDto> => rawApiClient.put(`${BASE}/branches/${id}/staff`, { staff }),
   createBranch:  (body: BranchRequest): Promise<BranchDto> => rawApiClient.post(`${BASE}/branches`, body),
   updateBranch:  (id: string, body: BranchRequest): Promise<BranchDto> => rawApiClient.put(`${BASE}/branches/${id}`, body),
   deleteBranch:  (id: string): Promise<void> => rawApiClient.delete(`${BASE}/branches/${id}`),
@@ -213,6 +242,8 @@ export const libraryApi = {
     rawApiClient.post(`${BASE}/members/import`, { ...body, today: localToday() }),
 
   addCopies:        (titleId: string, body: AddCopiesRequest): Promise<TitleDetailDto> => rawApiClient.post(`${BASE}/titles/${titleId}/copies`, body),
+  getCopies: (p: { search?: string; branchId?: string; titleId?: string; status?: string; addedFrom?: string; page?: number; pageSize?: number }): Promise<Paged<CopyDto>> =>
+    rawApiClient.get(`${BASE}/copies${qs(p)}`),
   getCopyByBarcode: (barcode: string): Promise<CopyDto> => rawApiClient.get(`${BASE}/copies/by-barcode/${encodeURIComponent(barcode)}`),
   getInTransit:     (): Promise<CopyDto[]> => rawApiClient.get(`${BASE}/copies/in-transit`),
   updateCopy:       (id: string, body: CopyRequest): Promise<CopyDto> => rawApiClient.put(`${BASE}/copies/${id}`, body),
@@ -242,6 +273,12 @@ export const libraryApi = {
   reserve: (body: { titleId: string; memberId: string; pickupBranchId: string }): Promise<ReservationDto> =>
     rawApiClient.post(`${BASE}/reservations`, { ...body, today: localToday() }),
   cancelReservation: (id: string): Promise<void> => rawApiClient.post(`${BASE}/reservations/${id}/cancel`, { today: localToday() }),
+
+  // Reminders
+  getReminderSettings:    (): Promise<ReminderSettingsDto> => rawApiClient.get(`${BASE}/reminders/settings`),
+  updateReminderSettings: (body: ReminderSettingsRequest): Promise<ReminderSettingsDto> => rawApiClient.put(`${BASE}/reminders/settings`, body),
+  runReminders:           (dryRun: boolean): Promise<ReminderRunDto> => rawApiClient.post(`${BASE}/reminders/run`, { dryRun, today: localToday() }),
+  getReminderLog:         (): Promise<ReminderLogDto[]> => rawApiClient.get(`${BASE}/reminders/log`),
 
   // Fines
   getFines: (p: { status?: string; memberId?: string; search?: string }): Promise<FineDto[]> => rawApiClient.get(`${BASE}/fines${qs(p)}`),

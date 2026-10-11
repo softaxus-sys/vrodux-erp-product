@@ -84,6 +84,8 @@ export const CATEGORY_MODULE: Record<ReportCategory, ModuleKey> = {
   "Real Estate": "real-estate",
   Construction:  "construction",
   Manufacturing: "manufacturing",
+  Library:       "library",
+  "Import / Export": "trade",
 };
 
 export type ReportCategory =
@@ -97,7 +99,9 @@ export type ReportCategory =
   | "Restaurant"
   | "Real Estate"
   | "Construction"
-  | "Manufacturing";
+  | "Manufacturing"
+  | "Library"
+  | "Import / Export";
 
 export type ReportBadge =
   | "Popular"
@@ -1185,4 +1189,154 @@ export const MANUFACTURING_REPORTS: ReportDefinition[] = MANUFACTURING_REPORT_CA
   href:               `/manufacturing/planning#${r.id}`,
   requiresModule:     "manufacturing",
   requiresPermission: "manufacturing.planning.view",
+}));
+
+// ── Library ──────────────────────────────────────────────────────────────────
+// Run in the tabular runner, served by `GET /api/library/reports/run/{id}`. There is no separate
+// "library reports" permission: each report needs the permission of the area it reads, so someone
+// who may not open Fines does not see the fines reports here either.
+type LibraryCard = {
+  id: string; title: string; description: string; icon: string; group: string; tone: Tone;
+  columns: string[]; ranged: boolean; permission: string; badges?: ReportBadge[];
+};
+
+const LIBRARY_REPORT_CARDS: LibraryCard[] = [
+  // Circulation
+  { id: "overdue-loans", title: "Overdue Loans", group: "Circulation", icon: "AlertTriangle", tone: "destructive", badges: ["Popular"],
+    description: "Every item that is late right now, with the member's phone and the fine so far.",
+    columns: ["Member", "Card No.", "Phone", "Title", "Barcode", "Branch", "Issued", "Due", "Days Overdue", "Fine So Far"],
+    ranged: false, permission: "library.circulation.view" },
+  { id: "loans-register", title: "Loans Register", group: "Circulation", icon: "ClipboardList", tone: "primary",
+    description: "Every loan issued in the period, with its due date, return date and status.",
+    columns: ["Issued", "Title", "Barcode", "Member", "Card No.", "Branch", "Due", "Returned", "Renewals", "Status", "Issued By"],
+    ranged: true, permission: "library.circulation.view" },
+  { id: "daily-circulation", title: "Daily Circulation", group: "Circulation", icon: "Calendar", tone: "success",
+    description: "Items issued and returned on each day.",
+    columns: ["Date", "Issued", "Returned", "Net Out"],
+    ranged: true, permission: "library.circulation.view" },
+  { id: "popular-titles", title: "Most Borrowed Titles", group: "Circulation", icon: "TrendingUp", tone: "success", badges: ["Popular"],
+    description: "The titles borrowed most in the period, and how hard each copy is working.",
+    columns: ["Title", "Authors", "Category", "Loans", "Copies", "Loans per Copy"],
+    ranged: true, permission: "library.circulation.view" },
+  { id: "branch-activity", title: "Branch Activity", group: "Circulation", icon: "Building2", tone: "primary",
+    description: "Stock, loans and returns for each branch, and what is overdue there now.",
+    columns: ["Branch", "Copies", "Available", "On Loan", "Issued in Period", "Returned in Period", "Overdue Now"],
+    ranged: true, permission: "library.circulation.view" },
+
+  // Catalogue
+  { id: "stock-by-category", title: "Stock by Category", group: "Catalogue", icon: "Layers", tone: "primary",
+    description: "Titles and copies in each category, how many are available, and what the copies cost.",
+    columns: ["Category", "Titles", "Copies", "Available", "On Loan", "Lost / Damaged / Withdrawn", "Value of Copies"],
+    ranged: false, permission: "library.catalog.view" },
+  { id: "not-borrowed", title: "Titles Not Borrowed", group: "Catalogue", icon: "Clock", tone: "warning",
+    description: "Titles nobody borrowed in the period — candidates for weeding or promotion.",
+    columns: ["Title", "Authors", "Category", "Copies", "Last Borrowed", "Added"],
+    ranged: true, permission: "library.catalog.view" },
+  { id: "lost-damaged", title: "Lost, Damaged and Withdrawn", group: "Catalogue", icon: "Trash2", tone: "destructive",
+    description: "Copies that are out of circulation, with their price and replacement cost.",
+    columns: ["Title", "Authors", "Barcode", "Branch", "Status", "Price", "Replacement Cost", "Last Changed", "Notes"],
+    ranged: false, permission: "library.catalog.view" },
+
+  // Members
+  { id: "member-activity", title: "Member Activity", group: "Members", icon: "Users", tone: "primary",
+    description: "The most active borrowers in the period, with what they have out and owe now.",
+    columns: ["Member", "Card No.", "Membership", "Borrowed in Period", "Out Now", "Overdue Now", "Unpaid Fines"],
+    ranged: true, permission: "library.members.view" },
+  { id: "expiring-memberships", title: "Expiring Memberships", group: "Members", icon: "Calendar", tone: "warning",
+    description: "Memberships that have lapsed or will lapse in the next 60 days.",
+    columns: ["Member", "Card No.", "Membership", "Phone", "Email", "Expires", "Days Left", "State"],
+    ranged: false, permission: "library.members.view" },
+
+  // Fines
+  { id: "fines-collected", title: "Fines Collected", group: "Fines", icon: "Banknote", tone: "success", badges: ["Popular"],
+    description: "Every fine payment taken in the period, and whether it is in the accounts yet.",
+    columns: ["Date", "Member", "Card No.", "Fine Type", "Title", "Method", "Amount", "In Accounts"],
+    ranged: true, permission: "library.fines.view" },
+  { id: "fines-outstanding", title: "Outstanding Fines", group: "Fines", icon: "DollarSign", tone: "warning",
+    description: "Every unpaid fine with the member's phone and the balance still owed.",
+    columns: ["Member", "Card No.", "Phone", "Fine Type", "Title", "Raised", "Amount", "Paid", "Balance"],
+    ranged: false, permission: "library.fines.view" },
+];
+
+export const LIBRARY_REPORTS: ReportDefinition[] = LIBRARY_REPORT_CARDS.map(r => ({
+  id:          `library-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Library" as ReportCategory,
+  icon:        r.icon,
+  color:       `text-${r.tone}`,
+  bg:          `bg-${r.tone}/10`,
+  badges:      r.badges,
+  previewColumns: r.columns,
+  filters:        r.ranged ? [DATE_RANGE] : [],
+  exportFormats:  ["PDF", "Excel", "CSV"],
+  subGroup:       r.group,
+  requiresModule:     "library",
+  requiresPermission: r.permission,
+}));
+
+// ── Import / Export ──────────────────────────────────────────────────────────
+// Run in the tabular runner, served by `GET /api/trade/reports/run/{id}`. Like Library there is no
+// "trade reports" permission: each report needs the permission of the area it reads, so someone who
+// may not see costs or payments does not see those reports here either.
+type TradeCard = {
+  id: string; title: string; description: string; icon: string; group: string; tone: Tone;
+  columns: string[]; ranged: boolean; permission: string; badges?: ReportBadge[];
+};
+
+const TRADE_REPORT_CARDS: TradeCard[] = [
+  // Shipments
+  { id: "shipment-register", title: "Shipment Register", group: "Shipments", icon: "ClipboardList", tone: "primary", badges: ["Popular"],
+    description: "Every shipment booked in the period, with route, dates and goods value.",
+    columns: ["Shipment", "Direction", "Status", "Supplier / Buyer", "Order Ref.", "B/L", "Route", "ETD", "ETA", "Arrived", "Currency", "Goods Value"],
+    ranged: true, permission: "trade.shipments.view" },
+  { id: "delayed-shipments", title: "Delayed Shipments", group: "Shipments", icon: "AlertTriangle", tone: "destructive", badges: ["Popular"],
+    description: "Cargo that has not arrived although its expected arrival date has passed.",
+    columns: ["Shipment", "Direction", "Supplier / Buyer", "Status", "B/L", "Vessel / Flight", "Route", "ETA", "Days Late", "Goods Value", "Currency"],
+    ranged: false, permission: "trade.shipments.view" },
+  { id: "by-partner", title: "Shipments by Supplier / Buyer", group: "Shipments", icon: "Users", tone: "primary",
+    description: "How many shipments, and how much goods value, each supplier or buyer accounts for.",
+    columns: ["Supplier / Buyer", "Direction", "Shipments", "Open", "Goods Value"],
+    ranged: true, permission: "trade.shipments.view" },
+  { id: "port-free-days", title: "Port Free Days", group: "Shipments", icon: "Clock", tone: "warning",
+    description: "Cargo sitting at the port or in customs, and how many free days are left before demurrage.",
+    columns: ["Shipment", "Direction", "Supplier / Buyer", "Status", "Port", "Arrived", "Free Days", "Free Time Ends", "Days Left"],
+    ranged: false, permission: "trade.shipments.view" },
+
+  // Costs
+  { id: "landed-cost", title: "Landed Cost by Item", group: "Costs", icon: "Layers", tone: "success", badges: ["Popular"],
+    description: "What each item really cost once it was here: goods plus its share of freight, duty and clearing.",
+    columns: ["Shipment", "Item", "HS Code", "Qty", "Unit", "Goods (company currency)", "Added Costs", "Landed Cost", "Landed Unit Cost"],
+    ranged: true, permission: "trade.costs.view" },
+  { id: "cost-breakdown", title: "Shipping Cost Breakdown", group: "Costs", icon: "DollarSign", tone: "primary",
+    description: "Freight, duty, clearing and the other costs of moving goods, totalled by type.",
+    columns: ["Cost", "Entries", "Imports", "Exports", "Total", "Share %"],
+    ranged: true, permission: "trade.costs.view" },
+
+  // Money and paper
+  { id: "payments-schedule", title: "Payments Schedule", group: "Payments & Documents", icon: "Banknote", tone: "warning",
+    description: "Payments still to be made or received against shipments, and letters of credit with their expiry.",
+    columns: ["Shipment", "Direction", "Supplier / Buyer", "Payment", "Amount", "Currency", "Due", "Days", "L/C No.", "Bank", "L/C Expiry"],
+    ranged: false, permission: "trade.payments.view" },
+  { id: "documents-expiring", title: "Expiring Documents", group: "Payments & Documents", icon: "Calendar", tone: "warning",
+    description: "Permits, certificates and other documents that have expired or lapse within 90 days.",
+    columns: ["Shipment", "Direction", "Document", "Number", "Issued", "Expires", "Days Left", "State", "File"],
+    ranged: false, permission: "trade.documents.view" },
+];
+
+export const TRADE_REPORTS: ReportDefinition[] = TRADE_REPORT_CARDS.map(r => ({
+  id:          `trade-${r.id}`,
+  title:       r.title,
+  description: r.description,
+  category:    "Import / Export" as ReportCategory,
+  icon:        r.icon,
+  color:       `text-${r.tone}`,
+  bg:          `bg-${r.tone}/10`,
+  badges:      r.badges,
+  previewColumns: r.columns,
+  filters:        r.ranged ? [DATE_RANGE] : [],
+  exportFormats:  ["PDF", "Excel", "CSV"],
+  subGroup:       r.group,
+  requiresModule:     "trade",
+  requiresPermission: r.permission,
 }));

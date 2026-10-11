@@ -40,12 +40,20 @@ internal sealed class RentAlertSender(
         var currency = await ResolveCurrencyAsync(ct);
         var cc       = await BuildCcListAsync(settings, ct);
 
+        // A renewed lease is included for RENT only: the tenant is still in the unit, so what is
+        // unpaid on the earlier lease is still owed.
         var contracts = await db.LeaseContracts
             .Include(c => c.Installments)
-            .Where(c => !c.IsDeleted && c.Status == "active")
+            .Where(c => !c.IsDeleted && (c.Status == "active" || c.Status == "renewed"))
             .ToListAsync(ct);
 
         if (contracts.Count == 0) return Empty("No active leases.");
+
+        // Leases with notice on record are ending on purpose, so "your lease is about to expire"
+        // would be the wrong thing to send them.
+        var withNotice = (await db.LeaseTerminations.AsNoTracking()
+                .Select(t => t.ContractId).ToListAsync(ct))
+            .ToHashSet();
 
         var tenants = await db.Tenants.AsNoTracking()
             .Where(t => !t.IsDeleted)
@@ -110,6 +118,7 @@ internal sealed class RentAlertSender(
             }
 
             // ── Lease expiry ─────────────────────────────────────────────────
+            if (c.Status != "active" || withNotice.Contains(c.Id)) continue;
             if (DaysBetween(today, c.EndDate) is not { } daysLeft || daysLeft < 0) continue;
             if (TightestRung(settings.ExpiryOffsets, daysLeft) is not { } rung) continue;
 

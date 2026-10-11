@@ -15,7 +15,7 @@ type Tab = typeof TABS[number];
 export function CirculationView() {
   const { t } = useTranslation("library");
   const canView = useCanAny(["library.circulation.view"]);
-  const { branchId, setBranchId, branches, branch } = useWorkingBranch();
+  const { branchId, setBranchId, branches, branch, restricted } = useWorkingBranch();
 
   // The tab lives in the URL so the dashboard tiles can link straight to "overdue".
   const [params, setParams] = useSearchParams();
@@ -28,7 +28,7 @@ export function CirculationView() {
     <div className="space-y-6">
       <PageHeader title={t("circulation.title")} description={t("circulation.description")}>
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4" />{t("circulation.thisDesk")}
+          <MapPin className="h-4 w-4" />{restricted ? t("circulation.yourBranch") : t("circulation.thisDesk")}
           <select value={branchId} onChange={e => setBranchId(e.target.value)} className={cn(SELECT, "w-52")}>
             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>

@@ -37,7 +37,11 @@ public sealed class RecordCashMovementCommandHandler(
         var isPayIn   = cmd.Type == "payin";
         var type      = isPayIn ? CashMovementType.PayIn : CashMovementType.PayOut;
 
-        var createResult = CashMovement.Create(cmd.SessionId, cashierId, type, cmd.Amount, cmd.Reason);
+        if (cmd.Offline is null && string.IsNullOrWhiteSpace(cmd.Category))
+            return Result.Failure<CashMovementDto>(Error.Custom("CashMovement.CategoryRequired",
+                "Say what the cash is for, so it can be entered in the accounts."));
+
+        var createResult = CashMovement.Create(cmd.SessionId, cashierId, type, cmd.Amount, cmd.Reason, cmd.Category);
         if (createResult.IsFailure)
             return Result.Failure<CashMovementDto>(createResult.Error);
         var movement = createResult.Value;

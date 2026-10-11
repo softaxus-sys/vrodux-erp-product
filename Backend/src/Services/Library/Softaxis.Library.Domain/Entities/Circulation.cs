@@ -9,10 +9,11 @@ public sealed class MembershipType
     private MembershipType() { }
 
     public MembershipType(string name, int maxLoans, int loanDays, int maxRenewals, decimal finePerDay,
-        int maxReservations, decimal annualFee)
+        int maxReservations, decimal annualFee, int sameTitleReserveAfterDays = 1)
     {
         Id = Guid.NewGuid();
         Set(name, maxLoans, loanDays, maxRenewals, finePerDay, maxReservations, annualFee);
+        SameTitleReserveAfterDays = Math.Max(0, sameTitleReserveAfterDays);
     }
 
     public Guid      Id              { get; private set; }
@@ -23,15 +24,21 @@ public sealed class MembershipType
     public decimal   FinePerDay      { get; private set; }
     public int       MaxReservations { get; private set; }
     public decimal   AnnualFee       { get; private set; }
+    /// <summary>
+    /// A member holding a title cannot reserve that title again until their loan is this many days
+    /// old. 0 = no wait. Stops a book being issued and reserved again in the same visit.
+    /// </summary>
+    public int       SameTitleReserveAfterDays { get; private set; } = 1;
     public bool      IsActive        { get; private set; } = true;
     public bool      IsDeleted       { get; private set; }
     public DateTime  CreatedAt       { get; private set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt       { get; private set; }
 
     public void Update(string name, int maxLoans, int loanDays, int maxRenewals, decimal finePerDay,
-        int maxReservations, decimal annualFee, bool isActive)
+        int maxReservations, decimal annualFee, bool isActive, int sameTitleReserveAfterDays = 1)
     {
         Set(name, maxLoans, loanDays, maxRenewals, finePerDay, maxReservations, annualFee);
+        SameTitleReserveAfterDays = Math.Max(0, sameTitleReserveAfterDays);
         IsActive  = isActive;
         UpdatedAt = DateTime.UtcNow;
     }
@@ -86,9 +93,51 @@ public sealed class Member
     public string?   ExpiresOn        { get; private set; }
     public string    Status           { get; private set; } = MemberStatus.Active;
     public string?   Notes            { get; private set; }
+    /// <summary>Hash of the PIN the member signs in to the online portal with. Null = no online access.</summary>
+    public string?   PortalPinHash        { get; private set; }
+    public int       PortalFailedAttempts { get; private set; }
+    /// <summary>Sign-in is refused until this moment after too many wrong PINs.</summary>
+    public DateTime? PortalLockedUntil    { get; private set; }
     public bool      IsDeleted        { get; private set; }
     public DateTime  CreatedAt        { get; private set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt        { get; private set; }
+
+    public const int PortalMaxAttempts = 5;
+    public const int PortalLockMinutes = 15;
+
+    /// <summary>Sets or replaces the PIN. Any earlier lock is lifted.</summary>
+    public void SetPortalPin(string pinHash)
+    {
+        PortalPinHash        = pinHash;
+        PortalFailedAttempts = 0;
+        PortalLockedUntil    = null;
+        UpdatedAt            = DateTime.UtcNow;
+    }
+
+    public void ClearPortalPin()
+    {
+        PortalPinHash        = null;
+        PortalFailedAttempts = 0;
+        PortalLockedUntil    = null;
+        UpdatedAt            = DateTime.UtcNow;
+    }
+
+    /// <summary>A PIN is short, so guesses are counted: five wrong ones lock sign-in for a while.</summary>
+    public void RecordPortalFailure()
+    {
+        PortalFailedAttempts++;
+        if (PortalFailedAttempts >= PortalMaxAttempts)
+        {
+            PortalLockedUntil    = DateTime.UtcNow.AddMinutes(PortalLockMinutes);
+            PortalFailedAttempts = 0;
+        }
+    }
+
+    public void RecordPortalSuccess()
+    {
+        PortalFailedAttempts = 0;
+        PortalLockedUntil    = null;
+    }
 
     public void SetDetails(string memberNumber, string fullName, string? email, string? phone, string? address,
         string? idNumber, Guid membershipTypeId, Guid? homeBranchId, string? expiresOn, string? status, string? notes)

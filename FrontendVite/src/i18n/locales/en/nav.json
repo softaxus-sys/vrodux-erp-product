@@ -33,6 +33,7 @@
     "budgeting": "Budgeting",
     "tax-vat": "Tax & VAT",
     "bank-accounts": "Bank & Cash",
+    "finance-integrations": "Integration Center",
     "hr": "HR & Payroll",
     "employees": "Employees",
     "attendance": "Attendance",
@@ -94,6 +95,7 @@
     "pos": "Point of Sale",
     "retail-pos": "Retail POS",
     "pos-customers": "Customers",
+    "pos-credit": "Credit Control",
     "pos-low-stock": "Low Stock",
     "restaurant-pos": "Restaurant POS",
     "kitchen-display": "Kitchen Display",
@@ -140,6 +142,12 @@
     "library-catalogue": "Catalogue",
     "library-members": "Members",
     "library-fines": "Fines",
-    "library-setup": "Branches & Rules"
+    "library-setup": "Branches & Rules",
+    "trade": "Import / Export",
+    "trade-dashboard": "Dashboard",
+    "trade-shipments": "Shipments",
+    "trade-in-transit": "Stock in Transit",
+    "trade-duty-rates": "Duty Rates",
+    "trade-parties": "Suppliers & Agents"
   }
 }

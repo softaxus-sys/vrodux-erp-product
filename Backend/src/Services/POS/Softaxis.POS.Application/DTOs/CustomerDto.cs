@@ -14,7 +14,10 @@ public sealed record CustomerDto(
     decimal  WalletBalance,
     decimal  CreditLimit,
     decimal  CreditBalance,
-    decimal  AvailableCredit);
+    decimal  AvailableCredit,
+    int      CreditTermsDays = 30,
+    bool     CreditHold = false,
+    string?  CreditHoldReason = null);
 
 public sealed record CustomerSummaryDto(
     Guid    Id,
@@ -24,7 +27,8 @@ public sealed record CustomerSummaryDto(
     decimal LoyaltyPoints,
     bool    IsActive,
     decimal WalletBalance,
-    decimal AvailableCredit);
+    decimal AvailableCredit,
+    bool    CreditHold = false);
 
 public sealed record CustomerWalletTransactionDto(
     Guid     Id,

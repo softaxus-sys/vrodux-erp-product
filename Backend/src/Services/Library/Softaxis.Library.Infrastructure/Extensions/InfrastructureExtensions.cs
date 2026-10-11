@@ -6,7 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Softaxis.BuildingBlocks.Application.Behaviors;
 using Softaxis.BuildingBlocks.Infrastructure.Persistence;
 using Softaxis.Library.Application;
+using Softaxis.Library.Application.Abstractions;
+using Softaxis.Library.Application.Reminders;
 using Softaxis.Library.Infrastructure.Persistence;
+using Softaxis.Library.Infrastructure.Services;
 
 namespace Softaxis.Library.Infrastructure.Extensions;
 
@@ -36,6 +39,17 @@ public static class InfrastructureExtensions
         });
 
         services.AddValidatorsFromAssembly(typeof(AssemblyMarker).Assembly);
+
+        // Staff assigned to a branch are limited to it. Needs the host to register ICurrentUser.
+        services.AddScoped<IBranchAccess, BranchAccess>();
+
+        // Member notices: due soon, overdue, reserved copy ready. Off per workspace until enabled.
+        services.AddScoped<ILibraryEmailService, SmtpLibraryEmailService>();
+        services.AddScoped<ILibraryReminderSender, LibraryReminderSender>();
+        services.AddHostedService<LibraryReminderBackgroundService>();
+
+        // Member portal: PIN hashing and the signed session a member holds after signing in.
+        services.AddSingleton<IPortalSecurity, PortalSecurity>();
 
         return services;
     }

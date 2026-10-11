@@ -44,6 +44,9 @@ public static class ModuleCodes
     // ── Library Management ───────────────────────────────────────────────────
     public const string Library = "library";
 
+    // ── Import / Export (trade) ──────────────────────────────────────────────
+    public const string Trade = "trade";
+
     // ── Project Management ───────────────────────────────────────────────────
     public const string ProjectManagement = "project-management";
 

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence } from "framer-motion";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ import {
 } from "@/hooks/library/use-library";
 import type { BranchDto, MembershipTypeDto } from "@/lib/library/library.api";
 import { ConfirmDialog, Field, Modal, PageHeader, Pill, TH, num, useCanAny } from "../../shared/ui";
+import { BranchStaffModal } from "./branch-staff-modal";
+import { RemindersCard } from "./reminders-card";
+import { PortalCard } from "./portal-card";
 
 const ACTIVE = { color: "text-success", bg: "bg-success/10" };
 const INACTIVE = { color: "text-muted-foreground", bg: "bg-muted" };
@@ -81,6 +84,7 @@ function TypeForm({ editing, onClose }: { editing: MembershipTypeDto | null; onC
     name: editing?.name ?? "", maxLoans: String(editing?.maxLoans ?? 5), loanDays: String(editing?.loanDays ?? 14),
     maxRenewals: String(editing?.maxRenewals ?? 2), finePerDay: String(editing?.finePerDay ?? 0),
     maxReservations: String(editing?.maxReservations ?? 3), annualFee: String(editing?.annualFee ?? 0),
+    sameTitleReserveAfterDays: String(editing?.sameTitleReserveAfterDays ?? 1),
   });
   const [active, setActive] = React.useState(editing?.isActive ?? true);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF(prev => ({ ...prev, [k]: e.target.value }));
@@ -92,6 +96,7 @@ function TypeForm({ editing, onClose }: { editing: MembershipTypeDto | null; onC
       name: f.name.trim(), maxLoans: Math.floor(num(f.maxLoans)), loanDays: Math.floor(num(f.loanDays)),
       maxRenewals: Math.floor(num(f.maxRenewals)), finePerDay: num(f.finePerDay),
       maxReservations: Math.floor(num(f.maxReservations)), annualFee: num(f.annualFee), isActive: active,
+      sameTitleReserveAfterDays: Math.max(0, Math.floor(num(f.sameTitleReserveAfterDays))),
     };
     if (editing) update.mutate({ id: editing.id, body }, { onSuccess: onClose });
     else create.mutate(body, { onSuccess: onClose });
@@ -113,6 +118,8 @@ function TypeForm({ editing, onClose }: { editing: MembershipTypeDto | null; onC
         {number("finePerDay", t("setup.type.finePerDay", { currency }), "any")}
         {number("annualFee", t("setup.type.annualFee", { currency }), "any")}
       </div>
+      {number("sameTitleReserveAfterDays", t("setup.type.sameTitleWait"))}
+      <p className="text-[11px] text-muted-foreground">{t("setup.type.sameTitleWaitHint")}</p>
       <p className="text-[11px] text-muted-foreground">{t("setup.type.hint")}</p>
       {editing && <ActiveToggle checked={active} onChange={setActive} />}
     </Modal>
@@ -151,6 +158,7 @@ export function LibrarySetupView() {
   const [branchForm, setBranchForm] = React.useState<{ editing: BranchDto | null } | null>(null);
   const [typeForm, setTypeForm] = React.useState<{ editing: MembershipTypeDto | null } | null>(null);
   const [pendingBranch, setPendingBranch] = React.useState<BranchDto | null>(null);
+  const [staffBranch, setStaffBranch] = React.useState<BranchDto | null>(null);
   const [pendingType, setPendingType] = React.useState<MembershipTypeDto | null>(null);
 
   if (!canView) return <div className="p-12 text-center text-sm text-muted-foreground">{t("noAccess")}</div>;
@@ -181,6 +189,7 @@ export function LibrarySetupView() {
               <th className={TH}>{t("members.contact")}</th>
               <th className={numTh}>{t("col.copies")}</th>
               <th className={numTh}>{t("col.onLoan")}</th>
+              <th className={TH}>{t("setup.staff.column")}</th>
               <th className={TH}>{t("field.status")}</th>
               <th className="px-4 py-3" />
             </tr>
@@ -195,6 +204,15 @@ export function LibrarySetupView() {
                 <td className="px-4 py-3 text-muted-foreground">{[b.phone, b.email].filter(Boolean).join(" · ") || "—"}</td>
                 <td className={numTd}>{b.copies}</td>
                 <td className={numTd}>{b.onLoan}</td>
+                <td className="px-4 py-3">
+                  <button disabled={!canEdit} onClick={() => setStaffBranch(b)} title={t("setup.staff.title")}
+                    className="inline-flex items-center gap-1.5 text-start text-sm rounded-md px-1.5 py-0.5 -mx-1.5 enabled:hover:bg-muted">
+                    <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    {b.staff.length === 0
+                      ? <span className="text-muted-foreground">{t("setup.staff.anyone")}</span>
+                      : <span className="max-w-[14rem] truncate">{b.staff.map(s => s.userName).join(", ")}</span>}
+                  </button>
+                </td>
                 <td className="px-4 py-3"><Pill meta={b.isActive ? ACTIVE : INACTIVE}>{b.isActive ? t("setup.active") : t("setup.inactive")}</Pill></td>
                 <td className="px-4 py-3">{rowActions(() => setBranchForm({ editing: b }), () => setPendingBranch(b))}</td>
               </tr>
@@ -235,8 +253,12 @@ export function LibrarySetupView() {
         </table>
       </Section>
 
+      <RemindersCard canEdit={canEdit} />
+      <PortalCard canEdit={canEdit} />
+
       <AnimatePresence>
         {branchForm && <BranchForm key={branchForm.editing?.id ?? "new-branch"} editing={branchForm.editing} onClose={() => setBranchForm(null)} />}
+        {staffBranch && <BranchStaffModal key={`staff-${staffBranch.id}`} branch={staffBranch} onClose={() => setStaffBranch(null)} />}
         {typeForm && <TypeForm key={typeForm.editing?.id ?? "new-type"} editing={typeForm.editing} onClose={() => setTypeForm(null)} />}
         {pendingBranch && (
           <ConfirmDialog key="del-branch" title={t("setup.branch.deleteTitle")} confirmLabel={t("action.delete")}

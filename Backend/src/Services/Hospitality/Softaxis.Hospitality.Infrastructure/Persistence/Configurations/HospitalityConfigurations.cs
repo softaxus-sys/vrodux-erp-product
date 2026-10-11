@@ -60,3 +60,18 @@ public sealed class HospitalityConfigurations :
         b.HasQueryFilter(x => !x.IsDeleted);
     }
 }
+
+public sealed class BookingPaymentConfiguration : IEntityTypeConfiguration<BookingPayment>
+{
+    public void Configure(EntityTypeBuilder<BookingPayment> b)
+    {
+        b.ToTable("BookingPayments");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Id).ValueGeneratedNever();
+        b.Property(x => x.Amount).HasPrecision(18, 2);
+        b.Property(x => x.Method).HasMaxLength(20).IsRequired();
+        b.Property(x => x.PaidOn).HasMaxLength(10).IsRequired();
+        b.Property(x => x.Reference).HasMaxLength(100);
+        b.HasIndex(x => x.BookingId);
+    }
+}

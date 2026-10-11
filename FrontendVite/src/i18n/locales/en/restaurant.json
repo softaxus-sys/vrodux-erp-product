@@ -68,7 +68,8 @@
     "issue": {
       "linkCustomer": "Link a customer first",
       "walletOnly": "Only {{amount}} in wallet",
-      "creditOnly": "Only {{amount}} available"
+      "creditOnly": "Only {{amount}} available",
+      "creditHold": "Credit stopped"
     },
     "customer": {
       "none": "No customer linked",

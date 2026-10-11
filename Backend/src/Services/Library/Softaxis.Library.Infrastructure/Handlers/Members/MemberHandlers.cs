@@ -39,7 +39,8 @@ internal static class MemberReader
                 m.HomeBranchId is { } b ? branches.GetValueOrDefault(b) : null,
                 m.JoinedOn, m.ExpiresOn, m.Status, m.Notes,
                 mine.Count, mine.Count(l => string.CompareOrdinal(l.DueDate, today) < 0),
-                type?.MaxLoans ?? 0, fines.GetValueOrDefault(m.Id), LibraryRules.IsExpired(m, today));
+                type?.MaxLoans ?? 0, fines.GetValueOrDefault(m.Id), LibraryRules.IsExpired(m, today),
+                m.PortalPinHash is not null);
         }).ToList();
     }
 

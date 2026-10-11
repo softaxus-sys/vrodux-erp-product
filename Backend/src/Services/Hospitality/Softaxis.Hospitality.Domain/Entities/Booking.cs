@@ -47,3 +47,35 @@ public sealed class Booking
     public void RecordPayment(decimal amount) { PaidAmount += amount; UpdatedAt = DateTime.UtcNow; }
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }
+
+/// <summary>
+/// One amount a guest paid against a booking. The booking itself only carries the running total;
+/// without these rows nobody could say how much came in on a given day, or by what method.
+/// </summary>
+public sealed class BookingPayment
+{
+    public static readonly string[] Methods = ["cash", "card", "bank_transfer", "cheque"];
+
+    private BookingPayment() { }
+
+    public BookingPayment(Guid bookingId, decimal amount, string method, string paidOn, string? reference)
+    {
+        Id        = Guid.NewGuid();
+        BookingId = bookingId;
+        Amount    = Math.Round(amount, 2);
+        Method    = method.Trim().ToLowerInvariant();
+        PaidOn    = paidOn;
+        Reference = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim();
+        CreatedAt = DateTime.UtcNow;
+    }
+
+    public Guid     Id        { get; private set; }
+    public Guid     BookingId { get; private set; }
+    public decimal  Amount    { get; private set; }
+    /// <summary>cash | card | bank_transfer | cheque.</summary>
+    public string   Method    { get; private set; } = "cash";
+    /// <summary>yyyy-MM-dd.</summary>
+    public string   PaidOn    { get; private set; } = string.Empty;
+    public string?  Reference { get; private set; }
+    public DateTime CreatedAt { get; private set; }
+}

@@ -6,7 +6,7 @@ import {
   Users, UserCheck, Clock, Banknote, CalendarOff, UserPlus, TrendingUp,
   Handshake, UserSearch, Workflow, Building2,
   ShoppingBag, FileSearch, ClipboardList, RotateCcw,
-  ShoppingCart, Truck, ClipboardCheck, CheckCircle2,
+  ShoppingCart, Truck, ClipboardCheck, CheckCircle2, HandCoins,
   Package, PackageCheck, Warehouse, Boxes, ArrowLeftRight,
   Building, Home, DoorOpen, FileSignature,
   HardHat, FolderKanban, ListChecks, Hammer, MapPin,
@@ -17,7 +17,7 @@ import {
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins, CloudUpload,
   Stamp, CalendarClock, Printer, Globe,
   LifeBuoy, MessageSquare, Headset,
-  Rocket, Search, Wand2, Factory, Library,
+  Rocket, Search, Wand2, Factory, Library, Ship, Container, PackageSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ export const iconMap: Record<string, React.ComponentType<{ className?: string }>
   PanelLeft, PanelRight, PanelTop, LayoutGrid, Coins, CloudUpload,
   Stamp, CalendarClock, Printer, Globe,
   LifeBuoy, MessageSquare, Headset,
-  Rocket, Search, Wand2, Factory, Library,
+  Rocket, Search, Wand2, Factory, Library, Ship, Container, PackageSearch,
 };
 
 export function NavIcon({ name, className }: { name?: string; className?: string }) {

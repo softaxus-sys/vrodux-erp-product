@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatCurrency, parseApiDate, fitTextClass } from "@/lib/utils";
 import {
   PackageSearch, ShoppingCart, Plus, Receipt, LogOut, Loader2, RefreshCw,
-  SplitSquareHorizontal, Wallet, Printer,
+  SplitSquareHorizontal, Wallet, Printer, HandCoins,
 } from "lucide-react";
 import { useBarcodeScanner } from "@/hooks/use-barcode-scanner";
 import { useHardware }       from "@/contexts/hardware-context";
@@ -25,6 +25,8 @@ import { VoidConfirmDialog, RefundDialog } from "./void-refund-dialogs";
 import { CustomerSelect, type SelectedCustomer } from "./customer-select";
 import { DiscountPanel, type AppliedDiscount } from "./discount-panel";
 import { SplitPaymentDialog } from "./split-payment-dialog";
+import { CreditSaleDialog, type CreditReceiptInfo } from "./credit-sale-dialog";
+import { useQueryClient } from "@tanstack/react-query";
 import { CashMovementDialog } from "./cash-movement-dialog";
 import { productsApi } from "@/lib/pos/products.api";
 import { usePosOffline } from "@/contexts/pos-offline-context";
@@ -123,6 +125,9 @@ export function RetailPOSView() {
 
   // Split payment & cash in/out
   const [showSplit, setShowSplit]   = React.useState(false);
+  const [showCredit, setShowCredit] = React.useState(false);
+  const [completedCredit, setCompletedCredit] = React.useState<CreditReceiptInfo | null>(null);
+  const queryClient = useQueryClient();
   const [showCashMove, setCashMove] = React.useState(false);
   const [reprintingId, setReprintingId] = React.useState<string | null>(null);
   const [completedPayments, setCompletedPayments] = React.useState<{ method: string; amount: number }[]>([]);
@@ -281,7 +286,7 @@ export function RetailPOSView() {
   // ── Checkout ──────────────────────────────────────────────────────────────────
   // Accepts an optional payments array (used by split-tender). Defaults to a
   // single payment for the full total on the selected method.
-  const handleCheckout = async (paymentsOverride?: import("@/lib/pos/types").PaymentRequest[]) => {
+  const handleCheckout = async (paymentsOverride?: import("@/lib/pos/types").PaymentRequest[], credit?: CreditReceiptInfo) => {
     if (!cart.length || !sessionId) return;
 
     const payments = paymentsOverride ?? [{ method: paymentMethod, amount: total, reference: null }];
@@ -303,6 +308,13 @@ export function RetailPOSView() {
       });
 
       setCompletedTxnNumber(txn.transactionNumber);
+      setCompletedCredit(credit ?? null);
+      if (credit) {
+        // The customer's balance and the shop-wide receivables both just changed.
+        queryClient.invalidateQueries({ queryKey: ["pos-credit"] });
+        queryClient.invalidateQueries({ queryKey: ["pos-customers"] });
+        setShowCredit(false);
+      }
       setCompletedPayments(payments.map(p => ({ method: p.method, amount: p.amount })));
       setCompletedFbr(txn.fbrStatus ? { status: txn.fbrStatus, number: txn.fbrInvoiceNumber ?? null } : null);
       setShowReceipt(true);
@@ -326,7 +338,7 @@ export function RetailPOSView() {
           taxAmount,
           total,
           paymentMethod: payments.length > 1 ? "Split" : paymentMethod,
-          payments:      payments.map(p => ({ method: p.method, amount: p.amount })),
+          payments:      payments.map(p => ({ method: p.method === "HouseAccount" ? "On credit" : p.method, amount: p.amount })),
           tendered:       parseFloat(tenderedAmount) || 0,
           openDrawer:     hasCash,
           serviceFee:       txn.fbrServiceFee ?? 0,
@@ -341,6 +353,7 @@ export function RetailPOSView() {
   };
 
   const handleNewSale = () => {
+    setCompletedCredit(null);
     setCart([]);
     setAppliedDiscount(null);
     setSelectedCustomer(null);
@@ -687,18 +700,28 @@ export function RetailPOSView() {
                 {/* Pay + Split */}
                 <div className="px-5 pb-5 pt-1 flex gap-2 shrink-0">
                   <ChargeButton
-                    className="flex-1"
+                    className="flex-1 min-w-0 w-auto px-3 text-lg"
                     total={total}
                     currency={currency}
                     pending={createSaleMutation.isPending}
                     disabled={!canCharge}
                     onClick={() => handleCheckout()}
                   />
+                  {!offline && (
+                    <button
+                      onClick={() => setShowCredit(true)}
+                      disabled={createSaleMutation.isPending}
+                      title={selectedCustomer ? `Sell on credit to ${selectedCustomer.name}` : "Sell on credit (choose a customer first)"}
+                      className="h-16 w-16 shrink-0 rounded-2xl border-2 border-border bg-card flex flex-col items-center justify-center gap-0.5 text-xs font-extrabold hover:border-primary disabled:opacity-50">
+                      <HandCoins className="h-6 w-6" strokeWidth={2.5} />
+                      Credit
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowSplit(true)}
                     disabled={createSaleMutation.isPending}
                     title="Split payment across methods"
-                    className="h-16 w-20 shrink-0 rounded-2xl border-2 border-border bg-card flex flex-col items-center justify-center gap-0.5 text-sm font-extrabold hover:border-primary disabled:opacity-50">
+                    className="h-16 w-16 shrink-0 rounded-2xl border-2 border-border bg-card flex flex-col items-center justify-center gap-0.5 text-xs font-extrabold hover:border-primary disabled:opacity-50">
                     <SplitSquareHorizontal className="h-6 w-6" strokeWidth={2.5} />
                     Split
                   </button>
@@ -718,6 +741,7 @@ export function RetailPOSView() {
             discountAmount={discountAmount}
             discountLabel={appliedDiscount?.label}
             payments={completedPayments}
+            credit={completedCredit}
             taxAmount={taxAmount}
             total={total}
             paymentMethod={paymentMethod}
@@ -758,6 +782,18 @@ export function RetailPOSView() {
         pending={createSaleMutation.isPending}
         onComplete={(payments) => handleCheckout(payments)}
         onClose={() => setShowSplit(false)}
+      />
+
+      {/* ── Sell on credit ────────────────────────────────────────────────── */}
+      <CreditSaleDialog
+        open={showCredit}
+        total={total}
+        currency={currency}
+        customer={selectedCustomer}
+        paymentMethods={paymentMethods}
+        pending={createSaleMutation.isPending}
+        onComplete={(payments, credit) => handleCheckout(payments, credit)}
+        onClose={() => setShowCredit(false)}
       />
 
       {/* ── Cash in / out ─────────────────────────────────────────────────── */}

@@ -45,7 +45,8 @@ internal static class CustomerPaymentSupport
             return chargeResult;
 
         posDb.CustomerWalletTransactions.Add(new CustomerWalletTransaction(
-            customer.Id, isWallet ? "redeem" : "house_charge", amount, orderId, null));
+            customer.Id, isWallet ? "redeem" : "house_charge", amount, orderId, isWallet ? null : "Restaurant order",
+            null, isWallet ? null : DateTime.UtcNow.Date.AddDays(customer.CreditTermsDays)));
         await posDb.SaveChangesAsync(ct);
 
         return Result.Success();

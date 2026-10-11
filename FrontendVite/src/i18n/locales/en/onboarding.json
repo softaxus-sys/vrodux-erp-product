@@ -172,7 +172,8 @@
     "Professional Services": "Professional Services",
     "Agriculture": "Agriculture",
     "Other": "Other",
-    "Library": "Library"
+    "Library": "Library",
+    "Import & Export": "Import & Export"
   },
   "language": {
     "English": "English",
@@ -257,6 +258,10 @@
     "library": {
       "label": "Library",
       "desc": "Catalogue, members, lending & fines across branches"
+    },
+    "trade": {
+      "label": "Import / Export",
+      "desc": "Shipments, trade documents, landed cost & payments"
     }
   },
   "businessType": {

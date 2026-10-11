@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Library.Application.Abstractions;
 using Softaxis.Library.Application.Import;
 using Softaxis.Library.Domain.Entities;
 using Softaxis.Library.Infrastructure.Persistence;
@@ -55,7 +56,7 @@ internal static class ImportText
     }
 }
 
-internal sealed class ImportTitlesHandler(LibraryDbContext db) : ICommandHandler<ImportTitlesCommand, ImportResultDto>
+internal sealed class ImportTitlesHandler(LibraryDbContext db, IBranchAccess access) : ICommandHandler<ImportTitlesCommand, ImportResultDto>
 {
     private static readonly char[] BarcodeSeparators = [',', ';', '|', '\n', '\r', '\t'];
     private static readonly string[] MaterialTypes = ["book", "reference", "journal", "magazine", "dvd", "audio", "other"];
@@ -71,8 +72,13 @@ internal sealed class ImportTitlesHandler(LibraryDbContext db) : ICommandHandler
             branchByKey.TryAdd(ImportText.Key(b.Name), b);
             if (b.Code is not null) branchByKey.TryAdd(ImportText.Key(b.Code), b);
         }
-        var defaultBranch = branches.FirstOrDefault(b => b.Id == cmd.DefaultBranchId)
-                            ?? branches.Where(b => b.IsActive).OrderBy(b => b.CreatedAt).FirstOrDefault();
+        // Staff limited to a branch import into their own branches only, and cannot create new ones.
+        var allowed       = await access.AllowedBranchIdsAsync(ct);
+        var createMissing = cmd.CreateBranches && allowed is null;
+        bool MayUse(LibraryBranch b) => allowed is null || allowed.Contains(b.Id);
+
+        var defaultBranch = branches.FirstOrDefault(b => b.Id == cmd.DefaultBranchId && MayUse(b))
+                            ?? branches.Where(b => b.IsActive && MayUse(b)).OrderBy(b => b.CreatedAt).FirstOrDefault();
 
         var known = await db.Titles.AsNoTracking().Where(t => !t.IsDeleted)
             .Select(t => new { t.Id, t.Isbn, t.Title, t.Authors }).ToListAsync(ct);
@@ -115,7 +121,7 @@ internal sealed class ImportTitlesHandler(LibraryDbContext db) : ICommandHandler
             {
                 if (!branchByKey.TryGetValue(ImportText.Key(branchName), out branch))
                 {
-                    if (!cmd.CreateBranches)
+                    if (!createMissing)
                     {
                         Fail(row.Row, $"Branch \"{branchName}\" does not exist.");
                         continue;
@@ -133,6 +139,7 @@ internal sealed class ImportTitlesHandler(LibraryDbContext db) : ICommandHandler
                 branch = defaultBranch;
             }
             if (branch is null) { Fail(row.Row, "No branch given, and the library has no branch to default to."); continue; }
+            if (!MayUse(branch)) { Fail(row.Row, $"You are not assigned to {branch.Name}, so you cannot add copies there."); continue; }
 
             // ── Barcodes (validated before anything is created for the row) ──
             var typed = (row.Barcodes ?? string.Empty)

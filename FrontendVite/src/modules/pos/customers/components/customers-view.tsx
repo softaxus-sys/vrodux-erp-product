@@ -8,6 +8,7 @@ import {
   useCustomers, useCustomer, useTopUpWallet, useCreateCustomer, useUpdateCustomer, useAdjustLoyalty, useSetCreditLimit, useRecordHouseAccountPayment, useWalletTransactions,
 } from "@/hooks/pos/use-customers";
 import type { CustomerDto, CustomerSummaryDto, WalletTransactionType } from "@/lib/pos/types";
+import { CustomerCreditPanel } from "@/modules/pos/credit/components/credit-ui";
 import { Can } from "@/components/auth/can";
 
 const TXN_LABELS: Record<WalletTransactionType, string> = {
@@ -15,6 +16,8 @@ const TXN_LABELS: Record<WalletTransactionType, string> = {
   redeem: "Wallet Redeemed",
   house_charge: "Charged to House Account",
   house_payment: "House Account Payment",
+  house_refund: "Credit Returned",
+  wallet_refund: "Store Credit Returned",
 };
 
 export function CustomersView() {
@@ -105,6 +108,7 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
 
   const [showTopUp, setShowTopUp] = React.useState(false);
   const [showCreditLimit, setShowCreditLimit] = React.useState(false);
+  const [showCreditFile, setShowCreditFile] = React.useState(false);
   const [showPayment, setShowPayment] = React.useState(false);
   const [showEdit, setShowEdit] = React.useState(false);
   const [showLoyalty, setShowLoyalty] = React.useState(false);
@@ -167,10 +171,11 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
 
             {/* House account */}
             <div className="border border-border rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold flex items-center gap-1.5"><CreditCard className="w-4 h-4 text-primary" /> House Account</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold flex items-center gap-1.5 shrink-0"><CreditCard className="w-4 h-4 text-primary" /> House Account</p>
                 <Can permission="pos.customers.edit">
-                  <div className="flex gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="outline" onClick={() => setShowCreditFile(true)}>Credit account</Button>
                     <Button size="sm" variant="outline" onClick={() => setShowCreditLimit(true)}>Set Limit</Button>
                     <Button size="sm" variant="outline" onClick={() => setShowPayment(true)} disabled={c.creditBalance <= 0}>Record Payment</Button>
                   </div>
@@ -196,8 +201,8 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
                         <p className="text-foreground">{TXN_LABELS[t.type]}</p>
                         <p className="text-xs text-muted-foreground">{parseApiDate(t.createdAt).toLocaleString()}</p>
                       </div>
-                      <span className={cn("font-medium", t.type === "topup" || t.type === "house_payment" ? "text-success" : "text-destructive")}>
-                        {t.type === "topup" || t.type === "house_payment" ? "+" : "-"}{formatCurrency(t.amount, currency)}
+                      <span className={cn("font-medium", t.type === "topup" || t.type === "house_payment" || t.type === "house_refund" || t.type === "wallet_refund" ? "text-success" : "text-destructive")}>
+                        {t.type === "topup" || t.type === "house_payment" || t.type === "house_refund" || t.type === "wallet_refund" ? "+" : "-"}{formatCurrency(t.amount, currency)}
                       </span>
                     </div>
                   ))}
@@ -232,8 +237,10 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
       {showTopUp && (
         <AmountModal title="Top Up Wallet" confirmLabel="Top Up" busy={topUp.isPending}
           onClose={() => setShowTopUp(false)}
-          onConfirm={amount => topUp.mutate({ amount }, { onSuccess: () => setShowTopUp(false) })} />
+          withMethod
+          onConfirm={(amount, paymentMethod) => topUp.mutate({ amount, paymentMethod }, { onSuccess: () => setShowTopUp(false) })} />
       )}
+      <CustomerCreditPanel customerId={customerId} open={showCreditFile} onClose={() => setShowCreditFile(false)} />
       {showCreditLimit && (
         <AmountModal title="Set Credit Limit" confirmLabel="Save" busy={setCreditLimit.isPending} initial={c?.creditLimit}
           onClose={() => setShowCreditLimit(false)}
@@ -242,16 +249,25 @@ function CustomerDetailDrawer({ customerId, onClose }: { customerId: string; onC
       {showPayment && (
         <AmountModal title="Record House Account Payment" confirmLabel="Record" busy={recordPayment.isPending}
           onClose={() => setShowPayment(false)}
-          onConfirm={amount => recordPayment.mutate({ amount }, { onSuccess: () => setShowPayment(false) })} />
+          withMethod
+          onConfirm={(amount, paymentMethod) => recordPayment.mutate({ amount, paymentMethod }, { onSuccess: () => setShowPayment(false) })} />
       )}
     </div>
   );
 }
 
-function AmountModal({ title, confirmLabel, busy, initial, onClose, onConfirm }: {
+const PAY_METHODS = [
+  { value: "cash", label: "Cash" }, { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank transfer" }, { value: "cheque", label: "Cheque" },
+];
+
+function AmountModal({ title, confirmLabel, busy, initial, withMethod, onClose, onConfirm }: {
   title: string; confirmLabel: string; busy: boolean; initial?: number;
-  onClose: () => void; onConfirm: (amount: number) => void;
+  /** Money arriving from the customer: say how, so the accounts can tell cash from bank. */
+  withMethod?: boolean;
+  onClose: () => void; onConfirm: (amount: number, paymentMethod: string) => void;
 }) {
+  const [method, setMethod] = React.useState("cash");
   const [amount, setAmount] = React.useState(initial != null ? String(initial) : "");
   const parsed = Number(amount);
   const valid = amount.trim() !== "" && !Number.isNaN(parsed) && parsed >= 0;
@@ -261,9 +277,15 @@ function AmountModal({ title, confirmLabel, busy, initial, onClose, onConfirm }:
       <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 space-y-3" onClick={e => e.stopPropagation()}>
         <p className="text-sm font-semibold">{title}</p>
         <Input type="number" min={0} autoFocus value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" className="h-9 text-sm" />
+        {withMethod && (
+          <select value={method} onChange={e => setMethod(e.target.value)} aria-label="Payment method"
+            className="h-9 w-full px-3 rounded-lg border border-border bg-card text-sm text-foreground">
+            {PAY_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+        )}
         <div className="flex gap-2 justify-end pt-1">
           <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>Cancel</Button>
-          <Button size="sm" onClick={() => valid && onConfirm(parsed)} disabled={!valid || busy}>
+          <Button size="sm" onClick={() => valid && onConfirm(parsed, method)} disabled={!valid || busy}>
             {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : confirmLabel}
           </Button>
         </div>

@@ -147,6 +147,7 @@ export type ModuleKey =
   | "visa"
   | "manufacturing"
   | "library"
+  | "trade"
   | "support"
   | "seo";
 

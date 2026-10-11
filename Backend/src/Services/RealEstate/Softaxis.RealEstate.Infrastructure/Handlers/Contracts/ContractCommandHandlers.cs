@@ -5,6 +5,7 @@ using Softaxis.RealEstate.Application.Contracts.Commands;
 using Softaxis.RealEstate.Application.Contracts.Dtos;
 using Softaxis.RealEstate.Domain.Entities;
 using Softaxis.RealEstate.Infrastructure.Handlers.RentAlerts;
+using Softaxis.RealEstate.Infrastructure.Handlers.Units;
 using Softaxis.RealEstate.Infrastructure.Persistence;
 
 namespace Softaxis.RealEstate.Infrastructure.Handlers.Contracts;
@@ -112,13 +113,40 @@ internal sealed class DeleteContractHandler(RealEstateDbContext db) : ICommandHa
             .FirstOrDefaultAsync(x => x.Id == cmd.Id && !x.IsDeleted, ct);
         if (c is null) return Result.Failure(Error.NotFoundById("Contract", cmd.Id));
 
+        // Deleting the middle of a renewal chain would leave the later lease pointing at nothing.
+        if (c.RenewedToContractId is { } nextId
+            && await db.LeaseContracts.AsNoTracking().AnyAsync(x => x.Id == nextId && !x.IsDeleted, ct))
+            return Result.Failure(Error.Custom("Contract.Conflict",
+                "This lease has been renewed. Delete the renewal first."));
+
         foreach (var i in c.Installments.Where(i => !i.IsDeleted)) i.Delete();
         c.Delete();
 
-        // Free the unit, or it stays rented forever and can never be re-let.
-        var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == c.UnitId && !u.IsDeleted, ct);
-        unit?.Vacate();
+        var termination = await db.LeaseTerminations.FirstOrDefaultAsync(t => t.ContractId == c.Id, ct);
+        if (termination is not null) db.LeaseTerminations.Remove(termination);
 
+        // Deleting a renewal puts the lease it replaced back in force, so the tenant stays in the
+        // unit. Only when there is nothing to fall back to is the unit freed.
+        var previous = c.RenewedFromContractId is { } previousId
+            ? await db.LeaseContracts.FirstOrDefaultAsync(x => x.Id == previousId && !x.IsDeleted, ct)
+            : null;
+
+        if (previous is { Status: "renewed" })
+        {
+            previous.ReopenAfterRenewalRemoved();
+        }
+        else if (c.Status == "active")
+        {
+            // Free the unit, or it stays rented forever and can never be re-let.
+            var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == c.UnitId && !u.IsDeleted, ct);
+            if (unit is not null && (unit.CurrentTenantId is null || unit.CurrentTenantId == c.TenantId))
+                unit.Vacate();
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        await PropertyCounts.RefreshAsync(db, c.PropertyId, ct);
+        await LeaseLifecycle.RefreshTenantStatsAsync(db, c.TenantId, ct);
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }
@@ -131,22 +159,29 @@ internal sealed class SetContractStatusHandler(RealEstateDbContext db) : IComman
         var c = await db.LeaseContracts.FirstOrDefaultAsync(x => x.Id == cmd.Id && !x.IsDeleted, ct);
         if (c is null) return Result.Failure(Error.NotFoundById("Contract", cmd.Id));
 
-        switch (cmd.Status)
-        {
-            case "terminated": c.Terminate(); break;
-            case "expired":    c.Expire();    break;
-            case "renewed":    c.Renew();     break;
-            default:
-                return Result.Failure(Error.Custom("Contract.InvalidStatus",
-                    "A lease cannot be moved back to active once it has ended. Create a renewal instead."));
-        }
+        // Renewing and terminating each do far more than change a word (a new lease; a final
+        // account), so they have their own commands. Only "expired" is a plain status change.
+        if (cmd.Status != "expired")
+            return Result.Failure(Error.Custom("Contract.Conflict",
+                "Use Renew or Terminate to end a lease that way."));
 
-        if (cmd.Status is "terminated" or "expired")
-        {
-            var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == c.UnitId && !u.IsDeleted, ct);
-            unit?.Vacate();
-        }
+        if (c.Status != "active")
+            return Result.Failure(Error.Custom("Contract.Conflict",
+                "Only an active lease can be marked expired. This one is " + c.Status + "."));
 
+        c.Expire();
+
+        var notice = await db.LeaseTerminations.FirstOrDefaultAsync(t => t.ContractId == c.Id, ct);
+        if (notice is not null) db.LeaseTerminations.Remove(notice);
+
+        var unit = await db.PropertyUnits.FirstOrDefaultAsync(u => u.Id == c.UnitId && !u.IsDeleted, ct);
+        if (unit is not null && (unit.CurrentTenantId is null || unit.CurrentTenantId == c.TenantId))
+            unit.Vacate();
+
+        await db.SaveChangesAsync(ct);
+
+        await PropertyCounts.RefreshAsync(db, c.PropertyId, ct);
+        await LeaseLifecycle.RefreshTenantStatsAsync(db, c.TenantId, ct);
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }
@@ -187,12 +222,22 @@ internal sealed class RecordInstallmentPaymentHandler(RealEstateDbContext db)
             .FirstOrDefaultAsync(x => x.Id == cmd.ContractId && !x.IsDeleted, ct);
         if (c is null) return Result.Failure<RentInstallmentDto>(Error.NotFoundById("Contract", cmd.ContractId));
 
+        // The final account was fixed from what had been paid when the lease ended. Taking a
+        // payment against the schedule afterwards would make that account wrong without anyone seeing.
+        if (c.Status == "terminated")
+            return Result.Failure<RentInstallmentDto>(Error.Custom("Installment.Conflict",
+                "This lease has been terminated. Settle what is owed through its final account."));
+
         var inst = c.Installments.FirstOrDefault(i => i.Id == cmd.InstallmentId && !i.IsDeleted);
         if (inst is null) return Result.Failure<RentInstallmentDto>(Error.NotFoundById("Installment", cmd.InstallmentId));
 
         if (inst.Status == "waived")
             return Result.Failure<RentInstallmentDto>(Error.Custom("Installment.Conflict",
                 "This installment was waived. Un-waive it before recording a payment."));
+
+        if (inst.Status == "cancelled")
+            return Result.Failure<RentInstallmentDto>(Error.Custom("Installment.Conflict",
+                "This payment was cancelled when the lease ended, so nothing is owed against it."));
 
         // Overpayment is refused rather than silently absorbed: it is nearly always a payment
         // entered against the wrong installment, and absorbing it hides the real unpaid one.
@@ -232,6 +277,10 @@ internal sealed class WaiveInstallmentHandler(RealEstateDbContext db) : ICommand
 
         var inst = c.Installments.FirstOrDefault(i => i.Id == cmd.InstallmentId && !i.IsDeleted);
         if (inst is null) return Result.Failure(Error.NotFoundById("Installment", cmd.InstallmentId));
+
+        if (inst.IsSettled)
+            return Result.Failure(Error.Custom("Installment.Conflict",
+                "This payment is already " + inst.Status + ", so there is nothing to waive."));
 
         inst.Waive(cmd.Reason);
         await db.SaveChangesAsync(ct);
