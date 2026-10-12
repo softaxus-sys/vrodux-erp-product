@@ -18,16 +18,22 @@ public interface IQuotationBrandingProvider
 /// </summary>
 public interface IQuotationEmailSender
 {
+    /// <param name="brand">The company letterhead — name, logo, address, tax number — shown in the email.</param>
+    /// <param name="showLogo">False when the quotation's template turned the logo off.</param>
+    /// <param name="accentColor">The quotation's own accent (from its template); falls back to the company's.</param>
     Task<bool> SendAsync(
         string  toEmail,
         string? toName,
         string  quotationNumber,
         string? title,
-        string  companyName,
+        QuotationBrandingDto brand,
+        bool    showLogo,
+        string? accentColor,
         string  publicUrl,
         string? message,
         string? validUntil,
         string  formattedTotal,
+        string? footerNote,
         CancellationToken ct = default);
 }
 

@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Application.CQRS;
+using Softaxis.BuildingBlocks.Domain.Multitenancy;
 using Softaxis.BuildingBlocks.Domain.Results;
+using Softaxis.Sales.Application.Abstractions;
 using Softaxis.Sales.Application.Quotations.Dtos;
 using Softaxis.Sales.Application.Quotations.Queries;
 using Softaxis.Sales.Domain.Entities;
@@ -17,9 +19,16 @@ internal sealed class GetQuotationsHandler(SalesDbContext db)
         var page     = Math.Max(1, query.Page);
         var pageSize = Math.Clamp(query.PageSize, 1, 200);
 
+        // TenantIsolation replaces the entity's own soft-delete filter, so it is applied by hand —
+        // otherwise a deleted quotation keeps showing up in the list.
         IQueryable<SalesQuotation> q = db.SalesQuotations
             .AsNoTracking()
-            .Include(x => x.Items);
+            .Include(x => x.Items)
+            .Where(x => !x.IsDeleted);
+
+        if (query.LeadId.HasValue)        q = q.Where(x => x.LeadId == query.LeadId.Value);
+        if (query.CrmCustomerId.HasValue) q = q.Where(x => x.CrmCustomerId == query.CrmCustomerId.Value);
+        if (query.DealId.HasValue)        q = q.Where(x => x.DealId == query.DealId.Value);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -61,7 +70,8 @@ internal sealed class GetQuotationsHandler(SalesDbContext db)
             x.ConvertedOrderId, x.InvoiceId, x.InvoiceNumber,
             x.ShareToken != null,
             x.SentAt, x.ViewedAt, x.RespondedAt,
-            x.CreatedAt, x.UpdatedAt)).ToList();
+            x.CreatedAt, x.UpdatedAt,
+            x.LeadId, x.CrmCustomerId)).ToList();
 
         return Result.Success(new PagedResult<QuotationSummaryDto>(
             items, page, pageSize, total, totalPages, page < totalPages, page > 1));
@@ -77,12 +87,19 @@ internal sealed class GetQuotationByIdHandler(SalesDbContext db)
             .AsNoTracking()
             .Include(x => x.Items)
             .Include(x => x.Sections)
-            .FirstOrDefaultAsync(x => x.Id == query.Id, ct);
+            .FirstOrDefaultAsync(x => x.Id == query.Id && !x.IsDeleted, ct);
 
         return q is null
             ? Result.Failure<QuotationDto>(Error.Custom("Quotation.NotFound", "Quotation not found."))
             : Result.Success(QuotationMappings.ToDto(q));
     }
+}
+
+internal sealed class GetQuotationBrandingHandler(IQuotationBrandingProvider branding)
+    : IQueryHandler<GetQuotationBrandingQuery, QuotationBrandingDto>
+{
+    public async Task<Result<QuotationBrandingDto>> Handle(GetQuotationBrandingQuery query, CancellationToken ct)
+        => Result.Success(await branding.GetAsync(TenantAmbient.TenantId, ct));
 }
 
 internal sealed class GetQuotationTemplatesHandler(SalesDbContext db)
@@ -91,9 +108,21 @@ internal sealed class GetQuotationTemplatesHandler(SalesDbContext db)
     public async Task<Result<IReadOnlyList<QuotationTemplateDto>>> Handle(
         GetQuotationTemplatesQuery query, CancellationToken ct)
     {
+        // Every workspace starts with one ready-made template, so "new quotation from a template"
+        // works on day one. Only when nothing exists at all — including inactive ones — so a
+        // tenant that deliberately deleted or retired it is never handed it back.
+        // (No IsDeleted filter here on purpose: a soft-deleted row still counts as "has had one".)
+        if (!await db.QuotationTemplates.AnyAsync(ct))
+        {
+            db.QuotationTemplates.Add(DefaultQuotationTemplate.Build());
+            await db.SaveChangesAsync(ct);
+        }
+
+        // The tenant filter replaces the entity's soft-delete filter, so it is applied by hand.
         IQueryable<QuotationTemplate> q = db.QuotationTemplates
             .AsNoTracking()
-            .Include(x => x.Items);
+            .Include(x => x.Items)
+            .Where(x => !x.IsDeleted);
 
         if (!query.IncludeInactive) q = q.Where(x => x.IsActive);
 
@@ -116,7 +145,7 @@ internal sealed class GetQuotationTemplateByIdHandler(SalesDbContext db)
         var t = await db.QuotationTemplates
             .AsNoTracking()
             .Include(x => x.Items)
-            .FirstOrDefaultAsync(x => x.Id == query.Id, ct);
+            .FirstOrDefaultAsync(x => x.Id == query.Id && !x.IsDeleted, ct);
 
         return t is null
             ? Result.Failure<QuotationTemplateDto>(

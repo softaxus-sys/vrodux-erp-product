@@ -69,6 +69,10 @@ public static class NotificationEvents
 
     public const string UnitVacating            = "unit.vacating";
 
+    // The customer's answer to a quotation sent from Sales or from a CRM lead.
+    public const string QuotationAccepted       = "quotation.accepted";
+    public const string QuotationDeclined       = "quotation.declined";
+
     /// <summary>Daily digest: overdue production orders and components that are short.</summary>
     public const string ProductionAttention     = "production.attention";
 

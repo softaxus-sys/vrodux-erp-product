@@ -31,9 +31,23 @@ public sealed class SalesQuotationsController(ISender sender) : SalesControllerB
         [FromQuery] string? status     = null,
         [FromQuery] Guid?   customerId = null,
         [FromQuery] Guid?   invoiceId  = null,
+        [FromQuery] Guid?   leadId     = null,
+        [FromQuery] Guid?   crmCustomerId = null,
+        [FromQuery] Guid?   dealId     = null,
         CancellationToken ct = default)
         => OkOrError(await sender.Send(
-            new GetQuotationsQuery(page, pageSize, search, status, customerId, invoiceId), ct));
+            new GetQuotationsQuery(page, pageSize, search, status, customerId, invoiceId,
+                                   leadId, crmCustomerId, dealId), ct));
+
+    /// <summary>
+    /// The company letterhead (logo, name, address, TRN, signature, stamp) as it appears on a
+    /// quotation. The public page already received this; the in-app preview and PDF did not, which
+    /// is why they came out without the logo.
+    /// </summary>
+    [HttpGet("branding")]
+    [RequirePermission("sales.quotations.view")]
+    public async Task<IActionResult> GetBranding(CancellationToken ct)
+        => OkOrError(await sender.Send(new GetQuotationBrandingQuery(), ct));
 
     [HttpGet("{id:guid}")]
     [RequirePermission("sales.quotations.view")]
@@ -45,11 +59,38 @@ public sealed class SalesQuotationsController(ISender sender) : SalesControllerB
     [RequirePermission("sales.quotations.create")]
     public async Task<IActionResult> Create([FromBody] CreateQuotationCommand cmd, CancellationToken ct)
     {
-        var result = await sender.Send(cmd, ct);
+        // Who raised it is always the signed-in user — never whatever the body claims.
+        var result = await sender.Send(cmd with { CreatedByUserId = CurrentUserId() }, ct);
         return result.IsSuccess
             ? CreatedOrError(result, nameof(GetById), new { id = result.Value.Id })
             : OkOrError(result);
     }
+
+    /// <summary>
+    /// Raises a ready-to-review quotation for a CRM lead or account from a template: the server
+    /// builds the lines, terms, validity and look from the template and the customer details given.
+    /// </summary>
+    [HttpPost("from-template")]
+    [RequirePermission("sales.quotations.create")]
+    public async Task<IActionResult> CreateFromTemplate(
+        [FromBody] CreateQuotationFromTemplateCommand cmd, CancellationToken ct)
+    {
+        var result = await sender.Send(cmd with { CreatedByUserId = CurrentUserId() }, ct);
+        return result.IsSuccess
+            ? CreatedOrError(result, nameof(GetById), new { id = result.Value.Id })
+            : OkOrError(result);
+    }
+
+    /// <summary>File a converted lead's quotations under its new account and opportunity.</summary>
+    [HttpPost("relink-lead")]
+    [RequirePermission("sales.quotations.create")]
+    public async Task<IActionResult> RelinkLead([FromBody] RelinkLeadBody body, CancellationToken ct)
+        => OkOrError(await sender.Send(
+            new RelinkLeadQuotationsCommand(body.LeadId, body.CrmCustomerId, body.DealId), ct));
+
+    private Guid? CurrentUserId() =>
+        Guid.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                      ?? User.FindFirst("sub")?.Value, out var id) ? id : null;
 
     [HttpPut("{id:guid}")]
     [RequirePermission("sales.quotations.edit")]
@@ -124,6 +165,7 @@ public sealed class SalesQuotationsController(ISender sender) : SalesControllerB
         IReadOnlyList<QuotationSectionRequest>? Sections,
         QuotationDocumentRequest?               Document);
 
+    public sealed record RelinkLeadBody(Guid LeadId, Guid? CrmCustomerId, Guid? DealId);
     public sealed record SendQuotationBody(string? ToEmail, string? Message, bool? SendEmail);
     public sealed record RespondBody(bool Accepted, string? ByName, string? Comment);
     public sealed record LinkInvoiceBody(Guid? InvoiceId, string? InvoiceNumber);

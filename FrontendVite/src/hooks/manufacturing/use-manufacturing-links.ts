@@ -16,7 +16,7 @@ import { manufacturingApi, type ProductionOrderDto } from "@/lib/manufacturing/m
 const msg = (key: string, opts?: Record<string, unknown>) => i18n.t(`links.${key}`, { ns: "manufacturing", ...opts });
 
 /** True when the tenant has the module and this user may perform the action in it. */
-export function useModuleLink(module: "purchase" | "finance" | "manufacturing", permission: string) {
+export function useModuleLink(module: "purchase" | "finance" | "manufacturing" | "sales", permission: string) {
   const hasModule = useAuthStore(s => s.hasModuleAccess)(module);
   const allowed   = useAuthStore(s => s.hasRawPermission)(permission);
   return hasModule && allowed;

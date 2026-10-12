@@ -8363,3 +8363,27 @@ inventory is not carried in the ledger today); stock-in-transit; HS-code duty ra
 - **Check In / Check Out were dead buttons** in the booking drawer; wired to `PATCH bookings/{id}/checkin|checkout` (refresh bookings, rooms, housekeeping), gated on `hospitality.bookings.edit`; New Booking gated on `.create`.
 - **Verified live:** 13 checks (403 without a key, view-only cannot create/check in, creator can load rooms, create → check in → room occupied → payment → check out). The booking form and the House Account / reminders screens were also checked in the browser.
 - **Finance integration status:** wallet top-ups, POS cash in/out, hotel payments and bank reconciliation are built and verified (Modules 73d, 73e). Remaining by design: goods receipts, purchase returns, stock adjustments and Manufacturing cost wait on the decision to carry inventory in the ledger; bank-statement import / one-to-many matching are not built.
+
+---
+
+## Module 77 — CRM ↔ Sales: quote a lead or account from a Sales template
+
+From a CRM lead or account: **New quotation → pick a Sales quotation template → a complete draft is generated for that customer → Preview (the exact branded document) → send by email / copy link / download PDF.** Everything is a normal Sales quotation (also under Sales → Quotations).
+
+### Backend (Sales, CQRS)
+- `SalesQuotation` gained `LeadId` / `CrmCustomerId` / `DealId` (plain ids, **no FK** — CRM lives in another schema; `CustomerId` is Sales' own customer table), `LeadOwnerUserId`, `CreatedByUserId`, and the look copied from the template: `AccentColor`, `ShowLogo`, `FooterNote`, `SourceTemplateId`. Migration `AddQuotationCrmLinksAndLook` (additive; `ShowLogo` defaults true). New `SalesDbContextFactory` (design-time, mirrors HR) — without it `dotnet ef` builds the standalone API host, which lacks the gateway's notification dispatcher.
+- `POST api/sales/quotations/from-template` (`CreateQuotationFromTemplateCommand`) — server builds lines, sections, terms, validity, look from the template. `{customer}` / `{contact}` placeholders in template text are filled (`TemplateText`); the builder fills them at save for the manual path. Malformed lead emails are dropped, not refused. `CreatedByUserId` always comes from the JWT (controller), never the body.
+- `POST api/sales/quotations/relink-lead` — after a lead converts, its quotations are also filed under the new account/opportunity. Called from `useConvertLead` (covers drawer and kanban drag), best-effort, only with `sales.quotations.create`.
+- `GET api/sales/quotations?leadId=&crmCustomerId=&dealId=`; `GET api/sales/quotations/branding` (the in-app preview/PDF previously had **no logo** because branding only reached the public page).
+- **Default template**: `DefaultQuotationTemplate` ("Standard Quotation", logo on) is created per workspace on first read of the templates list (never at startup — no ambient tenant), only if the workspace has never had one. The company details are **not copied** into it: the letterhead (logo, name, address, TRN, signature, stamp) is read live from Settings → General → Company, so a logo change reaches every later quotation.
+- Branding now includes `SignatureUrl` / `StampUrl`. The email carries the letterhead; the logo (a data: URI in settings) is attached inline via `cid:` because mail clients strip data: images. Raster only — SVG logos are skipped in email.
+- Customer accepts/declines on the public link → creator + lead owner get a bell/realtime alert (`quotation.accepted|declined`, module `crm` when raised from a lead, else `sales`), tenant passed explicitly (anonymous request).
+- Fixed: TenantIsolation replaces the soft-delete filter, so quotation list/get and template reads now apply `!IsDeleted` by hand (deleted quotations/templates were showing).
+
+### Frontend
+`modules/crm/quotations/` — `QuotationTemplatePicker` (portalled), `CrmQuotationsPanel` (list + create + preview + edit; logs "Quotation … emailed" on the CRM timeline as the sender). Lead drawer gets a **Quotations** tab + footer button; account drawer gets the tab. Both exist only when the workspace has Sales and the user holds `sales.quotations.view` (create: `.create`). `QuotationDrawer` gained a **Preview** tab (sandboxed iframe of `buildHtml`), `initialTab`, `onSent`. Print/PDF and the public page honour the quotation's accent, logo switch, signature, stamp and footer note. Overlays are portalled because the lead drawer is transformed (fixed children would be clipped).
+
+### Verified
+Gateway build 0 errors, frontend `tsc` 0 errors. Run against a local gateway + LocalDB with test JWTs: 35 checks pass (403s, default template created once, token filling, CRM link, list by lead/account, relink, send honesty without SMTP, public page, accept → both recipients notified, double answer 409, 0 NULL-tenant rows).
+**Not verified:** real SMTP delivery / inline logo in a mail client, clicking through the CRM drawers while signed in, Arabic layout.
+**Not built:** server-side PDF attachment (the customer link has Download PDF); per-lead team-visibility of quotes (they follow Sales permissions).

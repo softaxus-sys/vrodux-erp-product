@@ -3,6 +3,8 @@ import {
   quotationsApi,
   type GetQuotationsParams,
   type CreateQuotationRequest,
+  type CreateQuotationFromTemplateRequest,
+  type QuotationBrandingDto,
   type UpdateQuotationRequest,
   type QuotationDto,
   type QuotationSummaryDto,
@@ -46,6 +48,36 @@ export function useQuotationsForInvoice(invoiceId: string | null, enabled = true
   });
 }
 
+/** Quotations raised from one CRM lead or account — powers the Quotations tab in CRM. */
+export function useCrmQuotations(
+  scope: { leadId?: string | null; crmCustomerId?: string | null },
+  enabled = true,
+) {
+  const params: GetQuotationsParams = {
+    pageSize: 50,
+    ...(scope.leadId ? { leadId: scope.leadId } : {}),
+    ...(scope.crmCustomerId ? { crmCustomerId: scope.crmCustomerId } : {}),
+  };
+  return useQuery<PagedResult<QuotationSummaryDto>>({
+    queryKey: salesQuotationKeys.list(params),
+    queryFn:  () => quotationsApi.getAll(params),
+    enabled:  enabled && !!(scope.leadId || scope.crmCustomerId),
+  });
+}
+
+/**
+ * The company letterhead for the in-app preview and PDF. Cached for five minutes, matching the
+ * server — it only changes when someone edits Settings → General → Company.
+ */
+export function useQuotationBranding(enabled = true) {
+  return useQuery<QuotationBrandingDto>({
+    queryKey: [...salesQuotationKeys.all, "branding"],
+    queryFn:  () => quotationsApi.getBranding(),
+    staleTime: 5 * 60_000,
+    enabled,
+  });
+}
+
 export function useQuotationTemplates(includeInactive = false) {
   return useQuery<QuotationTemplateDto[]>({
     queryKey: [...salesQuotationKeys.templates(), includeInactive],
@@ -82,6 +114,12 @@ export function useCreateSalesQuotation() {
   return useQuotationMutation(
     (payload: CreateQuotationRequest) => quotationsApi.create(payload),
     { success: "Quotation created." });
+}
+
+/** No success toast: the caller opens the new draft straight away, which is the confirmation. */
+export function useCreateQuotationFromTemplate() {
+  return useQuotationMutation((payload: CreateQuotationFromTemplateRequest) =>
+    quotationsApi.createFromTemplate(payload));
 }
 
 export function useUpdateSalesQuotation() {

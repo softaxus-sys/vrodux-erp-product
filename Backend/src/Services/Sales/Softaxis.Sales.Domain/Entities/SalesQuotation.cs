@@ -92,6 +92,30 @@ public sealed class SalesQuotation
     public string?   RespondedByName { get; private set; }
     public string?   ResponseComment { get; private set; }
 
+    // ── Look & feel (copied from the template at creation) ────────────────────
+    /// <summary>
+    /// Presentation travels with the quotation, not the template: editing a template later must
+    /// not restyle a proposal the customer already holds.
+    /// </summary>
+    public string? AccentColor { get; private set; }
+    public bool    ShowLogo    { get; private set; } = true;
+    public string? FooterNote  { get; private set; }
+    public Guid?   SourceTemplateId { get; private set; }
+
+    // ── CRM links ─────────────────────────────────────────────────────────────
+    // Plain ids, deliberately no foreign keys: leads, accounts and opportunities live in the CRM
+    // service's schema. CustomerId above is Sales' own customer table and cannot hold these.
+    public Guid? LeadId          { get; private set; }
+    public Guid? CrmCustomerId   { get; private set; }
+    public Guid? DealId          { get; private set; }
+
+    /// <summary>
+    /// Who to tell when the customer answers. The customer is anonymous, so there is no request
+    /// user at that moment — both ids are captured here at creation.
+    /// </summary>
+    public Guid? LeadOwnerUserId { get; private set; }
+    public Guid? CreatedByUserId { get; private set; }
+
     // ── Downstream links ──────────────────────────────────────────────────────
     public Guid?   ConvertedOrderId { get; private set; }
     public Guid?   InvoiceId        { get; private set; }
@@ -173,6 +197,35 @@ public sealed class SalesQuotation
                           .ToDictionary(kv => kv.Key.Trim(), kv => kv.Value?.Trim() ?? string.Empty)
             : null;
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetPresentation(string? accentColor, bool showLogo, string? footerNote, Guid? sourceTemplateId)
+    {
+        AccentColor      = Trim(accentColor);
+        ShowLogo         = showLogo;
+        FooterNote       = Trim(footerNote);
+        SourceTemplateId = sourceTemplateId;
+    }
+
+    public void SetCrmLinks(Guid? leadId, Guid? crmCustomerId, Guid? dealId, Guid? leadOwnerUserId)
+    {
+        LeadId          = leadId;
+        CrmCustomerId   = crmCustomerId;
+        DealId          = dealId;
+        LeadOwnerUserId = leadOwnerUserId;
+    }
+
+    public void SetCreatedBy(Guid? userId) => CreatedByUserId = userId;
+
+    /// <summary>
+    /// A converted lead's quotations follow it to the account and opportunity it became, so they
+    /// show up there as well as on the lead's own history.
+    /// </summary>
+    public void RelinkAfterConversion(Guid? crmCustomerId, Guid? dealId)
+    {
+        CrmCustomerId = crmCustomerId ?? CrmCustomerId;
+        DealId        = dealId ?? DealId;
+        UpdatedAt     = DateTime.UtcNow;
     }
 
     public void SetCustomerContact(string? email, string? phone, string? address)

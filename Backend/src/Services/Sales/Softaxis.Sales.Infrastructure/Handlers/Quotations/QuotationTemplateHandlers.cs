@@ -34,7 +34,7 @@ internal static class TemplateComposer
         SalesDbContext db, Guid keepId, CancellationToken ct)
     {
         var others = await db.QuotationTemplates
-            .Where(x => x.IsDefault && x.Id != keepId)
+            .Where(x => !x.IsDeleted && x.IsDefault && x.Id != keepId)
             .ToListAsync(ct);
         foreach (var o in others) o.SetDefault(false);
     }
@@ -55,7 +55,7 @@ internal sealed class CreateQuotationTemplateHandler(SalesDbContext db)
 
         // The very first template becomes the default whether or not it was asked for —
         // otherwise a tenant can have templates and still get a blank quotation by default.
-        var isFirst = !await db.QuotationTemplates.AnyAsync(ct);
+        var isFirst = !await db.QuotationTemplates.AnyAsync(x => !x.IsDeleted, ct);
         if (cmd.IsDefault || isFirst)
         {
             t.SetDefault(true);

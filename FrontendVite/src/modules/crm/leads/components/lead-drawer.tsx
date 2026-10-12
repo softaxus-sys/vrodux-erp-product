@@ -23,8 +23,11 @@ import { Can } from "@/components/auth/can";
 import { NewCaseWizard } from "@/modules/visa/cases/components/new-case-wizard";
 
 import { DocumentsPanel } from "@/modules/crm/shared/components/documents-panel";
+import {
+  CrmQuotationsPanel, useCanViewQuotations, useCanCreateQuotations,
+} from "@/modules/crm/quotations/components/crm-quotations-panel";
 
-type Tab = "overview" | "journey" | "activity" | "documents";
+type Tab = "overview" | "journey" | "activity" | "documents" | "quotations";
 
 const STATUS_OPTIONS: LeadStatus[] = ["new", "contacted", "qualified", "unqualified", "converted", "lost"];
 
@@ -253,7 +256,12 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [showReassign, setShowReassign] = React.useState(false);
   const [showVisa, setShowVisa] = React.useState(false);
-  React.useEffect(() => { if (!open) { setConfirmDelete(false); setShowReassign(false); setShowVisa(false); } }, [open]);
+  // Quotations come from Sales, so the tab and button only exist where the workspace has Sales and
+  // the user may use it. The signal opens the template picker from the footer button.
+  const canViewQuotes   = useCanViewQuotations();
+  const canCreateQuotes = useCanCreateQuotations();
+  const [quotePickSignal, setQuotePickSignal] = React.useState(0);
+  React.useEffect(() => { if (!open) { setConfirmDelete(false); setShowReassign(false); setShowVisa(false); setQuotePickSignal(0); } }, [open]);
 
   // Role + ownership gating. The list is already scoped server-side, so a team-tier user can edit
   // anything they can see — team membership isn't resolvable on the client, and the backend
@@ -316,8 +324,8 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
 
             {/* Tabs */}
             <div className="flex border-b border-border px-6">
-              {(["overview","journey","activity","documents"] as Tab[]).map(tk => (
-                <button key={tk} onClick={() => setTab(tk)}
+              {(["overview","journey","activity","documents", ...(canViewQuotes ? ["quotations"] : [])] as Tab[]).map(tk => (
+                <button key={tk} onClick={() => { setTab(tk); setQuotePickSignal(0); }}
                   className={cn("px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px",
                     tab === tk ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
                   {t(`drawer.tab.${tk}`)}
@@ -577,6 +585,28 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
               {tab === "documents" && (
                 <DocumentsPanel relatedToType="lead" relatedToId={leadId} />
               )}
+
+              {tab === "quotations" && canViewQuotes && (
+                <CrmQuotationsPanel
+                  openPickerSignal={quotePickSignal}
+                  party={{
+                    // A company lead is quoted in the company's name and addressed to the person.
+                    customerName: lead.company?.trim() || lead.fullName,
+                    contactName:  lead.fullName,
+                    email:        lead.email || undefined,
+                    phone:        lead.phone || lead.whatsApp || undefined,
+                    address:      [
+                      lead.company?.trim() ? `Attn: ${lead.fullName}` : null,
+                      [lead.city, lead.country].filter(Boolean).join(", ") || null,
+                    ].filter(Boolean).join("\n") || undefined,
+                    leadId:       leadId,
+                    // Once converted, the account and opportunity are filed alongside the lead.
+                    dealId:       lead.convertedDealId,
+                    ownerUserId:  lead.assignedToUserId,
+                    timeline:     { type: "lead", id: leadId, name: lead.fullName },
+                  }}
+                />
+              )}
             </div>
 
             {/* Footer */}
@@ -594,6 +624,13 @@ export function LeadDrawer({ lead: listLead, open, onClose, onEdit }: Props) {
                 <Button size="sm" className="gap-1.5 h-9 bg-success hover:bg-success/90" disabled={busy}
                   onClick={() => convert.mutate({ id: leadId, body: {} }, { onSuccess: onClose })}>
                   {convert.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRight className="h-3.5 w-3.5" />}{t("drawer.convertToDeal")}
+                </Button>
+              )}
+              {/* Quotation: pick a Sales template and a ready-to-review quotation is generated for this lead. */}
+              {canCreateQuotes && (
+                <Button size="sm" variant="outline" className="gap-1.5 h-9" disabled={busy}
+                  onClick={() => { setTab("quotations"); setQuotePickSignal(n => n + 1); }}>
+                  <FileText className="h-3.5 w-3.5" />{t("drawer.quotationButton", { defaultValue: "Quotation" })}
                 </Button>
               )}
               {/* Visa Case is only meaningful for visa/immigration leads — hiding it elsewhere

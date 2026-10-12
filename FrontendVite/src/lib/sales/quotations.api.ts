@@ -75,6 +75,9 @@ export interface QuotationSummaryDto {
   respondedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
+  /** Set when the quotation was raised from a CRM lead / account. */
+  leadId?: string | null;
+  crmCustomerId?: string | null;
 }
 
 export interface QuotationDto {
@@ -119,6 +122,15 @@ export interface QuotationDto {
   invoiceNumber: string | null;
   createdAt: string;
   updatedAt: string | null;
+  // Look & feel copied from the template when the quotation was created.
+  accentColor?: string | null;
+  showLogo?: boolean;
+  footerNote?: string | null;
+  sourceTemplateId?: string | null;
+  // CRM links.
+  leadId?: string | null;
+  crmCustomerId?: string | null;
+  dealId?: string | null;
 }
 
 export interface QuotationBrandingDto {
@@ -131,6 +143,9 @@ export interface QuotationBrandingDto {
   taxNumber: string | null;
   logoUrl: string | null;
   accentColor: string | null;
+  /** Authorised signature and company stamp from Settings → General → Company. */
+  signatureUrl?: string | null;
+  stampUrl?: string | null;
 }
 
 /** What the anonymous public page receives — a strict subset of {@link QuotationDto}. */
@@ -161,6 +176,9 @@ export interface PublicQuotationDto {
   respondedAt: string | null;
   responseComment: string | null;
   branding: QuotationBrandingDto;
+  accentColor?: string | null;
+  showLogo?: boolean;
+  footerNote?: string | null;
 }
 
 export interface QuotationShareLinkDto { token: string; url: string }
@@ -257,6 +275,23 @@ export interface CreateQuotationRequest {
   templateId?: string | null;
 }
 
+/** "Raise a quotation for this lead / account from a template" — the server builds the whole draft. */
+export interface CreateQuotationFromTemplateRequest {
+  templateId: string;
+  customerName: string;
+  /** Who to address the cover note to; falls back to the customer name. */
+  contactName?: string | null;
+  customerEmail?: string | null;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  preparedByName?: string | null;
+  leadId?: string | null;
+  crmCustomerId?: string | null;
+  dealId?: string | null;
+  /** Who to notify when the customer answers (the lead's owner). */
+  leadOwnerUserId?: string | null;
+}
+
 export interface UpdateQuotationRequest extends Omit<CreateQuotationRequest, "templateId"> {
   status: QuotationStatus;
 }
@@ -268,6 +303,9 @@ export interface GetQuotationsParams {
   status?: string;
   customerId?: string;
   invoiceId?: string;
+  leadId?: string;
+  crmCustomerId?: string;
+  dealId?: string;
 }
 
 export interface SaveQuotationTemplateRequest {
@@ -299,13 +337,26 @@ export const quotationsApi = {
     if (params.status)     qs.set("status",     params.status);
     if (params.customerId) qs.set("customerId", params.customerId);
     if (params.invoiceId)  qs.set("invoiceId",  params.invoiceId);
+    if (params.leadId)        qs.set("leadId",        params.leadId);
+    if (params.crmCustomerId) qs.set("crmCustomerId", params.crmCustomerId);
+    if (params.dealId)        qs.set("dealId",        params.dealId);
     return rawApiClient.get(`${BASE}?${qs}`);
   },
 
   getById: (id: string): Promise<QuotationDto> => rawApiClient.get(`${BASE}/${id}`),
 
+  /** The company letterhead (logo, name, address, TRN, signature, stamp) for the in-app preview and PDF. */
+  getBranding: (): Promise<QuotationBrandingDto> => rawApiClient.get(`${BASE}/branding`),
+
   create: (payload: CreateQuotationRequest): Promise<QuotationDto> =>
     rawApiClient.post(BASE, payload),
+
+  createFromTemplate: (payload: CreateQuotationFromTemplateRequest): Promise<QuotationDto> =>
+    rawApiClient.post(`${BASE}/from-template`, payload),
+
+  /** File a converted lead's quotations under its new account and opportunity. */
+  relinkLead: (body: { leadId: string; crmCustomerId?: string | null; dealId?: string | null }): Promise<number> =>
+    rawApiClient.post(`${BASE}/relink-lead`, body),
 
   update: (id: string, payload: UpdateQuotationRequest): Promise<QuotationDto> =>
     rawApiClient.put(`${BASE}/${id}`, payload),
