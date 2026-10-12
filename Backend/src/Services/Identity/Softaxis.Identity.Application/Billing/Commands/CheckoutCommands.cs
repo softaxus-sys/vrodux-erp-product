@@ -4,6 +4,7 @@ using Softaxis.BuildingBlocks.Application.CQRS;
 using Softaxis.BuildingBlocks.Domain.Results;
 using Softaxis.Identity.Application.Abstractions;
 using Softaxis.Identity.Application.Billing.Dtos;
+using Softaxis.Identity.Application.Common;
 using Softaxis.Identity.Domain.Entities;
 using Softaxis.Identity.Domain.Enums;
 using Softaxis.Identity.Domain.Repositories;
@@ -34,6 +35,7 @@ public sealed class CreateCheckoutSessionCommandHandler(
     ITenantContext                tenantCtx,
     ITenantRepository             tenantRepo,
     ISubscriptionRepository       subRepo,
+    IUserRepository               userRepo,
     IEnumerable<IBillingProvider> providers,
     IOptionsSnapshot<BillingOptions>      options,
     IUnitOfWork                   uow)
@@ -57,6 +59,14 @@ public sealed class CreateCheckoutSessionCommandHandler(
             return Result.Failure<CheckoutSessionDto>(Error.Custom(
                 "Billing.NotSelfServe",
                 "The Enterprise plan is arranged with our sales team. Please contact us for a quote."));
+
+        // A team that grew during the trial cannot buy a tier smaller than itself. Seats are only
+        // checked when a user is created, so without this a 40-person company could pay for the
+        // 3-user tier and keep every existing login on it. Nothing is deleted or switched off —
+        // the tenant is told which tier fits, or to deactivate users first.
+        var seats = await userRepo.CountSeatsAsync(tenant.Id, ct);
+        if (PlanFit.Check(plan, seats) is { } tooSmall)
+            return Result.Failure<CheckoutSessionDto>(tooSmall);
 
         if (!Enum.TryParse<BillingPeriod>(cmd.BillingPeriod, ignoreCase: true, out var period))
             return Result.Failure<CheckoutSessionDto>(Error.Custom("Billing.UnknownPeriod", $"Unknown billing period '{cmd.BillingPeriod}'."));

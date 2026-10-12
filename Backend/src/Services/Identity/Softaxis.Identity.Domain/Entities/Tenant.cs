@@ -177,15 +177,12 @@ public sealed class Tenant : AuditableEntity<Guid>
     /// <summary>
     /// Resolved module list — what this tenant may actually access.
     /// <para>
-    /// <see cref="EnabledModules"/> (the modules picked during onboarding) narrows the set, but the
-    /// <b>plan is the ceiling</b>: the selection is intersected with <see cref="PlanLimits.Modules"/>,
-    /// so a Micro tenant cannot hold POS just because it was ticked at signup. Changing tier is the
-    /// only way to widen entitlement — <b>except</b> when <see cref="ModulesManuallyGranted"/> is
-    /// true, in which case the super admin's explicit list is authoritative and the ceiling is
-    /// skipped entirely. That's the one lever that lets a super admin sell a bespoke module set (e.g.
-    /// POS on a Micro-priced deal) without the tenant buying into a whole higher tier for it. Only a
-    /// super admin can set that flag (<see cref="GrantModulesManually"/>) — self-serve onboarding
-    /// always goes through <see cref="SetEnabledModules"/>, which stays plan-bound.
+    /// <see cref="EnabledModules"/> (the modules picked during onboarding, or later by a super admin)
+    /// is the tenant's selection. <b>Every tier offers every module</b> — the plan only prices seats —
+    /// so the selection is intersected with <see cref="PlanLimits.Modules"/> purely as a guard
+    /// against codes that no longer exist, not as a pricing ceiling. A tenant that never made a
+    /// selection gets the whole catalogue. <see cref="ModulesManuallyGranted"/> remains for a super
+    /// admin who wants an explicit list that skips that guard (and the industry fold-in below).
     /// </para>
     /// <para>
     /// The active Industry-Pack module (and <c>crm</c>, which packs build on) are folded in afterwards

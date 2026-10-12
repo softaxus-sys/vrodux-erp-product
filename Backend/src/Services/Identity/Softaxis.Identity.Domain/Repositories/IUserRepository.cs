@@ -21,6 +21,13 @@ public interface IUserRepository
 
     Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Seats in use: every live login that has not been deactivated. A deactivated user frees
+    /// their seat — "deactivate users first" is only a real instruction if it does — while a
+    /// pending invitee or a briefly locked account still holds one.
+    /// </summary>
+    Task<int> CountSeatsAsync(Guid tenantId, CancellationToken ct = default);
+
     void Add(User user);
     void Update(User user);
     void Remove(User user);

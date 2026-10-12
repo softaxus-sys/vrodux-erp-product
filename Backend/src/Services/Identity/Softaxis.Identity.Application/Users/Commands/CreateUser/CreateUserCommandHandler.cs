@@ -11,6 +11,7 @@ namespace Softaxis.Identity.Application.Users.Commands.CreateUser;
 
 public sealed class CreateUserCommandHandler(
     IUserRepository     userRepo,
+    ITenantRepository   tenantRepo,
     IRoleRepository     roleRepo,
     IPasswordHasher     passwordHasher,
     IAuditLogRepository auditRepo,
@@ -27,7 +28,7 @@ public sealed class CreateUserCommandHandler(
     {
         // ── Plan limit check ──────────────────────────────────────────────────
         // Shared with ProvisionUser: both mint a login and both consume a seat.
-        if (await PlanSeatGuard.CheckAsync(userRepo, currentUser, tenantContext, ct) is { } seatError)
+        if (await PlanSeatGuard.CheckAsync(userRepo, tenantRepo, currentUser, tenantContext, ct) is { } seatError)
             return Result.Failure<UserDto>(seatError);
 
         if (await userRepo.EmailExistsAsync(cmd.Email, ct))

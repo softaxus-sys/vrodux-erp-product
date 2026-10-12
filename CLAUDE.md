@@ -8396,3 +8396,24 @@ One number, defined once: `TrialPolicy.DurationDays = 14` (`Identity.Domain/Enti
 - Reminder emails move from 15/7/3/1 to **7/3/1** (a 15-day notice would fire on day one of a 14-day trial). In-app banner window: last **7** days (was 15).
 - **Existing trials are NOT shortened** — tenants already on a 30-day trial keep their `TrialEndsAt`. Only trials started after this deploys are 14 days.
 - On-premises trial licences are signed keys; docs now say to issue them with validity 14 days.
+
+---
+
+## Module 79 — Every module on every tier; price is seats only; unlimited users in trial; no buying a plan smaller than your team
+
+Decided with the owner: customers pick any modules (or all); the only pricing dimension is users (tiers 3 / 10 / 50 for now — more bands such as 25 will be added once the matching Stripe/PayPal products exist, so none is added in code before then).
+
+- **Modules:** `PlanDefinitions.AllModules` is the module list for **all four tiers** (the old Core/Professional/Enterprise split and the "Professional unlocks POS/Restaurant/Hospitality" rule are gone). `Tenant.ResolvedModules` is now just the tenant's own selection (or everything if none was made); the old behaviour of silently dropping a module ticked at signup because the plan was too small is gone. `ModulesManuallyGranted` is kept for super-admin explicit lists. The AI assistant remains bring-your-own-key. Descriptive tier perks (warehouses, branches, multi-currency, API, white-label, storage) are **still not enforced** except storage — see open items.
+- **Trial = unlimited users.** `PlanSeatGuard` reads the tenant status from the database and applies no seat limit while it is `Trial`. The signup line "Unlimited users during trial" is now true (it was a label with no code behind it).
+- **Seats counted properly:** new `IUserRepository.CountSeatsAsync` = live, non-super-admin users whose status is not `Inactive`. Deactivating a user now frees a seat (previously every row counted, so "deactivate users" would not have helped).
+- **Checkout can't buy too small:** `CreateCheckoutSessionCommandHandler` runs `PlanFit.Check` before talking to the provider. Message: "You have 42 active users. Pick the 50-user tier (Professional), or deactivate users first." Above the largest self-serve tier it says to contact sales about Enterprise. Nothing is ever deleted or switched off. Billing overview gained `seatsOverLimit`, a per-tier `tooSmallReason`, and `maxUsers = -1` during a trial; the billing page shows an over-limit banner and disables too-small tiers with the reason.
+- **Known gap:** a paying tenant can still move to a smaller tier through the Stripe customer portal — the webhook just follows the subscription. They then show `seatsOverLimit` (cannot add users, banner explains) but are not blocked. Fix by turning off plan switching in the Stripe portal configuration.
+- Frontend plan cards no longer claim POS/Hospitality as a Professional-only feature. Marketing site pricing must be kept in step.
+
+### Verified (local gateway + LocalDB, test JWTs)
+11/12 scripted checks pass: 5 users created on a Micro trial; overview shows unlimited during trial; Micro flagged too small with the exact message; every tier lists every module; checkout on Micro refused with the message; deactivating frees a seat; after the trial a new user is refused with the count; the over-limit flag is set. The 12th "failure" was a wrong assertion in my script (new users are `PendingVerification`, not `Active`) — no user was switched off. Dev tenant and test users restored afterwards.
+**Not verified in a browser:** the billing page banner / disabled tier cards.
+
+### Open items
+- Tier perks beyond seats/storage are descriptive only and not enforced (warehouses, branches, multi-currency, API, white-label).
+- The AI assistant has its own starter/growth/enterprise feature tiers (voice, Telegram, automations, autopilot) — decide whether those should also stop depending on the plan.

@@ -39,36 +39,24 @@ public sealed record PlanPricing(decimal? MonthlyUsd, decimal? AnnualUsdPerMonth
 public static class PlanDefinitions
 {
     /// <summary>
-    /// Included in every tier. These are real <c>ModuleKey</c> values (see the frontend
-    /// <c>types/global.ts</c> union) — the previous catalogue used keys like
-    /// <c>inventory.basic</c> / <c>crm.basic</c> / <c>manufacturing</c> that exist nowhere,
-    /// which is why plan-based module entitlement never actually took effect.
+    /// <b>Every module is available on every tier.</b> Price is set by the number of users and
+    /// nothing else — a customer picks whichever modules they need (or all of them) and pays for
+    /// seats, not features. These are real <c>ModuleKey</c> values (see the frontend
+    /// <c>types/global.ts</c> union).
+    ///
+    /// <para>The tenant's own selection (made at signup, changeable by a super admin) still narrows
+    /// what they see — this list is only the ceiling, and it is now the whole catalogue.</para>
+    ///
+    /// <para>The AI assistant is bring-your-own-key: the tenant supplies their own provider
+    /// credentials, so it costs us nothing and is included everywhere.</para>
     /// </summary>
-    private static readonly string[] CoreModules =
+    public static readonly IReadOnlyList<string> AllModules =
     [
         "dashboard", "crm", "sales", "purchase", "inventory",
         "finance", "hr", "reports", "settings", "users",
-        "notifications", "file-manager", "project-management",
-        // BYO-key — the tenant supplies their own provider credentials, so it costs us nothing.
-        "ai-assistant",
-    ];
-
-    /// <summary>Professional unlocks the point-of-sale / food-service family.</summary>
-    private static readonly string[] ProfessionalModules =
-    [
-        .. CoreModules, "pos", "restaurant", "recipe", "hospitality",
-    ];
-
-    /// <summary>
-    /// Enterprise gets everything, including every industry pack.
-    /// (Packs are additionally force-added for the tenant's own industry on all tiers —
-    /// see <see cref="Tenant.ResolvedModules"/> — so a Micro real-estate tenant keeps its pack.)
-    /// </summary>
-    private static readonly string[] EnterpriseModules =
-    [
-        .. ProfessionalModules,
+        "notifications", "file-manager", "project-management", "ai-assistant",
+        "pos", "restaurant", "recipe", "hospitality",
         "real-estate", "construction", "healthcare", "education", "insurance", "b2b", "visa",
-        // Sold as an add-on: on lower tiers a super admin grants it per tenant.
         "manufacturing", "library", "trade",
     ];
 
@@ -83,7 +71,7 @@ public static class PlanDefinitions
                 ApiAccess:      false,
                 CustomReports:  false,
                 WhiteLabel:     false,
-                Modules:        CoreModules,
+                Modules:        AllModules,
                 StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Micro))),
 
             [PlanType.Starter] = new(
@@ -94,7 +82,7 @@ public static class PlanDefinitions
                 ApiAccess:      false,
                 CustomReports:  false,
                 WhiteLabel:     false,
-                Modules:        CoreModules,
+                Modules:        AllModules,
                 StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Starter))),
 
             [PlanType.Professional] = new(
@@ -105,7 +93,7 @@ public static class PlanDefinitions
                 ApiAccess:      true,
                 CustomReports:  true,
                 WhiteLabel:     true,
-                Modules:        ProfessionalModules,
+                Modules:        AllModules,
                 StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Professional))),
 
             [PlanType.Enterprise] = new(
@@ -116,7 +104,7 @@ public static class PlanDefinitions
                 ApiAccess:      true,
                 CustomReports:  true,
                 WhiteLabel:     true,
-                Modules:        EnterpriseModules,
+                Modules:        AllModules,
                 StorageGb:      PlanStorageLimits.GbFor(nameof(PlanType.Enterprise))),
         };
 

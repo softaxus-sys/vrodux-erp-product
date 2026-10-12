@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Softaxis.BuildingBlocks.Domain.Pagination;
 using Softaxis.Identity.Domain.Entities;
+using Softaxis.Identity.Domain.Enums;
 using Softaxis.Identity.Domain.Repositories;
 
 namespace Softaxis.Identity.Infrastructure.Persistence.Repositories;
@@ -83,6 +84,11 @@ public sealed class UserRepository(IdentityDbContext db) : IUserRepository
 
     public Task<int> CountByTenantAsync(Guid tenantId, CancellationToken ct = default) =>
         db.Users.CountAsync(u => u.TenantId == tenantId, ct);
+
+    public Task<int> CountSeatsAsync(Guid tenantId, CancellationToken ct = default) =>
+        db.Users.CountAsync(u => u.TenantId == tenantId
+                              && !u.IsSuperAdmin
+                              && u.Status != UserStatus.Inactive, ct);
 
     public void Add(User user)    => db.Users.Add(user);
     public void Update(User user) => db.Users.Update(user);

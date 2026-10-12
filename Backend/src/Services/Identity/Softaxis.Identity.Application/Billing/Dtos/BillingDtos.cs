@@ -20,7 +20,13 @@ public sealed record BillingOverviewDto(
 
     // ── Seats ──
     int       UsersInUse,
-    int       MaxUsers,          // -1 = unlimited
+    int       MaxUsers,          // -1 = unlimited (always, while on a free trial)
+    /// <summary>
+    /// True when a paying tenant has more seats in use than its plan allows — a team that grew
+    /// during the trial, or one that moved to a cheaper tier through the provider's own portal.
+    /// Nobody is switched off; the page tells them to upgrade or deactivate users.
+    /// </summary>
+    bool      SeatsOverLimit,
 
     // ── Subscription (null until the tenant has ever checked out) ──
     SubscriptionDto? Subscription,
@@ -56,7 +62,9 @@ public sealed record PlanOptionDto(
     bool     SelfServe,
     bool     IsCurrent,
     IReadOnlyList<string> Modules,
-    int      StorageGb);   // -1 = unlimited
+    int      StorageGb,    // -1 = unlimited
+    /// <summary>Why this tier cannot be bought right now ("You have 42 active users. Pick the 50-user tier…"); null when it fits.</summary>
+    string?  TooSmallReason = null);
 
 public sealed record InvoiceDto(
     Guid      Id,

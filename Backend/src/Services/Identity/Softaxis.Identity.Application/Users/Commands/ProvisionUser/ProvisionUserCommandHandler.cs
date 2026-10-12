@@ -47,7 +47,7 @@ public sealed class ProvisionUserCommandHandler(
         // A provisioned login is a real user on the tenant's plan, so it consumes a seat exactly
         // as one created from Settings does. Without this, HR could walk past the limit that screen
         // enforces — the same rule with only one of its two implementations present.
-        if (await PlanSeatGuard.CheckAsync(userRepo, currentUser, tenantContext, ct) is { } seatError)
+        if (await PlanSeatGuard.CheckAsync(userRepo, tenantRepo, currentUser, tenantContext, ct) is { } seatError)
             return Result.Failure<ProvisionedUserDto>(seatError);
 
         if (await userRepo.EmailExistsAsync(cmd.Email, ct))
