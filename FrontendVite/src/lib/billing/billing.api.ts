@@ -89,7 +89,7 @@ export const billingApi = {
   /** Stripe-hosted billing portal (update card, change plan, cancel). */
   portal: (): Promise<CheckoutSessionDto> => apiClient.post(`${BASE}/portal`, {}),
 
-  /** Claim the 30-day trial — only valid for a "Buy Now" signup that never paid. */
+  /** Claim the free trial (TRIAL_DAYS days) — only valid for a "Buy Now" signup that never paid. */
   startTrial: (): Promise<void> => apiClient.post(`${BASE}/start-trial`, {}),
 
   /** Defaults to end-of-period so the customer keeps what they already paid for. */

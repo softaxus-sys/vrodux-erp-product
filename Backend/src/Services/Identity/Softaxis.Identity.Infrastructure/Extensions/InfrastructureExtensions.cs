@@ -80,7 +80,7 @@ public static class InfrastructureExtensions
         // so a tenant that just paid stops being blocked immediately.
         services.AddSingleton<ISubscriptionAccessCache, MemoryCacheSubscriptionAccessCache>();
 
-        // Daily trial reminders (15/7/3/1 days) + expiry. Self-throttling and fully guarded —
+        // Daily trial reminders (7/3/1 days) + expiry. Self-throttling and fully guarded —
         // a failure logs and retries next cycle rather than taking the host down.
         services.AddHostedService<TrialLifecycleService>();
 

@@ -10,8 +10,8 @@ const DISMISS_KEY = "vrodux.trialBanner.dismissedAt";
  * Slim countdown shown inside the app while a trial is running out.
  *
  * Reads the JWT's `trial_days_left` claim rather than calling the API, so it costs nothing and
- * appears on every page. Deliberately only shows inside the reminder window (≤15 days) — nagging a
- * customer on day 2 of 30 just trains them to ignore it.
+ * appears on every page. Deliberately only shows inside the reminder window (the last 7 days of
+ * the 14-day trial, matching the emails) — nagging a customer on day 2 just trains them to ignore it.
  *
  * Dismissal lasts one day, so the reminder returns as the deadline approaches; at ≤3 days it can't
  * be dismissed at all, because losing access unexpectedly is far more annoying than a banner.
@@ -33,7 +33,7 @@ export function TrialBanner() {
   // subscription_state is the authoritative gate; the countdown only means anything on a trial.
   if (tenant?.subscriptionState && tenant.subscriptionState !== "trial") return null;
   if (daysLeft === null || daysLeft === undefined) return null;
-  if (daysLeft > 15 || daysLeft < 0) return null;
+  if (daysLeft > 7 || daysLeft < 0) return null;
 
   const urgent = daysLeft <= 3;
   if (dismissed && !urgent) return null;

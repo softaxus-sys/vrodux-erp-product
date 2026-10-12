@@ -3374,7 +3374,7 @@ after success; re-applying `invoice.paid` would extend a paid period twice. Our 
 
 ### Trial lifecycle + lockout (data is NEVER deleted)
 `TrialLifecycleService : BackgroundService` — daily, 5-min startup delay (never add work to the boot path;
-the deploy health window is unforgiving), fully try/catch-guarded. Emails at **15/7/3/1 days** then on lapse,
+the deploy health window is unforgiving), fully try/catch-guarded. Emails at **7/3/1 days** then on lapse,
 idempotent via `Tenant.LastTrialReminderDaysLeft`; expires lapsed trials.
 **`SubscriptionEnforcementMiddleware` already existed** and blocks Expired/Suspended/elapsed-trial tenants —
 the gap was that `/api/billing/` wasn't exempt, so a lapsed tenant was locked out of the very endpoints
@@ -3392,7 +3392,7 @@ provider webhook ever activates the tenant.
 `lib/billing/{plans.ts,billing.api.ts}`, `hooks/billing/use-billing.ts`,
 `modules/settings/billing/components/billing-settings-view.tsx` (`/settings/billing`, deliberately **not**
 module-guarded), `pages/billing/checkout-result.tsx` (polls our own API — the redirect is not proof of
-payment), `components/billing/trial-banner.tsx` (JWT `trial_days_left`; only inside the final 15 days,
+payment), `components/billing/trial-banner.tsx` (JWT `trial_days_left`; only inside the final 7 days,
 undismissable at ≤3). New JWT claims: `subscription_state`, `trial_days_left`.
 
 ### Gotcha fixed during build
@@ -8387,3 +8387,12 @@ From a CRM lead or account: **New quotation → pick a Sales quotation template 
 Gateway build 0 errors, frontend `tsc` 0 errors. Run against a local gateway + LocalDB with test JWTs: 35 checks pass (403s, default template created once, token filling, CRM link, list by lead/account, relink, send honesty without SMTP, public page, accept → both recipients notified, double answer 409, 0 NULL-tenant rows).
 **Not verified:** real SMTP delivery / inline logo in a mail client, clicking through the CRM drawers while signed in, Arabic layout.
 **Not built:** server-side PDF attachment (the customer link has Download PDF); per-lead team-visibility of quotes (they follow Sales permissions).
+
+---
+
+## Module 78 — Free trial is exactly 14 days (was 30)
+
+One number, defined once: `TrialPolicy.DurationDays = 14` (`Identity.Domain/Entities/TrialPolicy.cs`). `Tenant.StartTrial()` **takes no argument any more**, so self-serve signup, super-admin Create Tenant and "claim the trial" on the billing page all get the same period and none can pass another. Web mirror: `TRIAL_DAYS` in `lib/billing/plans.ts` — every label (signup badge, "N days free", billing page, create-tenant checkbox, toast, onboarding stat tile) reads it; never type a literal number of trial days in a label. Translations use `{{days}}` (`onboarding.trialBadge`, en + ar).
+- Reminder emails move from 15/7/3/1 to **7/3/1** (a 15-day notice would fire on day one of a 14-day trial). In-app banner window: last **7** days (was 15).
+- **Existing trials are NOT shortened** — tenants already on a 30-day trial keep their `TrialEndsAt`. Only trials started after this deploys are 14 days.
+- On-premises trial licences are signed keys; docs now say to issue them with validity 14 days.

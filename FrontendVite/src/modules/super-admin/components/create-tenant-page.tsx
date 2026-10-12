@@ -16,6 +16,7 @@ import {
 import { ModuleSelector, INDUSTRY_MODULE_DEFAULTS, industryModuleDefaults, moduleSetsEqual } from "./module-selector";
 import { INDUSTRY_OPTIONS } from "@/config/industry-packs";
 import { COUNTRIES } from "@/lib/onboarding/geo-data";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 
 // Public tiers and list prices — mirrors vrodux.com/pricing and the backend PlanDefinitions.
 // Annual rates shown in the description are the discounted per-month equivalents. Tier only sets
@@ -372,7 +373,7 @@ export function CreateTenantPage() {
 
                 <label className="flex items-center gap-2 cursor-pointer pt-1 border-t border-border mt-1">
                   <input type="checkbox" checked={startTrial} onChange={e => setStartTrial(e.target.checked)} className="accent-primary" />
-                  <span className="text-sm text-foreground">Start 30-day free trial</span>
+                  <span className="text-sm text-foreground">Start {TRIAL_DAYS}-day free trial</span>
                 </label>
 
                 {industry && industry !== "custom" && (

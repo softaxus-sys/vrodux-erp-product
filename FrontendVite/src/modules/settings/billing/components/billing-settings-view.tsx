@@ -11,7 +11,7 @@ import {
   useBillingOverview, useBillingInvoices, useStartCheckout,
   useBillingPortal, useCancelSubscription, useStartTrial, useTenantStorageUsage,
 } from "@/hooks/billing/use-billing";
-import { formatUsd } from "@/lib/billing/plans";
+import { formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import type { PaymentProviderName, PlanOptionDto } from "@/lib/billing/billing.api";
 
 type Period = "Monthly" | "Annual";
@@ -137,13 +137,13 @@ export function BillingSettingsView() {
               {overview.canStartTrial && (
                 <div className="pt-1">
                   <p className="text-xs text-muted-foreground mb-2">
-                    Not ready to pay? You can try Vrodux free for 30 days instead — no card required.
+                    Not ready to pay? You can try Vrodux free for {TRIAL_DAYS} days instead — no card required.
                   </p>
                   <Button variant="outline" size="sm" disabled={startTrial.isPending}
                     onClick={() => startTrial.mutate()}>
                     {startTrial.isPending
                       ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Start 30-day free trial instead</>}
+                      : <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Start {TRIAL_DAYS}-day free trial instead</>}
                   </Button>
                 </div>
               )}

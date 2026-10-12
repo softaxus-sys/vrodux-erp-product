@@ -296,5 +296,5 @@
     "operations": "HR & Operations",
     "industry": "Industry Packs"
   },
-  "trialBadge": "30-day free trial · No credit card"
+  "trialBadge": "{{days}}-day free trial · No credit card"
 }

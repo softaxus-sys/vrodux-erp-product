@@ -15,7 +15,7 @@ public interface IEmailService
     Task SendTenantInviteEmailAsync(string toEmail, string toName, string tenantName, string? setPasswordToken, CancellationToken ct = default);
 
     /// <summary>
-    /// Nudge a trial tenant that its free period is running out. Sent at 15 / 7 / 3 / 1 days
+    /// Nudge a trial tenant that its free period is running out. Sent at 7 / 3 / 1 days
     /// remaining, and once more when the trial has actually lapsed (<paramref name="daysLeft"/> ≤ 0),
     /// which explains that data is retained and access resumes on subscribing.
     /// </summary>

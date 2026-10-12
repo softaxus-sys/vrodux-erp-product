@@ -423,10 +423,11 @@ public sealed class Tenant : AuditableEntity<Guid>
         UpdatedAt       = DateTime.UtcNow;
     }
 
-    public void StartTrial(int trialDays = 30)
+    /// <summary>Starts the free trial. Always <see cref="TrialPolicy.DurationDays"/> days — there is no override.</summary>
+    public void StartTrial()
     {
         Status      = TenantStatus.Trial;
-        TrialEndsAt = DateTime.UtcNow.AddDays(trialDays);
+        TrialEndsAt = DateTime.UtcNow.AddDays(TrialPolicy.DurationDays);
         UpdatedAt   = DateTime.UtcNow;
     }
 

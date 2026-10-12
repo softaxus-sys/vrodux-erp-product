@@ -67,11 +67,11 @@ public sealed class RegisterTrialCommandHandler(
 
         // "Buy Now" signups do NOT get a trial — they came to purchase, so the account is gated to
         // the billing page until payment lands. They can still claim the trial from there if they
-        // change their mind. Everything else (including a bare /trial visit) gets the 30 days.
+        // change their mind. Everything else (including a bare /trial visit) gets the free trial (TrialPolicy.DurationDays).
         var wantsToBuy = string.Equals(cmd.Intent, "buy", StringComparison.OrdinalIgnoreCase);
 
         if (wantsToBuy) tenant.AwaitPayment();
-        else            tenant.StartTrial(30);
+        else            tenant.StartTrial();
 
         tenant.SetCurrency(cmd.Currency);   // browser-detected 3-letter code (USD default when null)
         tenant.SetSignupAttribution(cmd.Intent, billingPeriod, cmd.UtmSource);

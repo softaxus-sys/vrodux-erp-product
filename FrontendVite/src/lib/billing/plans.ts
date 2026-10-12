@@ -6,6 +6,13 @@
  * and feature lists without a round-trip.
  */
 
+/**
+ * Length of the free trial, in days. The backend decides it (`TrialPolicy.DurationDays`) and every
+ * trial it grants is exactly this long; this copy exists only so the labels can say so without a
+ * round-trip. Change both together — never write a literal number of trial days in a label.
+ */
+export const TRIAL_DAYS = 14;
+
 export type PlanId = "micro" | "starter" | "professional" | "enterprise";
 export type BillingPeriod = "monthly" | "annual";
 

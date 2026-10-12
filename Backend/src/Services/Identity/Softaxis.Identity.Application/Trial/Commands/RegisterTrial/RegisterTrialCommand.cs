@@ -5,7 +5,7 @@ using Softaxis.Identity.Application.Trial.Dtos;
 namespace Softaxis.Identity.Application.Trial.Commands.RegisterTrial;
 
 /// <summary>
-/// Creates a new trial tenant (Cloud, 30 days) and its first admin user.
+/// Creates a new trial tenant (Cloud, 14-day trial) and its first admin user.
 /// Requires a valid challenge token obtained from GET /api/trial/challenge.
 /// </summary>
 public sealed record RegisterTrialCommand(

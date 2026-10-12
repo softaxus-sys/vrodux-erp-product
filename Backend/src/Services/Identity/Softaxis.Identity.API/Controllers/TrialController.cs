@@ -38,7 +38,7 @@ public sealed class TrialController(ISender sender) : BaseApiController(sender)
     }
 
     // ── POST /api/trial/register ──────────────────────────────────────────────
-    // Creates a new tenant (Trial/Cloud, 30 days) and its first admin user.
+    // Creates a new tenant (Trial/Cloud, 14-day trial) and its first admin user.
     // Requires a valid X-Trial-Token header obtained from GET /challenge.
     // Rate limit: 3 requests / IP / 300 s.
 

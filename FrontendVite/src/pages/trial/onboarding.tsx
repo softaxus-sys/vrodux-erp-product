@@ -19,7 +19,7 @@ import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusine
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
 import { loadMetaPixel, trackPixelEvent } from "@/lib/analytics/meta-pixel";
-import { getPlan, amountFor, formatUsd } from "@/lib/billing/plans";
+import { getPlan, amountFor, formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
 import { useAuthStore } from "@/store/auth.store";
 import { ApiError } from "@/lib/api-client";
@@ -203,7 +203,7 @@ function WizardContextPanel({ D }: { D:P }) {
         {/* Trial badge */}
         <div className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border self-start mb-6"
           style={{ color:"#22c55e",borderColor:"#22c55e40",background:"#22c55e10" }}>
-          <Sparkles className="h-3 w-3"/>{t("trialBadge")}
+          <Sparkles className="h-3 w-3"/>{t("trialBadge", { days: TRIAL_DAYS })}
         </div>
 
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] mb-4" style={{ color:D.muted }}>{t("aside.setupSteps")}</p>
@@ -272,7 +272,7 @@ function Sidebar({ D,step,showBT,darkMode,toggleDarkMode }: { D:P;step:number;sh
         </div>
         <div className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border"
           style={{ color:"#22c55e",borderColor:"#22c55e30",background:"#22c55e10" }}>
-          <Sparkles className="h-2.5 w-2.5"/>30-day free trial
+          <Sparkles className="h-2.5 w-2.5"/>{TRIAL_DAYS}-day free trial
         </div>
       </div>
 
@@ -618,7 +618,7 @@ export default function OnboardingPage() {
             return<span key={id} className={cn("inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border",m.color,m.iconColor)}><Icon className="h-3 w-3"/>{moduleLabel(m)}</span>; })}
         </div>
         {/* "Buy Now" signups: say plainly that checkout comes after sign-in, so the jump to a
-            payment page isn't a surprise. Your 30-day trial runs either way. */}
+            payment page isn't a surprise. Your free trial runs either way. */}
         {checkoutPending && selectedPlan && (
           <p className="text-xs mb-5 px-4 py-2.5 rounded-lg border inline-block"
             style={{ color:D.muted,borderColor:D.accent+"40",background:D.accent+"12" }}>
@@ -626,7 +626,7 @@ export default function OnboardingPage() {
             <span className="font-semibold" style={{ color:D.white }}>{selectedPlan.label}</span> plan
             {amountFor(selectedPlan,signup.billing)!==null &&
               <> — {formatUsd(amountFor(selectedPlan,signup.billing))}/{signup.billing==="annual"?"year":"month"}</>}
-            . Your 30-day trial has already started.
+            . Your {TRIAL_DAYS}-day trial has already started.
           </p>
         )}
         <button onClick={()=>navigate("/auth/login")} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white"
@@ -700,7 +700,7 @@ export default function OnboardingPage() {
                   style={{ color:D.white,borderColor:D.accent+"55",background:D.accent+"18" }}
                   title={signup.intent==="buy"
                     ? `You'll be taken to checkout for the ${selectedPlan.label} plan after signup`
-                    : `30-day free trial on the ${selectedPlan.label} plan`}>
+                    : `${TRIAL_DAYS}-day free trial on the ${selectedPlan.label} plan`}>
                   <span style={{ color:D.accent }}>{selectedPlan.label}</span>
                   {amountFor(selectedPlan,signup.billing)!==null && (
                     <span style={{ color:D.muted }}>
@@ -742,7 +742,7 @@ export default function OnboardingPage() {
                   <div className="flex-1 overflow-y-auto px-8 pt-10 pb-4">
                     <div className="max-w-[620px] mx-auto">
                       <h2 className="text-[1.6rem] font-bold tracking-tight mb-1" style={{ color:D.white }}>{t("step1.title")}</h2>
-                      <p className="text-[13px] mb-7" style={{ color:D.muted }}>30 days free · No credit card · Cancel anytime</p>
+                      <p className="text-[13px] mb-7" style={{ color:D.muted }}>{TRIAL_DAYS} days free · No credit card · Cancel anytime</p>
 
                       <form id="f1" onSubmit={onS1}>
                         <div className="rounded-xl border p-6 space-y-5" style={{ background:D.card,borderColor:D.border }}>
@@ -811,7 +811,7 @@ export default function OnboardingPage() {
 
                       {/* Stats strip */}
                       <div className="grid grid-cols-4 gap-px mt-5 rounded-xl overflow-hidden border" style={{ borderColor:D.border,background:D.border }}>
-                        {[{v:"30",l:t("step1.statTrial")},{v:"12+",l:t("step1.statModules")},{v:"∞",l:t("step1.statUsers")},{v:"99.9%",l:t("step1.statUptime")}].map(s=>(
+                        {[{v:String(TRIAL_DAYS),l:t("step1.statTrial")},{v:"12+",l:t("step1.statModules")},{v:"∞",l:t("step1.statUsers")},{v:"99.9%",l:t("step1.statUptime")}].map(s=>(
                           <div key={s.l} className="px-3 py-3 text-center" style={{ background:D.card }}>
                             <p className="text-[18px] font-extrabold leading-none" style={{ color:D.white }}>{s.v}</p>
                             <p className="text-[10px] font-medium uppercase tracking-wider mt-1" style={{ color:D.muted }}>{s.l}</p>

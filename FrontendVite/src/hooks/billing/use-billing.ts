@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { billingApi, type PaymentProviderName } from "@/lib/billing/billing.api";
 import { tenantSettingsApi } from "@/lib/identity/tenant-settings.api";
+import { TRIAL_DAYS } from "@/lib/billing/plans";
 
 const QK = "billing";
 
@@ -61,7 +62,7 @@ export function useBillingPortal() {
 }
 
 /**
- * Claim the 30-day trial from the billing page — the escape hatch for a "Buy Now" signup that
+ * Claim the free trial from the billing page — the escape hatch for a "Buy Now" signup that
  * didn't go through with payment. A hard reload afterwards, because access is granted by the
  * JWT's subscription_state claim: without a fresh token the app would still consider the tenant
  * blocked and bounce them straight back here.
@@ -72,7 +73,7 @@ export function useStartTrial() {
     mutationFn: () => billingApi.startTrial(),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: [QK] });
-      toast.success("Your 30-day free trial has started.");
+      toast.success(`Your ${TRIAL_DAYS}-day free trial has started.`);
       window.location.href = "/dashboard";
     },
     onError: (e: Error) => toast.error(e.message),

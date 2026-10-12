@@ -32,7 +32,7 @@ export function LicenseBanner() {
   }, []);
 
   if (daysLeft === null || daysLeft === undefined) return null;
-  // 30 days, not the trial banner's 15: renewing a licence means contacting a supplier and getting
+  // 30 days, not the trial banner's 7: renewing a licence means contacting a supplier and getting
   // a key issued, which takes longer than entering a card.
   if (daysLeft > 30 || daysLeft < 0) return null;
 
