@@ -418,7 +418,7 @@ function ApiErrorBanner({ D, err, email, onChangeEmail }: { D:P; err:{ code:stri
 
 function NavBar({ D,onBack,onNext,nextLabel,loading,formId }: { D:P;onBack?:()=>void;onNext?:()=>void;nextLabel?:string;loading?:boolean;formId?:string }) {
   return(
-    <div className="shrink-0 px-8 py-4 border-t flex items-center justify-between" style={{ background:D.panel,borderColor:D.border }}>
+    <div className="shrink-0 px-4 sm:px-8 py-4 border-t flex items-center justify-between gap-3" style={{ background:D.panel,borderColor:D.border }}>
       {onBack
         ?<button type="button" onClick={onBack}
             className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border font-semibold text-[13px] transition-all"
@@ -717,7 +717,7 @@ export default function OnboardingPage() {
                 </span>
               )}
               {/* Step counter badge */}
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border"
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border"
                 style={{ color:D.muted,borderColor:D.border,background:D.faint }}>
                 <span style={{ color:D.accent }}>{step+1}</span>
                 <span style={{ color:D.muted+"60" }}>/</span>
@@ -753,7 +753,7 @@ export default function OnboardingPage() {
 
                       <form id="f1" onSubmit={onS1}>
                         <div className="rounded-xl border p-6 space-y-5" style={{ background:D.card,borderColor:D.border }}>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <Lbl D={D} req err={f1.formState.errors.fullName?.message}>{t("step1.fullName")}</Lbl>
                               <input {...f1.register("fullName")} {...fo("fn")} placeholder={t("step1.fullNamePlaceholder")} autoFocus autoComplete="name" className={INPUT_CLS} style={iStyle(D,foc==="fn",!!f1.formState.errors.fullName)}/>
@@ -769,7 +769,7 @@ export default function OnboardingPage() {
                             <input {...f1.register("workEmail")} {...fo("em")} id="field-email" type="email" placeholder="john@acme.com" autoComplete="email" className={INPUT_CLS} style={iStyle(D,foc==="em",!!f1.formState.errors.workEmail)}/>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <Lbl D={D} req err={f1.formState.errors.password?.message}>{t("step1.password")}</Lbl>
                               <div className="relative">
@@ -866,7 +866,7 @@ export default function OnboardingPage() {
                             <Building2 className="h-3 w-3"/>{t("step2.orgDetails")}
                           </p>
                           <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.orgName?.message}>{t("step2.orgName")}</Lbl>
                                 <input {...f2.register("orgName")} {...fo("on")} placeholder={t("step2.orgNamePlaceholder")} autoFocus className={INPUT_CLS} style={iStyle(D,foc==="on",!!f2.formState.errors.orgName)}/>
@@ -882,7 +882,7 @@ export default function OnboardingPage() {
                                 </p>}
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.country?.message}>{t("step2.country")}</Lbl>
                                 <Controller control={f2.control} name="country" render={({ field })=>(
@@ -905,7 +905,7 @@ export default function OnboardingPage() {
                             <Globe className="h-3 w-3"/>{t("step2.regional")}
                           </p>
                           <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.currency?.message}>{t("step2.currency")}{meta&&<span className="normal-case font-normal ml-1" style={{ color:D.accent }}>{t("step2.auto")}</span>}</Lbl>
                                 <Controller control={f2.control} name="currency" render={({ field })=>(
@@ -928,7 +928,7 @@ export default function OnboardingPage() {
                                 </span>
                               </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Lbl D={D} req err={f2.formState.errors.startDate?.message}>{t("step2.startDate")}</Lbl>
                                 <input {...f2.register("startDate")} {...fo("sd")} type="date" className={INPUT_CLS} style={iStyle(D,foc==="sd",!!f2.formState.errors.startDate)}/>
@@ -1036,7 +1036,7 @@ export default function OnboardingPage() {
                         return(
                           <div key={cat.id} className="rounded-xl border p-5" style={{ background:D.card,borderColor:D.border }}>
                             <p className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color:D.muted }}>{moduleCategoryLabel(cat)}</p>
-                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                               {mods.map(mod=>(
                                 <ModCard key={mod.id} D={D} mod={mod}
                                   selected={selectedModules.has(mod.id)||autoModules.has(mod.id)}
@@ -1088,7 +1088,7 @@ export default function OnboardingPage() {
                     </div>
 
                     <div className="rounded-xl border p-5" style={{ background:D.card,borderColor:D.border }}>
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {BUSINESS_TYPES.map(bt=>(
                           <BizCard key={bt.id} D={D} bt={bt} selected={businessType===bt.id} onToggle={()=>{ setBusinessType(bt.id); setBizError(""); }}/>
                         ))}
@@ -1123,7 +1123,7 @@ export default function OnboardingPage() {
                 <AnimatePresence>
                   {apiError&&<ApiErrorBanner D={D} err={apiError} email={s1Data?.workEmail} onChangeEmail={()=>{ setApiError(null); setStep(0); setTimeout(()=>{ document.getElementById("field-email")?.focus(); },200); }}/>}
                 </AnimatePresence>
-                <div className="shrink-0 px-8 py-4 border-t flex items-center justify-between" style={{ background:D.panel,borderColor:D.border }}>
+                <div className="shrink-0 px-4 sm:px-8 py-4 border-t flex items-center justify-between gap-3" style={{ background:D.panel,borderColor:D.border }}>
                   <button type="button" onClick={()=>{ setApiError(null); setStep(2); }}
                     className="inline-flex items-center gap-2 h-10 px-5 rounded-xl border font-semibold text-[13px] transition-all"
                     style={{ borderColor:D.border,color:D.muted }}

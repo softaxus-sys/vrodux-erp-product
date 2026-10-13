@@ -150,7 +150,7 @@ export function KitchenDisplayView() {
   return (
     <div className="flex flex-col h-full bg-muted/20 touch-manipulation">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-4 px-5 py-3 border-b-2 border-border bg-card shrink-0">
+      <div className="flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-5 py-3 border-b-2 border-border bg-card shrink-0 overflow-x-auto">
         <div className="flex items-center gap-2 flex-wrap">
           <ChefHat className="h-7 w-7 text-foreground shrink-0 me-1" />
           {stations.length > 0 ? (
@@ -175,7 +175,7 @@ export function KitchenDisplayView() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Cooking */}
         <div className="flex-1 min-w-0 overflow-y-auto p-4">
           {cooking.length === 0 ? (
@@ -198,7 +198,7 @@ export function KitchenDisplayView() {
         </div>
 
         {/* Ready to serve */}
-        <div className="w-[340px] shrink-0 flex flex-col border-s-2 border-border bg-card">
+        <div className="w-full lg:w-[340px] max-lg:max-h-[40%] shrink-0 flex flex-col border-t-2 lg:border-t-0 lg:border-s-2 border-border bg-card">
           <div className="px-4 py-3 border-b-2 border-border flex items-center justify-between">
             <p className="text-lg font-black text-foreground flex items-center gap-2"><Bell className="h-5 w-5 text-success" />{t("kitchen.columnReady")}</p>
             <span className="min-w-[2rem] h-8 px-2 rounded-full bg-success text-white text-base font-black flex items-center justify-center">{ready.length}</span>

@@ -6,7 +6,7 @@ import {
   ArrowLeft, Search, X, Plus, Minus, Users, Send, CheckCircle2, Receipt, Trash2, Loader2,
   Tag, SplitSquareHorizontal, PauseCircle, PlayCircle, ChefHat, Ban, RotateCcw, Mail,
   ArrowRightLeft, MessageSquarePlus, UserRound, Bike, EyeOff, UtensilsCrossed, Save, Sparkles, Percent, Ticket,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -28,6 +28,7 @@ import { buildEscPosReceipt } from "@/lib/pos/receipt-escpos";
 import { vouchersApi } from "@/lib/pos/vouchers.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useOptionalShift } from "@/modules/pos/retail/components/shift-gate";
+import { MobileCartBar } from "@/modules/pos/retail/components/pos-ui";
 import type {
   DiscountType, RestaurantTable, RestaurantOrder, MenuItem, Combo, Driver,
 } from "@/lib/restaurant/restaurant.api";
@@ -451,6 +452,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   const [pending, setPending] = React.useState<PendingLine[]>([]);
   const [noteFor, setNoteFor] = React.useState<string | null>(null);
   const [manageStock, setManageStock] = React.useState(false);
+  const [ticketOpen, setTicketOpen] = React.useState(false); // phones: the ticket is a bottom sheet
   const [optionsItem, setOptionsItem] = React.useState<MenuItem | null>(null);
   const [comboPicker, setComboPicker] = React.useState<Combo | null>(null);
   const [payTarget, setPayTarget] = React.useState<RestaurantOrder | null>(null);
@@ -579,9 +581,9 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
     <div className="flex h-full bg-muted/20 touch-manipulation">
       {/* ── Menu ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <div className="flex items-center gap-3 px-4 pt-4">
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 pt-3 sm:pt-4">
           <button onClick={onBack}
-            className="h-14 px-4 rounded-2xl border-2 border-border bg-card flex items-center gap-2 text-base font-extrabold hover:border-primary shrink-0">
+            className="h-12 sm:h-14 px-3 sm:px-4 rounded-2xl border-2 border-border bg-card flex items-center gap-2 text-base font-extrabold hover:border-primary shrink-0">
             <ArrowLeft className="h-5 w-5 rtl:rotate-180" strokeWidth={2.5} />{t("posView.screen.back")}
           </button>
           <div className="relative flex-1">
@@ -625,7 +627,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
           ))}
         </CategoryRail>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-4 pb-24 lg:pb-4">
           {menuLoading ? (
             <div className="flex justify-center py-24"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
           ) : showDeals ? (
@@ -647,7 +649,7 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
               <p className="text-xl font-extrabold text-foreground">{t("posView.drawer.noItemsFound")}</p>
             </div>
           ) : (
-            <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
+            <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))]">
               {shownItems.map(item => {
                 const qty = pendingQtyByItem.get(item.id) ?? 0;
                 const off = !item.isAvailable;
@@ -693,10 +695,26 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
       </div>
 
       {/* ── Ticket ───────────────────────────────────────────────────────── */}
-      <div className="w-[400px] xl:w-[440px] shrink-0 flex flex-col bg-card border-s-2 border-border">
+      {!ticketOpen && (pendingCount > 0 || (order?.items?.length ?? 0) > 0) && (
+        <MobileCartBar
+          count={pendingCount + (order?.items?.length ?? 0)}
+          total={formatCurrency(order ? order.total + pendingTotal : pendingTotal, currency)}
+          onOpen={() => setTicketOpen(true)}
+        />
+      )}
+      <div className={cn(
+        "flex flex-col bg-card border-border",
+        "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-14 max-lg:z-40 max-lg:rounded-t-2xl max-lg:border-t-2 max-lg:shadow-2xl max-lg:transition-transform max-lg:duration-200",
+        ticketOpen ? "max-lg:translate-y-0" : "max-lg:translate-y-[110%]",
+        "lg:w-[400px] xl:w-[440px] lg:shrink-0 lg:border-s-2",
+      )}>
         <div className="px-5 py-4 border-b-2 border-border shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-2xl font-black text-foreground truncate">{title}</p>
+            <button onClick={() => setTicketOpen(false)} aria-label="Back to menu"
+              className="lg:hidden h-11 w-11 -ms-1 shrink-0 rounded-xl border-2 border-border flex items-center justify-center">
+              <ChevronDown className="h-5 w-5" strokeWidth={2.5} />
+            </button>
+            <p className="text-2xl font-black text-foreground truncate flex-1">{title}</p>
             {status && (
               <span className={cn("px-3 py-1.5 rounded-xl text-sm font-extrabold whitespace-nowrap", ORDER_STATUS_STYLE[status])}>
                 {order ? statusLabel(order) : t(`orders.status.${status}`, { defaultValue: status })}

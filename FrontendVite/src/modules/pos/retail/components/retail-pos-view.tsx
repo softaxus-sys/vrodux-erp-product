@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import {
   type PosProduct, mapToPosProduct, usePosShortcuts,
   ScanToast, PosSearch, CategoryPills, ProductTile, PRODUCT_GRID, ProductsLoading, ProductsEmpty,
-  CART_PANEL, CartHeader, HeldList, CartLine, EmptyCart, TotalsBlock,
+  cartPanelClass, MobileCartBar, CartHeader, HeldList, CartLine, EmptyCart, TotalsBlock,
   PaymentMethodGrid, CashTender, ChargeButton,
   TOP_BAR, TopBarBrand, TopBarButton, ShiftPill, LiveClock,
 } from "./pos-ui";
@@ -153,6 +153,7 @@ export function RetailPOSView() {
   // module and back unmounted the view and silently discarded every parked sale.
   const [heldTransactions, setHeldTransactions] = useHeldOrders<HeldItem>("retail");
   const [showHeldPanel, setShowHeldPanel] = React.useState(false);
+  const [cartOpen, setCartOpen] = React.useState(false); // phones: cart is a bottom sheet
 
   // Add product form
   const [showAddForm, setShowAddForm]     = React.useState(false);
@@ -589,12 +590,12 @@ export function RetailPOSView() {
         <div className="flex-1 flex overflow-hidden">
           {/* Left — Products */}
           <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-            <div className="px-5 pt-4 pb-3 space-y-3 shrink-0">
+            <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-3 space-y-3 shrink-0">
               <PosSearch ref={searchRef} value={search} onChange={setSearch} />
               <CategoryPills categories={categories} active={categoryFilter} onSelect={setCategoryFilter} />
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 pb-5 pt-2">
+            <div className="flex-1 overflow-y-auto px-3 sm:px-5 pb-24 lg:pb-5 pt-2">
               {productsLoading ? (
                 <ProductsLoading />
               ) : filtered.length > 0 ? (
@@ -614,8 +615,9 @@ export function RetailPOSView() {
           </div>
 
           {/* Right — Sale */}
-          <aside className={CART_PANEL}>
+          <aside className={cartPanelClass(cartOpen)}>
             <CartHeader
+              onCloseSheet={() => setCartOpen(false)}
               itemCount={totalItems}
               heldCount={heldTransactions.length}
               onHold={holdCart}
@@ -729,6 +731,9 @@ export function RetailPOSView() {
               </>
             )}
           </aside>
+          {!cartOpen && totalItems > 0 && (
+            <MobileCartBar count={totalItems} total={formatCurrency(total, currency)} onOpen={() => setCartOpen(true)} />
+          )}
         </div>
       )}
 

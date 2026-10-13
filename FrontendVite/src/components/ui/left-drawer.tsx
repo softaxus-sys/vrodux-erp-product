@@ -29,7 +29,7 @@ export function LeftDrawer({ onClose, widthClassName = "max-w-md", zIndexClassNa
         className={cn("fixed left-0 top-0 h-full w-full bg-card border-r border-border flex flex-col shadow-2xl", widthClassName)}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex-1 overflow-auto overscroll-contain p-5 space-y-3">
+        <div className="flex-1 overflow-auto overscroll-contain p-4 sm:p-5 space-y-3">
           {children}
         </div>
       </motion.div>

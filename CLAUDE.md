@@ -8417,3 +8417,60 @@ Decided with the owner: customers pick any modules (or all); the only pricing di
 ### Open items
 - Tier perks beyond seats/storage are descriptive only and not enforced (warehouses, branches, multi-currency, API, white-label).
 - The AI assistant has its own starter/growth/enterprise feature tiers (voice, Telegram, automations, autopilot) — decide whether those should also stop depending on the plan.
+### Module 76c — Trade: stock in transit, duty rates, AI tools, and signup / isolation verification
+
+- **Signup with the new industry, run for real:** `POST /api/trial/register` with industry "Import & Export" creates a tenant with
+  `Industry = import_export`, its Trade Manager (19 trade permissions) and Trade Staff (15) roles, and a real login returns a JWT whose
+  `modules` claim contains `trade` and which carries all 19 trade permissions. A Trade-only signup gets no CRM / Inventory pulled in.
+  Super-admin Create Tenant shares the same industry map but was **not** run.
+- **Two-workspace isolation, run for real (37 checks, 0 failed):** two fresh tenants. The same party name is allowed in both; every read,
+  edit, delete, status change, cost, payment, document download, report and the dashboard of A's data returns 404 / empty for B, and B cannot
+  attach A's party to its own shipment. The 3 test tenants were purged (identity rows) and their trade rows deleted.
+- **Stock in transit:** `GET api/trade/in-transit` (`trade.shipments.view`) — quantity on open imports (incoming) and open exports (outgoing)
+  per product, next arrival, and whether any is late. A line with no Inventory product is grouped by its wording, so cargo is counted before
+  anyone links it. Page `/trade/in-transit`; the Inventory stock drawer shows an "On its way" box via
+  `components/trade/incoming-stock.tsx`, which renders nothing unless the workspace has Trade and the user may see shipments.
+- **Duty rates:** `HsDutyRate` per workspace (digits-only code, unique among live rows; the longest matching code wins, so a rate for `7306`
+  covers `7306.30` unless a more specific one exists). CRUD under the existing `trade.costs.*` keys (no new permission, no Identity migration).
+  `GET shipments/{id}/duty-estimate?includeFreightInsurance=` returns line-by-line duty; lines with no code or no matching rate are
+  reported as unmatched, never counted as duty-free. Optional CIF basis shares the shipment's freight + insurance across lines by value. The
+  Costs tab "Estimate duty" dialog shows the working and only adds a customs-duty cost when the user presses the button. Migration `AddDutyRates`.
+- **AI assistant (agent `trade`, 15 tools):** list shipments / parties / in-transit / duty rates, dashboard; get shipment and duty estimate;
+  create party, duty rate and (bespoke, with goods + containers) shipment; update shipment (read-then-merge, keeps goods and product links);
+  change status; add cost; add payment; register a document (no file from chat). All writes are confirm-gated by the orchestrator. No delete
+  tools. Run as real tools over HTTP against a real gateway as a real signed-up user: 202 checks, 0 failed.
+- **Verified in the browser:** stock-in-transit page, duty-rates page, the estimate dialog (10 % on the specific code, valve flagged "No rate",
+  CIF toggle raised customs value by the 360 of freight + insurance). **Not verified:** the Inventory drawer badge (no inventory product in the
+  test workspace), Arabic screens, the order-link search against live Purchase / Sales data.
+- **Observation, not changed:** an Administrator's JWT now carries ~406 permission claims (about 12 KB). Module 61e already raised the Kestrel and
+  nginx limits for the SignalR query-string token; the claim set keeps growing with every module.
+- **Still not built:** posting landed cost / payments to Finance and updating Inventory product cost (need an accounting decision), email / push
+  alerts, bulk import of whole shipments.
+
+---
+
+## Module 80 — Mobile & tablet responsiveness (whole web app)
+
+Goal: every screen usable on phones and tablets, signup/trial included. Frontend only; no backend, no migration.
+
+- **Shell (< `lg`, 1024px):** `layouts/mobile-layout.tsx` replaces all four layout variants with an off-canvas
+  drawer (opened from a topbar menu button; closes on navigation / backdrop / Esc; language + theme live in its
+  footer). `useIsMobile()` in `hooks/use-media-query.ts`. Topbar shows only the current breadcrumb, a search icon,
+  and hides language/theme below `sm`. Content padding `p-3 sm:p-4 lg:p-6`. `viewport-fit=cover`, `100dvh`.
+- **Global CSS (`index.css`):** below `lg` every `main table` scrolls sideways (most were inside `overflow-hidden`
+  cards that clipped columns); below `sm` unprefixed `grid-cols-3..6` become 2 columns and page-header / toolbar
+  button groups wrap; below `md` inputs are 16px (stops iOS zoom) and centred modals are capped to screen height.
+  Rules skip POS (`<main data-pos>`).
+- **Primitives:** `Dialog` is scrollable (`max-h-[90dvh]`) with a smaller mobile gutter; AI panel is near full-screen on phones.
+- **Signup / trial (`pages/trial/onboarding.tsx`):** paired fields stack on phones, module cards are one column (names
+  were being squeezed out), footer padding, step counter shown on phones.
+- **Master/detail layouts stacked:** Roles & Permissions (matrix scrolls sideways), per-user permissions, floor designer,
+  menu management, kitchen display, Master Data (list → detail with a back button).
+- **POS:** retail cashier + retail POS cart and the restaurant order ticket become bottom sheets on phones with a
+  floating "View cart" bar (`cartPanelClass`, `MobileCartBar` in `retail/components/pos-ui.tsx`).
+- **PWA:** `public/manifest.webmanifest` + meta tags — installable to the home screen (SVG icon only; add 192/512 PNGs
+  for best Android/iOS results).
+- **Verified:** `tsc` 0 errors, `vite build` ok. In a browser at 375px and 768px with a fake local session (no API):
+  signup steps 1–3, login, shell + drawer, Leads, Visa Cases; an overflow/clipping sweep over ~110 routes found no
+  page-level horizontal scroll. **Not verified:** pages with real data (no backend available), real devices / iOS Safari,
+  the cart sheets and master-data back button in a browser, Arabic/RTL on phones, Electron.

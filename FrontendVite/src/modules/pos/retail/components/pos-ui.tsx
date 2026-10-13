@@ -9,7 +9,7 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Search, X, Plus, Minus, ChevronLeft, ChevronRight, Pause, PlayCircle, Trash2,
+  Search, X, Plus, Minus, ChevronLeft, ChevronRight, ChevronDown, Pause, PlayCircle, Trash2,
   CheckCircle2, AlertCircle, Delete, ShoppingCart, Loader2, Receipt,
 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -214,7 +214,7 @@ export function CategoryPills({
 
 // ─── Product tile ─────────────────────────────────────────────────────────────
 
-export const PRODUCT_GRID = "grid gap-3 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]";
+export const PRODUCT_GRID = "grid gap-2 sm:gap-3 grid-cols-[repeat(auto-fill,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(170px,1fr))]";
 
 export function ProductTile({
   product, inCart, currency, onAdd, allowOversell = false,
@@ -293,16 +293,54 @@ export function ProductsEmpty({ action }: { action?: React.ReactNode }) {
 
 export const CART_PANEL = "w-[420px] xl:w-[460px] shrink-0 flex flex-col bg-card border-l-2 border-border";
 
+/**
+ * Cart panel classes. Desktop/tablet-landscape (lg+): the fixed side panel. Phones and portrait
+ * tablets: a full-height sheet that slides up over the products and is opened from MobileCartBar.
+ */
+export function cartPanelClass(open: boolean) {
+  return cn(
+    "flex flex-col bg-card border-border",
+    "max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-14 max-lg:z-40 max-lg:rounded-t-2xl max-lg:border-t-2 max-lg:shadow-2xl",
+    "max-lg:transition-transform max-lg:duration-200",
+    open ? "max-lg:translate-y-0" : "max-lg:translate-y-[110%]",
+    "lg:w-[420px] xl:w-[460px] lg:shrink-0 lg:border-l-2",
+  );
+}
+
+/** Sticky "View cart" bar shown on phones while the cart sheet is closed. */
+export function MobileCartBar({ count, total, onOpen }: { count: number; total: string; onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="lg:hidden fixed inset-x-3 bottom-3 z-30 h-14 rounded-2xl bg-primary text-primary-foreground shadow-xl flex items-center justify-between px-5 text-base font-black mb-[env(safe-area-inset-bottom)]"
+    >
+      <span className="flex items-center gap-2">
+        <ShoppingCart className="h-5 w-5" strokeWidth={2.5} />
+        View cart
+        <span className="h-7 min-w-[1.75rem] px-2 rounded-full bg-white/25 flex items-center justify-center text-sm">{count}</span>
+      </span>
+      <span>{total}</span>
+    </button>
+  );
+}
+
 export function CartHeader({
-  itemCount, heldCount, onHold, onClear, onToggleHeld,
+  itemCount, heldCount, onHold, onClear, onToggleHeld, onCloseSheet,
 }: {
   itemCount: number; heldCount: number;
   onHold: () => void; onClear: () => void; onToggleHeld: () => void;
+  /** Phones only: collapses the cart sheet back to the product list. */
+  onCloseSheet?: () => void;
 }) {
   const btn = "h-11 flex items-center gap-1.5 px-3 rounded-xl border-2 text-base font-bold transition-colors";
   return (
-    <div className="px-5 py-3 border-b-2 border-border flex items-center justify-between gap-2 shrink-0">
+    <div className="px-3 sm:px-5 py-3 border-b-2 border-border flex items-center justify-between gap-2 shrink-0">
       <div className="flex items-center gap-2 min-w-0">
+        {onCloseSheet && (
+          <button onClick={onCloseSheet} aria-label="Back to products" className="lg:hidden h-11 w-11 -ms-1 shrink-0 rounded-xl border-2 border-border flex items-center justify-center">
+            <ChevronDown className="h-5 w-5" strokeWidth={2.5} />
+          </button>
+        )}
         <p className="text-xl font-black whitespace-nowrap">Current Sale</p>
         {itemCount > 0 && (
           <span className="h-8 min-w-[2rem] px-2 rounded-full bg-primary text-primary-foreground text-base font-black flex items-center justify-center">
@@ -609,7 +647,7 @@ export function ChargeButton({
 
 // ─── Top bar pieces ───────────────────────────────────────────────────────────
 
-export const TOP_BAR = "flex items-center justify-between gap-3 px-5 h-[72px] bg-slate-900 text-white shrink-0";
+export const TOP_BAR = "flex items-center justify-between gap-3 px-3 sm:px-5 h-14 sm:h-[72px] bg-slate-900 text-white shrink-0 overflow-x-auto";
 
 export function TopBarBrand({ title, subtitle }: { title: string; subtitle: string }) {
   return (

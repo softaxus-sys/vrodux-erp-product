@@ -3,13 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Bell, Search, Sun, Moon, Monitor, ChevronDown,
-  LogOut, Settings, User, Sparkles, ChevronRight,
+  LogOut, Settings, User, Sparkles, ChevronRight, Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useUiStore } from "@/store/ui.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useNotificationFeed } from "@/hooks/notifications/use-notifications";
+import { useIsMobile } from "@/hooks/use-media-query";
 import { useThemeStore } from "@/store/theme.store";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,7 +28,7 @@ function getBreadcrumbs(pathname: string) {
   }));
 }
 
-function ThemeToggle() {
+export function ThemeToggle() {
   const { t } = useTranslation("common");
   const { darkMode, toggleDarkMode } = useThemeStore();
   return (
@@ -81,7 +82,11 @@ export function Topbar() {
   const { t } = useTranslation("topbar");
   const { user, tenant, logout } = useAuthStore();
   const { toggleCommandPalette, toggleAiAssistant } = useUiStore();
-  const breadcrumbs = getBreadcrumbs(pathname);
+  const isMobile = useIsMobile();
+  const { setSidebarMobileOpen, setCommandPaletteOpen } = useUiStore();
+  const allCrumbs = getBreadcrumbs(pathname);
+  // On a phone only the current page fits; the drawer is the way up.
+  const breadcrumbs = isMobile ? allCrumbs.slice(-1) : allCrumbs;
 
   const handleLogout = async () => {
     await logout();
@@ -91,8 +96,17 @@ export function Topbar() {
   const initials = user?.name?.split(" ").map((n) => n[0]).join("").slice(0, 2) ?? "SA";
 
   return (
-    <header className="h-[60px] flex items-center px-5 gap-4 shrink-0 sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-xl">
+    <header className="h-[56px] sm:h-[60px] flex items-center px-3 sm:px-5 gap-2 sm:gap-4 shrink-0 sticky top-0 z-40 border-b border-border/60 bg-background/90 backdrop-blur-xl">
 
+      {isMobile && (
+        <button
+          onClick={() => setSidebarMobileOpen(true)}
+          aria-label="Open menu"
+          className="h-10 w-10 -ms-1 shrink-0 rounded-lg flex items-center justify-center text-foreground hover:bg-muted/60"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
       {/* ── Breadcrumbs ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         <span className="text-sm font-medium text-muted-foreground/70 truncate hidden sm:block">
@@ -117,7 +131,7 @@ export function Topbar() {
       </div>
 
       {/* ── Actions ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
 
         {/* Search pill */}
         <button
@@ -131,6 +145,14 @@ export function Topbar() {
           </kbd>
         </button>
 
+        <button
+          onClick={() => setCommandPaletteOpen(true)}
+          aria-label="Search"
+          className="md:hidden h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted/60"
+        >
+          <Search className="h-4 w-4" />
+        </button>
+
         {/* AI */}
         <button
           onClick={toggleAiAssistant}
@@ -140,11 +162,10 @@ export function Topbar() {
         </button>
 
         <NotificationsButton />
-        <LanguageSwitcher />
-        <ThemeToggle />
+        <div className="hidden sm:contents"><LanguageSwitcher /><ThemeToggle /></div>
 
         {/* Divider */}
-        <div className="h-5 w-px bg-border/60 mx-0.5" />
+        <div className="hidden sm:block h-5 w-px bg-border/60 mx-0.5" />
 
         {/* User menu */}
         <DropdownMenu>

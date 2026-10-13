@@ -509,9 +509,9 @@ export function RolesPermissionsView() {
       </div>
 
       {/* Main layout */}
-      <div className="flex gap-4" style={{ minHeight: 620 }}>
+      <div className="flex flex-col lg:flex-row gap-4 lg:min-h-[620px]">
         {/* Left — Role list */}
-        <div className="w-56 shrink-0 space-y-1">
+        <div className="w-full lg:w-56 lg:shrink-0 space-y-1">
           {moduleOptions.length > 1 && (
             <select
               value={moduleFilter}
@@ -631,6 +631,9 @@ export function RolesPermissionsView() {
             </div>
           ) : null}
 
+          {/* Matrix scrolls sideways on phones — 16 action columns cannot fit 375px. */}
+          <div className="flex-1 min-h-0 overflow-x-auto flex flex-col">
+          <div className="flex-1 min-h-0 min-w-[720px] flex flex-col">
           {/* Column header + search */}
           <div className="px-4 py-2.5 border-b border-border bg-muted/20 flex items-center gap-3 shrink-0">
             <div className="relative w-44 shrink-0">
@@ -695,8 +698,11 @@ export function RolesPermissionsView() {
             )}
           </div>
 
+          </div>
+          </div>
+
           {/* Footer legend */}
-          <div className="px-5 py-2.5 border-t border-border bg-muted/10 flex items-center gap-6 text-[10px] text-muted-foreground shrink-0">
+          <div className="px-5 py-2.5 border-t border-border bg-muted/10 flex flex-wrap items-center gap-x-6 gap-y-1 text-[10px] text-muted-foreground shrink-0">
             <div className="flex items-center gap-1.5">
               <div className="w-4 h-4 rounded-lg bg-primary border border-primary flex items-center justify-center">
                 <Check className="h-2.5 w-2.5 text-white" />

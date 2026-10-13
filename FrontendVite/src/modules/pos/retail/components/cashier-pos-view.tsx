@@ -29,7 +29,7 @@ import type { ProductSummaryDto } from "@/lib/pos/types";
 import {
   type PosProduct, mapToPosProduct, categoryEmoji, usePosShortcuts,
   ScanToast, PosSearch, CategoryPills, ProductTile, PRODUCT_GRID, ProductsLoading, ProductsEmpty,
-  CART_PANEL, CartHeader, HeldList, CartLine, EmptyCart, TotalsBlock,
+  cartPanelClass, MobileCartBar, CartHeader, HeldList, CartLine, EmptyCart, TotalsBlock,
   PaymentMethodGrid, CashTender, ChargeButton,
   TOP_BAR, TopBarBrand, TopBarButton, ShiftPill, LiveClock,
 } from "./pos-ui";
@@ -90,6 +90,7 @@ export function CashierPOSView() {
   // Hold
   const [held, setHeld]               = React.useState<HeldItem[]>([]);
   const [showHeld, setShowHeld]       = React.useState(false);
+  const [cartOpen, setCartOpen]       = React.useState(false); // phones: cart is a bottom sheet
 
   // Scan feedback
   const [scanFeedback, setScanFeedback] = React.useState<"found" | "not_found" | null>(null);
@@ -325,12 +326,12 @@ export function CashierPOSView() {
 
         {/* ═══ LEFT — Products ═══ */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="px-5 pt-4 pb-3 space-y-3 shrink-0">
+          <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-3 space-y-3 shrink-0">
             <PosSearch ref={searchRef} value={search} onChange={setSearch} />
             <CategoryPills categories={categoryNames} active={categoryFilter} onSelect={setCat} />
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 pb-5 pt-2">
+          <div className="flex-1 overflow-y-auto px-3 sm:px-5 pb-24 lg:pb-5 pt-2">
             {productsLoading ? (
               <ProductsLoading />
             ) : allProducts.length > 0 ? (
@@ -370,8 +371,9 @@ export function CashierPOSView() {
         </div>
 
         {/* ═══ RIGHT — Sale + Checkout ═══ */}
-        <aside className={CART_PANEL}>
+        <aside className={cartPanelClass(cartOpen)}>
           <CartHeader
+              onCloseSheet={() => setCartOpen(false)}
             itemCount={totalItems}
             heldCount={held.length}
             onHold={holdCart}
@@ -442,6 +444,9 @@ export function CashierPOSView() {
             </>
           )}
         </aside>
+        {!cartOpen && totalItems > 0 && (
+          <MobileCartBar count={totalItems} total={formatCurrency(total, currency)} onOpen={() => setCartOpen(true)} />
+        )}
       </div>
 
       {/* ══ Order History Slide-over ══ */}

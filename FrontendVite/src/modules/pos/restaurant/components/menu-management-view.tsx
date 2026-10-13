@@ -183,9 +183,9 @@ function MenuTab() {
     active ? "border-primary bg-primary/10" : "border-transparent hover:bg-muted");
 
   return (
-    <div className="flex-1 flex overflow-hidden">
+    <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
       {/* Categories */}
-      <div className="w-[280px] shrink-0 flex flex-col border-e-2 border-border bg-card">
+      <div className="w-full lg:w-[280px] max-lg:max-h-40 shrink-0 flex flex-col border-b-2 lg:border-b-0 lg:border-e-2 border-border bg-card">
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           <button onClick={() => setCatId("all")} className={railBtn(catId === "all")}>
             <span className="h-3 w-3 rounded-full bg-foreground shrink-0" />

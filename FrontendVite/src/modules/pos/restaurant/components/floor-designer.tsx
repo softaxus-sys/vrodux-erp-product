@@ -149,9 +149,9 @@ export function FloorDesignerView() {
         )}
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         {/* Floors sidebar */}
-        <div className="w-56 shrink-0 space-y-2">
+        <div className="w-full lg:w-56 lg:shrink-0 space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase">{t("floorDesigner.floors")}</p>
           {layout.map(f => (
             <div key={f.id}
@@ -319,7 +319,7 @@ function TableDetailPanel({ table, allTablesOnFloor, areas, onClose, onUpdate, o
   }, [table.id]);
 
   return (
-    <div className="w-72 shrink-0 bg-card border border-border rounded-xl p-4 space-y-3 h-fit">
+    <div className="w-full lg:w-72 lg:shrink-0 bg-card border border-border rounded-xl p-4 space-y-3 h-fit">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-foreground">{t("floorDesigner.detail.heading", { number: table.tableNumber })}</p>
         <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
