@@ -28,7 +28,13 @@ public sealed record RegisterTrialCommand(
     string?       Plan          = null,   // "micro" | "starter" | "professional" (enterprise = sales-led)
     string?       Billing       = null,   // "monthly" | "annual"
     string?       Intent        = null,   // "trial" | "buy"
-    string?       UtmSource     = null) : ICommand<TrialRegistrationResultDto>;
+    string?       UtmSource     = null,
+    // ── Ad-conversion de-duplication (browser Pixel ↔ server Conversions API) ──
+    string?       EventId       = null,
+    string?       Fbp           = null,
+    string?       Fbc           = null,
+    string?       UserAgent     = null,
+    string?       SourceUrl     = null) : ICommand<TrialRegistrationResultDto>;
 
 public sealed class RegisterTrialValidator : AbstractValidator<RegisterTrialCommand>
 {

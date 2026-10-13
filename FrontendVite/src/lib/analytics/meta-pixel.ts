@@ -50,10 +50,33 @@ export function loadMetaPixel(): void {
 }
 
 /** No-ops safely if the pixel never loaded (blocked, or called before loadMetaPixel). */
-export function trackPixelEvent(event: string, params?: Record<string, unknown>): void {
+export function trackPixelEvent(
+  event: string,
+  params?: Record<string, unknown>,
+  /** Same id sent to the server (Conversions API) so Meta counts browser + server as one event. */
+  eventId?: string,
+): void {
   try {
-    window.fbq?.("track", event, params);
+    if (eventId) window.fbq?.("track", event, params ?? {}, { eventID: eventId });
+    else window.fbq?.("track", event, params);
   } catch {
     /* never let analytics break the app */
   }
+}
+
+function cookie(name: string): string | undefined {
+  try {
+    return document.cookie.split("; ").find(c => c.startsWith(name + "="))?.slice(name.length + 1);
+  } catch { return undefined; }
+}
+
+/** Meta's browser/click identifiers — the server event needs them to match the ad click. */
+export function getMetaIdentifiers(): { fbp?: string; fbc?: string } {
+  return { fbp: cookie("_fbp"), fbc: cookie("_fbc") };
+}
+
+export function newEventId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }

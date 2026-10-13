@@ -17,6 +17,7 @@ public sealed class RegisterTrialCommandHandler(
     IAuditLogRepository    auditRepo,
     IPasswordHasher        passwordHasher,
     IUnitOfWork            uow,
+    IConversionTracker     conversions,
     ILogger<RegisterTrialCommandHandler> logger)
     : ICommandHandler<RegisterTrialCommand, TrialRegistrationResultDto>
 {
@@ -121,6 +122,13 @@ public sealed class RegisterTrialCommandHandler(
             "Trial tenant created. TenantId={TenantId} Slug={Slug} Email={Email} Modules=[{Modules}]",
             tenant.Id, tenant.Slug, cmd.Email,
             cmd.Modules is not null ? string.Join(',', cmd.Modules) : "default");
+
+        // Ad-platform conversion (server side). Only for real trials: a "Buy Now" signup is not a
+        // trial start. Best-effort — the tracker swallows its own failures.
+        if (!wantsToBuy)
+            await conversions.TrackTrialStartedAsync(new TrialConversion(
+                cmd.Email, cmd.FullName, cmd.Country, cmd.EventId, cmd.Fbp, cmd.Fbc,
+                cmd.RemoteIp, cmd.UserAgent, cmd.SourceUrl, tenant.Plan.ToString()), ct);
 
         return Result.Success(new TrialRegistrationResultDto(
             TenantId:          tenant.Id,

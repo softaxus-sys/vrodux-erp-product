@@ -18,7 +18,7 @@ import i18n from "@/i18n";
 import { MODULES, BUSINESS_TYPES, MODULE_CATEGORIES, resolveModules, needsBusinessType, moduleLabel, moduleDesc, moduleCategoryLabel, businessTypeLabel, type ModuleId, type ModuleDef } from "@/lib/onboarding/module-data";
 import { registerTrial, type TrialRegistrationRequest } from "@/lib/onboarding/trial.api";
 import { useSignupAttribution, clearSignupAttribution } from "@/hooks/use-signup-attribution";
-import { loadMetaPixel, trackPixelEvent } from "@/lib/analytics/meta-pixel";
+import { loadMetaPixel, trackPixelEvent, getMetaIdentifiers, newEventId } from "@/lib/analytics/meta-pixel";
 import { getPlan, amountFor, formatUsd, TRIAL_DAYS } from "@/lib/billing/plans";
 import { authApi } from "@/lib/identity/auth.api";
 import { useAuthStore } from "@/store/auth.store";
@@ -534,6 +534,7 @@ export default function OnboardingPage() {
     setSubmitting(true); setApiError(null);
     try{
       const s2=f2.getValues();
+      const startTrialEventId=newEventId();
       const payload: TrialRegistrationRequest = {
         fullName:    s1Data.fullName,
         email:       s1Data.workEmail,
@@ -554,9 +555,15 @@ export default function OnboardingPage() {
         billing:     signup.billing,
         intent:      signup.intent||undefined,
         utmSource:   signup.utmSource||undefined,
+        eventId:     startTrialEventId,
+        ...getMetaIdentifiers(),
       };
       const result=await registerTrial(payload);
       clearSignupAttribution();
+
+      // Ad conversion: a real trial start (not a "Buy Now" signup, which is not a trial). Same
+      // event id as the server's Conversions API call so Meta counts the pair once.
+      if(!result.checkoutRequested) trackPixelEvent("StartTrial", { currency:"USD", value:0 }, startTrialEventId);
 
       // ── "Buy Now" → take them straight to the payment form ──────────────────
       // These accounts get NO trial (the backend puts them in PendingPayment), so parking them on

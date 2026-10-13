@@ -55,6 +55,8 @@ public static class InfrastructureExtensions
         services.AddSingleton<ITrialChallengeService,  TrialChallengeService>();
         services.AddScoped<ILicenseService,            LicenseService>();
         services.AddScoped<IEmailService,              SmtpEmailService>();
+        services.AddHttpClient(MetaConversionTracker.HttpClientName);
+        services.AddScoped<IConversionTracker,         MetaConversionTracker>();
         services.AddScoped<ITenantRoleProvisioner,     TenantRoleProvisioner>();
 
         // ── Billing ───────────────────────────────────────────────────────────

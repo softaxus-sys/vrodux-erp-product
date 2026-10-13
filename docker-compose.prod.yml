@@ -226,6 +226,10 @@ services:
       # Platform credentials, not per-tenant. Set them in /opt/vrodux/shared/.env;
       # each provider stays disabled (and is hidden from the billing UI) until its
       # Enabled flag is true AND its credentials are present.
+      # Meta Conversions API (server-side StartTrial). Off until the token is set.
+      MetaConversions__PixelId: "${META_PIXEL_ID:-2956413208034575}"
+      MetaConversions__AccessToken: "${META_CAPI_ACCESS_TOKEN:-}"
+      MetaConversions__TestEventCode: "${META_CAPI_TEST_EVENT_CODE:-}"
       Billing__PublicBaseUrl: "https://${DOMAIN}"
       Billing__Currency: "${BILLING_CURRENCY:-USD}"
 
