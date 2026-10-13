@@ -44,34 +44,83 @@ export function RefundModal({ order, currency, busy, onConfirm, onCancel }: {
   onConfirm: (amount: number, reason: string, method: string) => void; onCancel: () => void;
 }) {
   const { t } = useTranslation("restaurant");
-  const [amount, setAmount] = React.useState(String(order.amountPaid));
+  const maxAmount = Math.round(order.amountPaid * 100) / 100;
+  const [amount, setAmount] = React.useState(String(maxAmount));
   const [method, setMethod] = React.useState(order.paymentMethod ?? "Cash");
   const [reason, setReason] = React.useState("");
-  const amt = parseFloat(amount) || 0;
-  const valid = amt > 0 && amt <= order.amountPaid && reason.trim().length > 0;
+  const amt = Math.round((parseFloat(amount) || 0) * 100) / 100;
+  const tooMuch = amt > maxAmount;
+  const valid = amt > 0 && !tooMuch && reason.trim().length > 0;
+  const METHODS = ["Cash", "Card", "Wallet"];
+  const REASONS = [
+    t("posView.refund.reasons.wrongOrder", { defaultValue: "Wrong order" }),
+    t("posView.refund.reasons.quality", { defaultValue: "Food quality" }),
+    t("posView.refund.reasons.late", { defaultValue: "Too late" }),
+    t("posView.refund.reasons.overcharged", { defaultValue: "Overcharged" }),
+  ];
+  const label = "text-xs font-bold uppercase tracking-wide text-muted-foreground";
 
   return (
     <LeftDrawer onClose={onCancel} widthClassName="max-w-sm" zIndexClassName="z-[60]">
-      <p className="text-xl font-black text-foreground">{t("posView.refund.title")}</p>
       <div>
-        <label className="text-xs text-muted-foreground">{t("posView.refund.amountLabel", { max: formatCurrency(order.amountPaid, currency) })}</label>
-        <Input type="number" min={0} max={order.amountPaid} value={amount}
-          onChange={e => setAmount(e.target.value)} className="h-12 text-base mt-1" />
+        <p className="text-xl font-black text-foreground">{t("posView.refund.title")}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          {order.orderNumber} · {t("posView.refund.paid", { defaultValue: "Paid" })} {formatCurrency(maxAmount, currency)}
+        </p>
       </div>
-      <div>
-        <label className="text-xs text-muted-foreground">{t("posView.refund.method")}</label>
-        <Input value={method} onChange={e => setMethod(e.target.value)} className="h-12 text-base mt-1" />
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <label className={label}>{t("posView.refund.amount", { defaultValue: "Refund amount" })}</label>
+          <button type="button" onClick={() => setAmount(String(maxAmount))}
+            className="text-xs font-bold text-primary hover:underline">
+            {t("posView.refund.full", { defaultValue: "Full refund" })}
+          </button>
+        </div>
+        <Input type="number" min={0} max={maxAmount} step="0.01" value={amount}
+          onChange={e => setAmount(e.target.value)}
+          className={cn("h-14 text-2xl font-black", tooMuch && "border-destructive")} />
+        <p className={cn("text-xs", tooMuch ? "text-destructive font-semibold" : "text-muted-foreground")}>
+          {t("posView.refund.amountLabel", { max: formatCurrency(maxAmount, currency) })}
+        </p>
       </div>
-      <textarea
-        rows={2} value={reason} onChange={e => setReason(e.target.value)}
-        placeholder={t("posView.reason.placeholder")}
-        className="w-full px-3 py-2.5 text-base rounded-xl border-2 border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
-      <div className="flex gap-2">
+
+      <div className="space-y-2">
+        <label className={label}>{t("posView.refund.method")}</label>
+        <div className="flex gap-2">
+          {METHODS.map(m => (
+            <button key={m} type="button" onClick={() => setMethod(m)}
+              className={cn("flex-1 h-11 rounded-xl border-2 text-sm font-bold transition-colors",
+                method === m ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary/40")}>
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className={label}>{t("posView.refund.reasonLabel", { defaultValue: "Reason (required)" })}</label>
+        <div className="flex flex-wrap gap-1.5">
+          {REASONS.map(r => (
+            <button key={r} type="button" onClick={() => setReason(r)}
+              className={cn("px-3 h-8 rounded-full border text-xs font-semibold transition-colors",
+                reason === r ? "bg-primary/10 border-primary text-primary" : "border-border text-muted-foreground hover:border-primary/40")}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <textarea
+          rows={2} value={reason} onChange={e => setReason(e.target.value)}
+          placeholder={t("posView.reason.placeholder")}
+          className="w-full px-3 py-2.5 text-base rounded-xl border-2 border-border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+
+      <div className="flex gap-2 pt-1">
         <Button variant="outline" size="lg" className="flex-1" onClick={onCancel}>{t("posView.common.cancel")}</Button>
         <Button size="lg" className="flex-1 bg-destructive hover:bg-destructive/90"
-          disabled={!valid || busy} onClick={() => onConfirm(amt, reason.trim(), method.trim() || "Cash")}>
-          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("posView.refund.submit")}
+          disabled={!valid || busy} onClick={() => onConfirm(amt, reason.trim(), method)}>
+          {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : `${t("posView.refund.submit")} ${valid ? formatCurrency(amt, currency) : ""}`}
         </Button>
       </div>
     </LeftDrawer>

@@ -328,7 +328,9 @@ export function RefundDialog({ transaction, sessionId, onClose }: RefundDialogPr
 
   return (
     <Dialog open={!!transaction} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      {/* min-w-0 on every child: the dialog is a grid, and a long unbreakable product name would
+          otherwise stretch the column past the dialog's right edge. */}
+      <DialogContent className="max-w-lg overflow-hidden [&>*]:min-w-0">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center shrink-0">
