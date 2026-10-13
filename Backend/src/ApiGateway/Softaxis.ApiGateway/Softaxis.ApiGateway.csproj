@@ -60,6 +60,8 @@
     <ProjectReference Include="..\..\Services\Support\Softaxis.Support.Infrastructure\Softaxis.Support.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Services\Seo\Softaxis.Seo.API\Softaxis.Seo.API.csproj" />
     <ProjectReference Include="..\..\Services\Seo\Softaxis.Seo.Infrastructure\Softaxis.Seo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Services\Calendar\Softaxis.Calendar.API\Softaxis.Calendar.API.csproj" />
+    <ProjectReference Include="..\..\Services\Calendar\Softaxis.Calendar.Infrastructure\Softaxis.Calendar.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

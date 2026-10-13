@@ -14,6 +14,15 @@ export const navigationConfig: NavGroup[] = [
         module: "dashboard",
       },
       {
+        id: "calendar",
+        label: "Calendar",
+        labelAr: "التقويم",
+        href: "/calendar",
+        icon: "CalendarDays",
+        module: "calendar",
+        isNew: true,
+      },
+      {
         id: "ai-assistant",
         label: "AI Assistant",
         labelAr: "المساعد الذكي",

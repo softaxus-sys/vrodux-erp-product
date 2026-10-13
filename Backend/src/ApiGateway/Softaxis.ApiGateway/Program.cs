@@ -34,6 +34,7 @@ using Softaxis.Trade.Infrastructure.Extensions;
 using Softaxis.VisaServices.Infrastructure.Extensions;
 using Softaxis.Support.Infrastructure.Extensions;
 using Softaxis.Seo.Infrastructure.Extensions;
+using Softaxis.Calendar.Infrastructure.Extensions;
 using Softaxis.BuildingBlocks.Application.Serialization;
 using Softaxis.BuildingBlocks.Infrastructure.Notifications;
 using Softaxis.BuildingBlocks.Infrastructure.Storage;
@@ -159,6 +160,7 @@ try
     builder.Services.AddTradeInfrastructure(builder.Configuration);
     builder.Services.AddSupportInfrastructure(builder.Configuration);
     builder.Services.AddSeoInfrastructure(builder.Configuration);
+    builder.Services.AddCalendarInfrastructure(builder.Configuration);
 
     // ── In-memory cache (used by SubscriptionEnforcementMiddleware) ──────────
     builder.Services.AddMemoryCache();
@@ -283,6 +285,11 @@ try
         Softaxis.Seo.Application.Abstractions.ICurrentUser,
         Softaxis.Seo.API.Middleware.CurrentUserService>();
 
+    // Calendar.Application.Abstractions.ICurrentUser  →  Calendar CurrentUserService
+    builder.Services.AddScoped<
+        Softaxis.Calendar.Application.Abstractions.ICurrentUser,
+        Softaxis.Calendar.API.Middleware.CurrentUserService>();
+
     // ── Controllers — pull controllers from all 5 API assemblies ─────────────
     builder.Services.AddControllers()
         .AddApplicationPart(typeof(Softaxis.Identity.API.Controllers.AuthController).Assembly)
@@ -306,6 +313,7 @@ try
         .AddApplicationPart(typeof(Softaxis.Trade.API.Controllers.ShipmentsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Support.API.Controllers.SupportTicketsController).Assembly)
         .AddApplicationPart(typeof(Softaxis.Seo.API.Controllers.SeoSitesController).Assembly)
+        .AddApplicationPart(typeof(Softaxis.Calendar.API.Controllers.CalendarController).Assembly)
         .AddJsonOptions(o =>
         {
             // Emit every DateTime as an explicit UTC instant ("…Z").
@@ -468,6 +476,7 @@ try
         await app.Services.MigrateAndSeedAiAssistantAsync();        // AI Assistant
         await app.Services.MigrateAndSeedSupportAsync();            // Support
         await app.Services.MigrateAndSeedSeoAsync();                // SEO AI Agent
+        await app.Services.MigrateAndSeedCalendarAsync();           // Calendar (core)
         await app.Services.MigrateNotificationsAsync();             // Notifications (+ copies CRM history in)
 
         // Runs last, and only on an installation that mirrors to the cloud: enables SQL Server
@@ -526,7 +535,7 @@ try
         Status  = "Healthy",
         Service = "Softaxis.ERP.Gateway",
         Time    = DateTime.UtcNow,
-        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo" }
+        Services = new[] { "Identity", "POS", "Inventory", "Sales", "Purchase", "HR", "Finance", "CRM", "Construction", "RealEstate", "Hospitality", "Restaurant", "Recipe", "ProjectManagement", "VisaServices", "Manufacturing", "Library", "Trade", "Support", "Seo", "Calendar" }
     })).AllowAnonymous();
 
     Log.Information("Softaxis ERP Gateway started on {Env}", app.Environment.EnvironmentName);

@@ -111,6 +111,12 @@
     <Project Path="src/Services/VisaServices/Softaxis.VisaServices.Domain/Softaxis.VisaServices.Domain.csproj" />
     <Project Path="src/Services/VisaServices/Softaxis.VisaServices.Infrastructure/Softaxis.VisaServices.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/src/Services/Calendar/">
+    <Project Path="src/Services/Calendar/Softaxis.Calendar.API/Softaxis.Calendar.API.csproj" />
+    <Project Path="src/Services/Calendar/Softaxis.Calendar.Application/Softaxis.Calendar.Application.csproj" />
+    <Project Path="src/Services/Calendar/Softaxis.Calendar.Domain/Softaxis.Calendar.Domain.csproj" />
+    <Project Path="src/Services/Calendar/Softaxis.Calendar.Infrastructure/Softaxis.Calendar.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/src/Services/Seo/">
     <Project Path="src/Services/Seo/Softaxis.Seo.API/Softaxis.Seo.API.csproj" />
     <Project Path="src/Services/Seo/Softaxis.Seo.Application/Softaxis.Seo.Application.csproj" />

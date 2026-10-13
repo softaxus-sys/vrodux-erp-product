@@ -21,6 +21,7 @@ const DashboardPage        = lazyWithRetry(() => import("@/pages/dashboard"));
 const AiAssistantPage      = lazyWithRetry(() => import("@/pages/ai-assistant"));
 const ReportsPage          = lazyWithRetry(() => import("@/pages/reports"));
 const FileManagerPage      = lazyWithRetry(() => import("@/pages/file-manager"));
+const CalendarPage         = lazyWithRetry(() => import("@/pages/calendar"));
 const ProfilePage          = lazyWithRetry(() => import("@/pages/profile"));
 const MyTicketsPage        = lazyWithRetry(() => import("@/pages/support/my-tickets"));
 const SupportQueuePage     = lazyWithRetry(() => import("@/pages/support/queue"));
@@ -379,6 +380,9 @@ export function App() {
           </Route>
           <Route element={<ModuleGuard module="file-manager" />}>
             <Route path="/file-manager" element={<FileManagerPage />} />
+          </Route>
+          <Route element={<ModuleGuard module="calendar" />}>
+            <Route path="/calendar" element={<CalendarPage />} />
           </Route>
 
           {/* ── Finance ─────────────────────────────────────────────────────── */}

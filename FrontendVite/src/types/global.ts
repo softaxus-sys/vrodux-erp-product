@@ -137,6 +137,7 @@ export type ModuleKey =
   | "users"
   | "ai-assistant"
   | "notifications"
+  | "calendar"
   | "file-manager"
   | "super-admin"
   | "restaurant"
