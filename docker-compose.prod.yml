@@ -158,6 +158,7 @@ services:
       # var sends production at that machine instead — which is what took the gateway
       # down (DNS failure on a named instance, error 26) and rolled the release back.
       ConnectionStrings__NotificationsDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
+      ConnectionStrings__CalendarDb: "Server=vrodux-sqlserver;Database=SoftaxisErpDb;User Id=sa;Password=${SQL_SA_PASSWORD};TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False;"
       # Softaxis's own tenant id — every agent-side support ticket check fails closed until this
       # is set (see ISupportAccessGuard). Set once Softaxis's own tenant has been created.
       Support__OperatorTenantId: "${SUPPORT_OPERATOR_TENANT_ID:-}"
