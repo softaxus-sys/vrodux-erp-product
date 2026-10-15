@@ -27,8 +27,8 @@ export function DeliveryChallansView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t("challans.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{t("challans.description")}</p>
+          <h1 className="text-2xl font-bold">{t("deliveryChallans.title")}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("deliveryChallans.description")}</p>
         </div>
       </div>
 
@@ -36,7 +36,7 @@ export function DeliveryChallansView() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input placeholder={t("challans.search")} value={search}
+          <Input placeholder={t("deliveryChallans.search")} value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9 h-9 text-sm" />
         </div>
@@ -47,24 +47,24 @@ export function DeliveryChallansView() {
         className="bg-card border border-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("challans.loading")}</span>
+            <Loader2 className="h-5 w-5 animate-spin" /><span className="text-sm">{t("deliveryChallans.loading")}</span>
           </div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("challans.table.challanNum")}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("challans.table.order")}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("challans.table.customer")}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("challans.table.date")}</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("challans.table.driver")}</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("challans.table.items")}</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("challans.table.status")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("deliveryChallans.table.challanNum")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("deliveryChallans.table.salesOrder")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("deliveryChallans.table.customer")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("deliveryChallans.table.challanDate")}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">{t("deliveryChallans.table.driver")}</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">{t("deliveryChallans.table.items")}</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("deliveryChallans.table.status")}</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{t("challans.noResults")}</td></tr>
+                <tr><td colSpan={7} className="text-center py-12 text-sm text-muted-foreground">{t("deliveryChallans.noResults")}</td></tr>
               ) : items.map((c, i) => {
                 const sc = STATUS_STYLES[c.status] ?? { color: "text-muted-foreground", bg: "bg-muted", dot: "bg-muted-foreground" };
                 return (
