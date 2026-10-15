@@ -402,6 +402,12 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
   onBack: () => void;
   onOrderCreated?: (order: RestaurantOrder) => void;
 }) {
+  const splitParts = (o: RestaurantOrder): RestaurantOrder["splits"] =>
+    o.splits.length > 0
+      ? o.splits
+      : allOrders.filter(c => c.parentOrderId === o.id)
+          .map(c => ({ id: c.id, orderNumber: c.orderNumber, status: c.status, total: c.total, amountPaid: c.amountPaid, outstanding: c.outstanding }));
+
   const { t } = useTranslation("restaurant");
   const { user, tenant } = useAuthStore();
   // Floor staff reach this screen with no shift of their own; the server attaches the cashier's.
@@ -841,8 +847,10 @@ export function OrderScreen({ table, order, tables, allOrders, currency, onBack,
           {/* Split bill — the parent holds no items; each part is paid on its own. */}
           {order?.status === "split" ? (
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-muted-foreground">{t("posView.drawer.splitInto", { count: order.splits.length })}</p>
-              {order.splits.map(s => (
+              {/* The orders list carries no `splits` (only the by-id detail does), so fall back to the parts
+                  already in the list — otherwise a reloaded split bill reads "split into 0 parts". */}
+              <p className="text-sm font-semibold text-muted-foreground">{t("posView.drawer.splitInto", { count: splitParts(order).length })}</p>
+              {splitParts(order).map(s => (
                 <div key={s.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl border-2 border-border">
                   <div className="min-w-0">
                     <p className="text-lg font-black tabular-nums">{formatCurrency(s.total, currency)}</p>
