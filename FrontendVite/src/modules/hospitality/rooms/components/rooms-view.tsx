@@ -1,413 +1,267 @@
-﻿import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import * as React from "react";
+import { BedDouble, Layers, Wrench, Plus, Pencil, Trash2, SprayCan, CheckCircle2, Power, Users, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Search, X, BedDouble, Users, Maximize2, Eye, Wifi, Wind,
-  Coffee, Star, Cigarette, Accessibility, Wrench, SprayCan,
-  ChevronRight, Filter,
-} from "lucide-react";
-import type { RoomDto as Room, RoomStatus, RoomType } from "@/lib/hospitality/hospitality.api";
-import { useRooms, useRoomsSummary } from "@/hooks/hospitality/use-hospitality";
-import { formatCurrency, fitTextClass, cn } from "@/lib/utils";
+import { Can, useCan } from "@/components/auth/can";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useCurrency } from "@/hooks/use-currency";
-import { AddRoomForm } from "./add-room-form";
+import { localToday, type RoomDto, type RoomTypeDto } from "@/lib/hospitality/hospitality.api";
+import {
+  useRooms, useRoomsSummary, useRoomTypes, useRoomBlocks, useCreateRoom, useUpdateRoom, useDeleteRoom,
+  useSetMaintenance, useSetHousekeeping, useCreateRoomType, useUpdateRoomType, useDeleteRoomType,
+  useCreateBlock, useDeleteBlock,
+} from "@/hooks/hospitality/use-hospitality";
+import { Stat, Modal, Field, Empty, inputCls, selectCls, textareaCls, roomStatus, dayLabel, addDays } from "../../shared/hotel-ui";
 
-const STATUS_CONFIG: Record<RoomStatus, { label: string; color: string; bg: string; dot: string }> = {
-  available:   { label: "Available",   color: "text-success",            bg: "bg-success/10",            dot: "bg-success" },
-  occupied:    { label: "Occupied",    color: "text-primary",            bg: "bg-primary/10",            dot: "bg-primary" },
-  reserved:    { label: "Reserved",    color: "text-blue-500",           bg: "bg-blue-500/10",           dot: "bg-blue-500" },
-  maintenance: { label: "Maintenance", color: "text-destructive",        bg: "bg-destructive/10",        dot: "bg-destructive" },
-  cleaning:    { label: "Cleaning",    color: "text-warning",            bg: "bg-warning/10",            dot: "bg-warning" },
-};
+type Tab = "rooms" | "types" | "blocks";
 
-const TYPE_CONFIG: Record<RoomType, { label: string }> = {
-  standard:  { label: "Standard" },
-  deluxe:    { label: "Deluxe" },
-  suite:     { label: "Suite" },
-  penthouse: { label: "Penthouse" },
-  studio:    { label: "Studio" },
-};
-
-const VIEW_ICONS: Record<string, string> = {
-  sea: "🌊", city: "🏙️", pool: "🏊", garden: "🌿", courtyard: "🏛️",
-};
-
-const ROOM_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "All Types" },
-  { value: "standard", label: "Standard" },
-  { value: "studio", label: "Studio" },
-  { value: "deluxe", label: "Deluxe" },
-  { value: "suite", label: "Suite" },
-  { value: "penthouse", label: "Penthouse" },
-];
-
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "All Status" },
-  { value: "available", label: "Available" },
-  { value: "occupied", label: "Occupied" },
-  { value: "reserved", label: "Reserved" },
-  { value: "maintenance", label: "Maintenance" },
-  { value: "cleaning", label: "Cleaning" },
-];
-
-// ─── Stat Card ────────────────────────────────────────────────────────────────
-interface StatCardProps { label: string; value: string | number; sub?: string; accent?: string }
-function StatCard({ label, value, sub, accent = "bg-primary" }: StatCardProps) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-1">
-      <div className={`w-1.5 h-1.5 rounded-full ${accent} mb-1`} />
-      <p className="text-2xl font-bold text-foreground">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {sub && <p className="text-xs text-muted-foreground/70">{sub}</p>}
-    </div>
-  );
-}
-
-// ─── Room Drawer ──────────────────────────────────────────────────────────────
-function RoomDrawer({ room, onClose }: { room: Room; onClose: () => void }) {
-  const currency = useCurrency();
-  const cfg = STATUS_CONFIG[room.status];
-
-  return (
-    <>
-      <motion.div
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={onClose}
-      />
-      <motion.div
-        className="fixed right-0 top-0 h-full w-full max-w-md bg-card border-l border-border z-50 flex flex-col shadow-2xl"
-        initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-        transition={{ type: "spring", damping: 28, stiffness: 280 }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <div>
-            <p className="text-xs text-muted-foreground mb-0.5">Room {room.roomNumber}</p>
-            <h2 className="text-lg font-bold text-foreground">
-              Floor {room.floor} · {TYPE_CONFIG[room.type].label}
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-              {cfg.label}
-            </span>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-
-          {/* Current Guest (if occupied) */}
-          {room.currentGuestName && (
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
-              <p className="text-xs font-medium text-primary mb-2">Current Guest</p>
-              <p className="text-sm font-semibold text-foreground">{room.currentGuestName}</p>
-              {room.checkoutDate && (
-                <p className="text-xs text-muted-foreground mt-0.5">Checks out: {room.checkoutDate}</p>
-              )}
-              {room.currentBookingId && (
-                <p className="text-xs text-muted-foreground mt-0.5">Booking: {room.currentBookingId}</p>
-              )}
-            </div>
-          )}
-
-          {/* Key Details */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Room Details</p>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: BedDouble, label: "Bed Type", value: room.bedType.charAt(0).toUpperCase() + room.bedType.slice(1) },
-                { icon: Eye, label: "View", value: `${VIEW_ICONS[room.view] || ""} ${room.view.charAt(0).toUpperCase() + room.view.slice(1)}` },
-                { icon: Users, label: "Capacity", value: `${room.capacity} guests` },
-                { icon: Maximize2, label: "Size", value: `${room.sizeSqm} m²` },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="bg-muted/20 rounded-xl p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">{value}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Rate */}
-          <div className="bg-muted/20 rounded-xl p-4 min-w-0">
-            <p className="text-xs text-muted-foreground mb-1">Rate Per Night</p>
-            <p className={cn("font-bold text-foreground truncate", fitTextClass(formatCurrency(room.ratePerNight, currency), "2xl"))}
-               title={formatCurrency(room.ratePerNight, currency)}>
-              {formatCurrency(room.ratePerNight, currency)}
-            </p>
-          </div>
-
-          {/* Flags */}
-          <div className="flex flex-wrap gap-2">
-            {room.isAccessible && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-xs font-medium">
-                <Accessibility className="w-3 h-3" /> Accessible
-              </span>
-            )}
-            {room.isSmokingAllowed && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 text-warning text-xs font-medium">
-                <Cigarette className="w-3 h-3" /> Smoking Allowed
-              </span>
-            )}
-            {!room.isSmokingAllowed && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/40 text-muted-foreground text-xs font-medium">
-                Non-Smoking
-              </span>
-            )}
-          </div>
-
-          {/* Amenities */}
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Amenities</p>
-            <div className="flex flex-wrap gap-2">
-              {room.amenities.map((amenity) => (
-                <span key={amenity} className="px-2.5 py-1 rounded-lg bg-muted/30 text-xs text-foreground border border-border">
-                  {amenity}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Last Cleaned */}
-          <div className="flex items-center justify-between py-3 border-t border-border">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <SprayCan className="w-4 h-4" />
-              <span className="text-xs">Last Cleaned</span>
-            </div>
-            <span className="text-xs font-medium text-foreground">{room.lastCleaned}</span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-border flex gap-2">
-          {room.status === "available" && (
-            <Button className="flex-1" size="sm">Assign Booking</Button>
-          )}
-          {room.status === "occupied" && (
-            <Button variant="outline" className="flex-1" size="sm">View Booking</Button>
-          )}
-          {room.status === "maintenance" && (
-            <Button variant="outline" className="flex-1" size="sm">
-              <Wrench className="w-3.5 h-3.5 mr-1.5" /> Mark Ready
-            </Button>
-          )}
-          {room.status === "cleaning" && (
-            <Button variant="outline" className="flex-1" size="sm">
-              <SprayCan className="w-3.5 h-3.5 mr-1.5" /> Mark Clean
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-        </div>
-      </motion.div>
-    </>
-  );
-}
-
-// ─── Room Card (Grid View) ────────────────────────────────────────────────────
-function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
-  const currency = useCurrency();
-  const cfg = STATUS_CONFIG[room.status];
-  return (
-    <motion.button
-      onClick={onClick}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border rounded-xl p-4 text-left hover:border-primary/40 hover:shadow-md transition-all group relative"
-    >
-      {/* Status bar at top */}
-      <div className={`absolute top-0 left-4 right-4 h-0.5 rounded-b-full ${cfg.dot}`} />
-
-      <div className="flex items-start justify-between mb-3 mt-1">
-        <div>
-          <p className="text-lg font-bold text-foreground">{room.roomNumber}</p>
-          <p className="text-xs text-muted-foreground">Floor {room.floor}</p>
-        </div>
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.bg} ${cfg.color}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-          {cfg.label}
-        </span>
-      </div>
-
-      <div className="mb-3">
-        <p className="text-sm font-medium text-foreground">{TYPE_CONFIG[room.type].label}</p>
-        <p className="text-xs text-muted-foreground capitalize">{room.bedType} · {VIEW_ICONS[room.view]} {room.view}</p>
-      </div>
-
-      {room.currentGuestName && (
-        <p className="text-xs text-primary font-medium mb-2 truncate">{room.currentGuestName}</p>
-      )}
-
-      <div className="flex items-center justify-between mt-auto pt-2 border-t border-border">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <span className="flex items-center gap-1 text-xs"><Users className="w-3 h-3" />{room.capacity}</span>
-          <span className="flex items-center gap-1 text-xs"><Maximize2 className="w-3 h-3" />{room.sizeSqm}m²</span>
-        </div>
-        <span className="text-xs font-semibold text-foreground">
-          {formatCurrency(room.ratePerNight, currency)}<span className="text-muted-foreground font-normal">/n</span>
-        </span>
-      </div>
-
-      <ChevronRight className="absolute right-3 bottom-3 w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-    </motion.button>
-  );
-}
-
-// ─── Main View ────────────────────────────────────────────────────────────────
 export function RoomsView() {
-  const { data: rooms = [] } = useRooms();
-  const { data: roomsSummary } = useRoomsSummary();
+  const [tab, setTab] = React.useState<Tab>("rooms");
+  const { data: summary } = useRoomsSummary();
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold">Rooms</h1>
+        <p className="text-sm text-muted-foreground">Room types, the rooms themselves, and nights a room is out of order.</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Rooms" value={summary?.total ?? 0} icon={BedDouble} />
+        <Stat label="Occupied now" value={summary?.occupied ?? 0} hint={`${summary?.occupancyRate ?? 0}% of rooms`} icon={Percent} tone="text-success bg-success/10" />
+        <Stat label="To clean" value={summary?.dirtyRooms ?? 0} icon={SprayCan} tone="text-warning bg-warning/10" />
+        <Stat label="Out of service" value={summary?.maintenance ?? 0} icon={Wrench} tone="text-destructive bg-destructive/10" />
+      </div>
+      <div className="flex gap-1 p-1 rounded-lg bg-muted/50 w-fit">
+        {([["rooms", "Rooms", BedDouble], ["types", "Room types", Layers], ["blocks", "Out of order", Wrench]] as const).map(([id, label, Icon]) => (
+          <button key={id} onClick={() => setTab(id)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium",
+            tab === id ? "bg-card shadow-sm" : "text-muted-foreground")}><Icon className="h-4 w-4" />{label}</button>
+        ))}
+      </div>
+      {tab === "rooms" ? <RoomsTab /> : tab === "types" ? <TypesTab /> : <BlocksTab />}
+    </div>
+  );
+}
 
-  const [search, setSearch] = React.useState("");
-  const [typeFilter, setTypeFilter] = React.useState("all");
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const [selectedRoom, setSelectedRoom] = React.useState<Room | null>(null);
-  const [showAddForm, setShowAddForm] = React.useState(false);
+// ─── Rooms ────────────────────────────────────────────────────────────────────
 
-  const floors = React.useMemo(() => {
-    const f = [...new Set(rooms.map(r => r.floor))].sort((a, b) => a - b);
-    return f;
-  }, [rooms]);
+function RoomsTab() {
+  const currency = useCurrency();
+  const { data: rooms = [], isLoading } = useRooms();
+  const { data: types = [] } = useRoomTypes(true);
+  const [editing, setEditing] = React.useState<RoomDto | "new" | null>(null);
+  const [deleting, setDeleting] = React.useState<RoomDto | null>(null);
+  const del = useDeleteRoom();
+  const maint = useSetMaintenance();
+  const hk = useSetHousekeeping();
+  const canEdit = useCan("hospitality.rooms.edit");
+  const canHk = useCan("hospitality.housekeeping.edit") || canEdit;
+  const typeRate = (id: string | null) => types.find(t => t.id === id)?.baseRate ?? 0;
 
-  const filtered = React.useMemo(() => {
-    return rooms.filter(r => {
-      const q = search.toLowerCase();
-      const matchSearch = !q ||
-        r.roomNumber.includes(q) ||
-        r.type.includes(q) ||
-        (r.currentGuestName?.toLowerCase().includes(q) ?? false);
-      const matchType = typeFilter === "all" || r.type === typeFilter;
-      const matchStatus = statusFilter === "all" || r.status === statusFilter;
-      return matchSearch && matchType && matchStatus;
-    });
-  }, [rooms, search, typeFilter, statusFilter]);
+  const floors = React.useMemo(() => [...new Set(rooms.map(r => r.floor))].sort((a, b) => a - b), [rooms]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Rooms</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{roomsSummary?.total ?? rooms.length} rooms · {roomsSummary?.occupancyRate ?? 0}% occupied</p>
-        </div>
-        <Button size="sm" onClick={() => setShowAddForm(true)}>
-          <BedDouble className="w-3.5 h-3.5 mr-1.5" /> Add Room
-        </Button>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Can permission="hospitality.rooms.create">
+          <Button className="gap-2 h-9" disabled={types.length === 0} title={types.length === 0 ? "Add a room type first" : undefined} onClick={() => setEditing("new")}><Plus className="h-4 w-4" />Add room</Button>
+        </Can>
       </div>
-
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Total Rooms" value={roomsSummary?.total ?? rooms.length} accent="bg-primary" />
-          <StatCard label="Available" value={roomsSummary?.available ?? rooms.filter(r => r.status === "available").length} accent="bg-success" />
-          <StatCard label="Occupied" value={roomsSummary?.occupied ?? rooms.filter(r => r.status === "occupied").length} accent="bg-primary" />
-          <StatCard label="Reserved" value={roomsSummary?.reserved ?? rooms.filter(r => r.status === "reserved").length} accent="bg-blue-500" />
-          <StatCard label="Cleaning" value={roomsSummary?.cleaning ?? rooms.filter(r => r.status === "cleaning").length} accent="bg-warning" />
-          <StatCard label="Maintenance" value={roomsSummary?.maintenance ?? rooms.filter(r => r.status === "maintenance").length} accent="bg-destructive" />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-52 max-w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search rooms or guests…"
-              className="pl-9 h-9 text-sm"
-            />
-          </div>
-
-          {/* Type filter */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {ROOM_TYPE_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setTypeFilter(opt.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  typeFilter === opt.value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="h-4 w-px bg-border hidden sm:block" />
-
-          {/* Status filter */}
-          <div className="flex items-center gap-1 flex-wrap">
-            {STATUS_OPTIONS.slice(1).map(opt => {
-              const cfg = STATUS_CONFIG[opt.value as RoomStatus];
+      {isLoading ? <div className="h-40 rounded-xl bg-muted/40 animate-pulse" /> : rooms.length === 0 ? (
+        <Empty icon={BedDouble} title="No rooms yet" hint={types.length === 0 ? "Start with a room type (e.g. Standard King), then add the rooms of that type." : "Add the rooms you sell."} />
+      ) : floors.map(floor => (
+        <div key={floor} className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Floor {floor}</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {rooms.filter(r => r.floor === floor).map(r => {
+              const st = roomStatus(r.status);
               return (
-                <button
-                  key={opt.value}
-                  onClick={() => setStatusFilter(statusFilter === opt.value ? "all" : opt.value)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                    statusFilter === opt.value
-                      ? `${cfg.bg} ${cfg.color}`
-                      : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Rooms Grid — grouped by floor */}
-        {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <BedDouble className="w-10 h-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No rooms match your filters</p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {floors.map(floor => {
-              const floorRooms = filtered.filter(r => r.floor === floor);
-              if (floorRooms.length === 0) return null;
-              return (
-                <div key={floor}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Floor {floor}
-                    </p>
-                    <div className="flex-1 h-px bg-border" />
-                    <p className="text-xs text-muted-foreground">{floorRooms.length} room{floorRooms.length !== 1 ? "s" : ""}</p>
+                <div key={r.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-lg font-bold leading-tight">{r.roomNumber}</p>
+                      <p className="text-xs text-muted-foreground truncate">{r.roomType} · sleeps {r.capacity}{r.view ? ` · ${r.view}` : ""}</p>
+                    </div>
+                    <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap", st.chip)}>{st.label}</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    {floorRooms.map(room => (
-                      <RoomCard key={room.id} room={room} onClick={() => setSelectedRoom(room)} />
-                    ))}
+                  {r.currentGuestName && <p className="text-xs flex items-center gap-1"><Users className="h-3.5 w-3.5 text-muted-foreground" />{r.currentGuestName}</p>}
+                  <div className="flex items-center justify-between text-xs">
+                    <span className={cn("font-medium", r.housekeepingStatus === "dirty" ? "text-warning" : "text-success")}>
+                      {r.housekeepingStatus === "dirty" ? "Needs cleaning" : r.housekeepingStatus === "inspected" ? "Inspected" : "Clean"}
+                    </span>
+                    <span className="text-muted-foreground">{formatCurrency(r.ratePerNight > 0 ? r.ratePerNight : typeRate(r.roomTypeId), currency)}/night{r.ratePerNight > 0 ? "" : " (type)"}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 pt-1 border-t border-border">
+                    {canHk && r.housekeepingStatus === "dirty" && (
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => hk.mutate({ id: r.id, status: "clean" })}><CheckCircle2 className="h-3.5 w-3.5" />Clean</Button>
+                    )}
+                    {canHk && r.housekeepingStatus === "clean" && (
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => hk.mutate({ id: r.id, status: "inspected" })}><CheckCircle2 className="h-3.5 w-3.5" />Inspected</Button>
+                    )}
+                    {canEdit && (
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" disabled={!!r.currentBookingId && r.status !== "maintenance"}
+                        onClick={() => maint.mutate({ id: r.id, on: r.status !== "maintenance" })}>
+                        <Power className="h-3.5 w-3.5" />{r.status === "maintenance" ? "Back in service" : "Out of service"}
+                      </Button>
+                    )}
+                    <span className="ms-auto flex">
+                      {canEdit && <button onClick={() => setEditing(r)} className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted" aria-label="Edit room"><Pencil className="h-3.5 w-3.5" /></button>}
+                      <Can permission="hospitality.rooms.delete"><button onClick={() => setDeleting(r)} className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10" aria-label="Delete room"><Trash2 className="h-3.5 w-3.5" /></button></Can>
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
-        )}
-      </div>
-
-      {/* Drawer */}
-      <AnimatePresence>
-        {selectedRoom && (
-          <RoomDrawer room={selectedRoom} onClose={() => setSelectedRoom(null)} />
-        )}
-      </AnimatePresence>
-      <AddRoomForm open={showAddForm} onClose={() => setShowAddForm(false)} />
+        </div>
+      ))}
+      {editing && <RoomDialog room={editing === "new" ? null : editing} types={types} onClose={() => setEditing(null)} />}
+      {deleting && (
+        <Modal title={`Delete room ${deleting.roomNumber}?`} onClose={() => setDeleting(null)}
+          footer={<><Button variant="ghost" onClick={() => setDeleting(null)}>Keep</Button>
+            <Button variant="destructive" disabled={del.isPending} onClick={() => del.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}>Delete</Button></>}>
+          <p className="text-sm">Past stays in this room keep their records. A room with upcoming bookings cannot be deleted until they are moved.</p>
+        </Modal>
+      )}
     </div>
   );
 }
 
+function RoomDialog({ room, types, onClose }: { room: RoomDto | null; types: RoomTypeDto[]; onClose: () => void }) {
+  const create = useCreateRoom();
+  const update = useUpdateRoom();
+  const [f, setF] = React.useState({
+    roomNumber: room?.roomNumber ?? "", roomTypeId: room?.roomTypeId ?? types.find(t => t.isActive)?.id ?? "",
+    floor: room?.floor ?? 1, capacity: room?.capacity ?? 0, ratePerNight: room?.ratePerNight ?? 0,
+    view: room?.view ?? "", hasBalcony: room?.hasBalcony ?? false, notes: room?.notes ?? "",
+  });
+  const type = types.find(t => t.id === f.roomTypeId);
+  const pending = create.isPending || update.isPending;
+  const submit = () => {
+    const data = { ...f, view: f.view || null, notes: f.notes || null };
+    room ? update.mutate({ id: room.id, data }, { onSuccess: onClose }) : create.mutate(data, { onSuccess: onClose });
+  };
+  return (
+    <Modal title={room ? `Room ${room.roomNumber}` : "Add room"} onClose={onClose}
+      footer={<><Button variant="ghost" onClick={onClose}>Close</Button><Button disabled={!f.roomNumber.trim() || !f.roomTypeId || pending} onClick={submit}>Save</Button></>}>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Room number"><input autoFocus value={f.roomNumber} onChange={e => setF({ ...f, roomNumber: e.target.value })} className={inputCls} /></Field>
+        <Field label="Floor"><input type="number" value={f.floor} onChange={e => setF({ ...f, floor: Number(e.target.value) })} className={inputCls} /></Field>
+      </div>
+      <Field label="Room type"><select value={f.roomTypeId} onChange={e => setF({ ...f, roomTypeId: e.target.value })} className={selectCls}>
+        {types.map(t => <option key={t.id} value={t.id}>{t.name}{t.isActive ? "" : " (off)"}</option>)}</select></Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Sleeps" hint={`0 = the type's ${type ? type.maxAdults + type.maxChildren : ""}`}><input type="number" min={0} value={f.capacity} onChange={e => setF({ ...f, capacity: Number(e.target.value) })} className={inputCls} /></Field>
+        <Field label="Own nightly rate" hint="0 = the type's rate"><input type="number" min={0} step="0.01" value={f.ratePerNight} onChange={e => setF({ ...f, ratePerNight: Number(e.target.value) })} className={inputCls} /></Field>
+        <Field label="View"><input value={f.view} onChange={e => setF({ ...f, view: e.target.value })} className={inputCls} placeholder="Sea, city, garden…" /></Field>
+        <label className="flex items-center gap-2 text-sm pt-5"><input type="checkbox" checked={f.hasBalcony} onChange={e => setF({ ...f, hasBalcony: e.target.checked })} />Balcony</label>
+      </div>
+      <Field label="Notes"><textarea rows={2} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} className={textareaCls} /></Field>
+    </Modal>
+  );
+}
+
+// ─── Room types ───────────────────────────────────────────────────────────────
+
+function TypesTab() {
+  const currency = useCurrency();
+  const { data: types = [], isLoading } = useRoomTypes(true);
+  const [editing, setEditing] = React.useState<RoomTypeDto | "new" | null>(null);
+  const del = useDeleteRoomType();
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end"><Can permission="hospitality.rooms.create"><Button className="gap-2 h-9" onClick={() => setEditing("new")}><Plus className="h-4 w-4" />Add room type</Button></Can></div>
+      {isLoading ? <div className="h-40 rounded-xl bg-muted/40 animate-pulse" /> : types.length === 0 ? (
+        <Empty icon={Layers} title="No room types yet" hint="A room type is what you sell — Standard King, Deluxe Twin, Suite. Rates and availability are by type." />
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {types.map(t => (
+            <div key={t.id} className={cn("rounded-xl border border-border bg-card p-4 space-y-2", !t.isActive && "opacity-60")}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0"><p className="font-semibold truncate">{t.name}</p><p className="text-xs text-muted-foreground">{t.code}{t.isActive ? "" : " · switched off"}</p></div>
+                <p className="font-bold tabular-nums">{formatCurrency(t.baseRate, currency)}<span className="text-xs font-normal text-muted-foreground">/night</span></p>
+              </div>
+              <p className="text-xs text-muted-foreground">Up to {t.maxAdults} adults{t.maxChildren ? ` + ${t.maxChildren} children` : ""} · {t.roomCount} room{t.roomCount === 1 ? "" : "s"}</p>
+              {t.amenities && <p className="text-xs">{t.amenities}</p>}
+              {t.description && <p className="text-xs text-muted-foreground line-clamp-2">{t.description}</p>}
+              <div className="flex justify-end gap-1 pt-1 border-t border-border">
+                <Can permission="hospitality.rooms.edit"><Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => setEditing(t)}><Pencil className="h-3.5 w-3.5" />Edit</Button></Can>
+                <Can permission="hospitality.rooms.delete"><Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-destructive" disabled={t.roomCount > 0 || del.isPending}
+                  title={t.roomCount > 0 ? "Move or delete its rooms first" : undefined} onClick={() => del.mutate(t.id)}><Trash2 className="h-3.5 w-3.5" />Delete</Button></Can>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {editing && <TypeDialog type={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+    </div>
+  );
+}
+
+function TypeDialog({ type, onClose }: { type: RoomTypeDto | null; onClose: () => void }) {
+  const create = useCreateRoomType();
+  const update = useUpdateRoomType();
+  const [f, setF] = React.useState({
+    code: type?.code ?? "", name: type?.name ?? "", baseRate: type?.baseRate ?? 0, maxAdults: type?.maxAdults ?? 2,
+    maxChildren: type?.maxChildren ?? 1, description: type?.description ?? "", amenities: type?.amenities ?? "", isActive: type?.isActive ?? true,
+  });
+  const submit = () => {
+    const data = { ...f, description: f.description || null, amenities: f.amenities || null };
+    type ? update.mutate({ id: type.id, data }, { onSuccess: onClose }) : create.mutate(data, { onSuccess: onClose });
+  };
+  return (
+    <Modal title={type ? type.name : "Add room type"} onClose={onClose}
+      footer={<><Button variant="ghost" onClick={onClose}>Close</Button><Button disabled={!f.code.trim() || !f.name.trim() || f.maxAdults < 1 || create.isPending || update.isPending} onClick={submit}>Save</Button></>}>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Code"><input value={f.code} onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} className={inputCls} placeholder="STDK" maxLength={20} /></Field>
+        <Field label="Name" className="col-span-2"><input autoFocus value={f.name} onChange={e => setF({ ...f, name: e.target.value })} className={inputCls} placeholder="Standard King" /></Field>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Base rate / night"><input type="number" min={0} step="0.01" value={f.baseRate} onChange={e => setF({ ...f, baseRate: Number(e.target.value) })} className={inputCls} /></Field>
+        <Field label="Max adults"><input type="number" min={1} value={f.maxAdults} onChange={e => setF({ ...f, maxAdults: Number(e.target.value) })} className={inputCls} /></Field>
+        <Field label="Max children"><input type="number" min={0} value={f.maxChildren} onChange={e => setF({ ...f, maxChildren: Number(e.target.value) })} className={inputCls} /></Field>
+      </div>
+      <p className="text-[11px] text-muted-foreground">The base rate applies on nights no season of the rate plan covers.</p>
+      <Field label="Amenities"><input value={f.amenities} onChange={e => setF({ ...f, amenities: e.target.value })} className={inputCls} placeholder="Wi-Fi, Sea view, Bathtub" /></Field>
+      <Field label="Description"><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} className={textareaCls} /></Field>
+      {type && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.isActive} onChange={e => setF({ ...f, isActive: e.target.checked })} />On sale</label>}
+    </Modal>
+  );
+}
+
+// ─── Out of order ─────────────────────────────────────────────────────────────
+
+function BlocksTab() {
+  const { data: blocks = [], isLoading } = useRoomBlocks();
+  const { data: rooms = [] } = useRooms();
+  const create = useCreateBlock();
+  const del = useDeleteBlock();
+  const today = localToday();
+  const [f, setF] = React.useState({ roomId: "", fromDate: today, toDate: addDays(today, 1), reason: "" });
+  const valid = f.roomId && f.reason.trim() && f.toDate > f.fromDate;
+  return (
+    <div className="space-y-4">
+      <Can permission="hospitality.rooms.edit">
+        <div className="rounded-xl border border-border bg-card p-4 grid sm:grid-cols-5 gap-3 items-end">
+          <Field label="Room"><select value={f.roomId} onChange={e => setF({ ...f, roomId: e.target.value })} className={selectCls}>
+            <option value="">Pick a room</option>{rooms.map(r => <option key={r.id} value={r.id}>{r.roomNumber} · {r.roomType}</option>)}</select></Field>
+          <Field label="From night"><input type="date" value={f.fromDate} onChange={e => setF({ ...f, fromDate: e.target.value })} className={inputCls} /></Field>
+          <Field label="Back in service"><input type="date" value={f.toDate} min={addDays(f.fromDate, 1)} onChange={e => setF({ ...f, toDate: e.target.value })} className={inputCls} /></Field>
+          <Field label="Reason"><input value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} className={inputCls} placeholder="Repainting" /></Field>
+          <Button disabled={!valid || create.isPending} onClick={() => create.mutate(f, { onSuccess: () => setF({ ...f, reason: "" }) })}>Take out of order</Button>
+        </div>
+      </Can>
+      {isLoading ? <div className="h-24 rounded-xl bg-muted/40 animate-pulse" /> : blocks.length === 0 ? (
+        <Empty icon={Wrench} title="No rooms are out of order" hint="Take a room out for a run of nights here; it disappears from availability on those nights only." />
+      ) : (
+        <div className="rounded-xl border border-border bg-card divide-y divide-border">
+          {blocks.map(b => (
+            <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+              <span className="font-semibold w-16">{b.roomNumber}</span>
+              <span className="text-muted-foreground">{dayLabel(b.fromDate)} → {dayLabel(b.toDate)}</span>
+              <span className="flex-1 truncate">{b.reason}</span>
+              <Can permission="hospitality.rooms.edit"><Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => del.mutate(b.id)}>Back in service</Button></Can>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

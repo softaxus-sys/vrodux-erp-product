@@ -652,15 +652,20 @@ export const navigationConfig: NavGroup[] = [
       },
       {
         id: "hospitality",
-        label: "Hospitality",
+        label: "Hospitality & Tourism",
         labelAr: "الضيافة",
         icon: "Hotel",
         module: "hospitality",
         isBeta: true,
         children: [
-          { id: "bookings", label: "Bookings", href: "/hospitality/bookings", icon: "CalendarCheck" },
+          { id: "hotel-front-desk", label: "Front Desk", href: "/hospitality/front-desk", icon: "ConciergeBell" },
+          { id: "hotel-calendar", label: "Room Calendar", href: "/hospitality/calendar", icon: "CalendarDays" },
+          { id: "bookings", label: "Reservations", href: "/hospitality/bookings", icon: "CalendarCheck" },
           { id: "rooms", label: "Rooms", href: "/hospitality/rooms", icon: "BedDouble" },
-          { id: "housekeeping", label: "Housekeeping", href: "/hospitality/housekeeping", icon: "SprayCan" },
+          { id: "housekeeping", label: "Housekeeping", href: "/hospitality/housekeeping", icon: "SprayCan" },
+          { id: "hotel-rates", label: "Rates", href: "/hospitality/rates", icon: "Tags" },
+          { id: "hotel-guests", label: "Guests", href: "/hospitality/guests", icon: "Contact" },
+          { id: "hotel-settings", label: "Hotel Settings", href: "/hospitality/settings", icon: "Settings2" },
         ],
       },
       {

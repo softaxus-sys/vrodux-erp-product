@@ -165,8 +165,18 @@ public static class PermissionSeedData
         // waive) and setup (branches + membership rules).
         // Hospitality: reading rooms is also allowed to anyone who can create a booking (the booking form needs the room list).
         ["hospitality.bookings"]    = ["view","create","edit"],
-        ["hospitality.rooms"]       = ["view"],
+        ["hospitality.rooms"]       = ["view","create","edit","delete"],
+        // Hotel PMS: rates and seasons, guest profiles, the folio (charges; void + discount are
+        // "approve" so a Staff role can post a minibar charge but not wipe one off a bill), settings.
+        ["hospitality.rates"]       = ["view","edit"],
+        ["hospitality.guests"]      = ["view","create","edit","delete"],
+        ["hospitality.folio"]       = ["view","create","approve"],
+        ["hospitality.settings"]    = ["view","edit"],
         ["hospitality.housekeeping"] = ["view","create","edit"],
+        // Travel agency / tour operator. Costs are their own key: a sales agent may sell trips without seeing supplier costs or margin.
+        ["hospitality.tours"]        = ["view","create","edit","delete"],
+        ["hospitality.tour-bookings"] = ["view","create","edit","delete","record","void"],
+        ["hospitality.tour-costs"]   = ["view","edit"],
         ["library.catalog"]     = ["view","create","edit","delete"],
         ["library.members"]     = ["view","create","edit","delete"],
         ["library.circulation"] = ["view","create","edit"],
