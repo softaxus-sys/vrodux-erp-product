@@ -97,7 +97,7 @@ export function DeliveryChallansView() {
                     </td>
                     <td className="px-4 py-3.5 text-center">
                       <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold", sc.color, sc.bg)}>
-                        <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{t(`challans.status.${c.status}`)}
+                        <span className={cn("h-1.5 w-1.5 rounded-full", sc.dot)} />{t(`deliveryChallans.status.${c.status}`)}
                       </span>
                     </td>
                   </motion.tr>

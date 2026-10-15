@@ -492,6 +492,8 @@
       "items": "Items to Deliver",
       "ordered": "Ordered",
       "delivered": "Delivered",
+      "notes": "Notes",
+      "totalValue": "Total value",
       "summary": {
         "totalItems": "Total Items",
         "create": "Create Challan"
