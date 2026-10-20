@@ -25,6 +25,7 @@ const CalendarPage         = lazyWithRetry(() => import("@/pages/calendar"));
 const ProfilePage          = lazyWithRetry(() => import("@/pages/profile"));
 const MyTicketsPage        = lazyWithRetry(() => import("@/pages/support/my-tickets"));
 const SupportQueuePage     = lazyWithRetry(() => import("@/pages/support/queue"));
+const VideoGuidesPage      = lazyWithRetry(() => import("@/pages/support/video-guides"));
 
 // ── Finance ───────────────────────────────────────────────────────────────────
 const AccountingPage       = lazyWithRetry(() => import("@/pages/finance/accounting"));
@@ -155,6 +156,15 @@ const TradeShipmentsPage = lazyWithRetry(() => import("@/pages/trade/shipments")
 const TradePartiesPage   = lazyWithRetry(() => import("@/pages/trade/parties"));
 const TradeInTransitPage = lazyWithRetry(() => import("@/pages/trade/in-transit"));
 const TradeDutyRatesPage = lazyWithRetry(() => import("@/pages/trade/duty-rates"));
+const LeadGenOverviewPage  = lazyWithRetry(() => import("@/pages/leadgen/overview"));
+const LeadGenFindPage      = lazyWithRetry(() => import("@/pages/leadgen/find"));
+const LeadGenProspectsPage = lazyWithRetry(() => import("@/pages/leadgen/prospects"));
+const LeadGenCampaignsPage = lazyWithRetry(() => import("@/pages/leadgen/campaigns"));
+const LeadGenInboxPage     = lazyWithRetry(() => import("@/pages/leadgen/inbox"));
+const LeadGenMailboxesPage = lazyWithRetry(() => import("@/pages/leadgen/mailboxes"));
+const LeadGenCreditsPage   = lazyWithRetry(() => import("@/pages/leadgen/credits"));
+const LeadGenSettingsPage  = lazyWithRetry(() => import("@/pages/leadgen/settings"));
+const LeadGenAdminPage     = lazyWithRetry(() => import("@/pages/leadgen/admin"));
 
 // ── Visa Services ────────────────────────────────────────────────────────────
 const VisaDashboardPage     = lazyWithRetry(() => import("@/pages/visa/dashboard"));
@@ -372,6 +382,7 @@ export function App() {
           {/* Help & Support — raising a ticket / reading your own tenant's tickets needs no
               module or permission grant, same posture as changing your own password. */}
           <Route path="/support" element={<MyTicketsPage />} />
+          <Route path="/support/videos" element={<VideoGuidesPage />} />
           <Route element={<SupportQueueGuard />}>
             <Route path="/support/queue" element={<SupportQueuePage />} />
           </Route>
@@ -516,6 +527,18 @@ export function App() {
             <Route path="/pos/low-stock"   element={<PosLowStockPage />} />
           </Route>
 
+          {/* Lead Generation - available to every workspace; each screen is gated by its own leadgen.* permission. */}
+          <Route element={<ModuleGuard module="leadgen" />}>
+            <Route path="/lead-generation"            element={<LeadGenOverviewPage />} />
+            <Route path="/lead-generation/find"       element={<LeadGenFindPage />} />
+            <Route path="/lead-generation/prospects"  element={<LeadGenProspectsPage />} />
+            <Route path="/lead-generation/campaigns"  element={<LeadGenCampaignsPage />} />
+            <Route path="/lead-generation/inbox"      element={<LeadGenInboxPage />} />
+            <Route path="/lead-generation/mailboxes"  element={<LeadGenMailboxesPage />} />
+            <Route path="/lead-generation/credits"    element={<LeadGenCreditsPage />} />
+            <Route path="/lead-generation/settings"   element={<LeadGenSettingsPage />} />
+          </Route>
+
           {/* Restaurant screens live under /pos/* but belong to the restaurant module. Guarding them
               on "pos" bounced every restaurant-only role back to the dashboard. */}
           <Route element={<ModuleGuard module="restaurant" />}>
@@ -613,6 +636,7 @@ export function App() {
             <Route path="/super-admin/billing"     element={<PlatformBillingPage />} />
             {/* Shared object-storage bucket usage, per tenant — not a tenant setting either. */}
             <Route path="/super-admin/storage"     element={<StorageUsagePage />} />
+            <Route path="/super-admin/lead-generation" element={<LeadGenAdminPage />} />
           </Route>
 
           {/* ── Settings — per-page permission, admin tiers always pass ─────── */}

@@ -149,6 +149,7 @@ export type ModuleKey =
   | "manufacturing"
   | "library"
   | "trade"
+  | "leadgen"
   | "support"
   | "seo";
 

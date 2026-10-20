@@ -22,6 +22,7 @@ public static class NotificationModules
     public const string Seo               = "seo";
     public const string Manufacturing     = "manufacturing";
     public const string Trade             = "trade";
+    public const string LeadGen           = "leadgen";
     /// <summary>Account-level alerts (billing, security) — never module-gated, everyone sees their own.</summary>
     public const string System            = "system";
 }
@@ -80,4 +81,11 @@ public static class NotificationEvents
     public const string TradeAttention          = "trade.attention";
     /// <summary>Daily digest for people who handle the money: overdue payments, expiring letters of credit.</summary>
     public const string TradePaymentsAttention  = "trade.payments-attention";
+
+    // Lead generation: a prospect answered, a mailbox needs attention, a search finished, credits ran low.
+    public const string LeadGenReply            = "leadgen.reply";
+    public const string LeadGenMailboxProblem   = "leadgen.mailbox-problem";
+    public const string LeadGenSearchDone       = "leadgen.search-done";
+    public const string LeadGenCreditsLow       = "leadgen.credits-low";
+    public const string LeadGenCampaignPaused   = "leadgen.campaign-paused";
 }

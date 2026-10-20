@@ -37,7 +37,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
             <html><body style="font-family:sans-serif;color:#1e293b">
               <h2>Password Reset Request</h2>
               <p>Hi {toName},</p>
-              <p>You requested a password reset for your Softaxis ERP account. Click the button below to set a new password. This link expires in <strong>60 minutes</strong>.</p>
+              <p>You requested a password reset for your Vrodux ERP account. Click the button below to set a new password. This link expires in <strong>60 minutes</strong>.</p>
               <p style="margin:24px 0">
                 <a href="{resetUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
                   Reset My Password
@@ -53,7 +53,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(fromName, fromAddr));
         message.To.Add(new MailboxAddress(toName, toEmail));
-        message.Subject = "Reset your Softaxis ERP password";
+        message.Subject = "Reset your Vrodux ERP password";
         message.Body    = new TextPart("html") { Text = body };
 
         using var client = new SmtpClient();
@@ -95,7 +95,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
             <html><body style="font-family:sans-serif;color:#1e293b">
               <h2>Verify your email</h2>
               <p>Hi {toName},</p>
-              <p>An account has been created for you on Softaxis ERP. Please verify your email address to activate
+              <p>An account has been created for you on Vrodux ERP. Please verify your email address to activate
                  your account and log in. This link expires in <strong>48 hours</strong>.</p>
               <p style="margin:24px 0">
                 <a href="{verifyUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600">
@@ -112,7 +112,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(fromName, fromAddr));
         message.To.Add(new MailboxAddress(toName, toEmail));
-        message.Subject = "Verify your Softaxis ERP email";
+        message.Subject = "Verify your Vrodux ERP email";
         message.Body    = new TextPart("html") { Text = body };
 
         using var client = new SmtpClient();
@@ -157,7 +157,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
 
         var body = $"""
             <html><body style="font-family:sans-serif;color:#1e293b">
-              <h2>Welcome to Softaxis ERP</h2>
+              <h2>Welcome to Vrodux ERP</h2>
               <p>Hi {toName},</p>
               <p>{lead}</p>
               <p style="margin:24px 0">
@@ -175,7 +175,7 @@ public sealed class SmtpEmailService(IConfiguration configuration, ILogger<SmtpE
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(fromName, fromAddr));
         message.To.Add(new MailboxAddress(toName, toEmail));
-        message.Subject = isInvite ? $"Activate your {tenantName} workspace on Softaxis ERP" : $"Your {tenantName} workspace is ready";
+        message.Subject = isInvite ? $"Activate your {tenantName} workspace on Vrodux ERP" : $"Your {tenantName} workspace is ready";
         message.Body    = new TextPart("html") { Text = body };
 
         using var client = new SmtpClient();

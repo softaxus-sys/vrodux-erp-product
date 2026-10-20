@@ -52,6 +52,7 @@ public static class ModuleRoleCatalogue
             ["manufacturing"]      = "Manufacturing",
             ["library"]            = "Library",
             ["trade"]              = "Trade",
+            ["leadgen"]            = "Lead Generation",
             ["seo"]                = "SEO",
             ["restaurant"]         = "Restaurant",
             ["real-estate"]        = "Real Estate",
@@ -185,6 +186,33 @@ public static class ModuleRoleCatalogue
                         "restaurant.delivery" => a is "view" or "edit",
                         "restaurant.orders"   => a == "view",
                         _                     => false,
+                    }),
+            ];
+
+        // ── Lead Generation: spending credits and sending mail are manager decisions ─────
+        // Every action that costs money (reveal, buying credits) or puts mail in front of a customer
+        // (launching a campaign, replying) is withheld from the day-to-day role. An administrator can
+        // grant any of them to any role from the permission matrix.
+        if (string.Equals(module, "leadgen", StringComparison.OrdinalIgnoreCase))
+            return
+            [
+                new($"{label} Manager",
+                    "Full access: run searches, spend credits, buy more, connect mailboxes, launch campaigns and work the inbox.",
+                    (m, _) => InModule(m, "leadgen")),
+
+                new($"{label} Specialist",
+                    "Researches and prepares: runs searches, reviews and edits prospects, drafts campaigns, reads the inbox. Cannot spend credits, buy credits, launch sending or delete.",
+                    (m, a) => m switch
+                    {
+                        "leadgen.searches"  => a is "view" or "create",
+                        "leadgen.prospects" => a is "view" or "create" or "edit",
+                        "leadgen.credits"   => a == "view",
+                        "leadgen.mailboxes" => a == "view",
+                        "leadgen.campaigns" => a is "view" or "create" or "edit",
+                        "leadgen.inbox"     => a is "view" or "edit",
+                        "leadgen.settings"  => a == "view",
+                        "leadgen.reports"   => a == "view",
+                        _                   => false,
                     }),
             ];
 

@@ -167,7 +167,7 @@ const KNOWN_MODULES: Record<ModuleKey, true> = {
   "settings": true, "users": true, "ai-assistant": true, "notifications": true,
   "file-manager": true, "super-admin": true, "restaurant": true, "education": true,
   "insurance": true, "b2b": true, "project-management": true, "visa": true,
-  "manufacturing": true, "library": true, "trade": true,
+  "manufacturing": true, "library": true, "trade": true, "leadgen": true,
   "support": true, "seo": true, "calendar": true,
 };
 

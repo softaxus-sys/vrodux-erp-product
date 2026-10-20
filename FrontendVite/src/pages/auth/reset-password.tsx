@@ -100,7 +100,7 @@ export default function ResetPasswordPage() {
         <div className="flex items-center gap-2">
           <BrandLogo className="h-5 w-5" />
           <span className="text-[11px] font-bold tracking-widest uppercase" style={{ color: D.muted }}>
-            Softaxis ERP
+            Vrodux ERP
           </span>
         </div>
         <button
