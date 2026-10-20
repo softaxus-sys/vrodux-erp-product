@@ -50,12 +50,12 @@ public interface IOutreachPolicy
 }
 
 internal sealed class OutreachPolicy(
-    LeadGenDbContext db, IPlatformSettings settings, ITenantInfoReader tenants) : IOutreachPolicy
+    LeadGenDbContext db, IPlatformSettings settings, ITenantInfoReader tenants, IProfileDefaults defaults) : IOutreachPolicy
 {
     public async Task<PolicyResult> CanSendAsync(CancellationToken ct)
     {
         var cfg = await settings.GetAsync(ct);
-        var profile = await db.Profiles.AsNoTracking().FirstOrDefaultAsync(ct);
+        var profile = await defaults.EnsureAsync(ct);
         var identityReady = !string.IsNullOrWhiteSpace(profile?.SenderBusinessName) && !string.IsNullOrWhiteSpace(profile?.SenderAddress);
 
         if (!cfg.Enabled) return new(false, "Lead generation is switched off on this platform.", identityReady);

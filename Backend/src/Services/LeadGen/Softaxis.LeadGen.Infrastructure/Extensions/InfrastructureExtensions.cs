@@ -56,6 +56,8 @@ public static class InfrastructureExtensions
         services.AddScoped<ICurrentUserAccessor, CurrentUserAccessor>();
         services.AddScoped<ICreditService, CreditService>();
         services.AddScoped<ITenantInfoReader, TenantInfoReader>();
+        services.AddScoped<ICompanyDefaultsReader, CompanyDefaultsReader>();
+        services.AddScoped<IProfileDefaults, ProfileDefaults>();
         services.AddScoped<IOutreachPolicy, OutreachPolicy>();
 
         // Finding and enriching businesses.

@@ -48,4 +48,29 @@ public sealed class LeadGenProfile
         SenderWebsite       = Text.OrNull(senderWebsite);
         UpdatedAt           = DateTime.UtcNow;
     }
+
+    /// <summary>
+    /// Fills fields that are still blank from what the workspace already told us. Never overwrites a value
+    /// and does not mark the profile as saved by the owner. Returns whether anything changed.
+    /// </summary>
+    public bool ApplyDefaults(string? senderName, string? senderAddress, string? senderWebsite, string? countryCode,
+        string? offer, string? targetCustomers, string? categoriesJson)
+    {
+        var changed = false;
+        string? Fill(string? field, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(field) && !string.IsNullOrWhiteSpace(value)) { changed = true; return Text.OrNull(value); }
+            return field;
+        }
+        SenderBusinessName  = Fill(SenderBusinessName, senderName);
+        SenderAddress       = Fill(SenderAddress, senderAddress);
+        SenderWebsite       = Fill(SenderWebsite, senderWebsite);
+        OfferSummary        = Fill(OfferSummary, offer);
+        TargetCustomers     = Fill(TargetCustomers, targetCustomers);
+        PreferredCategories = Fill(PreferredCategories, categoriesJson);
+        if (UpdatedAt is null && !string.IsNullOrWhiteSpace(countryCode)
+            && !string.Equals(CountryCode, countryCode, StringComparison.OrdinalIgnoreCase))
+        { CountryCode = countryCode.Trim().ToUpperInvariant(); changed = true; }
+        return changed;
+    }
 }

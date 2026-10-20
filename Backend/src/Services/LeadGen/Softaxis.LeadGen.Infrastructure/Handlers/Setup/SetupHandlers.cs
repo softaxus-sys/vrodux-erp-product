@@ -48,13 +48,13 @@ internal static class SetupSupport
 
 internal sealed class GetMetaHandler(
     LeadGenDbContext db, IPlatformSettings settings, ICreditService credits, IPlacesClient places,
-    IEmailChecker emails, IOutreachPolicy policy) : IQueryHandler<GetMetaQuery, MetaDto>
+    IEmailChecker emails, IOutreachPolicy policy, IProfileDefaults defaults) : IQueryHandler<GetMetaQuery, MetaDto>
 {
     public async Task<Result<MetaDto>> Handle(GetMetaQuery q, CancellationToken ct)
     {
         var cfg = await settings.GetAsync(ct);
         var wallet = await credits.EnsureWalletAsync(ct);
-        var profile = await db.Profiles.AsNoTracking().FirstOrDefaultAsync(ct);
+        var profile = await defaults.EnsureAsync(ct);
         var allowed = SetupSupport.AllowedCountries(cfg);
 
         var today = DateTime.UtcNow.Date;
@@ -81,10 +81,10 @@ internal sealed class GetMetaHandler(
     }
 }
 
-internal sealed class GetProfileHandler(LeadGenDbContext db) : IQueryHandler<GetProfileQuery, ProfileDto>
+internal sealed class GetProfileHandler(IProfileDefaults defaults) : IQueryHandler<GetProfileQuery, ProfileDto>
 {
     public async Task<Result<ProfileDto>> Handle(GetProfileQuery q, CancellationToken ct) =>
-        Result.Success(SetupSupport.ToDto(await SetupSupport.ProfileAsync(db, ct)));
+        Result.Success(SetupSupport.ToDto(await defaults.EnsureAsync(ct)));
 }
 
 internal sealed class UpdateProfileHandler(LeadGenDbContext db) : ICommandHandler<UpdateProfileCommand, ProfileDto>
