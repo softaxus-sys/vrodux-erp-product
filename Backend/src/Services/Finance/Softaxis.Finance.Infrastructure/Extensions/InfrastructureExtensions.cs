@@ -65,6 +65,11 @@ public static class InfrastructureExtensions
         services.TryAddSingleton<BuildingBlocks.Application.Multitenancy.ITenantWorkFilter,
                                  BuildingBlocks.Application.Multitenancy.AllowAllTenantWorkFilter>();
 
+        // UAE VAT (FTA) — return preparation + submission seam. See UnavailableUaeVatSubmissionGateway
+        // for why no transmitting gateway is registered.
+        services.Configure<UaeVat.UaeVatOptions>(configuration.GetSection(UaeVat.UaeVatOptions.Section));
+        services.AddScoped<Softaxis.Finance.Application.UaeVat.IUaeVatSubmissionGateway,
+            UaeVat.UnavailableUaeVatSubmissionGateway>();
         // Finance Integration Center: collects other modules' documents and posts them to the ledger.
         services.AddScoped<Integrations.PostingEngine>();
         services.AddHostedService<Integrations.PostingQueueHostedService>();

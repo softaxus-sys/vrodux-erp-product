@@ -21,3 +21,9 @@ public sealed class CreateTaxPeriodValidator : AbstractValidator<CreateTaxPeriod
         RuleFor(x => x.DueDate).NotEmpty();
     }
 }
+
+/// <summary>
+/// Removes a tax period set up by mistake. Refused once the return has been filed or paid, or once
+/// an FTA return for it has left Vrodux — those are records of what was declared to the authority.
+/// </summary>
+public sealed record DeleteTaxPeriodCommand(Guid Id) : ICommand;

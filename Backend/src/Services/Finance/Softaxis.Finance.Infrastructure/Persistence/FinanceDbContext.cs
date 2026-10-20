@@ -34,6 +34,9 @@ public sealed class FinanceDbContext(DbContextOptions<FinanceDbContext> options)
     public DbSet<ReceiptVoucher>       ReceiptVouchers       => Set<ReceiptVoucher>();
     public DbSet<ReceiptAllocation>    ReceiptAllocations    => Set<ReceiptAllocation>();
     public DbSet<FiscalPeriod>         FiscalPeriods         => Set<FiscalPeriod>();
+    public DbSet<UaeVatProfile>        UaeVatProfiles        => Set<UaeVatProfile>();
+    public DbSet<VatReturn>            VatReturns            => Set<VatReturn>();
+    public DbSet<VatReturnAttempt>     VatReturnAttempts     => Set<VatReturnAttempt>();
     public DbSet<IntegrationSetting>   IntegrationSettings   => Set<IntegrationSetting>();
     public DbSet<AccountMapping>       AccountMappings       => Set<AccountMapping>();
     public DbSet<PostingItem>          PostingItems          => Set<PostingItem>();

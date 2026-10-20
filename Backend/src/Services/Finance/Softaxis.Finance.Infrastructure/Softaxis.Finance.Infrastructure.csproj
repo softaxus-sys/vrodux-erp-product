@@ -23,4 +23,7 @@
     <ProjectReference Include="..\Softaxis.Finance.Application\Softaxis.Finance.Application.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Softaxis.BuildingBlocks.Infrastructure\Softaxis.BuildingBlocks.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Softaxis.Finance.UaeVat.Tests" />
+  </ItemGroup>
 </Project>

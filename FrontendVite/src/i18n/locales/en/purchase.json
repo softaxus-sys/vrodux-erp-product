@@ -83,7 +83,9 @@
         "confirm": "Create PO"
       },
       "subtitle": "Create a purchase order for a vendor",
-      "lineTotal": "Line Total"
+      "lineTotal": "Line Total",
+      "zeroRated": "Zero rated (0%)",
+      "exempt": "Exempt"
     },
     "picker": {
       "search": "Search products…",

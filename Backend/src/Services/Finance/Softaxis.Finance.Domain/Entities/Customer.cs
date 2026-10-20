@@ -73,5 +73,26 @@ public sealed class Customer
                .Select(x => x.ToLowerInvariant())
                .Distinct(StringComparer.OrdinalIgnoreCase));
 
+    /// <summary>Tax registration number. A UAE TRN is 15 digits starting with 100.</summary>
+    public string? Trn         { get; private set; }
+    /// <summary>Emirate code (AUH, DXB, SHJ, AJM, UAQ, RAK, FUJ) for a UAE customer.</summary>
+    public string? Emirate     { get; private set; }
+    public string? City        { get; private set; }
+    /// <summary>ISO 3166-1 alpha-2 country code. Null = not recorded.</summary>
+    public string? CountryCode { get; private set; }
+    /// <summary>Peppol participant ID used to route e-invoices (e.g. "0235:100123456700003").</summary>
+    public string? PeppolId    { get; private set; }
+
+    public void SetTaxIdentity(string? trn, string? emirate, string? city, string? countryCode, string? peppolId)
+    {
+        static string? Clean(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+        Trn         = Clean(trn)?.Replace(" ", "");
+        Emirate     = Clean(emirate)?.ToUpperInvariant();
+        City        = Clean(city);
+        CountryCode = Clean(countryCode)?.ToUpperInvariant();
+        PeppolId    = Clean(peppolId);
+        UpdatedAt   = DateTime.UtcNow;
+    }
+
     public void Delete() { IsDeleted = true; UpdatedAt = DateTime.UtcNow; }
 }

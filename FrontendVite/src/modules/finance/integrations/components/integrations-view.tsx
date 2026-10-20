@@ -160,6 +160,15 @@ export function IntegrationsView() {
 function Coverage({ integration: i }: { integration: IntegrationDto }) {
   const { t } = useTranslation("finance");
 
+  if (i.health === "by_design") {
+    // Say why nothing posts, right on the row — otherwise it reads as a broken link.
+    // Wrapper carries the breakpoint display; md:block on the <p> itself would undo line-clamp's -webkit-box.
+    return (
+      <div className="hidden md:block w-72 shrink-0">
+        <p className="text-xs text-muted-foreground text-end line-clamp-2" title={i.notes}>{i.notes}</p>
+      </div>
+    );
+  }
   if (i.sourceError) {
     return <p className="hidden md:block text-xs text-red-600 dark:text-red-400 w-44 text-end">{t("integrations.coverage.unreadable")}</p>;
   }

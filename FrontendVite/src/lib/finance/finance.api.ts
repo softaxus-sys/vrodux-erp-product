@@ -80,12 +80,20 @@ export interface InvoiceSummaryDto {
   draftCount: number;
 }
 
+export type VatCategory = "S" | "Z" | "E" | "O";
+
 export interface InvoiceItemDto {
   id: string;
   description: string;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+  /** VAT category: S standard (default), Z zero-rated, E exempt, O out of scope. */
+  taxCategory?: VatCategory | null;
+  /** UN/ECE Rec 20 unit code, e.g. C62, H87, HUR. */
+  unitCode?: string | null;
+  /** Why a non-standard line carries no VAT. */
+  exemptionReason?: string | null;
 }
 
 export interface InvoiceDetailDto {
@@ -344,6 +352,15 @@ export interface FinanceCustomerDto {
   ccEmails?: string | null;
   isActive: boolean;
   createdAt: string;
+  /** Tax registration number; a UAE TRN is 15 digits starting with 100. */
+  trn?: string | null;
+  /** AUH, DXB, SHJ, AJM, UAQ, RAK, FUJ. */
+  emirate?: string | null;
+  city?: string | null;
+  /** ISO 3166-1 alpha-2, e.g. AE. */
+  countryCode?: string | null;
+  /** Peppol participant ID for e-invoicing. */
+  peppolId?: string | null;
   updatedAt?: string | null;
 }
 
@@ -355,7 +372,15 @@ export interface CreateFinanceCustomerRequest {
   address?: string;
   accountId?: string;
   ccEmails?: string;
-  isActive?: boolean;
+  /** Tax registration number; a UAE TRN is 15 digits starting with 100. */
+  trn?: string | null;
+  /** AUH, DXB, SHJ, AJM, UAQ, RAK, FUJ. */
+  emirate?: string | null;
+  city?: string | null;
+  /** ISO 3166-1 alpha-2, e.g. AE. */
+  countryCode?: string | null;
+  /** Peppol participant ID for e-invoicing. */
+  peppolId?: string | null;  isActive?: boolean;
 }
 
 export interface UpdateFinanceCustomerRequest extends CreateFinanceCustomerRequest {
@@ -683,6 +708,12 @@ export interface InvoiceItemRequest {
   description: string;
   quantity: number;
   unitPrice: number;
+  /** VAT category: S standard (default), Z zero-rated, E exempt, O out of scope. */
+  taxCategory?: VatCategory | null;
+  /** UN/ECE Rec 20 unit code, e.g. C62, H87, HUR. */
+  unitCode?: string | null;
+  /** Why a non-standard line carries no VAT. */
+  exemptionReason?: string | null;
 }
 
 export interface CreateInvoiceRequest {
@@ -1073,6 +1104,7 @@ export const financeApi = {
   createTaxPeriod:     (data: CreateTaxPeriodRequest): Promise<TaxPeriodDto> => rawApiClient.post(`${BASE}/tax/periods`, data),
   fileTaxPeriod:       (id: string): Promise<void> => rawApiClient.post(`${BASE}/tax/periods/${id}/file`),
   payTaxPeriod:        (id: string): Promise<void> => rawApiClient.post(`${BASE}/tax/periods/${id}/pay`),
+  deleteTaxPeriod:     (id: string): Promise<void> => rawApiClient.delete(`${BASE}/tax/periods/${id}`),
 
   // Recurring invoices
   getRecurringInvoices: (p: RecurringPageParams = {}): Promise<PagedResult<RecurringInvoiceDto>> => {

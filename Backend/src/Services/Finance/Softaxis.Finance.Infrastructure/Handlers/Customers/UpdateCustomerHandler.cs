@@ -26,6 +26,7 @@ internal sealed class UpdateCustomerHandler(FinanceDbContext db)
         }
 
         customer.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId, cmd.IsActive, cmd.CcEmails);
+        customer.SetTaxIdentity(cmd.Trn, cmd.Emirate, cmd.City, cmd.CountryCode, cmd.PeppolId);
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }

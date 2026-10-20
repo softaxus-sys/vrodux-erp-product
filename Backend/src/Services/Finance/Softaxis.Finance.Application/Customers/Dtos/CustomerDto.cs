@@ -13,4 +13,9 @@ public sealed record CustomerDto(
     string?   CcEmails,
     bool      IsActive,
     DateTime  CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    string?   Trn         = null,
+    string?   Emirate     = null,
+    string?   City        = null,
+    string?   CountryCode = null,
+    string?   PeppolId    = null);

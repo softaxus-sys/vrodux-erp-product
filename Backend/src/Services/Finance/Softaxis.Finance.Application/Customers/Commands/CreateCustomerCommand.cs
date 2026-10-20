@@ -13,8 +13,16 @@ public sealed record CreateCustomerCommand(
     Guid?   AccountId = null,
     /// <summary>Their people to copy on invoices and receipts. Comma or semicolon separated.</summary>
     string? CcEmails  = null,
-    bool    IsActive  = true
-) : ICommand<CustomerDto>;
+    bool    IsActive  = true,
+    /// <summary>Tax registration number — a UAE TRN is 15 digits starting with 100.</summary>
+    string? Trn         = null,
+    /// <summary>Emirate code (AUH, DXB, SHJ, AJM, UAQ, RAK, FUJ).</summary>
+    string? Emirate     = null,
+    string? City        = null,
+    /// <summary>ISO 3166-1 alpha-2, e.g. AE.</summary>
+    string? CountryCode = null,
+    /// <summary>Peppol participant ID for e-invoicing.</summary>
+    string? PeppolId    = null) : ICommand<CustomerDto>;
 
 public sealed class CreateCustomerValidator : AbstractValidator<CreateCustomerCommand>
 {
@@ -35,6 +43,8 @@ public sealed class CreateCustomerValidator : AbstractValidator<CreateCustomerCo
         RuleFor(x => x.Phone)
             .MaximumLength(30).WithMessage("Phone must be ≤ 30 characters.")
             .When(x => x.Phone is not null);
+
+        CustomerTaxRules.Apply(this, x => x.Trn, x => x.Emirate, x => x.CountryCode, x => x.City, x => x.PeppolId);
 
         RuleFor(x => x.Address)
             .MaximumLength(500).WithMessage("Address must be ≤ 500 characters.")

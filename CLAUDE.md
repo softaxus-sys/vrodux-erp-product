@@ -8572,3 +8572,25 @@ The tourism side of Module 81 ("phase 2"). Committed in `eb5a7955` ("tourisim"):
 - **Missing file found and fixed:** `packages-view.tsx` imports `./new-tour-booking-drawer`, which was **never committed**, so the build failed on any checkout that did not have it. It is now written: `NewTourBookingDrawer({ prefill?: { departureId?, packageId? }, onClose, onCreated? })` — pick a package and a departure (dates and prices come from the departure) or enter a custom-dated trip; customer, adults / children / single rooms, price overrides, discount, tax, source, notes; live total; refuses more travellers than seats left; "Create & confirm" or "Save as enquiry". It posts `CreateTourBookingRequest` through `useCreateTourBooking`.
 - **Build:** frontend `tsc -p tsconfig.app.json` reports no errors in any tourism file. **Not run in a browser** and not checked against a live gateway; the request shape follows `tours.api.ts`, which mirrors the server DTOs.
 - **Not built / unknown:** whether a bookings list or a tour dashboard page exists in nav is not confirmed here; travellers are not collected in this drawer (add them from the booking afterwards).
+
+---
+
+## Module 85 — Finance: UAE VAT 201 return preparation + FTA submission seam
+
+Full details: `docs/uae-vat-integration.md`. **FTA publishes no direct VAT-return API or sandbox** (their
+Tax Accounting Software spec lists "Option 2" ITAS upload as future); so Vrodux prepares, validates,
+reconciles and generates files, and **never claims a submission** — `UnavailableUaeVatSubmissionGateway`
+records `not_available`. Manual EmaraTax filing is recorded as `filed_via_portal` with its reference.
+
+- Domain `UaeVatReturn.cs`: `UaeVatProfile` (TRN, names, emirate, agent), `VatReturn` (workflow
+  draft→validated→reconciled→approved→ready_to_submit→submitted/acknowledged/rejected | filed_via_portal),
+  `VatReturnAttempt` (append-only; filtered unique index = one `in_progress` per return).
+- `Application/UaeVat/UaeVatReturnBuilder` (pure): VAT 201 boxes, validation, GL reconciliation (account 2200,
+  AED 1 tolerance), FAF CSV (Appendix 5), XML (`certified="false"` — no FTA schema/encryption creds).
+- Source data = `VatLedger.BuildSourceLinesAsync` (same statuses/VAT math as the Tax screens; AED via
+  `GlPoster.GetRateAsync`). No second VAT engine.
+- API `api/finance/tax/uae/*` (`finance.tax.*` keys); UI = "FTA Return" tab in the Tax drawer.
+- Migration `AddUaeVatReturns` (3 additive tables). Tests: `Backend/tests/Softaxis.Finance.UaeVat.Tests`
+  (35, all offline). **Gotcha fixed:** a child with a client-set Guid added via a tracked collection is
+  UPDATEd by EF — add it to its DbSet explicitly.
+- Build: ApiGateway 0 errors · `tsc` 0 · `vite build` ✅. **Pending:** restart (migration auto-applies).

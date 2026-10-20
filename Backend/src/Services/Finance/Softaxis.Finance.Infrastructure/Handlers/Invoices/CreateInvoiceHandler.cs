@@ -19,7 +19,7 @@ internal sealed class CreateInvoiceHandler(FinanceDbContext db) : ICommandHandle
         invoice.SetRemindBeforeDue(cmd.RemindBeforeDue);
 
         foreach (var item in cmd.Items)
-            invoice.Items.Add(new InvoiceItem(invoice.Id, item.Description, item.Quantity, item.UnitPrice));
+            invoice.Items.Add(new InvoiceItem(invoice.Id, item.Description, item.Quantity, item.UnitPrice, item.TaxCategory, item.UnitCode, item.ExemptionReason));
 
         db.Invoices.Add(invoice);
         await db.SaveChangesAsync(ct);

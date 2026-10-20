@@ -22,9 +22,10 @@ internal sealed class CreateCustomerHandler(FinanceDbContext db)
                         $"Account '{cmd.AccountId}' was not found."));
         }
 
-        var customer = new Customer(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId);
+        var customer = new Customer(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId, cmd.CcEmails);
+        customer.SetTaxIdentity(cmd.Trn, cmd.Emirate, cmd.City, cmd.CountryCode, cmd.PeppolId);
         if (!cmd.IsActive)
-            customer.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId, false);
+            customer.Update(cmd.Name, cmd.Email, cmd.Phone, cmd.Address, cmd.AccountId, false, cmd.CcEmails);
 
         db.Customers.Add(customer);
         await db.SaveChangesAsync(ct);
@@ -36,6 +37,7 @@ internal sealed class CreateCustomerHandler(FinanceDbContext db)
         return Result.Success(new CustomerDto(
             customer.Id, customer.Code, customer.Name, customer.Email, customer.Phone, customer.Address,
             customer.AccountId, account?.AccountNumber, account?.Name,
-            customer.CcEmails, customer.IsActive, customer.CreatedAt, customer.UpdatedAt));
+            customer.CcEmails, customer.IsActive, customer.CreatedAt, customer.UpdatedAt,
+            customer.Trn, customer.Emirate, customer.City, customer.CountryCode, customer.PeppolId));
     }
 }

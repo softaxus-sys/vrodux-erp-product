@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
 import { useCreatePurchaseBill, useSuppliers } from "@/hooks/finance/use-finance";
 import { useCurrency, useCurrencyOptions } from "@/hooks/use-currency";
+import { useAuthStore } from "@/store/auth.store";
+import { taxForCountry } from "@/lib/onboarding/geo-data";
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -32,11 +34,20 @@ export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillForm
   const { t } = useTranslation("purchase");
   const defaultCurrency = useCurrency();
   const CURRENCIES      = useCurrencyOptions();
+  // Rates come from the workspace's country (same table as the PO / POS / Inventory forms).
+  // Only positive rates are listed here — "Non-Tax" already covers 0%. A country with no
+  // regime on file has no positive rate, so the bill defaults to Non-Tax rather than a guess.
+  const country = useAuthStore(st => st.tenant?.country);
+  const tax = React.useMemo(() => taxForCountry(country), [country]);
+  const taxRates = React.useMemo(
+    () => tax.rates.map(Number).filter(r => r > 0).sort((a, b) => b - a), [tax]);
+  const standardRate = Number(tax.standard) || 0;
+  const defaultRate  = standardRate > 0 ? standardRate : (taxRates[0] ?? 0);
   const [supplierId, setSupplierId] = React.useState("");
   const [billDate, setBillDate]     = React.useState(TODAY);
   const [dueDate, setDueDate]       = React.useState(addDays(TODAY, 30));
-  const [taxed, setTaxed]           = React.useState(true);
-  const [taxRate, setTaxRate]       = React.useState(5);
+  const [taxed, setTaxed]           = React.useState(taxRates.length > 0);
+  const [taxRate, setTaxRate]       = React.useState(defaultRate);
   const [currencyCode, setCurrencyCode] = React.useState(defaultCurrency);
   const [reference, setReference]   = React.useState("");
   const [notes, setNotes]           = React.useState("");
@@ -50,8 +61,8 @@ export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillForm
       setSupplierId("");
       setBillDate(TODAY);
       setDueDate(addDays(TODAY, 30));
-      setTaxed(true);
-      setTaxRate(5);
+      setTaxed(taxRates.length > 0);
+      setTaxRate(defaultRate);
       setCurrencyCode(defaultCurrency);
       setReference("");
       setNotes("");
@@ -156,8 +167,16 @@ export function CreatePurchaseBillForm({ open, onClose }: CreatePurchaseBillForm
                 {taxed && (
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("bills.form.taxRate")}</label>
-                    <Input type="number" min={0} max={100} step={0.5} value={taxRate}
-                      onChange={e => setTaxRate(+e.target.value)} className="h-9 text-sm" />
+                    {taxRates.length > 0 ? (
+                      <select value={taxRate} onChange={e => setTaxRate(+e.target.value)}
+                        className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
+                        {taxRates.map(r => <option key={r} value={r}>{tax.label} ({r}%)</option>)}
+                      </select>
+                    ) : (
+                      // No regime on file for this country — let the user enter what the supplier charged.
+                      <Input type="number" min={0} max={100} step={0.5} value={taxRate}
+                        onChange={e => setTaxRate(+e.target.value)} className="h-9 text-sm" />
+                    )}
                   </div>
                 )}
                 <div className="space-y-1.5">
